@@ -66,7 +66,7 @@ STABLE
 AS $$
   SELECT EXISTS (
     SELECT 1 FROM public.profiles
-    WHERE id = auth.uid() AND role = 'admin'
+    WHERE id = auth.uid() AND role IN ('admin', 'superadmin')
   );
 $$;
 
@@ -94,12 +94,15 @@ DROP POLICY IF EXISTS "Profiles: view own or admin" ON public.profiles;
 CREATE POLICY "Profiles: view own or admin"
   ON public.profiles FOR SELECT
   TO authenticated
-  USING (auth.uid() = id OR public.is_admin() OR EXISTS (
-    -- Allow members in the same project to see each other's names
-    SELECT 1 FROM public.project_members pm1
-    JOIN public.project_members pm2 ON pm1.project_id = pm2.project_id
-    WHERE pm1.user_id = auth.uid() AND pm2.user_id = profiles.id
-  ));
+  USING (
+    auth.uid() = id
+    OR public.is_admin()
+    OR EXISTS (
+      -- Allow any member to see everyone in the same entity
+      SELECT 1 FROM public.profiles me
+      WHERE me.id = auth.uid() AND me.entity_id = profiles.entity_id
+    )
+  );
 
 DROP POLICY IF EXISTS "Profiles: user can update own profile" ON public.profiles;
 CREATE POLICY "Profiles: user can update own profile"
@@ -191,9 +194,11 @@ CREATE TRIGGER on_auth_user_created
 -- Also: Projects gets start_date/end_date for calendar; invoices loses 'Munka' category
 -- ==============================================================================
 
--- 13. PROJECTS: Add calendar date columns
+-- 13. PROJECTS: Add calendar date columns + client link
 ALTER TABLE public.projects ADD COLUMN IF NOT EXISTS start_date DATE;
 ALTER TABLE public.projects ADD COLUMN IF NOT EXISTS end_date DATE;
+ALTER TABLE public.projects ADD COLUMN IF NOT EXISTS client_id UUID REFERENCES public.clients(id) ON DELETE SET NULL;
+CREATE INDEX IF NOT EXISTS idx_projects_client_id ON public.projects(client_id);
 
 -- 14. INVOICES: Remove 'Munka' category (labour is now tracked separately)
 -- First migrate existing 'Munka' invoices to 'Egyéb'
@@ -289,14 +294,22 @@ CREATE POLICY "Labour: members can delete own entry"
   ON public.labour_entries FOR DELETE TO authenticated
   USING (uploaded_by = auth.uid());
 
--- 22. POLICIES: CLIENTS (admin only write, all authenticated can read)
+-- 22. POLICIES: CLIENTS
 DROP POLICY IF EXISTS "Clients: admin full access" ON public.clients;
 CREATE POLICY "Clients: admin full access"
   ON public.clients FOR ALL TO authenticated USING (public.is_admin());
 
 DROP POLICY IF EXISTS "Clients: authenticated users can read" ON public.clients;
-CREATE POLICY "Clients: authenticated users can read"
-  ON public.clients FOR SELECT TO authenticated USING (true);
+DROP POLICY IF EXISTS "Clients: members can read entity clients" ON public.clients;
+CREATE POLICY "Clients: members can read entity clients"
+  ON public.clients FOR SELECT TO authenticated
+  USING (
+    public.is_admin()
+    OR EXISTS (
+      SELECT 1 FROM public.profiles
+      WHERE profiles.id = auth.uid() AND profiles.entity_id = clients.entity_id
+    )
+  );
 
 -- 23. POLICIES: QUOTES
 DROP POLICY IF EXISTS "Quotes: admin full access" ON public.quotes;
@@ -304,8 +317,14 @@ CREATE POLICY "Quotes: admin full access"
   ON public.quotes FOR ALL TO authenticated USING (public.is_admin());
 
 DROP POLICY IF EXISTS "Quotes: authenticated users can read" ON public.quotes;
-CREATE POLICY "Quotes: authenticated users can read"
-  ON public.quotes FOR SELECT TO authenticated USING (true);
+DROP POLICY IF EXISTS "Quotes: visible to creator, shared members and admin" ON public.quotes;
+CREATE POLICY "Quotes: visible to creator, shared members and admin"
+  ON public.quotes FOR SELECT TO authenticated
+  USING (
+    public.is_admin()
+    OR created_by = auth.uid()
+    OR auth.uid() = ANY(shared_with)
+  );
 
 DROP POLICY IF EXISTS "Quotes: authenticated users can insert" ON public.quotes;
 CREATE POLICY "Quotes: authenticated users can insert"
@@ -313,9 +332,10 @@ CREATE POLICY "Quotes: authenticated users can insert"
   WITH CHECK (created_by = auth.uid());
 
 DROP POLICY IF EXISTS "Quotes: creator can update status" ON public.quotes;
-CREATE POLICY "Quotes: creator can update status"
+DROP POLICY IF EXISTS "Quotes: creator or admin can update" ON public.quotes;
+CREATE POLICY "Quotes: creator or admin can update"
   ON public.quotes FOR UPDATE TO authenticated
-  USING (created_by = auth.uid());
+  USING (public.is_admin() OR created_by = auth.uid());
 
 -- 24. POLICIES: QUOTE_ENTRIES
 DROP POLICY IF EXISTS "Quote entries: admin full access" ON public.quote_entries;
@@ -323,13 +343,42 @@ CREATE POLICY "Quote entries: admin full access"
   ON public.quote_entries FOR ALL TO authenticated USING (public.is_admin());
 
 DROP POLICY IF EXISTS "Quote entries: authenticated users can read" ON public.quote_entries;
-CREATE POLICY "Quote entries: authenticated users can read"
-  ON public.quote_entries FOR SELECT TO authenticated USING (true);
+DROP POLICY IF EXISTS "Quote entries: visible on accessible quotes" ON public.quote_entries;
+CREATE POLICY "Quote entries: visible on accessible quotes"
+  ON public.quote_entries FOR SELECT TO authenticated
+  USING (
+    public.is_admin()
+    OR EXISTS (
+      SELECT 1 FROM public.quotes
+      WHERE quotes.id = quote_entries.quote_id
+        AND (quotes.created_by = auth.uid() OR auth.uid() = ANY(quotes.shared_with))
+    )
+  );
 
 DROP POLICY IF EXISTS "Quote entries: authenticated users can insert own" ON public.quote_entries;
-CREATE POLICY "Quote entries: authenticated users can insert own"
+DROP POLICY IF EXISTS "Quote entries: insert own on visible quote" ON public.quote_entries;
+CREATE POLICY "Quote entries: insert own on visible quote"
   ON public.quote_entries FOR INSERT TO authenticated
-  WITH CHECK (user_id = auth.uid());
+  WITH CHECK (
+    user_id = auth.uid()
+    AND EXISTS (
+      SELECT 1 FROM public.quotes
+      WHERE quotes.id = quote_entries.quote_id
+        AND (public.is_admin() OR quotes.created_by = auth.uid() OR auth.uid() = ANY(quotes.shared_with))
+    )
+  );
+
+DROP POLICY IF EXISTS "Quote entries: users can update own on visible quote" ON public.quote_entries;
+CREATE POLICY "Quote entries: users can update own on visible quote"
+  ON public.quote_entries FOR UPDATE TO authenticated
+  USING (
+    user_id = auth.uid()
+    AND EXISTS (
+      SELECT 1 FROM public.quotes
+      WHERE quotes.id = quote_entries.quote_id
+        AND (public.is_admin() OR quotes.created_by = auth.uid() OR auth.uid() = ANY(quotes.shared_with))
+    )
+  );
 
 DROP POLICY IF EXISTS "Quote entries: users can delete own" ON public.quote_entries;
 CREATE POLICY "Quote entries: users can delete own"

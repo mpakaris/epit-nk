@@ -5,18 +5,19 @@ import Link from 'next/link';
 import { useApp } from '@/context/AppContext';
 import { formatHUF, formatDate } from '@/lib/constants';
 import StatCard from '@/components/StatCard';
-import { 
-  Users, 
-  FolderKanban, 
-  Receipt, 
-  Coins, 
-  Plus, 
-  ArrowUpRight, 
+import CalendarWidget from '@/components/CalendarWidget';
+import {
+  Users,
+  FolderKanban,
+  Receipt,
+  Coins,
+  Plus,
+  ArrowUpRight,
   ShieldCheck
 } from 'lucide-react';
 
 export default function AdminDashboardPage() {
-  const { isAdmin, projects, users, invoices } = useApp();
+  const { isAdmin, isSuperAdmin, impersonating, projects, users, invoices } = useApp();
 
   if (!isAdmin) {
     return (
@@ -65,29 +66,40 @@ export default function AdminDashboardPage() {
           value={formatHUF(totalHufSpent)}
           sub="Összes projekt forgalma"
           icon={Coins}
+          href="/admin/projektek"
         />
         <StatCard
           label="Aktív projektek"
           value={totalProjects}
           sub="Építkezések száma"
           icon={FolderKanban}
+          href="/admin/projektek"
         />
         <StatCard
           label="Felhasználók"
           value={totalUsers}
           sub="Rendszertagok"
           icon={Users}
+          href="/admin/felhasznalok"
         />
         <StatCard
           label="Rögzített számlák"
           value={totalInvoices}
           sub="Bizonylatok száma"
           icon={Receipt}
+          href="/admin/projektek"
         />
       </div>
 
+      {/* Calendar widget — only for entity context, not bare superadmin */}
+      {!(isSuperAdmin && !impersonating) && (
+        <div style={{ marginBottom: '1.5rem' }}>
+          <CalendarWidget />
+        </div>
+      )}
+
       {/* Projects & Invoices layout */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1rem', marginBottom: '2rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(320px, 100%), 1fr))', gap: '1rem', marginBottom: '2rem' }}>
         {/* Projects card */}
         <div className="card">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.85rem' }}>

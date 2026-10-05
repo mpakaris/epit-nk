@@ -135,14 +135,15 @@ export default function ProjectDetailPage() {
         </div>
       </div>
 
-      {/* Member Breakdown Table */}
+      {/* Member Breakdown — desktop table / mobile cards */}
       <div className="card mb-6">
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.85rem' }}>
           <Users size={18} color="var(--accent)" />
           <h3 style={{ fontSize: '1rem', fontWeight: 800 }}>Résztvevők elszámolása</h3>
         </div>
 
-        <div className="table-container">
+        {/* Desktop table */}
+        <div className="table-container member-table-desktop">
           <table className="custom-table">
             <thead>
               <tr>
@@ -183,7 +184,44 @@ export default function ProjectDetailPage() {
           </table>
         </div>
 
-        {/* Balance explanation */}
+        {/* Mobile cards */}
+        <div className="member-cards-mobile">
+          {fin.memberBreakdown.map(member => (
+            <div key={member.userId} className="member-card-row">
+              <div className="member-card-name">
+                {member.displayName}
+                {member.userId === currentUser?.id && (
+                  <span style={{ marginLeft: '0.4rem', fontSize: '0.675rem', color: 'var(--accent)', background: 'var(--accent-light)', padding: '0.1rem 0.35rem', borderRadius: 'var(--radius-pill)', fontWeight: 700 }}>Ön</span>
+                )}
+              </div>
+              <div className="member-card-field">
+                <span className="member-card-label">Kifizetve</span>
+                <span className="member-card-value">{formatHUF(member.paid)}</span>
+              </div>
+              <div className="member-card-field">
+                <span className="member-card-label">Munkadíj</span>
+                <span className="member-card-value" style={{ color: 'var(--success-text)' }}>+{formatHUF(member.labourValue)}</span>
+              </div>
+              <div className="member-card-field">
+                <span className="member-card-label">Rá eső rész</span>
+                <span className="member-card-value" style={{ color: 'var(--text-secondary)' }}>{formatHUF(fin.equalCostShare)}</span>
+              </div>
+              <div className="member-card-field">
+                <span className="member-card-label">Egyenleg</span>
+                <span>
+                  {member.balance > 0 ? (
+                    <span className="balance-pill positive" style={{ fontSize: '0.725rem', padding: '0.15rem 0.5rem' }}><TrendingUp size={11} /> +{formatHUF(member.balance)}</span>
+                  ) : member.balance < 0 ? (
+                    <span className="balance-pill negative" style={{ fontSize: '0.725rem', padding: '0.15rem 0.5rem' }}><TrendingDown size={11} /> {formatHUF(member.balance)}</span>
+                  ) : (
+                    <span className="balance-pill neutral" style={{ fontSize: '0.725rem', padding: '0.15rem 0.5rem' }}><CheckCircle2 size={11} /> 0 Ft</span>
+                  )}
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+
         {(fin.totalLabourValue > 0) && (
           <div style={{ marginTop: '0.75rem', padding: '0.65rem 0.85rem', borderRadius: 'var(--radius-md)', background: 'var(--bg-subtle)', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
             <strong>Egyenleg = </strong> (Kifizetve − Kiadásrész) + (Munkadíj − Munkadíjrész)
@@ -207,14 +245,14 @@ export default function ProjectDetailPage() {
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
             {fin.settlements.map((s, i) => (
-              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', background: 'var(--bg-subtle)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: '0.75rem 1rem', flexWrap: 'wrap' }}>
-                <span style={{ fontWeight: 700, color: 'var(--danger-text)', minWidth: '6rem' }}>{s.from}</span>
+              <div key={i} className="settlement-row">
+                <span style={{ fontWeight: 700, color: 'var(--danger-text)' }}>{s.from}</span>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
                   <span>fizet</span>
                   <ArrowRight size={14} />
                 </div>
-                <span style={{ fontWeight: 700, color: 'var(--success-text)', minWidth: '6rem' }}>{s.to}</span>
-                <span style={{ marginLeft: 'auto', fontWeight: 800, fontSize: '1rem', color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{formatHUF(s.amount)}</span>
+                <span style={{ fontWeight: 700, color: 'var(--success-text)' }}>{s.to}</span>
+                <span className="settlement-amount" style={{ marginLeft: 'auto', fontWeight: 800, fontSize: '1rem', color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{formatHUF(s.amount)}</span>
               </div>
             ))}
           </div>
@@ -274,7 +312,7 @@ export default function ProjectDetailPage() {
               <Link href={`/projektek/${project.id}/feltoltes`} className="btn btn-primary btn-sm"><Plus size={15} /> Számla hozzáadása</Link>
             </div>
           ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '0.85rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(300px, 100%), 1fr))', gap: '0.85rem' }}>
               {filteredInvoices.map(inv => (
                 <InvoiceCard key={inv.id} invoice={inv} isAdmin={isAdmin} onDelete={isAdmin ? handleDeleteInvoice : null} />
               ))}

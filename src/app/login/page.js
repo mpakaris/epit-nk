@@ -5,7 +5,7 @@ import { useApp } from '@/context/AppContext';
 import { Building2, Lock, Mail, AlertCircle, Shield, User } from 'lucide-react';
 
 export default function LoginPage() {
-  const { login, isConfigured } = useApp();
+  const { login } = useApp();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -22,11 +22,6 @@ export default function LoginPage() {
     } finally {
       setIsSubmitting(false);
     }
-  };
-
-  const handleQuickFill = (fillEmail, fillPass) => {
-    setEmail(fillEmail);
-    setPassword(fillPass);
   };
 
   return (
@@ -127,23 +122,6 @@ export default function LoginPage() {
           </button>
         </form>
 
-        {/* Quick Admin test helper */}
-        <div style={{ marginTop: '1.5rem', paddingTop: '1rem', borderTop: '1px solid var(--border-subtle)', textAlign: 'center' }}>
-          <button
-            type="button"
-            onClick={() => handleQuickFill('admin@epitek.hu', 'Admin1234!')}
-            style={{
-              background: 'transparent',
-              border: 'none',
-              color: 'var(--accent)',
-              fontSize: '0.8rem',
-              fontWeight: 600,
-              cursor: 'pointer'
-            }}
-          >
-            Admin fiók adatok kitöltése (admin@epitek.hu)
-          </button>
-        </div>
       </div>
     </div>
   );

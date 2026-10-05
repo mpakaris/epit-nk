@@ -1,9 +1,28 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { createClient } from '@/lib/supabase/server';
 
 export async function POST(request) {
   try {
-    const { displayName, email, password, role = 'user' } = await request.json();
+    // 1. Identify the caller
+    const serverClient = await createClient();
+    const { data: { user: caller } } = await serverClient.auth.getUser();
+    if (!caller) {
+      return NextResponse.json({ error: 'Bejelentkezés szükséges!' }, { status: 401 });
+    }
+
+    const adminClient = createAdminClient();
+    const { data: callerProfile } = await adminClient
+      .from('profiles')
+      .select('*')
+      .eq('id', caller.id)
+      .single();
+
+    if (!callerProfile || !['admin', 'superadmin'].includes(callerProfile.role)) {
+      return NextResponse.json({ error: 'Nincs jogosultsága!' }, { status: 403 });
+    }
+
+    const { displayName, email, password, role = 'user', entityId } = await request.json();
 
     if (!displayName || !email || !password) {
       return NextResponse.json(
@@ -12,16 +31,28 @@ export async function POST(request) {
       );
     }
 
-    const adminClient = createAdminClient();
+    // 2. Determine final entity_id and role based on caller's permissions
+    let finalEntityId;
+    let finalRole;
 
-    // 1. Create user in Supabase Auth
+    if (callerProfile.role === 'superadmin') {
+      finalEntityId = entityId || null;
+      finalRole = role;
+    } else {
+      // Entity admin: can only create 'user' role within their own entity
+      finalEntityId = callerProfile.entity_id;
+      finalRole = 'user';
+    }
+
+    // 3. Create auth user
     const { data: authData, error: authError } = await adminClient.auth.admin.createUser({
       email,
       password,
       email_confirm: true,
       user_metadata: {
         display_name: displayName,
-        role: role,
+        role: finalRole,
+        entity_id: finalEntityId,
         must_change_password: true
       }
     });
@@ -30,15 +61,15 @@ export async function POST(request) {
       return NextResponse.json({ error: authError.message }, { status: 400 });
     }
 
-    // 2. Ensure profile exists in profiles table
+    // 4. Upsert profile (trigger should handle it, but upsert to be safe)
     const { error: profileError } = await adminClient
       .from('profiles')
       .upsert({
         id: authData.user.id,
         display_name: displayName,
-        role: role,
-        must_change_password: true,
-        created_at: new Date().toISOString()
+        role: finalRole,
+        entity_id: finalEntityId,
+        must_change_password: true
       });
 
     if (profileError) {
@@ -51,7 +82,8 @@ export async function POST(request) {
         id: authData.user.id,
         email,
         display_name: displayName,
-        role,
+        role: finalRole,
+        entity_id: finalEntityId,
         must_change_password: true
       }
     });

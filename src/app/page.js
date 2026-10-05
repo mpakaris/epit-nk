@@ -14,6 +14,8 @@ export default function HomePage() {
         router.replace('/login');
       } else if (currentUser.must_change_password) {
         router.replace('/change-password');
+      } else if (currentUser.role === 'superadmin') {
+        router.replace('/superadmin');
       } else if (currentUser.role === 'admin') {
         router.replace('/admin');
       } else {
