@@ -12,7 +12,7 @@ export async function POST(request) {
 
   const { name, description, memberIds = [], startDate, endDate, clientId, entityId } = await request.json();
 
-  const targetEntityId = entityId || profile.entity_id;
+  const targetEntityId = profile.role === 'superadmin' ? (entityId || null) : profile.entity_id;
   if (!targetEntityId) return Response.json({ error: 'Nincs entitás hozzárendelve!' }, { status: 400 });
   if (!name?.trim()) return Response.json({ error: 'A projekt neve kötelező!' }, { status: 400 });
 

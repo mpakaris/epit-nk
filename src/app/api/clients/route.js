@@ -12,7 +12,8 @@ export async function POST(request) {
     return Response.json({ error: 'Forbidden' }, { status: 403 });
 
   const { name, address, phone, email, notes, discountPercent = 0, entityId } = await request.json();
-  const targetEntityId = entityId || profile.entity_id;
+  // Entity admins always use their own entity; superadmin can pass an explicit entityId
+  const targetEntityId = profile.role === 'superadmin' ? (entityId || null) : profile.entity_id;
   if (!targetEntityId) return Response.json({ error: 'Nincs entitás hozzárendelve!' }, { status: 400 });
   if (!name?.trim()) return Response.json({ error: 'A név megadása kötelező!' }, { status: 400 });
 
