@@ -31,7 +31,10 @@ export async function PATCH(request, { params }) {
   for (const k of allowed) if (k in fields) update[k] = fields[k];
 
   const { data, error } = await ctx.admin.from('projects').update(update).eq('id', id).select().single();
-  if (error) return Response.json({ error: error.message }, { status: 400 });
+  if (error) {
+    if (error.code === '23503') return Response.json({ error: 'A kiválasztott ügyfél már nem létezik. Válasszon másikat, vagy hagyja üresen.' }, { status: 400 });
+    return Response.json({ error: error.message }, { status: 400 });
+  }
   return Response.json({ project: data });
 }
 

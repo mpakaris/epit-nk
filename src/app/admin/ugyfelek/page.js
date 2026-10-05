@@ -21,7 +21,7 @@ import {
 } from 'lucide-react';
 
 export default function AdminClientsPage() {
-  const { isAdmin, clients, quotes, projects, createClient, updateClient, deleteClient } = useApp();
+  const { isAdmin, effectiveEntityId, clients, quotes, projects, createClient, updateClient, deleteClient } = useApp();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -111,7 +111,8 @@ export default function AdminClientsPage() {
           phone: formPhone.trim(),
           email: formEmail.trim(),
           notes: formNotes.trim(),
-          discountPercent: parseFloat(formDiscount) || 0
+          discountPercent: parseFloat(formDiscount) || 0,
+          entityId: effectiveEntityId,
         });
         setSuccessMsg('Ügyfél sikeresen létrehozva.');
       }

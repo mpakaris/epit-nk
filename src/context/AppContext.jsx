@@ -12,7 +12,7 @@ export function AppProvider({ children }) {
 
   // Auth state
   const [currentUser, setCurrentUser] = useState(null);   // real authenticated user
-  const [impersonating, setImpersonating] = useState(null); // god mode: Profile being impersonated
+  const [impersonating, setImpersonating] = useState(null);
   const [loading, setLoading] = useState(true);
 
   // Data
@@ -29,8 +29,14 @@ export function AppProvider({ children }) {
   const effectiveUser = impersonating || currentUser;
   const isSuperAdmin = currentUser?.role === 'superadmin';
   const isAdmin = ['admin', 'superadmin'].includes(effectiveUser?.role);
-  // entity_id of the "active" context (null when superadmin not impersonating)
-  const effectiveEntityId = effectiveUser?.role === 'superadmin' ? null : effectiveUser?.entity_id;
+  // entity_id of the active context — falls back to single entity if superadmin has none set
+  const effectiveEntityId = (() => {
+    if (effectiveUser?.role !== 'superadmin') return effectiveUser?.entity_id ?? null;
+    if (impersonating) return impersonating.entity_id ?? null;
+    if (currentUser?.entity_id) return currentUser.entity_id;
+    if (entities.length === 1) return entities[0].id;
+    return null;
+  })();
 
   const uid = effectiveUser?.id;
   // True if the *effective* user (real or impersonated) has admin-level access
@@ -117,6 +123,18 @@ export function AppProvider({ children }) {
 
     return () => subscription.unsubscribe();
   }, []);
+
+  useEffect(() => {
+    try {
+      const saved = sessionStorage.getItem('god_mode');
+      if (saved) setImpersonating(JSON.parse(saved));
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    if (impersonating) sessionStorage.setItem('god_mode', JSON.stringify(impersonating));
+    else sessionStorage.removeItem('god_mode');
+  }, [impersonating]);
 
   const refreshSupabaseData = async (userOverride) => {
     const user = userOverride || currentUser;
@@ -680,6 +698,7 @@ export function AppProvider({ children }) {
         impersonating,
         isSuperAdmin,
         isAdmin,
+        effectiveEntityId,
         loading,
         // God Mode
         startImpersonation,

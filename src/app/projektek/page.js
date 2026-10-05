@@ -10,7 +10,7 @@ import CalendarWidget from '@/components/CalendarWidget';
 import Modal from '@/components/Modal';
 
 export default function ProjectsListPage() {
-  const { currentUser, projects, invoices, labourEntries, users, isAdmin, isSuperAdmin, impersonating, createProject } = useApp();
+  const { currentUser, projects, invoices, labourEntries, users, isAdmin, isSuperAdmin, impersonating, effectiveEntityId, createProject } = useApp();
 
   const [showCreate, setShowCreate] = useState(false);
   const [projName, setProjName] = useState('');
@@ -35,7 +35,7 @@ export default function ProjectsListPage() {
     setError('');
     setIsSubmitting(true);
     try {
-      await createProject({ name: projName, description: projDesc, memberIds, startDate: projStart || null, endDate: projEnd || null });
+      await createProject({ name: projName, description: projDesc, memberIds, startDate: projStart || null, endDate: projEnd || null, entityId: effectiveEntityId });
       setShowCreate(false);
     } catch (err) {
       setError(err.message || 'Hiba a projekt létrehozásakor');

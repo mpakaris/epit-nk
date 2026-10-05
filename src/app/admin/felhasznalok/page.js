@@ -7,7 +7,7 @@ import { formatDate } from '@/lib/constants';
 import Modal, { ConfirmModal, AlertModal } from '@/components/Modal';
 import { UserPlus, Trash2, Lock, CheckCircle2, ArrowLeft, AlertCircle, RotateCcw } from 'lucide-react';
 
-function CreateUserModal({ isOpen, onClose, createUser, onSuccess }) {
+function CreateUserModal({ isOpen, onClose, createUser, effectiveEntityId, onSuccess }) {
   const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('Epitek2026!');
@@ -23,7 +23,7 @@ function CreateUserModal({ isOpen, onClose, createUser, onSuccess }) {
     setError('');
     setSubmitting(true);
     try {
-      await createUser({ displayName, email, password, role: 'user' });
+      await createUser({ displayName, email, password, role: 'user', entityId: effectiveEntityId });
       onSuccess(`"${displayName}" sikeresen létrehozva! Kezdő jelszó: ${password}`);
       reset();
       onClose();
@@ -114,7 +114,7 @@ function ResetPasswordModal({ isOpen, onClose, targetUser, resetUserPassword, on
 }
 
 export default function AdminUsersPage() {
-  const { currentUser, isAdmin, isSuperAdmin, impersonating, users, invoices, createUser, deleteUser, resetUserPassword } = useApp();
+  const { currentUser, isAdmin, isSuperAdmin, impersonating, effectiveEntityId, users, invoices, createUser, deleteUser, resetUserPassword } = useApp();
 
   const [createOpen, setCreateOpen] = useState(false);
   const [resetTarget, setResetTarget] = useState(null);
@@ -227,7 +227,7 @@ export default function AdminUsersPage() {
         </table>
       </div>
 
-      <CreateUserModal isOpen={createOpen} onClose={() => setCreateOpen(false)} createUser={createUser} onSuccess={msg => setSuccessMsg(msg)} />
+      <CreateUserModal isOpen={createOpen} onClose={() => setCreateOpen(false)} createUser={createUser} effectiveEntityId={effectiveEntityId} onSuccess={msg => setSuccessMsg(msg)} />
       <ResetPasswordModal isOpen={!!resetTarget} onClose={() => setResetTarget(null)} targetUser={resetTarget} resetUserPassword={resetUserPassword} onSuccess={msg => setSuccessMsg(msg)} />
       <ConfirmModal isOpen={!!confirmModal} onClose={() => setConfirmModal(null)} onConfirm={() => confirmModal?.onConfirm()} title={confirmModal?.title || 'Megerősítés'} message={confirmModal?.message} />
       <AlertModal isOpen={!!alertModal} onClose={() => setAlertModal(null)} title={alertModal?.title} message={alertModal?.message} />

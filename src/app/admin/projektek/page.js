@@ -7,12 +7,15 @@ import { formatHUF } from '@/lib/constants';
 import Modal, { ConfirmModal, AlertModal } from '@/components/Modal';
 import {
   FolderKanban, Plus, Users, Trash2, UserCheck,
-  ArrowUpRight, ArrowLeft, AlertCircle, CheckCircle2, User, Edit3
+  ArrowUpRight, ArrowLeft, AlertCircle, CheckCircle2, User, Edit3, ChevronUp
 } from 'lucide-react';
+
+const today = () => new Date().toISOString().split('T')[0];
+const nextDay = (d) => { const dt = new Date(d); dt.setDate(dt.getDate() + 1); return dt.toISOString().split('T')[0]; };
 
 // ---- Isolated modal components — each manages its own form state ----
 
-function CreateProjectModal({ isOpen, onClose, users, clients, currentUser, createProject, createClient, onSuccess }) {
+function CreateProjectModal({ isOpen, onClose, users, clients, currentUser, effectiveEntityId, createProject, createClient, onSuccess }) {
   const [name, setName] = useState('');
   const [desc, setDesc] = useState('');
   const [startDate, setStartDate] = useState('');
@@ -34,12 +37,17 @@ function CreateProjectModal({ isOpen, onClose, users, clients, currentUser, crea
   const reset = () => {
     setName(''); setDesc(''); setStartDate(''); setEndDate('');
     setClientId(''); setMemberIds(currentUser ? [currentUser.id] : []);
-    setError('');
+    setError(''); setShowNewClient(false);
   };
 
-  const handleOpen = () => { reset(); };
+  React.useEffect(() => { if (isOpen) reset(); }, [isOpen]);
 
   if (!isOpen) return null;
+
+  // Always include currentUser in the list even if RLS filtered them out
+  const memberList = currentUser && !users.find(u => u.id === currentUser.id)
+    ? [currentUser, ...users]
+    : users;
 
   const toggle = (uid) => setMemberIds(prev =>
     prev.includes(uid) ? prev.filter(id => id !== uid) : [...prev, uid]
@@ -50,7 +58,7 @@ function CreateProjectModal({ isOpen, onClose, users, clients, currentUser, crea
     setError('');
     setSubmitting(true);
     try {
-      await createProject({ name: name.trim(), description: desc.trim(), memberIds, startDate: startDate || null, endDate: endDate || null, clientId: clientId || null });
+      await createProject({ name: name.trim(), description: desc.trim(), memberIds, startDate: startDate || null, endDate: endDate || null, clientId: clientId || null, entityId: effectiveEntityId });
       onSuccess(`"${name.trim()}" projekt létrehozva!`);
       onClose();
       reset();
@@ -67,7 +75,7 @@ function CreateProjectModal({ isOpen, onClose, users, clients, currentUser, crea
     if (!clientName.trim()) { setClientError('A név megadása kötelező!'); return; }
     setClientSaving(true);
     try {
-      const c = await createClient({ name: clientName.trim(), phone: clientPhone.trim(), email: clientEmail.trim(), address: clientAddr.trim() });
+      const c = await createClient({ name: clientName.trim(), phone: clientPhone.trim(), email: clientEmail.trim(), address: clientAddr.trim(), entityId: effectiveEntityId });
       setClientId(c.id);
       setShowNewClient(false);
       setClientName(''); setClientPhone(''); setClientEmail(''); setClientAddr('');
@@ -100,11 +108,11 @@ function CreateProjectModal({ isOpen, onClose, users, clients, currentUser, crea
           <div className="grid-2col">
             <div className="form-group">
               <label className="form-label" htmlFor="cp-start">Kezdés *</label>
-              <input id="cp-start" type="date" required className="form-control" value={startDate} onChange={e => setStartDate(e.target.value)} />
+              <input id="cp-start" type="date" required className="form-control" min={today()} value={startDate} onChange={e => { const v = e.target.value; setStartDate(v); if (v && (!endDate || endDate <= v)) setEndDate(nextDay(v)); }} />
             </div>
             <div className="form-group">
               <label className="form-label" htmlFor="cp-end">Befejezés *</label>
-              <input id="cp-end" type="date" required className="form-control" min={startDate || undefined} value={endDate} onChange={e => setEndDate(e.target.value)} />
+              <input id="cp-end" type="date" required className="form-control" min={startDate ? nextDay(startDate) : today()} value={endDate} onChange={e => setEndDate(e.target.value)} />
             </div>
           </div>
           <div className="form-group">
@@ -127,7 +135,7 @@ function CreateProjectModal({ isOpen, onClose, users, clients, currentUser, crea
           <div className="form-group" style={{ marginBottom: '1.25rem' }}>
             <label className="form-label">Résztvevők</label>
             <div style={{ maxHeight: '160px', overflowY: 'auto', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: '0.4rem' }}>
-              {users.map(u => (
+              {memberList.map(u => (
                 <label key={u.id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.35rem 0.45rem', borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontSize: '0.825rem' }}>
                   <input type="checkbox" checked={memberIds.includes(u.id)} onChange={() => toggle(u.id)} />
                   <span style={{ fontWeight: 600 }}>{u.display_name}</span>
@@ -163,7 +171,7 @@ function CreateProjectModal({ isOpen, onClose, users, clients, currentUser, crea
   );
 }
 
-function EditProjectModal({ isOpen, onClose, project, clients, updateProject, onSuccess }) {
+function EditProjectModal({ isOpen, onClose, project, clients, effectiveEntityId, updateProject, createClient, onSuccess }) {
   const [name, setName] = useState(project?.name || '');
   const [desc, setDesc] = useState(project?.description || '');
   const [startDate, setStartDate] = useState(project?.start_date || '');
@@ -172,7 +180,14 @@ function EditProjectModal({ isOpen, onClose, project, clients, updateProject, on
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  // Sync when project changes (different project opened)
+  const [showNewClient, setShowNewClient] = useState(false);
+  const [newClientName, setNewClientName] = useState('');
+  const [newClientPhone, setNewClientPhone] = useState('');
+  const [newClientEmail, setNewClientEmail] = useState('');
+  const [newClientAddr, setNewClientAddr] = useState('');
+  const [newClientError, setNewClientError] = useState('');
+  const [creatingClient, setCreatingClient] = useState(false);
+
   React.useEffect(() => {
     if (project) {
       setName(project.name || '');
@@ -181,10 +196,27 @@ function EditProjectModal({ isOpen, onClose, project, clients, updateProject, on
       setEndDate(project.end_date || '');
       setClientId(project.client_id || '');
       setError('');
+      setShowNewClient(false);
     }
-  }, [project?.id]);
+  }, [project?.id, isOpen]);
 
   if (!isOpen || !project) return null;
+
+  const handleCreateClient = async () => {
+    setNewClientError('');
+    if (!newClientName.trim()) { setNewClientError('A név megadása kötelező!'); return; }
+    setCreatingClient(true);
+    try {
+      const c = await createClient({ name: newClientName.trim(), phone: newClientPhone.trim(), email: newClientEmail.trim(), address: newClientAddr.trim(), entityId: effectiveEntityId || project.entity_id });
+      setClientId(c.id);
+      setShowNewClient(false);
+      setNewClientName(''); setNewClientPhone(''); setNewClientEmail(''); setNewClientAddr('');
+    } catch (err) {
+      setNewClientError(err.message || 'Hiba az ügyfél létrehozásakor');
+    } finally {
+      setCreatingClient(false);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -208,16 +240,37 @@ function EditProjectModal({ isOpen, onClose, project, clients, updateProject, on
         <div className="form-group"><label className="form-label" htmlFor="ep-name">Projekt neve *</label><input id="ep-name" type="text" required className="form-control" value={name} onChange={e => setName(e.target.value)} /></div>
         <div className="form-group"><label className="form-label" htmlFor="ep-desc">Leírás</label><textarea id="ep-desc" rows={2} className="form-control" value={desc} onChange={e => setDesc(e.target.value)} /></div>
         <div className="grid-2col">
-          <div className="form-group" style={{ marginBottom: 0 }}><label className="form-label" htmlFor="ep-start">Kezdés</label><input id="ep-start" type="date" className="form-control" value={startDate} onChange={e => setStartDate(e.target.value)} /></div>
-          <div className="form-group" style={{ marginBottom: 0 }}><label className="form-label" htmlFor="ep-end">Befejezés</label><input id="ep-end" type="date" className="form-control" min={startDate || undefined} value={endDate} onChange={e => setEndDate(e.target.value)} /></div>
+          <div className="form-group" style={{ marginBottom: 0 }}><label className="form-label" htmlFor="ep-start">Kezdés</label><input id="ep-start" type="date" className="form-control" min={today()} value={startDate} onChange={e => { const v = e.target.value; setStartDate(v); if (v && (!endDate || endDate <= v)) setEndDate(nextDay(v)); }} /></div>
+          <div className="form-group" style={{ marginBottom: 0 }}><label className="form-label" htmlFor="ep-end">Befejezés</label><input id="ep-end" type="date" className="form-control" min={startDate ? nextDay(startDate) : today()} value={endDate} onChange={e => setEndDate(e.target.value)} /></div>
         </div>
-        <div className="form-group" style={{ marginTop: '0.75rem', marginBottom: '1.25rem' }}>
+        <div className="form-group" style={{ marginTop: '0.75rem', marginBottom: showNewClient ? '0.5rem' : '1.25rem' }}>
           <label className="form-label" htmlFor="ep-client">Megrendelő</label>
-          <select id="ep-client" className="form-control" value={clientId} onChange={e => setClientId(e.target.value)}>
-            <option value="">– Ügyfél nélkül –</option>
-            {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-          </select>
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+            <select id="ep-client" className="form-control" style={{ flex: 1 }} value={clientId} onChange={e => setClientId(e.target.value)}>
+              <option value="">– Ügyfél nélkül –</option>
+              {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+            <button type="button" className="btn btn-secondary btn-sm" style={{ whiteSpace: 'nowrap', flexShrink: 0 }} onClick={() => { setShowNewClient(v => !v); setNewClientError(''); }}>
+              {showNewClient ? <ChevronUp size={14} /> : <Plus size={14} />} {showNewClient ? 'Bezár' : 'Új ügyfél'}
+            </button>
+          </div>
         </div>
+        {showNewClient && (
+          <div style={{ border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: '0.85rem', marginBottom: '1.25rem', background: 'var(--bg-subtle)' }}>
+            <div style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '0.65rem' }}>Új ügyfél</div>
+            {newClientError && <div style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', color: 'var(--danger-text)', padding: '0.5rem 0.65rem', borderRadius: 'var(--radius-md)', fontSize: '0.8rem', marginBottom: '0.65rem' }}>{newClientError}</div>}
+            <div className="form-group"><label className="form-label">Név *</label><input type="text" className="form-control" value={newClientName} onChange={e => setNewClientName(e.target.value)} placeholder="pl. Horváth Béla" /></div>
+            <div className="grid-2col">
+              <div className="form-group" style={{ margin: 0 }}><label className="form-label">Telefon</label><input type="tel" className="form-control" value={newClientPhone} onChange={e => setNewClientPhone(e.target.value)} placeholder="+36 70 …" /></div>
+              <div className="form-group" style={{ margin: 0 }}><label className="form-label">E-mail</label><input type="email" className="form-control" value={newClientEmail} onChange={e => setNewClientEmail(e.target.value)} placeholder="email@…" /></div>
+            </div>
+            <div className="form-group" style={{ marginTop: '0.65rem', marginBottom: '0.65rem' }}><label className="form-label">Cím</label><input type="text" className="form-control" value={newClientAddr} onChange={e => setNewClientAddr(e.target.value)} placeholder="Irányítószám, Város, utca" /></div>
+            <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+              <button type="button" className="btn btn-secondary btn-sm" onClick={() => { setShowNewClient(false); setNewClientError(''); }}>Mégse</button>
+              <button type="button" className="btn btn-primary btn-sm" disabled={creatingClient} onClick={handleCreateClient}>{creatingClient ? 'Létrehozás...' : 'Ügyfél létrehozása'}</button>
+            </div>
+          </div>
+        )}
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
           <button type="button" className="btn btn-secondary btn-sm" onClick={onClose}>Mégse</button>
           <button type="submit" className="btn btn-primary btn-sm" disabled={submitting}>{submitting ? 'Mentés...' : 'Mentés'}</button>
@@ -281,7 +334,7 @@ function AssignMembersModal({ isOpen, onClose, project, users, updateProjectMemb
 // ---- Page component — only tracks which modal is open, no form state ----
 
 export default function AdminProjectsPage() {
-  const { currentUser, isAdmin, projects, users, clients, invoices, createProject, createClient, updateProject, updateProjectMembers, deleteProject } = useApp();
+  const { currentUser, isAdmin, effectiveEntityId, projects, users, clients, invoices, createProject, createClient, updateProject, updateProjectMembers, deleteProject } = useApp();
 
   const [createOpen, setCreateOpen] = useState(false);
   const [editProject, setEditProject] = useState(null);
@@ -401,6 +454,7 @@ export default function AdminProjectsPage() {
         users={users}
         clients={clients}
         currentUser={currentUser}
+        effectiveEntityId={effectiveEntityId}
         createProject={createProject}
         createClient={createClient}
         onSuccess={msg => setSuccessMsg(msg)}
@@ -410,7 +464,9 @@ export default function AdminProjectsPage() {
         onClose={() => setEditProject(null)}
         project={editProject}
         clients={clients}
+        effectiveEntityId={effectiveEntityId}
         updateProject={updateProject}
+        createClient={createClient}
         onSuccess={msg => setSuccessMsg(msg)}
       />
       <AssignMembersModal

@@ -28,6 +28,9 @@ const TYPE_COLORS = {
   other:     { bg: '#f1f5f9', color: '#475569', border: '#cbd5e1' }
 };
 
+const today = () => new Date().toISOString().split('T')[0];
+const nextDay = (d) => { const dt = new Date(d); dt.setDate(dt.getDate() + 1); return dt.toISOString().split('T')[0]; };
+
 function calcAmount(entryType, qty, unitPrice, flatAmount) {
   if ((entryType === 'material' || entryType === 'labour') && qty && unitPrice) {
     return Math.round(parseFloat(qty) * parseInt(unitPrice, 10));
@@ -48,7 +51,7 @@ const EMPTY_ENTRY = {
 
 export default function NewQuotePage() {
   const router = useRouter();
-  const { clients, users, createQuote, createQuoteEntry, createClient, currentUser } = useApp();
+  const { clients, users, createQuote, createQuoteEntry, createClient, currentUser, effectiveEntityId } = useApp();
 
   // Header fields
   const [title, setTitle] = useState('');
@@ -165,7 +168,8 @@ export default function NewQuotePage() {
         name: newClientName.trim(),
         phone: newClientPhone.trim(),
         email: newClientEmail.trim(),
-        address: newClientAddress.trim()
+        address: newClientAddress.trim(),
+        entityId: effectiveEntityId,
       });
       setClientId(newClient.id);
       setShowNewClientModal(false);
@@ -195,6 +199,7 @@ export default function NewQuotePage() {
         clientId: clientId || null,
         sharedWith,
         taxPercent: Number(taxPercent) || 0,
+        entityId: effectiveEntityId,
       });
 
       for (const p of positions) {
@@ -271,11 +276,11 @@ export default function NewQuotePage() {
           <div className="grid-2col">
             <div className="form-group" style={{ margin: 0 }}>
               <label className="form-label" htmlFor="q-start">Tervezett kezdés</label>
-              <input id="q-start" type="date" className="form-control" value={startDate} onChange={e => setStartDate(e.target.value)} />
+              <input id="q-start" type="date" className="form-control" min={today()} value={startDate} onChange={e => { const v = e.target.value; setStartDate(v); if (v && (!endDate || endDate <= v)) setEndDate(nextDay(v)); }} />
             </div>
             <div className="form-group" style={{ margin: 0 }}>
               <label className="form-label" htmlFor="q-end">Tervezett befejezés</label>
-              <input id="q-end" type="date" className="form-control" value={endDate} onChange={e => setEndDate(e.target.value)} />
+              <input id="q-end" type="date" className="form-control" min={startDate ? nextDay(startDate) : undefined} value={endDate} onChange={e => setEndDate(e.target.value)} />
             </div>
           </div>
 
