@@ -205,7 +205,17 @@ export default function Sidebar() {
         <>
           <div className="drawer-overlay" onClick={() => setMobileOpen(false)} />
           <div className="drawer">
-            <div className="drawer-handle" />
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.6rem 1rem 0' }}>
+              <div className="drawer-handle" style={{ margin: 0 }} />
+              <button
+                type="button"
+                onClick={() => setMobileOpen(false)}
+                style={{ background: 'var(--bg-subtle)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--text-muted)' }}
+                aria-label="Bezárás"
+              >
+                <X size={16} />
+              </button>
+            </div>
 
             {impersonating && (
               <div className="drawer-god-mode">
