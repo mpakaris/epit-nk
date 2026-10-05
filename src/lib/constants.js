@@ -1,10 +1,16 @@
 export const INVOICE_CATEGORIES = [
   { id: 'Anyag', label: 'Anyag', desc: 'Építőanyagok, fa, cement, burkolat', color: 'anyag' },
-  { id: 'Munka', label: 'Munka', desc: 'Kőműves, villanyszerelő, festő munkadíjak', color: 'munka' },
   { id: 'Szerszám/Eszköz', label: 'Szerszám/Eszköz', desc: 'Gépbérlés, szerszámok, állványzat', color: 'eszkoz' },
   { id: 'Szállítás', label: 'Szállítás', desc: 'Teherfuvarozás, konténer, üzemanyag', color: 'szallitas' },
   { id: 'Engedély/Hatóság', label: 'Engedély/Hatóság', desc: 'Tervezés, illetékek, földhivatal', color: 'hatosag' },
-  { id: 'Egyéb', label: 'Egyéb', desc: 'Étkezés, egyéb felmerülő költségek', color: 'egyeb' }
+  { id: 'Egyéb', label: 'Egyéb', desc: 'Vállalkozói munkadíj, étkezés, egyéb', color: 'egyeb' }
+];
+
+export const QUOTE_STATUSES = [
+  { id: 'draft', label: 'Vázlat', color: 'muted' },
+  { id: 'sent', label: 'Kiküldve', color: 'warning' },
+  { id: 'accepted', label: 'Elfogadva', color: 'success' },
+  { id: 'rejected', label: 'Elutasítva', color: 'danger' }
 ];
 
 export function formatHUF(amount) {
