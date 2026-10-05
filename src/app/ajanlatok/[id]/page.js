@@ -515,7 +515,7 @@ export default function QuoteDetailPage() {
         )}
 
         {/* Type selector */}
-        <div className=\"entry-type-grid\">
+        <div className="entry-type-grid">
           {QUOTE_ENTRY_TYPES.map(t => {
             const Icon = TYPE_ICONS[t.id];
             const tc = TYPE_COLORS[t.id];
