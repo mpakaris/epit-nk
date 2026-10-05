@@ -66,6 +66,12 @@ export default function Sidebar() {
   // Close drawer on navigation
   useEffect(() => { setMobileOpen(false); }, [pathname]);
 
+  // Freeze background scroll when drawer is open
+  useEffect(() => {
+    document.body.style.overflow = mobileOpen ? 'hidden' : '';
+    return () => { document.body.style.overflow = ''; };
+  }, [mobileOpen]);
+
   if (!currentUser && pathname === '/login') return null;
   if (!currentUser) return null;
 
