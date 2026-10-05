@@ -486,34 +486,35 @@ export function AppProvider({ children }) {
 
   const createClient = async ({ name, address, phone, email, notes, discountPercent = 0, entityId: entityIdOverride }) => {
     if (!isAdmin) throw new Error('Csak adminisztrátor hozhat létre ügyfelet!');
-    const targetEntityId = entityIdOverride || effectiveEntityId;
-    if (!targetEntityId) throw new Error('Nincs entitás hozzárendelve!');
-
-    const { data, error } = await supabase
-      .from('clients')
-      .insert([{ entity_id: targetEntityId, name, address, phone, email, notes, discount_percent: Number(discountPercent) }])
-      .select()
-      .single();
-
-    if (error) throw error;
-    setClients(prev => [...prev, data].sort((a, b) => a.name.localeCompare(b.name, 'hu')));
-    return data;
+    const res = await fetch('/api/clients', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, address, phone, email, notes, discountPercent, entityId: entityIdOverride || effectiveEntityId }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Hiba az ügyfél létrehozásakor');
+    setClients(prev => [...prev, data.client].sort((a, b) => a.name.localeCompare(b.name, 'hu')));
+    return data.client;
   };
 
   const updateClient = async (clientId, fields) => {
     if (!isAdmin) throw new Error('Csak adminisztrátor módosíthat ügyfelet!');
-
-    const { data, error } = await supabase.from('clients').update(fields).eq('id', clientId).select().single();
-    if (error) throw error;
-    setClients(prev => prev.map(c => c.id === clientId ? data : c).sort((a, b) => a.name.localeCompare(b.name, 'hu')));
-    return data;
+    const res = await fetch(`/api/clients/${clientId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(fields),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Hiba az ügyfél módosításakor');
+    setClients(prev => prev.map(c => c.id === clientId ? data.client : c).sort((a, b) => a.name.localeCompare(b.name, 'hu')));
+    return data.client;
   };
 
   const deleteClient = async (clientId) => {
     if (!isAdmin) throw new Error('Csak adminisztrátor törölhet ügyfelet!');
-
-    const { error } = await supabase.from('clients').delete().eq('id', clientId);
-    if (error) throw error;
+    const res = await fetch(`/api/clients/${clientId}`, { method: 'DELETE' });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Hiba az ügyfél törlésekor');
     setClients(prev => prev.filter(c => c.id !== clientId));
   };
 
