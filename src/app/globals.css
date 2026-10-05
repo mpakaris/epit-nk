@@ -685,8 +685,19 @@ button, input, select, textarea {
   background: #f8fafc;
 }
 
+/* Spinner animation */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
 /* Utilities */
 .flex { display: flex; }
+.flex-1 { flex: 1; }
 .flex-col { display: flex; flex-direction: column; }
 .items-center { align-items: center; }
 .justify-between { justify-content: space-between; }

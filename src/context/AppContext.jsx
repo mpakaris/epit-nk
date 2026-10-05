@@ -2,36 +2,43 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { createClient, isSupabaseConfigured } from '@/lib/supabase/client';
-import { INITIAL_DEMO_USERS, INITIAL_DEMO_PROJECTS, INITIAL_DEMO_INVOICES } from '@/lib/demo-data';
+import { createClient as createSupabaseClient, isSupabaseConfigured } from '@/lib/supabase/client';
+import {
+  INITIAL_DEMO_USERS,
+  INITIAL_DEMO_PROJECTS,
+  INITIAL_DEMO_INVOICES,
+  INITIAL_DEMO_LABOUR_ENTRIES,
+  INITIAL_DEMO_CLIENTS,
+  INITIAL_DEMO_QUOTES,
+  INITIAL_DEMO_QUOTE_ENTRIES
+} from '@/lib/demo-data';
 
 const AppContext = createContext(null);
 
 export function AppProvider({ children }) {
   const router = useRouter();
-  const [supabase] = useState(() => createClient());
+  const [supabase] = useState(() => createSupabaseClient());
   const [isConfigured] = useState(() => isSupabaseConfigured());
 
-  // User state
   const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // App data (in-memory & synced with Supabase or localStorage)
   const [users, setUsers] = useState([]);
   const [projects, setProjects] = useState([]);
   const [invoices, setInvoices] = useState([]);
+  const [labourEntries, setLabourEntries] = useState([]);
+  const [clients, setClients] = useState([]);
+  const [quotes, setQuotes] = useState([]);
+  const [quoteEntries, setQuoteEntries] = useState([]);
 
-  // Load initial state
   useEffect(() => {
     async function init() {
       setLoading(true);
 
       if (isConfigured) {
         try {
-          // Check Supabase session
           const { data: { session } } = await supabase.auth.getSession();
           if (session?.user) {
-            // Fetch profile
             const { data: profile } = await supabase
               .from('profiles')
               .select('*')
@@ -47,7 +54,6 @@ export function AppProvider({ children }) {
             });
           }
 
-          // Fetch projects and invoices
           await refreshSupabaseData();
         } catch (err) {
           console.error('Supabase initial fetch failed:', err);
@@ -69,21 +75,32 @@ export function AppProvider({ children }) {
       const savedProjects = localStorage.getItem('epitek_demo_projects');
       const savedInvoices = localStorage.getItem('epitek_demo_invoices');
       const savedUsers = localStorage.getItem('epitek_demo_users');
+      const savedLabour = localStorage.getItem('epitek_demo_labour');
+      const savedClients = localStorage.getItem('epitek_demo_clients');
+      const savedQuotes = localStorage.getItem('epitek_demo_quotes');
+      const savedQuoteEntries = localStorage.getItem('epitek_demo_quote_entries');
 
       setUsers(savedUsers ? JSON.parse(savedUsers) : INITIAL_DEMO_USERS);
       setProjects(savedProjects ? JSON.parse(savedProjects) : INITIAL_DEMO_PROJECTS);
       setInvoices(savedInvoices ? JSON.parse(savedInvoices) : INITIAL_DEMO_INVOICES);
+      setLabourEntries(savedLabour ? JSON.parse(savedLabour) : INITIAL_DEMO_LABOUR_ENTRIES);
+      setClients(savedClients ? JSON.parse(savedClients) : INITIAL_DEMO_CLIENTS);
+      setQuotes(savedQuotes ? JSON.parse(savedQuotes) : INITIAL_DEMO_QUOTES);
+      setQuoteEntries(savedQuoteEntries ? JSON.parse(savedQuoteEntries) : INITIAL_DEMO_QUOTE_ENTRIES);
 
       if (savedUser) {
         setCurrentUser(JSON.parse(savedUser));
       } else {
-        // Default to admin for convenient preview
         setCurrentUser(INITIAL_DEMO_USERS[0]);
       }
     } catch {
       setUsers(INITIAL_DEMO_USERS);
       setProjects(INITIAL_DEMO_PROJECTS);
       setInvoices(INITIAL_DEMO_INVOICES);
+      setLabourEntries(INITIAL_DEMO_LABOUR_ENTRIES);
+      setClients(INITIAL_DEMO_CLIENTS);
+      setQuotes(INITIAL_DEMO_QUOTES);
+      setQuoteEntries(INITIAL_DEMO_QUOTE_ENTRIES);
       setCurrentUser(INITIAL_DEMO_USERS[0]);
     }
   };
@@ -91,41 +108,52 @@ export function AppProvider({ children }) {
   const refreshSupabaseData = async () => {
     if (!isConfigured) return;
     try {
-      // 1. Projects
       const { data: projs } = await supabase
         .from('projects')
-        .select(`
-          *,
-          project_members (user_id)
-        `);
+        .select(`*, project_members (user_id)`);
 
       if (projs) {
-        const formattedProjects = projs.map(p => ({
+        setProjects(projs.map(p => ({
           ...p,
           members: (p.project_members || []).map(pm => pm.user_id)
-        }));
-        setProjects(formattedProjects);
+        })));
       }
 
-      // 2. Invoices
       const { data: invs } = await supabase
         .from('invoices')
         .select('*')
         .order('created_at', { ascending: false });
+      if (invs) setInvoices(invs);
 
-      if (invs) {
-        setInvoices(invs);
-      }
-
-      // 3. Profiles
       const { data: profs } = await supabase
         .from('profiles')
         .select('*')
         .order('display_name', { ascending: true });
+      if (profs) setUsers(profs);
 
-      if (profs) {
-        setUsers(profs);
-      }
+      const { data: labour } = await supabase
+        .from('labour_entries')
+        .select('*')
+        .order('date', { ascending: false });
+      if (labour) setLabourEntries(labour);
+
+      const { data: cls } = await supabase
+        .from('clients')
+        .select('*')
+        .order('name', { ascending: true });
+      if (cls) setClients(cls);
+
+      const { data: qts } = await supabase
+        .from('quotes')
+        .select('*')
+        .order('created_at', { ascending: false });
+      if (qts) setQuotes(qts);
+
+      const { data: qes } = await supabase
+        .from('quote_entries')
+        .select('*')
+        .order('created_at', { ascending: true });
+      if (qes) setQuoteEntries(qes);
     } catch (err) {
       console.error('Error refreshing data from Supabase:', err);
     }
@@ -134,11 +162,7 @@ export function AppProvider({ children }) {
   // Auth: Login
   const login = async (email, password) => {
     if (isConfigured) {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password
-      });
-
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
 
       const { data: profile } = await supabase
@@ -167,7 +191,6 @@ export function AppProvider({ children }) {
       }
       return userObj;
     } else {
-      // Demo login
       const matched = users.find(u => u.email.toLowerCase() === email.toLowerCase());
       if (!matched) {
         throw new Error('Nem található felhasználó ezzel az email címmel a demó fiókok között.');
@@ -186,7 +209,6 @@ export function AppProvider({ children }) {
     }
   };
 
-  // Switch demo user helper
   const switchDemoUser = (userId) => {
     const target = users.find(u => u.id === userId);
     if (target) {
@@ -202,7 +224,6 @@ export function AppProvider({ children }) {
     }
   };
 
-  // Auth: Logout
   const logout = async () => {
     if (isConfigured) {
       await supabase.auth.signOut();
@@ -213,7 +234,6 @@ export function AppProvider({ children }) {
     router.push('/login');
   };
 
-  // Auth: Change password
   const changePassword = async (newPassword) => {
     if (isConfigured) {
       const { error } = await supabase.auth.updateUser({ password: newPassword });
@@ -258,19 +278,12 @@ export function AppProvider({ children }) {
         .from('invoices')
         .getPublicUrl(data.path);
 
-      return {
-        imageUrl: publicUrlData.publicUrl,
-        storagePath: data.path
-      };
+      return { imageUrl: publicUrlData.publicUrl, storagePath: data.path };
     } else {
-      // In demo mode, convert to base64 Data URL so user sees preview immediately
       return new Promise((resolve) => {
         const reader = new FileReader();
         reader.onloadend = () => {
-          resolve({
-            imageUrl: reader.result,
-            storagePath: `demo/${file.name}`
-          });
+          resolve({ imageUrl: reader.result, storagePath: `demo/${file.name}` });
         };
         reader.readAsDataURL(file);
       });
@@ -278,15 +291,7 @@ export function AppProvider({ children }) {
   };
 
   // Invoices: Create
-  const createInvoice = async ({
-    projectId,
-    valueHuf,
-    category,
-    description,
-    imageUrl,
-    storagePath,
-    ocrSuggestedValue
-  }) => {
+  const createInvoice = async ({ projectId, valueHuf, category, description, imageUrl, storagePath, ocrSuggestedValue }) => {
     if (!currentUser) throw new Error('Bejelentkezés szükséges!');
 
     const newInvoice = {
@@ -339,9 +344,7 @@ export function AppProvider({ children }) {
       setInvoices(prev => prev.map(inv => inv.id === invoiceId ? data : inv));
       return data;
     } else {
-      const updated = invoices.map(inv =>
-        inv.id === invoiceId ? { ...inv, ...fields } : inv
-      );
+      const updated = invoices.map(inv => inv.id === invoiceId ? { ...inv, ...fields } : inv);
       setInvoices(updated);
       localStorage.setItem('epitek_demo_invoices', JSON.stringify(updated));
     }
@@ -354,11 +357,7 @@ export function AppProvider({ children }) {
     }
 
     if (isConfigured) {
-      const { error } = await supabase
-        .from('invoices')
-        .delete()
-        .eq('id', invoiceId);
-
+      const { error } = await supabase.from('invoices').delete().eq('id', invoiceId);
       if (error) throw error;
       setInvoices(prev => prev.filter(inv => inv.id !== invoiceId));
     } else {
@@ -368,32 +367,89 @@ export function AppProvider({ children }) {
     }
   };
 
+  // Labour: Create
+  const createLabourEntry = async ({ projectId, date, labourType, hours, hourlyRate, description }) => {
+    if (!currentUser) throw new Error('Bejelentkezés szükséges!');
+
+    const valueHuf = Math.round(Number(hours) * Number(hourlyRate));
+
+    const newEntry = {
+      ...(!isConfigured && { id: `lab-${Date.now()}` }),
+      project_id: projectId,
+      uploaded_by: currentUser.id,
+      date,
+      labour_type: labourType,
+      hours: Number(hours),
+      hourly_rate: Number(hourlyRate),
+      value_huf: valueHuf,
+      description: description || '',
+      created_at: new Date().toISOString()
+    };
+
+    if (isConfigured) {
+      const { data, error } = await supabase
+        .from('labour_entries')
+        .insert([{
+          project_id: projectId,
+          uploaded_by: currentUser.id,
+          date,
+          labour_type: labourType,
+          hours: Number(hours),
+          hourly_rate: Number(hourlyRate),
+          value_huf: valueHuf,
+          description: description || ''
+        }])
+        .select()
+        .single();
+
+      if (error) throw error;
+      setLabourEntries(prev => [data, ...prev]);
+      return data;
+    } else {
+      const updated = [newEntry, ...labourEntries];
+      setLabourEntries(updated);
+      localStorage.setItem('epitek_demo_labour', JSON.stringify(updated));
+      return newEntry;
+    }
+  };
+
+  // Labour: Delete
+  const deleteLabourEntry = async (entryId) => {
+    const entry = labourEntries.find(e => e.id === entryId);
+    if (!entry) return;
+
+    if (entry.uploaded_by !== currentUser?.id && currentUser?.role !== 'admin') {
+      throw new Error('Csak saját munkabejegyzést törölhet!');
+    }
+
+    if (isConfigured) {
+      const { error } = await supabase.from('labour_entries').delete().eq('id', entryId);
+      if (error) throw error;
+      setLabourEntries(prev => prev.filter(e => e.id !== entryId));
+    } else {
+      const updated = labourEntries.filter(e => e.id !== entryId);
+      setLabourEntries(updated);
+      localStorage.setItem('epitek_demo_labour', JSON.stringify(updated));
+    }
+  };
+
   // Projects: Create (Admin only)
-  const createProject = async ({ name, description, memberIds = [] }) => {
+  const createProject = async ({ name, description, memberIds = [], startDate, endDate }) => {
     if (currentUser?.role !== 'admin') {
       throw new Error('Csak az adminisztrátor hozhat létre projektet!');
     }
 
     if (isConfigured) {
-      // 1. Insert project
       const { data: proj, error: projErr } = await supabase
         .from('projects')
-        .insert([{
-          name,
-          description,
-          created_by: currentUser.id
-        }])
+        .insert([{ name, description, created_by: currentUser.id, start_date: startDate || null, end_date: endDate || null }])
         .select()
         .single();
 
       if (projErr) throw projErr;
 
-      // 2. Insert members
       if (memberIds.length > 0) {
-        const memberRows = memberIds.map(uId => ({
-          project_id: proj.id,
-          user_id: uId
-        }));
+        const memberRows = memberIds.map(uId => ({ project_id: proj.id, user_id: uId }));
         await supabase.from('project_members').insert(memberRows);
       }
 
@@ -406,6 +462,8 @@ export function AppProvider({ children }) {
         description,
         created_by: currentUser.id,
         created_at: new Date().toISOString(),
+        start_date: startDate || null,
+        end_date: endDate || null,
         members: memberIds
       };
       const updated = [newProj, ...projects];
@@ -422,21 +480,14 @@ export function AppProvider({ children }) {
     }
 
     if (isConfigured) {
-      // Delete existing
       await supabase.from('project_members').delete().eq('project_id', projectId);
-      // Insert new
       if (memberIds.length > 0) {
-        const rows = memberIds.map(uId => ({
-          project_id: projectId,
-          user_id: uId
-        }));
+        const rows = memberIds.map(uId => ({ project_id: projectId, user_id: uId }));
         await supabase.from('project_members').insert(rows);
       }
       await refreshSupabaseData();
     } else {
-      const updated = projects.map(p =>
-        p.id === projectId ? { ...p, members: memberIds } : p
-      );
+      const updated = projects.map(p => p.id === projectId ? { ...p, members: memberIds } : p);
       setProjects(updated);
       localStorage.setItem('epitek_demo_projects', JSON.stringify(updated));
     }
@@ -455,10 +506,302 @@ export function AppProvider({ children }) {
     } else {
       const updatedProjs = projects.filter(p => p.id !== projectId);
       const updatedInvs = invoices.filter(inv => inv.project_id !== projectId);
+      const updatedLabour = labourEntries.filter(le => le.project_id !== projectId);
       setProjects(updatedProjs);
       setInvoices(updatedInvs);
+      setLabourEntries(updatedLabour);
       localStorage.setItem('epitek_demo_projects', JSON.stringify(updatedProjs));
       localStorage.setItem('epitek_demo_invoices', JSON.stringify(updatedInvs));
+      localStorage.setItem('epitek_demo_labour', JSON.stringify(updatedLabour));
+    }
+  };
+
+  // Clients: Create (Admin only)
+  const createClient = async ({ name, address, phone, email, notes, discountPercent = 0 }) => {
+    if (currentUser?.role !== 'admin') {
+      throw new Error('Csak az adminisztrátor hozhat létre ügyfelet!');
+    }
+
+    const newClient = {
+      ...(!isConfigured && { id: `client-${Date.now()}` }),
+      name,
+      address: address || '',
+      phone: phone || '',
+      email: email || '',
+      notes: notes || '',
+      discount_percent: Number(discountPercent),
+      created_at: new Date().toISOString()
+    };
+
+    if (isConfigured) {
+      const { data, error } = await supabase
+        .from('clients')
+        .insert([{ name, address, phone, email, notes, discount_percent: Number(discountPercent) }])
+        .select()
+        .single();
+      if (error) throw error;
+      setClients(prev => [...prev, data].sort((a, b) => a.name.localeCompare(b.name, 'hu')));
+      return data;
+    } else {
+      const updated = [...clients, newClient].sort((a, b) => a.name.localeCompare(b.name, 'hu'));
+      setClients(updated);
+      localStorage.setItem('epitek_demo_clients', JSON.stringify(updated));
+      return newClient;
+    }
+  };
+
+  // Clients: Update (Admin only)
+  const updateClient = async (clientId, fields) => {
+    if (currentUser?.role !== 'admin') {
+      throw new Error('Csak az adminisztrátor módosíthatja az ügyfeleket!');
+    }
+
+    if (isConfigured) {
+      const { data, error } = await supabase
+        .from('clients')
+        .update(fields)
+        .eq('id', clientId)
+        .select()
+        .single();
+      if (error) throw error;
+      setClients(prev => prev.map(c => c.id === clientId ? data : c).sort((a, b) => a.name.localeCompare(b.name, 'hu')));
+      return data;
+    } else {
+      const updated = clients.map(c => c.id === clientId ? { ...c, ...fields } : c).sort((a, b) => a.name.localeCompare(b.name, 'hu'));
+      setClients(updated);
+      localStorage.setItem('epitek_demo_clients', JSON.stringify(updated));
+    }
+  };
+
+  // Clients: Delete (Admin only)
+  const deleteClient = async (clientId) => {
+    if (currentUser?.role !== 'admin') {
+      throw new Error('Csak az adminisztrátor törölhet ügyfelet!');
+    }
+
+    if (isConfigured) {
+      const { error } = await supabase.from('clients').delete().eq('id', clientId);
+      if (error) throw error;
+      setClients(prev => prev.filter(c => c.id !== clientId));
+    } else {
+      const updated = clients.filter(c => c.id !== clientId);
+      setClients(updated);
+      localStorage.setItem('epitek_demo_clients', JSON.stringify(updated));
+    }
+  };
+
+  // Quotes: Create
+  const createQuote = async ({ title, location, workType, description, startDate, endDate, clientId }) => {
+    if (!currentUser) throw new Error('Bejelentkezés szükséges!');
+
+    const newQuote = {
+      ...(!isConfigured && { id: `quote-${Date.now()}` }),
+      title,
+      location: location || '',
+      work_type: workType || '',
+      description: description || '',
+      start_date: startDate || null,
+      end_date: endDate || null,
+      status: 'draft',
+      client_id: clientId || null,
+      project_id: null,
+      created_by: currentUser.id,
+      created_at: new Date().toISOString()
+    };
+
+    if (isConfigured) {
+      const { data, error } = await supabase
+        .from('quotes')
+        .insert([{
+          title,
+          location,
+          work_type: workType,
+          description,
+          start_date: startDate || null,
+          end_date: endDate || null,
+          status: 'draft',
+          client_id: clientId || null,
+          project_id: null,
+          created_by: currentUser.id
+        }])
+        .select()
+        .single();
+      if (error) throw error;
+      setQuotes(prev => [data, ...prev]);
+      return data;
+    } else {
+      const updated = [newQuote, ...quotes];
+      setQuotes(updated);
+      localStorage.setItem('epitek_demo_quotes', JSON.stringify(updated));
+      return newQuote;
+    }
+  };
+
+  // Quotes: Update status
+  const updateQuoteStatus = async (quoteId, status) => {
+    const quote = quotes.find(q => q.id === quoteId);
+    if (!quote) throw new Error('Az ajánlat nem található!');
+
+    if (quote.created_by !== currentUser?.id && currentUser?.role !== 'admin') {
+      throw new Error('Csak a létrehozó vagy az adminisztrátor módosíthatja az ajánlat státuszát!');
+    }
+
+    if (isConfigured) {
+      const { data, error } = await supabase
+        .from('quotes')
+        .update({ status })
+        .eq('id', quoteId)
+        .select()
+        .single();
+      if (error) throw error;
+      setQuotes(prev => prev.map(q => q.id === quoteId ? data : q));
+      return data;
+    } else {
+      const updated = quotes.map(q => q.id === quoteId ? { ...q, status } : q);
+      setQuotes(updated);
+      localStorage.setItem('epitek_demo_quotes', JSON.stringify(updated));
+    }
+  };
+
+  // Quotes: Delete
+  const deleteQuote = async (quoteId) => {
+    const quote = quotes.find(q => q.id === quoteId);
+    if (!quote) return;
+
+    if (quote.created_by !== currentUser?.id && currentUser?.role !== 'admin') {
+      throw new Error('Csak a létrehozó vagy az adminisztrátor törölhet ajánlatot!');
+    }
+
+    if (isConfigured) {
+      const { error } = await supabase.from('quotes').delete().eq('id', quoteId);
+      if (error) throw error;
+      setQuotes(prev => prev.filter(q => q.id !== quoteId));
+      setQuoteEntries(prev => prev.filter(e => e.quote_id !== quoteId));
+    } else {
+      const updatedQuotes = quotes.filter(q => q.id !== quoteId);
+      const updatedEntries = quoteEntries.filter(e => e.quote_id !== quoteId);
+      setQuotes(updatedQuotes);
+      setQuoteEntries(updatedEntries);
+      localStorage.setItem('epitek_demo_quotes', JSON.stringify(updatedQuotes));
+      localStorage.setItem('epitek_demo_quote_entries', JSON.stringify(updatedEntries));
+    }
+  };
+
+  // Quote Entries: Create
+  const createQuoteEntry = async ({ quoteId, userId, workDescription, amountHuf, notes }) => {
+    if (!currentUser) throw new Error('Bejelentkezés szükséges!');
+
+    const newEntry = {
+      ...(!isConfigured && { id: `qe-${Date.now()}` }),
+      quote_id: quoteId,
+      user_id: userId || currentUser.id,
+      work_description: workDescription,
+      amount_huf: Number(amountHuf),
+      notes: notes || '',
+      created_at: new Date().toISOString()
+    };
+
+    if (isConfigured) {
+      const { data, error } = await supabase
+        .from('quote_entries')
+        .insert([{
+          quote_id: quoteId,
+          user_id: userId || currentUser.id,
+          work_description: workDescription,
+          amount_huf: Number(amountHuf),
+          notes: notes || ''
+        }])
+        .select()
+        .single();
+      if (error) throw error;
+      setQuoteEntries(prev => [...prev, data]);
+      return data;
+    } else {
+      const updated = [...quoteEntries, newEntry];
+      setQuoteEntries(updated);
+      localStorage.setItem('epitek_demo_quote_entries', JSON.stringify(updated));
+      return newEntry;
+    }
+  };
+
+  // Quote Entries: Delete
+  const deleteQuoteEntry = async (entryId) => {
+    const entry = quoteEntries.find(e => e.id === entryId);
+    if (!entry) return;
+
+    if (entry.user_id !== currentUser?.id && currentUser?.role !== 'admin') {
+      throw new Error('Csak saját tételt törölhet!');
+    }
+
+    if (isConfigured) {
+      const { error } = await supabase.from('quote_entries').delete().eq('id', entryId);
+      if (error) throw error;
+      setQuoteEntries(prev => prev.filter(e => e.id !== entryId));
+    } else {
+      const updated = quoteEntries.filter(e => e.id !== entryId);
+      setQuoteEntries(updated);
+      localStorage.setItem('epitek_demo_quote_entries', JSON.stringify(updated));
+    }
+  };
+
+  // Quote → Project conversion
+  const convertQuoteToProject = async (quoteId, memberIds) => {
+    const quote = quotes.find(q => q.id === quoteId);
+    if (!quote) throw new Error('Az ajánlat nem található!');
+
+    if (currentUser?.role !== 'admin' && quote.created_by !== currentUser?.id) {
+      throw new Error('Nincs jogosultsága az átalakításhoz!');
+    }
+
+    const projDescription = [quote.work_type, quote.description].filter(Boolean).join(' – ');
+
+    if (isConfigured) {
+      const { data: proj, error: projErr } = await supabase
+        .from('projects')
+        .insert([{
+          name: quote.title,
+          description: projDescription,
+          created_by: currentUser.id,
+          start_date: quote.start_date,
+          end_date: quote.end_date
+        }])
+        .select()
+        .single();
+      if (projErr) throw projErr;
+
+      if (memberIds.length > 0) {
+        const memberRows = memberIds.map(uId => ({ project_id: proj.id, user_id: uId }));
+        await supabase.from('project_members').insert(memberRows);
+      }
+
+      await supabase
+        .from('quotes')
+        .update({ status: 'accepted', project_id: proj.id })
+        .eq('id', quoteId);
+
+      await refreshSupabaseData();
+      return proj;
+    } else {
+      const newProj = {
+        id: `proj-${Date.now()}`,
+        name: quote.title,
+        description: projDescription,
+        created_by: currentUser.id,
+        created_at: new Date().toISOString(),
+        start_date: quote.start_date,
+        end_date: quote.end_date,
+        members: memberIds
+      };
+
+      const updatedProjs = [newProj, ...projects];
+      setProjects(updatedProjs);
+      localStorage.setItem('epitek_demo_projects', JSON.stringify(updatedProjs));
+
+      const updatedQuotes = quotes.map(q => q.id === quoteId ? { ...q, status: 'accepted', project_id: newProj.id } : q);
+      setQuotes(updatedQuotes);
+      localStorage.setItem('epitek_demo_quotes', JSON.stringify(updatedQuotes));
+
+      return newProj;
     }
   };
 
@@ -518,7 +861,6 @@ export function AppProvider({ children }) {
       await refreshSupabaseData();
     } else {
       const updatedUsers = users.filter(u => u.id !== userId);
-      // Remove from all project memberships
       const updatedProjects = projects.map(p => ({
         ...p,
         members: (p.members || []).filter(mId => mId !== userId)
@@ -549,7 +891,7 @@ export function AppProvider({ children }) {
       await refreshSupabaseData();
       return resData;
     } else {
-      const updatedUsers = users.map(u => 
+      const updatedUsers = users.map(u =>
         u.id === userId ? { ...u, must_change_password: true } : u
       );
       setUsers(updatedUsers);
@@ -570,6 +912,10 @@ export function AppProvider({ children }) {
         users,
         projects,
         invoices,
+        labourEntries,
+        clients,
+        quotes,
+        quoteEntries,
         login,
         logout,
         switchDemoUser,
@@ -578,9 +924,20 @@ export function AppProvider({ children }) {
         createInvoice,
         updateInvoice,
         deleteInvoice,
+        createLabourEntry,
+        deleteLabourEntry,
         createProject,
         updateProjectMembers,
         deleteProject,
+        createClient,
+        updateClient,
+        deleteClient,
+        createQuote,
+        updateQuoteStatus,
+        deleteQuote,
+        createQuoteEntry,
+        deleteQuoteEntry,
+        convertQuoteToProject,
         createUser,
         deleteUser,
         resetUserPassword,

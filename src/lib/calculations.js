@@ -1,41 +1,56 @@
-export function calculateProjectFinancials(project, invoices = [], members = [], currentUserId = null) {
+export function calculateProjectFinancials(project, invoices = [], labourEntries = [], members = [], currentUserId = null) {
   const projectInvoices = invoices.filter(inv => inv.project_id === project.id);
   const totalCost = projectInvoices.reduce((sum, inv) => sum + Number(inv.value_huf || 0), 0);
 
-  // Project members count
-  const memberIds = project.members || (members.map(m => m.id));
-  const memberCount = Math.max(memberIds.length, 1);
-  const equalShare = Math.round(totalCost / memberCount);
+  const projectLabour = labourEntries.filter(le => le.project_id === project.id);
+  const totalLabourValue = projectLabour.reduce((sum, le) => sum + Number(le.value_huf || 0), 0);
 
-  // Current user's stats
-  const ownInvoices = currentUserId 
+  const memberIds = project.members || members.map(m => m.id);
+  const memberCount = Math.max(memberIds.length, 1);
+  const equalCostShare = Math.round(totalCost / memberCount);
+  const equalLabourShare = Math.round(totalLabourValue / memberCount);
+
+  const ownInvoices = currentUserId
     ? projectInvoices.filter(inv => inv.uploaded_by === currentUserId)
     : [];
   const ownPaid = ownInvoices.reduce((sum, inv) => sum + Number(inv.value_huf || 0), 0);
-  const balance = ownPaid - equalShare;
 
-  // Detailed breakdown per user
+  const ownLabour = currentUserId
+    ? projectLabour.filter(le => le.uploaded_by === currentUserId)
+    : [];
+  const ownLabourValue = ownLabour.reduce((sum, le) => sum + Number(le.value_huf || 0), 0);
+
+  const costBalance = ownPaid - equalCostShare;
+  const labourBalance = ownLabourValue - equalLabourShare;
+  const balance = costBalance + labourBalance;
+
   const memberBreakdown = members.map(m => {
     const mInvoices = projectInvoices.filter(inv => inv.uploaded_by === m.id);
     const mPaid = mInvoices.reduce((sum, inv) => sum + Number(inv.value_huf || 0), 0);
-    const mBalance = mPaid - equalShare;
+    const mLabour = projectLabour.filter(le => le.uploaded_by === m.id);
+    const mLabourValue = mLabour.reduce((sum, le) => sum + Number(le.value_huf || 0), 0);
+    const mLabourHours = mLabour.reduce((sum, le) => sum + Number(le.hours || 0), 0);
+
     return {
       userId: m.id,
       displayName: m.display_name || m.email,
       role: m.role,
       paid: mPaid,
-      balance: mBalance,
-      invoicesCount: mInvoices.length
+      costBalance: mPaid - equalCostShare,
+      labourValue: mLabourValue,
+      labourHours: mLabourHours,
+      labourBalance: mLabourValue - equalLabourShare,
+      balance: (mPaid - equalCostShare) + (mLabourValue - equalLabourShare),
+      invoicesCount: mInvoices.length,
+      labourCount: mLabour.length
     };
   });
 
-  // Category breakdown
   const categoryTotals = {};
   projectInvoices.forEach(inv => {
     categoryTotals[inv.category] = (categoryTotals[inv.category] || 0) + Number(inv.value_huf || 0);
   });
 
-  // Settlement: who pays whom to balance the split
   const creditors = memberBreakdown
     .filter(m => m.balance > 0)
     .map(m => ({ ...m, remaining: m.balance }))
@@ -67,11 +82,18 @@ export function calculateProjectFinancials(project, invoices = [], members = [],
 
   return {
     totalCost,
-    memberCount,
-    equalShare,
+    equalCostShare,
+    equalShare: equalCostShare,
     ownPaid,
+    costBalance,
+    totalLabourValue,
+    equalLabourShare,
+    ownLabourValue,
+    labourBalance,
     balance,
     projectInvoices,
+    projectLabour,
+    memberCount,
     memberBreakdown,
     categoryTotals,
     settlements
