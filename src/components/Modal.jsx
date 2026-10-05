@@ -27,6 +27,17 @@ function ModalBase({ isOpen, onClose, children, style }) {
     };
   }, [isOpen]);
 
+  // iOS: block touchmove on the overlay so the background can't scroll.
+  // Must use passive:false to be able to call preventDefault.
+  useEffect(() => {
+    if (!isOpen) return;
+    const prevent = (e) => {
+      if (!e.target.closest('.modal-dialog')) e.preventDefault();
+    };
+    document.addEventListener('touchmove', prevent, { passive: false });
+    return () => document.removeEventListener('touchmove', prevent, { passive: false });
+  }, [isOpen]);
+
   useEffect(() => {
     const handleKeyDown = (e) => { if (e.key === 'Escape' && isOpen) onClose(); };
     window.addEventListener('keydown', handleKeyDown);

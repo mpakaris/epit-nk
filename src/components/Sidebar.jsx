@@ -90,6 +90,15 @@ export default function Sidebar() {
     };
   }, [mobileOpen]);
 
+  useEffect(() => {
+    if (!mobileOpen) return;
+    const prevent = (e) => {
+      if (!e.target.closest('.drawer')) e.preventDefault();
+    };
+    document.addEventListener('touchmove', prevent, { passive: false });
+    return () => document.removeEventListener('touchmove', prevent, { passive: false });
+  }, [mobileOpen]);
+
   if (!currentUser && pathname === '/login') return null;
   if (!currentUser) return null;
 

@@ -609,6 +609,7 @@ button, input, select, textarea {
   z-index: 100;
   padding: 1rem;
   animation: fadeIn 0.15s ease-out;
+  touch-action: none;
 }
 
 .modal-dialog {
@@ -619,6 +620,8 @@ button, input, select, textarea {
   max-width: 520px;
   max-height: 90vh;
   overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
   box-shadow: var(--shadow-lg);
   padding: 1.5rem;
   animation: slideUp 0.2s cubic-bezier(0.16, 1, 0.3, 1);
