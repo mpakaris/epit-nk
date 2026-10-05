@@ -15,7 +15,7 @@ export async function POST(request) {
   // For entity admins: always derive from their own profile (authoritative, server-side).
   // For superadmin: use the entityId sent from client (reflects God Mode context).
   const targetEntityId = profile.entity_id || entityId || null;
-  if (!targetEntityId) return Response.json({ error: `Nincs entitás hozzárendelve! (role=${profile.role}, profile.entity_id=${profile.entity_id}, sent=${entityId})` }, { status: 400 });
+  if (!targetEntityId) return Response.json({ error: 'Nincs entitás hozzárendelve!' }, { status: 400 });
   if (!name?.trim()) return Response.json({ error: 'A név megadása kötelező!' }, { status: 400 });
 
   const { data, error: insertErr } = await admin

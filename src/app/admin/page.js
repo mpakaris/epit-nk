@@ -94,6 +94,12 @@ export default function AdminDashboardPage() {
       {/* Calendar widget — only for entity context, not bare superadmin */}
       {!(isSuperAdmin && !impersonating) && (
         <div style={{ marginBottom: '1.5rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.65rem' }}>
+            <h3 style={{ fontSize: '1rem', fontWeight: 800 }}>Naptár</h3>
+            <Link href="/naptar" style={{ fontSize: '0.8rem', color: 'var(--accent)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
+              Teljes nézet <ArrowUpRight size={13} />
+            </Link>
+          </div>
           <CalendarWidget />
         </div>
       )}

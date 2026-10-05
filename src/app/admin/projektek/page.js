@@ -350,10 +350,14 @@ export default function AdminProjectsPage() {
             <div key={project.id} className="card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: '1rem' }}>
               <div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.4rem' }}>
-                  <h3 style={{ fontSize: '1.15rem', fontWeight: 800 }}>{project.name}</h3>
-                  <Link href={`/admin/projektek/${project.id}`} className="btn btn-secondary btn-sm" title="Számlák kezelése">
-                    Számlák ({projectInvoices.length}) <ArrowUpRight size={13} />
+                  <Link href={`/admin/projektek/${project.id}`} style={{ flex: 1, textDecoration: 'none' }}>
+                    <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                      {project.name} <ArrowUpRight size={15} color="var(--text-muted)" />
+                    </h3>
                   </Link>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, whiteSpace: 'nowrap', paddingTop: '0.2rem' }}>
+                    {projectInvoices.length} számla
+                  </span>
                 </div>
                 <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.75rem', lineHeight: 1.4 }}>
                   {project.description || 'Nincs leírás megadva.'}

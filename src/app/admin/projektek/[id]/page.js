@@ -7,25 +7,116 @@ import { useApp } from '@/context/AppContext';
 import { formatHUF, INVOICE_CATEGORIES } from '@/lib/constants';
 import InvoiceCard from '@/components/InvoiceCard';
 import Modal, { ConfirmModal, AlertModal } from '@/components/Modal';
-import { 
-  ArrowLeft, 
-  Receipt, 
-  ShieldCheck, 
-  Coins, 
-  AlertCircle,
-  CheckCircle2,
-  Plus
+import {
+  ArrowLeft, Receipt, ShieldCheck, Coins, AlertCircle,
+  CheckCircle2, Plus, Edit3, Users, UserCheck, BookUser
 } from 'lucide-react';
+
+function EditProjectModal({ isOpen, onClose, project, clients, updateProject, onSuccess }) {
+  const [name, setName] = React.useState(project?.name || '');
+  const [desc, setDesc] = React.useState(project?.description || '');
+  const [startDate, setStartDate] = React.useState(project?.start_date || '');
+  const [endDate, setEndDate] = React.useState(project?.end_date || '');
+  const [clientId, setClientId] = React.useState(project?.client_id || '');
+  const [error, setError] = React.useState('');
+  const [submitting, setSubmitting] = React.useState(false);
+
+  React.useEffect(() => {
+    if (project) {
+      setName(project.name || ''); setDesc(project.description || '');
+      setStartDate(project.start_date || ''); setEndDate(project.end_date || '');
+      setClientId(project.client_id || ''); setError('');
+    }
+  }, [project?.id]);
+
+  if (!isOpen || !project) return null;
+
+  const handleSubmit = async (e) => {
+    e.preventDefault(); setError(''); setSubmitting(true);
+    try {
+      await updateProject(project.id, { name: name.trim(), description: desc.trim() || null, start_date: startDate || null, end_date: endDate || null, client_id: clientId || null });
+      onSuccess('Projekt frissítve.');
+      onClose();
+    } catch (err) { setError(err.message || 'Hiba a mentésnél'); }
+    finally { setSubmitting(false); }
+  };
+
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} title={`Szerkesztés: ${project.name}`}>
+      {error && <div style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', color: 'var(--danger-text)', padding: '0.65rem', borderRadius: 'var(--radius-md)', fontSize: '0.825rem', display: 'flex', gap: '0.45rem', marginBottom: '0.85rem' }}><AlertCircle size={15} style={{ flexShrink: 0 }} /><span>{error}</span></div>}
+      <form onSubmit={handleSubmit}>
+        <div className="form-group"><label className="form-label">Projekt neve *</label><input type="text" required className="form-control" value={name} onChange={e => setName(e.target.value)} /></div>
+        <div className="form-group"><label className="form-label">Leírás</label><textarea rows={2} className="form-control" value={desc} onChange={e => setDesc(e.target.value)} /></div>
+        <div className="grid-2col">
+          <div className="form-group" style={{ marginBottom: 0 }}><label className="form-label">Kezdés</label><input type="date" className="form-control" value={startDate} onChange={e => setStartDate(e.target.value)} /></div>
+          <div className="form-group" style={{ marginBottom: 0 }}><label className="form-label">Befejezés</label><input type="date" className="form-control" min={startDate || undefined} value={endDate} onChange={e => setEndDate(e.target.value)} /></div>
+        </div>
+        <div className="form-group" style={{ marginTop: '0.75rem', marginBottom: '1.25rem' }}>
+          <label className="form-label">Megrendelő</label>
+          <select className="form-control" value={clientId} onChange={e => setClientId(e.target.value)}>
+            <option value="">– Ügyfél nélkül –</option>
+            {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+          <button type="button" className="btn btn-secondary btn-sm" onClick={onClose}>Mégse</button>
+          <button type="submit" className="btn btn-primary btn-sm" disabled={submitting}>{submitting ? 'Mentés...' : 'Mentés'}</button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+function AssignMembersModal({ isOpen, onClose, project, users, updateProjectMembers, onSuccess }) {
+  const [memberIds, setMemberIds] = React.useState(project?.members || []);
+  const [error, setError] = React.useState('');
+  const [submitting, setSubmitting] = React.useState(false);
+
+  React.useEffect(() => { if (project) { setMemberIds(project.members || []); setError(''); } }, [project?.id]);
+
+  if (!isOpen || !project) return null;
+
+  const toggle = (uid) => setMemberIds(prev => prev.includes(uid) ? prev.filter(id => id !== uid) : [...prev, uid]);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault(); setError(''); setSubmitting(true);
+    try { await updateProjectMembers(project.id, memberIds); onSuccess('Tagok frissítve.'); onClose(); }
+    catch (err) { setError(err.message || 'Hiba'); } finally { setSubmitting(false); }
+  };
+
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} title={`Résztvevők: ${project.name}`}>
+      {error && <div style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', color: 'var(--danger-text)', padding: '0.65rem', borderRadius: 'var(--radius-md)', fontSize: '0.825rem', display: 'flex', gap: '0.45rem', marginBottom: '0.85rem' }}><AlertCircle size={15} style={{ flexShrink: 0 }} /><span>{error}</span></div>}
+      <form onSubmit={handleSubmit}>
+        <div style={{ maxHeight: '220px', overflowY: 'auto', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: '0.4rem', marginBottom: '1.25rem' }}>
+          {users.map(u => (
+            <label key={u.id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.45rem', borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontSize: '0.85rem', borderBottom: '1px solid var(--border-subtle)' }}>
+              <input type="checkbox" checked={memberIds.includes(u.id)} onChange={() => toggle(u.id)} />
+              <span style={{ fontWeight: 600 }}>{u.display_name}</span>
+            </label>
+          ))}
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+          <button type="button" className="btn btn-secondary btn-sm" onClick={onClose}>Mégse</button>
+          <button type="submit" className="btn btn-primary btn-sm" disabled={submitting}>{submitting ? 'Mentés...' : 'Tagok mentése'}</button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
 
 export default function AdminProjectInvoicesPage() {
   const { id } = useParams();
-  const { 
-    isAdmin, 
-    projects, 
-    invoices, 
-    users, 
-    updateInvoice, 
-    deleteInvoice 
+  const {
+    isAdmin,
+    projects,
+    invoices,
+    users,
+    clients,
+    updateInvoice,
+    deleteInvoice,
+    updateProject,
+    updateProjectMembers,
   } = useApp();
 
   const project = projects.find(p => p.id === id);
@@ -39,6 +130,8 @@ export default function AdminProjectInvoicesPage() {
   const [successMsg, setSuccessMsg] = useState('');
   const [confirmModal, setConfirmModal] = useState(null);
   const [alertModal, setAlertModal] = useState(null);
+  const [editOpen, setEditOpen] = useState(false);
+  const [assignOpen, setAssignOpen] = useState(false);
 
   if (!isAdmin) {
     return (
@@ -126,14 +219,28 @@ export default function AdminProjectInvoicesPage() {
               <ShieldCheck size={15} /> Adminisztrátori Számlakezelés
             </div>
             <h1 className="page-title">{project.name}</h1>
-            <p className="page-subtitle">
+            {project.client_id && clients.find(c => c.id === project.client_id) && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.825rem', color: 'var(--accent)', fontWeight: 600, marginTop: '0.2rem' }}>
+                <BookUser size={14} />
+                {clients.find(c => c.id === project.client_id)?.name}
+              </div>
+            )}
+            <p className="page-subtitle" style={{ marginTop: '0.15rem' }}>
               {project.description || 'Nincs megadott projekt leírás.'}
             </p>
           </div>
 
-          <Link href={`/projektek/${project.id}/feltoltes`} className="btn btn-primary btn-sm">
-            <Plus size={15} /> Számla feltöltése
-          </Link>
+          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+            <button type="button" onClick={() => setEditOpen(true)} className="btn btn-secondary btn-sm">
+              <Edit3 size={14} /> Szerkesztés
+            </button>
+            <button type="button" onClick={() => setAssignOpen(true)} className="btn btn-secondary btn-sm">
+              <UserCheck size={14} /> Tagok
+            </button>
+            <Link href={`/projektek/${project.id}/feltoltes`} className="btn btn-primary btn-sm">
+              <Plus size={15} /> Számla feltöltése
+            </Link>
+          </div>
         </div>
       </div>
 
@@ -324,18 +431,10 @@ export default function AdminProjectInvoicesPage() {
         </form>
       </Modal>
 
-      <ConfirmModal
-        isOpen={!!confirmModal}
-        onClose={() => setConfirmModal(null)}
-        onConfirm={() => confirmModal?.onConfirm()}
-        title="Számla törlése"
-        message={confirmModal?.message}
-      />
-      <AlertModal
-        isOpen={!!alertModal}
-        onClose={() => setAlertModal(null)}
-        message={alertModal?.message}
-      />
+      <ConfirmModal isOpen={!!confirmModal} onClose={() => setConfirmModal(null)} onConfirm={() => confirmModal?.onConfirm()} title="Számla törlése" message={confirmModal?.message} />
+      <AlertModal isOpen={!!alertModal} onClose={() => setAlertModal(null)} message={alertModal?.message} />
+      <EditProjectModal isOpen={editOpen} onClose={() => setEditOpen(false)} project={project} clients={clients} updateProject={updateProject} onSuccess={msg => setSuccessMsg(msg)} />
+      <AssignMembersModal isOpen={assignOpen} onClose={() => setAssignOpen(false)} project={project} users={users} updateProjectMembers={updateProjectMembers} onSuccess={msg => setSuccessMsg(msg)} />
     </div>
   );
 }
