@@ -202,9 +202,9 @@ export default function EntityDetailPage() {
           <thead>
             <tr>
               <th>Név</th>
-              <th>Email</th>
+              <th className="hide-mobile">Email</th>
               <th>Szerepkör</th>
-              <th>Állapot</th>
+              <th className="hide-mobile">Állapot</th>
               <th style={{ textAlign: 'right' }}>Műveletek</th>
             </tr>
           </thead>
@@ -213,12 +213,18 @@ export default function EntityDetailPage() {
               <tr><td colSpan={5} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '1.5rem' }}>Nincs felhasználó ebben az entitásban.</td></tr>
             ) : entityUsers.map(u => (
               <tr key={u.id}>
-                <td style={{ fontWeight: 700 }}>{u.display_name}</td>
-                <td style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>{u.email}</td>
                 <td>
-                  <span className={`role-tag ${u.role}`}>{u.role === 'admin' ? 'Admin' : 'Tag'}</span>
+                  <div style={{ fontWeight: 700 }}>{u.display_name}</div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                    {u.must_change_password
+                      ? <span style={{ color: 'var(--warning-text)', display: 'inline-flex', alignItems: 'center', gap: '0.2rem' }}><Lock size={11} /> Jelszócsere</span>
+                      : <span style={{ color: 'var(--success-text)', display: 'inline-flex', alignItems: 'center', gap: '0.2rem' }}><CheckCircle2 size={11} /> Aktív</span>
+                    }
+                  </div>
                 </td>
-                <td>
+                <td className="hide-mobile" style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>{u.email}</td>
+                <td><span className={`role-tag ${u.role}`}>{u.role === 'admin' ? 'Admin' : 'Tag'}</span></td>
+                <td className="hide-mobile">
                   {u.must_change_password
                     ? <span style={{ color: 'var(--warning-text)', fontSize: '0.775rem', display: 'flex', alignItems: 'center', gap: '0.25rem', fontWeight: 600 }}><Lock size={12} /> Jelszócsere szükséges</span>
                     : <span style={{ color: 'var(--success-text)', fontSize: '0.775rem', display: 'flex', alignItems: 'center', gap: '0.25rem', fontWeight: 600 }}><CheckCircle2 size={12} /> Aktív</span>
@@ -292,7 +298,7 @@ export default function EntityDetailPage() {
             <thead>
               <tr>
                 <th>Név</th>
-                <th>Email</th>
+                <th className="hide-mobile">Email</th>
                 <th>Telefon</th>
               </tr>
             </thead>
@@ -300,7 +306,7 @@ export default function EntityDetailPage() {
               {entityClients.map(c => (
                 <tr key={c.id}>
                   <td style={{ fontWeight: 700 }}>{c.name}</td>
-                  <td style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>{c.email || '—'}</td>
+                  <td className="hide-mobile" style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>{c.email || '—'}</td>
                   <td style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>{c.phone || '—'}</td>
                 </tr>
               ))}
