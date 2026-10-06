@@ -1,7 +1,12 @@
 import { NextResponse } from 'next/server';
+import { createClient } from '@/lib/supabase/server';
 
 export async function POST(request) {
   try {
+    const supabase = await createClient();
+    const { data: { user }, error: authErr } = await supabase.auth.getUser();
+    if (authErr || !user) return NextResponse.json({ error: 'Unauthenticated' }, { status: 401 });
+
     const { imageUrl } = await request.json();
 
     if (!imageUrl) {

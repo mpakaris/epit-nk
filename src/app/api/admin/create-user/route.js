@@ -66,6 +66,7 @@ export async function POST(request) {
       .from('profiles')
       .upsert({
         id: authData.user.id,
+        email,
         display_name: displayName,
         role: finalRole,
         entity_id: finalEntityId,

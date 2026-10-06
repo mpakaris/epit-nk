@@ -33,9 +33,14 @@ export async function POST(request) {
   if (projErr) return Response.json({ error: projErr.message }, { status: 400 });
 
   if (memberIds.length > 0) {
-    await admin.from('project_members').insert(
-      memberIds.map(uId => ({ project_id: proj.id, user_id: uId }))
-    );
+    const { data: validMembers } = await admin
+      .from('profiles').select('id').in('id', memberIds).eq('entity_id', targetEntityId);
+    const validIds = (validMembers || []).map(m => m.id);
+    if (validIds.length > 0) {
+      await admin.from('project_members').insert(
+        validIds.map(uId => ({ project_id: proj.id, user_id: uId }))
+      );
+    }
   }
 
   return Response.json({ project: { ...proj, members: memberIds } });

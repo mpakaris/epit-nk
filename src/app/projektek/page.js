@@ -239,15 +239,16 @@ export default function ProjectsListPage() {
             <label className="form-label">Résztvevők</label>
             <div style={{ maxHeight: '150px', overflowY: 'auto', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: '0.4rem' }}>
               {users.map(u => (
-                <label key={u.id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.35rem 0.45rem', borderRadius: 'var(--radius-sm)', cursor: u.id === currentUser?.id ? 'default' : 'pointer', fontSize: '0.825rem' }}>
+                <label key={u.id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.35rem 0.45rem', borderRadius: 'var(--radius-sm)', cursor: u.id === currentUser?.id ? 'default' : 'pointer', fontSize: '0.825rem', minWidth: 0 }}>
                   <input
                     type="checkbox"
                     checked={memberIds.includes(u.id)}
                     disabled={u.id === currentUser?.id}
                     onChange={() => toggleMember(u.id)}
+                    style={{ flexShrink: 0 }}
                   />
-                  <span style={{ fontWeight: 600 }}>{u.display_name}</span>
-                  {u.id === currentUser?.id && <span style={{ fontSize: '0.7rem', color: 'var(--accent)', background: 'var(--accent-light)', borderRadius: 'var(--radius-pill)', padding: '0.05rem 0.4rem', fontWeight: 700 }}>én</span>}
+                  <span style={{ fontWeight: 600, flexShrink: 0 }}>{u.display_name}</span>
+                  {u.id === currentUser?.id && <span style={{ fontSize: '0.7rem', color: 'var(--accent)', background: 'var(--accent-light)', borderRadius: 'var(--radius-pill)', padding: '0.05rem 0.4rem', fontWeight: 700, flexShrink: 0 }}>én</span>}
                 </label>
               ))}
             </div>

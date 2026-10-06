@@ -542,7 +542,7 @@ export default function QuoteDetailPage() {
         </div>
 
         {(entryForm.entry_type === 'material' || entryForm.entry_type === 'labour') && (
-          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1.2fr 2fr', gap: '0.5rem', marginBottom: '1rem' }}>
+          <div className="qty-grid">
             <div>
               <label className="form-label">{entryForm.entry_type === 'labour' ? 'Munkaórák' : 'Mennyiség'}</label>
               <input type="number" min="0" step="0.01" className="form-control text-mono" placeholder="0" value={entryForm.quantity} onChange={e => setEntryForm(f => ({ ...f, quantity: e.target.value }))} />

@@ -43,15 +43,19 @@ export function AppProvider({ children }) {
   const effectiveIsAdmin = ['admin', 'superadmin'].includes(effectiveUser?.role);
 
   const visibleProjects = (() => {
-    // Superadmin not impersonating: cross-entity view, show everything
     if (isSuperAdmin && !impersonating) return projects;
-    // Impersonating an admin: all projects in that entity
-    if (isSuperAdmin && impersonating && effectiveEntityId && effectiveIsAdmin)
-      return projects.filter(p => p.entity_id === effectiveEntityId);
-    // Regular member (real or impersonated): only their assigned projects
+    // SA impersonating: always scope to the impersonated user's entity first
+    if (isSuperAdmin && impersonating && effectiveEntityId) {
+      const entityProjects = projects.filter(p => p.entity_id === effectiveEntityId);
+      // If impersonating a non-admin, further restrict to their project memberships
+      if (!effectiveIsAdmin && uid)
+        return entityProjects.filter(p => (p.members || []).includes(uid));
+      return entityProjects;
+    }
+    // Regular non-admin: only their assigned projects (API already entity-scoped)
     if (!effectiveIsAdmin && uid)
       return projects.filter(p => (p.members || []).includes(uid));
-    // Entity admin logged in normally: RLS scopes to entity at DB level
+    // Entity admin: all entity projects (already scoped by /api/entity/data)
     return projects;
   })();
 
@@ -59,9 +63,14 @@ export function AppProvider({ children }) {
     if (isSuperAdmin && !impersonating) return quotes;
     if (isSuperAdmin && impersonating && effectiveEntityId && effectiveIsAdmin)
       return quotes.filter(q => q.entity_id === effectiveEntityId);
+    // Non-admin: only own/shared, and always scoped to entity
     if (!effectiveIsAdmin && uid)
-      return quotes.filter(q => q.created_by === uid || (q.shared_with || []).includes(uid));
-    return quotes;
+      return quotes.filter(q =>
+        q.entity_id === effectiveEntityId &&
+        (q.created_by === uid || (q.shared_with || []).includes(uid))
+      );
+    // Entity admin: all entity quotes (already scoped by /api/entity/data)
+    return quotes.filter(q => !effectiveEntityId || q.entity_id === effectiveEntityId);
   })();
 
   const visibleClients = (() => {
@@ -73,8 +82,7 @@ export function AppProvider({ children }) {
 
   const visibleUsers = (() => {
     if (isSuperAdmin && !impersonating) return users;
-    if (isSuperAdmin && impersonating && effectiveEntityId)
-      return users.filter(u => u.entity_id === effectiveEntityId);
+    if (effectiveEntityId) return users.filter(u => u.entity_id === effectiveEntityId);
     return users;
   })();
 
@@ -157,28 +165,17 @@ export function AppProvider({ children }) {
         return;
       }
 
-      const [projRes, invRes, labRes, profRes, clRes, qtRes, qeRes] = await Promise.all([
-        supabase.from('projects').select('*, project_members(user_id)').order('created_at', { ascending: false }),
-        supabase.from('invoices').select('*').order('created_at', { ascending: false }),
-        supabase.from('labour_entries').select('*').order('date', { ascending: false }),
-        supabase.from('profiles').select('*').order('display_name'),
-        supabase.from('clients').select('*').order('name'),
-        supabase.from('quotes').select('*').order('created_at', { ascending: false }),
-        supabase.from('quote_entries').select('*').order('created_at')
-      ]);
-
-      if (projRes.data) {
-        setProjects(projRes.data.map(p => ({
-          ...p,
-          members: (p.project_members || []).map(pm => pm.user_id)
-        })));
+      const entityRes = await fetch('/api/entity/data');
+      if (entityRes.ok) {
+        const d = await entityRes.json();
+        setUsers(d.users);
+        setProjects(d.projects);
+        setInvoices(d.invoices);
+        setLabourEntries(d.labourEntries);
+        setClients(d.clients);
+        setQuotes(d.quotes);
+        setQuoteEntries(d.quoteEntries);
       }
-      if (invRes.data)  setInvoices(invRes.data);
-      if (labRes.data)  setLabourEntries(labRes.data);
-      if (profRes.data) setUsers(profRes.data);
-      if (clRes.data)   setClients(clRes.data);
-      if (qtRes.data)   setQuotes(qtRes.data);
-      if (qeRes.data)   setQuoteEntries(qeRes.data);
     } catch (err) {
       console.error('refreshSupabaseData error:', err);
     }
@@ -224,10 +221,23 @@ export function AppProvider({ children }) {
   };
 
   const changePassword = async (newPassword) => {
-    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    const { error } = await supabase.auth.updateUser({
+      password: newPassword,
+      data: { must_change_password: false },
+    });
     if (error) throw error;
 
-    await supabase.from('profiles').update({ must_change_password: false }).eq('id', currentUser.id);
+    // Use admin-client backed API so the update bypasses RLS (browser client silently no-ops on policy mismatch)
+    const res = await fetch('/api/auth/profile', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ must_change_password: false }),
+    });
+    if (!res.ok) {
+      const d = await res.json();
+      throw new Error(d.error || 'Hiba a profil frissítésekor');
+    }
+
     setCurrentUser(prev => ({ ...prev, must_change_password: false }));
 
     if (currentUser?.role === 'superadmin') router.push('/superadmin');
@@ -596,6 +606,9 @@ export function AppProvider({ children }) {
     const quote = quotes.find(q => q.id === quoteId);
     if (!quote) return;
     if (quote.created_by !== effectiveUser?.id && !isAdmin) throw new Error('Nincs jogosultsága!');
+    // Only share with users within the same entity
+    const recipient = users.find(u => u.id === userId);
+    if (!recipient || recipient.entity_id !== quote.entity_id) throw new Error('A felhasználó nem tartozik ehhez az entitáshoz!');
     const newShared = [...new Set([...(quote.shared_with || []), userId])];
     return updateQuote(quoteId, { shared_with: newShared });
   };
@@ -657,6 +670,7 @@ export function AppProvider({ children }) {
     if (!quote) throw new Error('Az ajánlat nem található!');
     if (!isAdmin && quote.created_by !== effectiveUser?.id) throw new Error('Nincs jogosultsága!');
     if (!effectiveEntityId) throw new Error('Nincs entitás hozzárendelve!');
+    if (quote.entity_id !== effectiveEntityId) throw new Error('Az ajánlat nem ehhez az entitáshoz tartozik!');
 
     const projDescription = [quote.work_type, quote.description].filter(Boolean).join(' – ');
 

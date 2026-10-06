@@ -136,11 +136,11 @@ function CreateProjectModal({ isOpen, onClose, users, clients, currentUser, effe
             <label className="form-label">Résztvevők</label>
             <div style={{ maxHeight: '160px', overflowY: 'auto', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: '0.4rem' }}>
               {memberList.map(u => (
-                <label key={u.id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.35rem 0.45rem', borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontSize: '0.825rem' }}>
-                  <input type="checkbox" checked={memberIds.includes(u.id)} onChange={() => toggle(u.id)} />
-                  <span style={{ fontWeight: 600 }}>{u.display_name}</span>
-                  {u.id === currentUser?.id && <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--accent)', background: 'var(--accent-light)', borderRadius: 'var(--radius-pill)', padding: '0.05rem 0.4rem' }}>én</span>}
-                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>({u.email})</span>
+                <label key={u.id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.35rem 0.45rem', borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontSize: '0.825rem', minWidth: 0 }}>
+                  <input type="checkbox" checked={memberIds.includes(u.id)} onChange={() => toggle(u.id)} style={{ flexShrink: 0 }} />
+                  <span style={{ fontWeight: 600, flexShrink: 0 }}>{u.display_name}</span>
+                  {u.id === currentUser?.id && <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--accent)', background: 'var(--accent-light)', borderRadius: 'var(--radius-pill)', padding: '0.05rem 0.4rem', flexShrink: 0 }}>én</span>}
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>({u.email})</span>
                 </label>
               ))}
             </div>
@@ -315,10 +315,10 @@ function AssignMembersModal({ isOpen, onClose, project, users, updateProjectMemb
         <p style={{ fontSize: '0.825rem', color: 'var(--text-secondary)', marginBottom: '0.75rem' }}>Jelölje be a projektben részt vevő tagokat:</p>
         <div style={{ maxHeight: '220px', overflowY: 'auto', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: '0.4rem', marginBottom: '1.25rem' }}>
           {users.map(u => (
-            <label key={u.id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.45rem', borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontSize: '0.85rem', borderBottom: '1px solid var(--border-subtle)' }}>
-              <input type="checkbox" checked={memberIds.includes(u.id)} onChange={() => toggle(u.id)} />
-              <span style={{ fontWeight: 600 }}>{u.display_name}</span>
-              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>({u.email})</span>
+            <label key={u.id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.45rem', borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontSize: '0.85rem', borderBottom: '1px solid var(--border-subtle)', minWidth: 0 }}>
+              <input type="checkbox" checked={memberIds.includes(u.id)} onChange={() => toggle(u.id)} style={{ flexShrink: 0 }} />
+              <span style={{ fontWeight: 600, flexShrink: 0 }}>{u.display_name}</span>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>({u.email})</span>
             </label>
           ))}
         </div>

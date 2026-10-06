@@ -16,7 +16,8 @@ async function getCallerAndQuote(id) {
   const isAdmin = ['admin', 'superadmin'].includes(profile.role);
   const isCreator = quote.created_by === user.id;
   if (!isAdmin && !isCreator) return { err: 'Forbidden', status: 403 };
-  if (profile.role === 'admin' && quote.entity_id !== profile.entity_id)
+  // Entity check: admin and regular users must be in the same entity as the quote
+  if (profile.role !== 'superadmin' && quote.entity_id !== profile.entity_id)
     return { err: 'Forbidden', status: 403 };
 
   return { user, profile, admin, quote };
@@ -32,6 +33,17 @@ export async function PATCH(request, { params }) {
                    'status', 'client_id', 'shared_with', 'tax_percent'];
   const update = {};
   for (const k of allowed) if (k in fields) update[k] = fields[k];
+
+  // Validate that all shared_with user IDs belong to the same entity as the quote
+  if (Array.isArray(update.shared_with) && update.shared_with.length > 0) {
+    const { data: validUsers } = await ctx.admin
+      .from('profiles')
+      .select('id')
+      .in('id', update.shared_with)
+      .eq('entity_id', ctx.quote.entity_id);
+    const validIds = new Set((validUsers || []).map(u => u.id));
+    update.shared_with = update.shared_with.filter(uid => validIds.has(uid));
+  }
 
   const { data, error } = await ctx.admin.from('quotes').update(update).eq('id', id).select().single();
   if (error) return Response.json({ error: error.message }, { status: 400 });

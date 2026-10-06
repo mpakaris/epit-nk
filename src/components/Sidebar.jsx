@@ -14,7 +14,6 @@ function buildNavItems(isSuperAdmin, isAdmin, impersonating) {
   if (isSuperAdmin && !impersonating) {
     return [
       { key: 'sa-entitasok',    href: '/superadmin',         label: 'Entitások',    icon: Building2,    exact: true },
-      { key: 'sa-felhasznalok', href: '/admin/felhasznalok', label: 'Felhasználók', icon: Users,        exact: true },
       { key: 'sa-projektek',    href: '/admin/projektek',    label: 'Projektek',    icon: FolderKanban },
       { key: 'sa-ajanlatok',    href: '/ajanlatok',          label: 'Ajánlatok',    icon: FileText },
       { divider: true, key: 'dsa' },

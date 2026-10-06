@@ -450,6 +450,12 @@ button, input, select, textarea {
   font-weight: 800;
   letter-spacing: -0.02em;
   color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+@media (max-width: 640px) {
+  .stat-value { font-size: 1.15rem; }
 }
 
 .stat-sub {
@@ -1110,6 +1116,12 @@ button, input, select, textarea {
   .hide-mobile { display: none !important; }
 }
 
+/* Show only on mobile */
+.show-mobile { display: none !important; }
+@media (max-width: 640px) {
+  .show-mobile { display: block !important; }
+}
+
 /* Stack 2-col grids on mobile (form date pickers, etc.) */
 .grid-2col {
   display: grid;
@@ -1221,4 +1233,23 @@ button, input, select, textarea {
 /* App main: add bottom safe area on mobile for drawer */
 @media (max-width: 768px) {
   .app-main { padding-bottom: 2rem; }
+}
+
+/* Invoice filter row — side-by-side on desktop, stacked full-width on mobile */
+.invoice-filters {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+.invoice-filters .form-control { width: auto; }
+@media (max-width: 640px) {
+  .invoice-filters { flex-direction: column; justify-content: flex-start; }
+  .invoice-filters .form-control { width: 100%; }
+}
+
+/* Calendar month grid — hide event text on tiny screens, just show bars */
+@media (max-width: 400px) {
+  .cal-event-text { display: none !important; }
 }

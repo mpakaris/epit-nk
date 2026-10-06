@@ -19,10 +19,17 @@ export async function PUT(request, { params }) {
 
   const { memberIds = [] } = await request.json();
 
-  await admin.from('project_members').delete().eq('project_id', id);
+  let validIds = [];
   if (memberIds.length > 0) {
+    const { data: validMembers } = await admin
+      .from('profiles').select('id').in('id', memberIds).eq('entity_id', project.entity_id);
+    validIds = (validMembers || []).map(m => m.id);
+  }
+
+  await admin.from('project_members').delete().eq('project_id', id);
+  if (validIds.length > 0) {
     await admin.from('project_members').insert(
-      memberIds.map(uId => ({ project_id: id, user_id: uId }))
+      validIds.map(uId => ({ project_id: id, user_id: uId }))
     );
   }
 

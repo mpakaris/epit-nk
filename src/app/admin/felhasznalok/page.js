@@ -187,7 +187,7 @@ export default function AdminUsersPage() {
               <th>Név</th>
               <th className="hide-mobile">Email</th>
               <th>Szerepkör</th>
-              <th>Állapot</th>
+              <th className="hide-mobile">Állapot</th>
               <th className="hide-mobile">Dátum</th>
               <th style={{ textAlign: 'right' }}>Műveletek</th>
             </tr>
@@ -200,10 +200,16 @@ export default function AdminUsersPage() {
                     {u.display_name}
                     {u.id === currentUser?.id && <span style={{ marginLeft: '0.35rem', fontSize: '0.675rem', color: 'var(--accent)', background: 'var(--accent-light)', padding: '0.1rem 0.35rem', borderRadius: 'var(--radius-pill)', fontWeight: 700 }}>Ön</span>}
                   </div>
+                  {/* Status shown as sub-text on mobile instead of a separate column */}
+                  <div className="show-mobile" style={{ marginTop: '0.2rem' }}>
+                    {u.must_change_password
+                      ? <span style={{ color: 'var(--warning-text)', fontSize: '0.7rem', display: 'inline-flex', alignItems: 'center', gap: '0.2rem', fontWeight: 600 }}><Lock size={10} /> Jelszócsere</span>
+                      : <span style={{ color: 'var(--success-text)', fontSize: '0.7rem', display: 'inline-flex', alignItems: 'center', gap: '0.2rem', fontWeight: 600 }}><CheckCircle2 size={10} /> Aktív</span>}
+                  </div>
                 </td>
                 <td className="text-secondary hide-mobile">{u.email}</td>
                 <td><span className={`role-tag ${u.role}`}>{u.role === 'admin' ? 'Admin' : 'Tag'}</span></td>
-                <td>
+                <td className="hide-mobile">
                   {u.must_change_password
                     ? <span style={{ color: 'var(--warning-text)', fontSize: '0.775rem', display: 'flex', alignItems: 'center', gap: '0.25rem', fontWeight: 600 }}><Lock size={12} /> Jelszócsere szükséges</span>
                     : <span style={{ color: 'var(--success-text)', fontSize: '0.775rem', display: 'flex', alignItems: 'center', gap: '0.25rem', fontWeight: 600 }}><CheckCircle2 size={12} /> Aktív</span>}

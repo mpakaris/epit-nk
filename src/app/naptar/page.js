@@ -358,17 +358,16 @@ export default function CalendarPage() {
                             }}
                           >
                             {startsHere && (
-                              <>
+                              <span className="cal-event-text" style={{ display: 'flex', alignItems: 'center', overflow: 'hidden' }}>
                                 {isProject
                                   ? <FolderKanban size={10} style={{ marginRight: 3, flexShrink: 0 }} />
                                   : <FileText size={10} style={{ marginRight: 3, flexShrink: 0 }} />
                                 }
-                                {ev.title}
-                                {ev.clientName && (
-                                  <span style={{ opacity: 0.75, marginLeft: 3 }}>· {ev.clientName}</span>
-                                )}
+                                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                  {ev.title}{ev.clientName ? ` · ${ev.clientName}` : ''}
+                                </span>
                                 {conflict && <AlertTriangle size={9} style={{ marginLeft: 3, flexShrink: 0 }} />}
-                              </>
+                              </span>
                             )}
                           </Link>
                         );
