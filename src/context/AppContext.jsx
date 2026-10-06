@@ -1,13 +1,14 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { createClient as createSupabaseClient } from '@/lib/supabase/client';
 
 const AppContext = createContext(null);
 
 export function AppProvider({ children }) {
   const router = useRouter();
+  const pathname = usePathname();
   const [supabase] = useState(() => createSupabaseClient());
 
   // Auth state
@@ -86,6 +87,17 @@ export function AppProvider({ children }) {
     return users;
   })();
 
+  // ---- Route guard ------------------------------------------------------------
+  useEffect(() => {
+    if (loading) return;
+    if (!currentUser) {
+      if (pathname !== '/login') router.replace('/login');
+      return;
+    }
+    if (currentUser.must_change_password && pathname !== '/change-password') {
+      router.replace('/change-password');
+    }
+  }, [loading, currentUser, pathname]);
   // -----------------------------------------------------------------------------
 
   const fetchProfile = async () => {
