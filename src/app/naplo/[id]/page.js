@@ -42,6 +42,24 @@ export default async function PublicProjectDiaryPage({ params }) {
     client = c || null;
   }
 
+  // Fetch linked quote (if any)
+  const { data: quoteRow } = await admin
+    .from('quotes')
+    .select('id, title, status, tax_percent, location, work_type, start_date, end_date, description')
+    .eq('project_id', id)
+    .limit(1)
+    .maybeSingle();
+
+  let linkedQuote = null;
+  if (quoteRow) {
+    const { data: qEntries } = await admin
+      .from('quote_entries')
+      .select('id, work_description, entry_type, quantity, unit, unit_price, amount_huf, notes')
+      .eq('quote_id', quoteRow.id)
+      .order('created_at');
+    linkedQuote = { ...quoteRow, entries: qEntries || [] };
+  }
+
   // Fetch only PUBLIC diary entries
   const { data: entries } = await admin
     .from('diary_entries')
@@ -82,6 +100,7 @@ export default async function PublicProjectDiaryPage({ params }) {
       client={client}
       entity={entity}
       entries={enrichedEntries}
+      linkedQuote={linkedQuote}
     />
   );
 }

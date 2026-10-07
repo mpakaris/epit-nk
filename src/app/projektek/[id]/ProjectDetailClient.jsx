@@ -14,7 +14,7 @@ import {
   CheckCircle2, Camera, ArrowRight, Hammer, Clock, Trash2, Wallet, BookOpen,
   Edit3, UserCheck, CalendarDays, BookUser, BarChart3, ShieldCheck,
   Phone, Mail, MapPin, ChevronUp, Link2, Copy, Check, AlertCircle, Lock, Eye,
-  ChevronLeft, ChevronRight, X, Play, ZoomIn
+  ChevronLeft, ChevronRight, X, Play, ZoomIn, FileText
 } from 'lucide-react';
 
 function MediaLightbox({ media, startIndex, onClose }) {
@@ -585,6 +585,8 @@ export default function ProjectDetailClient({
     updateProject: ctxUpdateProject,
     updateProjectMembers: ctxUpdateProjectMembers,
     createClient: ctxCreateClient,
+    quotes,
+    quoteEntries,
     diaryEntriesByProject,
     fetchDiaryEntries,
     updateDiaryEntry: ctxUpdateDiaryEntry,
@@ -847,6 +849,46 @@ export default function ProjectDetailClient({
           </div>
         </div>
       </div>
+
+      {/* Linked quote */}
+      {(() => {
+        const linkedQuote = (quotes || []).find(q => q.project_id === project.id);
+        if (!linkedQuote) return null;
+        const entries = (quoteEntries || []).filter(e => e.quote_id === linkedQuote.id);
+        const netTotal = entries.reduce((s, e) => s + Number(e.amount_huf || 0), 0);
+        const taxRate = Number(linkedQuote.tax_percent ?? 27);
+        const grossTotal = netTotal + Math.round(netTotal * taxRate / 100);
+        const sc = { draft: 'var(--text-muted)', sent: 'var(--warning-text)', accepted: 'var(--success-text)', rejected: 'var(--danger-text)' };
+        const STATUS_LABELS = { draft: 'Tervezet', sent: 'Kiküldve', accepted: 'Elfogadva', rejected: 'Elutasítva' };
+        return (
+          <div className="card mb-6" style={{ borderLeft: '3px solid var(--accent)', padding: '1rem 1.1rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <FileText size={16} color="var(--accent)" />
+                <div>
+                  <div style={{ fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', marginBottom: '0.1rem' }}>Kapcsolt ajánlat</div>
+                  <div style={{ fontWeight: 800, fontSize: '0.95rem', color: 'var(--text-primary)' }}>
+                    {linkedQuote.title}
+                    <span style={{ marginLeft: '0.5rem', fontSize: '0.7rem', fontWeight: 700, color: sc[linkedQuote.status] || 'var(--text-muted)' }}>
+                      {STATUS_LABELS[linkedQuote.status] || linkedQuote.status}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 600 }}>Bruttó összesen</div>
+                  <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, fontSize: '1rem' }}>{formatHUF(grossTotal)}</div>
+                </div>
+                <div style={{ display: 'flex', gap: '0.4rem' }}>
+                  <Link href={`/ajanlatok/${linkedQuote.id}`} className="btn btn-secondary btn-sm"><FileText size={13} /> Megtekint</Link>
+                  <a href={`/naplo/${project.id}/ajanlat`} target="_blank" rel="noopener noreferrer" className="btn btn-primary btn-sm">↓ Letöltés</a>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Stat grid */}
       <div className="stat-grid">

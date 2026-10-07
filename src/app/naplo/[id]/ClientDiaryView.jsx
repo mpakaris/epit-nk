@@ -197,7 +197,84 @@ function EntryCard({ entry, index }) {
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────────
-export default function ClientDiaryView({ project, client, entity, entries }) {
+function QuoteSection({ quote, projectId }) {
+  if (!quote) return null;
+  const entries = quote.entries || [];
+  const net = entries.reduce((s, e) => s + Number(e.amount_huf || 0), 0);
+  const taxRate = Number(quote.tax_percent ?? 27);
+  const tax = Math.round(net * taxRate / 100);
+  const gross = net + tax;
+
+  const TYPE_LABELS = { material: 'Anyag', labour: 'Munka', equipment: 'Gép', transport: 'Szállítás', other: 'Egyéb' };
+
+  return (
+    <div style={{ background: '#fff', borderRadius: 14, border: '1px solid #e2e8f0', overflow: 'hidden', boxShadow: '0 1px 6px rgba(0,0,0,0.05)', marginBottom: '1.5rem' }}>
+      {/* Header */}
+      <div style={{ padding: '1rem 1.15rem 0.85rem', borderBottom: '1px solid #f1f5f9' }}>
+        <div style={{ fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#64748b', marginBottom: '0.35rem' }}>Ajánlat</div>
+        <div style={{ fontWeight: 900, fontSize: '1.05rem', color: '#0f172a', marginBottom: '0.25rem' }}>{quote.title}</div>
+        {quote.description && <p style={{ fontSize: '0.85rem', color: '#475569', margin: '0 0 0.5rem', lineHeight: 1.55 }}>{quote.description}</p>}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', alignItems: 'center' }}>
+          {quote.location && <span style={{ fontSize: '0.78rem', color: '#64748b' }}>📍 {quote.location}</span>}
+          {quote.work_type && <span style={{ fontSize: '0.78rem', color: '#64748b' }}>🔧 {quote.work_type}</span>}
+        </div>
+      </div>
+
+      {/* Line items */}
+      {entries.length > 0 && (
+        <div style={{ padding: '0.75rem 1.15rem' }}>
+          {entries.map((e, i) => (
+            <div key={e.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.75rem', padding: '0.5rem 0', borderBottom: i < entries.length - 1 ? '1px solid #f1f5f9' : 'none' }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: '0.875rem', fontWeight: 600, color: '#0f172a' }}>{e.work_description}</div>
+                <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.1rem' }}>
+                  {TYPE_LABELS[e.entry_type] || e.entry_type}
+                  {e.quantity != null && e.unit && ` · ${e.quantity} ${e.unit}`}
+                  {e.unit_price ? ` × ${e.unit_price.toLocaleString('hu-HU')} Ft` : ''}
+                </div>
+              </div>
+              <div style={{ fontWeight: 700, fontSize: '0.875rem', color: '#0f172a', whiteSpace: 'nowrap', fontFamily: 'monospace' }}>
+                {Number(e.amount_huf).toLocaleString('hu-HU')} Ft
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Totals */}
+      <div style={{ padding: '0.75rem 1.15rem 1rem', background: '#f8fafc', borderTop: '1px solid #e2e8f0' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', marginBottom: '0.3rem' }}>
+          <span style={{ color: '#64748b' }}>Nettó összeg</span>
+          <span style={{ fontFamily: 'monospace', fontWeight: 600 }}>{net.toLocaleString('hu-HU')} Ft</span>
+        </div>
+        {taxRate > 0 && (
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', marginBottom: '0.3rem' }}>
+            <span style={{ color: '#64748b' }}>ÁFA ({taxRate}%)</span>
+            <span style={{ fontFamily: 'monospace', fontWeight: 600 }}>{tax.toLocaleString('hu-HU')} Ft</span>
+          </div>
+        )}
+        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1rem', fontWeight: 800, color: '#0f172a', paddingTop: '0.5rem', borderTop: '1px solid #e2e8f0', marginTop: '0.3rem' }}>
+          <span>Bruttó összesen</span>
+          <span style={{ fontFamily: 'monospace' }}>{gross.toLocaleString('hu-HU')} Ft</span>
+        </div>
+      </div>
+
+      {/* Download button */}
+      <div style={{ padding: '0.75rem 1.15rem', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'flex-end' }}>
+        <a
+          href={`/naplo/${projectId}/ajanlat`}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', background: '#0f172a', color: '#fff', borderRadius: 10, padding: '0.6rem 1.1rem', fontSize: '0.875rem', fontWeight: 700, textDecoration: 'none' }}
+        >
+          ↓ Ajánlat letöltése (PDF)
+        </a>
+      </div>
+    </div>
+  );
+}
+
+export default function ClientDiaryView({ project, client, entity, entries, linkedQuote }) {
   return (
     <>
       <SidebarKiller />
@@ -246,6 +323,9 @@ export default function ClientDiaryView({ project, client, entity, entries }) {
             </div>
           </div>
         </div>
+
+        {/* ── Quote ── */}
+        <QuoteSection quote={linkedQuote} projectId={project.id} />
 
         {/* ── Entries ── */}
         <div style={{ flex: 1, maxWidth: 640, margin: '0 auto', width: '100%', padding: '1.75rem 1.1rem 0.5rem' }}>
