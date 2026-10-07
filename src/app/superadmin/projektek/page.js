@@ -1,13 +1,13 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
 import { formatHUF } from '@/lib/constants';
 import { FolderKanban, ArrowLeft, ArrowUpRight, Building2, Search, Users, Receipt, Coins } from 'lucide-react';
 
-export default function SuperAdminProjectsPage() {
+function SuperAdminProjectsContent() {
   const { isSuperAdmin, loading, entities, projects, invoices, users } = useApp();
   const searchParams = useSearchParams();
   const [search, setSearch] = useState('');
@@ -155,5 +155,13 @@ export default function SuperAdminProjectsPage() {
         );
       })}
     </div>
+  );
+}
+
+export default function SuperAdminProjectsPage() {
+  return (
+    <Suspense fallback={<div className="container" style={{ paddingTop: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>Loading...</div>}>
+      <SuperAdminProjectsContent />
+    </Suspense>
   );
 }
