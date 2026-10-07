@@ -237,7 +237,7 @@ function EditProjectModal({ isOpen, onClose, project, clients, effectiveEntityId
         <div className="form-group"><label className="form-label" htmlFor="ep-name">Projekt neve *</label><input id="ep-name" type="text" required className="form-control" value={name} onChange={e => setName(e.target.value)} /></div>
         <div className="form-group"><label className="form-label" htmlFor="ep-desc">Leírás</label><textarea id="ep-desc" rows={2} className="form-control" value={desc} onChange={e => setDesc(e.target.value)} /></div>
         <div className="grid-2col">
-          <div className="form-group" style={{ marginBottom: 0 }}><label className="form-label" htmlFor="ep-start">Kezdés</label><input id="ep-start" type="date" className="form-control" min={today()} value={startDate} onChange={e => { const v = e.target.value; setStartDate(v); if (v && (!endDate || endDate <= v)) setEndDate(nextDay(v)); }} /></div>
+          <div className="form-group" style={{ marginBottom: 0 }}><label className="form-label" htmlFor="ep-start">Kezdés</label><input id="ep-start" type="date" className="form-control" value={startDate} onChange={e => { const v = e.target.value; setStartDate(v); if (v && (!endDate || endDate <= v)) setEndDate(nextDay(v)); }} /></div>
           <div className="form-group" style={{ marginBottom: 0 }}><label className="form-label" htmlFor="ep-end">Befejezés</label><input id="ep-end" type="date" className="form-control" min={startDate ? nextDay(startDate) : today()} value={endDate} onChange={e => setEndDate(e.target.value)} /></div>
         </div>
         <div className="form-group" style={{ marginTop: '0.75rem', marginBottom: showNewClient ? '0.5rem' : '1.25rem' }}>

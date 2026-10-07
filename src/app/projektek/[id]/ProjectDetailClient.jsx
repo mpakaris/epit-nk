@@ -253,7 +253,7 @@ function EditProjectModal({ isOpen, onClose, project, clients, users, updateProj
         <div className="grid-2col">
           <div className="form-group" style={{ marginBottom: 0 }}>
             <label className="form-label">Kezdés</label>
-            <input type="date" className="form-control" min={today()} value={startDate} onChange={e => { const v = e.target.value; setStartDate(v); if (v && (!endDate || endDate <= v)) setEndDate(nextDay(v)); }} />
+            <input type="date" className="form-control" value={startDate} onChange={e => { const v = e.target.value; setStartDate(v); if (v && (!endDate || endDate <= v)) setEndDate(nextDay(v)); }} />
           </div>
           <div className="form-group" style={{ marginBottom: 0 }}>
             <label className="form-label">Befejezés</label>
