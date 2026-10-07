@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { logAudit } from '@/lib/audit';
 
 export async function POST(request) {
   try {
@@ -21,7 +22,7 @@ export async function POST(request) {
       return NextResponse.json({ error: 'A jelszónak legalább 6 karakter hosszúnak kell lennie!' }, { status: 400 });
 
     const { data: targetProfile } = await adminClient
-      .from('profiles').select('role, entity_id').eq('id', userId).single();
+      .from('profiles').select('role, entity_id, display_name').eq('id', userId).single();
 
     if (!targetProfile) return NextResponse.json({ error: 'A felhasználó nem található!' }, { status: 404 });
 
@@ -42,6 +43,16 @@ export async function POST(request) {
     const { error: profileError } = await adminClient
       .from('profiles').update({ must_change_password: true }).eq('id', userId);
     if (profileError) return NextResponse.json({ error: profileError.message }, { status: 400 });
+
+    logAudit({
+      entityId: targetProfile.entity_id,
+      userId: caller.id,
+      userName: callerProfile.display_name || caller.email,
+      action: 'Jelszó visszaállítva',
+      targetType: 'user',
+      targetId: userId,
+      targetName: targetProfile.display_name,
+    });
 
     return NextResponse.json({ success: true, temporaryPassword });
   } catch (err) {

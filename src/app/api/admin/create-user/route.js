@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
+import { logAudit } from '@/lib/audit';
 
 export async function POST(request) {
   try {
@@ -76,6 +77,17 @@ export async function POST(request) {
     if (profileError) {
       return NextResponse.json({ error: profileError.message }, { status: 400 });
     }
+
+    logAudit({
+      entityId: finalEntityId,
+      userId: caller.id,
+      userName: callerProfile.display_name,
+      action: 'Felhasználó létrehozva',
+      targetType: 'user',
+      targetId: authData.user.id,
+      targetName: displayName,
+      details: { email, role: finalRole },
+    });
 
     return NextResponse.json({
       success: true,

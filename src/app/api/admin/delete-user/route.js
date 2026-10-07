@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { logAudit } from '@/lib/audit';
 
 export async function DELETE(request) {
   try {
@@ -19,7 +20,7 @@ export async function DELETE(request) {
     if (!userId) return NextResponse.json({ error: 'Felhasználó azonosító kötelező!' }, { status: 400 });
 
     const { data: targetProfile } = await adminClient
-      .from('profiles').select('role, entity_id').eq('id', userId).single();
+      .from('profiles').select('role, entity_id, display_name').eq('id', userId).single();
 
     if (!targetProfile) return NextResponse.json({ error: 'A felhasználó nem található!' }, { status: 404 });
 
@@ -40,6 +41,16 @@ export async function DELETE(request) {
 
     const { error } = await adminClient.auth.admin.deleteUser(userId);
     if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+
+    logAudit({
+      entityId: targetProfile.entity_id,
+      userId: caller.id,
+      userName: callerProfile.display_name || caller.email,
+      action: 'Felhasználó törölve',
+      targetType: 'user',
+      targetId: userId,
+      targetName: targetProfile.display_name,
+    });
 
     return NextResponse.json({ success: true });
   } catch (err) {

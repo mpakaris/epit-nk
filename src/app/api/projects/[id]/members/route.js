@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { logAudit } from '@/lib/audit';
 
 export async function PUT(request, { params }) {
   const { id } = await params;
@@ -8,11 +9,11 @@ export async function PUT(request, { params }) {
   if (error || !user) return Response.json({ error: 'Unauthenticated' }, { status: 401 });
 
   const admin = createAdminClient();
-  const { data: profile } = await admin.from('profiles').select('role, entity_id').eq('id', user.id).single();
+  const { data: profile } = await admin.from('profiles').select('role, entity_id, display_name').eq('id', user.id).single();
   if (!profile || !['admin', 'superadmin'].includes(profile.role))
     return Response.json({ error: 'Forbidden' }, { status: 403 });
 
-  const { data: project } = await admin.from('projects').select('entity_id').eq('id', id).single();
+  const { data: project } = await admin.from('projects').select('entity_id, name').eq('id', id).single();
   if (!project) return Response.json({ error: 'Not found' }, { status: 404 });
   if (profile.role === 'admin' && project.entity_id !== profile.entity_id)
     return Response.json({ error: 'Forbidden' }, { status: 403 });
@@ -32,6 +33,17 @@ export async function PUT(request, { params }) {
       validIds.map(uId => ({ project_id: id, user_id: uId }))
     );
   }
+
+  logAudit({
+    entityId: project.entity_id,
+    userId: user.id,
+    userName: profile.display_name || user.email,
+    action: 'Projekt tagok frissítve',
+    targetType: 'project',
+    targetId: id,
+    targetName: project.name,
+    details: { memberCount: validIds.length },
+  });
 
   return Response.json({ success: true, memberIds });
 }

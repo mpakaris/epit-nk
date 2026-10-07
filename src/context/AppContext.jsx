@@ -193,6 +193,15 @@ export function AppProvider({ children }) {
     }
   };
 
+  // ---- Audit (fire-and-forget) ------------------------------------------------
+  const auditLog = (action, extras = {}) => {
+    fetch('/api/audit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action, ...extras }),
+    }).catch(() => {});
+  };
+
   // ---- Auth -------------------------------------------------------------------
 
   const login = async (email, password) => {
@@ -212,6 +221,8 @@ export function AppProvider({ children }) {
 
     setCurrentUser(user);
     await refreshSupabaseData(user);
+
+    auditLog('Bejelentkezés', { entityId: user.entity_id });
 
     if (user.must_change_password) {
       router.push('/change-password');
@@ -251,6 +262,7 @@ export function AppProvider({ children }) {
     }
 
     setCurrentUser(prev => ({ ...prev, must_change_password: false }));
+    auditLog('Jelszó megváltoztatva', { entityId: currentUser?.entity_id });
 
     if (currentUser?.role === 'superadmin') router.push('/superadmin');
     else if (currentUser?.role === 'admin') router.push('/admin');
@@ -403,6 +415,14 @@ export function AppProvider({ children }) {
 
     if (error) throw error;
     setInvoices(prev => [data, ...prev]);
+    const proj = projects.find(p => p.id === projectId);
+    auditLog('Számla feltöltve', {
+      entityId: effectiveEntityId,
+      targetType: 'invoice',
+      targetId: data.id,
+      targetName: proj?.name,
+      details: { value_huf: Number(valueHuf), category },
+    });
     return data;
   };
 
@@ -412,6 +432,7 @@ export function AppProvider({ children }) {
     const { data, error } = await supabase.from('invoices').update(fields).eq('id', invoiceId).select().single();
     if (error) throw error;
     setInvoices(prev => prev.map(inv => inv.id === invoiceId ? data : inv));
+    auditLog('Számla módosítva', { entityId: effectiveEntityId, targetType: 'invoice', targetId: invoiceId });
     return data;
   };
 
@@ -421,6 +442,7 @@ export function AppProvider({ children }) {
     const { error } = await supabase.from('invoices').delete().eq('id', invoiceId);
     if (error) throw error;
     setInvoices(prev => prev.filter(inv => inv.id !== invoiceId));
+    auditLog('Számla törölve', { entityId: effectiveEntityId, targetType: 'invoice', targetId: invoiceId });
   };
 
   // ---- Labour -----------------------------------------------------------------
@@ -447,6 +469,14 @@ export function AppProvider({ children }) {
 
     if (error) throw error;
     setLabourEntries(prev => [data, ...prev]);
+    const proj = projects.find(p => p.id === projectId);
+    auditLog('Munkabejegyzés rögzítve', {
+      entityId: effectiveEntityId,
+      targetType: 'labour_entry',
+      targetId: data.id,
+      targetName: proj?.name,
+      details: { labour_type: labourType, hours: Number(hours), value_huf: valueHuf },
+    });
     return data;
   };
 
@@ -461,6 +491,7 @@ export function AppProvider({ children }) {
     const { error } = await supabase.from('labour_entries').delete().eq('id', entryId);
     if (error) throw error;
     setLabourEntries(prev => prev.filter(e => e.id !== entryId));
+    auditLog('Munkabejegyzés törölve', { entityId: effectiveEntityId, targetType: 'labour_entry', targetId: entryId });
   };
 
   // ---- Projects ---------------------------------------------------------------
@@ -587,6 +618,12 @@ export function AppProvider({ children }) {
 
     if (error) throw error;
     setQuotes(prev => [data, ...prev]);
+    auditLog('Ajánlat létrehozva', {
+      entityId: targetEntityId,
+      targetType: 'quote',
+      targetId: data.id,
+      targetName: title,
+    });
     return data;
   };
 

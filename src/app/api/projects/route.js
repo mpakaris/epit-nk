@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { logAudit } from '@/lib/audit';
 
 export async function POST(request) {
   const supabase = await createClient();
@@ -42,6 +43,17 @@ export async function POST(request) {
       );
     }
   }
+
+  const { data: callerProfile } = await admin.from('profiles').select('display_name').eq('id', user.id).single();
+  logAudit({
+    entityId: targetEntityId,
+    userId: user.id,
+    userName: callerProfile?.display_name || user.email,
+    action: 'Projekt létrehozva',
+    targetType: 'project',
+    targetId: proj.id,
+    targetName: proj.name,
+  });
 
   return Response.json({ project: { ...proj, members: memberIds } });
 }

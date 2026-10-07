@@ -7,17 +7,18 @@ import { useApp } from '@/context/AppContext';
 import {
   Building2, LayoutDashboard, FolderKanban, Users, BookUser,
   FileText, Calendar, User, LogOut, KeyRound, ShieldAlert,
-  ChevronLeft, ChevronRight, Eye, X, Menu
+  ChevronLeft, ChevronRight, Eye, X, Menu, ClipboardList
 } from 'lucide-react';
 
 function buildNavItems(isSuperAdmin, isAdmin, impersonating) {
   if (isSuperAdmin && !impersonating) {
     return [
-      { key: 'sa-entitasok',    href: '/superadmin',         label: 'Entitások',    icon: Building2,    exact: true },
+      { key: 'sa-entitasok',    href: '/superadmin',         label: 'Entitások',    icon: Building2,       exact: true },
       { key: 'sa-projektek',    href: '/admin/projektek',    label: 'Projektek',    icon: FolderKanban },
       { key: 'sa-ajanlatok',    href: '/ajanlatok',          label: 'Ajánlatok',    icon: FileText },
+      { key: 'sa-naplo',        href: '/superadmin/naplo',   label: 'Audit napló',  icon: ClipboardList },
       { divider: true, key: 'dsa' },
-      { key: 'sa-godmode',      href: '/superadmin',         label: 'God Mode',     icon: Eye,          exact: true },
+      { key: 'sa-godmode',      href: '/superadmin',         label: 'God Mode',     icon: Eye,             exact: true },
     ];
   }
   if (isAdmin) {
