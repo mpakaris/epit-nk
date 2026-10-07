@@ -56,11 +56,11 @@ export default function AdminClientsPage() {
 
   const getClientStats = (clientId) => {
     const clientQuotes = quotes.filter(q => q.client_id === clientId);
-    const clientProjectIds = clientQuotes.filter(q => q.project_id).map(q => q.project_id);
-    return {
-      quotesCount: clientQuotes.length,
-      projectsCount: clientProjectIds.length
-    };
+    // Projects directly linked to the client, PLUS projects converted from a client quote
+    const directIds  = projects.filter(p => p.client_id === clientId).map(p => p.id);
+    const quoteIds   = clientQuotes.filter(q => q.project_id).map(q => q.project_id);
+    const projectsCount = new Set([...directIds, ...quoteIds]).size;
+    return { quotesCount: clientQuotes.length, projectsCount };
   };
 
   const openCreateModal = () => {

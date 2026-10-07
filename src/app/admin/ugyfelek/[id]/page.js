@@ -55,8 +55,9 @@ export default function ClientDetailPage() {
   }
 
   const clientQuotes = quotes.filter(q => q.client_id === client.id);
-  const clientProjectIds = clientQuotes.filter(q => q.project_id).map(q => q.project_id);
-  const clientProjects = projects.filter(p => clientProjectIds.includes(p.id));
+  const quoteProjectIds = new Set(clientQuotes.filter(q => q.project_id).map(q => q.project_id));
+  // Include projects directly linked to the client AND those converted from a client quote
+  const clientProjects = projects.filter(p => p.client_id === client.id || quoteProjectIds.has(p.id));
 
   const totalQuoteValue = clientQuotes.reduce((sum, q) => {
     const qTotal = quoteEntries.filter(e => e.quote_id === q.id).reduce((s, e) => s + Number(e.amount_huf || 0), 0);
