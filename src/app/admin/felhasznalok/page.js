@@ -114,7 +114,7 @@ function ResetPasswordModal({ isOpen, onClose, targetUser, resetUserPassword, on
 }
 
 export default function AdminUsersPage() {
-  const { currentUser, isAdmin, isSuperAdmin, impersonating, effectiveEntityId, users, invoices, createUser, deleteUser, resetUserPassword } = useApp();
+  const { currentUser, isAdmin, loading, isSuperAdmin, impersonating, effectiveEntityId, users, invoices, createUser, deleteUser, resetUserPassword } = useApp();
 
   const [createOpen, setCreateOpen] = useState(false);
   const [resetTarget, setResetTarget] = useState(null);
@@ -131,6 +131,8 @@ export default function AdminUsersPage() {
       </div>
     );
   }
+
+  if (loading) return <div className="container" style={{ paddingTop: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>Betöltés...</div>;
 
   if (!isAdmin) {
     return (

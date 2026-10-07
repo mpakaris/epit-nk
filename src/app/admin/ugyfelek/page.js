@@ -21,7 +21,8 @@ import {
 } from 'lucide-react';
 
 export default function AdminClientsPage() {
-  const { isAdmin, effectiveEntityId, clients, quotes, projects, createClient, updateClient, deleteClient } = useApp();
+  const { isAdmin, loading, dataReady, effectiveEntityId, clients, quotes, projects, createClient, updateClient, deleteClient } = useApp();
+
 
   const [searchQuery, setSearchQuery] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -38,6 +39,8 @@ export default function AdminClientsPage() {
   const [formEmail, setFormEmail] = useState('');
   const [formNotes, setFormNotes] = useState('');
   const [formDiscount, setFormDiscount] = useState('0');
+
+  if (loading || !dataReady) return <div className="container" style={{ paddingTop: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>Betöltés...</div>;
 
   if (!isAdmin) {
     return (

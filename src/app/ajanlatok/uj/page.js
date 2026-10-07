@@ -51,7 +51,7 @@ const EMPTY_ENTRY = {
 
 export default function NewQuotePage() {
   const router = useRouter();
-  const { clients, users, createQuote, createQuoteEntry, createClient, currentUser, effectiveEntityId } = useApp();
+  const { clients, users, loading, createQuote, createQuoteEntry, createClient, currentUser, effectiveEntityId } = useApp();
 
   // Header fields
   const [title, setTitle] = useState('');
@@ -222,6 +222,8 @@ export default function NewQuotePage() {
       setIsSubmitting(false);
     }
   };
+
+  if (loading) return <div className="container" style={{ paddingTop: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>Betöltés...</div>;
 
   const selectedClient = clients.find(c => c.id === clientId);
   const totalValue = positions.reduce((s, p) => s + p.amount_huf, 0);

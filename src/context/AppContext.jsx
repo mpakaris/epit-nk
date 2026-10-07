@@ -17,6 +17,7 @@ export function AppProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   // Data
+  const [dataReady, setDataReady] = useState(false);
   const [entities, setEntities] = useState([]);
   const [users, setUsers] = useState([]);
   const [projects, setProjects] = useState([]);
@@ -25,6 +26,9 @@ export function AppProvider({ children }) {
   const [clients, setClients] = useState([]);
   const [quotes, setQuotes] = useState([]);
   const [quoteEntries, setQuoteEntries] = useState([]);
+
+  // Diary — keyed by project_id, loaded on demand
+  const [diaryEntriesByProject, setDiaryEntriesByProject] = useState({});
 
   // ---- Derived ----------------------------------------------------------------
   const effectiveUser = impersonating || currentUser;
@@ -147,7 +151,14 @@ export function AppProvider({ children }) {
   useEffect(() => {
     try {
       const saved = sessionStorage.getItem('god_mode');
-      if (saved) setImpersonating(JSON.parse(saved));
+      if (saved) {
+        const data = JSON.parse(saved);
+        setImpersonating(data);
+        // Re-sync cookie so server components see it after a hard refresh
+        if (data?.entity_id) {
+          document.cookie = `god_mode_entity=${data.entity_id}; path=/; SameSite=Lax`;
+        }
+      }
     } catch {}
   }, []);
 
@@ -173,6 +184,7 @@ export function AppProvider({ children }) {
           setClients(d.clients);
           setQuotes(d.quotes);
           setQuoteEntries(d.quoteEntries);
+          setDataReady(true);
         }
         return;
       }
@@ -187,6 +199,7 @@ export function AppProvider({ children }) {
         setClients(d.clients);
         setQuotes(d.quotes);
         setQuoteEntries(d.quoteEntries);
+        setDataReady(true);
       }
     } catch (err) {
       console.error('refreshSupabaseData error:', err);
@@ -281,12 +294,17 @@ export function AppProvider({ children }) {
       profile = data.profile;
     }
     setImpersonating(profile);
+    // Set cookie immediately so server components see the entity on the next navigation
+    if (profile?.entity_id) {
+      document.cookie = `god_mode_entity=${profile.entity_id}; path=/; SameSite=Lax`;
+    }
     if (profile?.role === 'admin') router.push('/admin');
     else router.push('/projektek');
   };
 
   const stopImpersonation = () => {
     setImpersonating(null);
+    document.cookie = 'god_mode_entity=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
     router.push('/superadmin');
   };
 
@@ -750,6 +768,88 @@ export function AppProvider({ children }) {
     return proj;
   };
 
+  // ---- Diary ------------------------------------------------------------------
+
+  const fetchDiaryEntries = async (projectId) => {
+    const res = await fetch(`/api/diary?project_id=${projectId}`);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Hiba a napló betöltésekor');
+    setDiaryEntriesByProject(prev => ({ ...prev, [projectId]: data.entries }));
+    return data.entries;
+  };
+
+  const createDiaryEntry = async ({ projectId, title, body, entryDate, photoIds = [], workType, internalNote, clientNote, isPublic = false }) => {
+    const res = await fetch('/api/diary', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ project_id: projectId, title, body, entry_date: entryDate, photo_ids: photoIds, work_type: workType, internal_note: internalNote, client_note: clientNote, is_public: isPublic }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Hiba a bejegyzés létrehozásakor');
+    setDiaryEntriesByProject(prev => ({
+      ...prev,
+      [projectId]: [data.entry, ...(prev[projectId] || [])],
+    }));
+    return data.entry;
+  };
+
+  const deleteDiaryPhoto = async (photoId, projectId) => {
+    const res = await fetch(`/api/diary/photos/${photoId}`, { method: 'DELETE' });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Hiba a fotó törlésekor');
+    setDiaryEntriesByProject(prev => {
+      const next = { ...prev };
+      if (next[projectId]) {
+        next[projectId] = next[projectId].map(entry => ({
+          ...entry,
+          photos: (entry.photos || []).filter(p => p.id !== photoId),
+        }));
+      }
+      return next;
+    });
+  };
+
+  const updateDiaryEntry = async (entryId, fields) => {
+    const res = await fetch(`/api/diary/${entryId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(fields),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Hiba a bejegyzés frissítésekor');
+    // Update in-memory state across all projects
+    setDiaryEntriesByProject(prev => {
+      const next = { ...prev };
+      for (const [pid, entries] of Object.entries(next)) {
+        next[pid] = entries.map(e => e.id === entryId ? { ...e, ...data.entry } : e);
+      }
+      return next;
+    });
+    return data.entry;
+  };
+
+  const deleteDiaryEntry = async (entryId, projectId) => {
+    const res = await fetch(`/api/diary/${entryId}`, { method: 'DELETE' });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Hiba a törléskor');
+    if (projectId) {
+      setDiaryEntriesByProject(prev => ({
+        ...prev,
+        [projectId]: (prev[projectId] || []).filter(e => e.id !== entryId),
+      }));
+    }
+  };
+
+  const uploadDiaryPhotos = async (projectId, files) => {
+    const formData = new FormData();
+    for (const file of files) formData.append('files', file);
+    formData.append('project_id', projectId); // needed for superadmin entity resolution
+    const res = await fetch('/api/diary/upload', { method: 'POST', body: formData });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Hiba a fotók feltöltésekor');
+    return data.photos;
+  };
+
   // ---- Context value ----------------------------------------------------------
 
   return (
@@ -763,6 +863,7 @@ export function AppProvider({ children }) {
         isAdmin,
         effectiveEntityId,
         loading,
+        dataReady,
         // God Mode
         startImpersonation,
         stopImpersonation,
@@ -816,6 +917,14 @@ export function AppProvider({ children }) {
         updateQuoteEntry,
         deleteQuoteEntry,
         convertQuoteToProject,
+        // Diary
+        diaryEntriesByProject,
+        fetchDiaryEntries,
+        createDiaryEntry,
+        updateDiaryEntry,
+        deleteDiaryEntry,
+        deleteDiaryPhoto,
+        uploadDiaryPhotos,
         // Misc
         refreshSupabaseData
       }}

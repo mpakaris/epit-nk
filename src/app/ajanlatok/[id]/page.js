@@ -40,11 +40,12 @@ export default function QuoteDetailPage() {
   const { id } = useParams();
   const router = useRouter();
   const {
-    currentUser, isAdmin, quotes, quoteEntries, clients, users, projects,
+    currentUser, isAdmin, loading, dataReady, quotes, quoteEntries, clients, users, projects,
     updateQuote, updateQuoteStatus, deleteQuote,
     createQuoteEntry, updateQuoteEntry, deleteQuoteEntry,
     convertQuoteToProject, shareQuoteWith, unshareQuoteWith
   } = useApp();
+
 
   const [showEditHeader, setShowEditHeader] = useState(false);
   const [headerForm, setHeaderForm] = useState({});
@@ -63,6 +64,8 @@ export default function QuoteDetailPage() {
 
   const [confirmModal, setConfirmModal] = useState(null);
   const [alertModal, setAlertModal] = useState(null);
+
+  if (loading || !dataReady) return <div className="container" style={{ paddingTop: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>Betöltés...</div>;
 
   const quote = quotes.find(q => q.id === id);
   if (!quote) {

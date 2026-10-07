@@ -5,15 +5,16 @@ import Link from 'next/link';
 import { useApp } from '@/context/AppContext';
 import Modal, { ConfirmModal, AlertModal } from '@/components/Modal';
 import StatCard from '@/components/StatCard';
-import { formatDate } from '@/lib/constants';
+import { formatDate, formatHUF } from '@/lib/constants';
 import {
   Building2, Plus, Users, FolderKanban, Eye, Trash2,
-  ShieldAlert, AlertCircle, CheckCircle2, Edit3, ArrowUpRight
+  ShieldAlert, AlertCircle, CheckCircle2, Edit3, ArrowUpRight,
+  FileText, Receipt, Coins
 } from 'lucide-react';
 
 export default function SuperAdminPage() {
   const {
-    isSuperAdmin, entities, users, projects, invoices,
+    isSuperAdmin, loading, entities, users, projects, invoices,
     createEntity, updateEntity, deleteEntity, startImpersonation
   } = useApp();
 
@@ -31,16 +32,20 @@ export default function SuperAdminPage() {
   const [confirmModal, setConfirmModal] = useState(null);
   const [alertModal, setAlertModal] = useState(null);
 
+  if (loading) return <div className="container" style={{ paddingTop: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>Loading...</div>;
+
   if (!isSuperAdmin) {
     return (
       <div className="container" style={{ paddingTop: '2.5rem', textAlign: 'center' }}>
-        <h2 style={{ color: 'var(--danger)' }}>Hozzáférés megtagadva</h2>
+        <h2 style={{ color: 'var(--danger)' }}>Access Denied</h2>
       </div>
     );
   }
 
   const totalUsers    = users.length;
   const totalProjects = projects.length;
+  const totalInvoices = invoices.length;
+  const totalHUF      = invoices.reduce((s, i) => s + Number(i.value_huf || 0), 0);
 
   // ---- Entity modal ----
   const openCreate = () => {
@@ -56,19 +61,19 @@ export default function SuperAdminPage() {
   const handleEntitySubmit = async (e) => {
     e.preventDefault();
     setFormError('');
-    if (!entityName.trim()) { setFormError('A név megadása kötelező!'); return; }
+    if (!entityName.trim()) { setFormError('Name is required!'); return; }
     setIsSubmitting(true);
     try {
       if (editingEntity) {
         await updateEntity(editingEntity.id, { name: entityName.trim() });
-        setSuccessMsg('Entitás neve frissítve.');
+        setSuccessMsg('Entity name updated.');
       } else {
         await createEntity({ name: entityName.trim() });
-        setSuccessMsg(`„${entityName.trim()}" létrehozva.`);
+        setSuccessMsg(`"${entityName.trim()}" created.`);
       }
       setShowEntityModal(false);
     } catch (err) {
-      setFormError(err.message || 'Hiba a mentésekor');
+      setFormError(err.message || 'Error saving');
     } finally {
       setIsSubmitting(false);
     }
@@ -78,7 +83,7 @@ export default function SuperAdminPage() {
   const handleJump = (entity) => {
     const admins = users.filter(u => u.entity_id === entity.id && u.role === 'admin');
     if (admins.length === 0) {
-      setAlertModal({ message: `„${entity.name}" entitásban nincs még adminisztrátor. Hozzon létre egyet az entitás részletes nézetében.` });
+      setAlertModal({ message: `"${entity.name}" has no administrator yet. Create one in the entity detail view.` });
       return;
     }
     if (admins.length === 1) {
@@ -94,11 +99,11 @@ export default function SuperAdminPage() {
     const entityUsers    = users.filter(u => u.entity_id === entity.id).length;
     const entityProjects = projects.filter(p => p.entity_id === entity.id).length;
     setConfirmModal({
-      message: `Biztosan törölni kívánja „${entity.name}"?\n${entityUsers} felhasználó és ${entityProjects} projekt is törlődik. Ez nem vonható vissza!`,
+      message: `Are you sure you want to delete "${entity.name}"?\n${entityUsers} users and ${entityProjects} projects will also be deleted. This cannot be undone!`,
       onConfirm: async () => {
         try {
           await deleteEntity(entity.id);
-          setSuccessMsg(`„${entity.name}" törölve.`);
+          setSuccessMsg(`"${entity.name}" deleted.`);
         } catch (err) {
           setAlertModal({ message: err.message });
         }
@@ -114,11 +119,11 @@ export default function SuperAdminPage() {
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', color: '#7c3aed', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', marginBottom: '0.15rem' }}>
               <ShieldAlert size={15} /> Superadmin
             </div>
-            <h1 className="page-title">Entitások kezelése</h1>
-            <p className="page-subtitle">Bérlők, felhasználók és god mode áttekintés</p>
+            <h1 className="page-title">Entity Management</h1>
+            <p className="page-subtitle">Tenants, users and God Mode overview</p>
           </div>
           <button type="button" onClick={openCreate} className="btn btn-primary btn-sm">
-            <Plus size={15} /> Új entitás
+            <Plus size={15} /> New Entity
           </button>
         </div>
       </div>
@@ -131,36 +136,22 @@ export default function SuperAdminPage() {
 
       {/* Stats */}
       <div className="stat-grid" style={{ marginBottom: '1.75rem' }}>
-        <StatCard
-          label="Entitások"
-          value={entities.length}
-          sub="Aktív bérlők"
-          icon={Building2}
-        />
-        <StatCard
-          label="Összes felhasználó"
-          value={totalUsers}
-          sub="Minden entitásban"
-          icon={Users}
-        />
-        <StatCard
-          label="Összes projekt"
-          value={totalProjects}
-          sub="Minden entitásban"
-          icon={FolderKanban}
-        />
+        <StatCard label="Entities"       value={entities.length} sub="Active tenants"       icon={Building2}   href="/superadmin" />
+        <StatCard label="Total users"    value={totalUsers}      sub="Across all entities"  icon={Users} />
+        <StatCard label="Total projects" value={totalProjects}   sub="Across all entities"  icon={FolderKanban} href="/superadmin/projektek" />
+        <StatCard label="Total invoices" value={totalInvoices}   sub={formatHUF(totalHUF)}  icon={Coins} href="/superadmin/projektek" />
       </div>
 
       {/* Entity list */}
       {entities.length === 0 ? (
         <div className="card" style={{ textAlign: 'center', padding: '2.5rem 1.5rem' }}>
           <Building2 size={36} color="var(--text-muted)" style={{ margin: '0 auto 0.5rem' }} />
-          <h4 style={{ fontWeight: 700, marginBottom: '0.25rem' }}>Még nincs entitás</h4>
+          <h4 style={{ fontWeight: 700, marginBottom: '0.25rem' }}>No entities yet</h4>
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '1rem' }}>
-            Hozza létre az első bérlői entitást.
+            Create the first tenant entity.
           </p>
           <button type="button" onClick={openCreate} className="btn btn-primary btn-sm">
-            <Plus size={15} /> Új entitás
+            <Plus size={15} /> New Entity
           </button>
         </div>
       ) : (
@@ -184,14 +175,14 @@ export default function SuperAdminPage() {
                       <ArrowUpRight size={15} color="var(--text-muted)" />
                     </h3>
                     <div style={{ fontSize: '0.775rem', color: 'var(--text-muted)' }}>
-                      Létrehozva: {formatDate(entity.created_at)}
+                      Created: {formatDate(entity.created_at)}
                     </div>
                   </Link>
                   <div style={{ display: 'flex', gap: '0.3rem' }}>
-                    <button type="button" onClick={() => openEdit(entity)} className="btn btn-secondary btn-sm" style={{ padding: '0.3rem 0.5rem' }} title="Átnevezés">
+                    <button type="button" onClick={() => openEdit(entity)} className="btn btn-secondary btn-sm" style={{ padding: '0.3rem 0.5rem' }} title="Rename">
                       <Edit3 size={13} />
                     </button>
-                    <button type="button" onClick={() => handleDelete(entity)} className="btn btn-danger btn-sm" style={{ padding: '0.3rem 0.5rem' }} title="Törlés">
+                    <button type="button" onClick={() => handleDelete(entity)} className="btn btn-danger btn-sm" style={{ padding: '0.3rem 0.5rem' }} title="Delete">
                       <Trash2 size={13} />
                     </button>
                   </div>
@@ -205,31 +196,38 @@ export default function SuperAdminPage() {
                   </div>
                   <div style={{ textAlign: 'center' }}>
                     <div style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-primary)' }}>{entityMembers.length}</div>
-                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 600 }}>Tag</div>
+                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 600 }}>Members</div>
                   </div>
                   <div style={{ textAlign: 'center' }}>
                     <div style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-primary)' }}>{entityProjects.length}</div>
-                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 600 }}>Projekt</div>
+                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 600 }}>Projects</div>
                   </div>
                 </div>
 
                 {/* Admins list */}
                 {entityAdmins.length > 0 && (
                   <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                    <span style={{ fontWeight: 700 }}>Admin{entityAdmins.length > 1 ? 'ok' : ''}:</span>{' '}
+                    <span style={{ fontWeight: 700 }}>Admin{entityAdmins.length > 1 ? 's' : ''}:</span>{' '}
                     {entityAdmins.map(a => a.display_name).join(', ')}
                   </div>
                 )}
 
                 {/* Action buttons */}
                 <div style={{ display: 'flex', gap: '0.5rem', marginTop: 'auto' }}>
+                  <Link
+                    href={`/superadmin/projektek?entity=${entity.id}`}
+                    className="btn btn-secondary btn-sm"
+                    style={{ flex: 1, justifyContent: 'center', gap: '0.4rem' }}
+                  >
+                    <FolderKanban size={14} /> View Projects
+                  </Link>
                   <button
                     type="button"
                     onClick={() => handleJump(entity)}
                     className="btn btn-sm"
                     style={{ flex: 1, background: 'linear-gradient(135deg, #7c3aed, #4f46e5)', color: '#fff', border: 'none', gap: '0.4rem' }}
                   >
-                    <Eye size={14} /> Belépés (God Mode)
+                    <Eye size={14} /> God Mode
                   </button>
                 </div>
               </div>
@@ -239,7 +237,7 @@ export default function SuperAdminPage() {
       )}
 
       {/* Create / Rename Modal */}
-      <Modal isOpen={showEntityModal} onClose={() => setShowEntityModal(false)} title={editingEntity ? 'Entitás átnevezése' : 'Új entitás'}>
+      <Modal isOpen={showEntityModal} onClose={() => setShowEntityModal(false)} title={editingEntity ? 'Rename Entity' : 'New Entity'}>
         {formError && (
           <div style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', color: 'var(--danger-text)', padding: '0.65rem', borderRadius: 'var(--radius-md)', fontSize: '0.825rem', display: 'flex', gap: '0.45rem', marginBottom: '0.85rem' }}>
             <AlertCircle size={15} style={{ flexShrink: 0 }} /><span>{formError}</span>
@@ -247,13 +245,13 @@ export default function SuperAdminPage() {
         )}
         <form onSubmit={handleEntitySubmit}>
           <div className="form-group" style={{ marginBottom: '1.25rem' }}>
-            <label className="form-label" htmlFor="ent-name">Entitás neve *</label>
-            <input id="ent-name" type="text" className="form-control" autoFocus required value={entityName} onChange={e => setEntityName(e.target.value)} placeholder="pl. Kovács Építő Csapat" />
+            <label className="form-label" htmlFor="ent-name">Entity name *</label>
+            <input id="ent-name" type="text" className="form-control" autoFocus required value={entityName} onChange={e => setEntityName(e.target.value)} placeholder="e.g. Smith Construction Team" />
           </div>
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
-            <button type="button" className="btn btn-secondary btn-sm" onClick={() => setShowEntityModal(false)}>Mégse</button>
+            <button type="button" className="btn btn-secondary btn-sm" onClick={() => setShowEntityModal(false)}>Cancel</button>
             <button type="submit" className="btn btn-primary btn-sm" disabled={isSubmitting}>
-              {isSubmitting ? 'Mentés...' : (editingEntity ? 'Módosítás' : 'Létrehozás')}
+              {isSubmitting ? 'Saving...' : (editingEntity ? 'Save' : 'Create')}
             </button>
           </div>
         </form>
@@ -263,10 +261,10 @@ export default function SuperAdminPage() {
       <Modal
         isOpen={!!pickerEntity}
         onClose={() => setPickerEntity(null)}
-        title={`Belépés: ${pickerEntity?.name}`}
+        title={`Enter as: ${pickerEntity?.name}`}
       >
         <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
-          Több adminisztrátor is van ebben az entitásban. Válassza ki, kinek a nézetét veszi át:
+          This entity has multiple administrators. Select whose view to take over:
         </p>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '1.25rem' }}>
           {pickerAdmins.map(admin => (
@@ -291,17 +289,17 @@ export default function SuperAdminPage() {
               </div>
               <div>
                 <div style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '0.9rem' }}>{admin.display_name}</div>
-                <div style={{ fontSize: '0.775rem', color: 'var(--text-muted)' }}>{admin.email || 'Admin'}</div>
+                <div style={{ fontSize: '0.775rem', color: 'var(--text-muted)' }}>{admin.email || 'Administrator'}</div>
               </div>
             </button>
           ))}
         </div>
         <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-          <button type="button" className="btn btn-secondary btn-sm" onClick={() => setPickerEntity(null)}>Mégse</button>
+          <button type="button" className="btn btn-secondary btn-sm" onClick={() => setPickerEntity(null)}>Cancel</button>
         </div>
       </Modal>
 
-      <ConfirmModal isOpen={!!confirmModal} onClose={() => setConfirmModal(null)} onConfirm={() => confirmModal?.onConfirm()} title="Entitás törlése" message={confirmModal?.message} />
+      <ConfirmModal isOpen={!!confirmModal} onClose={() => setConfirmModal(null)} onConfirm={() => confirmModal?.onConfirm()} title="Delete Entity" message={confirmModal?.message} />
       <AlertModal isOpen={!!alertModal} onClose={() => setAlertModal(null)} message={alertModal?.message} />
     </div>
   );

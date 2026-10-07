@@ -6,24 +6,29 @@ import { useApp } from '@/context/AppContext';
 import { ArrowLeft, ClipboardList, RefreshCw, ChevronLeft, ChevronRight, Building2, User, Calendar } from 'lucide-react';
 
 const ACTION_LABELS = {
-  'Bejelentkezés':              { color: 'var(--text-secondary)',  bg: 'var(--bg-subtle)' },
-  'Jelszó megváltoztatva':      { color: 'var(--accent)',          bg: 'var(--accent-light)' },
-  'Jelszó visszaállítva':       { color: 'var(--warning-text)',    bg: 'var(--warning-bg)' },
-  'Felhasználó létrehozva':     { color: 'var(--success-text)',    bg: 'var(--success-bg)' },
-  'Felhasználó törölve':        { color: 'var(--danger-text)',     bg: 'var(--danger-bg)' },
-  'Projekt létrehozva':         { color: 'var(--success-text)',    bg: 'var(--success-bg)' },
-  'Projekt módosítva':          { color: 'var(--accent)',          bg: 'var(--accent-light)' },
-  'Projekt törölve':            { color: 'var(--danger-text)',     bg: 'var(--danger-bg)' },
-  'Projekt tagok frissítve':    { color: 'var(--accent)',          bg: 'var(--accent-light)' },
-  'Számla feltöltve':           { color: 'var(--success-text)',    bg: 'var(--success-bg)' },
-  'Számla módosítva':           { color: 'var(--accent)',          bg: 'var(--accent-light)' },
-  'Számla törölve':             { color: 'var(--danger-text)',     bg: 'var(--danger-bg)' },
-  'Munkabejegyzés rögzítve':    { color: 'var(--success-text)',    bg: 'var(--success-bg)' },
-  'Munkabejegyzés törölve':     { color: 'var(--danger-text)',     bg: 'var(--danger-bg)' },
-  'Ajánlat létrehozva':         { color: 'var(--success-text)',    bg: 'var(--success-bg)' },
-  'Ügyfél létrehozva':          { color: 'var(--success-text)',    bg: 'var(--success-bg)' },
-  'Ügyfél módosítva':           { color: 'var(--accent)',          bg: 'var(--accent-light)' },
-  'Ügyfél törölve':             { color: 'var(--danger-text)',     bg: 'var(--danger-bg)' },
+  'Bejelentkezés':              { label: 'Login',                color: 'var(--text-secondary)',  bg: 'var(--bg-subtle)' },
+  'Jelszó megváltoztatva':      { label: 'Password changed',     color: 'var(--accent)',          bg: 'var(--accent-light)' },
+  'Jelszó visszaállítva':       { label: 'Password reset',       color: 'var(--warning-text)',    bg: 'var(--warning-bg)' },
+  'Felhasználó létrehozva':     { label: 'User created',         color: 'var(--success-text)',    bg: 'var(--success-bg)' },
+  'Felhasználó törölve':        { label: 'User deleted',         color: 'var(--danger-text)',     bg: 'var(--danger-bg)' },
+  'Projekt létrehozva':         { label: 'Project created',      color: 'var(--success-text)',    bg: 'var(--success-bg)' },
+  'Projekt módosítva':          { label: 'Project updated',      color: 'var(--accent)',          bg: 'var(--accent-light)' },
+  'Projekt törölve':            { label: 'Project deleted',      color: 'var(--danger-text)',     bg: 'var(--danger-bg)' },
+  'Projekt tagok frissítve':    { label: 'Members updated',      color: 'var(--accent)',          bg: 'var(--accent-light)' },
+  'Számla feltöltve':           { label: 'Invoice uploaded',     color: 'var(--success-text)',    bg: 'var(--success-bg)' },
+  'Számla módosítva':           { label: 'Invoice updated',      color: 'var(--accent)',          bg: 'var(--accent-light)' },
+  'Számla törölve':             { label: 'Invoice deleted',      color: 'var(--danger-text)',     bg: 'var(--danger-bg)' },
+  'Munkabejegyzés rögzítve':    { label: 'Labour logged',        color: 'var(--success-text)',    bg: 'var(--success-bg)' },
+  'Munkabejegyzés törölve':     { label: 'Labour deleted',       color: 'var(--danger-text)',     bg: 'var(--danger-bg)' },
+  'Ajánlat létrehozva':         { label: 'Quote created',        color: 'var(--success-text)',    bg: 'var(--success-bg)' },
+  'Ügyfél létrehozva':          { label: 'Client created',       color: 'var(--success-text)',    bg: 'var(--success-bg)' },
+  'Ügyfél módosítva':           { label: 'Client updated',       color: 'var(--accent)',          bg: 'var(--accent-light)' },
+  'Ügyfél törölve':             { label: 'Client deleted',       color: 'var(--danger-text)',     bg: 'var(--danger-bg)' },
+  'diary_entry_created':        { label: 'Diary entry created',  color: 'var(--success-text)',    bg: 'var(--success-bg)' },
+  'diary_entry_deleted':        { label: 'Diary entry deleted',  color: 'var(--danger-text)',     bg: 'var(--danger-bg)' },
+  'diary_share_token_created':  { label: 'Share link created',   color: 'var(--success-text)',    bg: 'var(--success-bg)' },
+  'diary_share_token_deleted':  { label: 'Share link deleted',   color: 'var(--danger-text)',     bg: 'var(--danger-bg)' },
+  'entity_updated':             { label: 'Entity updated',       color: 'var(--accent)',          bg: 'var(--accent-light)' },
 };
 
 const PAGE_SIZE = 50;
@@ -31,7 +36,7 @@ const PAGE_SIZE = 50;
 function fmtTs(ts) {
   if (!ts) return '–';
   const d = new Date(ts);
-  return d.toLocaleString('hu-HU', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+  return d.toLocaleString('en-GB', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
 }
 
 export default function AuditLogPage() {
@@ -74,8 +79,8 @@ export default function AuditLogPage() {
   if (!isSuperAdmin) {
     return (
       <div className="container" style={{ paddingTop: '2.5rem', textAlign: 'center' }}>
-        <h2 style={{ color: 'var(--danger)' }}>Hozzáférés megtagadva</h2>
-        <Link href="/superadmin" className="btn btn-secondary mt-4">Vissza</Link>
+        <h2 style={{ color: 'var(--danger)' }}>Access Denied</h2>
+        <Link href="/superadmin" className="btn btn-secondary mt-4">Back</Link>
       </div>
     );
   }
@@ -86,7 +91,7 @@ export default function AuditLogPage() {
     <div className="container">
       <div style={{ padding: '0.85rem 0 0.25rem' }}>
         <Link href="/superadmin" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', color: 'var(--text-secondary)', fontSize: '0.825rem', fontWeight: 600 }}>
-          <ArrowLeft size={15} /> Vissza az entitásokhoz
+          <ArrowLeft size={15} /> Back to entities
         </Link>
       </div>
 
@@ -96,11 +101,11 @@ export default function AuditLogPage() {
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', color: 'var(--warning-text)', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', marginBottom: '0.15rem' }}>
               <ClipboardList size={15} /> Superadmin
             </div>
-            <h1 className="page-title">Audit napló</h1>
-            <p className="page-subtitle">Minden rendszeresemény nyomkövetése · {total} bejegyzés</p>
+            <h1 className="page-title">Audit Log</h1>
+            <p className="page-subtitle">All system events tracked · {total} entries</p>
           </div>
           <button type="button" onClick={fetchLogs} className="btn btn-secondary btn-sm" disabled={loading}>
-            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} /> Frissítés
+            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} /> Refresh
           </button>
         </div>
       </div>
@@ -110,42 +115,42 @@ export default function AuditLogPage() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(200px, 100%), 1fr))', gap: '0.65rem', alignItems: 'flex-end' }}>
           <div className="form-group" style={{ margin: 0 }}>
             <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-              <Building2 size={12} /> Entitás
+              <Building2 size={12} /> Entity
             </label>
             <select className="form-control" value={filterEntity} onChange={e => setFilterEntity(e.target.value)}>
-              <option value="">Összes entitás</option>
+              <option value="">All entities</option>
               {entities.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
             </select>
           </div>
 
           <div className="form-group" style={{ margin: 0 }}>
             <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-              <ClipboardList size={12} /> Esemény
+              <ClipboardList size={12} /> Event
             </label>
             <select className="form-control" value={filterAction} onChange={e => setFilterAction(e.target.value)}>
-              <option value="">Minden esemény</option>
-              {Object.keys(ACTION_LABELS).map(a => <option key={a} value={a}>{a}</option>)}
+              <option value="">All events</option>
+              {Object.entries(ACTION_LABELS).map(([key, val]) => <option key={key} value={key}>{val.label}</option>)}
             </select>
           </div>
 
           <div className="form-group" style={{ margin: 0 }}>
             <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-              <Calendar size={12} /> Dátumtól
+              <Calendar size={12} /> From date
             </label>
             <input type="date" className="form-control" value={filterFrom} onChange={e => setFilterFrom(e.target.value)} />
           </div>
 
           <div className="form-group" style={{ margin: 0 }}>
             <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-              <Calendar size={12} /> Dátumig
+              <Calendar size={12} /> To date
             </label>
             <input type="date" className="form-control" value={filterTo} onChange={e => setFilterTo(e.target.value)} min={filterFrom || undefined} />
           </div>
 
           <div style={{ display: 'flex', gap: '0.4rem' }}>
-            <button type="submit" className="btn btn-primary btn-sm" style={{ flex: 1 }}>Szűrés</button>
+            <button type="submit" className="btn btn-primary btn-sm" style={{ flex: 1 }}>Filter</button>
             <button type="button" className="btn btn-secondary btn-sm" onClick={() => { setFilterEntity(''); setFilterAction(''); setFilterFrom(''); setFilterTo(''); setPage(0); }}>
-              Törlés
+              Clear
             </button>
           </div>
         </div>
@@ -156,20 +161,20 @@ export default function AuditLogPage() {
         <table className="custom-table">
           <thead>
             <tr>
-              <th>Időpont</th>
-              <th className="hide-mobile">Entitás</th>
-              <th>Felhasználó</th>
-              <th>Esemény</th>
-              <th className="hide-mobile">Célpont</th>
+              <th>Timestamp</th>
+              <th className="hide-mobile">Entity</th>
+              <th>User</th>
+              <th>Event</th>
+              <th className="hide-mobile">Target</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={5} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>Betöltés...</td></tr>
+              <tr><td colSpan={5} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>Loading...</td></tr>
             ) : logs.length === 0 ? (
-              <tr><td colSpan={5} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>Nincs találat.</td></tr>
+              <tr><td colSpan={5} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>No results.</td></tr>
             ) : logs.map(log => {
-              const style = ACTION_LABELS[log.action] || { color: 'var(--text-secondary)', bg: 'var(--bg-subtle)' };
+              const style = ACTION_LABELS[log.action] || { label: log.action, color: 'var(--text-secondary)', bg: 'var(--bg-subtle)' };
               return (
                 <tr key={log.id}>
                   <td style={{ whiteSpace: 'nowrap', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
@@ -190,7 +195,7 @@ export default function AuditLogPage() {
                       color: style.color, background: style.bg,
                       whiteSpace: 'nowrap',
                     }}>
-                      {log.action}
+                      {style.label}
                     </span>
                   </td>
                   <td className="hide-mobile" style={{ fontSize: '0.83rem', color: 'var(--text-secondary)' }}>

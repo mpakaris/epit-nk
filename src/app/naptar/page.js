@@ -87,7 +87,7 @@ const EVENT_H   = 22; // px per lane
 const DAY_NUM_H = 32; // px for the date-number row
 
 export default function CalendarPage() {
-  const { projects, quotes, clients } = useApp();
+  const { projects, quotes, clients, loading } = useApp();
   const [view, setView]             = useState('grid');
   const [currentDate, setCurrentDate] = useState(new Date());
 
@@ -162,6 +162,8 @@ export default function CalendarPage() {
   const prevMonth = () => setCurrentDate(d => new Date(d.getFullYear(), d.getMonth() - 1, 1));
   const nextMonth = () => setCurrentDate(d => new Date(d.getFullYear(), d.getMonth() + 1, 1));
   const goToday   = () => setCurrentDate(new Date());
+
+  if (loading) return <div className="container" style={{ paddingTop: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>Betöltés...</div>;
 
   const conflictingEvents = events.filter(e => hasConflict(events, e));
 

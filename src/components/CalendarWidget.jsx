@@ -37,8 +37,11 @@ function assignLanes(weekEvents) {
 const EVENT_H  = 20;
 const DAY_NUM_H = 28;
 
-export default function CalendarWidget() {
-  const { projects, quotes, clients } = useApp();
+export default function CalendarWidget({ projects: propProjects, quotes: propQuotes, clients: propClients } = {}) {
+  const ctx = useApp();
+  const projects = propProjects ?? ctx.projects;
+  const quotes = propQuotes ?? ctx.quotes;
+  const clients = propClients ?? ctx.clients;
 
   const today = useMemo(() => { const d = new Date(); d.setHours(0,0,0,0); return d; }, []);
   const year  = today.getFullYear();

@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
 import { useApp } from '@/context/AppContext';
 import { formatHUF, formatDate } from '@/lib/constants';
@@ -17,7 +17,10 @@ import {
 } from 'lucide-react';
 
 export default function AdminDashboardPage() {
-  const { isAdmin, isSuperAdmin, impersonating, projects, users, invoices } = useApp();
+  const { isAdmin, loading, dataReady, isSuperAdmin, impersonating, projects, users, invoices } = useApp();
+
+
+  if (loading || !dataReady) return <div className="container" style={{ paddingTop: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>Betöltés...</div>;
 
   if (!isAdmin) {
     return (

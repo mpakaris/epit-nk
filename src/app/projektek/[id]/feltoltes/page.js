@@ -35,9 +35,7 @@ const CATEGORY_ICONS = {
 export default function MobileUploadPage() {
   const { id } = useParams();
   const router = useRouter();
-  const { projects, createInvoice, uploadInvoiceImage, createLabourEntry } = useApp();
-
-  const project = projects.find(p => p.id === id);
+  const { createInvoice, uploadInvoiceImage, createLabourEntry } = useApp();
 
   const [mode, setMode] = useState('invoice');
 
@@ -187,28 +185,16 @@ export default function MobileUploadPage() {
     }
   };
 
-  if (!project) {
-    return (
-      <div className="container" style={{ paddingTop: '2.5rem', textAlign: 'center' }}>
-        <h2>A projekt nem található</h2>
-        <Link href="/projektek" className="btn btn-secondary mt-4">
-          <ArrowLeft size={16} /> Vissza a projektekhez
-        </Link>
-      </div>
-    );
-  }
-
   const numericInvoiceValue = parseInt(valueHuf, 10) || 0;
 
   return (
     <div className="container" style={{ maxWidth: '580px', paddingBottom: '90px' }}>
-      {/* Top back link */}
       <div style={{ padding: '0.85rem 0 0.25rem' }}>
         <Link
           href={`/projektek/${id}`}
           style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', color: 'var(--text-secondary)', fontSize: '0.85rem', fontWeight: 600 }}
         >
-          <ArrowLeft size={16} /> {project.name}
+          <ArrowLeft size={16} /> Vissza
         </Link>
       </div>
 

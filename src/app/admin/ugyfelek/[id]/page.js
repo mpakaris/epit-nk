@@ -33,7 +33,10 @@ const STATUS_COLORS = {
 
 export default function ClientDetailPage() {
   const { id } = useParams();
-  const { isAdmin, clients, quotes, quoteEntries, projects, invoices } = useApp();
+  const { isAdmin, loading, dataReady, clients, quotes, quoteEntries, projects, invoices } = useApp();
+
+
+  if (loading || !dataReady) return <div className="container" style={{ paddingTop: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>Betöltés...</div>;
 
   if (!isAdmin) {
     return (

@@ -643,6 +643,11 @@ button, input, select, textarea {
   to { transform: translateY(0); opacity: 1; }
 }
 
+@keyframes fadeInUp {
+  from { transform: translate(-50%, 12px); opacity: 0; }
+  to   { transform: translate(-50%, 0);    opacity: 1; }
+}
+
 /* Mobile Modal Bottom Sheet */
 @media (max-width: 640px) {
   .modal-overlay {

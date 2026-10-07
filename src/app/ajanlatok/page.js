@@ -24,7 +24,8 @@ const STATUS_COLORS = {
 };
 
 export default function QuotesListPage() {
-  const { currentUser, isAdmin, quotes, quoteEntries, clients, deleteQuote } = useApp();
+  const { currentUser, isAdmin, loading, dataReady, quotes, quoteEntries, clients, deleteQuote } = useApp();
+
 
   const [statusFilter, setStatusFilter] = useState('all');
   const [confirmModal, setConfirmModal] = useState(null);
@@ -50,6 +51,8 @@ export default function QuotesListPage() {
       }
     });
   };
+
+  if (loading || !dataReady) return <div className="container" style={{ paddingTop: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>Betöltés...</div>;
 
   return (
     <div className="container">

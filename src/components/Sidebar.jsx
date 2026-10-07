@@ -13,12 +13,10 @@ import {
 function buildNavItems(isSuperAdmin, isAdmin, impersonating) {
   if (isSuperAdmin && !impersonating) {
     return [
-      { key: 'sa-entitasok',    href: '/superadmin',         label: 'Entitások',    icon: Building2,       exact: true },
-      { key: 'sa-projektek',    href: '/admin/projektek',    label: 'Projektek',    icon: FolderKanban },
-      { key: 'sa-ajanlatok',    href: '/ajanlatok',          label: 'Ajánlatok',    icon: FileText },
-      { key: 'sa-naplo',        href: '/superadmin/naplo',   label: 'Audit napló',  icon: ClipboardList },
-      { divider: true, key: 'dsa' },
-      { key: 'sa-godmode',      href: '/superadmin',         label: 'God Mode',     icon: Eye,             exact: true },
+      { key: 'sa-entitasok',  href: '/superadmin',              label: 'Entities',  icon: Building2,    exact: true },
+      { key: 'sa-projektek',  href: '/superadmin/projektek',    label: 'Projects',  icon: FolderKanban },
+      { key: 'sa-ajanlatok',  href: '/superadmin/ajanlatok',    label: 'Quotes',    icon: FileText },
+      { key: 'sa-naplo',      href: '/superadmin/naplo',        label: 'Audit Log', icon: ClipboardList },
     ];
   }
   if (isAdmin) {
@@ -101,6 +99,7 @@ export default function Sidebar() {
 
   if (!currentUser && pathname === '/login') return null;
   if (!currentUser) return null;
+  if (pathname.startsWith('/naplo/')) return null;
 
   const navItems = buildNavItems(isSuperAdmin, isAdmin, impersonating);
   const homeHref = isSuperAdmin && !impersonating ? '/superadmin' : isAdmin ? '/admin' : '/projektek';
@@ -196,7 +195,7 @@ export default function Sidebar() {
             <div className="sidebar-user-info">
               <span className="sidebar-user-name">{currentUser.display_name}</span>
               <span className="sidebar-user-role">
-                {currentUser.role === 'superadmin' ? 'Superadmin' : currentUser.role === 'admin' ? 'Admin' : 'Tag'}
+                {currentUser.role === 'superadmin' ? 'Superadmin' : currentUser.role === 'admin' ? 'Admin' : 'Member'}
               </span>
             </div>
           )}
@@ -280,7 +279,7 @@ export default function Sidebar() {
               <div>
                 <div style={{ fontWeight: 700, fontSize: '0.9rem' }}>{currentUser.display_name}</div>
                 <div style={{ fontSize: '0.775rem', color: 'var(--text-muted)' }}>
-                  {currentUser.role === 'superadmin' ? 'Superadmin' : currentUser.role === 'admin' ? 'Admin' : 'Tag'}
+                  {currentUser.role === 'superadmin' ? 'Superadmin' : currentUser.role === 'admin' ? 'Admin' : 'Member'}
                 </div>
               </div>
               <UserActions showLabel />
