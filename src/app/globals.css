@@ -468,6 +468,7 @@ button, input, select, textarea {
   flex-direction: column;
   gap: 0.35rem;
   margin-bottom: 1.15rem;
+  min-width: 0;
 }
 
 .form-label {
@@ -485,6 +486,8 @@ button, input, select, textarea {
   font-size: 1rem;
   transition: all 0.15s ease;
   width: 100%;
+  max-width: 100%;
+  min-width: 0;
   min-height: 44px;
 }
 
@@ -1140,6 +1143,7 @@ button, input, select, textarea {
   grid-template-columns: 1fr 1fr;
   gap: 0.75rem;
 }
+.grid-2col > * { min-width: 0; }
 @media (max-width: 500px) {
   .grid-2col { grid-template-columns: 1fr; }
 }
