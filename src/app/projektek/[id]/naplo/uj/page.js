@@ -4,6 +4,7 @@ import React, { useState, useRef } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
+import { convertIfHeif } from '@/lib/imageUtils';
 import { AlertModal } from '@/components/Modal';
 import {
   ArrowLeft, Camera, X, Upload, CheckCircle2, Lock, Eye,
@@ -78,14 +79,16 @@ export default function NewDiaryEntryPage() {
 
   const project = projects.find(p => p.id === projectId);
 
-  const addFiles = (files) => {
+  const addFiles = async (files) => {
     if (!files || files.length === 0) return;
-    const newFiles = [...selectedFiles, ...files].slice(0, MAX_PHOTOS);
+    const raw = Array.from(files);
+    const converted = await Promise.all(raw.map(convertIfHeif));
+    const newFiles = [...selectedFiles, ...converted].slice(0, MAX_PHOTOS);
     setSelectedFiles(newFiles);
 
     const newPreviews = [...previews];
     const remaining = MAX_PHOTOS - previews.length;
-    Array.from(files).slice(0, remaining).forEach(file => {
+    converted.slice(0, remaining).forEach(file => {
       const isVideo = file.type.startsWith('video/');
       const isImage = file.type.startsWith('image/');
       if (isImage) {
@@ -106,8 +109,8 @@ export default function NewDiaryEntryPage() {
     });
   };
 
-  const handleFileChange = (e) => {
-    addFiles(Array.from(e.target.files || []));
+  const handleFileChange = async (e) => {
+    await addFiles(Array.from(e.target.files || []));
     e.target.value = '';
   };
 

@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
+import { convertIfHeif } from '@/lib/imageUtils';
 import { calculateProjectFinancials } from '@/lib/calculations';
 import { formatHUF, formatDate, INVOICE_CATEGORIES } from '@/lib/constants';
 import InvoiceCard from '@/components/InvoiceCard';
@@ -210,11 +211,12 @@ function EditDiaryEntryModal({ isOpen, onClose, entry, onSave, onDeletePhoto }) 
   const existingPhotos = entry.photos || [];
   const totalCount = existingPhotos.length + pendingFiles.length;
 
-  const addFiles = (files) => {
+  const addFiles = async (files) => {
     if (!files || files.length === 0) return;
     const remaining = MAX_PHOTOS - totalCount;
     if (remaining <= 0) return;
-    const toAdd = Array.from(files).slice(0, remaining);
+    const raw = Array.from(files).slice(0, remaining);
+    const toAdd = await Promise.all(raw.map(convertIfHeif));
     setPendingFiles(prev => [...prev, ...toAdd]);
     const newPreviews = toAdd.map(file => ({
       url: file.type.startsWith('image/') ? URL.createObjectURL(file) : null,

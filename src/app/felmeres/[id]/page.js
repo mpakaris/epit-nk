@@ -13,6 +13,7 @@ import {
   Maximize2, LayoutPanelLeft, Home, Ruler
 } from 'lucide-react';
 import PageSpinner from '@/components/PageSpinner';
+import { convertIfHeif } from '@/lib/imageUtils';
 
 // ── Lightbox ──────────────────────────────────────────────────────────────────
 function Lightbox({ media, startIndex, onClose }) {
@@ -68,8 +69,10 @@ function InlineUpload({ surveyId, entryId, mediaType, label = 'Fotók' }) {
   const [error, setError] = useState('');
 
   const handleFiles = async (e) => {
-    const files = Array.from(e.target.files || []);
-    if (!files.length) return;
+    const raw = Array.from(e.target.files || []);
+    e.target.value = '';
+    if (!raw.length) return;
+    const files = await Promise.all(raw.map(convertIfHeif));
     setUploading(true);
     setError('');
     try {
@@ -78,7 +81,6 @@ function InlineUpload({ surveyId, entryId, mediaType, label = 'Fotók' }) {
       setError(err.message || 'Feltöltési hiba');
     } finally {
       setUploading(false);
-      e.target.value = '';
     }
   };
 
@@ -110,8 +112,10 @@ function InlineUploadZone({ surveyId, entryId }) {
   const [error, setError] = useState('');
 
   const handleFiles = async (e) => {
-    const files = Array.from(e.target.files || []);
-    if (!files.length) return;
+    const raw = Array.from(e.target.files || []);
+    e.target.value = '';
+    if (!raw.length) return;
+    const files = await Promise.all(raw.map(convertIfHeif));
     setUploading(true);
     setError('');
     try {
@@ -120,7 +124,6 @@ function InlineUploadZone({ surveyId, entryId }) {
       setError(err.message || 'Feltöltési hiba');
     } finally {
       setUploading(false);
-      e.target.value = '';
     }
   };
 
@@ -188,7 +191,7 @@ function MediaGrid({ media, isAdmin, onDelete }) {
 
 // ── Entry form (isolated — its own state won't re-render the parent) ──────────
 function EntryForm({ initial, surveyId, onSave, onCancel }) {
-  const { uploadSurveyMedia } = useApp();
+  const { uploadSurveyMedia, deleteSurveyEntry } = useApp();
 
   const [name, setName] = useState(initial?.name || '');
   const [description, setDescription] = useState(initial?.description || '');
@@ -202,16 +205,18 @@ function EntryForm({ initial, surveyId, onSave, onCancel }) {
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [previews, setPreviews] = useState([]);
 
-  const addFiles = (e) => {
-    const arr = Array.from(e.target.files || []);
-    if (!arr.length) return;
-    setSelectedFiles(prev => [...prev, ...arr]);
-    setPreviews(prev => [...prev, ...arr.map(f => ({
+  const addFiles = async (e) => {
+    const raw = Array.from(e.target.files || []);
+    e.target.value = '';
+    if (!raw.length) return;
+    // Convert iPhone HEIF/HEIC images to JPEG before storing
+    const converted = await Promise.all(raw.map(convertIfHeif));
+    setSelectedFiles(prev => [...prev, ...converted]);
+    setPreviews(prev => [...prev, ...converted.map(f => ({
       key: `${f.name}-${f.size}`,
       isVideo: f.type.startsWith('video/'),
       url: f.type.startsWith('video/') ? null : URL.createObjectURL(f),
     }))]);
-    e.target.value = '';
   };
 
   const removeFile = (idx) => {
@@ -227,7 +232,13 @@ function EntryForm({ initial, surveyId, onSave, onCancel }) {
     try {
       const entry = await onSave({ name: name.trim(), description: description.trim() || null, size_m2: sizeM2 ? Number(sizeM2) : null });
       if (!initial && selectedFiles.length && entry?.id) {
-        await uploadSurveyMedia(surveyId, selectedFiles, { entryId: entry.id, mediaType: 'photo' });
+        try {
+          await uploadSurveyMedia(surveyId, selectedFiles, { entryId: entry.id, mediaType: 'photo' });
+        } catch (uploadErr) {
+          // Upload failed — roll back the just-created entry so nothing is left half-done
+          try { await deleteSurveyEntry(surveyId, entry.id); } catch {}
+          throw uploadErr;
+        }
       }
       onCancel();
     } catch (err) {

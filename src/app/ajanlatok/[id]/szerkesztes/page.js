@@ -13,6 +13,7 @@ import {
   User, Coins, Home, Ruler, X, Camera,
 } from 'lucide-react';
 import PageSpinner from '@/components/PageSpinner';
+import { convertIfHeif } from '@/lib/imageUtils';
 
 const ENTRY_TYPE_ORDER = { material: 0, labour: 1, transport: 2, equipment: 3, other: 4 };
 const sortEntries = (arr) => [...arr].sort((a, b) => (ENTRY_TYPE_ORDER[a.entry_type] ?? 4) - (ENTRY_TYPE_ORDER[b.entry_type] ?? 4));
@@ -78,12 +79,13 @@ function SectionForm({ initial, surveyId, onSave, onCancel }) {
   const [previews, setPreviews] = useState([]);
   const fileInputRef = React.useRef(null);
 
-  const addFiles = (e) => {
-    const arr = Array.from(e.target.files || []);
-    if (!arr.length) return;
+  const addFiles = async (e) => {
+    const raw = Array.from(e.target.files || []);
+    e.target.value = '';
+    if (!raw.length) return;
+    const arr = await Promise.all(raw.map(convertIfHeif));
     setSelectedFiles(prev => [...prev, ...arr]);
     setPreviews(prev => [...prev, ...arr.map(f => ({ key: `${f.name}-${f.size}`, isVideo: f.type.startsWith('video/'), url: f.type.startsWith('video/') ? null : URL.createObjectURL(f) }))]);
-    e.target.value = '';
   };
 
   const handleSave = async () => {
