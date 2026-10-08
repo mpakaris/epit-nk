@@ -903,11 +903,11 @@ export function AppProvider({ children }) {
 
   // ---- Quote sections ---------------------------------------------------------
 
-  const createQuoteSection = async (quoteId, { name, description, size_m2, survey_entry_id }) => {
+  const createQuoteSection = async (quoteId, { name, description, size_m2, survey_entry_id, start_date, end_date }) => {
     const res = await fetch(`/api/quotes/${quoteId}/sections`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, description, size_m2, survey_entry_id }),
+      body: JSON.stringify({ name, description, size_m2, survey_entry_id, start_date, end_date }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Hiba a szekció létrehozásakor');

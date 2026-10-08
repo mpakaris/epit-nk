@@ -27,7 +27,7 @@ function diffDays(a, b) {
   return Math.round((toDay(b) - toDay(a)) / 86400000);
 }
 
-function buildEvents(projects, quotes, clients) {
+function buildEvents(projects, quotes, clients, quoteSections, projectRooms) {
   const events = [];
   for (const p of projects) {
     if (p.start_date || p.end_date) {
@@ -36,6 +36,15 @@ function buildEvents(projects, quotes, clients) {
         id: p.id, title: p.name, clientName: client?.name || null, type: 'project',
         start: p.start_date ? toDay(p.start_date) : null,
         end:   p.end_date   ? toDay(p.end_date)   : null,
+        href: `/projektek/${p.id}`,
+      });
+    }
+    // Per-room dates from project rooms (green)
+    for (const r of (projectRooms || []).filter(r => r.project_id === p.id && (r.start_date || r.end_date))) {
+      events.push({
+        id: `room-${r.id}`, title: `${p.name} · ${r.name}`, clientName: null, type: 'project',
+        start: r.start_date ? toDay(r.start_date) : null,
+        end:   r.end_date   ? toDay(r.end_date)   : null,
         href: `/projektek/${p.id}`,
       });
     }
@@ -49,6 +58,17 @@ function buildEvents(projects, quotes, clients) {
         end:   q.end_date   ? toDay(q.end_date)   : null,
         href: `/ajanlatok/${q.id}`,
       });
+    }
+    // Per-room dates from quote sections (orange)
+    if (q.status !== 'rejected') {
+      for (const s of (quoteSections || []).filter(s => s.quote_id === q.id && (s.start_date || s.end_date))) {
+        events.push({
+          id: `sec-${s.id}`, title: `${q.title} · ${s.name}`, clientName: null, type: 'quote', status: q.status,
+          start: s.start_date ? toDay(s.start_date) : null,
+          end:   s.end_date   ? toDay(s.end_date)   : null,
+          href: `/ajanlatok/${q.id}`,
+        });
+      }
     }
   }
   return events;
@@ -133,11 +153,11 @@ function buildMonthData(y, m, events) {
 }
 
 export default function CalendarPage() {
-  const { projects, quotes, clients, loading } = useApp();
+  const { projects, quotes, clients, loading, quoteSections, projectRooms } = useApp();
   const [view, setView]               = useState('grid');
   const [currentDate, setCurrentDate] = useState(new Date());
 
-  const events = useMemo(() => buildEvents(projects, quotes, clients), [projects, quotes, clients]);
+  const events = useMemo(() => buildEvents(projects, quotes, clients, quoteSections, projectRooms), [projects, quotes, clients, quoteSections, projectRooms]);
   const today  = useMemo(() => { const d = new Date(); d.setHours(0,0,0,0); return d; }, []);
 
   // ── TIMELINE ──────────────────────────────────────────────────────────────

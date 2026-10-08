@@ -8,11 +8,11 @@ import Modal, { AlertModal } from '@/components/Modal';
 import SectionMediaGrid from '@/components/SectionMediaGrid';
 import PageSpinner from '@/components/PageSpinner';
 import { convertIfHeif } from '@/lib/imageUtils';
-import { formatHUF, QUOTE_ENTRY_TYPES, QUANTITY_UNITS, LABOUR_UNITS } from '@/lib/constants';
+import { formatHUF, formatDate, QUOTE_ENTRY_TYPES, QUANTITY_UNITS, LABOUR_UNITS } from '@/lib/constants';
 import {
   ArrowLeft, AlertCircle, Check, Loader2, Plus, Trash2, Edit3,
   Package, Hammer, Wrench, Truck, MoreHorizontal,
-  User, Coins, Home, Ruler, X, Camera,
+  User, Coins, Home, Ruler, Calendar, X, Camera,
 } from 'lucide-react';
 
 const ENTRY_TYPE_ORDER = { material: 0, labour: 1, transport: 2, equipment: 3, other: 4 };
@@ -79,6 +79,8 @@ function SectionForm({ initial, surveyId, onSave, onCancel }) {
   const [name, setName] = useState(initial?.name || '');
   const [description, setDescription] = useState(initial?.description || '');
   const [sizeM2, setSizeM2] = useState(initial?.size_m2 != null ? String(initial.size_m2) : '');
+  const [startDate, setStartDate] = useState(initial?.start_date || '');
+  const [endDate, setEndDate] = useState(initial?.end_date || '');
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState([]);
@@ -98,7 +100,7 @@ function SectionForm({ initial, surveyId, onSave, onCancel }) {
     if (!name.trim()) { setError('A helyiség neve kötelező!'); return; }
     setSaving(true);
     try {
-      const fields = { name: name.trim(), description: description.trim() || null, size_m2: sizeM2 ? Number(sizeM2) : null };
+      const fields = { name: name.trim(), description: description.trim() || null, size_m2: sizeM2 ? Number(sizeM2) : null, start_date: startDate || null, end_date: endDate || null };
       let surveyEntryId = null;
       if (!initial && surveyId) {
         // Survey exists: create entry + upload immediately
@@ -108,8 +110,8 @@ function SectionForm({ initial, surveyId, onSave, onCancel }) {
         }
         await onSave({ ...fields, _surveyEntryId: surveyEntryId, _pendingFiles: [] });
       } else {
-        // No survey yet: pass files as pending, upload after quote is saved
-        await onSave({ ...fields, _surveyEntryId: null, _pendingFiles: selectedFiles.length ? [...selectedFiles] : [] });
+        // No survey yet: pass files + preview URLs so the card can show thumbnails
+        await onSave({ ...fields, _surveyEntryId: null, _pendingFiles: selectedFiles.length ? [...selectedFiles] : [], _pendingPreviews: previews.map(p => ({ url: p.url, isVideo: p.isVideo })) });
       }
     } catch (err) {
       setError(err.message || 'Hiba');
@@ -128,6 +130,16 @@ function SectionForm({ initial, surveyId, onSave, onCancel }) {
         <div className="form-group" style={{ margin: 0 }}>
           <label className="form-label">Alapterület (m²)</label>
           <input type="number" min="0" step="0.1" className="form-control" value={sizeM2} onChange={e => setSizeM2(e.target.value)} placeholder="pl. 12.5" />
+        </div>
+      </div>
+      <div className="grid-2col" style={{ marginBottom: '0.5rem' }}>
+        <div className="form-group" style={{ margin: 0 }}>
+          <label className="form-label">Kezdés</label>
+          <input type="date" className="form-control" value={startDate} onChange={e => { setStartDate(e.target.value); if (e.target.value && endDate && endDate < e.target.value) setEndDate(''); }} />
+        </div>
+        <div className="form-group" style={{ margin: 0 }}>
+          <label className="form-label">Befejezés</label>
+          <input type="date" className="form-control" min={startDate || undefined} value={endDate} onChange={e => setEndDate(e.target.value)} />
         </div>
       </div>
       <div className="form-group" style={{ marginBottom: !initial ? '0.5rem' : '0.75rem' }}>
@@ -238,11 +250,12 @@ function NewQuotePageInner() {
 
   // ── Section helpers ──────────────────────────────────────────────────────────
   const addSection = (fields) => {
-    setLocalSections(prev => [...prev, { _key: `new-${Date.now()}`, _surveyEntryId: fields._surveyEntryId || null, _pendingFiles: fields._pendingFiles || [], _pendingCount: (fields._pendingFiles || []).length, _surveyMedia: [], name: fields.name, description: fields.description || '', size_m2: fields.size_m2 != null ? String(fields.size_m2) : '', entries: [] }]);
+    setLocalSections(prev => [...prev, { _key: `new-${Date.now()}`, _surveyEntryId: fields._surveyEntryId || null, _pendingFiles: fields._pendingFiles || [], _pendingPreviews: fields._pendingPreviews || [], _pendingCount: (fields._pendingFiles || []).length, _surveyMedia: [], name: fields.name, description: fields.description || '', size_m2: fields.size_m2 != null ? String(fields.size_m2) : '', start_date: fields.start_date || null, end_date: fields.end_date || null, entries: [] }]);
     setShowAddSection(false);
   };
   const updateSection = (key, fields) => {
-    setLocalSections(prev => prev.map(s => s._key === key ? { ...s, ...fields, size_m2: fields.size_m2 != null ? String(fields.size_m2) : '' } : s));
+    // Preserve _surveyEntryId — SectionForm passes null for edits, we must not overwrite it
+    setLocalSections(prev => prev.map(s => s._key === key ? { ...s, ...fields, _surveyEntryId: fields._surveyEntryId || s._surveyEntryId, size_m2: fields.size_m2 != null ? String(fields.size_m2) : '' } : s));
     setEditingSectionKey(null);
   };
   const removeSection = (key) => setLocalSections(prev => prev.filter(s => s._key !== key));
@@ -316,6 +329,27 @@ function NewQuotePageInner() {
     setLocalSections(prev => prev.map(s => s._key === sectionKey ? { ...s, entries: s.entries.filter(e => e._ekey !== ekey) } : s));
   };
 
+  // ── Save as draft (no client required, relaxed validation) ──────────────────
+  const handleSaveDraft = async () => {
+    setError('');
+    setIsSubmitting(true);
+    try {
+      const draftTitle = title.trim() || `Vázlat – ${new Date().toLocaleDateString('hu-HU')}`;
+      let surveyIdToUse = fromSurveyId || null;
+      const quote = await createQuote({ title: draftTitle, location: location.trim(), workType: workType.trim(), description: description.trim(), startDate: startDate || null, endDate: endDate || null, clientId: clientId || null, sharedWith, taxPercent: Number(taxPercent) || 0, entityId: effectiveEntityId, surveyId: surveyIdToUse });
+      for (const s of localSections) {
+        const section = await createQuoteSection(quote.id, { name: s.name, description: s.description || null, size_m2: s.size_m2 ? Number(s.size_m2) : null, survey_entry_id: s._surveyEntryId || null, start_date: s.start_date || null, end_date: s.end_date || null });
+        for (const e of s.entries) {
+          await createQuoteEntry({ quoteId: quote.id, userId: e.user_id, workDescription: e.work_description, amountHuf: e.amount_huf, notes: e.notes, entryType: e.entry_type, quantity: e.quantity, unit: e.unit, unitPrice: e.unit_price, sectionId: section.id });
+        }
+      }
+      router.push(`/ajanlatok/${quote.id}`);
+    } catch (err) {
+      setError(err.message || 'Hiba a vázlat mentésekor');
+      setIsSubmitting(false);
+    }
+  };
+
   // ── Submit ───────────────────────────────────────────────────────────────────
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -335,7 +369,7 @@ function NewQuotePageInner() {
       const quote = await createQuote({ title: title.trim(), location: location.trim(), workType: workType.trim(), description: description.trim(), startDate: startDate || null, endDate: endDate || null, clientId, sharedWith, taxPercent: Number(taxPercent) || 0, entityId: effectiveEntityId, surveyId: surveyIdToUse });
 
       for (const s of localSections) {
-        const section = await createQuoteSection(quote.id, { name: s.name, description: s.description || null, size_m2: s.size_m2 ? Number(s.size_m2) : null, survey_entry_id: s._surveyEntryId || null });
+        const section = await createQuoteSection(quote.id, { name: s.name, description: s.description || null, size_m2: s.size_m2 ? Number(s.size_m2) : null, survey_entry_id: s._surveyEntryId || null, start_date: s.start_date || null, end_date: s.end_date || null });
         // Upload any pending files to the auto-created survey entry
         if ((s._pendingFiles || []).length > 0 && section.survey_entry_id && surveyIdToUse) {
           try { await uploadSurveyMedia(surveyIdToUse, s._pendingFiles, { entryId: section.survey_entry_id, mediaType: 'photo' }); } catch {}
@@ -483,39 +517,59 @@ function NewQuotePageInner() {
             {localSections.map(s => {
               const sectionTotal = s.entries.reduce((sum, e) => sum + e.amount_huf, 0);
               return (
-                <div key={s._key} style={{ border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
-                  {/* Room header */}
+                <div key={s._key} style={{ border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', overflow: 'hidden', background: '#fff' }}>
                   {editingSectionKey === s._key ? (
-                    <div style={{ padding: '0.75rem' }}>
-                      <SectionForm initial={{ name: s.name, description: s.description, size_m2: s.size_m2 ? Number(s.size_m2) : null }} onSave={(fields) => updateSection(s._key, fields)} onCancel={() => setEditingSectionKey(null)} />
+                    <div style={{ padding: '1rem' }}>
+                      <SectionForm initial={{ name: s.name, description: s.description, size_m2: s.size_m2 ? Number(s.size_m2) : null, start_date: s.start_date || '', end_date: s.end_date || '' }} onSave={(fields) => updateSection(s._key, fields)} onCancel={() => setEditingSectionKey(null)} />
                     </div>
                   ) : (
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.7rem 0.85rem', background: 'var(--bg-subtle)', gap: '0.5rem' }}>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap' }}>
-                          <Home size={14} color="var(--accent)" />
-                          <span style={{ fontWeight: 800, fontSize: '0.95rem', color: 'var(--text-primary)' }}>{s.name}</span>
-                          {s.size_m2 && <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'inline-flex', alignItems: 'center', gap: '0.15rem' }}><Ruler size={11} />{s.size_m2} m²</span>}
-                          {(s._pendingCount || 0) > 0 && !s._surveyEntryId && (
-                            <span style={{ fontSize: '0.68rem', fontWeight: 700, color: 'var(--accent)', background: 'var(--accent-light)', border: '1px solid var(--accent-border)', padding: '0.1rem 0.4rem', borderRadius: 'var(--radius-pill)', display: 'inline-flex', alignItems: 'center', gap: '0.2rem' }}>
-                              <Camera size={9} />{s._pendingCount} fotó
+                    <>
+                      {/* Card header */}
+                      <div style={{ padding: '0.85rem 1rem 0.75rem' }}>
+                        {/* Name row + action buttons */}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.5rem', marginBottom: '0.35rem' }}>
+                          <span style={{ fontWeight: 800, fontSize: '1rem', color: 'var(--text-primary)', flex: 1, minWidth: 0 }}>{s.name}</span>
+                          <div style={{ display: 'flex', gap: '0.3rem', flexShrink: 0 }}>
+                            <button type="button" onClick={() => openEntryModal(s._key)} className="btn btn-primary btn-sm" style={{ padding: '0.25rem 0.45rem' }} title="Tétel hozzáadása"><Plus size={12} /></button>
+                            <button type="button" onClick={() => { setEditingSectionKey(s._key); setShowAddSection(false); }} className="btn btn-secondary btn-sm" style={{ padding: '0.25rem 0.45rem' }}><Edit3 size={12} /></button>
+                            <button type="button" onClick={() => removeSection(s._key)} className="btn btn-danger btn-sm" style={{ padding: '0.25rem 0.45rem' }}><X size={12} /></button>
+                          </div>
+                        </div>
+                        {/* Meta chips row */}
+                        <div style={{ display: 'flex', gap: '0.65rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                          {s.size_m2 && <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.2rem' }}><Ruler size={12} />{s.size_m2} m²</span>}
+                          {(s.start_date || s.end_date) && (
+                            <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--accent)', display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
+                              <Calendar size={12} />{s.start_date ? formatDate(s.start_date) : '?'} – {s.end_date ? formatDate(s.end_date) : '?'}
                             </span>
                           )}
+                          {sectionTotal > 0 && <span style={{ marginLeft: 'auto', fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{formatHUF(sectionTotal)}</span>}
                         </div>
-                        {s.description && <p style={{ margin: '0.1rem 0 0 1.35rem', fontSize: '0.78rem', color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.description}</p>}
+                        {s.description && <p style={{ marginTop: '0.35rem', fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.55 }}>{s.description}</p>}
                       </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexShrink: 0 }}>
-                        {sectionTotal > 0 && <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: '0.82rem', color: 'var(--text-secondary)' }}>{formatHUF(sectionTotal)}</span>}
-                        <button type="button" onClick={() => openEntryModal(s._key)} className="btn btn-primary btn-sm" style={{ padding: '0.25rem 0.45rem' }} title="Tétel hozzáadása"><Plus size={12} /></button>
-                        <button type="button" onClick={() => { setEditingSectionKey(s._key); setShowAddSection(false); }} className="btn btn-secondary btn-sm" style={{ padding: '0.25rem 0.45rem' }}><Edit3 size={12} /></button>
-                        <button type="button" onClick={() => removeSection(s._key)} className="btn btn-danger btn-sm" style={{ padding: '0.25rem 0.45rem' }}><X size={12} /></button>
-                      </div>
-                    </div>
-                  )}
 
-                  {/* Photo management for all sections that have a survey entry */}
-                  {s._surveyEntryId && fromSurveyId && (
-                    <SectionMediaGrid surveyId={fromSurveyId} surveyEntryId={s._surveyEntryId} isLocked={false} />
+                      {/* Media section */}
+                      {s._surveyEntryId && fromSurveyId ? (
+                        <SectionMediaGrid surveyId={fromSurveyId} surveyEntryId={s._surveyEntryId} isLocked={false} />
+                      ) : (s._pendingPreviews?.length > 0) ? (
+                        <div style={{ padding: '0 1rem 0.85rem', borderTop: '1px solid var(--border-subtle)', paddingTop: '0.75rem', marginTop: '0.1rem' }}>
+                          <div style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.04em', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                            <Camera size={12} /> {s._pendingPreviews.length} fotó <span style={{ fontWeight: 400, fontStyle: 'italic' }}>(mentéskor tölt fel)</span>
+                          </div>
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(72px, 1fr))', gap: '0.35rem' }}>
+                            {s._pendingPreviews.map((p, i) => (
+                              <div key={i} style={{ aspectRatio: '1', borderRadius: 'var(--radius-md)', overflow: 'hidden', background: 'var(--bg-subtle)', border: '1px solid var(--border-subtle)' }}>
+                                {p.isVideo
+                                  ? <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#1a1a2e', color: '#fff', fontSize: '1rem' }}>▶</div>
+                                  : p.url ? <img src={p.url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                  : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.25rem' }}>📷</div>
+                                }
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ) : null}
+                    </>
                   )}
 
                   {/* Entries under this room */}
@@ -578,11 +632,16 @@ function NewQuotePageInner() {
           </div>
         </div>
 
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
           <Link href="/ajanlatok" className="btn btn-secondary">Mégse</Link>
-          <button type="submit" className="btn btn-primary" disabled={isSubmitting}>
-            {isSubmitting ? <><Loader2 size={16} className="animate-spin" />Létrehozás…</> : <><Check size={16} />Ajánlat létrehozása</>}
-          </button>
+          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+            <button type="button" className="btn btn-secondary" disabled={isSubmitting} onClick={handleSaveDraft}>
+              {isSubmitting ? <><Loader2 size={16} className="animate-spin" />Mentés…</> : 'Mentés vázlatként'}
+            </button>
+            <button type="submit" className="btn btn-primary" disabled={isSubmitting}>
+              {isSubmitting ? <><Loader2 size={16} className="animate-spin" />Létrehozás…</> : <><Check size={16} />Ajánlat létrehozása</>}
+            </button>
+          </div>
         </div>
       </form>
 

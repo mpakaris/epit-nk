@@ -6,11 +6,11 @@ import { useParams, useRouter } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
 import Modal, { AlertModal } from '@/components/Modal';
 import SectionMediaGrid from '@/components/SectionMediaGrid';
-import { formatHUF, QUOTE_ENTRY_TYPES, QUANTITY_UNITS, LABOUR_UNITS } from '@/lib/constants';
+import { formatHUF, formatDate, QUOTE_ENTRY_TYPES, QUANTITY_UNITS, LABOUR_UNITS } from '@/lib/constants';
 import {
   ArrowLeft, AlertCircle, Check, Loader2, Plus, Trash2, Edit3,
   Package, Hammer, Wrench, Truck, MoreHorizontal,
-  User, Coins, Home, Ruler, X, Camera,
+  User, Coins, Home, Ruler, Calendar, X, Camera,
 } from 'lucide-react';
 import PageSpinner from '@/components/PageSpinner';
 import { convertIfHeif } from '@/lib/imageUtils';
@@ -73,6 +73,8 @@ function SectionForm({ initial, surveyId, onSave, onCancel }) {
   const [name, setName] = useState(initial?.name || '');
   const [description, setDescription] = useState(initial?.description || '');
   const [sizeM2, setSizeM2] = useState(initial?.size_m2 != null ? String(initial.size_m2) : '');
+  const [startDate, setStartDate] = useState(initial?.start_date || '');
+  const [endDate, setEndDate] = useState(initial?.end_date || '');
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState([]);
@@ -92,7 +94,7 @@ function SectionForm({ initial, surveyId, onSave, onCancel }) {
     if (!name.trim()) { setError('A helyiség neve kötelező!'); return; }
     setSaving(true);
     try {
-      const fields = { name: name.trim(), description: description.trim() || null, size_m2: sizeM2 ? Number(sizeM2) : null };
+      const fields = { name: name.trim(), description: description.trim() || null, size_m2: sizeM2 ? Number(sizeM2) : null, start_date: startDate || null, end_date: endDate || null };
       let surveyEntryId = null;
       if (!initial && surveyId) {
         try { const e = await createSurveyEntry(surveyId, fields); surveyEntryId = e.id; } catch {}
@@ -113,6 +115,10 @@ function SectionForm({ initial, surveyId, onSave, onCancel }) {
       <div className="grid-2col" style={{ marginBottom: '0.5rem' }}>
         <div className="form-group" style={{ margin: 0 }}><label className="form-label">Helyiség neve *</label><input type="text" className="form-control" autoFocus value={name} onChange={e => setName(e.target.value)} placeholder="pl. Fürdőszoba, Konyha…" /></div>
         <div className="form-group" style={{ margin: 0 }}><label className="form-label">Alapterület (m²)</label><input type="number" min="0" step="0.1" className="form-control" value={sizeM2} onChange={e => setSizeM2(e.target.value)} placeholder="pl. 12.5" /></div>
+      </div>
+      <div className="grid-2col" style={{ marginBottom: '0.5rem' }}>
+        <div className="form-group" style={{ margin: 0 }}><label className="form-label">Kezdés</label><input type="date" className="form-control" value={startDate} onChange={e => { setStartDate(e.target.value); if (e.target.value && endDate && endDate < e.target.value) setEndDate(''); }} /></div>
+        <div className="form-group" style={{ margin: 0 }}><label className="form-label">Befejezés</label><input type="date" className="form-control" min={startDate || undefined} value={endDate} onChange={e => setEndDate(e.target.value)} /></div>
       </div>
       <div className="form-group" style={{ marginBottom: !initial && surveyId ? '0.5rem' : '0.75rem' }}><label className="form-label">Leírás</label><textarea rows={2} className="form-control" value={description} onChange={e => setDescription(e.target.value)} placeholder="Elvégzendő munkák, állapot…" /></div>
       {!initial && surveyId && (
@@ -218,6 +224,8 @@ export default function EditQuotePage() {
       name: s.name,
       description: s.description || '',
       size_m2: s.size_m2 != null ? String(s.size_m2) : '',
+      start_date: s.start_date || null,
+      end_date: s.end_date || null,
       entries: entries
         .filter(e => e.section_id === s.id)
         .map(e => ({
@@ -262,11 +270,12 @@ export default function EditQuotePage() {
 
   // ── Section helpers ──────────────────────────────────────────────────────────
   const addSection = (fields) => {
-    setLocalSections(prev => [...prev, { _key: `new-${Date.now()}`, _id: null, _surveyEntryId: fields._surveyEntryId || null, _surveyMedia: [], name: fields.name, description: fields.description || '', size_m2: fields.size_m2 != null ? String(fields.size_m2) : '', entries: [] }]);
+    setLocalSections(prev => [...prev, { _key: `new-${Date.now()}`, _id: null, _surveyEntryId: fields._surveyEntryId || null, _surveyMedia: [], name: fields.name, description: fields.description || '', size_m2: fields.size_m2 != null ? String(fields.size_m2) : '', start_date: fields.start_date || null, end_date: fields.end_date || null, entries: [] }]);
     setShowAddSection(false);
   };
   const updateSection = (key, fields) => {
-    setLocalSections(prev => prev.map(s => s._key === key ? { ...s, ...fields, size_m2: fields.size_m2 != null ? String(fields.size_m2) : '' } : s));
+    // Preserve _surveyEntryId — SectionForm passes null for edits, we must not overwrite it
+    setLocalSections(prev => prev.map(s => s._key === key ? { ...s, ...fields, _surveyEntryId: fields._surveyEntryId || s._surveyEntryId, size_m2: fields.size_m2 != null ? String(fields.size_m2) : '' } : s));
     setEditingSectionKey(null);
   };
   const removeSection = (key) => setLocalSections(prev => prev.filter(s => s._key !== key));
@@ -383,10 +392,10 @@ export default function EditQuotePage() {
       for (const s of localSections) {
         let sectionId;
         if (s._id) {
-          await updateQuoteSection(id, s._id, { name: s.name, description: s.description || null, size_m2: s.size_m2 ? Number(s.size_m2) : null });
+          await updateQuoteSection(id, s._id, { name: s.name, description: s.description || null, size_m2: s.size_m2 ? Number(s.size_m2) : null, start_date: s.start_date || null, end_date: s.end_date || null });
           sectionId = s._id;
         } else {
-          const created = await createQuoteSection(id, { name: s.name, description: s.description || null, size_m2: s.size_m2 ? Number(s.size_m2) : null, survey_entry_id: s._surveyEntryId || null });
+          const created = await createQuoteSection(id, { name: s.name, description: s.description || null, size_m2: s.size_m2 ? Number(s.size_m2) : null, survey_entry_id: s._surveyEntryId || null, start_date: s.start_date || null, end_date: s.end_date || null });
           sectionId = created.id;
         }
 
@@ -541,33 +550,39 @@ export default function EditQuotePage() {
             {localSections.map(s => {
               const sectionTotal = s.entries.reduce((sum, e) => sum + Number(e.amount_huf || 0), 0);
               return (
-                <div key={s._key} style={{ border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
+                <div key={s._key} style={{ border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', overflow: 'hidden', background: '#fff' }}>
                   {editingSectionKey === s._key ? (
-                    <div style={{ padding: '0.75rem' }}>
-                      <SectionForm initial={{ name: s.name, description: s.description, size_m2: s.size_m2 ? Number(s.size_m2) : null }} onSave={(fields) => updateSection(s._key, fields)} onCancel={() => setEditingSectionKey(null)} />
+                    <div style={{ padding: '1rem' }}>
+                      <SectionForm initial={{ name: s.name, description: s.description, size_m2: s.size_m2 ? Number(s.size_m2) : null, start_date: s.start_date || '', end_date: s.end_date || '' }} onSave={(fields) => updateSection(s._key, fields)} onCancel={() => setEditingSectionKey(null)} />
                     </div>
                   ) : (
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.7rem 0.85rem', background: 'var(--bg-subtle)', gap: '0.5rem' }}>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap' }}>
-                          <Home size={14} color="var(--accent)" />
-                          <span style={{ fontWeight: 800, fontSize: '0.95rem', color: 'var(--text-primary)' }}>{s.name}</span>
-                          {s.size_m2 && <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'inline-flex', alignItems: 'center', gap: '0.15rem' }}><Ruler size={11} />{s.size_m2} m²</span>}
+                    <>
+                      <div style={{ padding: '0.85rem 1rem 0.75rem' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.5rem', marginBottom: '0.35rem' }}>
+                          <span style={{ fontWeight: 800, fontSize: '1rem', color: 'var(--text-primary)', flex: 1, minWidth: 0 }}>{s.name}</span>
+                          <div style={{ display: 'flex', gap: '0.3rem', flexShrink: 0 }}>
+                            <button type="button" onClick={() => openEntryModal(s._key)} className="btn btn-primary btn-sm" style={{ padding: '0.25rem 0.45rem' }} title="Tétel hozzáadása"><Plus size={12} /></button>
+                            <button type="button" onClick={() => { setEditingSectionKey(s._key); setShowAddSection(false); }} className="btn btn-secondary btn-sm" style={{ padding: '0.25rem 0.45rem' }}><Edit3 size={12} /></button>
+                            <button type="button" onClick={() => removeSection(s._key)} className="btn btn-danger btn-sm" style={{ padding: '0.25rem 0.45rem' }}><X size={12} /></button>
+                          </div>
                         </div>
-                        {s.description && <p style={{ margin: '0.1rem 0 0 1.35rem', fontSize: '0.78rem', color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.description}</p>}
+                        <div style={{ display: 'flex', gap: '0.65rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                          {s.size_m2 && <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.2rem' }}><Ruler size={12} />{s.size_m2} m²</span>}
+                          {(s.start_date || s.end_date) && (
+                            <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--accent)', display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
+                              <Calendar size={12} />{s.start_date ? formatDate(s.start_date) : '?'} – {s.end_date ? formatDate(s.end_date) : '?'}
+                            </span>
+                          )}
+                          {sectionTotal > 0 && <span style={{ marginLeft: 'auto', fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{formatHUF(sectionTotal)}</span>}
+                        </div>
+                        {s.description && <p style={{ marginTop: '0.35rem', fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.55 }}>{s.description}</p>}
                       </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexShrink: 0 }}>
-                        {sectionTotal > 0 && <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: '0.82rem', color: 'var(--text-secondary)' }}>{formatHUF(sectionTotal)}</span>}
-                        <button type="button" onClick={() => openEntryModal(s._key)} className="btn btn-primary btn-sm" style={{ padding: '0.25rem 0.45rem' }} title="Tétel hozzáadása"><Plus size={12} /></button>
-                        <button type="button" onClick={() => { setEditingSectionKey(s._key); setShowAddSection(false); }} className="btn btn-secondary btn-sm" style={{ padding: '0.25rem 0.45rem' }}><Edit3 size={12} /></button>
-                        <button type="button" onClick={() => removeSection(s._key)} className="btn btn-danger btn-sm" style={{ padding: '0.25rem 0.45rem' }}><X size={12} /></button>
-                      </div>
-                    </div>
-                  )}
 
-                  {/* Photo management for survey-linked sections */}
-                  {quote?.survey_id && s._surveyEntryId && (
-                    <SectionMediaGrid surveyId={quote.survey_id} surveyEntryId={s._surveyEntryId} isLocked={false} />
+                      {/* Photo management for survey-linked sections */}
+                      {quote?.survey_id && s._surveyEntryId && (
+                        <SectionMediaGrid surveyId={quote.survey_id} surveyEntryId={s._surveyEntryId} isLocked={false} />
+                      )}
+                    </>
                   )}
 
                   {s.entries.length > 0 && (

@@ -42,6 +42,8 @@ export default function CalendarWidget({ projects: propProjects, quotes: propQuo
   const projects = propProjects ?? ctx.projects;
   const quotes = propQuotes ?? ctx.quotes;
   const clients = propClients ?? ctx.clients;
+  const quoteSections = ctx.quoteSections;
+  const projectRooms = ctx.projectRooms;
 
   const today = useMemo(() => { const d = new Date(); d.setHours(0,0,0,0); return d; }, []);
   const year  = today.getFullYear();
@@ -52,27 +54,25 @@ export default function CalendarWidget({ projects: propProjects, quotes: propQuo
     for (const p of projects) {
       if (p.start_date || p.end_date) {
         const client = p.client_id ? clients.find(c => c.id === p.client_id) : null;
-        list.push({
-          id: p.id, title: p.name, clientName: client?.name || null, type: 'project',
-          start: p.start_date ? toDay(p.start_date) : null,
-          end:   p.end_date   ? toDay(p.end_date)   : null,
-          href: `/projektek/${p.id}`,
-        });
+        list.push({ id: p.id, title: p.name, clientName: client?.name || null, type: 'project', start: p.start_date ? toDay(p.start_date) : null, end: p.end_date ? toDay(p.end_date) : null, href: `/projektek/${p.id}` });
+      }
+      for (const r of (projectRooms || []).filter(r => r.project_id === p.id && (r.start_date || r.end_date))) {
+        list.push({ id: `room-${r.id}`, title: `${p.name} · ${r.name}`, clientName: null, type: 'project', start: r.start_date ? toDay(r.start_date) : null, end: r.end_date ? toDay(r.end_date) : null, href: `/projektek/${p.id}` });
       }
     }
     for (const q of quotes) {
       if ((q.start_date || q.end_date) && q.status !== 'rejected') {
         const client = q.client_id ? clients.find(c => c.id === q.client_id) : null;
-        list.push({
-          id: q.id, title: q.title, clientName: client?.name || null, type: 'quote', status: q.status,
-          start: q.start_date ? toDay(q.start_date) : null,
-          end:   q.end_date   ? toDay(q.end_date)   : null,
-          href: `/ajanlatok/${q.id}`,
-        });
+        list.push({ id: q.id, title: q.title, clientName: client?.name || null, type: 'quote', status: q.status, start: q.start_date ? toDay(q.start_date) : null, end: q.end_date ? toDay(q.end_date) : null, href: `/ajanlatok/${q.id}` });
+      }
+      if (q.status !== 'rejected') {
+        for (const s of (quoteSections || []).filter(s => s.quote_id === q.id && (s.start_date || s.end_date))) {
+          list.push({ id: `sec-${s.id}`, title: `${q.title} · ${s.name}`, clientName: null, type: 'quote', status: q.status, start: s.start_date ? toDay(s.start_date) : null, end: s.end_date ? toDay(s.end_date) : null, href: `/ajanlatok/${q.id}` });
+        }
       }
     }
     return list;
-  }, [projects, quotes, clients]);
+  }, [projects, quotes, clients, quoteSections, projectRooms]);
 
   const weeks = useMemo(() => {
     const firstDay = new Date(year, month, 1);

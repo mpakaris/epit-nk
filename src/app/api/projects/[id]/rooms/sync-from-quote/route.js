@@ -71,6 +71,8 @@ export async function POST(request, { params }) {
       quoted_amount_net: amountBySectionId[s.id] || null,
       sort_order: s.sort_order ?? i,
       source_section_id: s.id,
+      start_date: s.start_date || null,
+      end_date: s.end_date || null,
     }));
 
   if (toInsert.length === 0) return Response.json({ created: 0, message: 'Minden szekció már be van importálva' });

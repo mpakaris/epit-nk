@@ -346,6 +346,11 @@ export default function QuoteDetailPage() {
                         <Ruler size={11} />{room.size_m2} m²
                       </span>
                     )}
+                    {(room.start_date || room.end_date) && (
+                      <span style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.15rem' }}>
+                        <Calendar size={11} />{room.start_date ? formatDate(room.start_date) : '?'} – {room.end_date ? formatDate(room.end_date) : '?'}
+                      </span>
+                    )}
                   </div>
                   {room.description && (
                     <p style={{ margin: '0.2rem 0 0 1.4rem', fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>{room.description}</p>

@@ -19,7 +19,7 @@ export async function POST(request, { params }) {
   const ctx = await getCtx(quoteId);
   if (ctx.err) return Response.json({ error: ctx.err }, { status: ctx.status });
 
-  const { name, description, size_m2, sort_order, survey_entry_id } = await request.json();
+  const { name, description, size_m2, sort_order, survey_entry_id, start_date, end_date } = await request.json();
   if (!name?.trim()) return Response.json({ error: 'Szekció neve kötelező' }, { status: 400 });
 
   // If the quote comes from a survey and no entry is linked yet, auto-create one
@@ -44,6 +44,8 @@ export async function POST(request, { params }) {
     size_m2: size_m2 != null && size_m2 !== '' ? Number(size_m2) : null,
     sort_order: sort_order ?? 0,
     survey_entry_id: effectiveSurveyEntryId,
+    start_date: start_date || null,
+    end_date: end_date || null,
   }]).select().single();
 
   if (error) return Response.json({ error: error.message }, { status: 500 });

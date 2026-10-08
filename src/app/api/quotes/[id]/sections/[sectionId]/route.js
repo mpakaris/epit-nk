@@ -20,7 +20,7 @@ export async function PATCH(request, { params }) {
   if (ctx.err) return Response.json({ error: ctx.err }, { status: ctx.status });
 
   const body = await request.json();
-  const allowed = ['name', 'description', 'size_m2', 'sort_order'];
+  const allowed = ['name', 'description', 'size_m2', 'sort_order', 'start_date', 'end_date'];
   const update = {};
   for (const k of allowed) if (k in body) update[k] = body[k];
   if ('name' in update) { update.name = update.name?.trim(); if (!update.name) return Response.json({ error: 'Név kötelező' }, { status: 400 }); }
