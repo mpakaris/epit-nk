@@ -261,11 +261,6 @@ button, input, select, textarea {
   .desktop-nav {
     display: none !important;
   }
-
-  /* Leave padding at the bottom of the body so content isn't covered by bottom nav */
-  main {
-    padding-bottom: 80px !important;
-  }
 }
 
 /* Buttons */

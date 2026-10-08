@@ -141,15 +141,15 @@ export default function AdminDashboardPage() {
                       justifyContent: 'space-between'
                     }}
                   >
-                    <div>
-                      <div style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '0.875rem' }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '0.875rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {p.name}
                       </div>
                       <div style={{ fontSize: '0.725rem', color: 'var(--text-muted)' }}>
                         {(p.members || []).length} tag &bull; {pInvoices.length} számla
                       </div>
                     </div>
-                    <div style={{ textAlign: 'right' }}>
+                    <div style={{ textAlign: 'right', flexShrink: 0, paddingLeft: '0.5rem' }}>
                       <div className="text-mono" style={{ fontWeight: 800, fontSize: '0.875rem', color: 'var(--text-primary)' }}>
                         {formatHUF(pTotal)}
                       </div>
@@ -190,15 +190,15 @@ export default function AdminDashboardPage() {
                     justifyContent: 'space-between'
                   }}
                 >
-                  <div>
-                    <div style={{ fontWeight: 700, fontSize: '0.85rem', color: 'var(--text-primary)' }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: 700, fontSize: '0.85rem', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {inv.description || 'Számla bizonylat'}
                     </div>
                     <div style={{ fontSize: '0.725rem', color: 'var(--text-muted)' }}>
                       {inv.uploader_name} &bull; {formatDate(inv.created_at)}
                     </div>
                   </div>
-                  <div style={{ textAlign: 'right' }}>
+                  <div style={{ textAlign: 'right', flexShrink: 0, paddingLeft: '0.5rem' }}>
                     <div className="text-mono" style={{ fontWeight: 800, fontSize: '0.875rem' }}>
                       {formatHUF(inv.value_huf)}
                     </div>

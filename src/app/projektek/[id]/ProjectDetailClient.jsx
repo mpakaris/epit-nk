@@ -1133,11 +1133,11 @@ export default function ProjectDetailClient({
                   <div key={entry.id} className="card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: '0.85rem' }}>
                     <div>
                       {/* Top row: type badge + amount — mirrors InvoiceCard */}
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.2rem 0.6rem', borderRadius: 'var(--radius-pill)', background: 'var(--success-bg)', border: '1px solid var(--success-border)', color: 'var(--success-text)', fontSize: '0.72rem', fontWeight: 700 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem', gap: '0.5rem' }}>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.2rem 0.6rem', borderRadius: 'var(--radius-pill)', background: 'var(--success-bg)', border: '1px solid var(--success-border)', color: 'var(--success-text)', fontSize: '0.72rem', fontWeight: 700, flexShrink: 0 }}>
                           <Hammer size={11} /> Munkadíj
                         </span>
-                        <span style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--success-text)', fontFamily: 'var(--font-mono)' }}>
+                        <span style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--success-text)', fontFamily: 'var(--font-mono)', textAlign: 'right' }}>
                           +{formatHUF(entry.value_huf)}
                         </span>
                       </div>

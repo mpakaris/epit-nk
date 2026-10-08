@@ -22,11 +22,11 @@ export default function InvoiceCard({ invoice, isAdmin, onEdit, onDelete, room }
       >
         <div>
           {/* Top row: Category & Amount */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-            <span className={`category-badge category-${catObj.color}`}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem', gap: '0.5rem' }}>
+            <span className={`category-badge category-${catObj.color}`} style={{ flexShrink: 0 }}>
               {invoice.category}
             </span>
-            <span style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-primary)' }} className="text-mono">
+            <span style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-primary)', textAlign: 'right' }} className="text-mono">
               {formatHUF(invoice.value_huf)}
             </span>
           </div>

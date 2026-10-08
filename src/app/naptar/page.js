@@ -178,7 +178,7 @@ export default function CalendarPage() {
             <h1 className="page-title">Naptár</h1>
             <p className="page-subtitle">Projektek és ajánlatok ütemezése</p>
           </div>
-          <div style={{ display: 'flex', gap: '0.4rem', background: 'var(--bg-subtle)', padding: '0.3rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)' }}>
+          <div style={{ display: 'flex', gap: '0.4rem', background: 'var(--bg-subtle)', padding: '0.3rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)', flexShrink: 0 }}>
             <button type="button" onClick={() => setView('timeline')} style={viewBtnStyle(view === 'timeline')}>
               <List size={15} /> Időrend
             </button>

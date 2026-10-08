@@ -337,12 +337,12 @@ export default function MobileUploadPage() {
             )}
 
             {!isScanningOcr && ocrSuggestedValue && (
-              <div style={{ marginTop: '0.75rem', padding: '0.6rem 0.85rem', borderRadius: 'var(--radius-md)', background: 'var(--success-bg)', border: '1px solid var(--success-border)', color: 'var(--success-text)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.825rem' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 600 }}>
-                  <Sparkles size={16} />
+              <div style={{ marginTop: '0.75rem', padding: '0.6rem 0.85rem', borderRadius: 'var(--radius-md)', background: 'var(--success-bg)', border: '1px solid var(--success-border)', color: 'var(--success-text)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem', fontSize: '0.825rem', flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 600, flex: 1, minWidth: 0 }}>
+                  <Sparkles size={16} style={{ flexShrink: 0 }} />
                   <span>OCR felismert összeg: <strong>{formatHUF(ocrSuggestedValue)}</strong></span>
                 </div>
-                <button type="button" className="btn btn-sm" onClick={() => setValueHuf(ocrSuggestedValue.toString())} style={{ background: 'var(--success)', color: '#fff', padding: '0.25rem 0.6rem', fontSize: '0.75rem' }}>
+                <button type="button" className="btn btn-sm" onClick={() => setValueHuf(ocrSuggestedValue.toString())} style={{ background: 'var(--success)', color: '#fff', padding: '0.25rem 0.6rem', fontSize: '0.75rem', flexShrink: 0 }}>
                   <Check size={13} /> Beírás
                 </button>
               </div>
