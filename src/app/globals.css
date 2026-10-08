@@ -501,6 +501,19 @@ button, input, select, textarea {
   color: var(--text-light);
 }
 
+/* iOS WebKit renders <input type="date"> as a native replaced element that
+   ignores CSS width constraints, causing the page to zoom-to-fit on mobile.
+   -webkit-appearance: none forces it to render as a regular input box.
+   The native date picker (spinning wheel on tap) still works — it is triggered
+   by type="date", not by the appearance property. */
+input[type="date"],
+input[type="datetime-local"],
+input[type="time"],
+input[type="month"] {
+  -webkit-appearance: none;
+  appearance: none;
+}
+
 /* Mobile Category Quick Selector Chips */
 .category-chips-grid {
   display: grid;
