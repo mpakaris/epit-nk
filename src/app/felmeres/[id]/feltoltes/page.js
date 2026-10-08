@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
 import { ArrowLeft, Camera, Image as ImageIcon, Check, Loader2, X, AlertCircle } from 'lucide-react';
+import PageSpinner from '@/components/PageSpinner';
 
 export default function SurveyUploadPage() {
   const { id } = useParams();
@@ -18,7 +19,7 @@ export default function SurveyUploadPage() {
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState('');
 
-  if (loading || !dataReady) return <div className="container" style={{ paddingTop: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>Betöltés...</div>;
+  if (loading || !dataReady) return <PageSpinner />;
   if (!isAdmin) return <div className="container" style={{ paddingTop: '3rem', textAlign: 'center', color: 'var(--danger-text)' }}>Nincs jogosultsága.</div>;
 
   const survey = surveys.find(s => s.id === id);

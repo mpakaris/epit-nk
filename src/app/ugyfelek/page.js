@@ -20,6 +20,7 @@ import {
   FileText,
   FolderKanban,
 } from 'lucide-react';
+import PageSpinner from '@/components/PageSpinner';
 
 export default function AdminClientsPage() {
   const { isAdmin, loading, dataReady, effectiveEntityId, clients, quotes, projects, createClient, updateClient, deleteClient } = useApp();
@@ -41,7 +42,7 @@ export default function AdminClientsPage() {
   const [formNotes, setFormNotes] = useState('');
   const [formDiscount, setFormDiscount] = useState('0');
 
-  if (loading || !dataReady) return <div className="container" style={{ paddingTop: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>Betöltés...</div>;
+  if (loading || !dataReady) return <PageSpinner />;
 
   if (!isAdmin) {
     return (

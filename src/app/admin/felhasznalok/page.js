@@ -6,6 +6,7 @@ import { useApp } from '@/context/AppContext';
 import { formatDate } from '@/lib/constants';
 import Modal, { ConfirmModal, AlertModal } from '@/components/Modal';
 import { UserPlus, Trash2, Lock, CheckCircle2, ArrowLeft, AlertCircle, RotateCcw } from 'lucide-react';
+import PageSpinner from '@/components/PageSpinner';
 
 function CreateUserModal({ isOpen, onClose, createUser, effectiveEntityId, onSuccess }) {
   const [displayName, setDisplayName] = useState('');
@@ -132,7 +133,7 @@ export default function AdminUsersPage() {
     );
   }
 
-  if (loading) return <div className="container" style={{ paddingTop: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>Betöltés...</div>;
+  if (loading) return <PageSpinner />;
 
   if (!isAdmin) {
     return (

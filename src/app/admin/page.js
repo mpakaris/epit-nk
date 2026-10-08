@@ -15,12 +15,13 @@ import {
   ArrowUpRight,
   ShieldCheck
 } from 'lucide-react';
+import PageSpinner from '@/components/PageSpinner';
 
 export default function AdminDashboardPage() {
   const { isAdmin, loading, dataReady, isSuperAdmin, impersonating, projects, users, invoices } = useApp();
 
 
-  if (loading || !dataReady) return <div className="container" style={{ paddingTop: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>Betöltés...</div>;
+  if (loading || !dataReady) return <PageSpinner />;
 
   if (!isAdmin) {
     return (

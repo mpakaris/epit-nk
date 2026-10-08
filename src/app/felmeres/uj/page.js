@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
 import Modal, { AlertModal } from '@/components/Modal';
 import { ArrowLeft, AlertCircle, Check, Loader2, Plus, User } from 'lucide-react';
+import PageSpinner from '@/components/PageSpinner';
 
 // Isolated component — its own state doesn't re-render the parent on every keystroke
 function NewClientModal({ isOpen, onClose, onCreate }) {
@@ -85,7 +86,7 @@ export default function NewSurveyPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showNewClientModal, setShowNewClientModal] = useState(false);
 
-  if (loading) return <div className="container" style={{ paddingTop: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>Betöltés...</div>;
+  if (loading) return <PageSpinner />;
   if (!isAdmin) return <div className="container" style={{ paddingTop: '3rem', textAlign: 'center', color: 'var(--danger-text)' }}>Nincs jogosultsága.</div>;
 
   const handleClientCreated = async ({ name, phone, email, address }) => {

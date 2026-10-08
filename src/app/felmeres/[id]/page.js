@@ -12,6 +12,7 @@ import {
   FileText, FolderKanban, AlertCircle, Loader2, Check,
   Maximize2, LayoutPanelLeft, Home, Ruler
 } from 'lucide-react';
+import PageSpinner from '@/components/PageSpinner';
 
 // ── Lightbox ──────────────────────────────────────────────────────────────────
 function Lightbox({ media, startIndex, onClose }) {
@@ -342,7 +343,7 @@ export default function SurveyDetailPage() {
     fetchSurveyMedia(id).catch(() => {}).finally(() => setDetailLoading(false));
   }, [id, dataReady]);
 
-  if (loading || !dataReady) return <div className="container" style={{ paddingTop: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>Betöltés...</div>;
+  if (loading || !dataReady) return <PageSpinner />;
 
   const survey = surveys.find(s => s.id === id);
   if (!survey) return (

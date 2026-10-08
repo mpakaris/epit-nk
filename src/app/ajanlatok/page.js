@@ -13,6 +13,7 @@ import {
   Coins,
   Trash2,
 } from 'lucide-react';
+import PageSpinner from '@/components/PageSpinner';
 
 const STATUS_COLORS = {
   draft: { bg: 'var(--bg-subtle)', color: 'var(--text-secondary)', border: 'var(--border-subtle)' },
@@ -50,7 +51,7 @@ export default function QuotesListPage() {
     });
   };
 
-  if (loading || !dataReady) return <div className="container" style={{ paddingTop: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>Betöltés...</div>;
+  if (loading || !dataReady) return <PageSpinner />;
 
   return (
     <div className="container">

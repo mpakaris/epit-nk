@@ -4,10 +4,11 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import ProjectsListClient from './ProjectsListClient';
+import PageSpinner from '@/components/PageSpinner';
 
 export default function ProjectsListPage() {
   return (
-    <Suspense fallback={<div className="container" style={{ paddingTop: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>Betöltés...</div>}>
+    <Suspense fallback={<PageSpinner />}>
       <ProjectsListContent />
     </Suspense>
   );

@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
 import Modal, { AlertModal } from '@/components/Modal';
 import SectionMediaGrid from '@/components/SectionMediaGrid';
+import PageSpinner from '@/components/PageSpinner';
 import { formatHUF, QUOTE_ENTRY_TYPES, QUANTITY_UNITS, LABOUR_UNITS } from '@/lib/constants';
 import {
   ArrowLeft, AlertCircle, Check, Loader2, Plus, Trash2, Edit3,
@@ -226,7 +227,7 @@ function NewQuotePageInner() {
       .finally(() => setSectionsLoading(false));
   }, [fromSurveyId]);
 
-  if (loading || !currentUser) return <div className="container" style={{ paddingTop: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>Betöltés...</div>;
+  if (loading || !currentUser) return <PageSpinner />;
 
   const selectedClient = clients.find(c => c.id === clientId);
   const previewAmount = calcAmount(entryForm.entry_type, entryForm.quantity, entryForm.unit_price, entryForm.flat_amount);
@@ -668,7 +669,7 @@ function NewQuotePageInner() {
 
 export default function NewQuotePage() {
   return (
-    <Suspense fallback={<div className="container" style={{ paddingTop: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>Betöltés...</div>}>
+    <Suspense fallback={<PageSpinner />}>
       <NewQuotePageInner />
     </Suspense>
   );

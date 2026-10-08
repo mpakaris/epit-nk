@@ -4,14 +4,11 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { cookies } from 'next/headers';
 import { redirect, notFound } from 'next/navigation';
 import ProjectDetailClient from './ProjectDetailClient';
+import PageSpinner from '@/components/PageSpinner';
 
 export default function ProjectDetailPage({ params }) {
   return (
-    <Suspense fallback={
-      <div className="container" style={{ paddingTop: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>
-        Betöltés...
-      </div>
-    }>
+    <Suspense fallback={<PageSpinner />}>
       <ProjectDetailContent params={params} />
     </Suspense>
   );

@@ -712,6 +712,16 @@ button, input, select, textarea {
   animation: spin 1s linear infinite;
 }
 
+/* Global full-page loading spinner */
+.global-spinner {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 3px solid var(--border-subtle);
+  border-top-color: var(--accent);
+  animation: spin 0.75s linear infinite;
+}
+
 /* Utilities */
 .flex { display: flex; }
 .flex-1 { flex: 1; }

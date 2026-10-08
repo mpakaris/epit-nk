@@ -12,6 +12,7 @@ import {
   Package, Hammer, Wrench, Truck, MoreHorizontal,
   User, Coins, Home, Ruler, X, Camera,
 } from 'lucide-react';
+import PageSpinner from '@/components/PageSpinner';
 
 const ENTRY_TYPE_ORDER = { material: 0, labour: 1, transport: 2, equipment: 3, other: 4 };
 const sortEntries = (arr) => [...arr].sort((a, b) => (ENTRY_TYPE_ORDER[a.entry_type] ?? 4) - (ENTRY_TYPE_ORDER[b.entry_type] ?? 4));
@@ -238,7 +239,7 @@ export default function EditQuotePage() {
     if (quote?.survey_id) fetchSurveyMedia(quote.survey_id).catch(() => {});
   }, [quote?.survey_id]);
 
-  if (loading || !dataReady) return <div className="container" style={{ paddingTop: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>Betöltés...</div>;
+  if (loading || !dataReady) return <PageSpinner />;
 
   if (!quote) {
     return (

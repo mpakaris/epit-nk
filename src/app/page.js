@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
+import PageSpinner from '@/components/PageSpinner';
 
 export default function HomePage() {
   const router = useRouter();
@@ -24,13 +25,5 @@ export default function HomePage() {
     }
   }, [currentUser, loading, router]);
 
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
-      <div style={{ textAlign: 'center' }}>
-        <div style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
-          Betöltés folyamatban...
-        </div>
-      </div>
-    </div>
-  );
+  return <PageSpinner />;
 }

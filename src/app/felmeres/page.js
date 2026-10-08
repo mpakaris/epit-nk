@@ -6,6 +6,7 @@ import { useApp } from '@/context/AppContext';
 import { formatDate } from '@/lib/constants';
 import { ConfirmModal, AlertModal } from '@/components/Modal';
 import { Ruler, Plus, MapPin, Calendar, User, FileText, FolderKanban, Trash2 } from 'lucide-react';
+import PageSpinner from '@/components/PageSpinner';
 
 function getSurveyStatus(surveyId, quotes, projects) {
   const linkedProject = projects.find(p => p.survey_id === surveyId);
@@ -23,7 +24,7 @@ export default function SurveyListPage() {
   const [alertModal, setAlertModal] = useState(null);
 
   if (loading || !dataReady) return (
-    <div className="container" style={{ paddingTop: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>Betöltés...</div>
+    <PageSpinner />
   );
 
   const norm = (s) => (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();

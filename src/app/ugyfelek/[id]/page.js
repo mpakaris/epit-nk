@@ -19,6 +19,7 @@ import {
   Check,
   ExternalLink
 } from 'lucide-react';
+import PageSpinner from '@/components/PageSpinner';
 
 const STATUS_LABELS = {
   draft: 'Vázlat',
@@ -52,7 +53,7 @@ export default function ClientDetailPage() {
   };
 
 
-  if (loading || !dataReady) return <div className="container" style={{ paddingTop: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>Betöltés...</div>;
+  if (loading || !dataReady) return <PageSpinner />;
 
   if (!isAdmin) {
     return (

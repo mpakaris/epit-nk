@@ -10,6 +10,7 @@ import {
   Home, Ruler, UserCheck, BookUser, CalendarDays, ChevronUp,
   Download, X, Loader2
 } from 'lucide-react';
+import PageSpinner from '@/components/PageSpinner';
 
 const WORK_TYPES = [
   'Alapozás', 'Ácsmunka', 'Ajtócsere', 'Ablakcsere', 'Bontás',
@@ -204,7 +205,7 @@ export default function ProjectEditPage() {
   }
 
   if (!project) {
-    return <div className="container" style={{ paddingTop: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>Betöltés...</div>;
+    return <PageSpinner />;
   }
 
   const linkedQuote = (quotes || []).find(q => q.project_id === id);

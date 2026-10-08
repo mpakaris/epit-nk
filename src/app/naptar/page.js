@@ -8,6 +8,7 @@ import {
   ChevronLeft, ChevronRight, FolderKanban, FileText,
   Calendar, List, AlertTriangle
 } from 'lucide-react';
+import PageSpinner from '@/components/PageSpinner';
 
 const DAYS_HU  = ['H', 'K', 'Sze', 'Cs', 'P', 'Szo', 'V'];
 const MONTHS_HU = [
@@ -165,7 +166,7 @@ export default function CalendarPage() {
   const nextMonth = () => setCurrentDate(d => new Date(d.getFullYear(), d.getMonth() + 1, 1));
   const goToday   = () => setCurrentDate(new Date());
 
-  if (loading) return <div className="container" style={{ paddingTop: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>Betöltés...</div>;
+  if (loading) return <PageSpinner />;
 
   const conflictingEvents = events.filter(e => hasConflict(events, e));
 
