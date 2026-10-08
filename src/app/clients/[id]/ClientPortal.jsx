@@ -7,10 +7,6 @@ function fmt(d) {
   if (!d) return null;
   return new Date(d).toLocaleDateString('hu-HU', { year: 'numeric', month: 'long', day: 'numeric' });
 }
-function fmtShort(d) {
-  if (!d) return null;
-  return new Date(d).toLocaleDateString('hu-HU', { month: 'short', day: 'numeric' });
-}
 function fmtHUF(n) { return Number(n || 0).toLocaleString('hu-HU') + ' Ft'; }
 
 const STATUS_LABELS = { sent: 'Kiküldve', accepted: 'Elfogadva', rejected: 'Elutasítva' };
@@ -77,7 +73,7 @@ function PhotoGrid({ photos }) {
   if (!photos || photos.length === 0) return null;
   return (
     <>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))', gap: 3, marginTop: '0.85rem', borderRadius: 10, overflow: 'hidden' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(88px, 1fr))', gap: 3, marginTop: '0.65rem', borderRadius: 8, overflow: 'hidden' }}>
         {photos.map((p, i) => {
           const isVideo = p.mime_type?.startsWith('video/');
           return (
@@ -95,11 +91,66 @@ function PhotoGrid({ photos }) {
   );
 }
 
+// ── single entry row ──────────────────────────────────────────────────────────
+function EntryRow({ entry, isLast }) {
+  return (
+    <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.75rem', padding: '0.45rem 0', borderBottom: isLast ? 'none' : '1px solid #f1f5f9' }}>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: '0.875rem', fontWeight: 600, color: '#0f172a' }}>{entry.work_description}</div>
+        <div style={{ fontSize: '0.73rem', color: '#94a3b8', marginTop: '0.1rem' }}>
+          <span style={{ marginRight: '0.35rem', color: '#64748b' }}>{TYPE_LABELS[entry.entry_type] || entry.entry_type}</span>
+          {entry.quantity != null && entry.unit ? `${entry.quantity} ${entry.unit}` : ''}
+          {entry.unit_price ? ` × ${Number(entry.unit_price).toLocaleString('hu-HU')} Ft` : ''}
+          {entry.notes ? <span style={{ fontStyle: 'italic', marginLeft: '0.35rem' }}>{entry.notes}</span> : null}
+        </div>
+      </div>
+      <div style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: '0.9rem', color: '#0f172a', whiteSpace: 'nowrap', paddingTop: '0.1rem' }}>{fmtHUF(entry.amount_huf)}</div>
+    </div>
+  );
+}
+
+// ── room section ──────────────────────────────────────────────────────────────
+function RoomSection({ section }) {
+  const hasPhotos = (section.photos || []).length > 0;
+  const hasEntries = (section.entries || []).length > 0;
+  const roomTotal = (section.entries || []).reduce((s, e) => s + Number(e.amount_huf || 0), 0);
+
+  return (
+    <div style={{ padding: '1rem 1.25rem', borderBottom: '1px solid #f1f5f9' }}>
+      {/* Room header */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '0.35rem' }}>
+        <span style={{ fontSize: '0.9rem', fontWeight: 800, color: '#0f172a' }}>🏠 {section.name}</span>
+        {section.size_m2 != null && (
+          <span style={{ fontSize: '0.72rem', color: '#64748b', background: '#f1f5f9', borderRadius: 20, padding: '0.1rem 0.5rem', border: '1px solid #e2e8f0' }}>{section.size_m2} m²</span>
+        )}
+        {roomTotal > 0 && (
+          <span style={{ marginLeft: 'auto', fontFamily: 'monospace', fontWeight: 700, fontSize: '0.85rem', color: '#475569' }}>{fmtHUF(roomTotal)}</span>
+        )}
+      </div>
+      {section.description && (
+        <p style={{ fontSize: '0.83rem', color: '#64748b', margin: '0 0 0.5rem', lineHeight: 1.55 }}>{section.description}</p>
+      )}
+
+      {hasPhotos && <PhotoGrid photos={section.photos} />}
+
+      {hasEntries && (
+        <div style={{ marginTop: hasPhotos ? '0.75rem' : '0.25rem' }}>
+          {section.entries.map((e, i) => (
+            <EntryRow key={e.id} entry={e} isLast={i === section.entries.length - 1} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── quote card ────────────────────────────────────────────────────────────────
 function QuoteCard({ quote, clientId }) {
-  const [open, setOpen] = React.useState(false);
-  const entries = quote.entries || [];
-  const net = entries.reduce((s, e) => s + Number(e.amount_huf || 0), 0);
+  const sections = quote.sections || [];
+  const allEntries = quote.entries || [];
+  const generalEntries = allEntries.filter(e => !e.section_id);
+
+  const net = allEntries.reduce((s, e) => s + Number(e.amount_huf || 0), 0);
   const taxRate = Number(quote.tax_percent ?? 27);
   const tax = Math.round(net * taxRate / 100);
   const gross = net + tax;
@@ -110,55 +161,83 @@ function QuoteCard({ quote, clientId }) {
 
   return (
     <div style={{ background: '#fff', borderRadius: 14, border: '1px solid #e2e8f0', overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
-      <div style={{ padding: '1rem 1.15rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.5rem', marginBottom: '0.5rem' }}>
-          <div style={{ flex: 1 }}>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', marginBottom: '0.3rem', alignItems: 'center' }}>
-              <span style={{ fontSize: '0.7rem', fontWeight: 700, padding: '0.15rem 0.55rem', borderRadius: 20, background: ss.bg, color: ss.color, border: `1px solid ${ss.border}` }}>
-                {STATUS_LABELS[quote.status] || quote.status}
-              </span>
-              {quote.work_type && <span style={{ fontSize: '0.7rem', color: '#64748b' }}>{quote.work_type}</span>}
-            </div>
-            <h3 style={{ fontSize: '1rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>{quote.title}</h3>
-            {quote.location && <div style={{ fontSize: '0.8rem', color: '#64748b', marginTop: '0.15rem' }}>📍 {quote.location}</div>}
-          </div>
-          <div style={{ textAlign: 'right', flexShrink: 0 }}>
-            <div style={{ fontSize: '0.65rem', color: '#94a3b8', fontWeight: 600 }}>Bruttó</div>
-            <div style={{ fontFamily: 'monospace', fontWeight: 800, fontSize: '1.05rem', color: '#0f172a' }}>{fmtHUF(gross)}</div>
-          </div>
+
+      {/* ── Header ── */}
+      <div style={{ padding: '1.1rem 1.25rem 0.9rem' }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem', alignItems: 'center', marginBottom: '0.4rem' }}>
+          <span style={{ fontSize: '0.7rem', fontWeight: 700, padding: '0.15rem 0.6rem', borderRadius: 20, background: ss.bg, color: ss.color, border: `1px solid ${ss.border}` }}>
+            {STATUS_LABELS[quote.status] || quote.status}
+          </span>
+          {quote.work_type && <span style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: 600 }}>{quote.work_type}</span>}
         </div>
 
-        {/* Actions row */}
-        <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.65rem', flexWrap: 'wrap' }}>
-          <button onClick={() => setOpen(v => !v)} style={{ fontSize: '0.8rem', fontWeight: 600, color: '#2563eb', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 8, padding: '0.35rem 0.7rem', cursor: 'pointer' }}>
-            {open ? '▲ Tételek elrejtése' : '▼ Tételek megtekintése'}
-          </button>
-          <a href={pdfHref} target="_blank" rel="noopener noreferrer" style={{ fontSize: '0.8rem', fontWeight: 600, color: '#fff', background: '#0f172a', border: 'none', borderRadius: 8, padding: '0.35rem 0.7rem', cursor: 'pointer', textDecoration: 'none' }}>
+        <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#0f172a', margin: '0 0 0.3rem', lineHeight: 1.25 }}>{quote.title}</h3>
+
+        {quote.description && (
+          <p style={{ fontSize: '0.855rem', color: '#475569', margin: '0 0 0.55rem', lineHeight: 1.6 }}>{quote.description}</p>
+        )}
+
+        {/* Location + dates */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.3rem 1rem', fontSize: '0.83rem', color: '#64748b', marginBottom: '0.9rem' }}>
+          {quote.location && <span>📍 {quote.location}</span>}
+          {(quote.start_date || quote.end_date) && (
+            <span>🗓 {quote.start_date ? fmt(quote.start_date) : '—'} – {quote.end_date ? fmt(quote.end_date) : '—'}</span>
+          )}
+        </div>
+
+        {/* Financial summary */}
+        <div style={{ background: '#f8fafc', borderRadius: 10, padding: '0.8rem 1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+          <div>
+            {taxRate > 0 ? (
+              <>
+                <div style={{ fontSize: '0.78rem', color: '#94a3b8', marginBottom: '0.1rem' }}>Nettó: <strong style={{ color: '#475569' }}>{fmtHUF(net)}</strong> + ÁFA {taxRate}%: <strong style={{ color: '#475569' }}>{fmtHUF(tax)}</strong></div>
+              </>
+            ) : (
+              <div style={{ fontSize: '0.78rem', color: '#94a3b8' }}>ÁFA mentes</div>
+            )}
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.35rem' }}>
+              <span style={{ fontSize: '0.7rem', color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Bruttó összesen</span>
+            </div>
+            <div style={{ fontFamily: 'monospace', fontWeight: 900, fontSize: '1.2rem', color: '#0f172a' }}>{fmtHUF(gross)}</div>
+          </div>
+          <a href={pdfHref} target="_blank" rel="noopener noreferrer"
+            style={{ fontSize: '0.83rem', fontWeight: 700, color: '#fff', background: '#0f172a', borderRadius: 9, padding: '0.55rem 1.1rem', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '0.35rem', flexShrink: 0 }}>
             ↓ PDF letöltés
           </a>
         </div>
       </div>
 
-      {/* Collapsible items */}
-      {open && entries.length > 0 && (
-        <div style={{ borderTop: '1px solid #f1f5f9', padding: '0.75rem 1.15rem' }}>
-          {entries.map((e, i) => (
-            <div key={e.id} style={{ display: 'flex', justifyContent: 'space-between', gap: '0.75rem', padding: '0.4rem 0', borderBottom: i < entries.length - 1 ? '1px solid #f8fafc' : 'none' }}>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: '0.85rem', fontWeight: 600, color: '#0f172a' }}>{e.work_description}</div>
-                <div style={{ fontSize: '0.73rem', color: '#94a3b8' }}>
-                  {TYPE_LABELS[e.entry_type] || e.entry_type}
-                  {e.quantity != null && e.unit ? ` · ${e.quantity} ${e.unit}` : ''}
-                  {e.unit_price ? ` × ${Number(e.unit_price).toLocaleString('hu-HU')} Ft` : ''}
-                </div>
-              </div>
-              <div style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: '0.875rem', whiteSpace: 'nowrap' }}>{fmtHUF(e.amount_huf)}</div>
-            </div>
-          ))}
-          <div style={{ marginTop: '0.5rem', paddingTop: '0.5rem', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
-            <span style={{ color: '#475569' }}>Nettó: {fmtHUF(net)}{taxRate > 0 ? ` · ÁFA (${taxRate}%): ${fmtHUF(tax)}` : ''}</span>
-            <span style={{ fontWeight: 800, fontFamily: 'monospace' }}>{fmtHUF(gross)}</span>
+      {/* ── Rooms ── */}
+      {sections.length > 0 && (
+        <div style={{ borderTop: '1px solid #f1f5f9' }}>
+          <div style={{ padding: '0.6rem 1.25rem 0.25rem', fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: '#94a3b8' }}>
+            Helyiségek ({sections.length})
           </div>
+          {sections.map(s => <RoomSection key={s.id} section={s} />)}
+        </div>
+      )}
+
+      {/* ── General entries (no room) ── */}
+      {generalEntries.length > 0 && (
+        <div style={{ borderTop: '1px solid #f1f5f9', padding: '0.85rem 1.25rem' }}>
+          <div style={{ fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: '#94a3b8', marginBottom: '0.5rem' }}>
+            Általános tételek
+          </div>
+          {generalEntries.map((e, i) => (
+            <EntryRow key={e.id} entry={e} isLast={i === generalEntries.length - 1} />
+          ))}
+        </div>
+      )}
+
+      {/* ── Flat entry list if no rooms ── */}
+      {sections.length === 0 && allEntries.length > 0 && (
+        <div style={{ borderTop: '1px solid #f1f5f9', padding: '0.85rem 1.25rem' }}>
+          <div style={{ fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: '#94a3b8', marginBottom: '0.5rem' }}>
+            Tételek
+          </div>
+          {allEntries.map((e, i) => (
+            <EntryRow key={e.id} entry={e} isLast={i === allEntries.length - 1} />
+          ))}
         </div>
       )}
     </div>
@@ -172,8 +251,7 @@ function ProjectCard({ project }) {
 
   return (
     <div style={{ background: '#fff', borderRadius: 14, border: '1px solid #e2e8f0', overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
-      <div style={{ padding: '1rem 1.15rem 0.85rem' }}>
-        {/* Header */}
+      <div style={{ padding: '1rem 1.25rem 0.85rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.5rem', marginBottom: '0.5rem' }}>
           <div style={{ flex: 1 }}>
             <h3 style={{ fontSize: '1rem', fontWeight: 800, color: '#0f172a', margin: '0 0 0.25rem' }}>{project.name}</h3>
@@ -187,7 +265,6 @@ function ProjectCard({ project }) {
           )}
         </div>
 
-        {/* Dates pill */}
         {(project.start_date || project.end_date) && (
           <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '0.5rem' }}>
             {project.start_date && <span style={{ fontSize: '0.75rem', color: '#64748b', background: '#f1f5f9', borderRadius: 20, padding: '0.1rem 0.5rem', border: '1px solid #e2e8f0' }}>🗓 {fmt(project.start_date)}</span>}
@@ -195,7 +272,6 @@ function ProjectCard({ project }) {
           </div>
         )}
 
-        {/* Linked quote pill */}
         {project.linkedQuote && (
           <div style={{ fontSize: '0.75rem', color: '#2563eb', background: '#eff6ff', borderRadius: 8, padding: '0.3rem 0.65rem', display: 'inline-flex', alignItems: 'center', gap: '0.3rem', border: '1px solid #bfdbfe', marginBottom: '0.5rem' }}>
             📋 Ajánlat: {project.linkedQuote.title}
@@ -203,9 +279,8 @@ function ProjectCard({ project }) {
         )}
       </div>
 
-      {/* Diary timeline */}
       {entries.length > 0 && (
-        <div style={{ borderTop: '1px solid #f1f5f9', padding: '0.85rem 1.15rem 0.5rem' }}>
+        <div style={{ borderTop: '1px solid #f1f5f9', padding: '0.85rem 1.25rem 0.5rem' }}>
           <div style={{ fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#94a3b8', marginBottom: '0.65rem' }}>
             Napló ({entries.length} bejegyzés)
           </div>
@@ -241,7 +316,7 @@ function ProjectCard({ project }) {
       )}
 
       {entries.length === 0 && (
-        <div style={{ borderTop: '1px solid #f1f5f9', padding: '0.75rem 1.15rem', fontSize: '0.83rem', color: '#94a3b8', fontStyle: 'italic' }}>
+        <div style={{ borderTop: '1px solid #f1f5f9', padding: '0.75rem 1.25rem', fontSize: '0.83rem', color: '#94a3b8', fontStyle: 'italic' }}>
           Még nincs megosztott napló bejegyzés ehhez a projekthez.
         </div>
       )}
@@ -276,14 +351,12 @@ export default function ClientPortal({ client, entity, quotes, projects }) {
             </h1>
             <p style={{ fontSize: '0.9rem', color: 'rgba(255,255,255,0.6)', margin: '0 0 1.25rem' }}>Ügyfél portál</p>
 
-            {/* Contact */}
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '1.25rem' }}>
               {client.address && <span style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.7)' }}>📍 {client.address}</span>}
               {client.phone && <span style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.7)' }}>📞 {client.phone}</span>}
               {client.email && <span style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.7)' }}>✉ {client.email}</span>}
             </div>
 
-            {/* Stats pills */}
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
               {quotes.length > 0 && (
                 <div style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 10, padding: '0.5rem 0.85rem' }}>
@@ -304,19 +377,17 @@ export default function ClientPortal({ client, entity, quotes, projects }) {
         {/* ── Content ── */}
         <div style={{ flex: 1, maxWidth: 680, margin: '0 auto', width: '100%', padding: '1.5rem 1.1rem 1rem' }}>
 
-          {/* Quotes */}
           {quotes.length > 0 && (
             <div style={{ marginBottom: '2rem' }}>
               <div style={{ fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#64748b', marginBottom: '0.75rem' }}>
                 Árajánlatok ({quotes.length})
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
                 {quotes.map(q => <QuoteCard key={q.id} quote={q} clientId={client.id} />)}
               </div>
             </div>
           )}
 
-          {/* Projects */}
           {projects.length > 0 && (
             <div style={{ marginBottom: '1rem' }}>
               <div style={{ fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#64748b', marginBottom: '0.75rem' }}>
@@ -336,7 +407,6 @@ export default function ClientPortal({ client, entity, quotes, projects }) {
           )}
         </div>
 
-        {/* Footer */}
         <footer style={{ borderTop: '1px solid #e2e8f0', background: '#fff', padding: '1rem 1.25rem', marginTop: 'auto' }}>
           <div style={{ maxWidth: 680, margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
             <span style={{ fontSize: '0.78rem', fontWeight: 700, color: '#0f172a' }}>{entity?.name || 'Epitünk'}</span>

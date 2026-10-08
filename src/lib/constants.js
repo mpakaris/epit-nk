@@ -14,7 +14,8 @@ export const QUOTE_ENTRY_TYPES = [
   { id: 'other',     label: 'Egyéb',         desc: 'Engedély, hatóság, vegyes'     }
 ];
 
-export const QUANTITY_UNITS = ['db', 'm', 'fm', 'm²', 'm³', 'kg', 't', 'l', 'zsák', 'csomag'];
+export const QUANTITY_UNITS = ['h', 'db', 'm', 'fm', 'm²', 'm³', 'kg', 't', 'l', 'zsák', 'csomag'];
+export const LABOUR_UNITS   = ['h', 'nap', 'm²', 'm', 'fm', 'db'];
 
 export const QUOTE_STATUSES = [
   { id: 'draft',    label: 'Vázlat',     color: 'muted'   },

@@ -14,7 +14,7 @@ import {
   CheckCircle2, Camera, ArrowRight, Hammer, Clock, Trash2, Wallet, BookOpen,
   Edit3, UserCheck, CalendarDays, BookUser, BarChart3, ShieldCheck,
   Phone, Mail, MapPin, ChevronUp, Link2, Copy, Check, AlertCircle, Lock, Eye,
-  ChevronLeft, ChevronRight, X, Play, ZoomIn, FileText
+  ChevronLeft, ChevronRight, X, Play, ZoomIn, FileText, Ruler, Home, Calendar, User
 } from 'lucide-react';
 
 function MediaLightbox({ media, startIndex, onClose }) {
@@ -161,158 +161,6 @@ function EntryMediaGrid({ photos }) {
   );
 }
 
-const today = () => new Date().toISOString().split('T')[0];
-const nextDay = (d) => { const dt = new Date(d); dt.setDate(dt.getDate() + 1); return dt.toISOString().split('T')[0]; };
-
-function EditProjectModal({ isOpen, onClose, project, clients, users, updateProject, updateProjectMembers, createClient, onSuccess }) {
-  const [name, setName] = React.useState('');
-  const [desc, setDesc] = React.useState('');
-  const [startDate, setStartDate] = React.useState('');
-  const [endDate, setEndDate] = React.useState('');
-  const [clientId, setClientId] = React.useState('');
-  const [memberIds, setMemberIds] = React.useState([]);
-  const [error, setError] = React.useState('');
-  const [submitting, setSubmitting] = React.useState(false);
-  const [showNewClientForm, setShowNewClientForm] = React.useState(false);
-  const [newClientName, setNewClientName] = React.useState('');
-  const [newClientPhone, setNewClientPhone] = React.useState('');
-  const [newClientEmail, setNewClientEmail] = React.useState('');
-  const [newClientAddress, setNewClientAddress] = React.useState('');
-  const [newClientError, setNewClientError] = React.useState('');
-  const [creatingClient, setCreatingClient] = React.useState(false);
-
-  React.useEffect(() => {
-    if (project && isOpen) {
-      setName(project.name || '');
-      setDesc(project.description || '');
-      setStartDate(project.start_date || '');
-      setEndDate(project.end_date || '');
-      setClientId(project.client_id || '');
-      setMemberIds(project.members || []);
-      setError('');
-      setShowNewClientForm(false);
-    }
-  }, [project?.id, isOpen]);
-
-  if (!isOpen || !project) return null;
-
-  const toggleMember = (uid) =>
-    setMemberIds(prev => prev.includes(uid) ? prev.filter(id => id !== uid) : [...prev, uid]);
-
-  const handleCreateClient = async (e) => {
-    e.preventDefault();
-    setNewClientError('');
-    if (!newClientName.trim()) { setNewClientError('A név megadása kötelező!'); return; }
-    setCreatingClient(true);
-    try {
-      const newClient = await createClient({ name: newClientName.trim(), phone: newClientPhone.trim(), email: newClientEmail.trim(), address: newClientAddress.trim(), entityId: project.entity_id });
-      setClientId(newClient.id);
-      setShowNewClientForm(false);
-      setNewClientName(''); setNewClientPhone(''); setNewClientEmail(''); setNewClientAddress('');
-    } catch (err) {
-      setNewClientError(err.message || 'Hiba az ügyfél létrehozásakor');
-    } finally {
-      setCreatingClient(false);
-    }
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError('');
-    setSubmitting(true);
-    try {
-      await updateProject(project.id, { name: name.trim(), description: desc.trim() || null, start_date: startDate || null, end_date: endDate || null, client_id: clientId || null });
-      await updateProjectMembers(project.id, memberIds);
-      onSuccess('Projekt frissítve.');
-      onClose();
-    } catch (err) {
-      setError(err.message || 'Hiba a mentésnél');
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const selectedClient = clients.find(c => c.id === clientId);
-
-  return (
-    <Modal isOpen={isOpen} onClose={onClose} title={`Szerkesztés: ${project.name}`}>
-      {error && (
-        <div style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', color: 'var(--danger-text)', padding: '0.65rem', borderRadius: 'var(--radius-md)', fontSize: '0.825rem', display: 'flex', gap: '0.45rem', marginBottom: '0.85rem' }}>
-          <AlertCircle size={15} style={{ flexShrink: 0 }} /><span>{error}</span>
-        </div>
-      )}
-      <form onSubmit={handleSubmit}>
-        <div className="form-group">
-          <label className="form-label">Projekt neve *</label>
-          <input type="text" required className="form-control" value={name} onChange={e => setName(e.target.value)} />
-        </div>
-        <div className="form-group">
-          <label className="form-label">Leírás</label>
-          <textarea rows={2} className="form-control" value={desc} onChange={e => setDesc(e.target.value)} />
-        </div>
-        <div className="grid-2col">
-          <div className="form-group" style={{ marginBottom: 0 }}>
-            <label className="form-label">Kezdés</label>
-            <input type="date" className="form-control" value={startDate} onChange={e => { const v = e.target.value; setStartDate(v); if (v && (!endDate || endDate <= v)) setEndDate(nextDay(v)); }} />
-          </div>
-          <div className="form-group" style={{ marginBottom: 0 }}>
-            <label className="form-label">Befejezés</label>
-            <input type="date" className="form-control" min={startDate ? nextDay(startDate) : today()} value={endDate} onChange={e => setEndDate(e.target.value)} />
-          </div>
-        </div>
-        <div className="form-group" style={{ marginTop: '0.75rem' }}>
-          <label className="form-label">Megrendelő</label>
-          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-            <select className="form-control" value={clientId} onChange={e => setClientId(e.target.value)} style={{ flex: 1 }}>
-              <option value="">– Ügyfél nélkül –</option>
-              {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
-            <button type="button" className="btn btn-secondary btn-sm" style={{ whiteSpace: 'nowrap', flexShrink: 0 }} onClick={() => setShowNewClientForm(v => !v)}>
-              {showNewClientForm ? <ChevronUp size={14} /> : <Plus size={14} />}
-              {showNewClientForm ? 'Bezár' : 'Új ügyfél'}
-            </button>
-          </div>
-          {selectedClient && !showNewClientForm && (
-            <div style={{ marginTop: '0.4rem', fontSize: '0.78rem', color: 'var(--accent)', fontWeight: 600 }}>
-              {selectedClient.phone && `${selectedClient.phone} · `}{selectedClient.email}
-            </div>
-          )}
-        </div>
-        {showNewClientForm && (
-          <div style={{ border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: '0.85rem', marginBottom: '0.75rem', background: 'var(--bg-subtle)' }}>
-            <div style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '0.65rem' }}>Új ügyfél</div>
-            {newClientError && <div style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', color: 'var(--danger-text)', padding: '0.5rem 0.65rem', borderRadius: 'var(--radius-md)', fontSize: '0.8rem', marginBottom: '0.65rem' }}>{newClientError}</div>}
-            <div className="form-group"><label className="form-label">Név *</label><input type="text" className="form-control" value={newClientName} onChange={e => setNewClientName(e.target.value)} placeholder="pl. Horváth Béla" /></div>
-            <div className="grid-2col">
-              <div className="form-group" style={{ margin: 0 }}><label className="form-label">Telefon</label><input type="tel" className="form-control" value={newClientPhone} onChange={e => setNewClientPhone(e.target.value)} placeholder="+36 70 …" /></div>
-              <div className="form-group" style={{ margin: 0 }}><label className="form-label">E-mail</label><input type="email" className="form-control" value={newClientEmail} onChange={e => setNewClientEmail(e.target.value)} /></div>
-            </div>
-            <div className="form-group" style={{ marginTop: '0.65rem', marginBottom: '0.65rem' }}><label className="form-label">Cím</label><input type="text" className="form-control" value={newClientAddress} onChange={e => setNewClientAddress(e.target.value)} /></div>
-            <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
-              <button type="button" className="btn btn-secondary btn-sm" onClick={() => { setShowNewClientForm(false); setNewClientError(''); }}>Mégse</button>
-              <button type="button" className="btn btn-primary btn-sm" disabled={creatingClient} onClick={handleCreateClient}>{creatingClient ? 'Létrehozás...' : 'Ügyfél létrehozása'}</button>
-            </div>
-          </div>
-        )}
-        <div style={{ marginTop: '0.75rem', marginBottom: '1.25rem' }}>
-          <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', marginBottom: '0.5rem' }}><UserCheck size={14} /> Résztvevők</label>
-          <div style={{ maxHeight: '180px', overflowY: 'auto', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: '0.3rem' }}>
-            {users.map(u => (
-              <label key={u.id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.4rem 0.5rem', borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontSize: '0.85rem' }}>
-                <input type="checkbox" checked={memberIds.includes(u.id)} onChange={() => toggleMember(u.id)} />
-                <span style={{ fontWeight: 600 }}>{u.display_name}</span>
-              </label>
-            ))}
-          </div>
-        </div>
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
-          <button type="button" className="btn btn-secondary btn-sm" onClick={onClose}>Mégse</button>
-          <button type="submit" className="btn btn-primary btn-sm" disabled={submitting}>{submitting ? 'Mentés...' : 'Mentés'}</button>
-        </div>
-      </form>
-    </Modal>
-  );
-}
 
 const WORK_TYPES = [
   'Alapozás', 'Ácsmunka', 'Ajtócsere', 'Ablakcsere', 'Bontás',
@@ -566,6 +414,93 @@ function EditDiaryEntryModal({ isOpen, onClose, entry, onSave, onDeletePhoto }) 
   );
 }
 
+const LABOUR_UNITS = ['h', 'nap', 'm²', 'm³', 'm', 'fm', 'db', 'l', 'kg'];
+
+function LabourEditModal({ entry, onClose, onSave }) {
+  const [labourType, setLabourType] = React.useState('');
+  const [date, setDate] = React.useState('');
+  const [hours, setHours] = React.useState('');
+  const [unit, setUnit] = React.useState('h');
+  const [hourlyRate, setHourlyRate] = React.useState('');
+  const [description, setDescription] = React.useState('');
+  const [saving, setSaving] = React.useState(false);
+  const [err, setErr] = React.useState('');
+
+  React.useEffect(() => {
+    if (entry) {
+      setLabourType(entry.labour_type || '');
+      setDate(entry.date || '');
+      setHours(entry.hours != null ? String(entry.hours) : '');
+      setUnit(entry.unit || 'h');
+      setHourlyRate(entry.hourly_rate != null ? String(entry.hourly_rate) : '');
+      setDescription(entry.description || '');
+      setErr('');
+    }
+  }, [entry?.id]);
+
+  const preview = Math.round((parseFloat(hours) || 0) * (parseInt(hourlyRate, 10) || 0));
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!labourType.trim()) { setErr('A típus megadása kötelező'); return; }
+    setSaving(true);
+    setErr('');
+    try {
+      await onSave({ labour_type: labourType.trim(), date, hours: parseFloat(hours), hourly_rate: parseInt(hourlyRate, 10), unit, description: description.trim() || null });
+    } catch (error) {
+      setErr(error.message || 'Hiba a mentésnél');
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Modal isOpen={true} onClose={onClose} title="Munkabejegyzés szerkesztése">
+      {err && <div style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', color: 'var(--danger-text)', padding: '0.65rem', borderRadius: 'var(--radius-md)', fontSize: '0.825rem', display: 'flex', gap: '0.45rem', marginBottom: '0.85rem' }}><AlertCircle size={15} /><span>{err}</span></div>}
+      <form onSubmit={handleSubmit}>
+        <div className="form-group">
+          <label className="form-label">Típus *</label>
+          <input type="text" required className="form-control" value={labourType} onChange={e => setLabourType(e.target.value)} />
+        </div>
+        <div className="form-group">
+          <label className="form-label">Dátum</label>
+          <input type="date" className="form-control" value={date} onChange={e => setDate(e.target.value)} />
+        </div>
+        <div className="form-group">
+          <label className="form-label">Mértékegység</label>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.3rem' }}>
+            {LABOUR_UNITS.map(u => (
+              <button key={u} type="button" onClick={() => setUnit(u)} style={{ padding: '0.25rem 0.65rem', borderRadius: 'var(--radius-md)', border: unit === u ? '2px solid var(--accent)' : '1px solid var(--border-subtle)', background: unit === u ? 'var(--accent)' : 'var(--bg-subtle)', color: unit === u ? '#fff' : 'var(--text-secondary)', fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer', fontFamily: 'var(--font-mono)' }}>{u}</button>
+            ))}
+          </div>
+        </div>
+        <div className="grid-2col">
+          <div className="form-group" style={{ margin: 0 }}>
+            <label className="form-label">Mennyiség ({unit}) *</label>
+            <input type="number" required min="0.01" step="0.01" className="form-control text-mono" value={hours} onChange={e => setHours(e.target.value)} />
+          </div>
+          <div className="form-group" style={{ margin: 0 }}>
+            <label className="form-label">Egységár (Ft/{unit}) *</label>
+            <input type="number" required min="1" className="form-control text-mono" value={hourlyRate} onChange={e => setHourlyRate(e.target.value)} />
+          </div>
+        </div>
+        {preview > 0 && (
+          <div style={{ marginTop: '0.5rem', padding: '0.5rem 0.75rem', borderRadius: 'var(--radius-md)', background: 'var(--success-bg)', border: '1px solid var(--success-border)', color: 'var(--success-text)', fontSize: '0.825rem', fontWeight: 700 }}>
+            Munkadíj: {hours} {unit} × {formatHUF(parseInt(hourlyRate, 10) || 0)} = {formatHUF(preview)}
+          </div>
+        )}
+        <div className="form-group" style={{ marginTop: '0.75rem', marginBottom: '1.25rem' }}>
+          <label className="form-label">Megjegyzés</label>
+          <textarea rows={2} className="form-control" value={description} onChange={e => setDescription(e.target.value)} />
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+          <button type="button" className="btn btn-secondary btn-sm" onClick={onClose} disabled={saving}>Mégse</button>
+          <button type="submit" className="btn btn-primary btn-sm" disabled={saving}>{saving ? 'Mentés...' : 'Mentés'}</button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
 export default function ProjectDetailClient({
   project,
   initialUsers,
@@ -576,27 +511,37 @@ export default function ProjectDetailClient({
   currentUser,
   isAdmin,
   initialDiaryCount = 0,
+  initialRooms = [],
 }) {
   const router = useRouter();
   const {
     deleteInvoice: ctxDeleteInvoice,
     deleteLabourEntry: ctxDeleteLabourEntry,
     updateInvoice: ctxUpdateInvoice,
-    updateProject: ctxUpdateProject,
-    updateProjectMembers: ctxUpdateProjectMembers,
-    createClient: ctxCreateClient,
+    updateLabourEntry: ctxUpdateLabourEntry,
     quotes,
     quoteEntries,
+    surveys,
     diaryEntriesByProject,
     fetchDiaryEntries,
     updateDiaryEntry: ctxUpdateDiaryEntry,
     deleteDiaryEntry: ctxDeleteDiaryEntry,
     deleteDiaryPhoto: ctxDeleteDiaryPhoto,
     uploadDiaryPhotos,
+    projectRooms: ctxProjectRooms,
+    syncRoomsFromQuote,
   } = useApp();
+
+  // Prefer context rooms (updated after sync) over initial server-side rooms
+  const projectRooms = React.useMemo(() => {
+    const ctx = (ctxProjectRooms || []).filter(r => r.project_id === project.id);
+    return ctx.length > 0 ? ctx.sort((a, b) => a.sort_order - b.sort_order) : initialRooms.sort((a, b) => a.sort_order - b.sort_order);
+  }, [ctxProjectRooms, initialRooms, project.id]);
 
   const [categoryFilter, setCategoryFilter] = useState('ALL');
   const [uploaderFilter, setUploaderFilter] = useState('ALL');
+  const [labourUploaderFilter, setLabourUploaderFilter] = useState('ALL');
+  const [labourTypeFilter, setLabourTypeFilter] = useState('');
   const [activeTab, setActiveTab] = useState('invoices');
   const [confirmModal, setConfirmModal] = useState(null);
   const [alertModal, setAlertModal] = useState(null);
@@ -604,8 +549,10 @@ export default function ProjectDetailClient({
   const [successMsg, setSuccessMsg] = useState('');
   const [toast, setToast] = useState('');
   const [editingDiaryEntry, setEditingDiaryEntry] = useState(null);
-  const [editOpen, setEditOpen] = useState(false);
   const [editingInvoice, setEditingInvoice] = useState(null);
+  const [editingLabour, setEditingLabour] = useState(null);
+  const [roomFilter, setRoomFilter] = useState('ALL');
+  const [syncing, setSyncing] = useState(false);
   const [editValue, setEditValue] = useState('');
   const [editCategory, setEditCategory] = useState('');
   const [editDesc, setEditDesc] = useState('');
@@ -646,6 +593,14 @@ export default function ProjectDetailClient({
   const filteredInvoices = fin.projectInvoices.filter(inv => {
     if (categoryFilter !== 'ALL' && inv.category !== categoryFilter) return false;
     if (uploaderFilter !== 'ALL' && inv.uploaded_by !== uploaderFilter) return false;
+    if (roomFilter !== 'ALL' && inv.room_id !== (roomFilter === 'GENERAL' ? null : roomFilter)) return false;
+    return true;
+  });
+
+  const filteredLabour = fin.projectLabour.filter(entry => {
+    if (roomFilter !== 'ALL' && entry.room_id !== (roomFilter === 'GENERAL' ? null : roomFilter)) return false;
+    if (labourUploaderFilter !== 'ALL' && entry.uploaded_by !== labourUploaderFilter) return false;
+    if (labourTypeFilter.trim() && !entry.labour_type?.toLowerCase().includes(labourTypeFilter.toLowerCase())) return false;
     return true;
   });
 
@@ -729,21 +684,15 @@ export default function ProjectDetailClient({
     navigator.clipboard.writeText(url).then(() => { setCopiedTokenId(token.id); setTimeout(() => setCopiedTokenId(null), 2000); });
   };
 
-  const updateProject = async (projectId, fields) => {
-    await ctxUpdateProject(projectId, fields);
-    router.refresh();
-  };
-
-  const updateProjectMembers = async (projectId, memberIds) => {
-    await ctxUpdateProjectMembers(projectId, memberIds);
-    router.refresh();
-  };
-
-  const createClientFn = async (args) => {
-    const newClient = await ctxCreateClient(args);
-    router.refresh();
-    return newClient;
-  };
+  // Auto-sync rooms from linked quote on first load (additive only)
+  const syncedRef = React.useRef(false);
+  React.useEffect(() => {
+    if (!isAdmin || syncedRef.current || projectRooms.length > 0) return;
+    const linkedQuote = (quotes || []).find(q => q.project_id === project.id);
+    if (!linkedQuote) return;
+    syncedRef.current = true;
+    syncRoomsFromQuote(project.id).catch(() => {});
+  }, [isAdmin, project.id]);
 
   const fmt = (d) => d ? new Date(d).toLocaleDateString('hu-HU', { year: 'numeric', month: 'short', day: 'numeric' }) : null;
 
@@ -771,9 +720,9 @@ export default function ProjectDetailClient({
           </div>
           <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
             {isAdmin && (
-              <button type="button" onClick={() => setEditOpen(true)} className="btn btn-secondary btn-sm">
+              <Link href={`/projektek/${project.id}/szerkesztes`} className="btn btn-secondary btn-sm">
                 <Edit3 size={14} /> Szerkesztés
-              </button>
+              </Link>
             )}
             <Link href={`/projektek/${project.id}/feltoltes`} className="btn btn-primary btn-sm" style={{ gap: '0.4rem' }}>
               <Camera size={15} />
@@ -849,6 +798,113 @@ export default function ProjectDetailClient({
           </div>
         </div>
       </div>
+
+      {/* Rooms section */}
+      {projectRooms.length > 0 && (() => {
+        const invoicesByRoom = {};
+        const labourByRoom = {};
+        for (const inv of fin.projectInvoices) {
+          const key = inv.room_id || 'general';
+          invoicesByRoom[key] = (invoicesByRoom[key] || []);
+          invoicesByRoom[key].push(inv);
+        }
+        for (const lab of fin.projectLabour) {
+          const key = lab.room_id || 'general';
+          labourByRoom[key] = (labourByRoom[key] || []);
+          labourByRoom[key].push(lab);
+        }
+        const roomCost = (roomId) => {
+          const invTotal = (invoicesByRoom[roomId] || []).reduce((s, i) => s + Number(i.value_huf || 0), 0);
+          const labTotal = (labourByRoom[roomId] || []).reduce((s, l) => s + Number(l.value_huf || 0), 0);
+          return invTotal + labTotal;
+        };
+        return (
+          <div style={{ marginBottom: '0.85rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
+              <Ruler size={13} /> Helyiségek
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(280px, 100%), 1fr))', gap: '0.65rem' }}>
+              {projectRooms.map(room => {
+                const actual = roomCost(room.id);
+                const quoted = room.quoted_amount_net;
+                const invCount = (invoicesByRoom[room.id] || []).length;
+                const labCount = (labourByRoom[room.id] || []).length;
+                return (
+                  <div key={room.id} className="card" style={{ padding: '0.85rem 1rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '0.5rem', marginBottom: '0.35rem' }}>
+                      <div>
+                        <div style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-primary)' }}>{room.name}</div>
+                        {room.size_m2 != null && (
+                          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.1rem' }}>
+                            <Ruler size={11} style={{ verticalAlign: 'middle', marginRight: 2 }} />{room.size_m2} m²
+                          </div>
+                        )}
+                      </div>
+                      {actual > 0 && (
+                        <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                          <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, fontSize: '0.9rem', color: 'var(--text-primary)' }}>{formatHUF(actual)}</div>
+                          {quoted != null && (
+                            <div style={{ fontSize: '0.68rem', color: actual > quoted ? 'var(--danger-text)' : 'var(--success-text)', fontWeight: 600 }}>
+                              {actual > quoted ? '↑' : '↓'} terv: {formatHUF(quoted)}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      {actual === 0 && quoted != null && (
+                        <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                          <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontWeight: 600 }}>terv: {formatHUF(quoted)}</div>
+                        </div>
+                      )}
+                    </div>
+                    {room.work_types && room.work_types.length > 0 && (
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem', marginBottom: '0.35rem' }}>
+                        {room.work_types.map(t => (
+                          <span key={t} style={{ fontSize: '0.67rem', fontWeight: 700, padding: '0.1rem 0.4rem', borderRadius: 'var(--radius-pill)', background: 'var(--bg-subtle)', border: '1px solid var(--border-subtle)', color: 'var(--text-secondary)' }}>{t}</span>
+                        ))}
+                      </div>
+                    )}
+                    {(invCount > 0 || labCount > 0) && (
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', gap: '0.65rem', marginTop: '0.25rem' }}>
+                        {invCount > 0 && <span>{invCount} számla</span>}
+                        {labCount > 0 && <span>{labCount} munka</span>}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+              {/* General (unassigned) costs */}
+              {(invoicesByRoom['general']?.length > 0 || labourByRoom['general']?.length > 0) && (
+                <div className="card" style={{ padding: '0.85rem 1rem', borderStyle: 'dashed' }}>
+                  <div style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: '0.35rem' }}>Általános (nincs szobához rendelve)</div>
+                  <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, fontSize: '0.9rem' }}>{formatHUF(roomCost('general'))}</div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', gap: '0.65rem', marginTop: '0.25rem' }}>
+                    {(invoicesByRoom['general']?.length || 0) > 0 && <span>{invoicesByRoom['general'].length} számla</span>}
+                    {(labourByRoom['general']?.length || 0) > 0 && <span>{labourByRoom['general'].length} munka</span>}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* Linked survey */}
+      {project.survey_id && (() => {
+        const linkedSurvey = (surveys || []).find(s => s.id === project.survey_id);
+        if (!linkedSurvey) return null;
+        return (
+          <div className="card mb-4" style={{ borderLeft: '3px solid var(--accent)', padding: '0.85rem 1.1rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <Ruler size={15} color="var(--accent)" />
+              <div>
+                <div style={{ fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', marginBottom: '0.1rem' }}>Felmérés</div>
+                <div style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-primary)' }}>{linkedSurvey.title}</div>
+              </div>
+            </div>
+            <Link href={`/felmeres/${linkedSurvey.id}`} className="btn btn-secondary btn-sm"><Ruler size={13} /> Megtekint</Link>
+          </div>
+        );
+      })()}
 
       {/* Linked quote */}
       {(() => {
@@ -1011,6 +1067,13 @@ export default function ProjectDetailClient({
               <option value="ALL">Minden feltöltő</option>
               {projectMemberUsers.map(u => <option key={u.id} value={u.id}>{u.display_name}</option>)}
             </select>
+            {projectRooms.length > 0 && (
+              <select value={roomFilter} onChange={e => setRoomFilter(e.target.value)} className="form-control" style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem', minHeight: '38px' }}>
+                <option value="ALL">Minden helyiség</option>
+                <option value="GENERAL">Általános (nincs szoba)</option>
+                {projectRooms.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+              </select>
+            )}
           </div>
           {filteredInvoices.length === 0 ? (
             <div className="card" style={{ textAlign: 'center', padding: '2.5rem 1.5rem' }}>
@@ -1022,7 +1085,7 @@ export default function ProjectDetailClient({
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(300px, 100%), 1fr))', gap: '0.85rem' }}>
               {filteredInvoices.map(inv => (
-                <InvoiceCard key={inv.id} invoice={inv} isAdmin={isAdmin} onEdit={isAdmin ? handleOpenEdit : null} onDelete={isAdmin ? handleDeleteInvoice : null} />
+                <InvoiceCard key={inv.id} invoice={inv} isAdmin={isAdmin} onEdit={isAdmin ? handleOpenEdit : null} onDelete={isAdmin ? handleDeleteInvoice : null} room={projectRooms.find(r => r.id === inv.room_id) || null} />
               ))}
             </div>
           )}
@@ -1031,7 +1094,29 @@ export default function ProjectDetailClient({
 
       {activeTab === 'labour' && (
         <>
-          {fin.projectLabour.length === 0 ? (
+          <div className="invoice-filters">
+            <input
+              type="text"
+              className="form-control"
+              placeholder="Szűrés típus szerint…"
+              value={labourTypeFilter}
+              onChange={e => setLabourTypeFilter(e.target.value)}
+              style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem', minHeight: '38px' }}
+            />
+            <select value={labourUploaderFilter} onChange={e => setLabourUploaderFilter(e.target.value)} className="form-control" style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem', minHeight: '38px' }}>
+              <option value="ALL">Minden feltöltő</option>
+              {projectMemberUsers.map(u => <option key={u.id} value={u.id}>{u.display_name}</option>)}
+            </select>
+            {projectRooms.length > 0 && (
+              <select value={roomFilter} onChange={e => setRoomFilter(e.target.value)} className="form-control" style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem', minHeight: '38px' }}>
+                <option value="ALL">Minden helyiség</option>
+                <option value="GENERAL">Általános (nincs szoba)</option>
+                {projectRooms.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+              </select>
+            )}
+          </div>
+
+          {filteredLabour.length === 0 ? (
             <div className="card" style={{ textAlign: 'center', padding: '2.5rem 1.5rem' }}>
               <Hammer size={36} color="var(--text-muted)" style={{ margin: '0 auto 0.5rem' }} />
               <h4 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '0.25rem' }}>Nincs rögzített munka</h4>
@@ -1039,33 +1124,71 @@ export default function ProjectDetailClient({
               <Link href={`/projektek/${project.id}/feltoltes`} className="btn btn-primary btn-sm"><Plus size={15} /> Munkabejegyzés hozzáadása</Link>
             </div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
-              {fin.projectLabour.map(entry => {
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(300px, 100%), 1fr))', gap: '0.85rem' }}>
+              {filteredLabour.map(entry => {
                 const uploader = initialUsers.find(u => u.id === entry.uploaded_by);
                 const canDelete = entry.uploaded_by === currentUser?.id || isAdmin;
+                const entryRoom = projectRooms.find(r => r.id === entry.room_id) || null;
                 return (
-                  <div key={entry.id} className="card" style={{ display: 'flex', alignItems: 'flex-start', gap: '1rem', padding: '1rem' }}>
-                    <div style={{ padding: '0.55rem', background: 'var(--success-bg)', borderRadius: 'var(--radius-md)', flexShrink: 0 }}>
-                      <Hammer size={18} color="var(--success)" />
-                    </div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.5rem', flexWrap: 'wrap' }}>
-                        <div>
-                          <div style={{ fontWeight: 800, fontSize: '0.95rem' }}>{entry.labour_type}</div>
-                          <div style={{ fontSize: '0.775rem', color: 'var(--text-muted)', display: 'flex', gap: '0.75rem', marginTop: '0.2rem', flexWrap: 'wrap' }}>
-                            <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}><Clock size={12} /> {entry.hours} h × {formatHUF(entry.hourly_rate)}</span>
-                            <span>{formatDate(entry.date)}</span>
-                            <span style={{ fontWeight: 600, color: 'var(--text-secondary)' }}>{uploader?.display_name || 'Ismeretlen'}</span>
-                          </div>
-                          {entry.description && <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.3rem' }}>{entry.description}</div>}
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexShrink: 0 }}>
-                          <span style={{ fontWeight: 800, fontSize: '1rem', color: 'var(--success-text)', fontFamily: 'var(--font-mono)' }}>+{formatHUF(entry.value_huf)}</span>
-                          {canDelete && (
-                            <button type="button" onClick={() => handleDeleteLabour(entry.id)} className="btn btn-danger btn-sm" title="Törlés"><Trash2 size={13} /></button>
-                          )}
-                        </div>
+                  <div key={entry.id} className="card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: '0.85rem' }}>
+                    <div>
+                      {/* Top row: type badge + amount — mirrors InvoiceCard */}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.2rem 0.6rem', borderRadius: 'var(--radius-pill)', background: 'var(--success-bg)', border: '1px solid var(--success-border)', color: 'var(--success-text)', fontSize: '0.72rem', fontWeight: 700 }}>
+                          <Hammer size={11} /> Munkadíj
+                        </span>
+                        <span style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--success-text)', fontFamily: 'var(--font-mono)' }}>
+                          +{formatHUF(entry.value_huf)}
+                        </span>
                       </div>
+
+                      {/* Labour type — mirrors InvoiceCard description h4 */}
+                      <h4 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.4rem', lineHeight: 1.3 }}>
+                        {entry.labour_type}
+                      </h4>
+
+                      {/* Metadata row — same structure as InvoiceCard */}
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', fontSize: '0.775rem', color: 'var(--text-muted)', alignItems: 'center' }}>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                          <User size={13} color="var(--accent)" />
+                          <strong style={{ color: 'var(--text-secondary)' }}>{uploader?.display_name || 'Ismeretlen'}</strong>
+                        </span>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                          <Calendar size={13} />
+                          {formatDate(entry.date)}
+                        </span>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                          <Clock size={12} />
+                          {entry.hours} {entry.unit || 'h'} × {formatHUF(entry.hourly_rate)}
+                        </span>
+                        {entryRoom ? (
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', padding: '0.15rem 0.5rem', borderRadius: 'var(--radius-pill)', background: 'var(--accent-light)', border: '1px solid var(--accent-border)', color: 'var(--accent)', fontWeight: 700, fontSize: '0.72rem' }}>
+                            <Home size={10} />{entryRoom.name}
+                          </span>
+                        ) : (
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', padding: '0.15rem 0.5rem', borderRadius: 'var(--radius-pill)', background: 'var(--bg-subtle)', border: '1px solid var(--border-subtle)', color: 'var(--text-muted)', fontWeight: 600, fontSize: '0.72rem' }}>
+                            <Home size={10} />Általános
+                          </span>
+                        )}
+                      </div>
+
+                      {entry.description && (
+                        <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.4rem' }}>{entry.description}</div>
+                      )}
+                    </div>
+
+                    {/* Actions — mirrors InvoiceCard bottom row */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', paddingTop: '0.65rem', borderTop: '1px solid var(--border-subtle)', gap: '0.35rem' }}>
+                      {isAdmin && (
+                        <button type="button" onClick={() => setEditingLabour(entry)} className="btn btn-secondary btn-sm" title="Szerkesztés">
+                          <Edit3 size={13} />
+                        </button>
+                      )}
+                      {canDelete && (
+                        <button type="button" onClick={() => handleDeleteLabour(entry.id)} className="btn btn-danger btn-sm" title="Törlés">
+                          <Trash2 size={13} />
+                        </button>
+                      )}
                     </div>
                   </div>
                 );
@@ -1208,6 +1331,19 @@ export default function ProjectDetailClient({
         </Modal>
       )}
 
+      {isAdmin && editingLabour && (
+        <LabourEditModal
+          entry={editingLabour}
+          onClose={() => setEditingLabour(null)}
+          onSave={async (fields) => {
+            await ctxUpdateLabourEntry(editingLabour.id, fields);
+            router.refresh();
+            setEditingLabour(null);
+            setSuccessMsg('Munkabejegyzés frissítve.');
+          }}
+        />
+      )}
+
       <ConfirmModal isOpen={!!confirmModal} onClose={() => setConfirmModal(null)} onConfirm={() => confirmModal?.onConfirm()} title="Megerősítés" message={confirmModal?.message} />
       <AlertModal isOpen={!!alertModal} onClose={() => setAlertModal(null)} message={alertModal?.message} />
 
@@ -1231,20 +1367,6 @@ export default function ProjectDetailClient({
           await ctxDeleteDiaryPhoto(photoId, project.id);
         }}
       />
-
-      {isAdmin && (
-        <EditProjectModal
-          isOpen={editOpen}
-          onClose={() => setEditOpen(false)}
-          project={project}
-          clients={clients || []}
-          users={initialUsers}
-          updateProject={updateProject}
-          updateProjectMembers={updateProjectMembers}
-          createClient={createClientFn}
-          onSuccess={msg => setSuccessMsg(msg)}
-        />
-      )}
 
       {/* Toast */}
       {toast && (

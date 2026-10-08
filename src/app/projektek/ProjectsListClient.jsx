@@ -3,9 +3,10 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useApp } from '@/context/AppContext';
 import { calculateProjectFinancials } from '@/lib/calculations';
 import { formatHUF } from '@/lib/constants';
-import { FolderKanban, Users, ArrowUpRight, TrendingUp, TrendingDown, CheckCircle2, Plus, AlertCircle } from 'lucide-react';
+import { FolderKanban, Users, TrendingUp, TrendingDown, CheckCircle2, Plus, AlertCircle } from 'lucide-react';
 import CalendarWidget from '@/components/CalendarWidget';
 import Modal from '@/components/Modal';
 
@@ -23,26 +24,57 @@ export default function ProjectsListClient({
   effectiveEntityId,
 }) {
   const router = useRouter();
+  const { createClient: ctxCreateClient } = useApp();
 
   const [showCreate, setShowCreate] = useState(false);
   const [projName, setProjName] = useState('');
   const [projDesc, setProjDesc] = useState('');
   const [projStart, setProjStart] = useState('');
   const [projEnd, setProjEnd] = useState('');
+  const [projClientId, setProjClientId] = useState('');
   const [memberIds, setMemberIds] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
 
+  // Inline new-client state
+  const [showNewClient, setShowNewClient] = useState(false);
+  const [newClientName, setNewClientName] = useState('');
+  const [newClientPhone, setNewClientPhone] = useState('');
+  const [newClientEmail, setNewClientEmail] = useState('');
+  const [newClientAddr, setNewClientAddr] = useState('');
+  const [newClientError, setNewClientError] = useState('');
+  const [creatingClient, setCreatingClient] = useState(false);
+
   const openCreate = () => {
     setProjName(''); setProjDesc(''); setProjStart(''); setProjEnd('');
+    setProjClientId('');
     setMemberIds(currentUser ? [currentUser.id] : []);
     setError('');
+    setShowNewClient(false);
     setShowCreate(true);
+  };
+
+  const handleCreateClient = async (e) => {
+    e.preventDefault();
+    setNewClientError('');
+    if (!newClientName.trim()) { setNewClientError('A név megadása kötelező!'); return; }
+    setCreatingClient(true);
+    try {
+      const c = await ctxCreateClient({ name: newClientName.trim(), phone: newClientPhone.trim(), email: newClientEmail.trim(), address: newClientAddr.trim(), entityId: effectiveEntityId });
+      setProjClientId(c.id);
+      setShowNewClient(false);
+      setNewClientName(''); setNewClientPhone(''); setNewClientEmail(''); setNewClientAddr('');
+    } catch (err) {
+      setNewClientError(err.message || 'Hiba az ügyfél létrehozásakor');
+    } finally {
+      setCreatingClient(false);
+    }
   };
 
   const handleCreate = async (e) => {
     e.preventDefault();
     setError('');
+    if (!projClientId) { setError('Ügyfél megadása kötelező! Válasszon meglévőt vagy hozzon létre újat.'); return; }
     setIsSubmitting(true);
     try {
       const res = await fetch('/api/projects', {
@@ -54,6 +86,7 @@ export default function ProjectsListClient({
           memberIds,
           startDate: projStart || null,
           endDate: projEnd || null,
+          clientId: projClientId || null,
           entityId: effectiveEntityId,
         }),
       });
@@ -126,26 +159,23 @@ export default function ProjectsListClient({
             return (
               <div
                 key={project.id}
-                className="card"
+                className="card card-interactive"
+                onClick={() => router.push(`/projektek/${project.id}`)}
                 style={{
                   display: 'flex',
                   flexDirection: 'column',
                   justifyContent: 'space-between',
                   gap: '1rem',
                   border: '1px solid var(--border-card)',
-                  boxShadow: 'var(--shadow-xs)'
+                  boxShadow: 'var(--shadow-xs)',
+                  cursor: 'pointer',
                 }}
               >
                 <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.35rem' }}>
-                    <Link href={`/projektek/${project.id}`} style={{ flex: 1 }}>
-                      <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.015em' }}>
-                        {project.name}
-                      </h3>
-                    </Link>
-                    <Link href={`/projektek/${project.id}`}>
-                      <ArrowUpRight size={18} color="var(--text-muted)" />
-                    </Link>
+                  <div style={{ marginBottom: '0.35rem' }}>
+                    <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.015em' }}>
+                      {project.name}
+                    </h3>
                   </div>
 
                   <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.75rem', lineHeight: 1.4 }}>
@@ -197,6 +227,7 @@ export default function ProjectsListClient({
                     href={`/projektek/${project.id}/feltoltes`}
                     className="btn btn-primary btn-sm"
                     style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem', gap: '0.3rem' }}
+                    onClick={e => e.stopPropagation()}
                   >
                     <Plus size={14} /> Számla hozzáadása
                   </Link>
@@ -222,6 +253,51 @@ export default function ProjectsListClient({
             <label className="form-label" htmlFor="mp-desc">Leírás</label>
             <textarea id="mp-desc" rows={2} className="form-control" value={projDesc} onChange={e => setProjDesc(e.target.value)} placeholder="Rövid leírás…" />
           </div>
+
+          {/* Client — required */}
+          <div className="form-group">
+            <label className="form-label">Megrendelő *</label>
+            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+              <select
+                className="form-control"
+                style={{ flex: 1, borderColor: !projClientId ? 'var(--warning-border)' : undefined }}
+                value={projClientId}
+                onChange={e => setProjClientId(e.target.value)}
+              >
+                <option value="">– Válasszon ügyfelet –</option>
+                {(initialClients || []).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+              <button type="button" className="btn btn-secondary btn-sm" style={{ whiteSpace: 'nowrap' }} onClick={() => { setNewClientError(''); setShowNewClient(v => !v); }}>
+                <Plus size={14} /> Új ügyfél
+              </button>
+            </div>
+            {projClientId && (
+              <div style={{ fontSize: '0.78rem', color: 'var(--accent)', fontWeight: 600, marginTop: '0.25rem' }}>
+                ✓ {(initialClients || []).find(c => c.id === projClientId)?.name}
+              </div>
+            )}
+          </div>
+
+          {/* Inline new client */}
+          {showNewClient && (
+            <div style={{ border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: '0.85rem', marginBottom: '0.75rem', background: 'var(--bg-subtle)' }}>
+              <div style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '0.65rem' }}>Új ügyfél</div>
+              {newClientError && <div style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', color: 'var(--danger-text)', padding: '0.45rem 0.65rem', borderRadius: 'var(--radius-md)', fontSize: '0.8rem', marginBottom: '0.55rem' }}>{newClientError}</div>}
+              <form onSubmit={handleCreateClient}>
+                <div className="form-group"><label className="form-label">Név *</label><input type="text" className="form-control" value={newClientName} onChange={e => setNewClientName(e.target.value)} placeholder="Pl. Horváth Béla" autoFocus /></div>
+                <div className="grid-2col">
+                  <div className="form-group" style={{ margin: 0 }}><label className="form-label">Telefon</label><input type="tel" className="form-control" value={newClientPhone} onChange={e => setNewClientPhone(e.target.value)} placeholder="+36 70 …" /></div>
+                  <div className="form-group" style={{ margin: 0 }}><label className="form-label">E-mail</label><input type="email" className="form-control" value={newClientEmail} onChange={e => setNewClientEmail(e.target.value)} /></div>
+                </div>
+                <div className="form-group" style={{ marginTop: '0.65rem', marginBottom: '0.65rem' }}><label className="form-label">Cím</label><input type="text" className="form-control" value={newClientAddr} onChange={e => setNewClientAddr(e.target.value)} /></div>
+                <div style={{ display: 'flex', gap: '0.4rem', justifyContent: 'flex-end' }}>
+                  <button type="button" className="btn btn-secondary btn-sm" onClick={() => { setShowNewClient(false); setNewClientError(''); }}>Mégse</button>
+                  <button type="submit" className="btn btn-primary btn-sm" disabled={creatingClient}>{creatingClient ? 'Létrehozás...' : 'Ügyfél létrehozása'}</button>
+                </div>
+              </form>
+            </div>
+          )}
+
           <div className="grid-2col">
             <div className="form-group" style={{ marginBottom: 0 }}>
               <label className="form-label" htmlFor="mp-start">Kezdés</label>

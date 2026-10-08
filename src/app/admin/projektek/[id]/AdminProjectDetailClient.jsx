@@ -273,6 +273,7 @@ export default function AdminProjectDetailClient({
   initialClients,
   initialInvoices,
   initialLabourEntries,
+  initialDiaryEntries,
   currentUser,
 }) {
   const router = useRouter();
@@ -336,7 +337,6 @@ export default function AdminProjectDetailClient({
   };
 
   const [activeTab, setActiveTab] = useState('invoices');
-  const [diaryLoading, setDiaryLoading] = useState(false);
 
   const [shareTokens, setShareTokens] = useState([]);
   const [shareLoading, setShareLoading] = useState(false);
@@ -347,10 +347,6 @@ export default function AdminProjectDetailClient({
   const [copiedTokenId, setCopiedTokenId] = useState(null);
 
   React.useEffect(() => {
-    if (activeTab === 'naplo' && project && !diaryEntriesByProject[project.id]) {
-      setDiaryLoading(true);
-      fetchDiaryEntries(project.id).catch(() => {}).finally(() => setDiaryLoading(false));
-    }
     if (activeTab === 'naplo' && project && shareTokens.length === 0 && !shareLoading) {
       setShareLoading(true);
       fetch(`/api/diary/share?project_id=${project.id}`)
@@ -360,6 +356,8 @@ export default function AdminProjectDetailClient({
         .finally(() => setShareLoading(false));
     }
   }, [activeTab, project?.id]);
+
+  const diaryEntries = initialDiaryEntries ?? diaryEntriesByProject[project.id] ?? [];
 
   const handleCreateToken = async (e) => {
     e.preventDefault();
@@ -603,27 +601,27 @@ export default function AdminProjectDetailClient({
         </div>
       </div>
 
-      <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', borderBottom: '2px solid var(--border-subtle)', paddingBottom: 0 }}>
+      <div style={{ display: 'flex', marginBottom: '1rem', borderBottom: '2px solid var(--border-subtle)', paddingBottom: 0, overflowX: 'auto' }}>
         {[
           { key: 'invoices', label: `Számlák (${fin.projectInvoices.length})`, icon: Receipt },
           { key: 'labour', label: `Munka (${fin.projectLabour.length})`, icon: Hammer },
-          { key: 'naplo', label: 'Napló', icon: BookOpen },
+          { key: 'naplo', label: `Napló (${diaryEntries.length})`, icon: BookOpen },
         ].map(tab => (
           <button
             key={tab.key}
             type="button"
             onClick={() => setActiveTab(tab.key)}
             style={{
-              display: 'flex', alignItems: 'center', gap: '0.4rem',
-              padding: '0.6rem 1rem', borderRadius: 0, border: 'none',
+              display: 'flex', alignItems: 'center', gap: '0.3rem',
+              padding: '0.55rem 0.75rem', borderRadius: 0, border: 'none',
               borderBottom: activeTab === tab.key ? '2px solid var(--accent)' : '2px solid transparent',
               marginBottom: '-2px', background: 'transparent', cursor: 'pointer',
               fontWeight: activeTab === tab.key ? 800 : 600,
               color: activeTab === tab.key ? 'var(--accent)' : 'var(--text-secondary)',
-              fontSize: '0.9rem', transition: 'all 0.15s ease'
+              fontSize: '0.82rem', whiteSpace: 'nowrap', transition: 'all 0.15s ease'
             }}
           >
-            <tab.icon size={16} />
+            <tab.icon size={14} />
             {tab.label}
           </button>
         ))}
@@ -671,7 +669,7 @@ export default function AdminProjectDetailClient({
                       <div style={{ fontWeight: 800, fontSize: '0.95rem', color: 'var(--text-primary)' }}>{entry.labour_type}</div>
                       <div style={{ fontSize: '0.775rem', color: 'var(--text-muted)', display: 'flex', gap: '0.75rem', marginTop: '0.2rem', flexWrap: 'wrap' }}>
                         <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                          <Clock size={12} /> {entry.hours} h × {formatHUF(entry.hourly_rate)}
+                          <Clock size={12} /> {entry.hours} {entry.unit || 'h'} × {formatHUF(entry.hourly_rate)}
                         </span>
                         <span>{formatDate(entry.date)}</span>
                         <span style={{ fontWeight: 600, color: 'var(--text-secondary)' }}>{uploader?.display_name || 'Ismeretlen'}</span>
@@ -700,9 +698,7 @@ export default function AdminProjectDetailClient({
             </Link>
           </div>
 
-          {diaryLoading ? (
-            <div className="card" style={{ textAlign: 'center', padding: '2.5rem 1.5rem', color: 'var(--text-muted)' }}>Betöltés...</div>
-          ) : !diaryEntriesByProject[project.id] || diaryEntriesByProject[project.id].length === 0 ? (
+          {diaryEntries.length === 0 ? (
             <div className="card" style={{ textAlign: 'center', padding: '2.5rem 1.5rem' }}>
               <BookOpen size={36} color="var(--text-muted)" style={{ margin: '0 auto 0.5rem' }} />
               <h4 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '0.25rem' }}>Még nincs bejegyzés ebben a naplóban</h4>
@@ -711,7 +707,7 @@ export default function AdminProjectDetailClient({
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
-              {(diaryEntriesByProject[project.id] || []).map(entry => {
+              {diaryEntries.map(entry => {
                 const entryDateStr = entry.entry_date
                   ? new Date(entry.entry_date).toLocaleDateString('hu-HU', { year: 'numeric', month: 'long', day: 'numeric' })
                   : null;

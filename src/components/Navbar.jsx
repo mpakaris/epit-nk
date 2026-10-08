@@ -88,7 +88,7 @@ export default function Navbar() {
                   <Link href="/admin/felhasznalok" className={`nav-item ${pathname === '/admin/felhasznalok' ? 'active' : ''}`}>
                     <Users size={16} /><span>Felhasználók</span>
                   </Link>
-                  <Link href="/admin/ugyfelek" className={`nav-item ${pathname.startsWith('/admin/ugyfelek') ? 'active' : ''}`}>
+                  <Link href="/ugyfelek" className={`nav-item ${pathname.startsWith('/ugyfelek') ? 'active' : ''}`}>
                     <BookUser size={16} /><span>Ügyfelek</span>
                   </Link>
                   <Link href="/ajanlatok" className={`nav-item ${pathname.startsWith('/ajanlatok') ? 'active' : ''}`}>
@@ -176,7 +176,7 @@ export default function Navbar() {
               <Link href="/admin/projektek" className={`mobile-nav-link ${pathname.startsWith('/admin/projektek') ? 'active' : ''}`}><FolderKanban size={20} /><span>Projektek</span></Link>
               <Link href="/ajanlatok" className={`mobile-nav-link ${pathname.startsWith('/ajanlatok') ? 'active' : ''}`}><FileText size={20} /><span>Ajánlatok</span></Link>
               <Link href="/naptar" className={`mobile-nav-link ${pathname.startsWith('/naptar') ? 'active' : ''}`}><Calendar size={20} /><span>Naptár</span></Link>
-              <Link href="/admin/ugyfelek" className={`mobile-nav-link ${pathname.startsWith('/admin/ugyfelek') || pathname === '/admin/felhasznalok' ? 'active' : ''}`}><Users size={20} /><span>Kezelés</span></Link>
+              <Link href="/ugyfelek" className={`mobile-nav-link ${pathname.startsWith('/ugyfelek') || pathname === '/admin/felhasznalok' ? 'active' : ''}`}><Users size={20} /><span>Kezelés</span></Link>
             </>
           ) : (
             <>

@@ -2,10 +2,10 @@
 
 import React, { useState } from 'react';
 import { formatHUF, formatDate, INVOICE_CATEGORIES } from '@/lib/constants';
-import { Eye, Edit3, Trash2, User, Calendar, Receipt } from 'lucide-react';
+import { Eye, Edit3, Trash2, User, Calendar, Receipt, Home } from 'lucide-react';
 import Modal from './Modal';
 
-export default function InvoiceCard({ invoice, isAdmin, onEdit, onDelete }) {
+export default function InvoiceCard({ invoice, isAdmin, onEdit, onDelete, room }) {
   const [showImageModal, setShowImageModal] = useState(false);
   const catObj = INVOICE_CATEGORIES.find(c => c.id === invoice.category) || { color: 'egyeb' };
 
@@ -37,7 +37,7 @@ export default function InvoiceCard({ invoice, isAdmin, onEdit, onDelete }) {
           </h4>
 
           {/* Metadata */}
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem', fontSize: '0.775rem', color: 'var(--text-muted)' }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', fontSize: '0.775rem', color: 'var(--text-muted)', alignItems: 'center' }}>
             <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
               <User size={13} color="var(--accent)" />
               <strong style={{ color: 'var(--text-secondary)' }}>{invoice.uploader_name || 'Ismeretlen'}</strong>
@@ -46,6 +46,15 @@ export default function InvoiceCard({ invoice, isAdmin, onEdit, onDelete }) {
               <Calendar size={13} />
               {formatDate(invoice.created_at)}
             </span>
+            {room ? (
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', padding: '0.15rem 0.5rem', borderRadius: 'var(--radius-pill)', background: 'var(--accent-light)', border: '1px solid var(--accent-border)', color: 'var(--accent)', fontWeight: 700, fontSize: '0.72rem' }}>
+                <Home size={10} />{room.name}
+              </span>
+            ) : (
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', padding: '0.15rem 0.5rem', borderRadius: 'var(--radius-pill)', background: 'var(--bg-subtle)', border: '1px solid var(--border-subtle)', color: 'var(--text-muted)', fontWeight: 600, fontSize: '0.72rem' }}>
+                <Home size={10} />Általános
+              </span>
+            )}
           </div>
         </div>
 

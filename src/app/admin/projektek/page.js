@@ -48,12 +48,18 @@ async function AdminProjectsContent() {
   const projects = projectsRes.data || [];
   const projectIds = projects.map(p => p.id);
 
-  const [membersRes, invoicesRes] = await Promise.all([
+  const [membersRes, invoicesRes, labourRes, diaryRes] = await Promise.all([
     projectIds.length > 0
       ? admin.from('project_members').select('project_id, user_id').in('project_id', projectIds)
       : Promise.resolve({ data: [] }),
     projectIds.length > 0
-      ? admin.from('invoices').select('*').in('project_id', projectIds)
+      ? admin.from('invoices').select('project_id').in('project_id', projectIds)
+      : Promise.resolve({ data: [] }),
+    projectIds.length > 0
+      ? admin.from('labour_entries').select('project_id').in('project_id', projectIds)
+      : Promise.resolve({ data: [] }),
+    projectIds.length > 0
+      ? admin.from('diary_entries').select('project_id').in('project_id', projectIds)
       : Promise.resolve({ data: [] }),
   ]);
 
@@ -68,6 +74,8 @@ async function AdminProjectsContent() {
       initialUsers={usersRes.data || []}
       initialClients={clientsRes.data || []}
       initialInvoices={invoicesRes.data || []}
+      initialLabourEntries={labourRes.data || []}
+      initialDiaryEntries={diaryRes.data || []}
       currentUser={{ id: user.id, email: user.email, display_name: profile.display_name || user.email, role: profile.role, entity_id: entityId }}
       effectiveEntityId={entityId}
     />

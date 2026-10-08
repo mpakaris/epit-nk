@@ -35,7 +35,9 @@ const CATEGORY_ICONS = {
 export default function MobileUploadPage() {
   const { id } = useParams();
   const router = useRouter();
-  const { createInvoice, uploadInvoiceImage, createLabourEntry } = useApp();
+  const { createInvoice, uploadInvoiceImage, createLabourEntry, projectRooms } = useApp();
+
+  const rooms = (projectRooms || []).filter(r => r.project_id === id);
 
   const [mode, setMode] = useState('invoice');
 
@@ -55,8 +57,13 @@ export default function MobileUploadPage() {
   const [labourDate, setLabourDate] = useState(new Date().toISOString().slice(0, 10));
   const [labourType, setLabourType] = useState('');
   const [labourHours, setLabourHours] = useState('');
+  const [labourUnit, setLabourUnit] = useState('h');
   const [labourRate, setLabourRate] = useState('');
   const [labourDesc, setLabourDesc] = useState('');
+  const [invoiceRoomId, setInvoiceRoomId] = useState('');
+  const [labourRoomId, setLabourRoomId] = useState('');
+
+  const LABOUR_UNITS = ['h', 'nap', 'm²', 'm³', 'm', 'fm', 'db', 'l', 'kg'];
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -137,7 +144,8 @@ export default function MobileUploadPage() {
         category,
         description: invoiceDesc.trim(),
         imageUrl,
-        storagePath
+        storagePath,
+        roomId: invoiceRoomId || null,
       });
 
       router.push(`/projektek/${id}`);
@@ -176,7 +184,9 @@ export default function MobileUploadPage() {
         labourType: labourType.trim(),
         hours,
         hourlyRate: rate,
-        description: labourDesc.trim()
+        description: labourDesc.trim(),
+        roomId: labourRoomId || null,
+        unit: labourUnit,
       });
       router.push(`/projektek/${id}`);
     } catch (err) {
@@ -391,6 +401,16 @@ export default function MobileUploadPage() {
             <input id="invoice-desc" type="text" className="form-control" placeholder="pl. Tetőcsavarok, gipszkarton" value={invoiceDesc} onChange={(e) => setInvoiceDesc(e.target.value)} />
           </div>
 
+          {rooms.length > 0 && (
+            <div className="card mb-4" style={{ padding: '1rem' }}>
+              <label className="form-label" htmlFor="invoice-room" style={{ marginBottom: '0.35rem' }}>5. Helyiség hozzárendelése (opcionális)</label>
+              <select id="invoice-room" className="form-control" value={invoiceRoomId} onChange={e => setInvoiceRoomId(e.target.value)}>
+                <option value="">– Általános (nincs szobához rendelve) –</option>
+                {rooms.map(r => <option key={r.id} value={r.id}>{r.name}{r.size_m2 ? ` (${r.size_m2} m²)` : ''}</option>)}
+              </select>
+            </div>
+          )}
+
           {/* Sticky submit bar */}
           <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: 'rgba(255, 255, 255, 0.96)', backdropFilter: 'blur(10px)', borderTop: '1px solid var(--border-subtle)', padding: '0.75rem 1rem', paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom, 0px))', zIndex: 55, boxShadow: '0 -4px 16px rgba(0, 0, 0, 0.08)' }}>
             <div style={{ maxWidth: '580px', margin: '0 auto', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
@@ -426,44 +446,64 @@ export default function MobileUploadPage() {
               <input id="labour-type" type="text" className="form-control" placeholder="pl. Gipszkartonozás, Festés, Villanyszerelés" value={labourType} onChange={(e) => setLabourType(e.target.value)} required />
             </div>
 
+            <div className="form-group">
+              <label className="form-label">Mértékegység *</label>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
+                {LABOUR_UNITS.map(u => (
+                  <button
+                    key={u}
+                    type="button"
+                    onClick={() => setLabourUnit(u)}
+                    style={{
+                      padding: '0.3rem 0.75rem',
+                      borderRadius: 'var(--radius-md)',
+                      border: labourUnit === u ? '2px solid var(--accent)' : '1px solid var(--border-subtle)',
+                      background: labourUnit === u ? 'var(--accent)' : 'var(--bg-subtle)',
+                      color: labourUnit === u ? '#fff' : 'var(--text-secondary)',
+                      fontWeight: 700,
+                      fontSize: '0.85rem',
+                      cursor: 'pointer',
+                      fontFamily: 'var(--font-mono)',
+                    }}
+                  >
+                    {u}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
               <div className="form-group" style={{ margin: 0 }}>
-                <label className="form-label" htmlFor="labour-hours">Munkaórák *</label>
-                <div style={{ position: 'relative' }}>
-                  <input
-                    id="labour-hours"
-                    type="number"
-                    inputMode="decimal"
-                    min="0.5"
-                    step="0.5"
-                    className="form-control text-mono"
-                    placeholder="0"
-                    value={labourHours}
-                    onChange={(e) => setLabourHours(e.target.value)}
-                    style={{ paddingRight: '2.75rem', fontWeight: 700 }}
-                    required
-                  />
-                  <span style={{ position: 'absolute', right: '0.75rem', top: '50%', transform: 'translateY(-50%)', fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-muted)' }}>h</span>
-                </div>
+                <label className="form-label" htmlFor="labour-hours">Mennyiség ({labourUnit}) *</label>
+                <input
+                  id="labour-hours"
+                  type="number"
+                  inputMode="decimal"
+                  min="0.01"
+                  step="0.01"
+                  className="form-control text-mono"
+                  placeholder="0"
+                  value={labourHours}
+                  onChange={(e) => setLabourHours(e.target.value)}
+                  style={{ fontWeight: 700 }}
+                  required
+                />
               </div>
 
               <div className="form-group" style={{ margin: 0 }}>
-                <label className="form-label" htmlFor="labour-rate">Órabér *</label>
-                <div style={{ position: 'relative' }}>
-                  <input
-                    id="labour-rate"
-                    type="number"
-                    inputMode="numeric"
-                    min="1"
-                    className="form-control text-mono"
-                    placeholder="0"
-                    value={labourRate}
-                    onChange={(e) => setLabourRate(e.target.value)}
-                    style={{ paddingRight: '2.75rem', fontWeight: 700 }}
-                    required
-                  />
-                  <span style={{ position: 'absolute', right: '0.75rem', top: '50%', transform: 'translateY(-50%)', fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-muted)' }}>Ft/h</span>
-                </div>
+                <label className="form-label" htmlFor="labour-rate">Egységár (Ft/{labourUnit}) *</label>
+                <input
+                  id="labour-rate"
+                  type="number"
+                  inputMode="numeric"
+                  min="1"
+                  className="form-control text-mono"
+                  placeholder="0"
+                  value={labourRate}
+                  onChange={(e) => setLabourRate(e.target.value)}
+                  style={{ fontWeight: 700 }}
+                  required
+                />
               </div>
             </div>
 
@@ -471,7 +511,7 @@ export default function MobileUploadPage() {
               <div style={{ marginTop: '0.85rem', padding: '0.75rem 1rem', borderRadius: 'var(--radius-md)', background: 'var(--success-bg)', border: '1px solid var(--success-border)', color: 'var(--success-text)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <Clock size={16} />
                 <span style={{ fontSize: '0.875rem' }}>
-                  Munkadíj: <strong style={{ fontFamily: 'var(--font-mono)' }}>{labourHours} h × {formatHUF(parseInt(labourRate, 10) || 0)} = {formatHUF(labourValue)}</strong>
+                  Munkadíj: <strong style={{ fontFamily: 'var(--font-mono)' }}>{labourHours} {labourUnit} × {formatHUF(parseInt(labourRate, 10) || 0)} = {formatHUF(labourValue)}</strong>
                 </span>
               </div>
             )}
@@ -480,6 +520,16 @@ export default function MobileUploadPage() {
               <label className="form-label" htmlFor="labour-desc">Megjegyzés (opcionális)</label>
               <input id="labour-desc" type="text" className="form-control" placeholder="pl. Keleti fal, II. emelet" value={labourDesc} onChange={(e) => setLabourDesc(e.target.value)} />
             </div>
+
+            {rooms.length > 0 && (
+              <div className="form-group" style={{ marginTop: '0.85rem', marginBottom: 0 }}>
+                <label className="form-label" htmlFor="labour-room">Helyiség hozzárendelése (opcionális)</label>
+                <select id="labour-room" className="form-control" value={labourRoomId} onChange={e => setLabourRoomId(e.target.value)}>
+                  <option value="">– Általános (nincs szobához rendelve) –</option>
+                  {rooms.map(r => <option key={r.id} value={r.id}>{r.name}{r.size_m2 ? ` (${r.size_m2} m²)` : ''}</option>)}
+                </select>
+              </div>
+            )}
           </div>
 
           {/* Sticky submit bar */}

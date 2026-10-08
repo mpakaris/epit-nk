@@ -7,7 +7,7 @@ import { useApp } from '@/context/AppContext';
 import {
   Building2, LayoutDashboard, FolderKanban, Users, BookUser,
   FileText, Calendar, User, LogOut, KeyRound, ShieldAlert,
-  ChevronLeft, ChevronRight, Eye, X, Menu, ClipboardList
+  ChevronLeft, ChevronRight, Eye, X, Menu, ClipboardList, Ruler
 } from 'lucide-react';
 
 function buildNavItems(isSuperAdmin, isAdmin, impersonating) {
@@ -22,20 +22,21 @@ function buildNavItems(isSuperAdmin, isAdmin, impersonating) {
   if (isAdmin) {
     return [
       { href: '/admin',              label: 'Áttekintés',   icon: LayoutDashboard, exact: true },
-      { href: '/admin/projektek',    label: 'Projektek',    icon: FolderKanban },
-      { href: '/admin/felhasznalok', label: 'Felhasználók', icon: Users, exact: true },
-      { href: '/admin/ugyfelek',     label: 'Ügyfelek',     icon: BookUser },
-      { divider: true, key: 'd1' },
+      { href: '/felmeres',           label: 'Felmérések',   icon: Ruler },
       { href: '/ajanlatok',          label: 'Ajánlatok',    icon: FileText },
+      { href: '/admin/projektek',    label: 'Projektek',    icon: FolderKanban },
       { href: '/naptar',             label: 'Naptár',       icon: Calendar },
-      { divider: true, key: 'd2' },
-      { href: '/projektek',          label: 'Tagi nézet',   icon: User }
+      { href: '/ugyfelek',           label: 'Ügyfelek',     icon: BookUser },
+      { divider: true, key: 'd1' },
+      { href: '/admin/felhasznalok', label: 'Felhasználók', icon: Users, exact: true },
+      { href: '/projektek',          label: 'Tagi nézet',   icon: User },
     ];
   }
   return [
-    { href: '/projektek', label: 'Projektek', icon: FolderKanban },
-    { href: '/ajanlatok', label: 'Ajánlatok', icon: FileText },
-    { href: '/naptar',    label: 'Naptár',    icon: Calendar }
+    { href: '/projektek', label: 'Projektek',  icon: FolderKanban },
+    { href: '/felmeres',  label: 'Felmérések', icon: Ruler },
+    { href: '/ajanlatok', label: 'Ajánlatok',  icon: FileText },
+    { href: '/naptar',    label: 'Naptár',     icon: Calendar }
   ];
 }
 

@@ -34,6 +34,25 @@ export default async function ClientPortalPage({ params }) {
     ? await admin.from('quote_entries').select('*').in('quote_id', quoteIds).order('created_at')
     : { data: [] };
 
+  // Quote sections (rooms)
+  const { data: rawSections } = quoteIds.length > 0
+    ? await admin.from('quote_sections').select('*').in('quote_id', quoteIds).order('sort_order').order('created_at')
+    : { data: [] };
+
+  const sections = rawSections || [];
+  const surveyEntryIds = [...new Set(sections.map(s => s.survey_entry_id).filter(Boolean))];
+
+  // Room photos via survey_media
+  const { data: rawRoomPhotos } = surveyEntryIds.length > 0
+    ? await admin.from('survey_media')
+        .select('id, entry_id, drive_view_url, thumbnail_url, mime_type')
+        .in('entry_id', surveyEntryIds)
+        .eq('media_type', 'photo')
+        .order('created_at')
+    : { data: [] };
+
+  const roomPhotos = rawRoomPhotos || [];
+
   // All projects for this client
   const { data: rawProjects } = await admin
     .from('projects')
@@ -97,6 +116,13 @@ export default async function ClientPortalPage({ params }) {
   const enrichedQuotes = quotes.map(q => ({
     ...q,
     entries: (quoteEntries || []).filter(e => e.quote_id === q.id),
+    sections: sections
+      .filter(s => s.quote_id === q.id)
+      .map(s => ({
+        ...s,
+        photos: roomPhotos.filter(p => p.entry_id === s.survey_entry_id),
+        entries: (quoteEntries || []).filter(e => e.quote_id === q.id && e.section_id === s.id),
+      })),
   }));
 
   return (

@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
 import { formatHUF } from '@/lib/constants';
-import { FolderKanban, ArrowLeft, ArrowUpRight, Building2, Search, Users, Receipt, Coins } from 'lucide-react';
+import { FolderKanban, ArrowLeft, Building2, Search, Users, Receipt, Coins } from 'lucide-react';
 
 function SuperAdminProjectsContent() {
   const { isSuperAdmin, loading, entities, projects, invoices, users } = useApp();
@@ -96,8 +96,8 @@ function SuperAdminProjectsContent() {
                   <Building2 size={14} color="#fff" />
                 </div>
                 <div>
-                  <Link href={`/superadmin/entitasok/${entity.id}`} style={{ fontWeight: 800, fontSize: '1rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                    {entity.name} <ArrowUpRight size={14} color="var(--text-muted)" />
+                  <Link href={`/superadmin/entitasok/${entity.id}`} style={{ fontWeight: 800, fontSize: '1rem', color: 'var(--text-primary)' }}>
+                    {entity.name}
                   </Link>
                 </div>
               </div>
@@ -124,8 +124,8 @@ function SuperAdminProjectsContent() {
                     >
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                         <div style={{ flex: 1 }}>
-                          <div style={{ fontWeight: 800, fontSize: '0.95rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                            {project.name} <ArrowUpRight size={13} color="var(--text-muted)" />
+                          <div style={{ fontWeight: 800, fontSize: '0.95rem', color: 'var(--text-primary)' }}>
+                            {project.name}
                           </div>
                           {project.description && (
                             <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '0.15rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>

@@ -60,7 +60,7 @@ async function ProjectDetailContent({ params }) {
 
   const resolvedEntityId = entityId || project.entity_id;
 
-  const [usersRes, invoicesRes, labourRes, allClientsRes, diaryCountRes] = await Promise.all([
+  const [usersRes, invoicesRes, labourRes, allClientsRes, diaryCountRes, roomsRes] = await Promise.all([
     admin.from('profiles')
       .select('id, display_name, email, role, entity_id')
       .eq('entity_id', resolvedEntityId)
@@ -75,6 +75,7 @@ async function ProjectDetailContent({ params }) {
       .order('date', { ascending: false }),
     admin.from('clients').select('*').eq('entity_id', resolvedEntityId).order('name'),
     admin.from('diary_entries').select('id', { count: 'exact', head: true }).eq('project_id', id).eq('entity_id', resolvedEntityId),
+    admin.from('project_rooms').select('*').eq('project_id', id).order('sort_order').order('created_at'),
   ]);
 
   const allClients = allClientsRes.data || [];
@@ -92,6 +93,7 @@ async function ProjectDetailContent({ params }) {
       currentUser={{ id: user.id, email: user.email, display_name: profile.display_name || user.email, role: profile.role, entity_id: resolvedEntityId }}
       isAdmin={isAdminRole}
       initialDiaryCount={diaryCountRes.count ?? 0}
+      initialRooms={roomsRes.data || []}
     />
   );
 }

@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useApp } from '@/context/AppContext';
 import { formatHUF, formatDate, QUOTE_STATUSES } from '@/lib/constants';
 import { ConfirmModal, AlertModal } from '@/components/Modal';
-import { FileText, ArrowLeft, ArrowUpRight, Building2, Search } from 'lucide-react';
+import { FileText, ArrowLeft, Building2, Search } from 'lucide-react';
 
 const STATUS_COLORS = {
   draft:    { bg: 'var(--bg-subtle)',    color: 'var(--text-secondary)', border: 'var(--border-subtle)' },
@@ -87,12 +87,12 @@ export default function SuperAdminQuotesPage() {
             const total = getTotal(q.id);
 
             return (
-              <div key={q.id} className="card" style={{ padding: '0.85rem 1rem', display: 'flex', alignItems: 'center', gap: '0.85rem', flexWrap: 'wrap' }}>
+              <Link key={q.id} href={`/ajanlatok/${q.id}`} className="card card-interactive" style={{ padding: '0.85rem 1rem', display: 'flex', alignItems: 'center', gap: '0.85rem', flexWrap: 'wrap', textDecoration: 'none', color: 'inherit' }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem', flexWrap: 'wrap' }}>
-                    <Link href={`/ajanlatok/${q.id}`} style={{ fontWeight: 800, fontSize: '0.95rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                      {q.title} <ArrowUpRight size={13} color="var(--text-muted)" />
-                    </Link>
+                    <span style={{ fontWeight: 800, fontSize: '0.95rem', color: 'var(--text-primary)' }}>
+                      {q.title}
+                    </span>
                     <span style={{ fontSize: '0.7rem', fontWeight: 700, padding: '0.1rem 0.5rem', borderRadius: 'var(--radius-pill)', background: sc.bg, color: sc.color, border: `1px solid ${sc.border}` }}>
                       {QUOTE_STATUSES.find(s => s.id === q.status)?.label || q.status}
                     </span>
@@ -109,7 +109,7 @@ export default function SuperAdminQuotesPage() {
                   </div>
                 </div>
                 <div className="text-mono" style={{ fontWeight: 800, fontSize: '1rem', flexShrink: 0 }}>{formatHUF(total)}</div>
-              </div>
+              </Link>
             );
           })}
         </div>

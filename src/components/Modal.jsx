@@ -1,9 +1,12 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { X, AlertTriangle, AlertCircle, CheckCircle2 } from 'lucide-react';
 
 function ModalBase({ isOpen, onClose, children, style }) {
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+
   useEffect(() => {
     if (isOpen) {
       const scrollY = window.scrollY;
@@ -39,10 +42,10 @@ function ModalBase({ isOpen, onClose, children, style }) {
   }, [isOpen]);
 
   useEffect(() => {
-    const handleKeyDown = (e) => { if (e.key === 'Escape' && isOpen) onClose(); };
+    const handleKeyDown = (e) => { if (e.key === 'Escape' && isOpen) onCloseRef.current(); };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onClose]);
+  }, [isOpen]); // onClose intentionally omitted — stable via ref
 
   if (!isOpen) return null;
 

@@ -26,6 +26,14 @@ export function AppProvider({ children }) {
   const [clients, setClients] = useState([]);
   const [quotes, setQuotes] = useState([]);
   const [quoteEntries, setQuoteEntries] = useState([]);
+  const [quoteSections, setQuoteSections] = useState([]);
+  const [projectRooms, setProjectRooms] = useState([]);
+
+  // Surveys
+  const [surveys, setSurveys] = useState([]);
+  const [surveyMediaBySurvey, setSurveyMediaBySurvey] = useState({});
+  const [surveyEntriesBySurvey, setSurveyEntriesBySurvey] = useState({});
+  const [surveyLayoutsBySurvey, setSurveyLayoutsBySurvey] = useState({});
 
   // Diary — keyed by project_id, loaded on demand
   const [diaryEntriesByProject, setDiaryEntriesByProject] = useState({});
@@ -199,6 +207,9 @@ export function AppProvider({ children }) {
         setClients(d.clients);
         setQuotes(d.quotes);
         setQuoteEntries(d.quoteEntries);
+        setQuoteSections(d.quoteSections || []);
+        setSurveys(d.surveys || []);
+        setProjectRooms(d.projectRooms || []);
         setDataReady(true);
       }
     } catch (err) {
@@ -412,7 +423,7 @@ export function AppProvider({ children }) {
 
   // ---- Invoices ---------------------------------------------------------------
 
-  const createInvoice = async ({ projectId, valueHuf, category, description, imageUrl, storagePath, ocrSuggestedValue }) => {
+  const createInvoice = async ({ projectId, valueHuf, category, description, imageUrl, storagePath, ocrSuggestedValue, roomId }) => {
     if (!effectiveUser) throw new Error('Bejelentkezés szükséges!');
 
     const { data, error } = await supabase
@@ -426,7 +437,8 @@ export function AppProvider({ children }) {
         category,
         description: description || '',
         image_url: imageUrl || '',
-        storage_path: storagePath || ''
+        storage_path: storagePath || '',
+        room_id: roomId || null,
       }])
       .select()
       .single();
@@ -465,7 +477,7 @@ export function AppProvider({ children }) {
 
   // ---- Labour -----------------------------------------------------------------
 
-  const createLabourEntry = async ({ projectId, date, labourType, hours, hourlyRate, description }) => {
+  const createLabourEntry = async ({ projectId, date, labourType, hours, hourlyRate, description, roomId, unit }) => {
     if (!effectiveUser) throw new Error('Bejelentkezés szükséges!');
 
     const valueHuf = Math.round(Number(hours) * Number(hourlyRate));
@@ -480,7 +492,9 @@ export function AppProvider({ children }) {
         hours: Number(hours),
         hourly_rate: Number(hourlyRate),
         value_huf: valueHuf,
-        description: description || ''
+        description: description || '',
+        room_id: roomId || null,
+        unit: unit || 'h',
       }])
       .select()
       .single();
@@ -495,6 +509,24 @@ export function AppProvider({ children }) {
       targetName: proj?.name,
       details: { labour_type: labourType, hours: Number(hours), value_huf: valueHuf },
     });
+    return data;
+  };
+
+  const updateLabourEntry = async (entryId, fields) => {
+    if (!isAdmin) throw new Error('Csak adminisztrátor módosíthat munkabejegyzést!');
+    const allowed = ['labour_type', 'hours', 'hourly_rate', 'unit', 'date', 'description', 'value_huf'];
+    const update = {};
+    for (const k of allowed) if (k in fields) update[k] = fields[k];
+    if ('hours' in update || 'hourly_rate' in update) {
+      const entry = labourEntries.find(e => e.id === entryId);
+      const h = update.hours ?? entry?.hours ?? 0;
+      const r = update.hourly_rate ?? entry?.hourly_rate ?? 0;
+      update.value_huf = Math.round(Number(h) * Number(r));
+    }
+    const { data, error } = await supabase.from('labour_entries').update(update).eq('id', entryId).select().single();
+    if (error) throw error;
+    setLabourEntries(prev => prev.map(e => e.id === entryId ? data : e));
+    auditLog('Munkabejegyzés módosítva', { entityId: effectiveEntityId, targetType: 'labour_entry', targetId: entryId });
     return data;
   };
 
@@ -569,6 +601,54 @@ export function AppProvider({ children }) {
     setProjects(prev => prev.filter(p => p.id !== projectId));
     setInvoices(prev => prev.filter(inv => inv.project_id !== projectId));
     setLabourEntries(prev => prev.filter(e => e.project_id !== projectId));
+    setProjectRooms(prev => prev.filter(r => r.project_id !== projectId));
+  };
+
+  // ---- Project rooms ----------------------------------------------------------
+
+  const createProjectRoom = async (projectId, { name, size_m2, work_types, description, quoted_amount_net, sort_order, source_section_id }) => {
+    if (!isAdmin) throw new Error('Csak adminisztrátor hozhat létre helyiséget!');
+    const res = await fetch(`/api/projects/${projectId}/rooms`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, size_m2, work_types, description, quoted_amount_net, sort_order, source_section_id }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Hiba a helyiség létrehozásakor');
+    setProjectRooms(prev => [...prev, data.room]);
+    return data.room;
+  };
+
+  const updateProjectRoom = async (projectId, roomId, fields) => {
+    if (!isAdmin) throw new Error('Csak adminisztrátor módosíthat helyiséget!');
+    const res = await fetch(`/api/projects/${projectId}/rooms/${roomId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(fields),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Hiba a helyiség módosításakor');
+    setProjectRooms(prev => prev.map(r => r.id === roomId ? data.room : r));
+    return data.room;
+  };
+
+  const deleteProjectRoom = async (projectId, roomId) => {
+    if (!isAdmin) throw new Error('Csak adminisztrátor törölhet helyiséget!');
+    const res = await fetch(`/api/projects/${projectId}/rooms/${roomId}`, { method: 'DELETE' });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Hiba a helyiség törlésekor');
+    setProjectRooms(prev => prev.filter(r => r.id !== roomId));
+  };
+
+  const syncRoomsFromQuote = async (projectId) => {
+    if (!isAdmin) throw new Error('Csak adminisztrátor szinkronizálhat helyiségeket!');
+    const res = await fetch(`/api/projects/${projectId}/rooms/sync-from-quote`, { method: 'POST' });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Hiba a szinkronizáláskor');
+    if (data.rooms && data.rooms.length > 0) {
+      setProjectRooms(prev => [...prev, ...data.rooms]);
+    }
+    return data;
   };
 
   // ---- Clients ----------------------------------------------------------------
@@ -609,7 +689,156 @@ export function AppProvider({ children }) {
 
   // ---- Quotes -----------------------------------------------------------------
 
-  const createQuote = async ({ title, location, workType, description, startDate, endDate, clientId, sharedWith = [], taxPercent = 27, entityId: entityIdOverride }) => {
+  // ---- Surveys ----------------------------------------------------------------
+
+  const createSurvey = async ({ title, notes, date, location, clientId, entityId: entityIdOverride }) => {
+    if (!isAdmin) throw new Error('Csak adminisztrátor hozhat létre felmérést!');
+    const res = await fetch('/api/surveys', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title, notes, date: date || null, location, client_id: clientId || null, entity_id: entityIdOverride || effectiveEntityId }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Hiba a felmérés létrehozásakor');
+    setSurveys(prev => [data.survey, ...prev]);
+    return data.survey;
+  };
+
+  const updateSurvey = async (surveyId, fields) => {
+    if (!isAdmin) throw new Error('Csak adminisztrátor módosíthat felmérést!');
+    const res = await fetch(`/api/surveys/${surveyId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(fields),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Hiba a felmérés módosításakor');
+    setSurveys(prev => prev.map(s => s.id === surveyId ? data.survey : s));
+    return data.survey;
+  };
+
+  const deleteSurvey = async (surveyId) => {
+    if (!isAdmin) throw new Error('Csak adminisztrátor törölhet felmérést!');
+    const res = await fetch(`/api/surveys/${surveyId}`, { method: 'DELETE' });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Hiba a felmérés törlésekor');
+    setSurveys(prev => prev.filter(s => s.id !== surveyId));
+    setSurveyMediaBySurvey(prev => { const n = { ...prev }; delete n[surveyId]; return n; });
+  };
+
+  const fetchSurveyMedia = async (surveyId) => {
+    const res = await fetch(`/api/surveys/${surveyId}`);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Hiba a média betöltésekor');
+    setSurveyMediaBySurvey(prev => ({ ...prev, [surveyId]: data.photos || [] }));
+    setSurveyLayoutsBySurvey(prev => ({ ...prev, [surveyId]: data.layouts || [] }));
+    setSurveyEntriesBySurvey(prev => ({ ...prev, [surveyId]: data.entries || [] }));
+    return data;
+  };
+
+  const uploadSurveyMedia = async (surveyId, files, { entryId = null, mediaType = 'photo' } = {}) => {
+    if (!isAdmin) throw new Error('Csak adminisztrátor tölthet fel médiát!');
+    const formData = new FormData();
+    for (const file of files) formData.append('files', file);
+    formData.append('survey_id', surveyId);
+    if (entryId) formData.append('entry_id', entryId);
+    formData.append('media_type', mediaType);
+    const res = await fetch('/api/surveys/upload', { method: 'POST', body: formData });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Hiba a feltöltés közben');
+    if (entryId) {
+      setSurveyEntriesBySurvey(prev => ({
+        ...prev,
+        [surveyId]: (prev[surveyId] || []).map(e =>
+          e.id === entryId ? { ...e, media: [...(e.media || []), ...data.media] } : e
+        ),
+      }));
+    } else if (mediaType === 'layout') {
+      setSurveyLayoutsBySurvey(prev => ({
+        ...prev,
+        [surveyId]: [...(prev[surveyId] || []), ...data.media],
+      }));
+    } else {
+      setSurveyMediaBySurvey(prev => ({
+        ...prev,
+        [surveyId]: [...(prev[surveyId] || []), ...data.media],
+      }));
+    }
+    return data.media;
+  };
+
+  const deleteSurveyMedia = async (mediaId, surveyId, entryId = null, mediaType = 'photo') => {
+    if (!isAdmin) throw new Error('Csak adminisztrátor törölhet médiát!');
+    const res = await fetch(`/api/surveys/${surveyId}/media/${mediaId}`, { method: 'DELETE' });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Hiba a média törlésekor');
+    if (entryId) {
+      setSurveyEntriesBySurvey(prev => ({
+        ...prev,
+        [surveyId]: (prev[surveyId] || []).map(e =>
+          e.id === entryId ? { ...e, media: (e.media || []).filter(m => m.id !== mediaId) } : e
+        ),
+      }));
+    } else if (mediaType === 'layout') {
+      setSurveyLayoutsBySurvey(prev => ({
+        ...prev,
+        [surveyId]: (prev[surveyId] || []).filter(m => m.id !== mediaId),
+      }));
+    } else {
+      setSurveyMediaBySurvey(prev => ({
+        ...prev,
+        [surveyId]: (prev[surveyId] || []).filter(m => m.id !== mediaId),
+      }));
+    }
+  };
+
+  const createSurveyEntry = async (surveyId, { name, description, size_m2 }) => {
+    const res = await fetch(`/api/surveys/${surveyId}/entries`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, description, size_m2 }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Hiba a helyiség létrehozásakor');
+    setSurveyEntriesBySurvey(prev => ({
+      ...prev,
+      [surveyId]: [...(prev[surveyId] || []), data.entry],
+    }));
+    return data.entry;
+  };
+
+  const updateSurveyEntry = async (surveyId, entryId, fields) => {
+    if (!isAdmin) throw new Error('Csak adminisztrátor módosíthat helyiséget!');
+    const res = await fetch(`/api/surveys/${surveyId}/entries/${entryId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(fields),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Hiba a módosításkor');
+    setSurveyEntriesBySurvey(prev => ({
+      ...prev,
+      [surveyId]: (prev[surveyId] || []).map(e =>
+        e.id === entryId ? { ...e, ...data.entry } : e
+      ),
+    }));
+    return data.entry;
+  };
+
+  const deleteSurveyEntry = async (surveyId, entryId) => {
+    if (!isAdmin) throw new Error('Csak adminisztrátor törölhet helyiséget!');
+    const res = await fetch(`/api/surveys/${surveyId}/entries/${entryId}`, { method: 'DELETE' });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Hiba a törléskor');
+    setSurveyEntriesBySurvey(prev => ({
+      ...prev,
+      [surveyId]: (prev[surveyId] || []).filter(e => e.id !== entryId),
+    }));
+  };
+
+  // ---- Quotes -----------------------------------------------------------------
+
+  const createQuote = async ({ title, location, workType, description, startDate, endDate, clientId, sharedWith = [], taxPercent = 27, entityId: entityIdOverride, surveyId }) => {
     if (!effectiveUser) throw new Error('Bejelentkezés szükséges!');
     const targetEntityId = entityIdOverride || effectiveEntityId;
     if (!targetEntityId) throw new Error('Nincs entitás hozzárendelve!');
@@ -630,12 +859,14 @@ export function AppProvider({ children }) {
         created_by: effectiveUser.id,
         shared_with: sharedWith,
         tax_percent: Number(taxPercent) || 0,
+        survey_id: surveyId || null,
       }])
       .select()
       .single();
 
     if (error) throw error;
     setQuotes(prev => [data, ...prev]);
+
     auditLog('Ajánlat létrehozva', {
       entityId: targetEntityId,
       targetType: 'quote',
@@ -667,6 +898,55 @@ export function AppProvider({ children }) {
     if (!res.ok) throw new Error(data.error || 'Hiba az ajánlat törlésekor');
     setQuotes(prev => prev.filter(q => q.id !== quoteId));
     setQuoteEntries(prev => prev.filter(e => e.quote_id !== quoteId));
+    setQuoteSections(prev => prev.filter(s => s.quote_id !== quoteId));
+  };
+
+  // ---- Quote sections ---------------------------------------------------------
+
+  const createQuoteSection = async (quoteId, { name, description, size_m2, survey_entry_id }) => {
+    const res = await fetch(`/api/quotes/${quoteId}/sections`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, description, size_m2, survey_entry_id }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Hiba a szekció létrehozásakor');
+    setQuoteSections(prev => [...prev, data.section]);
+    // If the API auto-created a survey entry, add a stub so SectionMediaGrid finds it immediately
+    if (data.section.survey_entry_id) {
+      const quote = quotes.find(q => q.id === quoteId);
+      if (quote?.survey_id) {
+        setSurveyEntriesBySurvey(prev => ({
+          ...prev,
+          [quote.survey_id]: [
+            ...(prev[quote.survey_id] || []).filter(e => e.id !== data.section.survey_entry_id),
+            { id: data.section.survey_entry_id, name, media: [] },
+          ],
+        }));
+      }
+    }
+    return data.section;
+  };
+
+  const updateQuoteSection = async (quoteId, sectionId, fields) => {
+    const res = await fetch(`/api/quotes/${quoteId}/sections/${sectionId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(fields),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Hiba a módosításkor');
+    setQuoteSections(prev => prev.map(s => s.id === sectionId ? data.section : s));
+    return data.section;
+  };
+
+  const deleteQuoteSection = async (quoteId, sectionId) => {
+    const res = await fetch(`/api/quotes/${quoteId}/sections/${sectionId}`, { method: 'DELETE' });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Hiba a törléskor');
+    setQuoteSections(prev => prev.filter(s => s.id !== sectionId));
+    // un-group entries that belonged to this section
+    setQuoteEntries(prev => prev.map(e => e.section_id === sectionId ? { ...e, section_id: null } : e));
   };
 
   const shareQuoteWith = async (quoteId, userId) => {
@@ -690,7 +970,7 @@ export function AppProvider({ children }) {
 
   // ---- Quote Entries ----------------------------------------------------------
 
-  const createQuoteEntry = async ({ quoteId, userId, workDescription, amountHuf, notes, entryType, quantity, unit, unitPrice }) => {
+  const createQuoteEntry = async ({ quoteId, userId, workDescription, amountHuf, notes, entryType, quantity, unit, unitPrice, sectionId }) => {
     if (!effectiveUser) throw new Error('Bejelentkezés szükséges!');
 
     const payload = {
@@ -702,7 +982,8 @@ export function AppProvider({ children }) {
       unit: unit || null,
       unit_price: unitPrice != null ? Number(unitPrice) : null,
       amount_huf: Number(amountHuf),
-      notes: notes || ''
+      notes: notes || '',
+      section_id: sectionId || null,
     };
 
     const { data, error } = await supabase.from('quote_entries').insert([payload]).select().single();
@@ -751,6 +1032,7 @@ export function AppProvider({ children }) {
         start_date: quote.start_date,
         end_date: quote.end_date,
         client_id: quote.client_id || null,
+        survey_id: quote.survey_id || null,
       }])
       .select()
       .single();
@@ -895,6 +1177,7 @@ export function AppProvider({ children }) {
         deleteInvoice,
         // Labour
         createLabourEntry,
+        updateLabourEntry,
         deleteLabourEntry,
         // Projects
         createProject,
@@ -917,6 +1200,31 @@ export function AppProvider({ children }) {
         updateQuoteEntry,
         deleteQuoteEntry,
         convertQuoteToProject,
+        // Quote sections
+        quoteSections,
+        createQuoteSection,
+        updateQuoteSection,
+        deleteQuoteSection,
+        // Surveys
+        surveys,
+        surveyMediaBySurvey,
+        surveyEntriesBySurvey,
+        surveyLayoutsBySurvey,
+        createSurvey,
+        updateSurvey,
+        deleteSurvey,
+        fetchSurveyMedia,
+        uploadSurveyMedia,
+        deleteSurveyMedia,
+        createSurveyEntry,
+        updateSurveyEntry,
+        deleteSurveyEntry,
+        // Project rooms
+        projectRooms,
+        createProjectRoom,
+        updateProjectRoom,
+        deleteProjectRoom,
+        syncRoomsFromQuote,
         // Diary
         diaryEntriesByProject,
         fetchDiaryEntries,
