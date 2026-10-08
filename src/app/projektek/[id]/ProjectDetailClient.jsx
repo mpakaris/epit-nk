@@ -1059,16 +1059,16 @@ export default function ProjectDetailClient({
       {activeTab === 'invoices' && (
         <>
           <div className="invoice-filters">
-            <select value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)} className="form-control" style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem', minHeight: '38px' }}>
+            <select value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)} className="form-control" style={{ padding: '0.4rem 0.75rem', minHeight: '38px' }}>
               <option value="ALL">Minden kategória</option>
               {INVOICE_CATEGORIES.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
             </select>
-            <select value={uploaderFilter} onChange={e => setUploaderFilter(e.target.value)} className="form-control" style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem', minHeight: '38px' }}>
+            <select value={uploaderFilter} onChange={e => setUploaderFilter(e.target.value)} className="form-control" style={{ padding: '0.4rem 0.75rem', minHeight: '38px' }}>
               <option value="ALL">Minden feltöltő</option>
               {projectMemberUsers.map(u => <option key={u.id} value={u.id}>{u.display_name}</option>)}
             </select>
             {projectRooms.length > 0 && (
-              <select value={roomFilter} onChange={e => setRoomFilter(e.target.value)} className="form-control" style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem', minHeight: '38px' }}>
+              <select value={roomFilter} onChange={e => setRoomFilter(e.target.value)} className="form-control" style={{ padding: '0.4rem 0.75rem', minHeight: '38px' }}>
                 <option value="ALL">Minden helyiség</option>
                 <option value="GENERAL">Általános (nincs szoba)</option>
                 {projectRooms.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
@@ -1101,14 +1101,14 @@ export default function ProjectDetailClient({
               placeholder="Szűrés típus szerint…"
               value={labourTypeFilter}
               onChange={e => setLabourTypeFilter(e.target.value)}
-              style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem', minHeight: '38px' }}
+              style={{ padding: '0.4rem 0.75rem', minHeight: '38px' }}
             />
-            <select value={labourUploaderFilter} onChange={e => setLabourUploaderFilter(e.target.value)} className="form-control" style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem', minHeight: '38px' }}>
+            <select value={labourUploaderFilter} onChange={e => setLabourUploaderFilter(e.target.value)} className="form-control" style={{ padding: '0.4rem 0.75rem', minHeight: '38px' }}>
               <option value="ALL">Minden feltöltő</option>
               {projectMemberUsers.map(u => <option key={u.id} value={u.id}>{u.display_name}</option>)}
             </select>
             {projectRooms.length > 0 && (
-              <select value={roomFilter} onChange={e => setRoomFilter(e.target.value)} className="form-control" style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem', minHeight: '38px' }}>
+              <select value={roomFilter} onChange={e => setRoomFilter(e.target.value)} className="form-control" style={{ padding: '0.4rem 0.75rem', minHeight: '38px' }}>
                 <option value="ALL">Minden helyiség</option>
                 <option value="GENERAL">Általános (nincs szoba)</option>
                 {projectRooms.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
