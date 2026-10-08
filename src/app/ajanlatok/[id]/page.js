@@ -14,6 +14,9 @@ import {
   X, Copy, ExternalLink
 } from 'lucide-react';
 
+const ENTRY_TYPE_ORDER = { material: 0, labour: 1, transport: 2, equipment: 3, other: 4 };
+const sortEntries = (arr) => [...arr].sort((a, b) => (ENTRY_TYPE_ORDER[a.entry_type] ?? 4) - (ENTRY_TYPE_ORDER[b.entry_type] ?? 4));
+
 const TYPE_ICONS = { material: Package, labour: Hammer, equipment: Wrench, transport: Truck, other: MoreHorizontal };
 const TYPE_COLORS = {
   material:  { bg: '#eff6ff', color: '#1d4ed8', border: '#bfdbfe' },
@@ -356,7 +359,7 @@ export default function QuoteDetailPage() {
                 <div style={{ padding: '0.75rem 1rem', fontSize: '0.82rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>Nincs tétel.</div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column' }}>
-                  {roomEntries.map((entry, idx) => <EntryRow key={entry.id} entry={entry} idx={idx} users={users} currentUser={currentUser} isLocked={true} onEdit={null} onDelete={null} />)}
+                  {sortEntries(roomEntries).map((entry, idx) => <EntryRow key={entry.id} entry={entry} idx={idx} users={users} currentUser={currentUser} isLocked={true} onEdit={null} onDelete={null} />)}
                 </div>
               )}
               {/* Photos — read-only on detail page, manage in /szerkesztes */}
@@ -380,7 +383,7 @@ export default function QuoteDetailPage() {
                 <div style={{ padding: '0.75rem 1rem', fontSize: '0.82rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>Nincs általános tétel.</div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column' }}>
-                  {general.map((entry, idx) => <EntryRow key={entry.id} entry={entry} idx={idx} users={users} currentUser={currentUser} isLocked={true} onEdit={null} onDelete={null} />)}
+                  {sortEntries(general).map((entry, idx) => <EntryRow key={entry.id} entry={entry} idx={idx} users={users} currentUser={currentUser} isLocked={true} onEdit={null} onDelete={null} />)}
                 </div>
               )}
             </div>

@@ -13,6 +13,9 @@ import {
   User, Coins, Home, Ruler, X, Camera,
 } from 'lucide-react';
 
+const ENTRY_TYPE_ORDER = { material: 0, labour: 1, transport: 2, equipment: 3, other: 4 };
+const sortEntries = (arr) => [...arr].sort((a, b) => (ENTRY_TYPE_ORDER[a.entry_type] ?? 4) - (ENTRY_TYPE_ORDER[b.entry_type] ?? 4));
+
 const TYPE_ICONS = { material: Package, labour: Hammer, equipment: Wrench, transport: Truck, other: MoreHorizontal };
 const TYPE_COLORS = {
   material:  { bg: '#eff6ff', color: '#1d4ed8', border: '#bfdbfe' },
@@ -195,6 +198,7 @@ function NewQuotePageInner() {
   const [editingEntryKey, setEditingEntryKey] = useState(null);   // null = new
   const [entryForm, setEntryForm] = useState(EMPTY_ENTRY_FORM);
   const [entryError, setEntryError] = useState('');
+  const [pendingEntries, setPendingEntries] = useState([]);
 
   const [showNewClientModal, setShowNewClientModal] = useState(false);
   const [error, setError] = useState('');
@@ -243,6 +247,7 @@ function NewQuotePageInner() {
   // ── Entry helpers ────────────────────────────────────────────────────────────
   const openEntryModal = (sectionKey, editKey = null) => {
     setActiveSectionKey(sectionKey);
+    setPendingEntries([]);
     if (editKey) {
       const section = localSections.find(s => s._key === sectionKey);
       const entry = section?.entries.find(e => e._ekey === editKey);
@@ -259,13 +264,10 @@ function NewQuotePageInner() {
     setShowEntryModal(true);
   };
 
-  const handleSaveEntry = () => {
-    setEntryError('');
-    if (!entryForm.work_description.trim()) { setEntryError('A megnevezés megadása kötelező!'); return; }
-    if (previewAmount <= 0) { setEntryError('Az összeg nem lehet nulla!'); return; }
+  const buildEntryFromForm = (ekey) => {
     const useQty = entryForm.entry_type === 'material' || entryForm.entry_type === 'labour';
-    const saved = {
-      _ekey: editingEntryKey || `e-${Date.now()}`,
+    return {
+      _ekey: ekey || `e-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
       entry_type: entryForm.entry_type,
       work_description: entryForm.work_description.trim(),
       quantity: useQty && entryForm.quantity ? parseFloat(entryForm.quantity) : null,
@@ -275,12 +277,35 @@ function NewQuotePageInner() {
       notes: entryForm.notes.trim(),
       user_id: entryForm.user_id || currentUser.id,
     };
+  };
+
+  const handleAddAnother = () => {
+    setEntryError('');
+    if (!entryForm.work_description.trim()) { setEntryError('A megnevezés megadása kötelező!'); return; }
+    if (previewAmount <= 0) { setEntryError('Az összeg nem lehet nulla!'); return; }
+    setPendingEntries(prev => [...prev, buildEntryFromForm()]);
+    setEntryForm({ ...EMPTY_ENTRY_FORM, user_id: entryForm.user_id, entry_type: entryForm.entry_type });
+    setEntryError('');
+  };
+
+  const handleSaveEntry = () => {
+    setEntryError('');
+    const hasCurrent = entryForm.work_description.trim();
+    if (!hasCurrent && pendingEntries.length === 0) { setEntryError('A megnevezés megadása kötelező!'); return; }
+    if (hasCurrent && previewAmount <= 0) { setEntryError('Az összeg nem lehet nulla!'); return; }
+
+    const allEntries = hasCurrent
+      ? [...pendingEntries, buildEntryFromForm(editingEntryKey || undefined)]
+      : pendingEntries;
 
     setLocalSections(prev => prev.map(s => {
       if (s._key !== activeSectionKey) return s;
-      if (editingEntryKey) return { ...s, entries: s.entries.map(e => e._ekey === editingEntryKey ? saved : e) };
-      return { ...s, entries: [...s.entries, saved] };
+      if (editingEntryKey) {
+        return { ...s, entries: s.entries.map(e => e._ekey === editingEntryKey ? allEntries[0] : e) };
+      }
+      return { ...s, entries: [...s.entries, ...allEntries] };
     }));
+    setPendingEntries([]);
     setShowEntryModal(false);
   };
 
@@ -493,7 +518,7 @@ function NewQuotePageInner() {
                   {/* Entries under this room */}
                   {s.entries.length > 0 && (
                     <div style={{ borderTop: '1px solid var(--border-subtle)' }}>
-                      {s.entries.map((e, eIdx) => {
+                      {sortEntries(s.entries).map((e, eIdx) => {
                         const Icon = TYPE_ICONS[e.entry_type] || MoreHorizontal;
                         const tc = TYPE_COLORS[e.entry_type] || TYPE_COLORS.other;
                         const useQty = e.entry_type === 'material' || e.entry_type === 'labour';
@@ -559,7 +584,25 @@ function NewQuotePageInner() {
       </form>
 
       {/* ── ENTRY MODAL ── */}
-      <Modal isOpen={showEntryModal} onClose={() => setShowEntryModal(false)} title={editingEntryKey ? 'Tétel szerkesztése' : 'Új tétel'}>
+      <Modal isOpen={showEntryModal} onClose={() => { setShowEntryModal(false); setPendingEntries([]); }} title={editingEntryKey ? 'Tétel szerkesztése' : 'Tételek hozzáadása'}>
+        {/* Pending entries list */}
+        {pendingEntries.length > 0 && (
+          <div style={{ marginBottom: '0.85rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--success-border)', overflow: 'hidden' }}>
+            <div style={{ padding: '0.4rem 0.75rem', background: 'var(--success-bg)', fontSize: '0.72rem', fontWeight: 700, color: 'var(--success-text)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span>Hozzáadásra kész: {pendingEntries.length} db</span>
+              <span style={{ fontFamily: 'var(--font-mono)' }}>{formatHUF(pendingEntries.reduce((s, e) => s + e.amount_huf, 0))}</span>
+            </div>
+            {pendingEntries.map((e, i) => (
+              <div key={e._ekey} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.35rem 0.75rem', background: '#fff', borderTop: '1px solid var(--border-subtle)' }}>
+                <span style={{ flex: 1, fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.work_description}</span>
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8rem', color: 'var(--text-secondary)', flexShrink: 0 }}>{formatHUF(e.amount_huf)}</span>
+                <button type="button" onClick={() => setPendingEntries(p => p.filter((_, j) => j !== i))} style={{ border: 'none', background: 'none', cursor: 'pointer', color: 'var(--danger-text)', padding: 0, flexShrink: 0, display: 'flex' }}><X size={13} /></button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Section breadcrumb */}
         {(() => {
           const section = localSections.find(s => s._key === activeSectionKey);
           return section ? (
@@ -568,6 +611,7 @@ function NewQuotePageInner() {
             </div>
           ) : null;
         })()}
+
         {entryError && <div style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', color: 'var(--danger-text)', padding: '0.6rem 0.85rem', borderRadius: 'var(--radius-md)', fontSize: '0.825rem', display: 'flex', gap: '0.45rem', marginBottom: '0.85rem' }}><AlertCircle size={15} style={{ flexShrink: 0 }} /><span>{entryError}</span></div>}
         <div className="entry-type-grid">
           {QUOTE_ENTRY_TYPES.map(t => { const Icon = TYPE_ICONS[t.id]; const tc = TYPE_COLORS[t.id]; const active = entryForm.entry_type === t.id; return (<button key={t.id} type="button" onClick={() => setEntryForm(f => ({ ...f, entry_type: t.id, quantity: '', unit: 'db', unit_price: '', flat_amount: '' }))} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '0.25rem', padding: '0.6rem 0.3rem', borderRadius: 'var(--radius-md)', border: `2px solid ${active ? tc.color : 'var(--border-subtle)'}`, background: active ? tc.bg : '#fff', cursor: 'pointer', transition: 'all 0.12s ease' }}><Icon size={18} color={active ? tc.color : 'var(--text-muted)'} /><span style={{ fontSize: '0.65rem', fontWeight: 700, color: active ? tc.color : 'var(--text-muted)', textAlign: 'center', lineHeight: 1.2 }}>{t.label}</span></button>); })}
@@ -598,9 +642,18 @@ function NewQuotePageInner() {
           <label className="form-label">Megjegyzés (opcionális)</label>
           <input type="text" className="form-control" placeholder="pl. Anyaggal együtt, 2. emelet" value={entryForm.notes} onChange={e => setEntryForm(f => ({ ...f, notes: e.target.value }))} />
         </div>
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
-          <button type="button" className="btn btn-secondary btn-sm" onClick={() => setShowEntryModal(false)}>Mégse</button>
-          <button type="button" className="btn btn-primary btn-sm" onClick={handleSaveEntry}>{editingEntryKey ? 'Módosítás' : 'Tétel hozzáadása'}</button>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+          <button type="button" className="btn btn-secondary btn-sm" onClick={() => { setShowEntryModal(false); setPendingEntries([]); }}>Mégse</button>
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            {!editingEntryKey && (
+              <button type="button" className="btn btn-secondary btn-sm" onClick={handleAddAnother}>
+                + Következő tétel
+              </button>
+            )}
+            <button type="button" className="btn btn-primary btn-sm" onClick={handleSaveEntry}>
+              {editingEntryKey ? 'Módosítás' : pendingEntries.length > 0 ? `Mentés (${pendingEntries.length + (entryForm.work_description.trim() ? 1 : 0)} db)` : 'Tétel hozzáadása'}
+            </button>
+          </div>
         </div>
       </Modal>
 
