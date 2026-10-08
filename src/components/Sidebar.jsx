@@ -50,6 +50,8 @@ export default function Sidebar() {
 
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [headerVisible, setHeaderVisible] = useState(true);
+  const lastScrollY = React.useRef(0);
 
   useEffect(() => {
     const saved = localStorage.getItem('sb_collapsed');
@@ -63,6 +65,20 @@ export default function Sidebar() {
 
   // Close drawer on navigation
   useEffect(() => { setMobileOpen(false); }, [pathname]);
+
+  // Hide header on scroll down, reveal on scroll up
+  useEffect(() => {
+    const THRESHOLD = 6;
+    const onScroll = () => {
+      if (mobileOpen) return;
+      const y = window.scrollY;
+      if (Math.abs(y - lastScrollY.current) < THRESHOLD) return;
+      setHeaderVisible(y < lastScrollY.current || y < 60);
+      lastScrollY.current = y;
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, [mobileOpen]);
 
   // Freeze background scroll when drawer is open (iOS-safe)
   useEffect(() => {
@@ -99,7 +115,7 @@ export default function Sidebar() {
 
   if (!currentUser && pathname === '/login') return null;
   if (!currentUser) return null;
-  if (pathname.startsWith('/naplo/')) return null;
+  if (pathname.startsWith('/naplo/') || pathname.startsWith('/clients/')) return null;
 
   const navItems = buildNavItems(isSuperAdmin, isAdmin, impersonating);
   const homeHref = isSuperAdmin && !impersonating ? '/superadmin' : isAdmin ? '/admin' : '/projektek';
@@ -206,7 +222,7 @@ export default function Sidebar() {
       </aside>
 
       {/* ===== MOBILE HEADER ===== */}
-      <header className="mobile-header">
+      <header className="mobile-header" style={{ transform: headerVisible ? 'translateY(0)' : 'translateY(-100%)', transition: 'transform 0.25s ease' }}>
         <Link href={homeHref} className="sidebar-brand">
           <div className="sidebar-brand-icon"><Building2 size={16} /></div>
           <span>Epitünk</span>

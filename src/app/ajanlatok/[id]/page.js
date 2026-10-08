@@ -367,6 +367,28 @@ export default function QuoteDetailPage() {
         )}
       </div>
 
+      {/* Totals summary — shown above entries so it's visible immediately on mobile */}
+      {entries.length > 0 && (
+        <div style={{ padding: '0.9rem 1rem', background: 'var(--bg-subtle)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)', marginBottom: '0.75rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: taxRate > 0 ? '0.35rem' : 0 }}>
+            <span style={{ fontWeight: 600, color: 'var(--text-secondary)', fontSize: '0.875rem' }}>Nettó összeg:</span>
+            <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: '0.95rem' }}>{formatHUF(netTotal)}</span>
+          </div>
+          {taxRate > 0 && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
+              <span style={{ fontWeight: 600, color: 'var(--text-secondary)', fontSize: '0.875rem' }}>ÁFA ({taxRate}%):</span>
+              <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: '0.95rem', color: 'var(--text-secondary)' }}>{formatHUF(taxAmount)}</span>
+            </div>
+          )}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: taxRate > 0 ? '0.4rem' : 0, borderTop: taxRate > 0 ? '1px solid var(--border-subtle)' : 'none' }}>
+            <span style={{ fontWeight: 800, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+              <Coins size={16} color="var(--accent)" /> Bruttó összesen:
+            </span>
+            <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, fontSize: '1.2rem', color: 'var(--text-primary)' }}>{formatHUF(grossTotal)}</span>
+          </div>
+        </div>
+      )}
+
       {entries.length === 0 ? (
         <div className="card mb-6" style={{ textAlign: 'center', padding: '1.5rem', color: 'var(--text-muted)', fontSize: '0.875rem' }}>
           Nincs tétel hozzáadva.
@@ -415,24 +437,6 @@ export default function QuoteDetailPage() {
             );
           })}
 
-          <div style={{ padding: '0.9rem 1rem', background: 'var(--bg-subtle)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: taxRate > 0 ? '0.45rem' : 0 }}>
-              <span style={{ fontWeight: 600, color: 'var(--text-secondary)', fontSize: '0.875rem' }}>Nettó összeg:</span>
-              <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: '0.95rem' }}>{formatHUF(netTotal)}</span>
-            </div>
-            {taxRate > 0 && (
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.45rem' }}>
-                <span style={{ fontWeight: 600, color: 'var(--text-secondary)', fontSize: '0.875rem' }}>ÁFA ({taxRate}%):</span>
-                <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: '0.95rem', color: 'var(--text-secondary)' }}>{formatHUF(taxAmount)}</span>
-              </div>
-            )}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: taxRate > 0 ? '0.45rem' : 0, borderTop: taxRate > 0 ? '1px solid var(--border-subtle)' : 'none' }}>
-              <span style={{ fontWeight: 800, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                <Coins size={16} color="var(--accent)" /> Bruttó összesen:
-              </span>
-              <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, fontSize: '1.2rem', color: 'var(--text-primary)' }}>{formatHUF(grossTotal)}</span>
-            </div>
-          </div>
         </div>
       )}
 

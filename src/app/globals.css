@@ -409,6 +409,9 @@ button, input, select, textarea {
   margin-bottom: 1.5rem;
 }
 
+/* Prevent long mono values from blowing out stat card columns */
+.stat-grid > * { min-width: 0; }
+
 @media (min-width: 640px) {
   .stat-grid {
     grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
@@ -1201,6 +1204,9 @@ button, input, select, textarea {
     font-size: 1.1rem !important;
   }
 }
+
+/* Tab rows: hide scrollbar on webkit when tabs overflow on mobile */
+div[style*="overflowX"]::-webkit-scrollbar { display: none; }
 
 /* Quote entry type selector: 5 cols desktop → 3 cols mobile */
 .entry-type-grid {

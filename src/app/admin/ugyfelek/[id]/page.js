@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
@@ -14,7 +14,10 @@ import {
   FolderKanban,
   FileText,
   Coins,
-  ShieldCheck
+  ShieldCheck,
+  Copy,
+  Check,
+  ExternalLink
 } from 'lucide-react';
 
 const STATUS_LABELS = {
@@ -34,6 +37,15 @@ const STATUS_COLORS = {
 export default function ClientDetailPage() {
   const { id } = useParams();
   const { isAdmin, loading, dataReady, clients, quotes, quoteEntries, projects, invoices } = useApp();
+  const [copied, setCopied] = useState(false);
+
+  const copyPortalUrl = () => {
+    const url = `${window.location.origin}/clients/${id}`;
+    navigator.clipboard.writeText(url).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
 
 
   if (loading || !dataReady) return <div className="container" style={{ paddingTop: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>Betöltés...</div>;
@@ -119,6 +131,28 @@ export default function ClientDetailPage() {
         </div>
       </div>
 
+      {/* Portal URL */}
+      <div className="card mb-6" style={{ padding: '1rem 1.25rem', borderLeft: '3px solid var(--accent)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', flexWrap: 'wrap' }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', marginBottom: '0.2rem' }}>
+              Ügyfél portál URL
+            </div>
+            <div style={{ fontSize: '0.825rem', color: 'var(--accent)', fontFamily: 'var(--font-mono)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {typeof window !== 'undefined' ? `${window.location.origin}/clients/${id}` : `/clients/${id}`}
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: '0.5rem', flexShrink: 0 }}>
+            <button type="button" onClick={copyPortalUrl} className="btn btn-secondary btn-sm">
+              {copied ? <><Check size={13} /> Másolva!</> : <><Copy size={13} /> Másolás</>}
+            </button>
+            <a href={`/clients/${id}`} target="_blank" rel="noopener noreferrer" className="btn btn-primary btn-sm">
+              <ExternalLink size={13} /> Előnézet
+            </a>
+          </div>
+        </div>
+      </div>
+
       {/* Stats */}
       <div className="stat-grid" style={{ marginBottom: '1.5rem' }}>
         <div className="stat-card">
@@ -198,7 +232,7 @@ export default function ClientDetailPage() {
                   <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
                     <Coins size={14} color="var(--accent)" /> {formatHUF(pCost)}
                   </span>
-                  <Link href={`/admin/projektek/${p.id}`} className="btn btn-secondary btn-sm" style={{ padding: '0.3rem 0.6rem', fontSize: '0.775rem' }}>
+                  <Link href={`/projektek/${p.id}`} className="btn btn-secondary btn-sm" style={{ padding: '0.3rem 0.6rem', fontSize: '0.775rem' }}>
                     Részletek
                   </Link>
                 </div>

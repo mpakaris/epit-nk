@@ -775,8 +775,8 @@ export default function ProjectDetailClient({
                 <Edit3 size={14} /> Szerkesztés
               </button>
             )}
-            <Link href={`/projektek/${project.id}/feltoltes`} className="btn btn-primary" style={{ gap: '0.45rem' }}>
-              <Camera size={18} />
+            <Link href={`/projektek/${project.id}/feltoltes`} className="btn btn-primary btn-sm" style={{ gap: '0.4rem' }}>
+              <Camera size={15} />
               <span>Bejegyzés hozzáadása</span>
             </Link>
           </div>
@@ -891,7 +891,7 @@ export default function ProjectDetailClient({
       })()}
 
       {/* Stat grid */}
-      <div className="stat-grid">
+      <div className="stat-grid" style={{ marginBottom: '1.5rem' }}>
         <StatCard label="Összes kiadás" value={formatHUF(fin.totalCost)} sub={`${fin.projectInvoices.length} db számla`} icon={Coins} />
         <StatCard label="Munkadíj összesen" value={formatHUF(fin.totalLabourValue)} sub={`${fin.projectLabour.length} bejegyzés`} icon={Hammer} />
         <StatCard label="Általad kifizetve" value={formatHUF(fin.ownPaid)} sub="Az Ön számlái" icon={Receipt} />
@@ -988,14 +988,14 @@ export default function ProjectDetailClient({
       </div>
 
       {/* Tabs */}
-      <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', borderBottom: '2px solid var(--border-subtle)', paddingBottom: 0 }}>
+      <div style={{ display: 'flex', gap: 0, marginBottom: '1rem', borderBottom: '2px solid var(--border-subtle)', paddingBottom: 0, overflowX: 'auto', WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
         {[
           { key: 'invoices', label: `Számlák (${fin.projectInvoices.length})`, icon: Receipt },
           { key: 'labour', label: `Munka (${fin.projectLabour.length})`, icon: Hammer },
           { key: 'naplo', label: `Napló (${diaryEntriesByProject[project.id]?.length ?? initialDiaryCount})`, icon: BookOpen },
         ].map(tab => (
-          <button key={tab.key} type="button" onClick={() => setActiveTab(tab.key)} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.6rem 1rem', borderRadius: 0, border: 'none', borderBottom: activeTab === tab.key ? '2px solid var(--accent)' : '2px solid transparent', marginBottom: '-2px', background: 'transparent', cursor: 'pointer', fontWeight: activeTab === tab.key ? 800 : 600, color: activeTab === tab.key ? 'var(--accent)' : 'var(--text-secondary)', fontSize: '0.9rem', transition: 'all 0.15s ease' }}>
-            <tab.icon size={16} />{tab.label}
+          <button key={tab.key} type="button" onClick={() => setActiveTab(tab.key)} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.65rem 1rem', borderRadius: 0, border: 'none', borderBottom: activeTab === tab.key ? '2px solid var(--accent)' : '2px solid transparent', marginBottom: '-2px', background: 'transparent', cursor: 'pointer', fontWeight: activeTab === tab.key ? 800 : 600, color: activeTab === tab.key ? 'var(--accent)' : 'var(--text-secondary)', fontSize: '0.875rem', transition: 'all 0.15s ease', flexShrink: 0, whiteSpace: 'nowrap' }}>
+            <tab.icon size={15} />{tab.label}
           </button>
         ))}
       </div>
@@ -1084,12 +1084,12 @@ export default function ProjectDetailClient({
               onClick={() => {
                 const url = `${window.location.origin}/naplo/${project.id}`;
                 navigator.clipboard.writeText(url).then(() => {
-                  setToast('Link másolva a vágólapra!');
+                  setToast('Ügyfél link másolva!');
                   setTimeout(() => setToast(''), 2500);
                 });
               }}
             >
-              <Copy size={14} /> Ügyfél link másolása
+              <Copy size={14} /> Ügyfél link
             </button>
             <Link href={`/projektek/${project.id}/naplo/uj`} className="btn btn-primary btn-sm"><Plus size={15} /> Új bejegyzés</Link>
           </div>
