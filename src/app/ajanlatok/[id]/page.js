@@ -232,16 +232,18 @@ export default function QuoteDetailPage() {
 
       {/* Client portal link */}
       {quote.status !== 'draft' && client && (
-        <div style={{ marginBottom: '1rem', padding: '0.75rem 1rem', borderRadius: 'var(--radius-md)', background: 'var(--accent-light)', border: '1px solid var(--accent-border)', display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
-          <ExternalLink size={15} color="var(--accent)" style={{ flexShrink: 0 }} />
-          <span style={{ fontSize: '0.85rem', color: 'var(--accent)', fontWeight: 600, flex: 1, minWidth: 0 }}>Az ajánlat látható az ügyfél portálon</span>
-          <div style={{ display: 'flex', gap: '0.4rem', flexShrink: 0 }}>
-            <button type="button" onClick={() => { const url = `${window.location.origin}/clients/${client.id}`; navigator.clipboard.writeText(url).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000); }); }} className="btn btn-secondary btn-sm" style={{ fontSize: '0.78rem' }}>
-              {copied ? <><CheckCircle2 size={13} /> Másolva!</> : <><Copy size={13} /> Link másolása</>}
-            </button>
-            <Link href={`/clients/${client.id}`} target="_blank" className="btn btn-secondary btn-sm" style={{ fontSize: '0.78rem' }}>
-              <ExternalLink size={13} /> Megnyitás
-            </Link>
+        <div style={{ marginBottom: '1rem', padding: '0.75rem 1rem', borderRadius: 'var(--radius-md)', background: 'var(--accent-light)', border: '1px solid var(--accent-border)', display: 'flex', alignItems: 'flex-start', gap: '0.65rem', flexWrap: 'wrap' }}>
+          <ExternalLink size={15} color="var(--accent)" style={{ flexShrink: 0, marginTop: '0.15rem' }} />
+          <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '0.55rem' }}>
+            <span style={{ fontSize: '0.85rem', color: 'var(--accent)', fontWeight: 600 }}>Az ajánlat látható az ügyfél portálon</span>
+            <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+              <button type="button" onClick={() => { const url = `${window.location.origin}/clients/${client.id}`; navigator.clipboard.writeText(url).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000); }); }} className="btn btn-secondary btn-sm" style={{ fontSize: '0.78rem' }}>
+                {copied ? <><CheckCircle2 size={13} /> Másolva!</> : <><Copy size={13} /> Link másolása</>}
+              </button>
+              <Link href={`/clients/${client.id}`} target="_blank" className="btn btn-secondary btn-sm" style={{ fontSize: '0.78rem' }}>
+                <ExternalLink size={13} /> Megnyitás
+              </Link>
+            </div>
           </div>
         </div>
       )}
