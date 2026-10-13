@@ -6,7 +6,7 @@ import { useApp } from '@/context/AppContext';
 import { formatDate, QUOTE_STATUSES } from '@/lib/constants';
 import {
   ChevronLeft, ChevronRight, FolderKanban, FileText,
-  Calendar, List, AlertTriangle
+  Calendar, List
 } from 'lucide-react';
 import PageSpinner from '@/components/PageSpinner';
 
@@ -59,31 +59,8 @@ function buildEvents(projects, quotes, clients, quoteSections, projectRooms) {
         href: `/ajanlatok/${q.id}`,
       });
     }
-    // Per-room dates from quote sections (orange)
-    if (q.status !== 'rejected') {
-      for (const s of (quoteSections || []).filter(s => s.quote_id === q.id && (s.start_date || s.end_date))) {
-        events.push({
-          id: `sec-${s.id}`, title: `${q.title} · ${s.name}`, clientName: null, type: 'quote', status: q.status,
-          start: s.start_date ? toDay(s.start_date) : null,
-          end:   s.end_date   ? toDay(s.end_date)   : null,
-          href: `/ajanlatok/${q.id}`,
-        });
-      }
-    }
   }
   return events;
-}
-
-function hasConflict(events, event) {
-  if (event.type !== 'quote') return false;
-  const qS = event.start, qE = event.end || event.start;
-  if (!qS) return false;
-  return events.some(e => {
-    if (e.type !== 'project') return false;
-    const pS = e.start, pE = e.end || e.start;
-    if (!pS) return false;
-    return qS <= pE && qE >= pS;
-  });
 }
 
 // Assign events in a week to non-overlapping lanes
@@ -142,7 +119,6 @@ function buildMonthData(y, m, events) {
         colEnd:   Math.min(6, diffDays(wStart, eE)),
         startsHere: eS >= wStart,
         endsHere:   eE <= wEnd,
-        conflict:   hasConflict(events, ev),
       });
     }
     sliced.sort((a, b) => a.colStart - b.colStart || (b.colEnd - b.colStart) - (a.colEnd - a.colStart));
@@ -188,8 +164,6 @@ export default function CalendarPage() {
 
   if (loading) return <PageSpinner />;
 
-  const conflictingEvents = events.filter(e => hasConflict(events, e));
-
   // ── RENDER ────────────────────────────────────────────────────────────────
   return (
     <div className="container">
@@ -220,11 +194,6 @@ export default function CalendarPage() {
           <span style={{ width: '28px', height: '10px', borderRadius: '3px', background: 'var(--warning)', display: 'inline-block' }} />
           Ajánlat
         </span>
-        {conflictingEvents.length > 0 && (
-          <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', color: 'var(--danger-text)' }}>
-            <AlertTriangle size={13} /> Ütközés
-          </span>
-        )}
       </div>
 
       {/* ═══ TIMELINE VIEW ═══════════════════════════════════════════════════ */}
@@ -240,7 +209,6 @@ export default function CalendarPage() {
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
             {upcomingEvents.map(event => {
-              const conflict = hasConflict(events, event);
               const isProject = event.type === 'project';
               return (
                 <Link key={event.id} href={event.href} style={{ textDecoration: 'none' }}>
@@ -254,7 +222,6 @@ export default function CalendarPage() {
                         {event.clientName && (
                           <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 600 }}>· {event.clientName}</span>
                         )}
-                        {conflict && <ConflictBadge />}
                       </div>
                       <div style={{ fontSize: '0.775rem', color: 'var(--text-muted)', marginTop: '0.2rem', display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
                         <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
@@ -351,11 +318,11 @@ export default function CalendarPage() {
                         {/* Event bars */}
                         <div style={{ position: 'absolute', top: DAY_NUM_H, left: 0, right: 0, bottom: 0 }}>
                           {lanes.map((lane, laneIdx) =>
-                            lane.map(({ ev, colStart, colEnd, startsHere, endsHere, conflict }) => {
+                            lane.map(({ ev, colStart, colEnd, startsHere, endsHere }) => {
                               const isProject = ev.type === 'project';
-                              const baseColor = conflict ? 'var(--danger)' : (isProject ? 'var(--success)' : 'var(--warning)');
-                              const bgColor   = conflict ? 'var(--danger-bg)' : (isProject ? 'var(--success-bg)' : 'var(--warning-bg)');
-                              const textColor = conflict ? 'var(--danger-text)' : (isProject ? 'var(--success-text)' : 'var(--warning-text)');
+                              const baseColor = isProject ? 'var(--success)' : 'var(--warning)';
+                              const bgColor   = isProject ? 'var(--success-bg)' : 'var(--warning-bg)';
+                              const textColor = isProject ? 'var(--success-text)' : 'var(--warning-text)';
                               const span = colEnd - colStart + 1;
                               const leftPct  = (colStart / 7) * 100;
                               const widthPct = (span / 7) * 100;
@@ -401,7 +368,6 @@ export default function CalendarPage() {
                                       <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                         {ev.title}{ev.clientName ? ` · ${ev.clientName}` : ''}
                                       </span>
-                                      {conflict && <AlertTriangle size={9} style={{ marginLeft: 3, flexShrink: 0 }} />}
                                     </span>
                                   )}
                                 </Link>
@@ -417,20 +383,6 @@ export default function CalendarPage() {
             );
           })}
 
-          {/* Conflict warnings */}
-          {conflictingEvents.length > 0 && (
-            <div style={{ marginTop: '0.5rem', padding: '0.85rem 1rem', borderRadius: 'var(--radius-md)', background: 'var(--danger-bg)', border: '1px solid var(--danger-border)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700, color: 'var(--danger-text)', marginBottom: '0.5rem', fontSize: '0.875rem' }}>
-                <AlertTriangle size={16} /> Ütközési figyelmeztetések
-              </div>
-              {conflictingEvents.map(e => (
-                <div key={e.id} style={{ fontSize: '0.8rem', color: 'var(--danger-text)', marginBottom: '0.2rem' }}>
-                  <Link href={e.href} style={{ fontWeight: 700, color: 'var(--danger-text)' }}>{e.title}</Link>{' '}
-                  ajánlat dátuma ütközik egy megerősített projekttel.
-                </div>
-              ))}
-            </div>
-          )}
         </div>
       )}
     </div>
@@ -449,10 +401,3 @@ function viewBtnStyle(active) {
   };
 }
 
-function ConflictBadge() {
-  return (
-    <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.7rem', fontWeight: 700, color: 'var(--danger-text)', background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', padding: '0.1rem 0.4rem', borderRadius: 'var(--radius-pill)' }}>
-      <AlertTriangle size={10} /> Ütközés!
-    </span>
-  );
-}

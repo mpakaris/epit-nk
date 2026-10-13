@@ -42,7 +42,6 @@ export default function CalendarWidget({ projects: propProjects, quotes: propQuo
   const projects = propProjects ?? ctx.projects;
   const quotes = propQuotes ?? ctx.quotes;
   const clients = propClients ?? ctx.clients;
-  const quoteSections = ctx.quoteSections;
   const projectRooms = ctx.projectRooms;
 
   const today = useMemo(() => { const d = new Date(); d.setHours(0,0,0,0); return d; }, []);
@@ -65,14 +64,9 @@ export default function CalendarWidget({ projects: propProjects, quotes: propQuo
         const client = q.client_id ? clients.find(c => c.id === q.client_id) : null;
         list.push({ id: q.id, title: q.title, clientName: client?.name || null, type: 'quote', status: q.status, start: q.start_date ? toDay(q.start_date) : null, end: q.end_date ? toDay(q.end_date) : null, href: `/ajanlatok/${q.id}` });
       }
-      if (q.status !== 'rejected') {
-        for (const s of (quoteSections || []).filter(s => s.quote_id === q.id && (s.start_date || s.end_date))) {
-          list.push({ id: `sec-${s.id}`, title: `${q.title} · ${s.name}`, clientName: null, type: 'quote', status: q.status, start: s.start_date ? toDay(s.start_date) : null, end: s.end_date ? toDay(s.end_date) : null, href: `/ajanlatok/${q.id}` });
-        }
-      }
     }
     return list;
-  }, [projects, quotes, clients, quoteSections, projectRooms]);
+  }, [projects, quotes, clients, projectRooms]);
 
   const weeks = useMemo(() => {
     const firstDay = new Date(year, month, 1);
