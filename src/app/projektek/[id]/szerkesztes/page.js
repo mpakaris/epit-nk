@@ -327,7 +327,12 @@ export default function ProjectEditPage() {
         )}
 
         <form onSubmit={handleMetaSave}>
-          <EntitySelector value={entityId || project?.entity_id} onChange={setEntityId} memberships={effectiveMemberships} />
+          <EntitySelector
+            value={entityId || project?.entity_id}
+            onChange={setEntityId}
+            memberships={effectiveMemberships}
+            disabled={project?.created_by !== currentUser?.id}
+          />
           <div className="form-group">
             <label className="form-label">Projekt neve *</label>
             <input type="text" required className="form-control" value={name} onChange={e => setName(e.target.value)} />

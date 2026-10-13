@@ -620,7 +620,12 @@ export default function EditQuotePage() {
         </div>
       )}
 
-      <EntitySelector value={entityId || effectiveEntityId} onChange={setEntityId} memberships={effectiveMemberships} />
+      <EntitySelector
+        value={entityId || effectiveEntityId}
+        onChange={setEntityId}
+        memberships={effectiveMemberships}
+        disabled={quote?.created_by !== currentUser?.id}
+      />
 
       <form onSubmit={handleSubmit}>
         {/* ── ALAPADATOK ── */}

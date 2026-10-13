@@ -476,30 +476,38 @@ export default function AdminProjectsClient({
           const memberUsers  = users.filter(u => (project.members || []).includes(u.id));
           const startDate    = project.start_date ? new Date(project.start_date) : null;
           const endDate      = project.end_date   ? new Date(project.end_date)   : null;
-          const isActive     = startDate && endDate && startDate <= today && endDate >= today;
-          const isUpcoming   = startDate && startDate > today;
-          const isPast       = endDate && endDate < today;
+          const isClosed     = !!project.closed_at;
+          const isActive     = !isClosed && startDate && endDate && startDate <= today && endDate >= today;
+          const isUpcoming   = !isClosed && startDate && startDate > today;
+          const isOverdue    = !isClosed && endDate && endDate < today;
+
+          const pillStyle = (bg, color, border) => ({
+            fontSize: '0.68rem', fontWeight: 700, whiteSpace: 'nowrap',
+            background: bg, color, border: `1px solid ${border}`,
+            padding: '0.15rem 0.45rem', borderRadius: 'var(--radius-pill)',
+          });
 
           return (
             <div
               key={project.id}
               className="card card-interactive"
               onClick={() => router.push(`/admin/projektek/${project.id}`)}
-              style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', cursor: 'pointer', justifyContent: 'space-between' }}
+              style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', cursor: 'pointer', justifyContent: 'space-between', opacity: isClosed ? 0.7 : 1 }}
             >
               <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.5rem', marginBottom: '0.2rem' }}>
-                  <h3 style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--text-primary)', lineHeight: 1.3 }}>{project.name}</h3>
-                  <div style={{ display: 'flex', gap: '0.3rem', flexWrap: 'wrap', flexShrink: 0, alignItems: 'center' }}>
-                    {creator && (
-                      <span style={{ fontSize: '0.68rem', fontWeight: 700, whiteSpace: 'nowrap', background: 'var(--accent-light)', color: 'var(--accent)', border: '1px solid var(--accent-border)', padding: '0.15rem 0.45rem', borderRadius: 'var(--radius-pill)', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
-                        <UserCheck size={10} />{creator.display_name}
-                      </span>
-                    )}
-                    {isActive   && <span style={{ fontSize: '0.68rem', fontWeight: 700, whiteSpace: 'nowrap', background: 'var(--success-bg)', color: 'var(--success-text)', border: '1px solid var(--success-border)', padding: '0.15rem 0.45rem', borderRadius: 'var(--radius-pill)' }}>Folyamatban</span>}
-                    {isUpcoming && <span style={{ fontSize: '0.68rem', fontWeight: 700, whiteSpace: 'nowrap', background: 'var(--warning-bg)', color: 'var(--warning-text)', border: '1px solid var(--warning-border)', padding: '0.15rem 0.45rem', borderRadius: 'var(--radius-pill)' }}>Közelgő</span>}
-                    {isPast     && <span style={{ fontSize: '0.68rem', fontWeight: 700, whiteSpace: 'nowrap', background: 'var(--bg-subtle)', color: 'var(--text-muted)', border: '1px solid var(--border-subtle)', padding: '0.15rem 0.45rem', borderRadius: 'var(--radius-pill)' }}>Lezárt</span>}
-                  </div>
+                {/* Title — always full width, first */}
+                <h3 style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--text-primary)', lineHeight: 1.3, marginBottom: '0.3rem' }}>{project.name}</h3>
+                {/* Pills row — below title */}
+                <div style={{ display: 'flex', gap: '0.3rem', flexWrap: 'wrap', marginBottom: '0.3rem' }}>
+                  {creator && (
+                    <span style={{ ...pillStyle('var(--accent-light)', 'var(--accent)', 'var(--accent-border)'), display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                      <UserCheck size={10} />{creator.display_name}
+                    </span>
+                  )}
+                  {isClosed   && <span style={pillStyle('var(--bg-subtle)', 'var(--text-muted)', 'var(--border-subtle)')}>Lezárt</span>}
+                  {isActive   && <span style={pillStyle('var(--success-bg)', 'var(--success-text)', 'var(--success-border)')}>Folyamatban</span>}
+                  {isUpcoming && <span style={pillStyle('var(--warning-bg)', 'var(--warning-text)', 'var(--warning-border)')}>Közelgő</span>}
+                  {isOverdue  && <span style={pillStyle('var(--danger-bg)', 'var(--danger-text)', 'var(--danger-border)')}>Lejárt</span>}
                 </div>
                 {client && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
@@ -514,7 +522,7 @@ export default function AdminProjectsClient({
               </div>
 
               {(startDate || endDate) && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.775rem', color: isActive ? 'var(--success-text)' : isUpcoming ? 'var(--warning-text)' : 'var(--text-muted)', fontWeight: 600 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.775rem', color: isActive ? 'var(--success-text)' : isUpcoming ? 'var(--warning-text)' : isOverdue ? 'var(--danger-text)' : 'var(--text-muted)', fontWeight: 600 }}>
                   <Calendar size={13} />
                   <span>{startDate ? startDate.toLocaleDateString('hu-HU', { month: 'short', day: 'numeric' }) : '?'} – {endDate ? endDate.toLocaleDateString('hu-HU', { month: 'short', day: 'numeric', year: 'numeric' }) : '?'}</span>
                 </div>

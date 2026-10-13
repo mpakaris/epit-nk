@@ -799,6 +799,8 @@ export default function ProjectDetailClient({
     deleteInvoice: ctxDeleteInvoice,
     deleteLabourEntry: ctxDeleteLabourEntry,
     deleteProject: ctxDeleteProject,
+    closeProject: ctxCloseProject,
+    reopenProject: ctxReopenProject,
     updateInvoice: ctxUpdateInvoice,
     updateLabourEntry: ctxUpdateLabourEntry,
     quotes,
@@ -881,7 +883,7 @@ export default function ProjectDetailClient({
     return true;
   });
 
-  const canDeleteProject = isAdmin || project.created_by === currentUser?.id;
+  const canManageProject = isAdmin || project.created_by === currentUser?.id;
 
   const handleDeleteProject = () => {
     setConfirmModal({
@@ -895,6 +897,23 @@ export default function ProjectDetailClient({
         }
       }
     });
+  };
+
+  const isClosed = !!project.closed_at;
+
+  const handleCloseProject = () => {
+    setConfirmModal({
+      message: `Lezárja a(z) „${project.name}" projektet? A lezárt projekt újra megnyitható.`,
+      onConfirm: async () => {
+        try { await ctxCloseProject(project.id); }
+        catch (err) { setAlertModal({ message: err.message || 'Hiba a lezáráskor' }); }
+      }
+    });
+  };
+
+  const handleReopenProject = async () => {
+    try { await ctxReopenProject(project.id); }
+    catch (err) { setAlertModal({ message: err.message || 'Hiba a megnyitáskor' }); }
   };
 
   const handleDeleteInvoice = (invId) => {
@@ -990,16 +1009,33 @@ export default function ProjectDetailClient({
                 <ShieldCheck size={15} /> Adminisztrátori nézet
               </div>
             )}
-            <h1 className="page-title">{project.name}</h1>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <h1 className="page-title" style={{ margin: 0 }}>{project.name}</h1>
+              {isClosed && (
+                <span style={{ fontSize: '0.72rem', fontWeight: 700, background: 'var(--bg-subtle)', color: 'var(--text-muted)', border: '1px solid var(--border-subtle)', padding: '0.2rem 0.55rem', borderRadius: 'var(--radius-pill)', whiteSpace: 'nowrap' }}>
+                  Lezárt
+                </span>
+              )}
+            </div>
             <p className="page-subtitle">{project.description || 'Nincs megadott leírás'}</p>
           </div>
           <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-            {isAdmin && (
-              <Link href={`/projektek/${project.id}/szerkesztes`} className="btn btn-secondary btn-sm">
+            {canManageProject && (
+              <Link href={`/projektek/${project.id}/szerkesztes`} className="btn btn-primary btn-sm">
                 <Edit3 size={14} /> Szerkesztés
               </Link>
             )}
-            {canDeleteProject && (
+            {canManageProject && !isClosed && (
+              <button type="button" onClick={handleCloseProject} className="btn btn-secondary btn-sm">
+                Lezárás
+              </button>
+            )}
+            {canManageProject && isClosed && (
+              <button type="button" onClick={handleReopenProject} className="btn btn-secondary btn-sm">
+                Megnyitás
+              </button>
+            )}
+            {canManageProject && (
               <button type="button" onClick={handleDeleteProject} className="btn btn-danger btn-sm">
                 <Trash2 size={14} /> Törlés
               </button>

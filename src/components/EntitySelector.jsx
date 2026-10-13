@@ -2,7 +2,7 @@
 
 import { Layers, ChevronDown } from 'lucide-react';
 
-export default function EntitySelector({ value, onChange, memberships, label = 'Kontextus' }) {
+export default function EntitySelector({ value, onChange, memberships, label = 'Kontextus', disabled = false }) {
   if (!memberships || memberships.length <= 1) return null;
 
   const sorted = [...memberships].sort((a, b) =>
@@ -19,7 +19,9 @@ export default function EntitySelector({ value, onChange, memberships, label = '
         <select
           className="entity-selector-select"
           value={value || ''}
-          onChange={e => onChange(e.target.value)}
+          onChange={disabled ? undefined : e => onChange(e.target.value)}
+          disabled={disabled}
+          style={disabled ? { opacity: 0.6, cursor: 'default', pointerEvents: 'none' } : undefined}
         >
           {sorted.map(m => (
             <option key={m.entity_id} value={m.entity_id}>
@@ -27,7 +29,7 @@ export default function EntitySelector({ value, onChange, memberships, label = '
             </option>
           ))}
         </select>
-        <ChevronDown size={13} className="entity-selector-chevron" />
+        {!disabled && <ChevronDown size={13} className="entity-selector-chevron" />}
       </div>
     </div>
   );

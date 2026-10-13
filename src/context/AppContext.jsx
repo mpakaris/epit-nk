@@ -676,6 +676,16 @@ export function AppProvider({ children }) {
     setProjects(prev => prev.map(p => p.id === projectId ? { ...p, members: memberIds } : p));
   };
 
+  const closeProject = async (projectId) => {
+    if (!isAdmin) throw new Error('Csak adminisztrátor zárhat le projektet!');
+    return updateProject(projectId, { closed_at: new Date().toISOString() });
+  };
+
+  const reopenProject = async (projectId) => {
+    if (!isAdmin) throw new Error('Csak adminisztrátor nyithat meg projektet!');
+    return updateProject(projectId, { closed_at: null });
+  };
+
   const deleteProject = async (projectId) => {
     const project = projects.find(p => p.id === projectId);
     const isCreator = project?.created_by === effectiveUser?.id;
@@ -1329,6 +1339,8 @@ export function AppProvider({ children }) {
         // Projects
         createProject,
         updateProject,
+        closeProject,
+        reopenProject,
         updateProjectMembers,
         deleteProject,
         // Clients

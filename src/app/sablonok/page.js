@@ -95,7 +95,7 @@ export default function TemplatesPage() {
               </div>
               {isAdmin && (
                 <div style={{ display: 'flex', gap: '0.4rem', flexShrink: 0 }}>
-                  <Link href={`/sablonok/${tpl.id}/szerkesztes`} className="btn btn-secondary btn-sm">
+                  <Link href={`/sablonok/${tpl.id}/szerkesztes`} className="btn btn-primary btn-sm">
                     <Edit3 size={13} />
                   </Link>
                   <button

@@ -57,10 +57,19 @@ export async function PATCH(request, { params }) {
   }
 
   const fields = await request.json();
-  // shared members can only update shared_with list; admins can update everything
-  const allowed = ['admin', 'superadmin'].includes(ctx.profile.role)
-    ? ['title', 'notes', 'date', 'location', 'client_id', 'shared_with']
-    : ['shared_with'];
+  const isAdmin = ['admin', 'superadmin'].includes(ctx.profile.role);
+  const isCreator = ctx.survey.created_by === ctx.user.id;
+
+  // entity_id may only be changed by admins or the original creator
+  if ('entity_id' in fields && !isAdmin && !isCreator) {
+    return Response.json({ error: 'Csak a létrehozó vagy adminisztrátor változtathat entitást.' }, { status: 403 });
+  }
+
+  const allowed = isAdmin
+    ? ['title', 'notes', 'date', 'location', 'client_id', 'shared_with', 'entity_id']
+    : isCreator
+      ? ['shared_with', 'entity_id']
+      : ['shared_with'];
   const update = {};
   for (const k of allowed) if (k in fields) update[k] = fields[k];
 

@@ -155,7 +155,7 @@ export default function SurveyDetailPage() {
           <h1 className="page-title" style={{ marginBottom: 0 }}>{survey.title}</h1>
           <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
             {canEdit && (
-              <Link href={`/felmeres/${id}/szerkesztes`} className="btn btn-secondary btn-sm">
+              <Link href={`/felmeres/${id}/szerkesztes`} className="btn btn-primary btn-sm">
                 <Edit3 size={14} /> Szerkesztés
               </Link>
             )}

@@ -29,9 +29,18 @@ export async function PATCH(request, { params }) {
   if (ctx.err) return Response.json({ error: ctx.err }, { status: ctx.status });
 
   const fields = await request.json();
+  const isAdmin = ['admin', 'superadmin'].includes(ctx.profile.role);
+  const isCreator = ctx.quote.created_by === ctx.user.id;
+
+  // entity_id may only be changed by admins or the original creator
+  if ('entity_id' in fields && !isAdmin && !isCreator) {
+    return Response.json({ error: 'Csak a létrehozó vagy adminisztrátor változtathat entitást.' }, { status: 403 });
+  }
+
   const allowed = ['title', 'location', 'work_type', 'description', 'start_date', 'end_date',
                    'status', 'client_id', 'shared_with', 'tax_percent', 'survey_id',
-                   'updated_at', 'updated_by_name'];
+                   'updated_at', 'updated_by_name',
+                   ...(isAdmin || isCreator ? ['entity_id'] : [])];
   const update = {};
   for (const k of allowed) if (k in fields) update[k] = fields[k];
 
