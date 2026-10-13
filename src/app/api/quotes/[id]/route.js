@@ -30,7 +30,8 @@ export async function PATCH(request, { params }) {
 
   const fields = await request.json();
   const allowed = ['title', 'location', 'work_type', 'description', 'start_date', 'end_date',
-                   'status', 'client_id', 'shared_with', 'tax_percent'];
+                   'status', 'client_id', 'shared_with', 'tax_percent',
+                   'updated_at', 'updated_by_name'];
   const update = {};
   for (const k of allowed) if (k in fields) update[k] = fields[k];
 

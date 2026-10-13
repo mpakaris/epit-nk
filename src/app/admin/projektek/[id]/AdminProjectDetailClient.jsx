@@ -641,7 +641,7 @@ export default function AdminProjectDetailClient({
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(300px, 100%), 1fr))', gap: '0.85rem' }}>
               {fin.projectInvoices.map(inv => (
-                <InvoiceCard key={inv.id} invoice={inv} isAdmin={true} onEdit={handleOpenEdit} onDelete={handleDelete} />
+                <InvoiceCard key={inv.id} invoice={inv} onClick={() => handleOpenEdit(inv)} />
               ))}
             </div>
           )}

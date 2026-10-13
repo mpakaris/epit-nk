@@ -45,7 +45,7 @@ export async function POST(request) {
   }
 
   const body = await request.json();
-  const { title, notes, date, location, client_id, entity_id: bodyEntityId } = body;
+  const { title, notes, date, location, client_id, entity_id: bodyEntityId, shared_with = [] } = body;
 
   if (!title?.trim()) return Response.json({ error: 'A cím kötelező' }, { status: 400 });
 
@@ -61,6 +61,7 @@ export async function POST(request) {
     date: date || null,
     location: location?.trim() || null,
     created_by: ctx.profile.id,
+    shared_with: Array.isArray(shared_with) ? shared_with : [],
   }]).select().single();
 
   if (insertErr) return Response.json({ error: insertErr.message }, { status: 500 });

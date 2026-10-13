@@ -11,7 +11,7 @@ export async function DELETE(request) {
 
     const adminClient = createAdminClient();
     const { data: callerProfile } = await adminClient
-      .from('profiles').select('role, entity_id').eq('id', caller.id).single();
+      .from('profiles').select('role, entity_id, display_name').eq('id', caller.id).single();
 
     if (!callerProfile || !['admin', 'superadmin'].includes(callerProfile.role))
       return NextResponse.json({ error: 'Nincs jogosultsága!' }, { status: 403 });
@@ -19,40 +19,86 @@ export async function DELETE(request) {
     const { userId } = await request.json();
     if (!userId) return NextResponse.json({ error: 'Felhasználó azonosító kötelező!' }, { status: 400 });
 
+    if (userId === caller.id)
+      return NextResponse.json({ error: 'Saját fiókját nem törölheti!' }, { status: 400 });
+
     const { data: targetProfile } = await adminClient
       .from('profiles').select('role, entity_id, display_name').eq('id', userId).single();
 
     if (!targetProfile) return NextResponse.json({ error: 'A felhasználó nem található!' }, { status: 404 });
 
-    // Superadmin can delete anyone except other superadmins
     if (callerProfile.role === 'superadmin') {
       if (targetProfile.role === 'superadmin')
-        return NextResponse.json({ error: 'Superadmin nem törölhető!' }, { status: 403 });
+        return NextResponse.json({ error: 'Superadmin nem távolítható el!' }, { status: 403 });
     } else {
-      // Entity admin can only delete users in their own entity (and not admins)
       if (targetProfile.entity_id !== callerProfile.entity_id)
-        return NextResponse.json({ error: 'Nincs jogosultsága más entitás felhasználójának törléséhez!' }, { status: 403 });
+        return NextResponse.json({ error: 'Nincs jogosultsága más entitás felhasználójához!' }, { status: 403 });
       if (targetProfile.role === 'admin')
-        return NextResponse.json({ error: 'Admin fiókot csak Superadmin törölhet!' }, { status: 403 });
+        return NextResponse.json({ error: 'Admin fiókot csak Superadmin távolíthat el!' }, { status: 403 });
     }
 
-    if (userId === caller.id)
-      return NextResponse.json({ error: 'Saját fiókját nem törölheti!' }, { status: 400 });
+    // ── Find all projects this user is a member of ────────────────────────────
+    const { data: memberships } = await adminClient
+      .from('project_members')
+      .select('project_id')
+      .eq('user_id', userId);
 
-    const { error } = await adminClient.auth.admin.deleteUser(userId);
-    if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+    const projectIds = (memberships || []).map(m => m.project_id);
+
+    // For each project count how many members it has
+    const soloProjectIds = [];
+    const sharedProjectIds = [];
+
+    if (projectIds.length > 0) {
+      const { data: allMemberships } = await adminClient
+        .from('project_members')
+        .select('project_id')
+        .in('project_id', projectIds);
+
+      const memberCountByProject = {};
+      for (const row of (allMemberships || [])) {
+        memberCountByProject[row.project_id] = (memberCountByProject[row.project_id] || 0) + 1;
+      }
+
+      for (const pid of projectIds) {
+        if ((memberCountByProject[pid] || 1) <= 1) soloProjectIds.push(pid);
+        else sharedProjectIds.push(pid);
+      }
+    }
+
+    // ── Delete solo projects (invoices + labour cascade automatically) ─────────
+    if (soloProjectIds.length > 0) {
+      await adminClient.from('projects').delete().in('id', soloProjectIds);
+    }
+
+    // ── Soft-delete the profile ───────────────────────────────────────────────
+    await adminClient
+      .from('profiles')
+      .update({ deleted_at: new Date().toISOString() })
+      .eq('id', userId);
+
+    // ── Ban the auth user (prevents login) ───────────────────────────────────
+    await adminClient.auth.admin.updateUserById(userId, { ban_duration: '876000h' });
 
     logAudit({
       entityId: targetProfile.entity_id,
       userId: caller.id,
       userName: callerProfile.display_name || caller.email,
-      action: 'Felhasználó törölve',
+      action: 'Tag kiléptetése',
       targetType: 'user',
       targetId: userId,
       targetName: targetProfile.display_name,
+      details: {
+        soloProjectsDeleted: soloProjectIds.length,
+        sharedProjectsKept: sharedProjectIds.length,
+      },
     });
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({
+      success: true,
+      soloProjectsDeleted: soloProjectIds.length,
+      sharedProjectsKept: sharedProjectIds.length,
+    });
   } catch (err) {
     console.error('Error in delete-user route:', err);
     return NextResponse.json({ error: err.message || 'Szerverhiba történt' }, { status: 500 });

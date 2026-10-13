@@ -192,6 +192,7 @@ export function AppProvider({ children }) {
           setClients(d.clients);
           setQuotes(d.quotes);
           setQuoteEntries(d.quoteEntries);
+          setQuoteSections(d.quoteSections || []);
           setDataReady(true);
         }
         return;
@@ -389,7 +390,11 @@ export function AppProvider({ children }) {
     const resData = await res.json();
     if (!res.ok) throw new Error(resData.error || 'Hiba a törléskor');
 
-    setUsers(prev => prev.filter(u => u.id !== userId));
+    // Soft-delete: keep user in state so project settlement maths stay intact,
+    // but mark them as departed so the UI can show the "Kilépett" badge.
+    setUsers(prev => prev.map(u =>
+      u.id === userId ? { ...u, deleted_at: new Date().toISOString() } : u
+    ));
   };
 
   const resetUserPassword = async (userId, temporaryPassword = 'Epitek2026!') => {
@@ -423,7 +428,7 @@ export function AppProvider({ children }) {
 
   // ---- Invoices ---------------------------------------------------------------
 
-  const createInvoice = async ({ projectId, valueHuf, category, description, imageUrl, storagePath, ocrSuggestedValue, roomId }) => {
+  const createInvoice = async ({ projectId, valueHuf, category, description, imageUrl, storagePath, ocrSuggestedValue, roomId, aiLineItems, aiTotal }) => {
     if (!effectiveUser) throw new Error('Bejelentkezés szükséges!');
 
     const { data, error } = await supabase
@@ -439,6 +444,8 @@ export function AppProvider({ children }) {
         image_url: imageUrl || '',
         storage_path: storagePath || '',
         room_id: roomId || null,
+        ai_line_items: aiLineItems && aiLineItems.length > 0 ? aiLineItems : null,
+        ai_total: aiTotal ? Number(aiTotal) : null,
       }])
       .select()
       .single();
@@ -469,9 +476,19 @@ export function AppProvider({ children }) {
   const deleteInvoice = async (invoiceId) => {
     if (!isAdmin) throw new Error('Csak adminisztrátor törölhet számlát!');
 
-    const { error } = await supabase.from('invoices').delete().eq('id', invoiceId);
+    const now = new Date().toISOString();
+    const deletedByName = effectiveUser?.display_name || 'Ismeretlen';
+
+    const { error } = await supabase
+      .from('invoices')
+      .update({ deleted_at: now, deleted_by_name: deletedByName })
+      .eq('id', invoiceId);
     if (error) throw error;
-    setInvoices(prev => prev.filter(inv => inv.id !== invoiceId));
+
+    // Keep in state so admin views can show deletion history; mark as deleted
+    setInvoices(prev => prev.map(inv =>
+      inv.id === invoiceId ? { ...inv, deleted_at: now, deleted_by_name: deletedByName } : inv
+    ));
     auditLog('Számla törölve', { entityId: effectiveEntityId, targetType: 'invoice', targetId: invoiceId });
   };
 
@@ -594,7 +611,9 @@ export function AppProvider({ children }) {
   };
 
   const deleteProject = async (projectId) => {
-    if (!isAdmin) throw new Error('Csak adminisztrátor törölhet projektet!');
+    const project = projects.find(p => p.id === projectId);
+    const isCreator = project?.created_by === effectiveUser?.id;
+    if (!isAdmin && !isCreator) throw new Error('Nincs jogosultsága törölni ezt a projektet!');
     const res = await fetch(`/api/projects/${projectId}`, { method: 'DELETE' });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Hiba a projekt törlésekor');
@@ -691,12 +710,12 @@ export function AppProvider({ children }) {
 
   // ---- Surveys ----------------------------------------------------------------
 
-  const createSurvey = async ({ title, notes, date, location, clientId, entityId: entityIdOverride }) => {
+  const createSurvey = async ({ title, notes, date, location, clientId, sharedWith = [], entityId: entityIdOverride }) => {
     if (!isAdmin) throw new Error('Csak adminisztrátor hozhat létre felmérést!');
     const res = await fetch('/api/surveys', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title, notes, date: date || null, location, client_id: clientId || null, entity_id: entityIdOverride || effectiveEntityId }),
+      body: JSON.stringify({ title, notes, date: date || null, location, client_id: clientId || null, entity_id: entityIdOverride || effectiveEntityId, shared_with: sharedWith }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Hiba a felmérés létrehozásakor');
@@ -737,7 +756,9 @@ export function AppProvider({ children }) {
   };
 
   const uploadSurveyMedia = async (surveyId, files, { entryId = null, mediaType = 'photo' } = {}) => {
-    if (!isAdmin) throw new Error('Csak adminisztrátor tölthet fel médiát!');
+    const survey = surveys.find(s => s.id === surveyId);
+    const isShared = (survey?.shared_with || []).includes(effectiveUser?.id);
+    if (!isAdmin && !isShared) throw new Error('Nincs jogosultsága!');
     const formData = new FormData();
     for (const file of files) formData.append('files', file);
     formData.append('survey_id', surveyId);
@@ -768,7 +789,9 @@ export function AppProvider({ children }) {
   };
 
   const deleteSurveyMedia = async (mediaId, surveyId, entryId = null, mediaType = 'photo') => {
-    if (!isAdmin) throw new Error('Csak adminisztrátor törölhet médiát!');
+    const survey = surveys.find(s => s.id === surveyId);
+    const isShared = (survey?.shared_with || []).includes(effectiveUser?.id);
+    if (!isAdmin && !isShared) throw new Error('Nincs jogosultsága!');
     const res = await fetch(`/api/surveys/${surveyId}/media/${mediaId}`, { method: 'DELETE' });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Hiba a média törlésekor');
@@ -808,7 +831,9 @@ export function AppProvider({ children }) {
   };
 
   const updateSurveyEntry = async (surveyId, entryId, fields) => {
-    if (!isAdmin) throw new Error('Csak adminisztrátor módosíthat helyiséget!');
+    const survey = surveys.find(s => s.id === surveyId);
+    const isShared = (survey?.shared_with || []).includes(effectiveUser?.id);
+    if (!isAdmin && !isShared) throw new Error('Nincs jogosultsága!');
     const res = await fetch(`/api/surveys/${surveyId}/entries/${entryId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
@@ -826,7 +851,9 @@ export function AppProvider({ children }) {
   };
 
   const deleteSurveyEntry = async (surveyId, entryId) => {
-    if (!isAdmin) throw new Error('Csak adminisztrátor törölhet helyiséget!');
+    const survey = surveys.find(s => s.id === surveyId);
+    const isShared = (survey?.shared_with || []).includes(effectiveUser?.id);
+    if (!isAdmin && !isShared) throw new Error('Nincs jogosultsága!');
     const res = await fetch(`/api/surveys/${surveyId}/entries/${entryId}`, { method: 'DELETE' });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Hiba a törléskor');
@@ -880,7 +907,11 @@ export function AppProvider({ children }) {
     const res = await fetch(`/api/quotes/${quoteId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(fields),
+      body: JSON.stringify({
+        ...fields,
+        updated_at: new Date().toISOString(),
+        updated_by_name: effectiveUser?.display_name || null,
+      }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Hiba az ajánlat módosításakor');
@@ -984,6 +1015,7 @@ export function AppProvider({ children }) {
       amount_huf: Number(amountHuf),
       notes: notes || '',
       section_id: sectionId || null,
+      created_by_name: effectiveUser.display_name || null,
     };
 
     const { data, error } = await supabase.from('quote_entries').insert([payload]).select().single();

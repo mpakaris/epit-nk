@@ -11,15 +11,16 @@ export async function DELETE(request, { params }) {
 
   const admin = createAdminClient();
   const { data: profile } = await admin.from('profiles').select('id, role, entity_id').eq('id', user.id).single();
-  if (!profile || !['admin', 'superadmin'].includes(profile.role)) {
-    return Response.json({ error: 'Forbidden' }, { status: 403 });
-  }
+  if (!profile) return Response.json({ error: 'Forbidden' }, { status: 403 });
 
-  const { data: survey } = await admin.from('surveys').select('entity_id').eq('id', surveyId).single();
+  const { data: survey } = await admin.from('surveys').select('entity_id, shared_with').eq('id', surveyId).single();
   if (!survey) return Response.json({ error: 'Not found' }, { status: 404 });
   if (profile.role !== 'superadmin' && survey.entity_id !== profile.entity_id) {
     return Response.json({ error: 'Forbidden' }, { status: 403 });
   }
+  const isAdmin = ['admin', 'superadmin'].includes(profile.role);
+  const isSharedMember = (survey.shared_with || []).includes(profile.id);
+  if (!isAdmin && !isSharedMember) return Response.json({ error: 'Forbidden' }, { status: 403 });
 
   const { data: media } = await admin
     .from('survey_media')

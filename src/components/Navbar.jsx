@@ -79,8 +79,8 @@ export default function Navbar() {
                 </Link>
               ) : isAdmin ? (
                 <>
-                  <Link href="/admin" className={`nav-item ${pathname === '/admin' ? 'active' : ''}`}>
-                    <LayoutDashboard size={16} /><span>Áttekintés</span>
+                  <Link href="/projektek" className={`nav-item ${pathname === '/projektek' || pathname === '/admin' ? 'active' : ''}`}>
+                    <LayoutDashboard size={16} /><span>Dashboard</span>
                   </Link>
                   <Link href="/admin/projektek" className={`nav-item ${pathname.startsWith('/admin/projektek') ? 'active' : ''}`}>
                     <FolderKanban size={16} /><span>Projektek</span>
@@ -96,9 +96,6 @@ export default function Navbar() {
                   </Link>
                   <Link href="/naptar" className={`nav-item ${pathname.startsWith('/naptar') ? 'active' : ''}`}>
                     <Calendar size={16} /><span>Naptár</span>
-                  </Link>
-                  <Link href="/projektek" className={`nav-item ${pathname.startsWith('/projektek') ? 'active' : ''}`}>
-                    <User size={16} /><span>Tagi nézet</span>
                   </Link>
                 </>
               ) : (
@@ -172,7 +169,7 @@ export default function Navbar() {
         <nav className="mobile-bottom-nav">
           {isAdmin ? (
             <>
-              <Link href="/admin" className={`mobile-nav-link ${pathname === '/admin' ? 'active' : ''}`}><LayoutDashboard size={20} /><span>Áttekintés</span></Link>
+              <Link href="/projektek" className={`mobile-nav-link ${pathname === '/projektek' || pathname === '/admin' ? 'active' : ''}`}><LayoutDashboard size={20} /><span>Dashboard</span></Link>
               <Link href="/admin/projektek" className={`mobile-nav-link ${pathname.startsWith('/admin/projektek') ? 'active' : ''}`}><FolderKanban size={20} /><span>Projektek</span></Link>
               <Link href="/ajanlatok" className={`mobile-nav-link ${pathname.startsWith('/ajanlatok') ? 'active' : ''}`}><FileText size={20} /><span>Ajánlatok</span></Link>
               <Link href="/naptar" className={`mobile-nav-link ${pathname.startsWith('/naptar') ? 'active' : ''}`}><Calendar size={20} /><span>Naptár</span></Link>

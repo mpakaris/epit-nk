@@ -18,7 +18,8 @@ async function getCallerAndSurvey(id) {
     return { err: 'Forbidden', status: 403 };
   }
 
-  return { user, profile, admin, survey };
+  const isSharedMember = (survey.shared_with || []).includes(profile.id);
+  return { user, profile, admin, survey, isSharedMember };
 }
 
 export async function GET(request, { params }) {
@@ -51,12 +52,15 @@ export async function PATCH(request, { params }) {
   const ctx = await getCallerAndSurvey(id);
   if (ctx.err) return Response.json({ error: ctx.err }, { status: ctx.status });
 
-  if (!['admin', 'superadmin'].includes(ctx.profile.role)) {
+  if (!['admin', 'superadmin'].includes(ctx.profile.role) && !ctx.isSharedMember) {
     return Response.json({ error: 'Forbidden' }, { status: 403 });
   }
 
   const fields = await request.json();
-  const allowed = ['title', 'notes', 'date', 'location', 'client_id'];
+  // shared members can only update shared_with list; admins can update everything
+  const allowed = ['admin', 'superadmin'].includes(ctx.profile.role)
+    ? ['title', 'notes', 'date', 'location', 'client_id', 'shared_with']
+    : ['shared_with'];
   const update = {};
   for (const k of allowed) if (k in fields) update[k] = fields[k];
 

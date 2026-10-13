@@ -22,6 +22,7 @@ export async function GET() {
     { data: clients },
     { data: quotes },
     { data: quoteEntries },
+    { data: quoteSections },
   ] = await Promise.all([
     admin.from('entities').select('*').order('name'),
     admin.from('profiles').select('*').order('display_name'),
@@ -32,6 +33,7 @@ export async function GET() {
     admin.from('clients').select('*').order('name'),
     admin.from('quotes').select('*').order('created_at', { ascending: false }),
     admin.from('quote_entries').select('*').order('created_at'),
+    admin.from('quote_sections').select('*').order('sort_order').order('created_at'),
   ]);
 
   // Attach members to projects (same shape as the browser query)
@@ -49,5 +51,6 @@ export async function GET() {
     clients:       clients       || [],
     quotes:        quotes        || [],
     quoteEntries:  quoteEntries  || [],
+    quoteSections: quoteSections || [],
   });
 }

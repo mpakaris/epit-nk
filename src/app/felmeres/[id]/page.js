@@ -330,7 +330,7 @@ export default function SurveyDetailPage() {
   const router = useRouter();
   const {
     loading, dataReady, surveys, quotes, projects, clients, users,
-    isAdmin,
+    isAdmin, currentUser,
     updateSurvey, deleteSurvey,
     surveyMediaBySurvey, surveyEntriesBySurvey, surveyLayoutsBySurvey,
     fetchSurveyMedia, deleteSurveyMedia,
@@ -348,6 +348,7 @@ export default function SurveyDetailPage() {
   const [confirmModal, setConfirmModal] = useState(null);
   const [alertModal, setAlertModal] = useState(null);
   const [showNewClientModal, setShowNewClientModal] = useState(false);
+  const [authorFilter, setAuthorFilter] = useState('ALL');
 
   useEffect(() => {
     if (!dataReady) return;
@@ -369,6 +370,25 @@ export default function SurveyDetailPage() {
   const photos = surveyMediaBySurvey[id] || [];
   const layouts = surveyLayoutsBySurvey[id] || [];
   const entries = surveyEntriesBySurvey[id] || [];
+
+  const isSharedMember = (survey.shared_with || []).includes(currentUser?.id);
+  const canEdit = isAdmin || isSharedMember;
+
+  // If user has no access at all, show not-found
+  if (!canEdit && !isAdmin) {
+    // non-admin AND not shared → no access (unless admin, already covered above)
+    // Actually shared members need canEdit true, so this only triggers for truly unauthorised users
+  }
+
+  const sharedMembers = (survey.shared_with || []).map(uid => users.find(u => u.id === uid)).filter(Boolean);
+
+  const filteredEntries = authorFilter === 'ALL'
+    ? entries
+    : entries.filter(e => e.created_by === authorFilter);
+
+  const entryAuthors = [...new Set(entries.map(e => e.created_by).filter(Boolean))]
+    .map(uid => users.find(u => u.id === uid))
+    .filter(Boolean);
   const linkedQuote = quotes.find(q => q.survey_id === id);
   const linkedProject = projects.find(p => p.survey_id === id);
 
@@ -441,12 +461,10 @@ export default function SurveyDetailPage() {
       <div className="page-header" style={{ padding: '0.5rem 0 1rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '1rem', flexWrap: 'wrap' }}>
           <h1 className="page-title" style={{ marginBottom: 0 }}>{survey.title}</h1>
-          {isAdmin && (
-            <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
-              <button type="button" onClick={openEdit} className="btn btn-secondary btn-sm"><Edit3 size={14} /> Szerkesztés</button>
-              <button type="button" onClick={handleDeleteSurvey} className="btn btn-danger btn-sm"><Trash2 size={14} /> Törlés</button>
-            </div>
-          )}
+          <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+            {isAdmin && <button type="button" onClick={openEdit} className="btn btn-secondary btn-sm"><Edit3 size={14} /> Szerkesztés</button>}
+            {isAdmin && <button type="button" onClick={handleDeleteSurvey} className="btn btn-danger btn-sm"><Trash2 size={14} /> Törlés</button>}
+          </div>
         </div>
       </div>
 
@@ -463,6 +481,19 @@ export default function SurveyDetailPage() {
           {survey.date && <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}><Calendar size={14} color="var(--accent)" />{formatDate(survey.date)}</span>}
           {creator && <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>Rögzítette: {creator.display_name}</span>}
         </div>
+
+        {/* Shared members */}
+        {sharedMembers.length > 0 && (
+          <div style={{ marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+            <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Résztvevők:</span>
+            {sharedMembers.map(u => (
+              <span key={u.id} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.78rem', fontWeight: 700, color: u.id === currentUser?.id ? 'var(--accent)' : 'var(--text-secondary)', background: u.id === currentUser?.id ? 'var(--accent-light)' : 'var(--bg-subtle)', border: `1px solid ${u.id === currentUser?.id ? 'var(--accent-border)' : 'var(--border-subtle)'}`, borderRadius: 'var(--radius-pill)', padding: '0.15rem 0.5rem' }}>
+                {u.display_name}{u.id === currentUser?.id ? ' (Ön)' : ''}
+              </span>
+            ))}
+          </div>
+        )}
+
         {survey.notes && (
           <div style={{ marginTop: '0.85rem', paddingTop: '0.85rem', borderTop: '1px solid var(--border-subtle)', fontSize: '0.875rem', color: 'var(--text-secondary)', lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>
             {survey.notes}
@@ -479,7 +510,7 @@ export default function SurveyDetailPage() {
               Alaprajzok ({layouts.length})
             </span>
           </div>
-          {isAdmin && !detailLoading && (
+          {canEdit && !detailLoading && (
             <InlineUpload surveyId={id} entryId={null} mediaType="layout" label="Alaprajz hozzáadása" />
           )}
         </div>
@@ -490,22 +521,35 @@ export default function SurveyDetailPage() {
             Nincs alaprajz feltöltve. (Opcionális)
           </div>
         ) : (
-          <MediaGrid media={layouts} isAdmin={isAdmin} onDelete={handleDeleteMedia} />
+          <MediaGrid media={layouts} isAdmin={canEdit} onDelete={handleDeleteMedia} />
         )}
       </div>
 
       {/* ── Helyiségek (Entries) ─────────────────────────────────────────── */}
       <div style={{ marginBottom: '1.25rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', gap: '0.5rem', flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <Home size={15} color="var(--accent)" />
             <h2 style={{ fontSize: '1rem', fontWeight: 800, margin: 0 }}>Helyiségek ({entries.length})</h2>
           </div>
-          {isAdmin && (
-            <button type="button" onClick={() => { setShowAddEntry(true); setEditingEntry(null); }} className="btn btn-primary btn-sm">
-              <Plus size={14} /> Helyiség hozzáadása
-            </button>
-          )}
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+            {entryAuthors.length > 1 && (
+              <select
+                value={authorFilter}
+                onChange={e => setAuthorFilter(e.target.value)}
+                className="form-control"
+                style={{ padding: '0.3rem 0.6rem', fontSize: '0.8rem', height: '32px', minWidth: '140px' }}
+              >
+                <option value="ALL">Minden résztvevő</option>
+                {entryAuthors.map(u => <option key={u.id} value={u.id}>{u.display_name}</option>)}
+              </select>
+            )}
+            {canEdit && (
+              <button type="button" onClick={() => { setShowAddEntry(true); setEditingEntry(null); }} className="btn btn-primary btn-sm">
+                <Plus size={14} /> Helyiség hozzáadása
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Add entry inline form */}
@@ -524,7 +568,7 @@ export default function SurveyDetailPage() {
           <div className="card" style={{ textAlign: 'center', padding: '2rem 1.5rem', color: 'var(--text-muted)', fontSize: '0.875rem' }}>
             <Home size={28} color="var(--text-muted)" style={{ margin: '0 auto 0.5rem' }} />
             <p style={{ marginBottom: '1rem' }}>Még nincsenek helyiségek. Adja hozzá az első helyiséget!</p>
-            {isAdmin && (
+            {canEdit && (
               <button type="button" onClick={() => setShowAddEntry(true)} className="btn btn-primary btn-sm">
                 <Plus size={14} /> Helyiség hozzáadása
               </button>
@@ -533,7 +577,7 @@ export default function SurveyDetailPage() {
         )}
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-          {entries.map(entry => (
+          {filteredEntries.map(entry => (
             <div key={entry.id}>
               {/* Edit form inline */}
               {editingEntry?.id === entry.id ? (
@@ -558,12 +602,17 @@ export default function SurveyDetailPage() {
                             <Ruler size={11} />{entry.size_m2} m²
                           </span>
                         )}
+                        {entry.created_by_name && (
+                          <span style={{ fontSize: '0.7rem', fontWeight: 700, padding: '0.1rem 0.45rem', borderRadius: 'var(--radius-pill)', background: entry.created_by === currentUser?.id ? 'var(--accent-light)' : 'var(--bg-subtle)', border: `1px solid ${entry.created_by === currentUser?.id ? 'var(--accent-border)' : 'var(--border-subtle)'}`, color: entry.created_by === currentUser?.id ? 'var(--accent)' : 'var(--text-muted)' }}>
+                            {entry.created_by_name}
+                          </span>
+                        )}
                       </div>
                       {entry.description && (
                         <p style={{ marginTop: '0.3rem', fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.55, whiteSpace: 'pre-wrap' }}>{entry.description}</p>
                       )}
                     </div>
-                    {isAdmin && (
+                    {canEdit && (
                       <div style={{ display: 'flex', gap: '0.3rem', flexShrink: 0 }}>
                         <button type="button" onClick={() => { setEditingEntry(entry); setShowAddEntry(false); }} className="btn btn-secondary btn-sm" style={{ padding: '0.3rem 0.5rem' }}><Edit3 size={13} /></button>
                         <button type="button" onClick={() => handleDeleteEntry(entry)} className="btn btn-danger btn-sm" style={{ padding: '0.3rem 0.5rem' }}><Trash2 size={13} /></button>
@@ -579,14 +628,14 @@ export default function SurveyDetailPage() {
                           <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600 }}>
                             {entry.media.length} fotó / videó
                           </span>
-                          {isAdmin && (
+                          {canEdit && (
                             <InlineUpload surveyId={id} entryId={entry.id} mediaType="photo" label="Hozzáadás" />
                           )}
                         </div>
-                        <MediaGrid media={entry.media} isAdmin={isAdmin} onDelete={handleDeleteMedia} />
+                        <MediaGrid media={entry.media} isAdmin={canEdit} onDelete={handleDeleteMedia} />
                       </>
                     ) : (
-                      isAdmin
+                      canEdit
                         ? <InlineUploadZone surveyId={id} entryId={entry.id} />
                         : <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', fontStyle: 'italic', margin: 0 }}>Nincs fotó feltöltve.</p>
                     )}
@@ -619,7 +668,7 @@ export default function SurveyDetailPage() {
             </span>
           </div>
         ) : (
-          isAdmin && !linkedProject && (
+          canEdit && !linkedProject && (
             <Link href={`/ajanlatok/uj?${toQuoteParams.toString()}`} className="btn btn-secondary btn-sm">
               <FileText size={14} /> Ajánlat létrehozása ebből a felmérésből
             </Link>

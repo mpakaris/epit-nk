@@ -6,11 +6,14 @@ async function getCtx(surveyId) {
   const { data: { user }, error } = await supabase.auth.getUser();
   if (error || !user) return { err: 'Unauthenticated', status: 401 };
   const admin = createAdminClient();
-  const { data: profile } = await admin.from('profiles').select('id, role, entity_id').eq('id', user.id).single();
+  const { data: profile } = await admin.from('profiles').select('id, role, entity_id, display_name').eq('id', user.id).single();
   if (!profile) return { err: 'Forbidden', status: 403 };
-  const { data: survey } = await admin.from('surveys').select('entity_id').eq('id', surveyId).single();
+  const { data: survey } = await admin.from('surveys').select('entity_id, shared_with').eq('id', surveyId).single();
   if (!survey) return { err: 'Not found', status: 404 };
   if (profile.role !== 'superadmin' && survey.entity_id !== profile.entity_id) return { err: 'Forbidden', status: 403 };
+  const isAdmin = ['admin', 'superadmin'].includes(profile.role);
+  const isSharedMember = (survey.shared_with || []).includes(profile.id);
+  if (!isAdmin && !isSharedMember) return { err: 'Forbidden', status: 403 };
   return { profile, admin, entityId: survey.entity_id };
 }
 
@@ -29,6 +32,8 @@ export async function POST(request, { params }) {
     description: description?.trim() || null,
     size_m2: size_m2 != null && size_m2 !== '' ? Number(size_m2) : null,
     sort_order: sort_order ?? 0,
+    created_by: ctx.profile.id,
+    created_by_name: ctx.profile.display_name || null,
   }]).select().single();
 
   if (error) return Response.json({ error: error.message }, { status: 500 });

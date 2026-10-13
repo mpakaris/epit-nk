@@ -5,10 +5,35 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
 import { calculateProjectFinancials } from '@/lib/calculations';
-import { formatHUF } from '@/lib/constants';
-import { FolderKanban, Users, TrendingUp, TrendingDown, CheckCircle2, Plus, AlertCircle } from 'lucide-react';
+import { formatHUF, formatDate } from '@/lib/constants';
+import {
+  FolderKanban, Users, TrendingUp, TrendingDown, CheckCircle2,
+  Plus, AlertCircle, Coins, Receipt, ArrowUpRight, Hammer,
+  BookOpen, Ruler, FileText, UserCheck, Clock, ChevronRight,
+} from 'lucide-react';
+import StatCard from '@/components/StatCard';
 import CalendarWidget from '@/components/CalendarWidget';
 import Modal from '@/components/Modal';
+
+const QUOTE_STATUS = { draft: 'Tervezet', sent: 'Kiküldve', accepted: 'Elfogadva', rejected: 'Elutasítva' };
+const QUOTE_STATUS_COLOR = { draft: 'var(--text-muted)', sent: 'var(--warning-text)', accepted: 'var(--success-text)', rejected: 'var(--danger-text)' };
+
+function SectionHeader({ icon: Icon, title, href, count }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+        {Icon && <Icon size={16} color="var(--accent)" />}
+        <h3 style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--text-primary)' }}>{title}</h3>
+        {count != null && <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-muted)', background: 'var(--bg-subtle)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-pill)', padding: '0.1rem 0.45rem' }}>{count}</span>}
+      </div>
+      {href && (
+        <Link href={href} style={{ fontSize: '0.8rem', color: 'var(--accent)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
+          Összes <ChevronRight size={14} />
+        </Link>
+      )}
+    </div>
+  );
+}
 
 export default function ProjectsListClient({
   initialProjects,
@@ -24,7 +49,7 @@ export default function ProjectsListClient({
   effectiveEntityId,
 }) {
   const router = useRouter();
-  const { createClient: ctxCreateClient } = useApp();
+  const { createClient: ctxCreateClient, invoices: ctxInvoices, users: ctxUsers, surveys, diaryEntriesByProject } = useApp();
 
   const [showCreate, setShowCreate] = useState(false);
   const [projName, setProjName] = useState('');
@@ -32,11 +57,11 @@ export default function ProjectsListClient({
   const [projStart, setProjStart] = useState('');
   const [projEnd, setProjEnd] = useState('');
   const [projClientId, setProjClientId] = useState('');
+  const [projLinkedQuoteId, setProjLinkedQuoteId] = useState('');
   const [memberIds, setMemberIds] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
 
-  // Inline new-client state
   const [showNewClient, setShowNewClient] = useState(false);
   const [newClientName, setNewClientName] = useState('');
   const [newClientPhone, setNewClientPhone] = useState('');
@@ -47,11 +72,26 @@ export default function ProjectsListClient({
 
   const openCreate = () => {
     setProjName(''); setProjDesc(''); setProjStart(''); setProjEnd('');
-    setProjClientId('');
+    setProjClientId(''); setProjLinkedQuoteId('');
     setMemberIds(currentUser ? [currentUser.id] : []);
     setError('');
     setShowNewClient(false);
     setShowCreate(true);
+  };
+
+  const handleQuoteLink = (quoteId) => {
+    setProjLinkedQuoteId(quoteId);
+    if (!quoteId) return;
+    const q = (initialQuotes || []).find(x => x.id === quoteId);
+    if (!q) return;
+    // Pre-seed members from quote's shared_with (always include current user)
+    const seed = [...new Set([
+      ...(currentUser ? [currentUser.id] : []),
+      ...(q.shared_with || []),
+    ])];
+    setMemberIds(seed);
+    // Also pre-fill client
+    if (q.client_id && !projClientId) setProjClientId(q.client_id);
   };
 
   const handleCreateClient = async (e) => {
@@ -74,21 +114,13 @@ export default function ProjectsListClient({
   const handleCreate = async (e) => {
     e.preventDefault();
     setError('');
-    if (!projClientId) { setError('Ügyfél megadása kötelező! Válasszon meglévőt vagy hozzon létre újat.'); return; }
+    if (!projClientId) { setError('Ügyfél megadása kötelező!'); return; }
     setIsSubmitting(true);
     try {
       const res = await fetch('/api/projects', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: projName,
-          description: projDesc,
-          memberIds,
-          startDate: projStart || null,
-          endDate: projEnd || null,
-          clientId: projClientId || null,
-          entityId: effectiveEntityId,
-        }),
+        body: JSON.stringify({ name: projName, description: projDesc, memberIds, startDate: projStart || null, endDate: projEnd || null, clientId: projClientId || null, entityId: effectiveEntityId }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Hiba a projekt létrehozásakor');
@@ -107,13 +139,113 @@ export default function ProjectsListClient({
 
   const canCreate = currentUser && !(isSuperAdmin && !impersonating);
 
+  // ── Derived data ─────────────────────────────────────────────────────────────
+
+  // Activity feed: merge invoices + labour + diary entries
+  const activeInvoices = initialInvoices.filter(i => !i.deleted_at);
+  const activityItems = [
+    ...activeInvoices.map(i => ({ ...i, _type: 'invoice', _date: i.created_at })),
+    ...initialLabourEntries.map(i => ({ ...i, _type: 'labour', _date: i.date || i.created_at })),
+    ...Object.values(diaryEntriesByProject || {}).flat().map(i => ({ ...i, _type: 'diary', _date: i.entry_date || i.created_at })),
+  ].sort((a, b) => new Date(b._date) - new Date(a._date)).slice(0, 8);
+
+  // Projects split
+  const myProjects = initialProjects.filter(p => p.created_by === currentUser?.id);
+  const invitedProjects = initialProjects.filter(p => p.created_by !== currentUser?.id);
+
+  // Surveys — use AppContext (entity-scoped, sorted by date desc)
+  const recentSurveys = (surveys || []).slice(0, 5);
+
+  // Quotes
+  const recentQuotes = [...(initialQuotes || [])].slice(0, 5);
+
+  // Admin stats
+  const allActiveInvoices = (ctxInvoices || []).filter(i => !i.deleted_at);
+  const recentlyDeleted = (ctxInvoices || [])
+    .filter(i => i.deleted_at)
+    .sort((a, b) => new Date(b.deleted_at) - new Date(a.deleted_at))
+    .slice(0, 3);
+
+  // ── Project card renderer ─────────────────────────────────────────────────────
+  const renderProjectCard = (project, showCreator = false) => {
+    const projectMemberUsers = initialUsers.filter(u => (project.members || []).includes(u.id));
+    const fin = calculateProjectFinancials(project, initialInvoices, initialLabourEntries, projectMemberUsers, currentUser?.id);
+    const creator = showCreator ? initialUsers.find(u => u.id === project.created_by) : null;
+
+    return (
+      <div
+        key={project.id}
+        className="card card-interactive"
+        onClick={() => router.push(`/projektek/${project.id}`)}
+        style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: '1rem', cursor: 'pointer' }}
+      >
+        <div>
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '0.5rem', marginBottom: '0.35rem' }}>
+            <h3 style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.015em' }}>{project.name}</h3>
+            {creator && (
+              <span style={{ fontSize: '0.68rem', fontWeight: 700, color: 'var(--accent)', background: 'var(--accent-light)', border: '1px solid var(--accent-border)', borderRadius: 'var(--radius-pill)', padding: '0.15rem 0.5rem', whiteSpace: 'nowrap', flexShrink: 0, display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                <UserCheck size={10} />{creator.display_name}
+              </span>
+            )}
+          </div>
+
+          {project.description && (
+            <p style={{ fontSize: '0.825rem', color: 'var(--text-secondary)', marginBottom: '0.65rem', lineHeight: 1.4 }}>
+              {project.description}
+            </p>
+          )}
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.775rem', color: 'var(--text-muted)', marginBottom: '0.75rem' }}>
+            <Users size={13} color="var(--accent)" />
+            <span>{fin.memberCount} résztvevő</span>
+          </div>
+
+          <div style={{ background: 'var(--bg-subtle)', borderRadius: 'var(--radius-md)', padding: '0.65rem 0.85rem', display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.4rem', border: '1px solid var(--border-subtle)' }}>
+            <div>
+              <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>Összköltség</div>
+              <div style={{ fontWeight: 800, fontSize: '0.85rem' }} className="text-mono">{formatHUF(fin.totalCost)}</div>
+            </div>
+            <div>
+              <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>Rád eső rész</div>
+              <div style={{ fontWeight: 800, fontSize: '0.85rem', color: 'var(--text-secondary)' }} className="text-mono">{formatHUF(fin.equalShare)}</div>
+            </div>
+            <div>
+              <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>Általad fizetve</div>
+              <div style={{ fontWeight: 800, fontSize: '0.85rem', color: 'var(--accent)' }} className="text-mono">{formatHUF(fin.ownPaid)}</div>
+            </div>
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: '0.6rem', borderTop: '1px solid var(--border-subtle)', gap: '0.5rem' }}>
+          <div>
+            {fin.balance > 0
+              ? <span className="balance-pill positive"><TrendingUp size={12} /><span>+{formatHUF(fin.balance)} túlfizetés</span></span>
+              : fin.balance < 0
+                ? <span className="balance-pill negative"><TrendingDown size={12} /><span>{formatHUF(fin.balance)} tartozás</span></span>
+                : <span className="balance-pill neutral"><CheckCircle2 size={12} /><span>Rendezett</span></span>
+            }
+          </div>
+          <Link
+            href={`/projektek/${project.id}/feltoltes`}
+            className="btn btn-primary btn-sm"
+            style={{ padding: '0.35rem 0.7rem', fontSize: '0.78rem', gap: '0.3rem' }}
+            onClick={e => e.stopPropagation()}
+          >
+            <Plus size={13} /> Hozzáadás
+          </Link>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="container">
+      {/* Page header */}
       <div className="page-header">
         <div className="page-header-row">
           <div>
-            <h1 className="page-title">Saját Projektek</h1>
-            <p className="page-subtitle">Építkezési költségmegosztás és egyenleg</p>
+            <h1 className="page-title">Dashboard</h1>
+            <p className="page-subtitle">Projektek, egyenleg és áttekintés</p>
           </div>
           <div style={{ display: 'flex', gap: '0.5rem' }}>
             {canCreate && (
@@ -121,17 +253,23 @@ export default function ProjectsListClient({
                 <Plus size={15} /> Új Projekt
               </button>
             )}
-            {isAdmin && (
-              <Link href="/admin/projektek" className="btn btn-secondary btn-sm">
-                Admin felület
-              </Link>
-            )}
           </div>
         </div>
       </div>
 
+      {/* ── Admin stat cards ────────────────────────────────────────────────── */}
+      {isAdmin && !(isSuperAdmin && !impersonating) && (
+        <div className="stat-grid" style={{ marginBottom: '1.5rem' }}>
+          <StatCard label="Összesített kiadás" value={formatHUF(allActiveInvoices.reduce((s, i) => s + Number(i.value_huf || 0), 0))} sub="Összes projekt forgalma" icon={Coins} href="/admin/projektek" />
+          <StatCard label="Aktív projektek" value={initialProjects.length} sub="Építkezések száma" icon={FolderKanban} href="/admin/projektek" />
+          <StatCard label="Felhasználók" value={(ctxUsers || []).filter(u => !u.deleted_at).length} sub="Aktív tagok" icon={Users} href="/admin/felhasznalok" />
+          <StatCard label="Rögzített számlák" value={allActiveInvoices.length} sub="Bizonylatok száma" icon={Receipt} href="/admin/projektek" />
+        </div>
+      )}
+
+      {/* ── Calendar ────────────────────────────────────────────────────────── */}
       {!(isSuperAdmin && !impersonating) && (
-        <div style={{ marginBottom: '1.5rem' }}>
+        <div style={{ marginBottom: '1.75rem' }}>
           <CalendarWidget
             projects={initialProjects}
             clients={initialClients || []}
@@ -140,104 +278,189 @@ export default function ProjectsListClient({
         </div>
       )}
 
-      {initialProjects.length === 0 ? (
-        <div className="card" style={{ textAlign: 'center', padding: '3rem 1.5rem' }}>
-          <FolderKanban size={44} color="var(--text-muted)" style={{ margin: '0 auto 0.75rem' }} />
-          <h3 style={{ fontSize: '1.15rem', fontWeight: 800, marginBottom: '0.35rem' }}>
-            Nincsenek elérhető projektek
-          </h3>
-          <p style={{ color: 'var(--text-secondary)', maxWidth: '420px', margin: '0 auto', fontSize: '0.875rem' }}>
-            Jelenleg még nem vették fel egyetlen építkezési projektbe sem. Kérje meg az adminisztrátort a hozzárendeléshez!
-          </p>
-        </div>
-      ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(320px, 100%), 1fr))', gap: '1rem' }}>
-          {initialProjects.map(project => {
-            const projectMemberUsers = initialUsers.filter(u => (project.members || []).includes(u.id));
-            const fin = calculateProjectFinancials(project, initialInvoices, initialLabourEntries, projectMemberUsers, currentUser?.id);
+      {/* ── Section 1: Latest Activity ─────────────────────────────────────── */}
+      <div style={{ marginBottom: '1.75rem' }}>
+        <SectionHeader icon={Clock} title="Legújabb aktivitás" count={activityItems.length} />
+        {activityItems.length === 0 ? (
+          <div className="card" style={{ textAlign: 'center', padding: '1.5rem', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+            Még nincs aktivitás.
+          </div>
+        ) : (
+          <div className="card" style={{ padding: '0.35rem 0' }}>
+            {activityItems.map((item, idx) => {
+              const project = initialProjects.find(p => p.id === item.project_id);
+              const isLast = idx === activityItems.length - 1;
 
-            return (
-              <div
-                key={project.id}
-                className="card card-interactive"
-                onClick={() => router.push(`/projektek/${project.id}`)}
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'space-between',
-                  gap: '1rem',
-                  border: '1px solid var(--border-card)',
-                  boxShadow: 'var(--shadow-xs)',
-                  cursor: 'pointer',
-                }}
-              >
-                <div>
-                  <div style={{ marginBottom: '0.35rem' }}>
-                    <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.015em' }}>
-                      {project.name}
-                    </h3>
-                  </div>
-
-                  <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.75rem', lineHeight: 1.4 }}>
-                    {project.description || 'Nincs részletes leírás.'}
-                  </p>
-
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.775rem', color: 'var(--text-muted)', marginBottom: '0.85rem' }}>
-                    <Users size={14} color="var(--accent)" />
-                    <span>{fin.memberCount} résztvevő</span>
-                  </div>
-
-                  <div
-                    style={{
-                      background: 'var(--bg-subtle)',
-                      borderRadius: 'var(--radius-md)',
-                      padding: '0.75rem 0.85rem',
-                      display: 'grid',
-                      gridTemplateColumns: 'repeat(3, 1fr)',
-                      gap: '0.4rem',
-                      border: '1px solid var(--border-subtle)'
-                    }}
-                  >
-                    <div>
-                      <div style={{ fontSize: '0.675rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>Összköltség</div>
-                      <div style={{ fontWeight: 800, fontSize: '0.875rem' }} className="text-mono">{formatHUF(fin.totalCost)}</div>
+              if (item._type === 'invoice') {
+                return (
+                  <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.65rem 1rem', borderBottom: isLast ? 'none' : '1px solid var(--border-subtle)' }}>
+                    <div style={{ width: 32, height: 32, borderRadius: 'var(--radius-md)', background: 'var(--accent-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <Receipt size={15} color="var(--accent)" />
                     </div>
-                    <div>
-                      <div style={{ fontSize: '0.675rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>Rád eső rész</div>
-                      <div style={{ fontWeight: 800, fontSize: '0.875rem', color: 'var(--text-secondary)' }} className="text-mono">{formatHUF(fin.equalShare)}</div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontWeight: 700, fontSize: '0.85rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {item.description || 'Számla bizonylat'}
+                      </div>
+                      <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                        {item.uploader_name} &bull; {project?.name} &bull; {formatDate(item.created_at)}
+                      </div>
                     </div>
-                    <div>
-                      <div style={{ fontSize: '0.675rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>Általad fizetve</div>
-                      <div style={{ fontWeight: 800, fontSize: '0.875rem', color: 'var(--accent)' }} className="text-mono">{formatHUF(fin.ownPaid)}</div>
+                    <div style={{ fontWeight: 800, fontSize: '0.875rem', fontFamily: 'var(--font-mono)', flexShrink: 0, color: 'var(--text-primary)' }}>
+                      {formatHUF(item.value_huf)}
                     </div>
                   </div>
-                </div>
+                );
+              }
 
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: '0.65rem', borderTop: '1px solid var(--border-subtle)', gap: '0.5rem' }}>
-                  <div>
-                    {fin.balance > 0 ? (
-                      <span className="balance-pill positive"><TrendingUp size={13} /><span>+{formatHUF(fin.balance)} túlfizetés</span></span>
-                    ) : fin.balance < 0 ? (
-                      <span className="balance-pill negative"><TrendingDown size={13} /><span>{formatHUF(fin.balance)} tartozás</span></span>
-                    ) : (
-                      <span className="balance-pill neutral"><CheckCircle2 size={13} /><span>0 Ft</span></span>
-                    )}
+              if (item._type === 'labour') {
+                return (
+                  <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.65rem 1rem', borderBottom: isLast ? 'none' : '1px solid var(--border-subtle)' }}>
+                    <div style={{ width: 32, height: 32, borderRadius: 'var(--radius-md)', background: 'var(--success-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <Hammer size={15} color="var(--success-text)" />
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontWeight: 700, fontSize: '0.85rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {item.labour_type}
+                      </div>
+                      <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                        {initialUsers.find(u => u.id === item.uploaded_by)?.display_name || item.uploader_name || '–'} &bull; {project?.name} &bull; {formatDate(item._date)}
+                      </div>
+                    </div>
+                    <div style={{ fontWeight: 800, fontSize: '0.875rem', fontFamily: 'var(--font-mono)', flexShrink: 0, color: 'var(--success-text)' }}>
+                      +{formatHUF(item.value_huf)}
+                    </div>
                   </div>
-                  <Link
-                    href={`/projektek/${project.id}/feltoltes`}
-                    className="btn btn-primary btn-sm"
-                    style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem', gap: '0.3rem' }}
-                    onClick={e => e.stopPropagation()}
-                  >
-                    <Plus size={14} /> Számla hozzáadása
-                  </Link>
-                </div>
+                );
+              }
+
+              if (item._type === 'diary') {
+                return (
+                  <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.65rem 1rem', borderBottom: isLast ? 'none' : '1px solid var(--border-subtle)' }}>
+                    <div style={{ width: 32, height: 32, borderRadius: 'var(--radius-md)', background: 'var(--bg-subtle)', border: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <BookOpen size={15} color="var(--text-secondary)" />
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontWeight: 700, fontSize: '0.85rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {item.title || 'Napló bejegyzés'}
+                      </div>
+                      <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                        {project?.name} &bull; {formatDate(item._date)}
+                      </div>
+                    </div>
+                  </div>
+                );
+              }
+
+              return null;
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* ── Section 2: Projects ────────────────────────────────────────────── */}
+      {initialProjects.length > 0 && (
+        <div style={{ marginBottom: '1.75rem' }}>
+          <SectionHeader icon={FolderKanban} title="Projektek" count={initialProjects.length} />
+
+          {myProjects.length > 0 && (
+            <div style={{ marginBottom: '1.25rem' }}>
+              <div style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', marginBottom: '0.65rem' }}>
+                Általam létrehozva
               </div>
-            );
-          })}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(320px, 100%), 1fr))', gap: '1rem' }}>
+                {myProjects.map(p => renderProjectCard(p, false))}
+              </div>
+            </div>
+          )}
+
+          {invitedProjects.length > 0 && (
+            <div>
+              <div style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', marginBottom: '0.65rem' }}>
+                Meghívottként
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(320px, 100%), 1fr))', gap: '1rem' }}>
+                {invitedProjects.map(p => renderProjectCard(p, true))}
+              </div>
+            </div>
+          )}
+
+          {initialProjects.length === 0 && (
+            <div className="card" style={{ textAlign: 'center', padding: '2.5rem 1.5rem' }}>
+              <FolderKanban size={44} color="var(--text-muted)" style={{ margin: '0 auto 0.75rem' }} />
+              <h3 style={{ fontSize: '1.05rem', fontWeight: 800, marginBottom: '0.35rem' }}>Nincsenek elérhető projektek</h3>
+              <p style={{ color: 'var(--text-secondary)', maxWidth: '400px', margin: '0 auto', fontSize: '0.875rem' }}>
+                Még nem hoztak létre projektet, vagy nem adtak hozzá egyikhez sem.
+              </p>
+            </div>
+          )}
         </div>
       )}
 
+      {/* ── Section 3 & 4: Felmérések + Ajánlatok ─────────────────────────── */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(320px, 100%), 1fr))', gap: '1rem', marginBottom: '1.75rem' }}>
+
+        {/* Felmérések */}
+        <div className="card">
+          <SectionHeader icon={Ruler} title="Legújabb felmérések" href="/felmeres" />
+          {recentSurveys.length === 0 ? (
+            <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem', padding: '0.5rem 0' }}>Még nincs felmérés.</div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0' }}>
+              {recentSurveys.map((s, idx) => (
+                <Link
+                  key={s.id}
+                  href={`/felmeres/${s.id}`}
+                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.6rem 0', borderBottom: idx < recentSurveys.length - 1 ? '1px solid var(--border-subtle)' : 'none', textDecoration: 'none', color: 'inherit' }}
+                >
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontWeight: 700, fontSize: '0.85rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.title}</div>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                      {s.location || '–'} &bull; {formatDate(s.date || s.created_at)}
+                    </div>
+                  </div>
+                  <ChevronRight size={15} color="var(--text-muted)" style={{ flexShrink: 0, marginLeft: '0.5rem' }} />
+                </Link>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Ajánlatok */}
+        <div className="card">
+          <SectionHeader icon={FileText} title="Legújabb ajánlatok" href="/ajanlatok" />
+          {recentQuotes.length === 0 ? (
+            <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem', padding: '0.5rem 0' }}>Még nincs ajánlat.</div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0' }}>
+              {recentQuotes.map((q, idx) => {
+                const client = (initialClients || []).find(c => c.id === q.client_id);
+                return (
+                  <Link
+                    key={q.id}
+                    href={`/ajanlatok/${q.id}`}
+                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.6rem 0', borderBottom: idx < recentQuotes.length - 1 ? '1px solid var(--border-subtle)' : 'none', textDecoration: 'none', color: 'inherit' }}
+                  >
+                    <div style={{ minWidth: 0, flex: 1 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
+                        <span style={{ fontWeight: 700, fontSize: '0.85rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{q.title}</span>
+                        <span style={{ fontSize: '0.68rem', fontWeight: 700, color: QUOTE_STATUS_COLOR[q.status] || 'var(--text-muted)' }}>
+                          {QUOTE_STATUS[q.status] || q.status}
+                        </span>
+                      </div>
+                      <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                        {client?.name || '–'} &bull; {formatDate(q.created_at)}
+                      </div>
+                    </div>
+                    <ChevronRight size={15} color="var(--text-muted)" style={{ flexShrink: 0, marginLeft: '0.5rem' }} />
+                  </Link>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ── Create project modal ────────────────────────────────────────────── */}
       <Modal isOpen={showCreate} onClose={() => setShowCreate(false)} title="Új projekt létrehozása">
         {error && (
           <div style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', color: 'var(--danger-text)', padding: '0.65rem', borderRadius: 'var(--radius-md)', fontSize: '0.825rem', display: 'flex', gap: '0.45rem', marginBottom: '0.85rem' }}>
@@ -254,16 +477,31 @@ export default function ProjectsListClient({
             <textarea id="mp-desc" rows={2} className="form-control" value={projDesc} onChange={e => setProjDesc(e.target.value)} placeholder="Rövid leírás…" />
           </div>
 
-          {/* Client — required */}
+          {(initialQuotes || []).length > 0 && (
+            <div className="form-group">
+              <label className="form-label">Kapcsolódó ajánlat (opcionális)</label>
+              <select
+                className="form-control"
+                value={projLinkedQuoteId}
+                onChange={e => handleQuoteLink(e.target.value)}
+              >
+                <option value="">– Nincs kapcsolódó ajánlat –</option>
+                {(initialQuotes || []).map(q => (
+                  <option key={q.id} value={q.id}>{q.title}</option>
+                ))}
+              </select>
+              {projLinkedQuoteId && (
+                <span style={{ fontSize: '0.75rem', color: 'var(--accent)', fontWeight: 600, marginTop: '0.25rem', display: 'block' }}>
+                  ✓ Tagok előre töltve az ajánlat résztvevőiből
+                </span>
+              )}
+            </div>
+          )}
+
           <div className="form-group">
             <label className="form-label">Megrendelő *</label>
             <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-              <select
-                className="form-control"
-                style={{ flex: 1, borderColor: !projClientId ? 'var(--warning-border)' : undefined }}
-                value={projClientId}
-                onChange={e => setProjClientId(e.target.value)}
-              >
+              <select className="form-control" style={{ flex: 1, borderColor: !projClientId ? 'var(--warning-border)' : undefined }} value={projClientId} onChange={e => setProjClientId(e.target.value)}>
                 <option value="">– Válasszon ügyfelet –</option>
                 {(initialClients || []).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
@@ -278,7 +516,6 @@ export default function ProjectsListClient({
             )}
           </div>
 
-          {/* Inline new client */}
           {showNewClient && (
             <div style={{ border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: '0.85rem', marginBottom: '0.75rem', background: 'var(--bg-subtle)' }}>
               <div style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '0.65rem' }}>Új ügyfél</div>
@@ -313,13 +550,7 @@ export default function ProjectsListClient({
             <div style={{ maxHeight: '150px', overflowY: 'auto', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: '0.4rem' }}>
               {initialUsers.map(u => (
                 <label key={u.id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.35rem 0.45rem', borderRadius: 'var(--radius-sm)', cursor: u.id === currentUser?.id ? 'default' : 'pointer', fontSize: '0.825rem', minWidth: 0 }}>
-                  <input
-                    type="checkbox"
-                    checked={memberIds.includes(u.id)}
-                    disabled={u.id === currentUser?.id}
-                    onChange={() => toggleMember(u.id)}
-                    style={{ flexShrink: 0 }}
-                  />
+                  <input type="checkbox" checked={memberIds.includes(u.id)} disabled={u.id === currentUser?.id} onChange={() => toggleMember(u.id)} style={{ flexShrink: 0 }} />
                   <span style={{ fontWeight: 600, flexShrink: 0 }}>{u.display_name}</span>
                   {u.id === currentUser?.id && <span style={{ fontSize: '0.7rem', color: 'var(--accent)', background: 'var(--accent-light)', borderRadius: 'var(--radius-pill)', padding: '0.05rem 0.4rem', fontWeight: 700, flexShrink: 0 }}>én</span>}
                 </label>

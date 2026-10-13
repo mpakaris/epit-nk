@@ -22,7 +22,9 @@ import {
   MoreHorizontal,
   Hammer,
   Clock,
-  Receipt
+  Receipt,
+  Plus,
+  X,
 } from 'lucide-react';
 
 const CATEGORY_ICONS = {
@@ -54,6 +56,12 @@ export default function MobileUploadPage() {
   const [isScanningOcr, setIsScanningOcr] = useState(false);
   const [ocrStatusText, setOcrStatusText] = useState('');
 
+  // AI analysis state
+  const [isAnalyzingAi, setIsAnalyzingAi] = useState(false);
+  const [aiLineItems, setAiLineItems] = useState(null); // null = not yet run, [] = ran but empty
+  const [aiTotal, setAiTotal] = useState(null);
+  const [aiCurrency, setAiCurrency] = useState('HUF');
+
   // Labour form state
   const [labourDate, setLabourDate] = useState(new Date().toISOString().slice(0, 10));
   const [labourType, setLabourType] = useState('');
@@ -69,42 +77,107 @@ export default function MobileUploadPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
 
+  // --- AI line item helpers ---
+  const updateLineItem = (index, field, value) => {
+    setAiLineItems(prev => {
+      const next = prev.map((item, i) => {
+        if (i !== index) return item;
+        const updated = { ...item, [field]: value };
+        // Auto-recalculate total when qty or unitPrice changes
+        if (field === 'quantity' || field === 'unitPrice') {
+          const qty = field === 'quantity' ? Number(value) : Number(item.quantity);
+          const price = field === 'unitPrice' ? Number(value) : Number(item.unitPrice);
+          updated.total = qty * price;
+        }
+        return updated;
+      });
+      // Recalculate AI total from rows — round to integer for HUF
+      const newTotal = Math.round(next.reduce((sum, item) => sum + (Number(item.total) || 0), 0));
+      setAiTotal(newTotal);
+      if (newTotal > 0) setValueHuf(newTotal.toString());
+      return next;
+    });
+  };
+
+  const removeLineItem = (index) => {
+    setAiLineItems(prev => {
+      const next = prev.filter((_, i) => i !== index);
+      const newTotal = Math.round(next.reduce((sum, item) => sum + (Number(item.total) || 0), 0));
+      setAiTotal(newTotal);
+      if (newTotal > 0) setValueHuf(newTotal.toString());
+      return next;
+    });
+  };
+
+  const addLineItem = () => {
+    setAiLineItems(prev => [
+      ...(prev || []),
+      { name: '', quantity: 1, unitPrice: 0, total: 0 },
+    ]);
+  };
+
   const processFile = async (file) => {
     if (!file) return;
     setSelectedFile(file);
     setPreviewUrl(URL.createObjectURL(file));
     setError('');
+    setAiLineItems(null);
+    setAiTotal(null);
+    setAiCurrency('HUF');
+
+    // Run OCR and AI analysis in parallel
     setIsScanningOcr(true);
+    setIsAnalyzingAi(true);
     setOcrStatusText('Összeg automatikus leolvasása (OCR)...');
 
-    try {
-      const reader = new FileReader();
-      reader.onloadend = async () => {
-        try {
-          const res = await fetch('/api/ocr', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ imageUrl: reader.result })
-          });
-          const data = await res.json();
-          if (data?.suggestedValue > 0) {
-            setOcrSuggestedValue(data.suggestedValue);
-            setValueHuf(data.suggestedValue.toString());
-            setOcrStatusText(`OCR felismerve: ${formatHUF(data.suggestedValue)}`);
-          } else {
-            setOcrStatusText(data?.message || 'Adja meg az összeget a számláról!');
-          }
-        } catch {
-          setOcrStatusText('Adja meg az összeget kézzel!');
-        } finally {
-          setIsScanningOcr(false);
-        }
-      };
-      reader.readAsDataURL(file);
-    } catch {
+    const reader = new FileReader();
+    reader.onloadend = async () => {
+      const dataUrl = reader.result;
+
+      // OCR (Google Vision) — fast, gets the total amount
+      const ocrPromise = fetch('/api/ocr', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imageUrl: dataUrl }),
+      })
+        .then(r => r.json())
+        .catch(() => null);
+
+      // AI analysis (OpenAI) — gets line items
+      const aiPromise = fetch('/api/invoice-ai', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imageBase64: dataUrl }),
+      })
+        .then(r => r.json())
+        .catch(() => null);
+
+      const [ocrData, aiData] = await Promise.all([ocrPromise, aiPromise]);
+
+      // Handle OCR result
+      if (ocrData?.suggestedValue > 0) {
+        setOcrSuggestedValue(ocrData.suggestedValue);
+        setOcrStatusText(`OCR felismerve: ${formatHUF(ocrData.suggestedValue)}`);
+      } else {
+        setOcrStatusText(ocrData?.message || 'Adja meg az összeget a számláról!');
+      }
       setIsScanningOcr(false);
-      setOcrStatusText('Adja meg az összeget kézzel!');
-    }
+
+      // Handle AI result
+      if (aiData?.lineItems) {
+        const currency = aiData.currency || 'HUF';
+        setAiCurrency(currency);
+        setAiLineItems(aiData.lineItems);
+        const total = aiData.grandTotal || aiData.lineItems.reduce((s, i) => s + (Number(i.total) || 0), 0);
+        setAiTotal(total);
+        // Only auto-fill amount if currency is HUF
+        if (total > 0 && currency === 'HUF') setValueHuf(Math.round(total).toString());
+      } else {
+        setAiLineItems([]);
+      }
+      setIsAnalyzingAi(false);
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleFileChange = async (e) => {
@@ -116,6 +189,9 @@ export default function MobileUploadPage() {
     setSelectedFile(null);
     setPreviewUrl('');
     setOcrSuggestedValue(null);
+    setAiLineItems(null);
+    setAiTotal(null);
+    setAiCurrency('HUF');
     if (cameraInputRef.current) cameraInputRef.current.value = '';
     if (galleryInputRef.current) galleryInputRef.current.value = '';
   };
@@ -147,6 +223,8 @@ export default function MobileUploadPage() {
         imageUrl,
         storagePath,
         roomId: invoiceRoomId || null,
+        aiLineItems: aiLineItems && aiLineItems.length > 0 ? aiLineItems.map(i => ({ ...i, currency: aiCurrency })) : null,
+        aiTotal: aiTotal || null,
       });
 
       router.push(`/projektek/${id}`);
@@ -330,6 +408,7 @@ export default function MobileUploadPage() {
               </div>
             )}
 
+            {/* OCR status */}
             {isScanningOcr && (
               <div style={{ marginTop: '0.75rem', padding: '0.6rem 0.85rem', borderRadius: 'var(--radius-md)', background: 'var(--accent-light)', color: 'var(--accent)', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.825rem', fontWeight: 600 }}>
                 <Loader2 size={16} className="animate-spin" />
@@ -337,7 +416,7 @@ export default function MobileUploadPage() {
               </div>
             )}
 
-            {!isScanningOcr && ocrSuggestedValue && (
+            {!isScanningOcr && ocrSuggestedValue && !aiTotal && (
               <div style={{ marginTop: '0.75rem', padding: '0.6rem 0.85rem', borderRadius: 'var(--radius-md)', background: 'var(--success-bg)', border: '1px solid var(--success-border)', color: 'var(--success-text)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem', fontSize: '0.825rem', flexWrap: 'wrap' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 600, flex: 1, minWidth: 0 }}>
                   <Sparkles size={16} style={{ flexShrink: 0 }} />
@@ -348,7 +427,127 @@ export default function MobileUploadPage() {
                 </button>
               </div>
             )}
+
+            {/* AI scanning indicator */}
+            {isAnalyzingAi && (
+              <div style={{ marginTop: '0.75rem', padding: '0.6rem 0.85rem', borderRadius: 'var(--radius-md)', background: 'var(--accent-light)', color: 'var(--accent)', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.825rem', fontWeight: 600 }}>
+                <Loader2 size={16} className="animate-spin" />
+                <span>AI elemzés folyamatban...</span>
+              </div>
+            )}
           </div>
+
+          {/* AI Line Items — shown after analysis */}
+          {!isAnalyzingAi && aiLineItems !== null && (
+            <div className="card mb-4" style={{ padding: '1rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                  <Sparkles size={16} color="var(--accent)" />
+                  <span style={{ fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)' }}>
+                    AI — Számlatételek
+                  </span>
+                  {aiCurrency && aiCurrency !== 'HUF' && (
+                    <span style={{ fontSize: '0.75rem', fontWeight: 700, background: 'var(--accent)', color: '#fff', borderRadius: 'var(--radius-sm)', padding: '0.1rem 0.4rem' }}>
+                      {aiCurrency}
+                    </span>
+                  )}
+                </div>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>Szerkeszthető</span>
+              </div>
+
+              {aiCurrency && aiCurrency !== 'HUF' && (
+                <div style={{ marginBottom: '0.75rem', padding: '0.6rem 0.85rem', borderRadius: 'var(--radius-md)', background: 'var(--warning-bg, #fffbeb)', border: '1px solid var(--warning-border, #fcd34d)', color: 'var(--warning-text, #92400e)', fontSize: '0.8rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                  <AlertCircle size={14} style={{ flexShrink: 0 }} />
+                  Ez a számla {aiCurrency} pénznemben van — kérjük adja meg a forint összeget kézzel!
+                </div>
+              )}
+
+              {aiLineItems.length === 0 ? (
+                <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: '0 0 0.75rem' }}>
+                  Az AI nem talált tételeket ezen a bizonylaton.
+                </p>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '0.75rem' }}>
+                  {/* Header row */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 56px 80px 80px 28px', gap: '0.35rem', paddingBottom: '0.25rem', borderBottom: '1px solid var(--border-subtle)' }}>
+                    {['Megnevezés', 'Db', `Egységár (${aiCurrency})`, `Összeg (${aiCurrency})`, ''].map((h, i) => (
+                      <span key={i} style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.03em' }}>{h}</span>
+                    ))}
+                  </div>
+
+                  {aiLineItems.map((item, idx) => (
+                    <div key={idx} style={{ display: 'grid', gridTemplateColumns: '1fr 56px 80px 80px 28px', gap: '0.35rem', alignItems: 'center' }}>
+                      <input
+                        type="text"
+                        value={item.name}
+                        onChange={e => updateLineItem(idx, 'name', e.target.value)}
+                        placeholder="Megnevezés"
+                        style={{ fontSize: '0.8rem', padding: '0.3rem 0.4rem', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-sm)', background: 'var(--bg-subtle)', color: 'var(--text-primary)', width: '100%', fontFamily: 'inherit' }}
+                      />
+                      <input
+                        type="number"
+                        value={item.quantity}
+                        onChange={e => updateLineItem(idx, 'quantity', e.target.value)}
+                        min="0"
+                        step="0.01"
+                        style={{ fontSize: '0.8rem', padding: '0.3rem 0.4rem', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-sm)', background: 'var(--bg-subtle)', color: 'var(--text-primary)', width: '100%', fontFamily: 'var(--font-mono)', textAlign: 'right' }}
+                      />
+                      <input
+                        type="number"
+                        value={item.unitPrice}
+                        onChange={e => updateLineItem(idx, 'unitPrice', e.target.value)}
+                        min="0"
+                        step="any"
+                        style={{ fontSize: '0.8rem', padding: '0.3rem 0.4rem', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-sm)', background: 'var(--bg-subtle)', color: 'var(--text-primary)', width: '100%', fontFamily: 'var(--font-mono)', textAlign: 'right' }}
+                      />
+                      <input
+                        type="number"
+                        value={item.total}
+                        onChange={e => {
+                          const newTotal = Number(e.target.value);
+                          setAiLineItems(prev => {
+                            const next = prev.map((it, i) => i === idx ? { ...it, total: newTotal } : it);
+                            const sum = Math.round(next.reduce((s, it) => s + (Number(it.total) || 0), 0));
+                            setAiTotal(sum);
+                            if (sum > 0) setValueHuf(sum.toString());
+                            return next;
+                          });
+                        }}
+                        min="0"
+                        step="any"
+                        style={{ fontSize: '0.8rem', padding: '0.3rem 0.4rem', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-sm)', background: 'var(--bg-subtle)', color: 'var(--text-primary)', width: '100%', fontFamily: 'var(--font-mono)', textAlign: 'right' }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removeLineItem(idx)}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--danger-text)', padding: '0.2rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Total row */}
+              {aiLineItems.length > 0 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.5rem 0', borderTop: '2px solid var(--border-subtle)', marginBottom: '0.5rem' }}>
+                  <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-secondary)' }}>AI Végösszeg ({aiCurrency}):</span>
+                  <span style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--accent)', fontFamily: 'var(--font-mono)' }}>
+                    {formatHUF(Math.round(aiLineItems.reduce((s, i) => s + (Number(i.total) || 0), 0)))}
+                  </span>
+                </div>
+              )}
+
+              <button
+                type="button"
+                onClick={addLineItem}
+                style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', background: 'none', border: '1px dashed var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: '0.4rem 0.75rem', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '0.8rem', fontWeight: 600, width: '100%', justifyContent: 'center' }}
+              >
+                <Plus size={14} /> Tétel hozzáadása
+              </button>
+            </div>
+          )}
 
           {/* Amount */}
           <div className="card mb-4" style={{ padding: '1rem' }}>

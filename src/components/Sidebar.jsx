@@ -21,7 +21,7 @@ function buildNavItems(isSuperAdmin, isAdmin, impersonating) {
   }
   if (isAdmin) {
     return [
-      { href: '/admin',              label: 'Áttekintés',   icon: LayoutDashboard, exact: true },
+      { href: '/projektek',          label: 'Dashboard',    icon: LayoutDashboard, exact: true },
       { href: '/felmeres',           label: 'Felmérések',   icon: Ruler },
       { href: '/ajanlatok',          label: 'Ajánlatok',    icon: FileText },
       { href: '/admin/projektek',    label: 'Projektek',    icon: FolderKanban },
@@ -29,7 +29,6 @@ function buildNavItems(isSuperAdmin, isAdmin, impersonating) {
       { href: '/ugyfelek',           label: 'Ügyfelek',     icon: BookUser },
       { divider: true, key: 'd1' },
       { href: '/admin/felhasznalok', label: 'Felhasználók', icon: Users, exact: true },
-      { href: '/projektek',          label: 'Tagi nézet',   icon: User },
     ];
   }
   return [

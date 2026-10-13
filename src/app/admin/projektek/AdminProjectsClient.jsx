@@ -10,6 +10,7 @@ import {
   FolderKanban, Plus, Users,
   ArrowLeft, AlertCircle, CheckCircle2, User, ChevronUp,
   Search, Calendar, ArrowUpDown, Building2, Receipt, Hammer, BookOpen,
+  UserCheck,
 } from 'lucide-react';
 
 const today = () => new Date().toISOString().split('T')[0];
@@ -402,8 +403,8 @@ export default function AdminProjectsClient({
   return (
     <div className="container">
       <div style={{ padding: '0.85rem 0 0.25rem' }}>
-        <Link href="/admin" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', color: 'var(--text-secondary)', fontSize: '0.825rem', fontWeight: 600 }}>
-          <ArrowLeft size={15} /> Vissza az áttekintéshez
+        <Link href="/projektek" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', color: 'var(--text-secondary)', fontSize: '0.825rem', fontWeight: 600 }}>
+          <ArrowLeft size={15} /> Vissza a dashboardra
         </Link>
       </div>
 
@@ -458,76 +459,105 @@ export default function AdminProjectsClient({
           <FolderKanban size={40} color="var(--text-muted)" style={{ margin: '0 auto 0.75rem' }} />
           <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Nincs találat.</p>
         </div>
-      ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(300px, 100%), 1fr))', gap: '1rem' }}>
-          {filteredProjects.map(project => {
-            const client = clients.find(c => c.id === project.client_id);
-            const invoiceCount = invoices.filter(inv => inv.project_id === project.id).length;
-            const labourCount  = labourEntries.filter(e => e.project_id === project.id).length;
-            const diaryCount   = diaryEntries.filter(e => e.project_id === project.id).length;
-            const memberUsers  = users.filter(u => (project.members || []).includes(u.id));
+      ) : (() => {
+        const myProjects      = filteredProjects.filter(p => p.created_by === currentUser?.id);
+        const invitedProjects = filteredProjects.filter(p => p.created_by !== currentUser?.id);
 
-            const startDate = project.start_date ? new Date(project.start_date) : null;
-            const endDate   = project.end_date   ? new Date(project.end_date)   : null;
-            const isActive  = startDate && endDate && startDate <= today && endDate >= today;
-            const isUpcoming = startDate && startDate > today;
-            const isPast    = endDate && endDate < today;
+        const renderCard = (project, showCreator = false) => {
+          const client       = clients.find(c => c.id === project.client_id);
+          const creator      = showCreator ? users.find(u => u.id === project.created_by) : null;
+          const invoiceCount = invoices.filter(inv => inv.project_id === project.id).length;
+          const labourCount  = labourEntries.filter(e => e.project_id === project.id).length;
+          const diaryCount   = diaryEntries.filter(e => e.project_id === project.id).length;
+          const memberUsers  = users.filter(u => (project.members || []).includes(u.id));
+          const startDate    = project.start_date ? new Date(project.start_date) : null;
+          const endDate      = project.end_date   ? new Date(project.end_date)   : null;
+          const isActive     = startDate && endDate && startDate <= today && endDate >= today;
+          const isUpcoming   = startDate && startDate > today;
+          const isPast       = endDate && endDate < today;
 
-            return (
-              <div
-                key={project.id}
-                className="card card-interactive"
-                onClick={() => router.push(`/admin/projektek/${project.id}`)}
-                style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', cursor: 'pointer', justifyContent: 'space-between' }}
-              >
-                {/* Name + client */}
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.5rem', marginBottom: '0.2rem' }}>
-                    <h3 style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--text-primary)', lineHeight: 1.3 }}>{project.name}</h3>
-                    {isActive && <span style={{ fontSize: '0.68rem', fontWeight: 700, whiteSpace: 'nowrap', background: 'var(--success-bg)', color: 'var(--success-text)', border: '1px solid var(--success-border)', padding: '0.15rem 0.45rem', borderRadius: 'var(--radius-pill)' }}>Folyamatban</span>}
+          return (
+            <div
+              key={project.id}
+              className="card card-interactive"
+              onClick={() => router.push(`/admin/projektek/${project.id}`)}
+              style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', cursor: 'pointer', justifyContent: 'space-between' }}
+            >
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.5rem', marginBottom: '0.2rem' }}>
+                  <h3 style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--text-primary)', lineHeight: 1.3 }}>{project.name}</h3>
+                  <div style={{ display: 'flex', gap: '0.3rem', flexWrap: 'wrap', flexShrink: 0, alignItems: 'center' }}>
+                    {creator && (
+                      <span style={{ fontSize: '0.68rem', fontWeight: 700, whiteSpace: 'nowrap', background: 'var(--accent-light)', color: 'var(--accent)', border: '1px solid var(--accent-border)', padding: '0.15rem 0.45rem', borderRadius: 'var(--radius-pill)', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                        <UserCheck size={10} />{creator.display_name}
+                      </span>
+                    )}
+                    {isActive   && <span style={{ fontSize: '0.68rem', fontWeight: 700, whiteSpace: 'nowrap', background: 'var(--success-bg)', color: 'var(--success-text)', border: '1px solid var(--success-border)', padding: '0.15rem 0.45rem', borderRadius: 'var(--radius-pill)' }}>Folyamatban</span>}
                     {isUpcoming && <span style={{ fontSize: '0.68rem', fontWeight: 700, whiteSpace: 'nowrap', background: 'var(--warning-bg)', color: 'var(--warning-text)', border: '1px solid var(--warning-border)', padding: '0.15rem 0.45rem', borderRadius: 'var(--radius-pill)' }}>Közelgő</span>}
-                    {isPast && <span style={{ fontSize: '0.68rem', fontWeight: 700, whiteSpace: 'nowrap', background: 'var(--bg-subtle)', color: 'var(--text-muted)', border: '1px solid var(--border-subtle)', padding: '0.15rem 0.45rem', borderRadius: 'var(--radius-pill)' }}>Lezárt</span>}
+                    {isPast     && <span style={{ fontSize: '0.68rem', fontWeight: 700, whiteSpace: 'nowrap', background: 'var(--bg-subtle)', color: 'var(--text-muted)', border: '1px solid var(--border-subtle)', padding: '0.15rem 0.45rem', borderRadius: 'var(--radius-pill)' }}>Lezárt</span>}
                   </div>
-                  {client && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
-                      <Building2 size={12} color="var(--text-muted)" /> {client.name}
-                    </div>
-                  )}
-                  {project.description && (
-                    <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.3rem', lineHeight: 1.4, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
-                      {project.description}
-                    </p>
-                  )}
                 </div>
-
-                {/* Dates */}
-                {(startDate || endDate) && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.775rem', color: isActive ? 'var(--success-text)' : isUpcoming ? 'var(--warning-text)' : 'var(--text-muted)', fontWeight: 600 }}>
-                    <Calendar size={13} />
-                    <span>{startDate ? startDate.toLocaleDateString('hu-HU', { month: 'short', day: 'numeric' }) : '?'} – {endDate ? endDate.toLocaleDateString('hu-HU', { month: 'short', day: 'numeric', year: 'numeric' }) : '?'}</span>
+                {client && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
+                    <Building2 size={12} color="var(--text-muted)" /> {client.name}
                   </div>
                 )}
+                {project.description && (
+                  <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.3rem', lineHeight: 1.4, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
+                    {project.description}
+                  </p>
+                )}
+              </div>
 
-                {/* Bottom stats */}
-                <div style={{ paddingTop: '0.5rem', borderTop: '1px solid var(--border-subtle)', display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.72rem', fontWeight: 700, background: 'var(--bg-subtle)', color: 'var(--text-secondary)', border: '1px solid var(--border-subtle)', padding: '0.2rem 0.55rem', borderRadius: 'var(--radius-pill)' }}>
-                    <Users size={11} /> {memberUsers.length}
+              {(startDate || endDate) && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.775rem', color: isActive ? 'var(--success-text)' : isUpcoming ? 'var(--warning-text)' : 'var(--text-muted)', fontWeight: 600 }}>
+                  <Calendar size={13} />
+                  <span>{startDate ? startDate.toLocaleDateString('hu-HU', { month: 'short', day: 'numeric' }) : '?'} – {endDate ? endDate.toLocaleDateString('hu-HU', { month: 'short', day: 'numeric', year: 'numeric' }) : '?'}</span>
+                </div>
+              )}
+
+              <div style={{ paddingTop: '0.5rem', borderTop: '1px solid var(--border-subtle)', display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+                {[
+                  [Users, memberUsers.length],
+                  [Receipt, invoiceCount],
+                  [Hammer, labourCount],
+                  [BookOpen, diaryCount],
+                ].map(([Icon, count], i) => (
+                  <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.72rem', fontWeight: 700, background: 'var(--bg-subtle)', color: 'var(--text-secondary)', border: '1px solid var(--border-subtle)', padding: '0.2rem 0.55rem', borderRadius: 'var(--radius-pill)' }}>
+                    <Icon size={11} /> {count}
                   </span>
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.72rem', fontWeight: 700, background: 'var(--bg-subtle)', color: 'var(--text-secondary)', border: '1px solid var(--border-subtle)', padding: '0.2rem 0.55rem', borderRadius: 'var(--radius-pill)' }}>
-                    <Receipt size={11} /> {invoiceCount}
-                  </span>
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.72rem', fontWeight: 700, background: 'var(--bg-subtle)', color: 'var(--text-secondary)', border: '1px solid var(--border-subtle)', padding: '0.2rem 0.55rem', borderRadius: 'var(--radius-pill)' }}>
-                    <Hammer size={11} /> {labourCount}
-                  </span>
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.72rem', fontWeight: 700, background: 'var(--bg-subtle)', color: 'var(--text-secondary)', border: '1px solid var(--border-subtle)', padding: '0.2rem 0.55rem', borderRadius: 'var(--radius-pill)' }}>
-                    <BookOpen size={11} /> {diaryCount}
-                  </span>
+                ))}
+              </div>
+            </div>
+          );
+        };
+
+        return (
+          <>
+            {myProjects.length > 0 && (
+              <div style={{ marginBottom: invitedProjects.length > 0 ? '1.75rem' : 0 }}>
+                <div style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', marginBottom: '0.75rem' }}>
+                  Általam létrehozva ({myProjects.length})
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(300px, 100%), 1fr))', gap: '1rem' }}>
+                  {myProjects.map(p => renderCard(p, false))}
                 </div>
               </div>
-            );
-          })}
-        </div>
-      )}
+            )}
+
+            {invitedProjects.length > 0 && (
+              <div>
+                <div style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', marginBottom: '0.75rem' }}>
+                  Meghívottként ({invitedProjects.length})
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(300px, 100%), 1fr))', gap: '1rem' }}>
+                  {invitedProjects.map(p => renderCard(p, true))}
+                </div>
+              </div>
+            )}
+          </>
+        );
+      })()}
 
       <CreateProjectModal
         isOpen={createOpen}

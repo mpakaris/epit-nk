@@ -9,10 +9,12 @@ async function getCtx(surveyId, entryId) {
   const admin = createAdminClient();
   const { data: profile } = await admin.from('profiles').select('id, role, entity_id').eq('id', user.id).single();
   if (!profile) return { err: 'Forbidden', status: 403 };
-  const { data: survey } = await admin.from('surveys').select('entity_id').eq('id', surveyId).single();
+  const { data: survey } = await admin.from('surveys').select('entity_id, shared_with').eq('id', surveyId).single();
   if (!survey) return { err: 'Not found', status: 404 };
   if (profile.role !== 'superadmin' && survey.entity_id !== profile.entity_id) return { err: 'Forbidden', status: 403 };
-  if (!['admin', 'superadmin'].includes(profile.role)) return { err: 'Forbidden', status: 403 };
+  const isAdmin = ['admin', 'superadmin'].includes(profile.role);
+  const isSharedMember = (survey.shared_with || []).includes(profile.id);
+  if (!isAdmin && !isSharedMember) return { err: 'Forbidden', status: 403 };
   return { profile, admin, entityId: survey.entity_id };
 }
 

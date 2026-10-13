@@ -185,7 +185,7 @@ const EMPTY_ENTRY_FORM = { entry_type: 'material', work_description: '', quantit
 function NewQuotePageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { clients, users, loading, createQuote, createQuoteEntry, createQuoteSection, createClient, createSurvey, uploadSurveyMedia, currentUser, effectiveEntityId, fetchSurveyMedia } = useApp();
+  const { clients, users, surveys, loading, createQuote, createQuoteEntry, createQuoteSection, createClient, createSurvey, uploadSurveyMedia, currentUser, effectiveEntityId, fetchSurveyMedia } = useApp();
 
   const fromSurveyId = searchParams.get('from_survey') || null;
 
@@ -218,6 +218,15 @@ function NewQuotePageInner() {
   const [showNewClientModal, setShowNewClientModal] = useState(false);
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Pre-seed sharedWith from linked survey
+  useEffect(() => {
+    if (!fromSurveyId) return;
+    const linkedSurvey = (surveys || []).find(s => s.id === fromSurveyId);
+    if (linkedSurvey?.shared_with?.length) {
+      setSharedWith(linkedSurvey.shared_with.filter(uid => uid !== currentUser?.id));
+    }
+  }, [fromSurveyId, surveys]);
 
   // Load survey rooms on mount — also populates surveyEntriesBySurvey for SectionMediaGrid
   useEffect(() => {

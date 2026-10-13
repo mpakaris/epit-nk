@@ -216,31 +216,33 @@ export default function EditQuotePage() {
     setTaxPercent(String(quote.tax_percent ?? 27));
     setSharedWith(quote.shared_with || []);
 
-    setLocalSections(sections.map(s => ({
-      _key: s.id,
-      _id: s.id,
-      _surveyEntryId: s.survey_entry_id || null,
-      _surveyMedia: [],
-      name: s.name,
-      description: s.description || '',
-      size_m2: s.size_m2 != null ? String(s.size_m2) : '',
-      start_date: s.start_date || null,
-      end_date: s.end_date || null,
-      entries: entries
-        .filter(e => e.section_id === s.id)
-        .map(e => ({
-          _ekey: e.id,
-          _id: e.id,
-          entry_type: e.entry_type,
-          work_description: e.work_description,
-          quantity: e.quantity,
-          unit: e.unit,
-          unit_price: e.unit_price,
-          amount_huf: e.amount_huf,
-          notes: e.notes || '',
-          user_id: e.user_id,
-        })),
-    })));
+    const mapEntry = e => ({
+      _ekey: e.id, _id: e.id,
+      entry_type: e.entry_type, work_description: e.work_description,
+      quantity: e.quantity, unit: e.unit, unit_price: e.unit_price,
+      amount_huf: e.amount_huf, notes: e.notes || '', user_id: e.user_id,
+    });
+
+    const generalEntries = entries.filter(e => !e.section_id);
+
+    setLocalSections([
+      ...sections.map(s => ({
+        _key: s.id, _id: s.id, _isGeneral: false,
+        _surveyEntryId: s.survey_entry_id || null, _surveyMedia: [],
+        name: s.name, description: s.description || '',
+        size_m2: s.size_m2 != null ? String(s.size_m2) : '',
+        start_date: s.start_date || null, end_date: s.end_date || null,
+        entries: entries.filter(e => e.section_id === s.id).map(mapEntry),
+      })),
+      // Always include a "general" pseudo-section for unsectioned entries
+      {
+        _key: '_general', _id: null, _isGeneral: true,
+        _surveyEntryId: null, _surveyMedia: [],
+        name: 'Általános tételek', description: '', size_m2: '',
+        start_date: null, end_date: null,
+        entries: generalEntries.map(mapEntry),
+      },
+    ]);
 
     setInitialized(true);
   }, [quote, quoteSections, quoteEntries, id, initialized]);
@@ -391,7 +393,10 @@ export default function EditQuotePage() {
       // Create / update sections and their entries
       for (const s of localSections) {
         let sectionId;
-        if (s._id) {
+        if (s._isGeneral) {
+          // Pseudo-section: no DB section row, entries keep section_id = null
+          sectionId = null;
+        } else if (s._id) {
           await updateQuoteSection(id, s._id, { name: s.name, description: s.description || null, size_m2: s.size_m2 ? Number(s.size_m2) : null, start_date: s.start_date || null, end_date: s.end_date || null });
           sectionId = s._id;
         } else {
@@ -399,7 +404,9 @@ export default function EditQuotePage() {
           sectionId = created.id;
         }
 
-        const originalSectionEntries = s._id ? originalEntries.filter(e => e.section_id === s._id) : [];
+        const originalSectionEntries = s._isGeneral
+          ? originalEntries.filter(e => !e.section_id)
+          : s._id ? originalEntries.filter(e => e.section_id === s._id) : [];
         const keptEntryIds = new Set(s.entries.filter(e => e._id).map(e => e._id));
 
         // Delete removed entries
@@ -559,23 +566,30 @@ export default function EditQuotePage() {
                     <>
                       <div style={{ padding: '0.85rem 1rem 0.75rem' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.5rem', marginBottom: '0.35rem' }}>
-                          <span style={{ fontWeight: 800, fontSize: '1rem', color: 'var(--text-primary)', flex: 1, minWidth: 0 }}>{s.name}</span>
+                          <span style={{ fontWeight: 800, fontSize: '1rem', color: s._isGeneral ? 'var(--text-secondary)' : 'var(--text-primary)', flex: 1, minWidth: 0 }}>{s.name}</span>
                           <div style={{ display: 'flex', gap: '0.3rem', flexShrink: 0 }}>
                             <button type="button" onClick={() => openEntryModal(s._key)} className="btn btn-primary btn-sm" style={{ padding: '0.25rem 0.45rem' }} title="Tétel hozzáadása"><Plus size={12} /></button>
-                            <button type="button" onClick={() => { setEditingSectionKey(s._key); setShowAddSection(false); }} className="btn btn-secondary btn-sm" style={{ padding: '0.25rem 0.45rem' }}><Edit3 size={12} /></button>
-                            <button type="button" onClick={() => removeSection(s._key)} className="btn btn-danger btn-sm" style={{ padding: '0.25rem 0.45rem' }}><X size={12} /></button>
+                            {!s._isGeneral && <>
+                              <button type="button" onClick={() => { setEditingSectionKey(s._key); setShowAddSection(false); }} className="btn btn-secondary btn-sm" style={{ padding: '0.25rem 0.45rem' }}><Edit3 size={12} /></button>
+                              <button type="button" onClick={() => removeSection(s._key)} className="btn btn-danger btn-sm" style={{ padding: '0.25rem 0.45rem' }}><X size={12} /></button>
+                            </>}
                           </div>
                         </div>
-                        <div style={{ display: 'flex', gap: '0.65rem', flexWrap: 'wrap', alignItems: 'center' }}>
-                          {s.size_m2 && <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.2rem' }}><Ruler size={12} />{s.size_m2} m²</span>}
-                          {(s.start_date || s.end_date) && (
-                            <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--accent)', display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
-                              <Calendar size={12} />{s.start_date ? formatDate(s.start_date) : '?'} – {s.end_date ? formatDate(s.end_date) : '?'}
-                            </span>
-                          )}
-                          {sectionTotal > 0 && <span style={{ marginLeft: 'auto', fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{formatHUF(sectionTotal)}</span>}
-                        </div>
-                        {s.description && <p style={{ marginTop: '0.35rem', fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.55 }}>{s.description}</p>}
+                        {!s._isGeneral && (
+                          <div style={{ display: 'flex', gap: '0.65rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                            {s.size_m2 && <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.2rem' }}><Ruler size={12} />{s.size_m2} m²</span>}
+                            {(s.start_date || s.end_date) && (
+                              <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--accent)', display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
+                                <Calendar size={12} />{s.start_date ? formatDate(s.start_date) : '?'} – {s.end_date ? formatDate(s.end_date) : '?'}
+                              </span>
+                            )}
+                            {sectionTotal > 0 && <span style={{ marginLeft: 'auto', fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{formatHUF(sectionTotal)}</span>}
+                          </div>
+                        )}
+                        {s._isGeneral && sectionTotal > 0 && (
+                          <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{formatHUF(sectionTotal)}</span>
+                        )}
+                        {s.description && !s._isGeneral && <p style={{ marginTop: '0.35rem', fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.55 }}>{s.description}</p>}
                       </div>
 
                       {/* Photo management for survey-linked sections */}
@@ -670,11 +684,17 @@ export default function EditQuotePage() {
         {/* Section breadcrumb */}
         {(() => {
           const section = localSections.find(s => s._key === activeSectionKey);
-          return section ? (
+          if (!section) return null;
+          if (section._isGeneral) return (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.5rem 0.75rem', background: 'var(--bg-subtle)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', marginBottom: '0.85rem', fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
+              <MoreHorizontal size={13} /> Általános tételek (nincs helyiséghez rendelve)
+            </div>
+          );
+          return (
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.5rem 0.75rem', background: 'var(--accent-light)', border: '1px solid var(--accent-border)', borderRadius: 'var(--radius-md)', marginBottom: '0.85rem', fontSize: '0.82rem', fontWeight: 600, color: 'var(--accent)' }}>
               <Home size={13} />{section.name}{section.size_m2 ? ` · ${section.size_m2} m²` : ''}
             </div>
-          ) : null;
+          );
         })()}
 
         {entryError && <div style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', color: 'var(--danger-text)', padding: '0.6rem 0.85rem', borderRadius: 'var(--radius-md)', fontSize: '0.825rem', display: 'flex', gap: '0.45rem', marginBottom: '0.85rem' }}><AlertCircle size={15} style={{ flexShrink: 0 }} /><span>{entryError}</span></div>}

@@ -40,9 +40,9 @@ export async function POST(request) {
       finalEntityId = entityId || null;
       finalRole = role;
     } else {
-      // Entity admin: can only create 'user' role within their own entity
+      // Entity admin: can create 'user' or 'admin' within their own entity, never superadmin
       finalEntityId = callerProfile.entity_id;
-      finalRole = 'user';
+      finalRole = role === 'admin' ? 'admin' : 'user';
     }
 
     // 3. Create auth user
