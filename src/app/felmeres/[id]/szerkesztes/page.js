@@ -7,6 +7,7 @@ import { useApp } from '@/context/AppContext';
 import { formatDate } from '@/lib/constants';
 import { ConfirmModal, AlertModal } from '@/components/Modal';
 import EntitySelector from '@/components/EntitySelector';
+import DrawingsSection from '@/components/DrawingsSection';
 import {
   ArrowLeft, MapPin, Calendar, User, Check, Loader2, Plus, Trash2, Edit3,
   Camera, Play, X, ChevronLeft, ChevronRight,
@@ -142,9 +143,12 @@ function MediaGrid({ media, onDelete }) {
 
 function EntryForm({ initial, surveyId, onSave, onCancel }) {
   const { uploadSurveyMedia, deleteSurveyEntry } = useApp();
-  const [name, setName] = useState(initial?.name || '');
+  const [name, setName]               = useState(initial?.name || '');
   const [description, setDescription] = useState(initial?.description || '');
-  const [sizeM2, setSizeM2] = useState(initial?.size_m2 != null ? String(initial.size_m2) : '');
+  const [sizeM2, setSizeM2]           = useState(initial?.size_m2      != null ? String(initial.size_m2)      : '');
+  const [heightM, setHeightM]         = useState(initial?.height_m     != null ? String(initial.height_m)     : '');
+  const [windowCount, setWindowCount] = useState(initial?.window_count != null ? String(initial.window_count) : '');
+  const [doorCount, setDoorCount]     = useState(initial?.door_count   != null ? String(initial.door_count)   : '');
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   const fileInputRef = useRef(null);
@@ -171,7 +175,14 @@ function EntryForm({ initial, surveyId, onSave, onCancel }) {
     if (!name.trim()) { setError('A hely neve kötelező!'); return; }
     setSaving(true);
     try {
-      const entry = await onSave({ name: name.trim(), description: description.trim() || null, size_m2: sizeM2 ? Number(sizeM2) : null });
+      const entry = await onSave({
+        name: name.trim(),
+        description: description.trim() || null,
+        size_m2:      sizeM2      ? Number(sizeM2)      : null,
+        height_m:     heightM     ? Number(heightM)     : null,
+        window_count: windowCount ? Number(windowCount) : 0,
+        door_count:   doorCount   ? Number(doorCount)   : 0,
+      });
       if (!initial && selectedFiles.length && entry?.id) {
         try { await uploadSurveyMedia(surveyId, selectedFiles, { entryId: entry.id, mediaType: 'photo' }); }
         catch (uploadErr) {
@@ -202,7 +213,20 @@ function EntryForm({ initial, surveyId, onSave, onCancel }) {
           <label className="form-label" htmlFor="entry-size">Alapterület (m²)</label>
           <input id="entry-size" type="number" min="0" step="0.1" className="form-control" value={sizeM2} onChange={e => setSizeM2(e.target.value)} placeholder="pl. 12.5" />
         </div>
-        <div />
+        <div className="form-group" style={{ margin: 0 }}>
+          <label className="form-label" htmlFor="entry-height">Belmagasság (m)</label>
+          <input id="entry-height" type="number" min="0" step="0.05" className="form-control" value={heightM} onChange={e => setHeightM(e.target.value)} placeholder="pl. 2.6" />
+        </div>
+      </div>
+      <div className="grid-2col" style={{ marginTop: '0.5rem' }}>
+        <div className="form-group" style={{ margin: 0 }}>
+          <label className="form-label" htmlFor="entry-windows">Ablakok száma</label>
+          <input id="entry-windows" type="number" min="0" step="1" className="form-control" value={windowCount} onChange={e => setWindowCount(e.target.value)} placeholder="0" />
+        </div>
+        <div className="form-group" style={{ margin: 0 }}>
+          <label className="form-label" htmlFor="entry-doors">Ajtók száma</label>
+          <input id="entry-doors" type="number" min="0" step="1" className="form-control" value={doorCount} onChange={e => setDoorCount(e.target.value)} placeholder="0" />
+        </div>
       </div>
       <div className="form-group" style={{ marginTop: '0.75rem' }}>
         <label className="form-label" htmlFor="entry-desc">Megjegyzés</label>
@@ -252,9 +276,10 @@ export default function SurveyEditPage() {
     loading, dataReady, surveys, clients, users,
     isAdmin, currentUser, effectiveEntityId, effectiveMemberships,
     updateSurvey, deleteSurveyMedia,
-    surveyMediaBySurvey, surveyEntriesBySurvey, surveyLayoutsBySurvey,
+    surveyMediaBySurvey, surveyEntriesBySurvey, surveyLayoutsBySurvey, surveyDrawingsBySurvey,
     fetchSurveyMedia,
     createSurveyEntry, updateSurveyEntry, deleteSurveyEntry,
+    createSurveyDrawing, deleteSurveyDrawing,
   } = useApp();
 
   const [entityId, setEntityId] = useState(null);
@@ -454,6 +479,16 @@ export default function SurveyEditPage() {
         )}
       </div>
 
+      {/* Survey-level drawings */}
+      <div className="card mb-4" style={{ padding: '1rem' }}>
+        <DrawingsSection
+          drawings={(surveyDrawingsBySurvey[id] || []).filter(d => !d.entry_id)}
+          onSave={svg => createSurveyDrawing(id, { svg_data: svg })}
+          onDelete={drawingId => deleteSurveyDrawing(id, drawingId)}
+          canEdit={isAdmin || survey.created_by === currentUser?.id}
+        />
+      </div>
+
       {/* Rooms */}
       <div style={{ marginBottom: '1.25rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', gap: '0.5rem', flexWrap: 'wrap' }}>
@@ -534,6 +569,16 @@ export default function SurveyEditPage() {
                     ) : (
                       <InlineUploadZone surveyId={id} entryId={entry.id} />
                     )}
+                  </div>
+
+                  {/* Entry-level drawings */}
+                  <div style={{ marginTop: '0.75rem', borderTop: '1px solid var(--border-subtle)', paddingTop: '0.75rem' }}>
+                    <DrawingsSection
+                      drawings={(surveyDrawingsBySurvey[id] || []).filter(d => d.entry_id === entry.id)}
+                      onSave={svg => createSurveyDrawing(id, { svg_data: svg, entry_id: entry.id })}
+                      onDelete={drawingId => deleteSurveyDrawing(id, drawingId)}
+                      canEdit={isAdmin || survey.created_by === currentUser?.id}
+                    />
                   </div>
                 </div>
               )}

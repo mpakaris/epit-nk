@@ -4,9 +4,8 @@ import { createAdminClient } from '@/lib/supabase/admin';
 async function getCallerProfile(supabase, admin) {
   const { data: { user }, error } = await supabase.auth.getUser();
   if (error || !user) return { error: 'Unauthenticated', status: 401 };
-  const { data: profile } = await admin.from('profiles').select('id, role, entity_id, display_name').eq('id', user.id).single();
+  const { data: profile } = await admin.from('profiles').select('id, role, entity_id, current_entity_id, display_name').eq('id', user.id).single();
   if (!profile) return { error: 'Profile not found', status: 403 };
-  if (profile.role !== 'superadmin' && !profile.entity_id) return { error: 'No entity assigned', status: 400 };
   return { user, profile };
 }
 
@@ -49,9 +48,15 @@ export async function POST(request) {
 
   if (!title?.trim()) return Response.json({ error: 'A cím kötelező' }, { status: 400 });
 
-  let entityId = ctx.profile.entity_id;
-  if (ctx.profile.role === 'superadmin' && bodyEntityId) entityId = bodyEntityId;
+  // Respect the entity chosen in the form (personal or collective)
+  const entityId = bodyEntityId || ctx.profile.current_entity_id || ctx.profile.entity_id;
   if (!entityId) return Response.json({ error: 'Nincs entitás' }, { status: 400 });
+
+  // Verify the user actually has membership for the requested entity
+  if (ctx.profile.role !== 'superadmin') {
+    const { data: mem } = await admin.from('memberships').select('id').eq('user_id', ctx.profile.id).eq('entity_id', entityId).eq('status', 'active').maybeSingle();
+    if (!mem) return Response.json({ error: 'Nincs hozzáférés ehhez az entitáshoz' }, { status: 403 });
+  }
 
   const { data: survey, error: insertErr } = await admin.from('surveys').insert([{
     entity_id: entityId,

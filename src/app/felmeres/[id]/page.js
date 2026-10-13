@@ -12,6 +12,7 @@ import {
   FileText, FolderKanban, Home, Ruler, LayoutPanelLeft,
 } from 'lucide-react';
 import PageSpinner from '@/components/PageSpinner';
+import DrawingsSection from '@/components/DrawingsSection';
 
 // ── Lightbox ──────────────────────────────────────────────────────────────────
 function Lightbox({ media, startIndex, onClose }) {
@@ -88,7 +89,7 @@ export default function SurveyDetailPage() {
     loading, dataReady, surveys, quotes, projects, clients, users,
     isAdmin, currentUser,
     deleteSurvey,
-    surveyMediaBySurvey, surveyEntriesBySurvey, surveyLayoutsBySurvey,
+    surveyMediaBySurvey, surveyEntriesBySurvey, surveyLayoutsBySurvey, surveyDrawingsBySurvey,
     fetchSurveyMedia,
   } = useApp();
 
@@ -113,8 +114,9 @@ export default function SurveyDetailPage() {
 
   const client = clients.find(c => c.id === survey.client_id);
   const creator = users.find(u => u.id === survey.created_by);
-  const layouts = surveyLayoutsBySurvey[id] || [];
-  const entries = surveyEntriesBySurvey[id] || [];
+  const layouts  = surveyLayoutsBySurvey[id]  || [];
+  const entries  = surveyEntriesBySurvey[id]  || [];
+  const drawings = surveyDrawingsBySurvey[id] || [];
 
   const isSharedMember = (survey.shared_with || []).includes(currentUser?.id);
   const canEdit = isAdmin || isSharedMember;
@@ -217,6 +219,18 @@ export default function SurveyDetailPage() {
         )}
       </div>
 
+      {/* Survey-level drawings */}
+      {drawings.filter(d => !d.entry_id).length > 0 && (
+        <div className="card mb-4" style={{ padding: '1rem' }}>
+          <DrawingsSection
+            drawings={drawings.filter(d => !d.entry_id)}
+            onSave={() => {}}
+            onDelete={() => {}}
+            canEdit={false}
+          />
+        </div>
+      )}
+
       {/* Rooms — read only */}
       <div style={{ marginBottom: '1.25rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
@@ -263,6 +277,16 @@ export default function SurveyDetailPage() {
                 <div style={{ marginTop: '0.75rem', borderTop: '1px solid var(--border-subtle)', paddingTop: '0.75rem' }}>
                   <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600 }}>{entry.media.length} fotó / videó</span>
                   <MediaGrid media={entry.media} />
+                </div>
+              )}
+              {drawings.filter(d => d.entry_id === entry.id).length > 0 && (
+                <div style={{ marginTop: '0.75rem', borderTop: '1px solid var(--border-subtle)', paddingTop: '0.75rem' }}>
+                  <DrawingsSection
+                    drawings={drawings.filter(d => d.entry_id === entry.id)}
+                    onSave={() => {}}
+                    onDelete={() => {}}
+                    canEdit={false}
+                  />
                 </div>
               )}
             </div>

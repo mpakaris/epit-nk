@@ -25,8 +25,9 @@ export async function POST(request) {
 
   const { data: survey } = await admin.from('surveys').select('entity_id, shared_with').eq('id', surveyId).single();
   if (!survey) return Response.json({ error: 'Felmérés nem található' }, { status: 404 });
-  if (profile.role !== 'superadmin' && survey.entity_id !== profile.entity_id) {
-    return Response.json({ error: 'Forbidden' }, { status: 403 });
+  if (profile.role !== 'superadmin') {
+    const { data: mem } = await admin.from('memberships').select('id').eq('user_id', profile.id).eq('entity_id', survey.entity_id).eq('status', 'active').maybeSingle();
+    if (!mem) return Response.json({ error: 'Forbidden' }, { status: 403 });
   }
   const isAdmin = ['admin', 'superadmin'].includes(profile.role);
   const isSharedMember = (survey.shared_with || []).includes(profile.id);

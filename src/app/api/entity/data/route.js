@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 
-export async function GET() {
+export async function GET(request) {
   const supabase = await createClient();
   const { data: { user }, error: authErr } = await supabase.auth.getUser();
   if (authErr || !user) return Response.json({ error: 'Unauthenticated' }, { status: 401 });
@@ -10,10 +10,18 @@ export async function GET() {
   const { data: profile } = await admin.from('profiles').select('role, entity_id, current_entity_id').eq('id', user.id).single();
 
   if (!profile) return Response.json({ error: 'Profile not found' }, { status: 403 });
-  if (profile.role === 'superadmin') return Response.json({ error: 'Use /api/superadmin/data' }, { status: 400 });
 
-  const entityId = profile.current_entity_id || profile.entity_id;
-  if (!entityId) return Response.json({ error: 'No entity assigned to this user' }, { status: 400 });
+  let entityId;
+  if (profile.role === 'superadmin') {
+    // SA in god mode: read entity from the god_mode_entity cookie
+    const cookieHeader = request.headers.get('cookie') || '';
+    const match = cookieHeader.match(/god_mode_entity=([a-f0-9-]+)/);
+    entityId = match ? match[1] : null;
+    if (!entityId) return Response.json({ error: 'No god mode entity set' }, { status: 400 });
+  } else {
+    entityId = profile.current_entity_id || profile.entity_id;
+    if (!entityId) return Response.json({ error: 'No entity assigned to this user' }, { status: 400 });
+  }
 
   const [usersRes, projectsRes, clientsRes, quotesRes, surveysRes, templatesRes, entityInfoRes] = await Promise.all([
     admin.from('profiles').select('*').eq('entity_id', entityId).order('display_name'),

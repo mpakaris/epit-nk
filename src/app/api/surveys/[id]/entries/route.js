@@ -10,7 +10,10 @@ async function getCtx(surveyId) {
   if (!profile) return { err: 'Forbidden', status: 403 };
   const { data: survey } = await admin.from('surveys').select('*').eq('id', surveyId).single();
   if (!survey) return { err: 'Not found', status: 404 };
-  if (profile.role !== 'superadmin' && survey.entity_id !== profile.entity_id) return { err: 'Forbidden', status: 403 };
+  if (profile.role !== 'superadmin') {
+    const { data: mem } = await admin.from('memberships').select('id').eq('user_id', profile.id).eq('entity_id', survey.entity_id).eq('status', 'active').maybeSingle();
+    if (!mem) return { err: 'Forbidden', status: 403 };
+  }
   const isAdmin = ['admin', 'superadmin'].includes(profile.role);
   // shared_with may be absent if migration 028 hasn't been applied yet
   const isSharedMember = Array.isArray(survey.shared_with) && survey.shared_with.includes(profile.id);
@@ -23,7 +26,7 @@ export async function POST(request, { params }) {
   const ctx = await getCtx(surveyId);
   if (ctx.err) return Response.json({ error: ctx.err }, { status: ctx.status });
 
-  const { name, description, size_m2, sort_order } = await request.json();
+  const { name, description, size_m2, height_m, window_count, door_count, sort_order } = await request.json();
   if (!name?.trim()) return Response.json({ error: 'A hely neve kötelező' }, { status: 400 });
 
   const entryInsert = {
@@ -31,7 +34,10 @@ export async function POST(request, { params }) {
     entity_id: ctx.entityId,
     name: name.trim(),
     description: description?.trim() || null,
-    size_m2: size_m2 != null && size_m2 !== '' ? Number(size_m2) : null,
+    size_m2:      size_m2      != null && size_m2      !== '' ? Number(size_m2)      : null,
+    height_m:     height_m     != null && height_m     !== '' ? Number(height_m)     : null,
+    window_count: window_count != null && window_count !== '' ? Number(window_count) : 0,
+    door_count:   door_count   != null && door_count   !== '' ? Number(door_count)   : 0,
     sort_order: sort_order ?? 0,
   };
 

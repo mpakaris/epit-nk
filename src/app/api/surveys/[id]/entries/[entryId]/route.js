@@ -11,7 +11,10 @@ async function getCtx(surveyId, entryId) {
   if (!profile) return { err: 'Forbidden', status: 403 };
   const { data: survey } = await admin.from('surveys').select('entity_id, shared_with').eq('id', surveyId).single();
   if (!survey) return { err: 'Not found', status: 404 };
-  if (profile.role !== 'superadmin' && survey.entity_id !== profile.entity_id) return { err: 'Forbidden', status: 403 };
+  if (profile.role !== 'superadmin') {
+    const { data: mem } = await admin.from('memberships').select('id').eq('user_id', profile.id).eq('entity_id', survey.entity_id).eq('status', 'active').maybeSingle();
+    if (!mem) return { err: 'Forbidden', status: 403 };
+  }
   const isAdmin = ['admin', 'superadmin'].includes(profile.role);
   const isSharedMember = (survey.shared_with || []).includes(profile.id);
   if (!isAdmin && !isSharedMember) return { err: 'Forbidden', status: 403 };
@@ -24,7 +27,7 @@ export async function PATCH(request, { params }) {
   if (ctx.err) return Response.json({ error: ctx.err }, { status: ctx.status });
 
   const fields = await request.json();
-  const allowed = ['name', 'description', 'size_m2', 'sort_order'];
+  const allowed = ['name', 'description', 'size_m2', 'height_m', 'window_count', 'door_count', 'sort_order'];
   const update = {};
   for (const k of allowed) if (k in fields) update[k] = fields[k];
   if (update.name !== undefined) update.name = update.name?.trim();

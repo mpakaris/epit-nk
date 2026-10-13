@@ -14,8 +14,9 @@ async function getCallerAndSurvey(id) {
   const { data: survey } = await admin.from('surveys').select('*').eq('id', id).single();
   if (!survey) return { err: 'Not found', status: 404 };
 
-  if (profile.role !== 'superadmin' && survey.entity_id !== profile.entity_id) {
-    return { err: 'Forbidden', status: 403 };
+  if (profile.role !== 'superadmin') {
+    const { data: mem } = await admin.from('memberships').select('id').eq('user_id', profile.id).eq('entity_id', survey.entity_id).eq('status', 'active').maybeSingle();
+    if (!mem) return { err: 'Forbidden', status: 403 };
   }
 
   const isSharedMember = (survey.shared_with || []).includes(profile.id);
@@ -27,9 +28,10 @@ export async function GET(request, { params }) {
   const ctx = await getCallerAndSurvey(id);
   if (ctx.err) return Response.json({ error: ctx.err }, { status: ctx.status });
 
-  const [{ data: allMedia }, { data: entries }] = await Promise.all([
+  const [{ data: allMedia }, { data: entries }, { data: drawings }] = await Promise.all([
     ctx.admin.from('survey_media').select('*').eq('survey_id', id).order('created_at'),
     ctx.admin.from('survey_entries').select('*').eq('survey_id', id).order('sort_order').order('created_at'),
+    ctx.admin.from('survey_drawings').select('*').eq('survey_id', id).order('created_at'),
   ]);
 
   const media = allMedia || [];
@@ -44,6 +46,7 @@ export async function GET(request, { params }) {
     media: media.filter(m => m.entry_id === null),
     layouts: media.filter(m => m.entry_id === null && m.media_type === 'layout'),
     photos: media.filter(m => m.entry_id === null && m.media_type === 'photo'),
+    drawings: drawings || [],
   });
 }
 

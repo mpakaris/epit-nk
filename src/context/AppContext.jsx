@@ -36,6 +36,7 @@ export function AppProvider({ children }) {
   const [surveyMediaBySurvey, setSurveyMediaBySurvey] = useState({});
   const [surveyEntriesBySurvey, setSurveyEntriesBySurvey] = useState({});
   const [surveyLayoutsBySurvey, setSurveyLayoutsBySurvey] = useState({});
+  const [surveyDrawingsBySurvey, setSurveyDrawingsBySurvey] = useState({});
 
   // Templates
   const [templates, setTemplates] = useState([]);
@@ -227,6 +228,25 @@ export function AppProvider({ children }) {
           setAllMemberships(d.allMemberships || []);
           setDataReady(true);
         }
+        // When in god mode, also fetch entity-scoped data (surveys, templates, projectRooms)
+        // /api/entity/data reads the god_mode_entity cookie to determine the entity
+        const godEntityId = typeof document !== 'undefined'
+          ? document.cookie.match(/god_mode_entity=([a-f0-9-]+)/)?.[1]
+          : null;
+        if (godEntityId) {
+          const entityRes = await fetch('/api/entity/data');
+          if (entityRes.ok) {
+            const d = await entityRes.json();
+            setSurveys(d.surveys || []);
+            setTemplates(d.templates || []);
+            setProjectRooms(d.projectRooms || []);
+          }
+        } else {
+          // Leaving god mode — clear entity-scoped data
+          setSurveys([]);
+          setTemplates([]);
+          setProjectRooms([]);
+        }
         return;
       }
 
@@ -347,6 +367,13 @@ export function AppProvider({ children }) {
     setImpersonating(impersonatingProfile);
     if (activeEntityId) {
       document.cookie = `god_mode_entity=${activeEntityId}; path=/; SameSite=Lax`;
+      // Fetch entity-scoped data immediately (surveys, templates, projectRooms)
+      fetch('/api/entity/data').then(r => r.ok ? r.json() : null).then(d => {
+        if (!d) return;
+        setSurveys(d.surveys || []);
+        setTemplates(d.templates || []);
+        setProjectRooms(d.projectRooms || []);
+      }).catch(() => {});
     }
     if (profile?.role === 'admin') router.push('/admin');
     else router.push('/projektek');
@@ -355,6 +382,9 @@ export function AppProvider({ children }) {
   const stopImpersonation = () => {
     setImpersonating(null);
     document.cookie = 'god_mode_entity=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
+    setSurveys([]);
+    setTemplates([]);
+    setProjectRooms([]);
     router.push('/superadmin');
   };
 
@@ -384,6 +414,12 @@ export function AppProvider({ children }) {
   const switchImpersonatingContext = (entityId) => {
     setImpersonating(prev => prev ? { ...prev, current_entity_id: entityId } : prev);
     document.cookie = `god_mode_entity=${entityId}; path=/; SameSite=Lax`;
+    fetch('/api/entity/data').then(r => r.ok ? r.json() : null).then(d => {
+      if (!d) return;
+      setSurveys(d.surveys || []);
+      setTemplates(d.templates || []);
+      setProjectRooms(d.projectRooms || []);
+    }).catch(() => {});
   };
 
   // ---- Entities (superadmin only) --------------------------------------------
@@ -828,6 +864,7 @@ export function AppProvider({ children }) {
     setSurveyMediaBySurvey(prev => ({ ...prev, [surveyId]: data.photos || [] }));
     setSurveyLayoutsBySurvey(prev => ({ ...prev, [surveyId]: data.layouts || [] }));
     setSurveyEntriesBySurvey(prev => ({ ...prev, [surveyId]: data.entries || [] }));
+    setSurveyDrawingsBySurvey(prev => ({ ...prev, [surveyId]: data.drawings || [] }));
     return data;
   };
 
@@ -936,6 +973,33 @@ export function AppProvider({ children }) {
     setSurveyEntriesBySurvey(prev => ({
       ...prev,
       [surveyId]: (prev[surveyId] || []).filter(e => e.id !== entryId),
+    }));
+  };
+
+  // ---- Survey drawings --------------------------------------------------------
+
+  const createSurveyDrawing = async (surveyId, { svg_data, entry_id }) => {
+    const res = await fetch(`/api/surveys/${surveyId}/drawings`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ svg_data, entry_id: entry_id || null }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Hiba a vázlat mentésekor');
+    setSurveyDrawingsBySurvey(prev => ({
+      ...prev,
+      [surveyId]: [...(prev[surveyId] || []), data.drawing],
+    }));
+    return data.drawing;
+  };
+
+  const deleteSurveyDrawing = async (surveyId, drawingId) => {
+    const res = await fetch(`/api/surveys/${surveyId}/drawings/${drawingId}`, { method: 'DELETE' });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Hiba a vázlat törlésekor');
+    setSurveyDrawingsBySurvey(prev => ({
+      ...prev,
+      [surveyId]: (prev[surveyId] || []).filter(d => d.id !== drawingId),
     }));
   };
 
@@ -1369,6 +1433,9 @@ export function AppProvider({ children }) {
         surveyMediaBySurvey,
         surveyEntriesBySurvey,
         surveyLayoutsBySurvey,
+        surveyDrawingsBySurvey,
+        createSurveyDrawing,
+        deleteSurveyDrawing,
         createSurvey,
         updateSurvey,
         deleteSurvey,

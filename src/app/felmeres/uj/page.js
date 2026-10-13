@@ -112,11 +112,10 @@ export default function NewSurveyPage() {
     e.preventDefault();
     setError('');
     if (!title.trim()) { setError('A cím megadása kötelező!'); return; }
-    if (!clientId) { setError('Ügyfél kiválasztása kötelező!'); return; }
     setIsSubmitting(true);
     try {
       const survey = await createSurvey({ title: title.trim(), notes: notes.trim(), date: date || null, location: location.trim(), clientId, sharedWith, entityId: activeEntityId });
-      router.push(`/felmeres/${survey.id}`);
+      router.push(`/felmeres/${survey.id}/szerkesztes`);
     } catch (err) {
       setError(err.message || 'Hiba a felmérés mentésekor');
       setIsSubmitting(false);
@@ -173,11 +172,11 @@ export default function NewSurveyPage() {
         </div>
 
         <div className="card mb-4" style={{ padding: '1.25rem' }}>
-          <div style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.05em', marginBottom: '0.85rem' }}>Megrendelő *</div>
+          <div style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.05em', marginBottom: '0.85rem' }}>Megrendelő</div>
           <div style={{ display: 'flex', gap: '0.65rem', alignItems: 'flex-end', flexWrap: 'wrap' }}>
             <div style={{ flex: 1, minWidth: '200px' }}>
-              <label className="form-label" htmlFor="sv-client">Ügyfél *</label>
-              <ClientSelect id="sv-client" value={clientId} onChange={e => setClientId(e.target.value)} clients={clients} style={{ borderColor: !clientId ? 'var(--warning-border)' : undefined }} />
+              <label className="form-label" htmlFor="sv-client">Ügyfél</label>
+              <ClientSelect id="sv-client" value={clientId} onChange={e => setClientId(e.target.value)} clients={clients} />
             </div>
             <button type="button" onClick={() => setShowNewClientModal(true)} className="btn btn-secondary btn-sm" style={{ whiteSpace: 'nowrap', marginBottom: 0 }}>
               <Plus size={14} /> Új ügyfél

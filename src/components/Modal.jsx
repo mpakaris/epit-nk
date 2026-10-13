@@ -3,7 +3,7 @@
 import React, { useEffect, useRef } from 'react';
 import { X, AlertTriangle, AlertCircle, CheckCircle2 } from 'lucide-react';
 
-function ModalBase({ isOpen, onClose, children, style }) {
+function ModalBase({ isOpen, onClose, children, style, persistent }) {
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
 
@@ -50,7 +50,7 @@ function ModalBase({ isOpen, onClose, children, style }) {
   if (!isOpen) return null;
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div className="modal-overlay" onClick={persistent ? undefined : onClose}>
       <div className="modal-dialog" style={style} onClick={(e) => e.stopPropagation()}>
         {children}
       </div>
@@ -58,9 +58,10 @@ function ModalBase({ isOpen, onClose, children, style }) {
   );
 }
 
-export default function Modal({ isOpen, onClose, title, children }) {
+export default function Modal({ isOpen, onClose, title, children, maxWidth, maxHeight, persistent }) {
+  const style = (maxWidth || maxHeight) ? { ...(maxWidth && { maxWidth }), ...(maxHeight && { maxHeight }) } : undefined;
   return (
-    <ModalBase isOpen={isOpen} onClose={onClose}>
+    <ModalBase isOpen={isOpen} onClose={onClose} style={style} persistent={persistent}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
         <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-primary)' }}>
           {title}
