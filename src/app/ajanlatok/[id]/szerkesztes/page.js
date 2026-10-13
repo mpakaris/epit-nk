@@ -95,14 +95,23 @@ function SectionForm({ initial, surveyId, onSave, onCancel }) {
     setSaving(true);
     try {
       const fields = { name: name.trim(), description: description.trim() || null, size_m2: sizeM2 ? Number(sizeM2) : null, start_date: startDate || null, end_date: endDate || null };
-      let surveyEntryId = null;
+      let surveyEntryId = initial?._surveyEntryId || null;
       if (!initial && surveyId) {
+        // New section with survey — create a matching survey entry
+        try { const e = await createSurveyEntry(surveyId, fields); surveyEntryId = e.id; } catch {}
+      } else if (initial && surveyId && !surveyEntryId) {
+        // Existing section with no survey entry yet — create one
         try { const e = await createSurveyEntry(surveyId, fields); surveyEntryId = e.id; } catch {}
       }
-      if (surveyEntryId && selectedFiles.length) {
+      if (surveyId && surveyEntryId && selectedFiles.length) {
         try { await uploadSurveyMedia(surveyId, selectedFiles, { entryId: surveyEntryId, mediaType: 'photo' }); } catch {}
       }
-      await onSave({ ...fields, _surveyEntryId: surveyEntryId });
+      if (surveyId && surveyEntryId) {
+        await onSave({ ...fields, _surveyEntryId: surveyEntryId, _pendingFiles: [], _pendingPreviews: [] });
+      } else {
+        // No survey context — pass files as pending (uploaded at form submit)
+        await onSave({ ...fields, _surveyEntryId: null, _pendingFiles: selectedFiles.length ? [...selectedFiles] : [], _pendingPreviews: previews.map(p => ({ url: p.url, isVideo: p.isVideo })) });
+      }
     } catch (err) {
       setError(err.message || 'Hiba');
       setSaving(false);
@@ -120,37 +129,93 @@ function SectionForm({ initial, surveyId, onSave, onCancel }) {
         <div className="form-group" style={{ margin: 0 }}><label className="form-label">Kezdés</label><input type="date" className="form-control" value={startDate} onChange={e => { setStartDate(e.target.value); if (e.target.value && endDate && endDate < e.target.value) setEndDate(''); }} /></div>
         <div className="form-group" style={{ margin: 0 }}><label className="form-label">Befejezés</label><input type="date" className="form-control" min={startDate || undefined} value={endDate} onChange={e => setEndDate(e.target.value)} /></div>
       </div>
-      <div className="form-group" style={{ marginBottom: !initial && surveyId ? '0.5rem' : '0.75rem' }}><label className="form-label">Leírás</label><textarea rows={2} className="form-control" value={description} onChange={e => setDescription(e.target.value)} placeholder="Elvégzendő munkák, állapot…" /></div>
-      {!initial && surveyId && (
-        <div className="form-group" style={{ marginBottom: '0.75rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: previews.length ? '0.4rem' : 0 }}>
-            <label className="form-label" style={{ margin: 0 }}>Fotók</label>
-            <input ref={fileInputRef} type="file" accept="image/*,video/*" multiple onChange={addFiles} style={{ display: 'none' }} />
-            <button type="button" onClick={() => fileInputRef.current?.click()} className="btn btn-secondary btn-sm" style={{ fontSize: '0.72rem' }}>
-              <Camera size={12} /> Fotó hozzáadása
-            </button>
-          </div>
-          {previews.length > 0 && (
-            <div style={{ display: 'flex', gap: '0.3rem', flexWrap: 'wrap' }}>
-              {previews.map((p, i) => (
-                <div key={p.key} style={{ position: 'relative', flexShrink: 0 }}>
-                  <div style={{ width: 52, height: 52, borderRadius: 'var(--radius-md)', overflow: 'hidden', border: '1px solid var(--border-subtle)', background: 'var(--bg-subtle)' }}>
-                    {p.isVideo ? <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#1a1a2e', color: '#fff', fontSize: '1rem' }}>▶</div>
-                    : <img src={p.url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
-                  </div>
-                  <button type="button" onClick={() => { setSelectedFiles(f => f.filter((_, fi) => fi !== i)); setPreviews(p => p.filter((_, pi) => pi !== i)); }} style={{ position: 'absolute', top: 2, right: 2, background: 'rgba(239,68,68,0.85)', border: 'none', borderRadius: '50%', width: 16, height: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#fff' }}><X size={9} /></button>
-                </div>
-              ))}
-            </div>
-          )}
+      <div className="form-group" style={{ marginBottom: '0.5rem' }}><label className="form-label">Leírás</label><textarea rows={2} className="form-control" value={description} onChange={e => setDescription(e.target.value)} placeholder="Elvégzendő munkák, állapot…" /></div>
+      <div className="form-group" style={{ marginBottom: '0.75rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: previews.length ? '0.4rem' : 0 }}>
+          <label className="form-label" style={{ margin: 0 }}>Fotók</label>
+          <input ref={fileInputRef} type="file" accept="image/*,video/*" multiple onChange={addFiles} style={{ display: 'none' }} />
+          <button type="button" onClick={() => fileInputRef.current?.click()} className="btn btn-secondary btn-sm" style={{ fontSize: '0.72rem' }}>
+            <Camera size={12} /> Fotó hozzáadása
+          </button>
         </div>
-      )}
+        {previews.length > 0 && (
+          <div style={{ display: 'flex', gap: '0.3rem', flexWrap: 'wrap' }}>
+            {previews.map((p, i) => (
+              <div key={p.key} style={{ position: 'relative', flexShrink: 0 }}>
+                <div style={{ width: 52, height: 52, borderRadius: 'var(--radius-md)', overflow: 'hidden', border: '1px solid var(--border-subtle)', background: 'var(--bg-subtle)' }}>
+                  {p.isVideo ? <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#1a1a2e', color: '#fff', fontSize: '1rem' }}>▶</div>
+                  : <img src={p.url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
+                </div>
+                <button type="button" onClick={() => { setSelectedFiles(f => f.filter((_, fi) => fi !== i)); setPreviews(p => p.filter((_, pi) => pi !== i)); }} style={{ position: 'absolute', top: 2, right: 2, background: 'rgba(239,68,68,0.85)', border: 'none', borderRadius: '50%', width: 16, height: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#fff' }}><X size={9} /></button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
         <button type="button" className="btn btn-secondary btn-sm" onClick={onCancel} disabled={saving}>Mégse</button>
         <button type="button" className="btn btn-primary btn-sm" onClick={handleSave} disabled={saving}>
           {saving ? <><Loader2 size={13} className="animate-spin" />…</> : (initial ? 'Módosítás' : 'Helyiség hozzáadása')}
         </button>
       </div>
+    </div>
+  );
+}
+
+// Always-available photo management for a section card.
+// Shows SectionMediaGrid when entry exists; otherwise shows an upload button that
+// transparently creates the survey + entry on first upload.
+function SectionPhotoZone({ quoteId, quoteSurveyId, quoteTitle, quoteClientId, effectiveEntityId, section, onEntryCreated }) {
+  const { createSurvey, createSurveyEntry, uploadSurveyMedia, updateQuote, updateQuoteSection, fetchSurveyMedia } = useApp();
+  const [uploading, setUploading] = React.useState(false);
+  const [uploadErr, setUploadErr] = React.useState('');
+  const fileInputRef = React.useRef(null);
+
+  if (quoteSurveyId && section._surveyEntryId) {
+    return <SectionMediaGrid surveyId={quoteSurveyId} surveyEntryId={section._surveyEntryId} isLocked={false} />;
+  }
+
+  const handleFiles = async (e) => {
+    const raw = Array.from(e.target.files || []);
+    e.target.value = '';
+    if (!raw.length) return;
+    const files = await Promise.all(raw.map(convertIfHeif));
+    setUploading(true); setUploadErr('');
+    try {
+      // Ensure a survey exists for this quote
+      let surveyId = quoteSurveyId;
+      if (!surveyId) {
+        const s = await createSurvey({ title: quoteTitle, entityId: effectiveEntityId, clientId: quoteClientId || null });
+        surveyId = s.id;
+        await updateQuote(quoteId, { survey_id: surveyId });
+      }
+      // Create a survey entry for this section
+      const e = await createSurveyEntry(surveyId, { name: section.name, description: section.description || null, size_m2: section.size_m2 ? Number(section.size_m2) : null });
+      const entryId = e.id;
+      // Upload files
+      await uploadSurveyMedia(surveyId, files, { entryId, mediaType: 'photo' });
+      // Save survey_entry_id to section DB row if it already exists
+      if (section._id) {
+        await updateQuoteSection(quoteId, section._id, { survey_entry_id: entryId });
+      }
+      // Refresh media cache so SectionMediaGrid renders immediately
+      await fetchSurveyMedia(surveyId);
+      onEntryCreated(section._key, surveyId, entryId);
+    } catch (err) {
+      setUploadErr(err.message || 'Hiba');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  return (
+    <div style={{ padding: '0.65rem 1rem', borderTop: '1px solid var(--border-subtle)', background: '#fafbfc', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <span style={{ fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.04em' }}>Fotók (0)</span>
+      {uploadErr && <span style={{ fontSize: '0.72rem', color: 'var(--danger-text)', marginLeft: '0.5rem' }}>{uploadErr}</span>}
+      <input ref={fileInputRef} type="file" accept="image/*,video/*" multiple onChange={handleFiles} style={{ display: 'none' }} />
+      <button type="button" onClick={() => fileInputRef.current?.click()} disabled={uploading} className="btn btn-secondary btn-sm" style={{ fontSize: '0.72rem' }}>
+        {uploading ? <><Loader2 size={12} className="animate-spin" />Feltöltés…</> : <><Camera size={12} /> Fotó hozzáadása</>}
+      </button>
     </div>
   );
 }
@@ -166,6 +231,7 @@ export default function EditQuotePage() {
     createQuoteEntry, updateQuoteEntry, deleteQuoteEntry,
     currentUser, isAdmin, effectiveEntityId,
     surveyEntriesBySurvey, fetchSurveyMedia,
+    createSurvey, createSurveyEntry, uploadSurveyMedia,
   } = useApp();
 
   // Header fields
@@ -272,15 +338,24 @@ export default function EditQuotePage() {
 
   // ── Section helpers ──────────────────────────────────────────────────────────
   const addSection = (fields) => {
-    setLocalSections(prev => [...prev, { _key: `new-${Date.now()}`, _id: null, _surveyEntryId: fields._surveyEntryId || null, _surveyMedia: [], name: fields.name, description: fields.description || '', size_m2: fields.size_m2 != null ? String(fields.size_m2) : '', start_date: fields.start_date || null, end_date: fields.end_date || null, entries: [] }]);
+    setLocalSections(prev => [...prev, { _key: `new-${Date.now()}`, _id: null, _surveyEntryId: fields._surveyEntryId || null, _pendingFiles: fields._pendingFiles || [], _pendingPreviews: fields._pendingPreviews || [], _surveyMedia: [], name: fields.name, description: fields.description || '', size_m2: fields.size_m2 != null ? String(fields.size_m2) : '', start_date: fields.start_date || null, end_date: fields.end_date || null, entries: [] }]);
     setShowAddSection(false);
   };
   const updateSection = (key, fields) => {
-    // Preserve _surveyEntryId — SectionForm passes null for edits, we must not overwrite it
-    setLocalSections(prev => prev.map(s => s._key === key ? { ...s, ...fields, _surveyEntryId: fields._surveyEntryId || s._surveyEntryId, size_m2: fields.size_m2 != null ? String(fields.size_m2) : '' } : s));
+    setLocalSections(prev => prev.map(s => s._key === key ? {
+      ...s, ...fields,
+      _surveyEntryId: fields._surveyEntryId || s._surveyEntryId,
+      _pendingFiles: fields._pendingFiles !== undefined ? fields._pendingFiles : (s._pendingFiles || []),
+      _pendingPreviews: fields._pendingPreviews !== undefined ? fields._pendingPreviews : (s._pendingPreviews || []),
+      size_m2: fields.size_m2 != null ? String(fields.size_m2) : '',
+    } : s));
     setEditingSectionKey(null);
   };
   const removeSection = (key) => setLocalSections(prev => prev.filter(s => s._key !== key));
+  const onSectionEntryCreated = (sectionKey, surveyId, entryId) => {
+    setLocalSections(prev => prev.map(s => s._key === sectionKey ? { ...s, _surveyEntryId: entryId } : s));
+    // quote.survey_id is already updated in DB by SectionPhotoZone; sync local quote state via refetch is handled by updateQuote inside the component
+  };
 
   // ── Entry helpers ────────────────────────────────────────────────────────────
   const openEntryModal = (sectionKey, editKey = null) => {
@@ -363,6 +438,14 @@ export default function EditQuotePage() {
     if (!title.trim()) { setError('Az ajánlat neve kötelező!'); return; }
     setIsSubmitting(true);
     try {
+      // Auto-create survey if any section has pending files and quote has none yet
+      let surveyIdToUse = quote.survey_id || null;
+      const hasPendingFiles = localSections.some(s => (s._pendingFiles || []).length > 0);
+      if (!surveyIdToUse && hasPendingFiles) {
+        const autoSurvey = await createSurvey({ title: title.trim(), entityId: effectiveEntityId, clientId: clientId || null });
+        surveyIdToUse = autoSurvey.id;
+      }
+
       // Update header
       await updateQuote(id, {
         title: title.trim(),
@@ -374,6 +457,7 @@ export default function EditQuotePage() {
         client_id: clientId || null,
         tax_percent: Number(taxPercent) || 0,
         shared_with: sharedWith,
+        ...(surveyIdToUse && !quote.survey_id ? { survey_id: surveyIdToUse } : {}),
       });
 
       const originalSections = quoteSections.filter(s => s.quote_id === id);
@@ -397,10 +481,20 @@ export default function EditQuotePage() {
           // Pseudo-section: no DB section row, entries keep section_id = null
           sectionId = null;
         } else if (s._id) {
-          await updateQuoteSection(id, s._id, { name: s.name, description: s.description || null, size_m2: s.size_m2 ? Number(s.size_m2) : null, start_date: s.start_date || null, end_date: s.end_date || null });
+          await updateQuoteSection(id, s._id, { name: s.name, description: s.description || null, size_m2: s.size_m2 ? Number(s.size_m2) : null, start_date: s.start_date || null, end_date: s.end_date || null, survey_entry_id: s._surveyEntryId || null });
           sectionId = s._id;
         } else {
-          const created = await createQuoteSection(id, { name: s.name, description: s.description || null, size_m2: s.size_m2 ? Number(s.size_m2) : null, survey_entry_id: s._surveyEntryId || null, start_date: s.start_date || null, end_date: s.end_date || null });
+          // Upload pending files if any
+          let surveyEntryId = s._surveyEntryId || null;
+          if ((s._pendingFiles || []).length > 0 && surveyIdToUse) {
+            if (!surveyEntryId) {
+              try { const e = await createSurveyEntry(surveyIdToUse, { name: s.name, description: s.description || null, size_m2: s.size_m2 ? Number(s.size_m2) : null }); surveyEntryId = e.id; } catch {}
+            }
+            if (surveyEntryId) {
+              try { await uploadSurveyMedia(surveyIdToUse, s._pendingFiles, { entryId: surveyEntryId, mediaType: 'photo' }); } catch {}
+            }
+          }
+          const created = await createQuoteSection(id, { name: s.name, description: s.description || null, size_m2: s.size_m2 ? Number(s.size_m2) : null, survey_entry_id: surveyEntryId || null, start_date: s.start_date || null, end_date: s.end_date || null });
           sectionId = created.id;
         }
 
@@ -560,7 +654,7 @@ export default function EditQuotePage() {
                 <div key={s._key} style={{ border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', overflow: 'hidden', background: '#fff' }}>
                   {editingSectionKey === s._key ? (
                     <div style={{ padding: '1rem' }}>
-                      <SectionForm initial={{ name: s.name, description: s.description, size_m2: s.size_m2 ? Number(s.size_m2) : null, start_date: s.start_date || '', end_date: s.end_date || '' }} onSave={(fields) => updateSection(s._key, fields)} onCancel={() => setEditingSectionKey(null)} />
+                      <SectionForm initial={{ name: s.name, description: s.description, size_m2: s.size_m2 ? Number(s.size_m2) : null, start_date: s.start_date || '', end_date: s.end_date || '', _surveyEntryId: s._surveyEntryId || null }} surveyId={quote?.survey_id} onSave={(fields) => updateSection(s._key, fields)} onCancel={() => setEditingSectionKey(null)} />
                     </div>
                   ) : (
                     <>
@@ -592,9 +686,17 @@ export default function EditQuotePage() {
                         {s.description && !s._isGeneral && <p style={{ marginTop: '0.35rem', fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.55 }}>{s.description}</p>}
                       </div>
 
-                      {/* Photo management for survey-linked sections */}
-                      {quote?.survey_id && s._surveyEntryId && (
-                        <SectionMediaGrid surveyId={quote.survey_id} surveyEntryId={s._surveyEntryId} isLocked={false} />
+                      {/* Photo management — always available for non-general sections */}
+                      {!s._isGeneral && (
+                        <SectionPhotoZone
+                          quoteId={id}
+                          quoteSurveyId={quote?.survey_id}
+                          quoteTitle={quote?.title || title}
+                          quoteClientId={clientId || quote?.client_id}
+                          effectiveEntityId={effectiveEntityId}
+                          section={s}
+                          onEntryCreated={onSectionEntryCreated}
+                        />
                       )}
                     </>
                   )}
