@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
 import Modal, { AlertModal } from '@/components/Modal';
+import EntitySelector from '@/components/EntitySelector';
 import SectionMediaGrid from '@/components/SectionMediaGrid';
 import { formatHUF, formatDate, QUOTE_ENTRY_TYPES, QUANTITY_UNITS, LABOUR_UNITS } from '@/lib/constants';
 import {
@@ -259,11 +260,13 @@ export default function EditQuotePage() {
     clients, users, loading, dataReady, quotes, quoteSections, quoteEntries,
     updateQuote, createClient, createQuoteSection, updateQuoteSection, deleteQuoteSection,
     createQuoteEntry, updateQuoteEntry, deleteQuoteEntry,
-    currentUser, isAdmin, effectiveEntityId,
+    currentUser, isAdmin, effectiveEntityId, effectiveMemberships,
     surveyEntriesBySurvey, fetchSurveyMedia,
     createSurvey, createSurveyEntry, uploadSurveyMedia,
     createTemplate,
   } = useApp();
+
+  const [entityId, setEntityId] = useState(null);
 
   // Header fields
   const [title, setTitle] = useState('');
@@ -316,6 +319,7 @@ export default function EditQuotePage() {
     setClientId(quote.client_id || '');
     setTaxPercent(String(quote.tax_percent ?? 27));
     setSharedWith(quote.shared_with || []);
+    setEntityId(quote.entity_id || null);
 
     const mapEntry = e => ({
       _ekey: e.id, _id: e.id,
@@ -517,6 +521,7 @@ export default function EditQuotePage() {
         tax_percent: Number(taxPercent) || 0,
         shared_with: sharedWith,
         ...(surveyIdToUse && !quote.survey_id ? { survey_id: surveyIdToUse } : {}),
+        ...(entityId ? { entity_id: entityId } : {}),
       });
 
       const originalSections = quoteSections.filter(s => s.quote_id === id);
@@ -614,6 +619,8 @@ export default function EditQuotePage() {
           <AlertCircle size={18} /><span>{error}</span>
         </div>
       )}
+
+      <EntitySelector value={entityId || effectiveEntityId} onChange={setEntityId} memberships={effectiveMemberships} />
 
       <form onSubmit={handleSubmit}>
         {/* ── ALAPADATOK ── */}

@@ -20,7 +20,21 @@ export async function GET() {
     return Response.json({ error: error.message }, { status: 500 });
   }
 
-  return Response.json({ profile });
+  const { data: membershipsRaw } = await admin
+    .from('memberships')
+    .select('id, entity_id, role, status, entities(id, name, type)')
+    .eq('user_id', user.id)
+    .eq('status', 'active');
+
+  const memberships = (membershipsRaw || []).map(m => ({
+    id: m.id,
+    entity_id: m.entity_id,
+    role: m.role,
+    entity_name: m.entities?.name || null,
+    entity_type: m.entities?.type || 'collective',
+  }));
+
+  return Response.json({ profile, memberships });
 }
 
 export async function PATCH(request) {

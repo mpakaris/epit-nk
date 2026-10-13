@@ -6,6 +6,8 @@ import { useRouter } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
 import { formatDate } from '@/lib/constants';
 import Modal, { ConfirmModal, AlertModal } from '@/components/Modal';
+import EntitySelector from '@/components/EntitySelector';
+import ClientSelect from '@/components/ClientSelect';
 import {
   FolderKanban, Plus, Users,
   ArrowLeft, AlertCircle, CheckCircle2, User, ChevronUp,
@@ -16,7 +18,7 @@ import {
 const today = () => new Date().toISOString().split('T')[0];
 const nextDay = (d) => { const dt = new Date(d); dt.setDate(dt.getDate() + 1); return dt.toISOString().split('T')[0]; };
 
-function CreateProjectModal({ isOpen, onClose, users, clients, currentUser, effectiveEntityId, createProject, createClient, onSuccess }) {
+function CreateProjectModal({ isOpen, onClose, users, clients, currentUser, effectiveEntityId, memberships, createProject, createClient, onSuccess }) {
   const [name, setName] = useState('');
   const [desc, setDesc] = useState('');
   const [startDate, setStartDate] = useState('');
@@ -25,6 +27,7 @@ function CreateProjectModal({ isOpen, onClose, users, clients, currentUser, effe
   const [memberIds, setMemberIds] = useState([]);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [selectedEntityId, setSelectedEntityId] = useState(null);
 
   const [showNewClient, setShowNewClient] = useState(false);
   const [clientName, setClientName] = useState('');
@@ -34,10 +37,12 @@ function CreateProjectModal({ isOpen, onClose, users, clients, currentUser, effe
   const [clientError, setClientError] = useState('');
   const [clientSaving, setClientSaving] = useState(false);
 
+  const activeEntityId = selectedEntityId || effectiveEntityId;
+
   const reset = () => {
     setName(''); setDesc(''); setStartDate(''); setEndDate('');
     setClientId(''); setMemberIds(currentUser ? [currentUser.id] : []);
-    setError(''); setShowNewClient(false);
+    setError(''); setShowNewClient(false); setSelectedEntityId(null);
   };
 
   React.useEffect(() => { if (isOpen) reset(); }, [isOpen]);
@@ -58,7 +63,7 @@ function CreateProjectModal({ isOpen, onClose, users, clients, currentUser, effe
     if (!clientId) { setError('Ügyfél megadása kötelező! Válasszon meglévőt vagy hozzon létre újat.'); return; }
     setSubmitting(true);
     try {
-      await createProject({ name: name.trim(), description: desc.trim(), memberIds, startDate: startDate || null, endDate: endDate || null, clientId: clientId || null, entityId: effectiveEntityId });
+      await createProject({ name: name.trim(), description: desc.trim(), memberIds, startDate: startDate || null, endDate: endDate || null, clientId: clientId || null, entityId: activeEntityId });
       onSuccess(`"${name.trim()}" projekt létrehozva!`);
       onClose();
       reset();
@@ -75,7 +80,7 @@ function CreateProjectModal({ isOpen, onClose, users, clients, currentUser, effe
     if (!clientName.trim()) { setClientError('A név megadása kötelező!'); return; }
     setClientSaving(true);
     try {
-      const c = await createClient({ name: clientName.trim(), phone: clientPhone.trim(), email: clientEmail.trim(), address: clientAddr.trim(), entityId: effectiveEntityId });
+      const c = await createClient({ name: clientName.trim(), phone: clientPhone.trim(), email: clientEmail.trim(), address: clientAddr.trim(), entityId: activeEntityId });
       setClientId(c.id);
       setShowNewClient(false);
       setClientName(''); setClientPhone(''); setClientEmail(''); setClientAddr('');
@@ -97,6 +102,7 @@ function CreateProjectModal({ isOpen, onClose, users, clients, currentUser, effe
           </div>
         )}
         <form onSubmit={handleSubmit}>
+          <EntitySelector value={activeEntityId} onChange={setSelectedEntityId} memberships={memberships} />
           <div className="form-group">
             <label className="form-label" htmlFor="cp-name">Projekt neve *</label>
             <input id="cp-name" type="text" required className="form-control" placeholder="pl. Balatoni Nyaraló Felújítás" value={name} onChange={e => setName(e.target.value)} />
@@ -118,10 +124,7 @@ function CreateProjectModal({ isOpen, onClose, users, clients, currentUser, effe
           <div className="form-group">
             <label className="form-label" htmlFor="cp-client">Megrendelő *</label>
             <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-              <select id="cp-client" className="form-control" style={{ flex: 1, borderColor: !clientId ? 'var(--warning-border)' : undefined }} value={clientId} onChange={e => setClientId(e.target.value)}>
-                <option value="">– Válasszon ügyfelet –</option>
-                {clients.map(c => <option key={c.id} value={c.id}>{c.name}{c.discount_percent > 0 ? ` (${c.discount_percent}% kedv.)` : ''}</option>)}
-              </select>
+              <ClientSelect id="cp-client" value={clientId} onChange={e => setClientId(e.target.value)} clients={clients} style={{ flex: 1, borderColor: !clientId ? 'var(--warning-border)' : undefined }} />
               <button type="button" onClick={() => { setClientError(''); setShowNewClient(true); }} className="btn btn-secondary btn-sm" style={{ whiteSpace: 'nowrap' }}>
                 <Plus size={14} /> Új
               </button>
@@ -345,6 +348,7 @@ export default function AdminProjectsClient({
   const {
     createProject: ctxCreateProject,
     createClient: ctxCreateClient,
+    effectiveMemberships,
   } = useApp();
 
   const projects      = initialProjects;
@@ -566,6 +570,7 @@ export default function AdminProjectsClient({
         clients={clients}
         currentUser={currentUser}
         effectiveEntityId={effectiveEntityId}
+        memberships={effectiveMemberships}
         createProject={createProject}
         createClient={createClient}
         onSuccess={msg => setSuccessMsg(msg)}

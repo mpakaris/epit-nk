@@ -43,11 +43,11 @@
   --border-active: #2563eb;
   
   /* Radii */
-  --radius-xs: 6px;
-  --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 16px;
-  --radius-xl: 20px;
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
   --radius-pill: 9999px;
   
   /* Crisp clean shadows */
@@ -859,6 +859,111 @@ input[type="month"] {
 .sidebar-toggle:hover {
   background: var(--bg-subtle);
   color: var(--text-primary);
+}
+
+/* Entity Selector (create / edit form context picker) */
+.entity-selector-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  margin-bottom: 1.15rem;
+}
+
+.entity-selector-label {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #7c3aed;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.entity-selector-field {
+  position: relative;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.entity-selector-select {
+  width: 100%;
+  padding: 0.5rem 2.1rem 0.5rem 0.75rem;
+  border: 1.5px solid #ddd6fe;
+  border-radius: var(--radius-md);
+  background: #f5f3ff;
+  font-family: inherit;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #4c1d95;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  outline: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition: border-color 0.12s ease, box-shadow 0.12s ease;
+}
+
+.entity-selector-select:hover {
+  border-color: #a78bfa;
+}
+
+.entity-selector-select:focus {
+  border-color: #7c3aed;
+  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.15);
+}
+
+.entity-selector-chevron {
+  position: absolute;
+  right: 0.6rem;
+  pointer-events: none;
+  color: #7c3aed;
+  flex-shrink: 0;
+}
+
+/* Context Switcher */
+.ctx-switcher {
+  margin: 0.35rem 0.5rem 0;
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.ctx-switcher-select {
+  width: 100%;
+  padding: 0.4rem 1.75rem 0.4rem 0.65rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--bg-subtle);
+  font-family: inherit;
+  font-size: 0.775rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  outline: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ctx-switcher-select:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
+}
+
+.ctx-switcher-icon {
+  position: absolute;
+  right: 0.5rem;
+  pointer-events: none;
+  color: var(--text-muted);
 }
 
 .sidebar-god-mode {

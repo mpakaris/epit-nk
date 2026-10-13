@@ -7,7 +7,8 @@ import { useApp } from '@/context/AppContext';
 import {
   Building2, LayoutDashboard, FolderKanban, Users, BookUser,
   FileText, Calendar, User, LogOut, KeyRound, ShieldAlert,
-  ChevronLeft, ChevronRight, Eye, X, Menu, ClipboardList, Ruler, LayoutTemplate, Lightbulb
+  ChevronLeft, ChevronRight, Eye, X, Menu, ClipboardList, Ruler, LayoutTemplate, Lightbulb,
+  ChevronDown
 } from 'lucide-react';
 
 function buildNavItems(isSuperAdmin, isAdmin, impersonating) {
@@ -49,7 +50,7 @@ function isActive(item, pathname) {
 
 export default function Sidebar() {
   const pathname = usePathname();
-  const { currentUser, isSuperAdmin, isAdmin, impersonating, stopImpersonation, logout } = useApp();
+  const { currentUser, isSuperAdmin, isAdmin, impersonating, stopImpersonation, logout, memberships, setActiveContext, switchImpersonatingContext, effectiveEntityId, allMemberships, entities } = useApp();
 
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -116,6 +117,56 @@ export default function Sidebar() {
     return () => document.removeEventListener('touchmove', prevent, { passive: false });
   }, [mobileOpen]);
 
+  // When impersonating, build the impersonated user's membership list from SA's loaded data.
+  // Personal entity is always sorted first.
+  const activeMemberships = (impersonating
+    ? [
+        ...allMemberships
+          .filter(m => m.user_id === impersonating.id)
+          .map(m => ({
+            entity_id: m.entity_id,
+            entity_name: entities.find(e => e.id === m.entity_id)?.name || '…',
+            entity_type: 'collective',
+            role: m.role,
+          })),
+        ...(impersonating.personal_entity_id ? [{
+          entity_id: impersonating.personal_entity_id,
+          entity_name: `${impersonating.display_name} – Személyes`,
+          entity_type: 'personal',
+          role: 'owner',
+        }] : []),
+      ]
+    : memberships
+  ).slice().sort((a, b) => (a.entity_type === 'personal' ? -1 : 1) - (b.entity_type === 'personal' ? -1 : 1));
+
+  const showContextSwitcher = activeMemberships.length > 1 && (impersonating || !isSuperAdmin);
+
+  const handleContextChange = (entityId) => {
+    if (impersonating) switchImpersonatingContext(entityId);
+    else setActiveContext(entityId);
+  };
+
+  const ContextSwitcher = () => {
+    if (!showContextSwitcher) return null;
+    return (
+      <div className="ctx-switcher">
+        <select
+          className="ctx-switcher-select"
+          value={effectiveEntityId || ''}
+          onChange={e => handleContextChange(e.target.value)}
+          title="Kontextus váltás"
+        >
+          {activeMemberships.map(m => (
+            <option key={m.entity_id} value={m.entity_id}>
+              {m.entity_name}{m.role === 'admin' ? ' (admin)' : ''}
+            </option>
+          ))}
+        </select>
+        <ChevronDown size={12} className="ctx-switcher-icon" />
+      </div>
+    );
+  };
+
   if (!currentUser && pathname === '/login') return null;
   if (!currentUser) return null;
   if (pathname.startsWith('/naplo/') || pathname.startsWith('/clients/')) return null;
@@ -171,6 +222,9 @@ export default function Sidebar() {
             {collapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
           </button>
         </div>
+
+        {/* Context switcher */}
+        {!collapsed && <ContextSwitcher />}
 
         {/* God mode section */}
         {impersonating && (
@@ -291,6 +345,12 @@ export default function Sidebar() {
                 >
                   <X size={11} /> Kilépés
                 </button>
+              </div>
+            )}
+
+            {showContextSwitcher && (
+              <div style={{ padding: '0.5rem 0.75rem 0' }}>
+                <ContextSwitcher />
               </div>
             )}
 

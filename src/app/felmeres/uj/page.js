@@ -7,6 +7,8 @@ import { useApp } from '@/context/AppContext';
 import Modal, { AlertModal } from '@/components/Modal';
 import { ArrowLeft, AlertCircle, Check, Loader2, Plus, User } from 'lucide-react';
 import PageSpinner from '@/components/PageSpinner';
+import EntitySelector from '@/components/EntitySelector';
+import ClientSelect from '@/components/ClientSelect';
 
 // Isolated component — its own state doesn't re-render the parent on every keystroke
 function NewClientModal({ isOpen, onClose, onCreate }) {
@@ -75,7 +77,8 @@ function NewClientModal({ isOpen, onClose, onCreate }) {
 
 export default function NewSurveyPage() {
   const router = useRouter();
-  const { clients, users, loading, createSurvey, createClient, isAdmin, effectiveEntityId, currentUser } = useApp();
+  const { clients, users, loading, createSurvey, createClient, isAdmin, effectiveEntityId, currentUser, effectiveMemberships } = useApp();
+  const [selectedEntityId, setSelectedEntityId] = useState(null); // null = use effectiveEntityId
 
   const [title, setTitle] = useState('');
   const [clientId, setClientId] = useState('');
@@ -97,8 +100,10 @@ export default function NewSurveyPage() {
   if (loading) return <PageSpinner />;
   if (!isAdmin) return <div className="container" style={{ paddingTop: '3rem', textAlign: 'center', color: 'var(--danger-text)' }}>Nincs jogosultsága.</div>;
 
+  const activeEntityId = selectedEntityId || effectiveEntityId;
+
   const handleClientCreated = async ({ name, phone, email, address }) => {
-    const newClient = await createClient({ name, phone, email, address, entityId: effectiveEntityId });
+    const newClient = await createClient({ name, phone, email, address, entityId: activeEntityId });
     setClientId(newClient.id);
     setShowNewClientModal(false);
   };
@@ -110,7 +115,7 @@ export default function NewSurveyPage() {
     if (!clientId) { setError('Ügyfél kiválasztása kötelező!'); return; }
     setIsSubmitting(true);
     try {
-      const survey = await createSurvey({ title: title.trim(), notes: notes.trim(), date: date || null, location: location.trim(), clientId, sharedWith });
+      const survey = await createSurvey({ title: title.trim(), notes: notes.trim(), date: date || null, location: location.trim(), clientId, sharedWith, entityId: activeEntityId });
       router.push(`/felmeres/${survey.id}`);
     } catch (err) {
       setError(err.message || 'Hiba a felmérés mentésekor');
@@ -140,6 +145,8 @@ export default function NewSurveyPage() {
       )}
 
       <form onSubmit={handleSubmit}>
+        <EntitySelector value={activeEntityId} onChange={setSelectedEntityId} memberships={effectiveMemberships} />
+
         <div className="card mb-4" style={{ padding: '1.25rem' }}>
           <div style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.05em', marginBottom: '1rem' }}>Alapadatok</div>
 
@@ -170,10 +177,7 @@ export default function NewSurveyPage() {
           <div style={{ display: 'flex', gap: '0.65rem', alignItems: 'flex-end', flexWrap: 'wrap' }}>
             <div style={{ flex: 1, minWidth: '200px' }}>
               <label className="form-label" htmlFor="sv-client">Ügyfél *</label>
-              <select id="sv-client" className="form-control" value={clientId} onChange={e => setClientId(e.target.value)} style={{ borderColor: !clientId ? 'var(--warning-border)' : undefined }}>
-                <option value="">– Válasszon ügyfelet –</option>
-                {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-              </select>
+              <ClientSelect id="sv-client" value={clientId} onChange={e => setClientId(e.target.value)} clients={clients} style={{ borderColor: !clientId ? 'var(--warning-border)' : undefined }} />
             </div>
             <button type="button" onClick={() => setShowNewClientModal(true)} className="btn btn-secondary btn-sm" style={{ whiteSpace: 'nowrap', marginBottom: 0 }}>
               <Plus size={14} /> Új ügyfél

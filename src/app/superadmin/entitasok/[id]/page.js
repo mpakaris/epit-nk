@@ -301,9 +301,22 @@ export default function EntityDetailPage() {
                 </td>
                 <td style={{ textAlign: 'right' }}>
                   <div style={{ display: 'inline-flex', gap: '0.35rem' }}>
-                    <button type="button" onClick={() => startImpersonation(u.id).catch(err => setAlertModal({ message: err.message }))} className="btn btn-secondary btn-sm" title="God Mode" style={{ padding: '0.25rem 0.55rem' }}>
+                    <button type="button" onClick={() => startImpersonation(u.id).catch(err => setAlertModal({ message: err.message }))} className="btn btn-secondary btn-sm" title="God Mode – Collective view" style={{ padding: '0.25rem 0.55rem' }}>
                       <Eye size={13} />
                     </button>
+                    {u.personal_entity_id && (
+                      <button
+                        type="button"
+                        onClick={() => startImpersonation(u.id, u.personal_entity_id).catch(err => setAlertModal({ message: err.message }))}
+                        className="btn btn-secondary btn-sm"
+                        title="God Mode – Personal view"
+                        style={{ padding: '0.25rem 0.55rem', fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-muted)' }}
+                      >
+                        <Eye size={13} />
+                        <span style={{ fontSize: '0.65rem' }}>P</span>
+                      </button>
+                    )}
+
                     <button type="button" onClick={() => { setFormError(''); setResetTarget(u); setTempPass('Epitek2026!'); }} className="btn btn-secondary btn-sm" style={{ padding: '0.25rem 0.55rem' }}>
                       <RotateCcw size={12} />
                     </button>

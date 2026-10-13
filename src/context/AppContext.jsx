@@ -15,6 +15,8 @@ export function AppProvider({ children }) {
   const [currentUser, setCurrentUser] = useState(null);   // real authenticated user
   const [impersonating, setImpersonating] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [memberships, setMemberships] = useState([]);      // current user's own memberships (context switcher)
+  const [allMemberships, setAllMemberships] = useState([]); // all collective memberships — superadmin only
 
   // Data
   const [dataReady, setDataReady] = useState(false);
@@ -45,16 +47,40 @@ export function AppProvider({ children }) {
   const effectiveUser = impersonating || currentUser;
   const isSuperAdmin = currentUser?.role === 'superadmin';
   const isAdmin = ['admin', 'superadmin'].includes(effectiveUser?.role);
-  // entity_id of the active context — falls back to single entity if superadmin has none set
+  // entity_id of the active context — prefers current_entity_id (context switcher), falls back to entity_id
   const effectiveEntityId = (() => {
-    if (effectiveUser?.role !== 'superadmin') return effectiveUser?.entity_id ?? null;
-    if (impersonating) return impersonating.entity_id ?? null;
+    if (effectiveUser?.role !== 'superadmin')
+      return effectiveUser?.current_entity_id ?? effectiveUser?.entity_id ?? null;
+    if (impersonating)
+      return impersonating.current_entity_id ?? impersonating.entity_id ?? null;
     if (currentUser?.entity_id) return currentUser.entity_id;
     if (entities.length === 1) return entities[0].id;
     return null;
   })();
 
   const uid = effectiveUser?.id;
+
+  // Memberships for whoever is the effective user (impersonated or self)
+  const effectiveMemberships = (() => {
+    if (!impersonating) return memberships;
+    // SA impersonating: compute from allMemberships (already loaded) + personal entity
+    return [
+      ...allMemberships
+        .filter(m => m.user_id === impersonating.id)
+        .map(m => ({
+          entity_id: m.entity_id,
+          entity_name: entities.find(e => e.id === m.entity_id)?.name || '…',
+          entity_type: 'collective',
+          role: m.role,
+        })),
+      ...(impersonating.personal_entity_id ? [{
+        entity_id: impersonating.personal_entity_id,
+        entity_name: `${impersonating.display_name} – Személyes`,
+        entity_type: 'personal',
+        role: 'owner',
+      }] : []),
+    ];
+  })();
   // True if the *effective* user (real or impersonated) has admin-level access
   const effectiveIsAdmin = ['admin', 'superadmin'].includes(effectiveUser?.role);
 
@@ -118,7 +144,8 @@ export function AppProvider({ children }) {
   const fetchProfile = async () => {
     const res = await fetch('/api/auth/profile');
     if (!res.ok) return null;
-    const { profile } = await res.json();
+    const { profile, memberships: m } = await res.json();
+    if (m) setMemberships(m);
     return profile || null;
   };
 
@@ -136,6 +163,7 @@ export function AppProvider({ children }) {
             display_name: profile?.display_name || session.user.email,
             role: profile?.role || 'user',
             entity_id: profile?.entity_id || null,
+            current_entity_id: profile?.current_entity_id || profile?.entity_id || null,
             must_change_password: profile?.must_change_password ?? false
           };
           setCurrentUser(user);
@@ -196,6 +224,7 @@ export function AppProvider({ children }) {
           setQuotes(d.quotes);
           setQuoteEntries(d.quoteEntries);
           setQuoteSections(d.quoteSections || []);
+          setAllMemberships(d.allMemberships || []);
           setDataReady(true);
         }
         return;
@@ -245,6 +274,7 @@ export function AppProvider({ children }) {
       display_name: profile?.display_name || data.user.email,
       role: profile?.role || 'user',
       entity_id: profile?.entity_id || null,
+      current_entity_id: profile?.current_entity_id || profile?.entity_id || null,
       must_change_password: profile?.must_change_password ?? false
     };
 
@@ -300,7 +330,7 @@ export function AppProvider({ children }) {
 
   // ---- God Mode ---------------------------------------------------------------
 
-  const startImpersonation = async (userId) => {
+  const startImpersonation = async (userId, entityIdOverride) => {
     if (!isSuperAdmin) throw new Error('Csak Superadmin veheti át mások nézetét!');
     let profile = users.find(u => u.id === userId);
     if (!profile) {
@@ -309,10 +339,14 @@ export function AppProvider({ children }) {
       const data = await res.json();
       profile = data.profile;
     }
-    setImpersonating(profile);
-    // Set cookie immediately so server components see the entity on the next navigation
-    if (profile?.entity_id) {
-      document.cookie = `god_mode_entity=${profile.entity_id}; path=/; SameSite=Lax`;
+    // entityIdOverride lets the SA jump into a specific context (e.g. personal entity)
+    const activeEntityId = entityIdOverride ?? profile?.current_entity_id ?? profile?.entity_id;
+    const impersonatingProfile = entityIdOverride
+      ? { ...profile, current_entity_id: entityIdOverride }
+      : profile;
+    setImpersonating(impersonatingProfile);
+    if (activeEntityId) {
+      document.cookie = `god_mode_entity=${activeEntityId}; path=/; SameSite=Lax`;
     }
     if (profile?.role === 'admin') router.push('/admin');
     else router.push('/projektek');
@@ -322,6 +356,34 @@ export function AppProvider({ children }) {
     setImpersonating(null);
     document.cookie = 'god_mode_entity=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
     router.push('/superadmin');
+  };
+
+  // ---- Context Switcher -------------------------------------------------------
+
+  const setActiveContext = async (entityId) => {
+    setCurrentUser(prev => prev ? { ...prev, current_entity_id: entityId } : prev);
+
+    const res = await fetch('/api/auth/context', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ entity_id: entityId }),
+    });
+
+    if (!res.ok) {
+      setCurrentUser(prev => prev ? { ...prev, current_entity_id: prev.entity_id } : prev);
+      throw new Error('Hiba a kontextus váltásakor');
+    }
+
+    setDataReady(false);
+    await refreshSupabaseData();
+    router.refresh(); // re-render server components (dashboard, etc.)
+  };
+
+  // While impersonating, context switch is local-only — no DB write, no re-fetch
+  // (SA already has all entity data loaded; effectiveEntityId re-computes instantly)
+  const switchImpersonatingContext = (entityId) => {
+    setImpersonating(prev => prev ? { ...prev, current_entity_id: entityId } : prev);
+    document.cookie = `god_mode_entity=${entityId}; path=/; SameSite=Lax`;
   };
 
   // ---- Entities (superadmin only) --------------------------------------------
@@ -1096,15 +1158,15 @@ export function AppProvider({ children }) {
     const quote = quotes.find(q => q.id === quoteId);
     if (!quote) throw new Error('Az ajánlat nem található!');
     if (!isAdmin && quote.created_by !== effectiveUser?.id) throw new Error('Nincs jogosultsága!');
-    if (!effectiveEntityId) throw new Error('Nincs entitás hozzárendelve!');
-    if (quote.entity_id !== effectiveEntityId) throw new Error('Az ajánlat nem ehhez az entitáshoz tartozik!');
+    const targetEntityId = quote.entity_id || effectiveEntityId;
+    if (!targetEntityId) throw new Error('Nincs entitás hozzárendelve!');
 
     const projDescription = [quote.work_type, quote.description].filter(Boolean).join(' – ');
 
     const { data: proj, error: projErr } = await supabase
       .from('projects')
       .insert([{
-        entity_id: effectiveEntityId,
+        entity_id: targetEntityId,
         name: quote.title,
         description: projDescription,
         created_by: effectiveUser.id,
@@ -1225,6 +1287,12 @@ export function AppProvider({ children }) {
         effectiveEntityId,
         loading,
         dataReady,
+        // Memberships & context switcher
+        memberships,
+        effectiveMemberships,
+        allMemberships,
+        setActiveContext,
+        switchImpersonatingContext,
         // God Mode
         startImpersonation,
         stopImpersonation,

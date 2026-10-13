@@ -14,6 +14,8 @@ import {
 import StatCard from '@/components/StatCard';
 import CalendarWidget from '@/components/CalendarWidget';
 import Modal from '@/components/Modal';
+import EntitySelector from '@/components/EntitySelector';
+import ClientSelect from '@/components/ClientSelect';
 
 const QUOTE_STATUS = { draft: 'Tervezet', sent: 'Kiküldve', accepted: 'Elfogadva', rejected: 'Elutasítva' };
 const QUOTE_STATUS_COLOR = { draft: 'var(--text-muted)', sent: 'var(--warning-text)', accepted: 'var(--success-text)', rejected: 'var(--danger-text)' };
@@ -49,7 +51,7 @@ export default function ProjectsListClient({
   effectiveEntityId,
 }) {
   const router = useRouter();
-  const { createClient: ctxCreateClient, invoices: ctxInvoices, users: ctxUsers, surveys, diaryEntriesByProject } = useApp();
+  const { createClient: ctxCreateClient, invoices: ctxInvoices, users: ctxUsers, surveys, diaryEntriesByProject, effectiveMemberships } = useApp();
 
   const [showCreate, setShowCreate] = useState(false);
   const [projName, setProjName] = useState('');
@@ -58,6 +60,7 @@ export default function ProjectsListClient({
   const [projEnd, setProjEnd] = useState('');
   const [projClientId, setProjClientId] = useState('');
   const [projLinkedQuoteId, setProjLinkedQuoteId] = useState('');
+  const [projEntityId, setProjEntityId] = useState(null); // entity selector override
   const [memberIds, setMemberIds] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -70,10 +73,15 @@ export default function ProjectsListClient({
   const [newClientError, setNewClientError] = useState('');
   const [creatingClient, setCreatingClient] = useState(false);
 
+  const activeCreateEntityId = projEntityId || effectiveEntityId;
+
+  // When impersonating, pre-select the impersonated user as "me", not the SA
+  const effectiveCurrentUserId = impersonating?.id ?? currentUser?.id;
+
   const openCreate = () => {
     setProjName(''); setProjDesc(''); setProjStart(''); setProjEnd('');
-    setProjClientId(''); setProjLinkedQuoteId('');
-    setMemberIds(currentUser ? [currentUser.id] : []);
+    setProjClientId(''); setProjLinkedQuoteId(''); setProjEntityId(null);
+    setMemberIds(effectiveCurrentUserId ? [effectiveCurrentUserId] : []);
     setError('');
     setShowNewClient(false);
     setShowCreate(true);
@@ -84,9 +92,11 @@ export default function ProjectsListClient({
     if (!quoteId) return;
     const q = (initialQuotes || []).find(x => x.id === quoteId);
     if (!q) return;
+    // Inherit entity from quote
+    if (q.entity_id) setProjEntityId(q.entity_id);
     // Pre-seed members from quote's shared_with (always include current user)
     const seed = [...new Set([
-      ...(currentUser ? [currentUser.id] : []),
+      ...(effectiveCurrentUserId ? [effectiveCurrentUserId] : []),
       ...(q.shared_with || []),
     ])];
     setMemberIds(seed);
@@ -100,7 +110,7 @@ export default function ProjectsListClient({
     if (!newClientName.trim()) { setNewClientError('A név megadása kötelező!'); return; }
     setCreatingClient(true);
     try {
-      const c = await ctxCreateClient({ name: newClientName.trim(), phone: newClientPhone.trim(), email: newClientEmail.trim(), address: newClientAddr.trim(), entityId: effectiveEntityId });
+      const c = await ctxCreateClient({ name: newClientName.trim(), phone: newClientPhone.trim(), email: newClientEmail.trim(), address: newClientAddr.trim(), entityId: activeCreateEntityId });
       setProjClientId(c.id);
       setShowNewClient(false);
       setNewClientName(''); setNewClientPhone(''); setNewClientEmail(''); setNewClientAddr('');
@@ -120,7 +130,7 @@ export default function ProjectsListClient({
       const res = await fetch('/api/projects', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: projName, description: projDesc, memberIds, startDate: projStart || null, endDate: projEnd || null, clientId: projClientId || null, entityId: effectiveEntityId }),
+        body: JSON.stringify({ name: projName, description: projDesc, memberIds, startDate: projStart || null, endDate: projEnd || null, clientId: projClientId || null, entityId: activeCreateEntityId }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Hiba a projekt létrehozásakor');
@@ -238,6 +248,9 @@ export default function ProjectsListClient({
     );
   };
 
+  const activeMembership = (effectiveMemberships || []).find(m => m.entity_id === effectiveEntityId);
+  const isPersonalContext = activeMembership?.entity_type === 'personal';
+
   return (
     <div className="container">
       {/* Page header */}
@@ -245,7 +258,13 @@ export default function ProjectsListClient({
         <div className="page-header-row">
           <div>
             <h1 className="page-title">Dashboard</h1>
-            <p className="page-subtitle">Projektek, egyenleg és áttekintés</p>
+            <p className="page-subtitle">
+              {activeMembership
+                ? isPersonalContext
+                  ? 'Személyes munkaterület'
+                  : `Kollektíva: ${activeMembership.entity_name}`
+                : 'Projektek, egyenleg és áttekintés'}
+            </p>
           </div>
           <div style={{ display: 'flex', gap: '0.5rem' }}>
             {canCreate && (
@@ -468,6 +487,7 @@ export default function ProjectsListClient({
           </div>
         )}
         <form onSubmit={handleCreate}>
+          <EntitySelector value={activeCreateEntityId} onChange={setProjEntityId} memberships={effectiveMemberships} />
           <div className="form-group">
             <label className="form-label" htmlFor="mp-name">Projekt neve *</label>
             <input id="mp-name" type="text" className="form-control" required autoFocus value={projName} onChange={e => setProjName(e.target.value)} placeholder="pl. Balatoni Nyaraló Felújítás" />
@@ -501,10 +521,7 @@ export default function ProjectsListClient({
           <div className="form-group">
             <label className="form-label">Megrendelő *</label>
             <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-              <select className="form-control" style={{ flex: 1, borderColor: !projClientId ? 'var(--warning-border)' : undefined }} value={projClientId} onChange={e => setProjClientId(e.target.value)}>
-                <option value="">– Válasszon ügyfelet –</option>
-                {(initialClients || []).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-              </select>
+              <ClientSelect value={projClientId} onChange={e => setProjClientId(e.target.value)} clients={initialClients || []} style={{ flex: 1, borderColor: !projClientId ? 'var(--warning-border)' : undefined }} />
               <button type="button" className="btn btn-secondary btn-sm" style={{ whiteSpace: 'nowrap' }} onClick={() => { setNewClientError(''); setShowNewClient(v => !v); }}>
                 <Plus size={14} /> Új ügyfél
               </button>

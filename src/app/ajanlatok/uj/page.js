@@ -14,6 +14,8 @@ import {
   Package, Hammer, Wrench, Truck, MoreHorizontal,
   User, Coins, Home, Ruler, Calendar, X, Camera, LayoutTemplate,
 } from 'lucide-react';
+import EntitySelector from '@/components/EntitySelector';
+import ClientSelect from '@/components/ClientSelect';
 
 const ENTRY_TYPE_ORDER = { material: 0, labour: 1, transport: 2, equipment: 3, other: 4 };
 const sortEntries = (arr) => [...arr].sort((a, b) => (ENTRY_TYPE_ORDER[a.entry_type] ?? 4) - (ENTRY_TYPE_ORDER[b.entry_type] ?? 4));
@@ -212,9 +214,11 @@ function SaveAsTemplateModal({ isOpen, templateName, onNameChange, onSave, onClo
 function NewQuotePageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { clients, users, surveys, templates, loading, createQuote, createQuoteEntry, createQuoteSection, createClient, createSurvey, uploadSurveyMedia, currentUser, effectiveEntityId, fetchSurveyMedia, createTemplate, fetchTemplateDetail } = useApp();
+  const { clients, users, surveys, templates, loading, createQuote, createQuoteEntry, createQuoteSection, createClient, createSurvey, uploadSurveyMedia, currentUser, effectiveEntityId, effectiveMemberships, fetchSurveyMedia, createTemplate, fetchTemplateDetail } = useApp();
 
   const fromSurveyId = searchParams.get('from_survey') || null;
+  const fromEntityId = searchParams.get('entity_id') || null;
+  const [selectedEntityId, setSelectedEntityId] = useState(fromEntityId);
 
   // Quote header
   const [title, setTitle] = useState(searchParams.get('title') || '');
@@ -372,6 +376,8 @@ function NewQuotePageInner() {
     setLocalSections(prev => prev.map(s => s._key === sectionKey ? { ...s, entries: s.entries.filter(e => e._ekey !== ekey) } : s));
   };
 
+  const activeEntityId = selectedEntityId || effectiveEntityId;
+
   // ── Save as draft (no client required, relaxed validation) ──────────────────
   const handleSaveDraft = async () => {
     setError('');
@@ -379,7 +385,7 @@ function NewQuotePageInner() {
     try {
       const draftTitle = title.trim() || `Vázlat – ${new Date().toLocaleDateString('hu-HU')}`;
       let surveyIdToUse = fromSurveyId || null;
-      const quote = await createQuote({ title: draftTitle, location: location.trim(), workType: workType.trim(), description: description.trim(), startDate: startDate || null, endDate: endDate || null, clientId: clientId || null, sharedWith, taxPercent: Number(taxPercent) || 0, entityId: effectiveEntityId, surveyId: surveyIdToUse });
+      const quote = await createQuote({ title: draftTitle, location: location.trim(), workType: workType.trim(), description: description.trim(), startDate: startDate || null, endDate: endDate || null, clientId: clientId || null, sharedWith, taxPercent: Number(taxPercent) || 0, entityId: activeEntityId, surveyId: surveyIdToUse });
       for (const s of localSections) {
         const section = await createQuoteSection(quote.id, { name: s.name, description: s.description || null, size_m2: s.size_m2 ? Number(s.size_m2) : null, survey_entry_id: s._surveyEntryId || null, start_date: s.start_date || null, end_date: s.end_date || null });
         for (const e of s.entries) {
@@ -405,11 +411,11 @@ function NewQuotePageInner() {
       let surveyIdToUse = fromSurveyId || null;
       const hasPendingFiles = localSections.some(s => (s._pendingFiles || []).length > 0);
       if (!surveyIdToUse && hasPendingFiles) {
-        const autoSurvey = await createSurvey({ title: title.trim(), entityId: effectiveEntityId, clientId: clientId || null });
+        const autoSurvey = await createSurvey({ title: title.trim(), entityId: activeEntityId, clientId: clientId || null });
         surveyIdToUse = autoSurvey.id;
       }
 
-      const quote = await createQuote({ title: title.trim(), location: location.trim(), workType: workType.trim(), description: description.trim(), startDate: startDate || null, endDate: endDate || null, clientId, sharedWith, taxPercent: Number(taxPercent) || 0, entityId: effectiveEntityId, surveyId: surveyIdToUse });
+      const quote = await createQuote({ title: title.trim(), location: location.trim(), workType: workType.trim(), description: description.trim(), startDate: startDate || null, endDate: endDate || null, clientId, sharedWith, taxPercent: Number(taxPercent) || 0, entityId: activeEntityId, surveyId: surveyIdToUse });
 
       for (const s of localSections) {
         const section = await createQuoteSection(quote.id, { name: s.name, description: s.description || null, size_m2: s.size_m2 ? Number(s.size_m2) : null, survey_entry_id: s._surveyEntryId || null, start_date: s.start_date || null, end_date: s.end_date || null });
@@ -513,6 +519,8 @@ function NewQuotePageInner() {
       )}
 
       <form onSubmit={handleSubmit}>
+        <EntitySelector value={activeEntityId} onChange={setSelectedEntityId} memberships={effectiveMemberships} />
+
         {/* ── ALAPADATOK ── */}
         <div className="card mb-4" style={{ padding: '1.25rem' }}>
           <div style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.05em', marginBottom: '1rem' }}>Alapadatok</div>
@@ -564,10 +572,7 @@ function NewQuotePageInner() {
           <div style={{ display: 'flex', gap: '0.65rem', alignItems: 'flex-end', flexWrap: 'wrap' }}>
             <div style={{ flex: 1, minWidth: '200px' }}>
               <label className="form-label" htmlFor="q-client">Ügyfél *</label>
-              <select id="q-client" className="form-control" value={clientId} onChange={e => setClientId(e.target.value)} style={{ borderColor: !clientId ? 'var(--warning-border)' : undefined }}>
-                <option value="">– Válasszon ügyfelet –</option>
-                {clients.map(c => <option key={c.id} value={c.id}>{c.name}{c.discount_percent > 0 ? ` (${c.discount_percent}% kedv.)` : ''}</option>)}
-              </select>
+              <ClientSelect id="q-client" value={clientId} onChange={e => setClientId(e.target.value)} clients={clients} style={{ borderColor: !clientId ? 'var(--warning-border)' : undefined }} />
             </div>
             <button type="button" onClick={() => setShowNewClientModal(true)} className="btn btn-secondary btn-sm" style={{ whiteSpace: 'nowrap', marginBottom: 0 }}><Plus size={14} /> Új ügyfél</button>
           </div>
@@ -872,7 +877,7 @@ function NewQuotePageInner() {
       <NewClientModal
         isOpen={showNewClientModal}
         onClose={() => setShowNewClientModal(false)}
-        onCreate={async (fields) => { const c = await createClient({ ...fields, entityId: effectiveEntityId }); setClientId(c.id); setShowNewClientModal(false); }}
+        onCreate={async (fields) => { const c = await createClient({ ...fields, entityId: activeEntityId }); setClientId(c.id); setShowNewClientModal(false); }}
       />
 
       {/* Save as Template modal */}

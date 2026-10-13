@@ -125,6 +125,7 @@ export default function SurveyDetailPage() {
 
   const toQuoteParams = new URLSearchParams();
   toQuoteParams.set('from_survey', id);
+  if (survey.entity_id) toQuoteParams.set('entity_id', survey.entity_id);
   if (survey.title) toQuoteParams.set('title', survey.title);
   if (survey.client_id) toQuoteParams.set('client_id', survey.client_id);
   if (survey.location) toQuoteParams.set('location', survey.location);

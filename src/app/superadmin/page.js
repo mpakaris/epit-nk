@@ -15,7 +15,7 @@ import {
 export default function SuperAdminPage() {
   const {
     isSuperAdmin, loading, entities, users, projects, invoices,
-    createEntity, updateEntity, deleteEntity, startImpersonation
+    createEntity, updateEntity, deleteEntity, startImpersonation, allMemberships
   } = useApp();
 
   const [showEntityModal, setShowEntityModal] = useState(false);
@@ -41,6 +41,8 @@ export default function SuperAdminPage() {
       </div>
     );
   }
+
+  const collectiveEntities = entities.filter(e => e.type !== 'personal');
 
   const totalUsers    = users.length;
   const totalProjects = projects.length;
@@ -81,7 +83,10 @@ export default function SuperAdminPage() {
 
   // ---- Entity jump / admin picker ----
   const handleJump = (entity) => {
-    const admins = users.filter(u => u.entity_id === entity.id && u.role === 'admin');
+    const adminMemberIds = allMemberships
+      .filter(m => m.entity_id === entity.id && ['owner', 'admin'].includes(m.role))
+      .map(m => m.user_id);
+    const admins = users.filter(u => adminMemberIds.includes(u.id));
     if (admins.length === 0) {
       setAlertModal({ message: `"${entity.name}" has no administrator yet. Create one in the entity detail view.` });
       return;
@@ -136,14 +141,14 @@ export default function SuperAdminPage() {
 
       {/* Stats */}
       <div className="stat-grid" style={{ marginBottom: '1.75rem' }}>
-        <StatCard label="Entities"       value={entities.length} sub="Active tenants"       icon={Building2}   href="/superadmin" />
+        <StatCard label="Entities"       value={collectiveEntities.length} sub="Active tenants"       icon={Building2}   href="/superadmin" />
         <StatCard label="Total users"    value={totalUsers}      sub="Across all entities"  icon={Users} />
         <StatCard label="Total projects" value={totalProjects}   sub="Across all entities"  icon={FolderKanban} href="/superadmin/projektek" />
         <StatCard label="Total invoices" value={totalInvoices}   sub={formatHUF(totalHUF)}  icon={Coins} href="/superadmin/projektek" />
       </div>
 
       {/* Entity list */}
-      {entities.length === 0 ? (
+      {collectiveEntities.length === 0 ? (
         <div className="card" style={{ textAlign: 'center', padding: '2.5rem 1.5rem' }}>
           <Building2 size={36} color="var(--text-muted)" style={{ margin: '0 auto 0.5rem' }} />
           <h4 style={{ fontWeight: 700, marginBottom: '0.25rem' }}>No entities yet</h4>
@@ -156,11 +161,13 @@ export default function SuperAdminPage() {
         </div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(320px, 100%), 1fr))', gap: '1rem' }}>
-          {entities.map(entity => {
-            const entityUsers    = users.filter(u => u.entity_id === entity.id);
-            const entityAdmins   = entityUsers.filter(u => u.role === 'admin');
-            const entityMembers  = entityUsers.filter(u => u.role === 'user');
-            const entityProjects = projects.filter(p => p.entity_id === entity.id);
+          {collectiveEntities.map(entity => {
+            const entityMemberships = allMemberships.filter(m => m.entity_id === entity.id);
+            const entityAdminIds    = entityMemberships.filter(m => ['owner', 'admin'].includes(m.role)).map(m => m.user_id);
+            const entityMemberIds   = entityMemberships.filter(m => m.role === 'member').map(m => m.user_id);
+            const entityAdmins      = users.filter(u => entityAdminIds.includes(u.id));
+            const entityMembers     = users.filter(u => entityMemberIds.includes(u.id));
+            const entityProjects    = projects.filter(p => p.entity_id === entity.id);
 
             return (
               <div key={entity.id} className="card" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>

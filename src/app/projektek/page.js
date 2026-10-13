@@ -22,7 +22,7 @@ async function ProjectsListContent() {
   const admin = createAdminClient();
   const { data: profile } = await admin
     .from('profiles')
-    .select('id, role, entity_id, display_name')
+    .select('id, role, entity_id, current_entity_id, display_name')
     .eq('id', user.id)
     .single();
 
@@ -31,7 +31,7 @@ async function ProjectsListContent() {
   const isSuperAdmin = profile.role === 'superadmin';
   const isAdmin = ['admin', 'superadmin'].includes(profile.role);
 
-  let entityId = profile.entity_id;
+  let entityId = profile.current_entity_id || profile.entity_id;
   let impersonating = null;
 
   if (isSuperAdmin) {

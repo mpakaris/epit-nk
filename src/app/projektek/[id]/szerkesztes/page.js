@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
 import Modal, { ConfirmModal, AlertModal } from '@/components/Modal';
+import EntitySelector from '@/components/EntitySelector';
 import {
   ArrowLeft, AlertCircle, Check, Plus, Trash2, Edit3,
   Home, Ruler, UserCheck, BookUser, CalendarDays, ChevronUp,
@@ -157,8 +158,10 @@ export default function ProjectEditPage() {
     updateProject, updateProjectMembers, createClient,
     projectRooms, createProjectRoom, updateProjectRoom, deleteProjectRoom, syncRoomsFromQuote,
     quotes, quoteSections,
-    isAdmin, currentUser,
+    isAdmin, currentUser, effectiveMemberships,
   } = useApp();
+
+  const [entityId, setEntityId] = useState(null);
 
   const project = (projects || []).find(p => p.id === id);
   const rooms = (projectRooms || []).filter(r => r.project_id === id).sort((a, b) => a.sort_order - b.sort_order || a.created_at?.localeCompare(b.created_at || '') || 0);
@@ -197,6 +200,7 @@ export default function ProjectEditPage() {
       setEndDate(project.end_date || '');
       setClientId(project.client_id || '');
       setMemberIds(project.members || []);
+      setEntityId(project.entity_id || null);
     }
   }, [project?.id]);
 
@@ -227,6 +231,7 @@ export default function ProjectEditPage() {
         start_date: startDate || null,
         end_date: endDate || null,
         client_id: clientId || null,
+        ...(entityId ? { entity_id: entityId } : {}),
       });
       await updateProjectMembers(id, memberIds);
       setMetaSuccess('Projekt adatok mentve.');
@@ -322,6 +327,7 @@ export default function ProjectEditPage() {
         )}
 
         <form onSubmit={handleMetaSave}>
+          <EntitySelector value={entityId || project?.entity_id} onChange={setEntityId} memberships={effectiveMemberships} />
           <div className="form-group">
             <label className="form-label">Projekt neve *</label>
             <input type="text" required className="form-control" value={name} onChange={e => setName(e.target.value)} />

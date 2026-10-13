@@ -6,6 +6,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
 import { formatDate } from '@/lib/constants';
 import { ConfirmModal, AlertModal } from '@/components/Modal';
+import EntitySelector from '@/components/EntitySelector';
 import {
   ArrowLeft, MapPin, Calendar, User, Check, Loader2, Plus, Trash2, Edit3,
   Camera, Play, X, ChevronLeft, ChevronRight,
@@ -249,12 +250,14 @@ export default function SurveyEditPage() {
   const router = useRouter();
   const {
     loading, dataReady, surveys, clients, users,
-    isAdmin, currentUser, effectiveEntityId,
+    isAdmin, currentUser, effectiveEntityId, effectiveMemberships,
     updateSurvey, deleteSurveyMedia,
     surveyMediaBySurvey, surveyEntriesBySurvey, surveyLayoutsBySurvey,
     fetchSurveyMedia,
     createSurveyEntry, updateSurveyEntry, deleteSurveyEntry,
   } = useApp();
+
+  const [entityId, setEntityId] = useState(null);
 
   const [detailLoading, setDetailLoading] = useState(true);
   const [initialized, setInitialized] = useState(false);
@@ -287,6 +290,7 @@ export default function SurveyEditPage() {
     setLocation(survey.location || '');
     setNotes(survey.notes || '');
     setClientId(survey.client_id || '');
+    setEntityId(survey.entity_id || null);
     setInitialized(true);
   }, [surveys, id, initialized]);
 
@@ -336,6 +340,7 @@ export default function SurveyEditPage() {
       location: location.trim(),
       notes: notes.trim(),
       client_id: clientId || null,
+      ...(entityId ? { entity_id: entityId } : {}),
     });
     return true;
   };
@@ -357,6 +362,7 @@ export default function SurveyEditPage() {
       if (!(await saveHeader())) return;
       const toQuoteParams = new URLSearchParams();
       toQuoteParams.set('from_survey', id);
+      if (survey.entity_id) toQuoteParams.set('entity_id', survey.entity_id);
       if (title.trim()) toQuoteParams.set('title', title.trim());
       if (clientId) toQuoteParams.set('client_id', clientId);
       if (location.trim()) toQuoteParams.set('location', location.trim());
@@ -389,6 +395,8 @@ export default function SurveyEditPage() {
 
       {/* Header fields — inline editing (admin only for header, shared members can still edit rooms) */}
       {isAdmin && (
+        <>
+        <EntitySelector value={entityId || effectiveEntityId} onChange={setEntityId} memberships={effectiveMemberships} />
         <div className="card mb-4" style={{ padding: '1.25rem' }}>
           <div style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.05em', marginBottom: '1rem' }}>Alapadatok</div>
 
@@ -421,6 +429,7 @@ export default function SurveyEditPage() {
             </select>
           </div>
         </div>
+        </>
       )}
 
       {/* Layouts */}

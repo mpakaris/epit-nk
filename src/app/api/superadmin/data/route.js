@@ -36,15 +36,36 @@ export async function GET() {
     admin.from('quote_sections').select('*').order('sort_order').order('created_at'),
   ]);
 
+  // Fetch all active memberships (used for entity stats, handleJump, and personal entity lookup)
+  const { data: allMembershipsRaw } = await admin
+    .from('memberships')
+    .select('user_id, entity_id, role, status, entities(type)')
+    .eq('status', 'active');
+
+  const personalEntityByUser = {};
+  const collectiveMemberships = [];
+  for (const m of allMembershipsRaw || []) {
+    if (m.entities?.type === 'personal') {
+      personalEntityByUser[m.user_id] = m.entity_id;
+    } else {
+      collectiveMemberships.push({ user_id: m.user_id, entity_id: m.entity_id, role: m.role });
+    }
+  }
+
   // Attach members to projects (same shape as the browser query)
   const projectsWithMembers = (projects || []).map(p => ({
     ...p,
     members: (projectMembers || []).filter(pm => pm.project_id === p.id).map(pm => pm.user_id),
   }));
 
+  const usersWithPersonal = (users || []).map(u => ({
+    ...u,
+    personal_entity_id: personalEntityByUser[u.id] || null,
+  }));
+
   return Response.json({
     entities:      entities      || [],
-    users:         users         || [],
+    users:         usersWithPersonal,
     projects:      projectsWithMembers,
     invoices:      invoices      || [],
     labourEntries: labourEntries || [],
@@ -52,5 +73,6 @@ export async function GET() {
     quotes:        quotes        || [],
     quoteEntries:  quoteEntries  || [],
     quoteSections: quoteSections || [],
+    allMemberships: collectiveMemberships,
   });
 }
