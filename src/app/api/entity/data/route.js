@@ -66,39 +66,61 @@ export async function GET() {
     usersData = ownerProfile ? [ownerProfile] : [];
   }
 
-  // ── Cross-entity clients: in collective context, also include personal clients
-  //    belonging to entity members. Personal clients remain read-only from here.
+  // ── Cross-entity clients (collective context only) ─────────────────────────
+  //  Rule:
+  //   1. Current user's own personal clients → selectable in pickers (is_personal_client)
+  //   2. Other members' personal clients referenced by a project/quote in this
+  //      collective → included for name-resolution display only (display_only)
+  //      They never appear in client lists or pickers.
   let allClients = clientsRes.data || [];
-  if (!isPersonalEntity && usersData.length > 0) {
-    const memberIds = usersData.map(u => u.id);
-    const { data: personalMemberships } = await admin
+  if (!isPersonalEntity) {
+    // Find the current user's personal entity
+    const { data: myMemberships } = await admin
       .from('memberships')
-      .select('user_id, entity_id, entities(type)')
-      .in('user_id', memberIds)
+      .select('entity_id, entities(type)')
+      .eq('user_id', user.id)
       .eq('status', 'active');
 
-    const personalEntityToOwner = {};
-    for (const m of personalMemberships || []) {
-      if (m.entities?.type === 'personal') {
-        const owner = usersData.find(u => u.id === m.user_id);
-        personalEntityToOwner[m.entity_id] = owner?.display_name || null;
-      }
-    }
+    const myPersonalEntityId = (myMemberships || [])
+      .find(m => m.entities?.type === 'personal')?.entity_id || null;
 
-    const personalEntityIds = Object.keys(personalEntityToOwner);
-    if (personalEntityIds.length > 0) {
-      const { data: personalClients } = await admin
+    // 1. My own personal clients (selectable)
+    if (myPersonalEntityId) {
+      const { data: myPersonalClients } = await admin
         .from('clients')
         .select('*')
-        .in('entity_id', personalEntityIds)
+        .eq('entity_id', myPersonalEntityId)
         .order('name');
 
-      const tagged = (personalClients || []).map(c => ({
+      const tagged = (myPersonalClients || []).map(c => ({
         ...c,
         is_personal_client: true,
-        personal_owner_name: personalEntityToOwner[c.entity_id] || null,
+        personal_owner_name: null, // it's mine, no need for owner label
       }));
       allClients = [...allClients, ...tagged];
+    }
+
+    // 2. Any client referenced by a collective project/quote that isn't already loaded
+    //    (could be another member's personal client) — display-only for name resolution
+    const collectiveClientIds = new Set(allClients.map(c => c.id));
+    const referencedIds = [
+      ...(projects.map(p => p.client_id).filter(Boolean)),
+      ...(quotes.map(q => q.client_id).filter(Boolean)),
+    ].filter(id => !collectiveClientIds.has(id));
+    const uniqueReferenced = [...new Set(referencedIds)];
+
+    if (uniqueReferenced.length > 0) {
+      const { data: refClients } = await admin
+        .from('clients')
+        .select('*')
+        .in('id', uniqueReferenced);
+
+      const displayOnly = (refClients || []).map(c => ({
+        ...c,
+        is_personal_client: true,
+        display_only: true, // excluded from lists and pickers; only for name resolution
+      }));
+      allClients = [...allClients, ...displayOnly];
     }
   }
 

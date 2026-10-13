@@ -2,7 +2,7 @@
 
 export default function ClientSelect({ id, value, onChange, clients = [], style }) {
   const collective = clients.filter(c => !c.is_personal_client);
-  const personal   = clients.filter(c => c.is_personal_client);
+  const personal   = clients.filter(c => c.is_personal_client && !c.display_only);
 
   return (
     <select id={id} className="form-control" value={value} onChange={onChange} style={style}>

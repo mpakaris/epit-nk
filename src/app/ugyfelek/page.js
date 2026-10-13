@@ -54,9 +54,11 @@ export default function AdminClientsPage() {
   }
 
   const filteredClients = clients.filter(c =>
-    c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (c.email || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (c.phone || '').includes(searchQuery)
+    !c.is_personal_client && (
+      c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (c.email || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (c.phone || '').includes(searchQuery)
+    )
   );
 
   const getClientStats = (clientId) => {
