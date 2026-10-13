@@ -8,11 +8,12 @@ async function getCtx(surveyId) {
   const admin = createAdminClient();
   const { data: profile } = await admin.from('profiles').select('id, role, entity_id, display_name').eq('id', user.id).single();
   if (!profile) return { err: 'Forbidden', status: 403 };
-  const { data: survey } = await admin.from('surveys').select('entity_id, shared_with').eq('id', surveyId).single();
+  const { data: survey } = await admin.from('surveys').select('*').eq('id', surveyId).single();
   if (!survey) return { err: 'Not found', status: 404 };
   if (profile.role !== 'superadmin' && survey.entity_id !== profile.entity_id) return { err: 'Forbidden', status: 403 };
   const isAdmin = ['admin', 'superadmin'].includes(profile.role);
-  const isSharedMember = (survey.shared_with || []).includes(profile.id);
+  // shared_with may be absent if migration 028 hasn't been applied yet
+  const isSharedMember = Array.isArray(survey.shared_with) && survey.shared_with.includes(profile.id);
   if (!isAdmin && !isSharedMember) return { err: 'Forbidden', status: 403 };
   return { profile, admin, entityId: survey.entity_id };
 }
@@ -25,16 +26,26 @@ export async function POST(request, { params }) {
   const { name, description, size_m2, sort_order } = await request.json();
   if (!name?.trim()) return Response.json({ error: 'A hely neve kötelező' }, { status: 400 });
 
-  const { data: entry, error } = await ctx.admin.from('survey_entries').insert([{
+  const entryInsert = {
     survey_id: surveyId,
     entity_id: ctx.entityId,
     name: name.trim(),
     description: description?.trim() || null,
     size_m2: size_m2 != null && size_m2 !== '' ? Number(size_m2) : null,
     sort_order: sort_order ?? 0,
+  };
+
+  let data, error;
+  // Try with authorship fields (requires migration 028); fall back without them
+  ({ data, error } = await ctx.admin.from('survey_entries').insert([{
+    ...entryInsert,
     created_by: ctx.profile.id,
     created_by_name: ctx.profile.display_name || null,
-  }]).select().single();
+  }]).select().single());
+  if (error?.message?.includes('column') && error.message.includes('created_by')) {
+    ({ data, error } = await ctx.admin.from('survey_entries').insert([entryInsert]).select().single());
+  }
+  const entry = data;
 
   if (error) return Response.json({ error: error.message }, { status: 500 });
   return Response.json({ entry: { ...entry, media: [] } }, { status: 201 });

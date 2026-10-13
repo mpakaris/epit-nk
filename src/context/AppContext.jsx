@@ -35,6 +35,9 @@ export function AppProvider({ children }) {
   const [surveyEntriesBySurvey, setSurveyEntriesBySurvey] = useState({});
   const [surveyLayoutsBySurvey, setSurveyLayoutsBySurvey] = useState({});
 
+  // Templates
+  const [templates, setTemplates] = useState([]);
+
   // Diary — keyed by project_id, loaded on demand
   const [diaryEntriesByProject, setDiaryEntriesByProject] = useState({});
 
@@ -210,6 +213,7 @@ export function AppProvider({ children }) {
         setQuoteEntries(d.quoteEntries);
         setQuoteSections(d.quoteSections || []);
         setSurveys(d.surveys || []);
+        setTemplates(d.templates || []);
         setProjectRooms(d.projectRooms || []);
         setDataReady(true);
       }
@@ -863,6 +867,49 @@ export function AppProvider({ children }) {
     }));
   };
 
+  // ---- Templates --------------------------------------------------------------
+
+  const createTemplate = async ({ name, title, location, work_type, description, tax_percent, sections = [], entityId: entityIdOverride }) => {
+    if (!isAdmin) throw new Error('Csak adminisztrátor hozhat létre sablont!');
+    const res = await fetch('/api/templates', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, title, location, work_type, description, tax_percent, sections, entity_id: entityIdOverride || effectiveEntityId }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Hiba a sablon mentésekor');
+    setTemplates(prev => [data.template, ...prev]);
+    return data.template;
+  };
+
+  const updateTemplate = async (templateId, { name, title, location, work_type, description, tax_percent, sections }) => {
+    if (!isAdmin) throw new Error('Csak adminisztrátor módosíthat sablont!');
+    const res = await fetch(`/api/templates/${templateId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, title, location, work_type, description, tax_percent, sections }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Hiba a sablon módosításakor');
+    setTemplates(prev => prev.map(t => t.id === templateId ? data.template : t));
+    return data.template;
+  };
+
+  const deleteTemplate = async (templateId) => {
+    if (!isAdmin) throw new Error('Csak adminisztrátor törölhet sablont!');
+    const res = await fetch(`/api/templates/${templateId}`, { method: 'DELETE' });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Hiba a sablon törlésekor');
+    setTemplates(prev => prev.filter(t => t.id !== templateId));
+  };
+
+  const fetchTemplateDetail = async (templateId) => {
+    const res = await fetch(`/api/templates/${templateId}`);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Hiba a sablon betöltésekor');
+    return data; // { template, sections, entries }
+  };
+
   // ---- Quotes -----------------------------------------------------------------
 
   const createQuote = async ({ title, location, workType, description, startDate, endDate, clientId, sharedWith = [], taxPercent = 27, entityId: entityIdOverride, surveyId }) => {
@@ -1251,6 +1298,12 @@ export function AppProvider({ children }) {
         createSurveyEntry,
         updateSurveyEntry,
         deleteSurveyEntry,
+        // Templates
+        templates,
+        createTemplate,
+        updateTemplate,
+        deleteTemplate,
+        fetchTemplateDetail,
         // Project rooms
         projectRooms,
         createProjectRoom,

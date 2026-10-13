@@ -211,7 +211,7 @@ export default function NewSurveyPage() {
         )}
 
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
-          <Link href="/felmeres" className="btn btn-secondary">Mégse</Link>
+          <button type="button" className="btn btn-secondary" onClick={() => router.back()}>Mégse</button>
           <button type="submit" className="btn btn-primary" disabled={isSubmitting}>
             {isSubmitting ? <><Loader2 size={16} className="animate-spin" />Mentés...</> : <><Check size={16} />Felmérés létrehozása</>}
           </button>

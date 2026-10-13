@@ -61,9 +61,14 @@ export async function POST(request) {
     date: date || null,
     location: location?.trim() || null,
     created_by: ctx.profile.id,
-    shared_with: Array.isArray(shared_with) ? shared_with : [],
   }]).select().single();
 
   if (insertErr) return Response.json({ error: insertErr.message }, { status: 500 });
-  return Response.json({ survey }, { status: 201 });
+
+  // Update shared_with separately — requires migration 028; skip silently if column not yet present
+  if (Array.isArray(shared_with) && shared_with.length > 0) {
+    await admin.from('surveys').update({ shared_with }).eq('id', survey.id).catch(() => {});
+  }
+
+  return Response.json({ survey: { ...survey, shared_with: shared_with || [] } }, { status: 201 });
 }

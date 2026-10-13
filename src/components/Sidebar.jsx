@@ -7,7 +7,7 @@ import { useApp } from '@/context/AppContext';
 import {
   Building2, LayoutDashboard, FolderKanban, Users, BookUser,
   FileText, Calendar, User, LogOut, KeyRound, ShieldAlert,
-  ChevronLeft, ChevronRight, Eye, X, Menu, ClipboardList, Ruler
+  ChevronLeft, ChevronRight, Eye, X, Menu, ClipboardList, Ruler, LayoutTemplate
 } from 'lucide-react';
 
 function buildNavItems(isSuperAdmin, isAdmin, impersonating) {
@@ -24,6 +24,7 @@ function buildNavItems(isSuperAdmin, isAdmin, impersonating) {
       { href: '/projektek',          label: 'Dashboard',    icon: LayoutDashboard, exact: true },
       { href: '/felmeres',           label: 'Felmérések',   icon: Ruler },
       { href: '/ajanlatok',          label: 'Ajánlatok',    icon: FileText },
+      { href: '/sablonok',           label: 'Sablonok',     icon: LayoutTemplate, sub: true },
       { href: '/admin/projektek',    label: 'Projektek',    icon: FolderKanban },
       { href: '/naptar',             label: 'Naptár',       icon: Calendar },
       { href: '/ugyfelek',           label: 'Ügyfelek',     icon: BookUser },
@@ -191,6 +192,24 @@ export default function Sidebar() {
           {navItems.map(item =>
             item.divider ? (
               <div key={item.key} className="sidebar-divider" />
+            ) : item.sub ? (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={`sidebar-link ${isActive(item, pathname) ? 'active' : ''}`}
+                title={collapsed ? item.label : ''}
+                style={{ paddingLeft: collapsed ? undefined : '2rem', fontSize: '0.8rem' }}
+              >
+                {collapsed ? (
+                  <item.icon size={15} className="link-icon" />
+                ) : (
+                  <>
+                    <span style={{ color: 'var(--text-muted)', marginRight: '0.35rem', fontSize: '0.7rem', lineHeight: 1, flexShrink: 0 }}>└</span>
+                    <item.icon size={14} className="link-icon" style={{ flexShrink: 0 }} />
+                    <span>{item.label}</span>
+                  </>
+                )}
+              </Link>
             ) : (
               <Link
                 key={item.key || item.href}
@@ -277,6 +296,18 @@ export default function Sidebar() {
               {navItems.map(item =>
                 item.divider ? (
                   <div key={item.key} className="drawer-divider" />
+                ) : item.sub ? (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={`drawer-link ${isActive(item, pathname) ? 'active' : ''}`}
+                    onClick={() => setMobileOpen(false)}
+                    style={{ paddingLeft: '2.5rem', fontSize: '0.875rem' }}
+                  >
+                    <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem', lineHeight: 1, flexShrink: 0, marginRight: '-0.25rem' }}>└</span>
+                    <item.icon size={18} />
+                    <span>{item.label}</span>
+                  </Link>
                 ) : (
                   <Link
                     key={item.key || item.href}

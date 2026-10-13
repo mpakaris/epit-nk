@@ -4,7 +4,7 @@ import React, { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
-import Modal, { AlertModal } from '@/components/Modal';
+import Modal from '@/components/Modal';
 import SectionMediaGrid from '@/components/SectionMediaGrid';
 import PageSpinner from '@/components/PageSpinner';
 import { convertIfHeif } from '@/lib/imageUtils';
@@ -12,7 +12,7 @@ import { formatHUF, formatDate, QUOTE_ENTRY_TYPES, QUANTITY_UNITS, LABOUR_UNITS 
 import {
   ArrowLeft, AlertCircle, Check, Loader2, Plus, Trash2, Edit3,
   Package, Hammer, Wrench, Truck, MoreHorizontal,
-  User, Coins, Home, Ruler, Calendar, X, Camera,
+  User, Coins, Home, Ruler, Calendar, X, Camera, LayoutTemplate,
 } from 'lucide-react';
 
 const ENTRY_TYPE_ORDER = { material: 0, labour: 1, transport: 2, equipment: 3, other: 4 };
@@ -182,10 +182,37 @@ function SectionForm({ initial, surveyId, onSave, onCancel }) {
 
 const EMPTY_ENTRY_FORM = { entry_type: 'material', work_description: '', quantity: '', unit: 'db', unit_price: '', flat_amount: '', notes: '', user_id: '' };
 
+function SaveAsTemplateModal({ isOpen, templateName, onNameChange, onSave, onClose, saving }) {
+  const [err, setErr] = React.useState('');
+  const handleSave = async () => {
+    if (!templateName.trim()) { setErr('A sablon neve kötelező!'); return; }
+    setErr('');
+    try { await onSave(); }
+    catch (e) { setErr(e.message || 'Hiba a sablon mentésekor'); }
+  };
+  React.useEffect(() => { if (!isOpen) setErr(''); }, [isOpen]);
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} title="Mentés sablonként">
+      {err && <div style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', color: 'var(--danger-text)', padding: '0.6rem', borderRadius: 'var(--radius-md)', fontSize: '0.825rem', display: 'flex', gap: '0.4rem', marginBottom: '0.75rem' }}><AlertCircle size={14} /><span>{err}</span></div>}
+      <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.85rem' }}>Az ajánlat helyiségei és tételei sablonként kerülnek mentésre (kliens adatok nélkül).</p>
+      <div className="form-group" style={{ marginBottom: '1.25rem' }}>
+        <label className="form-label">Sablon neve *</label>
+        <input type="text" className="form-control" autoFocus value={templateName} onChange={e => onNameChange(e.target.value)} placeholder="pl. Fürdőszoba felújítás — alap csomag" />
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+        <button type="button" className="btn btn-secondary btn-sm" onClick={onClose} disabled={saving}>Mégse</button>
+        <button type="button" className="btn btn-primary btn-sm" onClick={handleSave} disabled={saving}>
+          {saving ? <><Loader2 size={14} className="animate-spin" />Mentés…</> : <><LayoutTemplate size={14} />Sablon mentése</>}
+        </button>
+      </div>
+    </Modal>
+  );
+}
+
 function NewQuotePageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { clients, users, surveys, loading, createQuote, createQuoteEntry, createQuoteSection, createClient, createSurvey, uploadSurveyMedia, currentUser, effectiveEntityId, fetchSurveyMedia } = useApp();
+  const { clients, users, surveys, templates, loading, createQuote, createQuoteEntry, createQuoteSection, createClient, createSurvey, uploadSurveyMedia, currentUser, effectiveEntityId, fetchSurveyMedia, createTemplate, fetchTemplateDetail } = useApp();
 
   const fromSurveyId = searchParams.get('from_survey') || null;
 
@@ -215,7 +242,14 @@ function NewQuotePageInner() {
   const [entryError, setEntryError] = useState('');
   const [pendingEntries, setPendingEntries] = useState([]);
 
+  const [templateSearch, setTemplateSearch] = useState('');
+  const [templateLoading, setTemplateLoading] = useState(false);
+
   const [showNewClientModal, setShowNewClientModal] = useState(false);
+  const [showSaveTemplateModal, setShowSaveTemplateModal] = useState(false);
+  const [templateName, setTemplateName] = useState('');
+  const [savingTemplate, setSavingTemplate] = useState(false);
+  const [templateSavedMsg, setTemplateSavedMsg] = useState('');
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -395,6 +429,63 @@ function NewQuotePageInner() {
     }
   };
 
+  const applyTemplate = async (templateId) => {
+    if (!templateId) return;
+    setTemplateLoading(true);
+    try {
+      const { template, sections } = await fetchTemplateDetail(templateId);
+      if (template.title) setTitle(template.title);
+      if (template.location) setLocation(template.location);
+      if (template.work_type) setWorkType(template.work_type);
+      if (template.description) setDescription(template.description);
+      if (template.tax_percent != null) setTaxPercent(String(template.tax_percent));
+      setLocalSections(sections.map(s => ({
+        _key: `tpl-${s.id}-${Date.now()}`,
+        name: s.name,
+        description: s.description || '',
+        size_m2: s.size_m2 != null ? String(s.size_m2) : '',
+        start_date: s.start_date || null,
+        end_date: s.end_date || null,
+        entries: s.entries.map(e => ({
+          _ekey: `te-${e.id}-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+          entry_type: e.entry_type,
+          work_description: e.work_description,
+          quantity: e.quantity,
+          unit: e.unit,
+          unit_price: e.unit_price,
+          amount_huf: e.amount_huf,
+          notes: e.notes || '',
+          user_id: currentUser?.id || '',
+        })),
+      })));
+    } catch {}
+    finally { setTemplateLoading(false); }
+  };
+
+  const handleSaveAsTemplate = async () => {
+    setSavingTemplate(true);
+    try {
+      const sections = localSections.map(s => ({
+        name: s.name, description: s.description || null, size_m2: s.size_m2 ? Number(s.size_m2) : null,
+        start_date: s.start_date || null, end_date: s.end_date || null,
+        entries: s.entries.map(e => ({
+          entry_type: e.entry_type, work_description: e.work_description,
+          quantity: e.quantity, unit: e.unit, unit_price: e.unit_price, amount_huf: e.amount_huf, notes: e.notes,
+        })),
+      }));
+      await createTemplate({ name: templateName.trim(), title: title.trim() || null, location: location.trim() || null, work_type: workType.trim() || null, description: description.trim() || null, tax_percent: Number(taxPercent) || 27, sections, entityId: effectiveEntityId });
+      setShowSaveTemplateModal(false);
+      setTemplateName('');
+      setTemplateSavedMsg('Sablon sikeresen mentve!');
+      setTimeout(() => setTemplateSavedMsg(''), 3500);
+    } catch (err) {
+      // show error inside modal — rethrow so modal can catch
+      throw err;
+    } finally {
+      setSavingTemplate(false);
+    }
+  };
+
   return (
     <div className="container" style={{ maxWidth: '720px', paddingBottom: '3rem' }}>
       <div style={{ padding: '0.85rem 0 0.25rem' }}>
@@ -487,6 +578,47 @@ function NewQuotePageInner() {
             </div>
           )}
         </div>
+
+        {/* ── SABLON KIVÁLASZTÁSA — only when not from survey ── */}
+        {!fromSurveyId && templates.length > 0 && (
+          <div className="card mb-4" style={{ padding: '1.25rem' }}>
+            <div style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.05em', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+              <LayoutTemplate size={13} /> Sablon alkalmazása (opcionális)
+            </div>
+            <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.75rem' }}>Sablon kiválasztásakor az előtöltési adatok és helyiségek bekerülnek az ajánlatba.</p>
+            <div style={{ position: 'relative' }}>
+              <input
+                type="text"
+                className="form-control"
+                placeholder="Sablon keresése…"
+                value={templateSearch}
+                onChange={e => setTemplateSearch(e.target.value)}
+              />
+              {templateSearch && (
+                <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: '#fff', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', boxShadow: '0 4px 16px rgba(0,0,0,0.1)', zIndex: 50, maxHeight: '220px', overflowY: 'auto', marginTop: '2px' }}>
+                  {templates.filter(t => t.name.toLowerCase().includes(templateSearch.toLowerCase())).length === 0 ? (
+                    <div style={{ padding: '0.75rem 1rem', fontSize: '0.85rem', color: 'var(--text-muted)' }}>Nincs találat</div>
+                  ) : (
+                    templates.filter(t => t.name.toLowerCase().includes(templateSearch.toLowerCase())).map(t => (
+                      <button
+                        key={t.id}
+                        type="button"
+                        onClick={() => { applyTemplate(t.id); setTemplateSearch(''); }}
+                        style={{ width: '100%', padding: '0.65rem 1rem', textAlign: 'left', background: 'none', border: 'none', borderBottom: '1px solid var(--border-subtle)', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: '0.1rem' }}
+                        onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-subtle)'}
+                        onMouseLeave={e => e.currentTarget.style.background = 'none'}
+                      >
+                        <span style={{ fontWeight: 700, fontSize: '0.875rem', color: 'var(--text-primary)' }}>{t.name}</span>
+                        {(t.title || t.work_type) && <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{[t.title, t.work_type].filter(Boolean).join(' · ')}</span>}
+                      </button>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
+            {templateLoading && <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}><Loader2 size={13} className="animate-spin" />Sablon betöltése…</div>}
+          </div>
+        )}
 
         {/* ── HELYISÉGEK + TÉTELEK ── */}
         <div className="card mb-4" style={{ padding: '1.25rem' }}>
@@ -641,9 +773,18 @@ function NewQuotePageInner() {
           </div>
         </div>
 
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+        {templateSavedMsg && (
+        <div style={{ background: 'var(--success-bg)', border: '1px solid var(--success-border)', color: 'var(--success-text)', padding: '0.7rem 1rem', borderRadius: 'var(--radius-md)', fontSize: '0.85rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
+          <LayoutTemplate size={16} />{templateSavedMsg}
+        </div>
+      )}
+
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
           <Link href="/ajanlatok" className="btn btn-secondary">Mégse</Link>
           <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+            <button type="button" className="btn btn-secondary" disabled={isSubmitting} onClick={() => { setTemplateName(title || ''); setShowSaveTemplateModal(true); }}>
+              <LayoutTemplate size={15} /> Mentés sablonként
+            </button>
             <button type="button" className="btn btn-secondary" disabled={isSubmitting} onClick={handleSaveDraft}>
               {isSubmitting ? <><Loader2 size={16} className="animate-spin" />Mentés…</> : 'Mentés vázlatként'}
             </button>
@@ -732,6 +873,16 @@ function NewQuotePageInner() {
         isOpen={showNewClientModal}
         onClose={() => setShowNewClientModal(false)}
         onCreate={async (fields) => { const c = await createClient({ ...fields, entityId: effectiveEntityId }); setClientId(c.id); setShowNewClientModal(false); }}
+      />
+
+      {/* Save as Template modal */}
+      <SaveAsTemplateModal
+        isOpen={showSaveTemplateModal}
+        templateName={templateName}
+        onNameChange={setTemplateName}
+        onSave={handleSaveAsTemplate}
+        onClose={() => setShowSaveTemplateModal(false)}
+        saving={savingTemplate}
       />
     </div>
   );

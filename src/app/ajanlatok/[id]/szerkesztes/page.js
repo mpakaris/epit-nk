@@ -10,7 +10,7 @@ import { formatHUF, formatDate, QUOTE_ENTRY_TYPES, QUANTITY_UNITS, LABOUR_UNITS 
 import {
   ArrowLeft, AlertCircle, Check, Loader2, Plus, Trash2, Edit3,
   Package, Hammer, Wrench, Truck, MoreHorizontal,
-  User, Coins, Home, Ruler, Calendar, X, Camera,
+  User, Coins, Home, Ruler, Calendar, X, Camera, LayoutTemplate,
 } from 'lucide-react';
 import PageSpinner from '@/components/PageSpinner';
 import { convertIfHeif } from '@/lib/imageUtils';
@@ -165,7 +165,7 @@ function SectionForm({ initial, surveyId, onSave, onCancel }) {
 // Always-available photo management for a section card.
 // Shows SectionMediaGrid when entry exists; otherwise shows an upload button that
 // transparently creates the survey + entry on first upload.
-function SectionPhotoZone({ quoteId, quoteSurveyId, quoteTitle, quoteClientId, effectiveEntityId, section, onEntryCreated }) {
+function SectionPhotoZone({ quoteId, quoteSurveyId, quoteTitle, quoteClientId, effectiveEntityId, section, onEntryCreated, isAdmin }) {
   const { createSurvey, createSurveyEntry, uploadSurveyMedia, updateQuote, updateQuoteSection, fetchSurveyMedia } = useApp();
   const [uploading, setUploading] = React.useState(false);
   const [uploadErr, setUploadErr] = React.useState('');
@@ -174,6 +174,9 @@ function SectionPhotoZone({ quoteId, quoteSurveyId, quoteTitle, quoteClientId, e
   if (quoteSurveyId && section._surveyEntryId) {
     return <SectionMediaGrid surveyId={quoteSurveyId} surveyEntryId={section._surveyEntryId} isLocked={false} />;
   }
+
+  // Creating a survey on-the-fly requires admin rights; non-admins only see the zone if the quote already has a survey
+  if (!isAdmin && !quoteSurveyId) return null;
 
   const handleFiles = async (e) => {
     const raw = Array.from(e.target.files || []);
@@ -222,6 +225,33 @@ function SectionPhotoZone({ quoteId, quoteSurveyId, quoteTitle, quoteClientId, e
 
 const EMPTY_ENTRY_FORM = { entry_type: 'material', work_description: '', quantity: '', unit: 'db', unit_price: '', flat_amount: '', notes: '', user_id: '' };
 
+function SaveAsTemplateModal({ isOpen, templateName, onNameChange, onSave, onClose, saving }) {
+  const [err, setErr] = React.useState('');
+  const handleSave = async () => {
+    if (!templateName.trim()) { setErr('A sablon neve kötelező!'); return; }
+    setErr('');
+    try { await onSave(); }
+    catch (e) { setErr(e.message || 'Hiba a sablon mentésekor'); }
+  };
+  React.useEffect(() => { if (!isOpen) setErr(''); }, [isOpen]);
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} title="Mentés sablonként">
+      {err && <div style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', color: 'var(--danger-text)', padding: '0.6rem', borderRadius: 'var(--radius-md)', fontSize: '0.825rem', display: 'flex', gap: '0.4rem', marginBottom: '0.75rem' }}><AlertCircle size={14} /><span>{err}</span></div>}
+      <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.85rem' }}>Az ajánlat helyiségei és tételei sablonként kerülnek mentésre (kliens adatok nélkül).</p>
+      <div className="form-group" style={{ marginBottom: '1.25rem' }}>
+        <label className="form-label">Sablon neve *</label>
+        <input type="text" className="form-control" autoFocus value={templateName} onChange={e => onNameChange(e.target.value)} placeholder="pl. Fürdőszoba felújítás — alap csomag" />
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+        <button type="button" className="btn btn-secondary btn-sm" onClick={onClose} disabled={saving}>Mégse</button>
+        <button type="button" className="btn btn-primary btn-sm" onClick={handleSave} disabled={saving}>
+          {saving ? <><Loader2 size={14} className="animate-spin" />Mentés…</> : <><LayoutTemplate size={14} />Sablon mentése</>}
+        </button>
+      </div>
+    </Modal>
+  );
+}
+
 export default function EditQuotePage() {
   const { id } = useParams();
   const router = useRouter();
@@ -232,6 +262,7 @@ export default function EditQuotePage() {
     currentUser, isAdmin, effectiveEntityId,
     surveyEntriesBySurvey, fetchSurveyMedia,
     createSurvey, createSurveyEntry, uploadSurveyMedia,
+    createTemplate,
   } = useApp();
 
   // Header fields
@@ -260,6 +291,10 @@ export default function EditQuotePage() {
   const [pendingEntries, setPendingEntries] = useState([]);
 
   const [showNewClientModal, setShowNewClientModal] = useState(false);
+  const [showSaveTemplateModal, setShowSaveTemplateModal] = useState(false);
+  const [templateName, setTemplateName] = useState('');
+  const [savingTemplate, setSavingTemplate] = useState(false);
+  const [templateSavedMsg, setTemplateSavedMsg] = useState('');
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -429,6 +464,30 @@ export default function EditQuotePage() {
 
   const removeEntry = (sectionKey, ekey) => {
     setLocalSections(prev => prev.map(s => s._key === sectionKey ? { ...s, entries: s.entries.filter(e => e._ekey !== ekey) } : s));
+  };
+
+  // ── Save as Template ─────────────────────────────────────────────────────────
+  const handleSaveAsTemplate = async () => {
+    setSavingTemplate(true);
+    try {
+      const sections = localSections.filter(s => !s._isGeneral).map(s => ({
+        name: s.name, description: s.description || null, size_m2: s.size_m2 ? Number(s.size_m2) : null,
+        start_date: s.start_date || null, end_date: s.end_date || null,
+        entries: s.entries.map(e => ({
+          entry_type: e.entry_type, work_description: e.work_description,
+          quantity: e.quantity, unit: e.unit, unit_price: e.unit_price, amount_huf: e.amount_huf, notes: e.notes,
+        })),
+      }));
+      await createTemplate({ name: templateName.trim(), title: title.trim() || null, location: location.trim() || null, work_type: workType.trim() || null, description: description.trim() || null, tax_percent: Number(taxPercent) || 27, sections, entityId: effectiveEntityId });
+      setShowSaveTemplateModal(false);
+      setTemplateName('');
+      setTemplateSavedMsg('Sablon sikeresen mentve!');
+      setTimeout(() => setTemplateSavedMsg(''), 3500);
+    } catch (err) {
+      throw err;
+    } finally {
+      setSavingTemplate(false);
+    }
   };
 
   // ── Submit ───────────────────────────────────────────────────────────────────
@@ -696,6 +755,7 @@ export default function EditQuotePage() {
                           effectiveEntityId={effectiveEntityId}
                           section={s}
                           onEntryCreated={onSectionEntryCreated}
+                          isAdmin={isAdmin}
                         />
                       )}
                     </>
@@ -756,11 +816,22 @@ export default function EditQuotePage() {
           </div>
         </div>
 
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+        {templateSavedMsg && (
+          <div style={{ background: 'var(--success-bg)', border: '1px solid var(--success-border)', color: 'var(--success-text)', padding: '0.7rem 1rem', borderRadius: 'var(--radius-md)', fontSize: '0.85rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
+            <LayoutTemplate size={16} />{templateSavedMsg}
+          </div>
+        )}
+
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
           <Link href={`/ajanlatok/${id}`} className="btn btn-secondary">Mégse</Link>
-          <button type="submit" className="btn btn-primary" disabled={isSubmitting}>
-            {isSubmitting ? <><Loader2 size={16} className="animate-spin" />Mentés…</> : <><Check size={16} />Módosítások mentése</>}
-          </button>
+          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+            <button type="button" className="btn btn-secondary" disabled={isSubmitting} onClick={() => { setTemplateName(title || quote?.title || ''); setShowSaveTemplateModal(true); }}>
+              <LayoutTemplate size={15} /> Mentés sablonként
+            </button>
+            <button type="submit" className="btn btn-primary" disabled={isSubmitting}>
+              {isSubmitting ? <><Loader2 size={16} className="animate-spin" />Mentés…</> : <><Check size={16} />Módosítások mentése</>}
+            </button>
+          </div>
         </div>
       </form>
 
@@ -848,6 +919,15 @@ export default function EditQuotePage() {
         isOpen={showNewClientModal}
         onClose={() => setShowNewClientModal(false)}
         onCreate={async (fields) => { const c = await createClient({ ...fields, entityId: effectiveEntityId }); setClientId(c.id); setShowNewClientModal(false); }}
+      />
+
+      <SaveAsTemplateModal
+        isOpen={showSaveTemplateModal}
+        templateName={templateName}
+        onNameChange={setTemplateName}
+        onSave={handleSaveAsTemplate}
+        onClose={() => setShowSaveTemplateModal(false)}
+        saving={savingTemplate}
       />
     </div>
   );
