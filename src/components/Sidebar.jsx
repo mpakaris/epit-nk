@@ -7,7 +7,7 @@ import { useApp } from '@/context/AppContext';
 import {
   Building2, LayoutDashboard, FolderKanban, Users, BookUser,
   FileText, Calendar, User, LogOut, KeyRound, ShieldAlert,
-  ChevronLeft, ChevronRight, Eye, X, Menu, ClipboardList, Ruler, LayoutTemplate
+  ChevronLeft, ChevronRight, Eye, X, Menu, ClipboardList, Ruler, LayoutTemplate, Lightbulb
 } from 'lucide-react';
 
 function buildNavItems(isSuperAdmin, isAdmin, impersonating) {
@@ -28,6 +28,7 @@ function buildNavItems(isSuperAdmin, isAdmin, impersonating) {
       { href: '/admin/projektek',    label: 'Projektek',    icon: FolderKanban },
       { href: '/naptar',             label: 'Naptár',       icon: Calendar },
       { href: '/ugyfelek',           label: 'Ügyfelek',     icon: BookUser },
+      { href: '/otletek',            label: 'Ötletek',      icon: Lightbulb },
       { divider: true, key: 'd1' },
       { href: '/admin/felhasznalok', label: 'Felhasználók', icon: Users, exact: true },
     ];
@@ -36,7 +37,8 @@ function buildNavItems(isSuperAdmin, isAdmin, impersonating) {
     { href: '/projektek', label: 'Projektek',  icon: FolderKanban },
     { href: '/felmeres',  label: 'Felmérések', icon: Ruler },
     { href: '/ajanlatok', label: 'Ajánlatok',  icon: FileText },
-    { href: '/naptar',    label: 'Naptár',     icon: Calendar }
+    { href: '/naptar',    label: 'Naptár',     icon: Calendar },
+    { href: '/otletek',   label: 'Ötletek',    icon: Lightbulb },
   ];
 }
 

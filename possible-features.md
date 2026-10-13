@@ -20,3 +20,13 @@ Handymen on construction sites should not need to log in repeatedly throughout t
 
 ## 6. Per-User Public Website (www.tecton.eu/bob-the-builder)
 Every registered contractor/entity gets a public-facing profile page at a slug-based URL (e.g. `www.tecton.eu/<slug>`). The page could display portfolio projects, client testimonials, and a contact form — acting as a lightweight marketing site generated automatically from the data already in the system.
+
+## 7. Client can report issues to projects he may have found out after completion 
+
+## 8. Client should be able to review / accept / comment / reject quotes, invoices 
+
+## 9. Client should be able to pay invoices directly via Pay-Link on client Portal 
+
+## 10. websocket for notifications about updates of clients / entity actions 
+
+## 11.
