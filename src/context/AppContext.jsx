@@ -128,11 +128,13 @@ export function AppProvider({ children }) {
   })();
 
   // ---- Route guard ------------------------------------------------------------
-  const PUBLIC_ROUTE_PREFIXES = ['/login', '/change-password', '/szakemberek/', '/p/', '/clients/', '/naplo/'];
+  const PUBLIC_ROUTE_PREFIXES = ['/login', '/change-password', '/szakemberek/', '/p/', '/clients/', '/naplo/', '/auth/'];
+  const PUBLIC_ROUTE_EXACT = ['/'];
   useEffect(() => {
     if (loading) return;
     if (!currentUser) {
-      if (!PUBLIC_ROUTE_PREFIXES.some(prefix => pathname.startsWith(prefix))) {
+      const isPublic = PUBLIC_ROUTE_EXACT.includes(pathname) || PUBLIC_ROUTE_PREFIXES.some(prefix => pathname.startsWith(prefix));
+      if (!isPublic) {
         router.replace('/login');
       }
       return;
@@ -179,10 +181,12 @@ export function AppProvider({ children }) {
 
     init();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (!session) {
         setCurrentUser(null);
         setImpersonating(null);
+      } else if (event === 'PASSWORD_RECOVERY') {
+        router.push('/change-password');
       }
     });
 
@@ -312,6 +316,46 @@ export function AppProvider({ children }) {
       router.push('/projektek');
     }
     return user;
+  };
+
+  const loginWithOAuth = async (provider) => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider,
+      options: { redirectTo: `${window.location.origin}/auth/callback` },
+    });
+    if (error) throw error;
+  };
+
+  const registerWithEmail = async (name, email, password) => {
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { data: { display_name: name, must_change_password: false } },
+    });
+    if (error) throw error;
+    if (data.session) {
+      const profile = await fetchProfile();
+      const user = {
+        id: data.user.id,
+        email: data.user.email,
+        display_name: profile?.display_name || name,
+        role: profile?.role || 'user',
+        entity_id: profile?.entity_id || null,
+        current_entity_id: profile?.current_entity_id || null,
+        must_change_password: false,
+      };
+      setCurrentUser(user);
+      await refreshSupabaseData(user);
+      router.push('/projektek');
+    }
+    return data;
+  };
+
+  const resetPasswordEmail = async (email) => {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/auth/callback`,
+    });
+    if (error) throw error;
   };
 
   const logout = async () => {
@@ -1334,6 +1378,9 @@ export function AppProvider({ children }) {
         quoteEntries,
         // Auth actions
         login,
+        loginWithOAuth,
+        registerWithEmail,
+        resetPasswordEmail,
         logout,
         changePassword,
         // Entity management
