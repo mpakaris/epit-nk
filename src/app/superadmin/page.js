@@ -9,7 +9,7 @@ import { formatDate, formatHUF } from '@/lib/constants';
 import {
   Building2, Plus, Users, FolderKanban, Eye, Trash2,
   ShieldAlert, AlertCircle, CheckCircle2, Edit3, ArrowUpRight,
-  FileText, Receipt, Coins
+  FileText, Receipt, Coins, Globe, CreditCard
 } from 'lucide-react';
 
 export default function SuperAdminPage() {
@@ -145,6 +145,8 @@ export default function SuperAdminPage() {
         <StatCard label="Total users"    value={totalUsers}      sub="Across all entities"  icon={Users} />
         <StatCard label="Total projects" value={totalProjects}   sub="Across all entities"  icon={FolderKanban} href="/superadmin/projektek" />
         <StatCard label="Total invoices" value={totalInvoices}   sub={formatHUF(totalHUF)}  icon={Coins} href="/superadmin/projektek" />
+        <StatCard label="Websites"        value="→"              sub="Partner pages"          icon={Globe}       href="/superadmin/websites" />
+        <StatCard label="Subscriptions"  value="→"              sub="Premium management"     icon={CreditCard}  href="/superadmin/subscriptions" />
       </div>
 
       {/* Entity list */}

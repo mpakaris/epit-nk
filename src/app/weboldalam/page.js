@@ -1662,7 +1662,7 @@ function BuilderEditor({ website: initialWebsite, sections: initialSections, use
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
             <Globe size={18} style={{ color: 'var(--primary)' }} />
-            <h1 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800 }}>Weboldalem</h1>
+            <h1 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800 }}>Weboldalom</h1>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
             <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>epitunk.hu/szakemberek/{website.slug}</span>

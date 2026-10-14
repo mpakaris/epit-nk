@@ -31,7 +31,7 @@ function buildNavItems(isSuperAdmin, isAdmin, impersonating, websiteUnread = 0) 
       { href: '/ugyfelek',           label: 'Ügyfelek',     icon: BookUser },
       { href: '/otletek',            label: 'Ötletek',      icon: Lightbulb },
       { divider: true, key: 'd1' },
-      { href: '/weboldalam',         label: 'Weboldalem',   icon: Globe, badge: websiteUnread },
+      { href: '/weboldalam',         label: 'Weboldalom',   icon: Globe, badge: websiteUnread },
       { href: '/admin/felhasznalok', label: 'Felhasználók', icon: Users, exact: true },
     ];
   }
@@ -42,7 +42,7 @@ function buildNavItems(isSuperAdmin, isAdmin, impersonating, websiteUnread = 0) 
     { href: '/naptar',     label: 'Naptár',     icon: Calendar },
     { href: '/otletek',    label: 'Ötletek',    icon: Lightbulb },
     { divider: true, key: 'd1' },
-    { href: '/weboldalam', label: 'Weboldalem', icon: Globe, badge: websiteUnread },
+    { href: '/weboldalam', label: 'Weboldalom', icon: Globe, badge: websiteUnread },
   ];
 }
 
