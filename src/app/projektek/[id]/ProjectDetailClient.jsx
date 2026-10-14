@@ -16,7 +16,7 @@ import {
   Edit3, UserCheck, CalendarDays, BookUser, BarChart3, ShieldCheck,
   Phone, Mail, MapPin, ChevronUp, Link2, Copy, Check, AlertCircle, Lock, Eye,
   ChevronLeft, ChevronRight, X, Play, ZoomIn, FileText, Ruler, Home, Calendar, User,
-  Sparkles, Loader2
+  Sparkles, Loader2, Settings, ChevronDown
 } from 'lucide-react';
 
 function MediaLightbox({ media, startIndex, onClose }) {
@@ -504,7 +504,7 @@ function LabourEditModal({ entry, onClose, onSave }) {
   );
 }
 
-function InvoiceDetailDrawer({ invoice, isAdmin, rooms, onClose, onDelete, onSave }) {
+function InvoiceDetailDrawer({ invoice, isAdmin, rooms, splits = [], onClose, onDelete, onSave, onSaveSplits }) {
   const catObj = INVOICE_CATEGORIES.find(c => c.id === invoice.category) || { color: 'egyeb' };
   const room = rooms.find(r => r.id === invoice.room_id) || null;
   const hasAiData = Array.isArray(invoice.ai_line_items);
@@ -524,6 +524,18 @@ function InvoiceDetailDrawer({ invoice, isAdmin, rooms, onClose, onDelete, onSav
 
   const [showImage, setShowImage] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
+  const [editSplits, setEditSplits] = React.useState(splits.map(s => ({ ...s })));
+
+  React.useEffect(() => {
+    setEditSplits(splits.map(s => ({ ...s })));
+  }, [invoice.id]);
+
+  const splitsTotal = editSplits.reduce((sum, s) => sum + Number(s.amount_huf || 0), 0);
+  const splitsRemaining = Number(invoice.value_huf) - splitsTotal;
+
+  const addSplit = () => setEditSplits(prev => [...prev, { room_id: '', amount_huf: Math.max(0, Number(invoice.value_huf) - prev.reduce((s, x) => s + Number(x.amount_huf || 0), 0)), note: '' }]);
+  const removeSplit = (idx) => setEditSplits(prev => prev.filter((_, i) => i !== idx));
+  const updateSplit = (idx, field, value) => setEditSplits(prev => prev.map((s, i) => i === idx ? { ...s, [field]: value } : s));
 
   const [isMobile, setIsMobile] = React.useState(() =>
     typeof window !== 'undefined' ? window.innerWidth < 768 : true
@@ -576,6 +588,7 @@ function InvoiceDetailDrawer({ invoice, isAdmin, rooms, onClose, onDelete, onSav
         ai_line_items: lineItems.length > 0 ? lineItems : null,
         ai_total: lineItems.length > 0 ? Math.round(grandTotal) : null,
       });
+      if (onSaveSplits) await onSaveSplits(invoice.id, editSplits);
     } catch { /* parent handles */ }
     finally { setSaving(false); }
   };
@@ -585,6 +598,7 @@ function InvoiceDetailDrawer({ invoice, isAdmin, rooms, onClose, onDelete, onSav
     setEditCategory(invoice.category ?? '');
     setEditDesc(invoice.description ?? '');
     setLineItems(Array.isArray(invoice.ai_line_items) ? invoice.ai_line_items : []);
+    setEditSplits(splits.map(s => ({ ...s })));
     setIsEditing(false);
   };
 
@@ -672,6 +686,71 @@ function InvoiceDetailDrawer({ invoice, isAdmin, rooms, onClose, onDelete, onSav
             ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', padding: '0.12rem 0.45rem', borderRadius: 'var(--radius-pill)', background: 'var(--accent-light)', border: '1px solid var(--accent-border)', color: 'var(--accent)', fontWeight: 700, fontSize: '0.7rem' }}><Home size={10} />{room.name}</span>
             : <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', padding: '0.12rem 0.45rem', borderRadius: 'var(--radius-pill)', background: 'var(--bg-subtle)', border: '1px solid var(--border-subtle)', color: 'var(--text-muted)', fontWeight: 600, fontSize: '0.7rem' }}><Home size={10} />Általános</span>
           }
+        </div>
+
+        {/* Szekció felosztás */}
+        <div style={{ padding: '0.75rem 1.25rem', borderBottom: '1px solid var(--border-subtle)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+            <span style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)' }}>Szekciók</span>
+            {isEditing && rooms.length > 0 && (
+              <button type="button" onClick={addSplit} style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', background: 'none', border: '1px dashed var(--border-subtle)', borderRadius: 'var(--radius-sm)', padding: '0.15rem 0.5rem', cursor: 'pointer', color: 'var(--accent)', fontSize: '0.72rem', fontWeight: 700 }}>
+                <Plus size={11} /> Szekció
+              </button>
+            )}
+          </div>
+
+          {rooms.length === 0 ? (
+            <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontStyle: 'italic', margin: 0 }}>Még nincsenek szekciók ehhez a projekthez.</p>
+          ) : (isEditing ? editSplits : splits).length === 0 ? (
+            <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontStyle: 'italic', margin: 0 }}>
+              {isEditing ? 'Adj hozzá szekciót az összeg felosztásához.' : 'Nincs szekció felosztás.'}
+            </p>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+              {(isEditing ? editSplits : splits).map((split, idx) => (
+                <div key={idx} style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
+                  {isEditing ? (
+                    <>
+                      <select
+                        value={split.room_id}
+                        onChange={e => updateSplit(idx, 'room_id', e.target.value)}
+                        style={{ flex: 1, fontSize: '0.78rem', padding: '0.25rem 0.45rem', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-sm)', background: 'var(--bg-subtle)', color: 'var(--text-primary)', minWidth: 0 }}
+                      >
+                        <option value="">Szekció…</option>
+                        {rooms.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+                      </select>
+                      <div style={{ position: 'relative', flexShrink: 0, width: '90px' }}>
+                        <input
+                          type="number" min="1"
+                          value={split.amount_huf}
+                          onChange={e => updateSplit(idx, 'amount_huf', e.target.value)}
+                          style={{ width: '100%', fontSize: '0.78rem', padding: '0.25rem 1.8rem 0.25rem 0.45rem', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-sm)', background: 'var(--bg-subtle)', color: 'var(--text-primary)', fontFamily: 'var(--font-mono)', textAlign: 'right' }}
+                        />
+                        <span style={{ position: 'absolute', right: '0.35rem', top: '50%', transform: 'translateY(-50%)', fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 700, pointerEvents: 'none' }}>Ft</span>
+                      </div>
+                      <button type="button" onClick={() => removeSplit(idx)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--danger-text)', padding: '0.1rem', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+                        <X size={13} />
+                      </button>
+                    </>
+                  ) : (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', fontSize: '0.82rem', padding: '0.1rem 0' }}>
+                      <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{rooms.find(r => r.id === split.room_id)?.name || '?'}</span>
+                      <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: 'var(--text-primary)' }}>{Number(split.amount_huf).toLocaleString('hu-HU')} Ft</span>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {isEditing && editSplits.length > 0 && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.5rem', padding: '0.4rem 0.6rem', borderRadius: 'var(--radius-sm)', background: splitsRemaining < 0 ? 'var(--danger-bg)' : splitsRemaining === 0 ? 'var(--success-bg)' : 'var(--bg-subtle)', border: `1px solid ${splitsRemaining < 0 ? 'var(--danger-border)' : splitsRemaining === 0 ? 'var(--success-border)' : 'var(--border-subtle)'}` }}>
+              <span style={{ fontSize: '0.75rem', fontWeight: 700, color: splitsRemaining < 0 ? 'var(--danger-text)' : splitsRemaining === 0 ? 'var(--success-text)' : 'var(--text-muted)' }}>
+                {splitsRemaining === 0 ? '✓ Teljes összeg felosztva' : splitsRemaining > 0 ? `Maradék: ${splitsRemaining.toLocaleString('hu-HU')} Ft` : `Túllépés: ${Math.abs(splitsRemaining).toLocaleString('hu-HU')} Ft`}
+              </span>
+              <span style={{ fontSize: '0.75rem', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>{splitsTotal.toLocaleString('hu-HU')} / {Number(invoice.value_huf).toLocaleString('hu-HU')} Ft</span>
+            </div>
+          )}
         </div>
 
         {/* Scrollable body — line items */}
@@ -782,6 +861,189 @@ function InvoiceDetailDrawer({ invoice, isAdmin, rooms, onClose, onDelete, onSav
   );
 }
 
+const ROMAN = ['I','II','III','IV','V','VI','VII','VIII','IX','X','XI','XII','XIII','XIV','XV','XVI','XVII','XVIII','XIX','XX'];
+
+const TRIGGER_TYPES = [
+  { key: 'start',     label: 'Projekt kezdetén' },
+  { key: 'end',       label: 'Projekt végén' },
+  { key: 'milestone', label: 'Mérföldkőnél' },
+  { key: 'date',      label: 'Dátumon' },
+];
+
+const MILESTONE_SUGGESTIONS = [
+  'Anyag helyszínen',
+  'Bontási munkák kész',
+  'Alapozási munkák kész',
+  'Falszerkezet kész',
+  'Tetőfedés kész',
+  'Nyílászárók beépítve',
+  'Gépészet kész',
+  'Vakolás kész',
+  'Burkolás kész',
+  'Festés kész',
+  'Szerkezet kész',
+  'Épület átadva',
+];
+
+const TRIGGER_DISPLAY = {
+  start:     { label: 'Projekt kezdetén',  bg: '#eff6ff', color: '#1d4ed8', border: '#bfdbfe' },
+  end:       { label: 'Projekt végén',     bg: '#f0fdf4', color: '#15803d', border: '#bbf7d0' },
+  milestone: { label: 'Mérföldkőnél',     bg: '#fefce8', color: '#a16207', border: '#fde68a' },
+  date:      { label: 'Dátumon',           bg: '#faf5ff', color: '#7e22ce', border: '#e9d5ff' },
+};
+
+const STATUS_DISPLAY = {
+  pending:   { label: 'Függőben',  bg: '#fefce8', color: '#a16207', border: '#fde68a' },
+  paid:      { label: 'Fizetve',   bg: '#f0fdf4', color: '#15803d', border: '#bbf7d0' },
+  cancelled: { label: 'Törölve',   bg: '#f8fafc', color: '#64748b', border: '#e2e8f0' },
+};
+
+function PaymentPlanModal({ isOpen, onClose, onSave, editItem, itemCount }) {
+  const [label, setLabel] = React.useState('');
+  const [triggerType, setTriggerType] = React.useState('milestone');
+  const [milestoneName, setMilestoneName] = React.useState('');
+  const [amountHuf, setAmountHuf] = React.useState('');
+  const [dueDate, setDueDate] = React.useState('');
+  const [note, setNote] = React.useState('');
+  const [saving, setSaving] = React.useState(false);
+  const [err, setErr] = React.useState('');
+
+  React.useEffect(() => {
+    if (!isOpen) return;
+    if (editItem) {
+      setLabel(editItem.label || '');
+      setTriggerType(editItem.trigger_type || 'milestone');
+      setMilestoneName(editItem.milestone_name || '');
+      setAmountHuf(editItem.amount_huf?.toString() || '');
+      setDueDate(editItem.due_date || '');
+      setNote(editItem.note || '');
+    } else {
+      setLabel(`Fizetés ${ROMAN[itemCount] ?? (itemCount + 1)}`);
+      setTriggerType('milestone');
+      setMilestoneName('');
+      setAmountHuf('');
+      setDueDate('');
+      setNote('');
+    }
+    setErr('');
+  }, [isOpen, editItem?.id, itemCount]);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!label.trim()) { setErr('A megnevezés kötelező'); return; }
+    const amt = Math.round(Number(amountHuf.replace(/\s/g, '').replace(',', '.')));
+    if (!amt || amt <= 0) { setErr('Az összeg kötelező és nullánál nagyobb kell legyen'); return; }
+    setSaving(true);
+    setErr('');
+    try {
+      await onSave({ label: label.trim(), trigger_type: triggerType, milestone_name: triggerType === 'milestone' ? milestoneName.trim() || null : null, amount_huf: amt, due_date: dueDate || null, note: note.trim() || null });
+      onClose();
+    } catch (error) {
+      setErr(error.message || 'Hiba a mentésnél');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} title={editItem ? 'Fizetési tétel szerkesztése' : 'Új fizetési tétel'}>
+      {err && (
+        <div style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', color: 'var(--danger-text)', padding: '0.65rem', borderRadius: 'var(--radius-md)', fontSize: '0.825rem', display: 'flex', gap: '0.45rem', marginBottom: '0.85rem' }}>
+          <AlertCircle size={15} /><span>{err}</span>
+        </div>
+      )}
+      <form onSubmit={handleSubmit}>
+        {/* Label */}
+        <div className="form-group">
+          <label className="form-label">Megnevezés *</label>
+          <input type="text" required className="form-control" value={label} onChange={e => setLabel(e.target.value)} placeholder="pl. Fizetés I" />
+        </div>
+
+        {/* Trigger type */}
+        <div className="form-group">
+          <label className="form-label">Esedékesség</label>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
+            {TRIGGER_TYPES.map(t => (
+              <button
+                key={t.key}
+                type="button"
+                onClick={() => setTriggerType(t.key)}
+                style={{ padding: '0.3rem 0.75rem', borderRadius: 'var(--radius-md)', border: triggerType === t.key ? '2px solid var(--accent)' : '1px solid var(--border-subtle)', background: triggerType === t.key ? 'var(--accent)' : 'var(--bg-subtle)', color: triggerType === t.key ? '#fff' : 'var(--text-secondary)', fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer' }}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Milestone name */}
+        {triggerType === 'milestone' && (
+          <div className="form-group">
+            <label className="form-label">Mérföldkő neve</label>
+            <input
+              type="text"
+              className="form-control"
+              list="milestone-suggestions"
+              value={milestoneName}
+              onChange={e => setMilestoneName(e.target.value)}
+              placeholder="pl. Anyag helyszínen"
+            />
+            <datalist id="milestone-suggestions">
+              {MILESTONE_SUGGESTIONS.map(s => <option key={s} value={s} />)}
+            </datalist>
+          </div>
+        )}
+
+        {/* Due date (only for 'date' trigger) */}
+        {triggerType === 'date' && (
+          <div className="form-group">
+            <label className="form-label">Határidő</label>
+            <input type="date" className="form-control" value={dueDate} onChange={e => setDueDate(e.target.value)} />
+          </div>
+        )}
+
+        {/* Amount */}
+        <div className="form-group">
+          <label className="form-label">Összeg (Ft) *</label>
+          <div style={{ position: 'relative' }}>
+            <input
+              type="number"
+              required
+              min="1"
+              className="form-control text-mono"
+              value={amountHuf}
+              onChange={e => setAmountHuf(e.target.value)}
+              placeholder="pl. 450000"
+              style={{ paddingRight: '2.5rem' }}
+            />
+            <span style={{ position: 'absolute', right: '0.7rem', top: '50%', transform: 'translateY(-50%)', fontWeight: 700, color: 'var(--text-muted)', fontSize: '0.85rem', pointerEvents: 'none' }}>Ft</span>
+          </div>
+          {Number(amountHuf) > 0 && (
+            <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
+              {Number(amountHuf).toLocaleString('hu-HU')} Ft
+            </div>
+          )}
+        </div>
+
+        {/* Note */}
+        <div className="form-group" style={{ marginBottom: '1.25rem' }}>
+          <label className="form-label">Megjegyzés</label>
+          <textarea rows={2} className="form-control" value={note} onChange={e => setNote(e.target.value)} placeholder="Opcionális belső megjegyzés..." />
+        </div>
+
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+          <button type="button" className="btn btn-secondary btn-sm" onClick={onClose} disabled={saving}>Mégse</button>
+          <button type="submit" className="btn btn-primary btn-sm" disabled={saving}>
+            {saving ? 'Mentés...' : (editItem ? 'Módosítás' : 'Hozzáadás')}
+          </button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
 export default function ProjectDetailClient({
   project,
   initialUsers,
@@ -793,6 +1055,8 @@ export default function ProjectDetailClient({
   isAdmin,
   initialDiaryCount = 0,
   initialRooms = [],
+  initialPaymentPlan = [],
+  initialInvoiceSplits = [],
 }) {
   const router = useRouter();
   const {
@@ -819,7 +1083,12 @@ export default function ProjectDetailClient({
   // Prefer context rooms (updated after sync) over initial server-side rooms
   const projectRooms = React.useMemo(() => {
     const ctx = (ctxProjectRooms || []).filter(r => r.project_id === project.id);
-    return ctx.length > 0 ? ctx.sort((a, b) => a.sort_order - b.sort_order) : initialRooms.sort((a, b) => a.sort_order - b.sort_order);
+    // Merge server + context: context wins for same id (captures mutations), server fills the rest
+    const ctxById = Object.fromEntries(ctx.map(r => [r.id, r]));
+    const serverById = Object.fromEntries(initialRooms.map(r => [r.id, r]));
+    const allIds = new Set([...Object.keys(serverById), ...Object.keys(ctxById)]);
+    const merged = Array.from(allIds).map(id => ctxById[id] || serverById[id]);
+    return merged.sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0) || (a.created_at || '').localeCompare(b.created_at || ''));
   }, [ctxProjectRooms, initialRooms, project.id]);
 
   const [categoryFilter, setCategoryFilter] = useState('ALL');
@@ -837,6 +1106,13 @@ export default function ProjectDetailClient({
   const [detailInvoice, setDetailInvoice] = useState(null);
   const [roomFilter, setRoomFilter] = useState('ALL');
   const [syncing, setSyncing] = useState(false);
+  const [invoiceSplits, setInvoiceSplits] = useState(initialInvoiceSplits);
+  const [paymentPlan, setPaymentPlan] = useState(
+    initialPaymentPlan.map(item => ({ ...item, files: item.payment_item_files || [] }))
+  );
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [editingPayment, setEditingPayment] = useState(null);
+  const [uploadingItemIds, setUploadingItemIds] = useState(new Set());
   const [shareTokens, setShareTokens] = useState([]);
   const [shareLoading, setShareLoading] = useState(false);
   const [showNewTokenModal, setShowNewTokenModal] = useState(false);
@@ -872,7 +1148,16 @@ export default function ProjectDetailClient({
   const filteredInvoices = fin.projectInvoices.filter(inv => {
     if (categoryFilter !== 'ALL' && inv.category !== categoryFilter) return false;
     if (uploaderFilter !== 'ALL' && inv.uploaded_by !== uploaderFilter) return false;
-    if (roomFilter !== 'ALL' && inv.room_id !== (roomFilter === 'GENERAL' ? null : roomFilter)) return false;
+    if (roomFilter !== 'ALL') {
+      if (roomFilter === 'GENERAL') {
+        // Show invoices with no room and no splits
+        const hasSplits = invoiceSplits.some(s => s.invoice_id === inv.id);
+        if (hasSplits || inv.room_id) return false;
+      } else {
+        const hasSplit = invoiceSplits.some(s => s.invoice_id === inv.id && s.room_id === roomFilter);
+        if (!hasSplit && inv.room_id !== roomFilter) return false;
+      }
+    }
     return true;
   });
 
@@ -884,6 +1169,15 @@ export default function ProjectDetailClient({
   });
 
   const canManageProject = isAdmin || project.created_by === currentUser?.id;
+
+  const [showOptionsMenu, setShowOptionsMenu] = useState(false);
+  const optionsRef = React.useRef(null);
+  React.useEffect(() => {
+    if (!showOptionsMenu) return;
+    const handler = (e) => { if (optionsRef.current && !optionsRef.current.contains(e.target)) setShowOptionsMenu(false); };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showOptionsMenu]);
 
   const handleDeleteProject = () => {
     setConfirmModal({
@@ -941,6 +1235,20 @@ export default function ProjectDetailClient({
     setDetailInvoice(null);
     router.refresh();
     setSuccessMsg('Számla frissítve.');
+  };
+
+  const handleSaveSplits = async (invoiceId, splits) => {
+    const res = await fetch('/api/invoice-splits', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ invoice_id: invoiceId, splits }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Hiba a szekció felosztás mentésekor');
+    setInvoiceSplits(prev => [
+      ...prev.filter(s => s.invoice_id !== invoiceId),
+      ...(data.splits || []),
+    ]);
   };
 
   const handleCreateToken = async (e) => {
@@ -1019,31 +1327,61 @@ export default function ProjectDetailClient({
             </div>
             <p className="page-subtitle">{project.description || 'Nincs megadott leírás'}</p>
           </div>
-          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-            {canManageProject && (
-              <Link href={`/projektek/${project.id}/szerkesztes`} className="btn btn-primary btn-sm">
-                <Edit3 size={14} /> Szerkesztés
-              </Link>
-            )}
-            {canManageProject && !isClosed && (
-              <button type="button" onClick={handleCloseProject} className="btn btn-secondary btn-sm">
-                Lezárás
-              </button>
-            )}
-            {canManageProject && isClosed && (
-              <button type="button" onClick={handleReopenProject} className="btn btn-secondary btn-sm">
-                Megnyitás
-              </button>
-            )}
-            {canManageProject && (
-              <button type="button" onClick={handleDeleteProject} className="btn btn-danger btn-sm">
-                <Trash2 size={14} /> Törlés
-              </button>
-            )}
-            <Link href={`/projektek/${project.id}/feltoltes`} className="btn btn-primary btn-sm" style={{ gap: '0.4rem' }}>
-              <Camera size={15} />
-              <span>Bejegyzés hozzáadása</span>
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexShrink: 0 }}>
+            <Link href={`/projektek/${project.id}/feltoltes`} className="btn btn-primary btn-sm">
+              <Camera size={15} /> <span>Bejegyzés</span>
             </Link>
+
+            {canManageProject && (
+              <div ref={optionsRef} style={{ position: 'relative' }}>
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => setShowOptionsMenu(v => !v)}
+                  title="Beállítások"
+                  style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}
+                >
+                  <Settings size={14} />
+                  <ChevronDown size={12} style={{ opacity: 0.7 }} />
+                </button>
+
+                {showOptionsMenu && (
+                  <div style={{ position: 'absolute', top: 'calc(100% + 6px)', right: 0, background: 'var(--bg-card, #fff)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', boxShadow: '0 6px 24px rgba(0,0,0,0.12)', zIndex: 200, minWidth: '170px', padding: '0.3rem', overflow: 'hidden' }}>
+                    <Link
+                      href={`/projektek/${project.id}/szerkesztes`}
+                      onClick={() => setShowOptionsMenu(false)}
+                      style={{ display: 'flex', alignItems: 'center', gap: '0.55rem', padding: '0.55rem 0.75rem', borderRadius: 'var(--radius-sm)', color: 'var(--text-primary)', fontSize: '0.875rem', fontWeight: 600, textDecoration: 'none' }}
+                      onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-subtle)'}
+                      onMouseLeave={e => e.currentTarget.style.background = ''}
+                    >
+                      <Edit3 size={14} color="var(--text-muted)" /> Szerkesztés
+                    </Link>
+
+                    <button
+                      type="button"
+                      onClick={() => { setShowOptionsMenu(false); isClosed ? handleReopenProject() : handleCloseProject(); }}
+                      style={{ display: 'flex', width: '100%', alignItems: 'center', gap: '0.55rem', padding: '0.55rem 0.75rem', borderRadius: 'var(--radius-sm)', background: 'none', border: 'none', color: 'var(--text-primary)', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', textAlign: 'left' }}
+                      onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-subtle)'}
+                      onMouseLeave={e => e.currentTarget.style.background = ''}
+                    >
+                      <Lock size={14} color="var(--text-muted)" /> {isClosed ? 'Megnyitás' : 'Lezárás'}
+                    </button>
+
+                    <div style={{ height: '1px', background: 'var(--border-subtle)', margin: '0.25rem 0.3rem' }} />
+
+                    <button
+                      type="button"
+                      onClick={() => { setShowOptionsMenu(false); handleDeleteProject(); }}
+                      style={{ display: 'flex', width: '100%', alignItems: 'center', gap: '0.55rem', padding: '0.55rem 0.75rem', borderRadius: 'var(--radius-sm)', background: 'none', border: 'none', color: 'var(--danger-text)', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', textAlign: 'left' }}
+                      onMouseEnter={e => e.currentTarget.style.background = 'var(--danger-bg)'}
+                      onMouseLeave={e => e.currentTarget.style.background = ''}
+                    >
+                      <Trash2 size={14} /> Törlés
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -1115,11 +1453,19 @@ export default function ProjectDetailClient({
         </div>
       </div>
 
-      {/* Rooms section */}
+      {/* Sections */}
       {projectRooms.length > 0 && (() => {
+        // Invoices that have splits — their cost is tracked via splits, not room_id
+        const invoicesWithSplits = new Set(invoiceSplits.map(s => s.invoice_id));
+        // Split totals per room
+        const splitTotalByRoom = {};
+        for (const s of invoiceSplits) {
+          splitTotalByRoom[s.room_id] = (splitTotalByRoom[s.room_id] || 0) + Number(s.amount_huf);
+        }
         const invoicesByRoom = {};
         const labourByRoom = {};
         for (const inv of fin.projectInvoices) {
+          if (invoicesWithSplits.has(inv.id)) continue; // handled via splits
           const key = inv.room_id || 'general';
           invoicesByRoom[key] = (invoicesByRoom[key] || []);
           invoicesByRoom[key].push(inv);
@@ -1131,13 +1477,14 @@ export default function ProjectDetailClient({
         }
         const roomCost = (roomId) => {
           const invTotal = (invoicesByRoom[roomId] || []).reduce((s, i) => s + Number(i.value_huf || 0), 0);
+          const splitTotal = splitTotalByRoom[roomId] || 0;
           const labTotal = (labourByRoom[roomId] || []).reduce((s, l) => s + Number(l.value_huf || 0), 0);
-          return invTotal + labTotal;
+          return invTotal + splitTotal + labTotal;
         };
         return (
           <div style={{ marginBottom: '0.85rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
-              <Ruler size={13} /> Helyiségek
+              <Ruler size={13} /> Szekciók
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(280px, 100%), 1fr))', gap: '0.65rem' }}>
               {projectRooms.map(room => {
@@ -1191,7 +1538,7 @@ export default function ProjectDetailClient({
               {/* General (unassigned) costs */}
               {(invoicesByRoom['general']?.length > 0 || labourByRoom['general']?.length > 0) && (
                 <div className="card" style={{ padding: '0.85rem 1rem', borderStyle: 'dashed' }}>
-                  <div style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: '0.35rem' }}>Általános (nincs szobához rendelve)</div>
+                  <div style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: '0.35rem' }}>Általános (szekció nélkül)</div>
                   <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, fontSize: '0.9rem' }}>{formatHUF(roomCost('general'))}</div>
                   <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', gap: '0.65rem', marginTop: '0.25rem' }}>
                     {(invoicesByRoom['general']?.length || 0) > 0 && <span>{invoicesByRoom['general'].length} számla</span>}
@@ -1373,6 +1720,7 @@ export default function ProjectDetailClient({
           { key: 'invoices', label: `Számlák (${fin.projectInvoices.length})`, icon: Receipt },
           { key: 'labour', label: `Munka (${fin.projectLabour.length})`, icon: Hammer },
           { key: 'naplo', label: `Napló (${diaryEntriesByProject[project.id]?.length ?? initialDiaryCount})`, icon: BookOpen },
+          { key: 'payment', label: `Fizetési terv (${paymentPlan.length})`, icon: Wallet },
         ].map(tab => (
           <button key={tab.key} type="button" onClick={() => setActiveTab(tab.key)} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.65rem 1rem', borderRadius: 0, border: 'none', borderBottom: activeTab === tab.key ? '2px solid var(--accent)' : '2px solid transparent', marginBottom: '-2px', background: 'transparent', cursor: 'pointer', fontWeight: activeTab === tab.key ? 800 : 600, color: activeTab === tab.key ? 'var(--accent)' : 'var(--text-secondary)', fontSize: '0.875rem', transition: 'all 0.15s ease', flexShrink: 0, whiteSpace: 'nowrap' }}>
             <tab.icon size={15} />{tab.label}
@@ -1393,8 +1741,8 @@ export default function ProjectDetailClient({
             </select>
             {projectRooms.length > 0 && (
               <select value={roomFilter} onChange={e => setRoomFilter(e.target.value)} className="form-control" style={{ padding: '0.4rem 0.75rem', minHeight: '38px' }}>
-                <option value="ALL">Minden helyiség</option>
-                <option value="GENERAL">Általános (nincs szoba)</option>
+                <option value="ALL">Minden szekció</option>
+                <option value="GENERAL">Általános (szekció nélkül)</option>
                 {projectRooms.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
               </select>
             )}
@@ -1433,8 +1781,8 @@ export default function ProjectDetailClient({
             </select>
             {projectRooms.length > 0 && (
               <select value={roomFilter} onChange={e => setRoomFilter(e.target.value)} className="form-control" style={{ padding: '0.4rem 0.75rem', minHeight: '38px' }}>
-                <option value="ALL">Minden helyiség</option>
-                <option value="GENERAL">Általános (nincs szoba)</option>
+                <option value="ALL">Minden szekció</option>
+                <option value="GENERAL">Általános (szekció nélkül)</option>
                 {projectRooms.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
               </select>
             )}
@@ -1521,6 +1869,311 @@ export default function ProjectDetailClient({
           )}
         </>
       )}
+
+      {activeTab === 'payment' && (() => {
+        const today = new Date().toISOString().slice(0, 10);
+        const totalExpected = paymentPlan.reduce((s, i) => s + Number(i.amount_huf || 0), 0);
+        const totalPaid = paymentPlan.filter(i => i.status === 'paid').reduce((s, i) => s + Number(i.amount_huf || 0), 0);
+
+        const handleCreatePayment = async (fields) => {
+          const res = await fetch('/api/payment-plan', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ project_id: project.id, ...fields }),
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || 'Hiba');
+          setPaymentPlan(prev => [...prev, { ...data.item, files: [] }]);
+          setToast('Fizetési tétel hozzáadva.');
+          setTimeout(() => setToast(''), 2500);
+        };
+
+        const handleUpdatePayment = async (itemId, fields) => {
+          const res = await fetch(`/api/payment-plan/${itemId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(fields),
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || 'Hiba');
+          setPaymentPlan(prev => prev.map(i => i.id === itemId ? { ...data.item, files: i.files || [] } : i));
+        };
+
+        const handleFileUpload = async (itemId, files) => {
+          if (!files || files.length === 0) return;
+          setUploadingItemIds(prev => new Set(prev).add(itemId));
+          try {
+            for (const file of Array.from(files)) {
+              const fd = new FormData();
+              fd.append('file', file);
+              const res = await fetch(`/api/payment-plan/${itemId}/files`, { method: 'POST', body: fd });
+              const data = await res.json();
+              if (!res.ok) { setAlertModal({ message: data.error || 'Feltöltési hiba' }); continue; }
+              setPaymentPlan(prev => prev.map(i => i.id === itemId ? { ...i, files: [...(i.files || []), data.file] } : i));
+            }
+            setToast('Fájl feltöltve.');
+            setTimeout(() => setToast(''), 2500);
+          } finally {
+            setUploadingItemIds(prev => { const s = new Set(prev); s.delete(itemId); return s; });
+          }
+        };
+
+        const handleFileDelete = (itemId, fileId) => {
+          setConfirmModal({
+            message: 'Biztosan törölni kívánja ezt a mellékletet?',
+            onConfirm: async () => {
+              const res = await fetch(`/api/payment-plan/${itemId}/files/${fileId}`, { method: 'DELETE' });
+              if (!res.ok) { const d = await res.json(); setAlertModal({ message: d.error }); return; }
+              setPaymentPlan(prev => prev.map(i => i.id === itemId ? { ...i, files: (i.files || []).filter(f => f.id !== fileId) } : i));
+            },
+          });
+        };
+
+        const handleDeletePayment = (item) => {
+          setConfirmModal({
+            message: `Biztosan törölni kívánja a(z) „${item.label}" fizetési tételt?`,
+            onConfirm: async () => {
+              const res = await fetch(`/api/payment-plan/${item.id}`, { method: 'DELETE' });
+              if (!res.ok) { const d = await res.json(); setAlertModal({ message: d.error }); return; }
+              setPaymentPlan(prev => prev.filter(i => i.id !== item.id));
+              setToast('Fizetési tétel törölve.');
+              setTimeout(() => setToast(''), 2500);
+            },
+          });
+        };
+
+        const handleMarkPaid = async (item) => {
+          try {
+            await handleUpdatePayment(item.id, { status: 'paid' });
+            setToast('Fizetve jelölve!');
+            setTimeout(() => setToast(''), 2500);
+          } catch (err) {
+            setAlertModal({ message: err.message });
+          }
+        };
+
+        return (
+          <>
+            {/* Summary + add button */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', gap: '0.5rem', flexWrap: 'wrap' }}>
+              {paymentPlan.length > 0 && (
+                <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                    Várható: <strong style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{totalExpected.toLocaleString('hu-HU')} Ft</strong>
+                  </div>
+                  {totalPaid > 0 && (
+                    <div style={{ fontSize: '0.8rem', color: 'var(--success-text)' }}>
+                      Fizetve: <strong style={{ fontFamily: 'var(--font-mono)' }}>{totalPaid.toLocaleString('hu-HU')} Ft</strong>
+                    </div>
+                  )}
+                </div>
+              )}
+              {isAdmin && (
+                <button
+                  type="button"
+                  className="btn btn-primary btn-sm"
+                  style={{ marginLeft: 'auto' }}
+                  onClick={() => { setEditingPayment(null); setShowPaymentModal(true); }}
+                >
+                  <Plus size={15} /> Új tétel
+                </button>
+              )}
+            </div>
+
+            {paymentPlan.length === 0 ? (
+              <div className="card" style={{ textAlign: 'center', padding: '2.5rem 1.5rem' }}>
+                <Wallet size={36} color="var(--text-muted)" style={{ margin: '0 auto 0.5rem' }} />
+                <h4 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '0.25rem' }}>Nincs fizetési terv</h4>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.825rem', marginBottom: '1rem' }}>
+                  Add meg a projekt részletfizetéseit — az ügyfél a portálján látni fogja ezeket.
+                </p>
+                {isAdmin && (
+                  <button type="button" className="btn btn-primary btn-sm" onClick={() => { setEditingPayment(null); setShowPaymentModal(true); }}>
+                    <Plus size={15} /> Első tétel hozzáadása
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+                {paymentPlan.map((item, idx) => {
+                  const isOverdue = item.status === 'pending' && item.due_date && item.due_date < today;
+                  const statusKey = isOverdue ? 'overdue' : item.status;
+                  const statusDisplay = isOverdue
+                    ? { label: 'Lejárt', bg: '#fef2f2', color: '#b91c1c', border: '#fecaca' }
+                    : (STATUS_DISPLAY[item.status] || STATUS_DISPLAY.pending);
+                  const triggerDisplay = TRIGGER_DISPLAY[item.trigger_type] || TRIGGER_DISPLAY.milestone;
+
+                  return (
+                    <div key={item.id} className="card" style={{ padding: '1rem 1.1rem' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.75rem' }}>
+                        {/* Left: label + trigger + milestone */}
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem', alignItems: 'center', marginBottom: '0.35rem' }}>
+                            <span style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                              #{idx + 1}
+                            </span>
+                            <span style={{ fontWeight: 800, fontSize: '0.95rem', color: 'var(--text-primary)' }}>{item.label}</span>
+                            <span style={{ fontSize: '0.7rem', fontWeight: 700, padding: '0.12rem 0.5rem', borderRadius: 'var(--radius-pill)', background: statusDisplay.bg, color: statusDisplay.color, border: `1px solid ${statusDisplay.border}` }}>
+                              {statusDisplay.label}
+                            </span>
+                          </div>
+
+                          {/* Trigger info */}
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem', alignItems: 'center', marginBottom: '0.25rem' }}>
+                            <span style={{ fontSize: '0.72rem', fontWeight: 700, padding: '0.1rem 0.5rem', borderRadius: 'var(--radius-pill)', background: triggerDisplay.bg, color: triggerDisplay.color, border: `1px solid ${triggerDisplay.border}` }}>
+                              {triggerDisplay.label}
+                            </span>
+                            {item.trigger_type === 'milestone' && item.milestone_name && (
+                              <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
+                                → {item.milestone_name}
+                              </span>
+                            )}
+                            {item.trigger_type === 'date' && item.due_date && (
+                              <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
+                                <Calendar size={12} />
+                                {new Date(item.due_date).toLocaleDateString('hu-HU', { year: 'numeric', month: 'long', day: 'numeric' })}
+                              </span>
+                            )}
+                          </div>
+
+                          {item.note && (
+                            <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '0.2rem 0 0', fontStyle: 'italic' }}>{item.note}</p>
+                          )}
+                          {item.status === 'paid' && item.paid_at && (
+                            <p style={{ fontSize: '0.75rem', color: 'var(--success-text)', margin: '0.25rem 0 0', fontWeight: 600 }}>
+                              Fizetve: {new Date(item.paid_at).toLocaleDateString('hu-HU', { year: 'numeric', month: 'long', day: 'numeric' })}
+                            </p>
+                          )}
+
+                          {/* Files */}
+                          {((item.files || []).length > 0 || isAdmin) && (
+                            <div style={{ marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid var(--border-subtle)' }}>
+                              {(item.files || []).length > 0 && (
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(80px, 1fr))', gap: '0.5rem', marginBottom: isAdmin ? '0.55rem' : 0 }}>
+                                  {(item.files || []).map(f => {
+                                    const isImg = f.mime_type?.startsWith('image/');
+                                    const isPdf = f.mime_type === 'application/pdf' || f.file_name?.toLowerCase().endsWith('.pdf');
+                                    const ext = f.file_name?.split('.').pop()?.toUpperCase() || '?';
+                                    const docColors = {
+                                      PDF: { bg: '#fef2f2', color: '#b91c1c', border: '#fecaca' },
+                                      DOC: { bg: '#eff6ff', color: '#1d4ed8', border: '#bfdbfe' },
+                                      DOCX: { bg: '#eff6ff', color: '#1d4ed8', border: '#bfdbfe' },
+                                      XLS: { bg: '#f0fdf4', color: '#15803d', border: '#bbf7d0' },
+                                      XLSX: { bg: '#f0fdf4', color: '#15803d', border: '#bbf7d0' },
+                                    };
+                                    const dc = docColors[ext] || { bg: 'var(--bg-subtle)', color: 'var(--text-muted)', border: 'var(--border-subtle)' };
+                                    return (
+                                      <div key={f.id} style={{ position: 'relative' }}>
+                                        <a
+                                          href={f.file_url}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '0.3rem', borderRadius: 'var(--radius-md)', overflow: 'hidden', border: `1px solid ${isImg ? 'var(--border-subtle)' : dc.border}`, background: isImg ? 'var(--bg-subtle)' : dc.bg, aspectRatio: '1', textDecoration: 'none', cursor: 'pointer' }}
+                                        >
+                                          {isImg ? (
+                                            <img src={f.file_url} alt={f.file_name || ''} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                          ) : (
+                                            <>
+                                              <span style={{ fontSize: '1.4rem', lineHeight: 1 }}>{isPdf ? '📄' : '📎'}</span>
+                                              <span style={{ fontSize: '0.55rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.04em', color: dc.color, padding: '0.1rem 0.3rem', borderRadius: 3, background: 'rgba(255,255,255,0.6)' }}>{ext}</span>
+                                            </>
+                                          )}
+                                        </a>
+                                        <div style={{ marginTop: '0.2rem', fontSize: '0.65rem', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: 'center', maxWidth: '100%' }} title={f.file_name}>
+                                          {f.file_name || 'fájl'}
+                                        </div>
+                                        {isAdmin && (
+                                          <button
+                                            type="button"
+                                            onClick={() => handleFileDelete(item.id, f.id)}
+                                            style={{ position: 'absolute', top: 2, right: 2, background: 'rgba(220,38,38,0.85)', border: 'none', borderRadius: '50%', width: 18, height: 18, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#fff' }}
+                                            title="Törlés"
+                                          >
+                                            <X size={10} />
+                                          </button>
+                                        )}
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                              {isAdmin && (
+                                <>
+                                  <input
+                                    type="file"
+                                    id={`file-upload-${item.id}`}
+                                    multiple
+                                    style={{ display: 'none' }}
+                                    onChange={e => { handleFileUpload(item.id, e.target.files); e.target.value = ''; }}
+                                  />
+                                  <button
+                                    type="button"
+                                    className="btn btn-secondary btn-sm"
+                                    style={{ fontSize: '0.72rem', padding: '0.2rem 0.55rem' }}
+                                    disabled={uploadingItemIds.has(item.id)}
+                                    onClick={() => document.getElementById(`file-upload-${item.id}`).click()}
+                                  >
+                                    {uploadingItemIds.has(item.id) ? <><Loader2 size={11} className="animate-spin" /> Feltöltés...</> : <><Plus size={11} /> Melléklet</>}
+                                  </button>
+                                </>
+                              )}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Right: amount + actions */}
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.5rem', flexShrink: 0 }}>
+                          <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 900, fontSize: '1rem', color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
+                            {Number(item.amount_huf).toLocaleString('hu-HU')} Ft
+                          </div>
+                          {isAdmin && (
+                            <div style={{ display: 'flex', gap: '0.3rem' }}>
+                              {item.status === 'pending' && (
+                                <button
+                                  type="button"
+                                  className="btn btn-sm"
+                                  style={{ background: 'var(--success-bg)', border: '1px solid var(--success-border)', color: 'var(--success-text)', fontWeight: 700, fontSize: '0.75rem' }}
+                                  onClick={() => handleMarkPaid(item)}
+                                  title="Fizetve jelöl"
+                                >
+                                  <CheckCircle2 size={13} /> Fizetve
+                                </button>
+                              )}
+                              <button type="button" className="btn btn-secondary btn-sm" style={{ padding: '0.25rem 0.5rem' }} onClick={() => { setEditingPayment(item); setShowPaymentModal(true); }} title="Szerkesztés">
+                                <Edit3 size={13} />
+                              </button>
+                              <button type="button" className="btn btn-danger btn-sm" style={{ padding: '0.25rem 0.5rem' }} onClick={() => handleDeletePayment(item)} title="Törlés">
+                                <Trash2 size={13} />
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {/* Total bar */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.75rem 1.1rem', background: 'var(--bg-subtle)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)', marginTop: '0.25rem' }}>
+                  <span style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-secondary)' }}>Összesen</span>
+                  <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 900, fontSize: '1.05rem', color: 'var(--text-primary)' }}>{totalExpected.toLocaleString('hu-HU')} Ft</span>
+                </div>
+              </div>
+            )}
+
+            <PaymentPlanModal
+              isOpen={showPaymentModal}
+              onClose={() => { setShowPaymentModal(false); setEditingPayment(null); }}
+              onSave={editingPayment
+                ? (fields) => handleUpdatePayment(editingPayment.id, fields).then(() => { setShowPaymentModal(false); setEditingPayment(null); setToast('Tétel frissítve.'); setTimeout(() => setToast(''), 2500); })
+                : handleCreatePayment
+              }
+              editItem={editingPayment}
+              itemCount={paymentPlan.length}
+            />
+          </>
+        );
+      })()}
 
       {activeTab === 'naplo' && (
         <>
@@ -1678,9 +2331,11 @@ export default function ProjectDetailClient({
           invoice={detailInvoice}
           isAdmin={isAdmin}
           rooms={projectRooms}
+          splits={invoiceSplits.filter(s => s.invoice_id === detailInvoice.id)}
           onClose={() => setDetailInvoice(null)}
           onDelete={handleDeleteInvoice}
           onSave={handleSaveInvoice}
+          onSaveSplits={handleSaveSplits}
         />
       )}
 

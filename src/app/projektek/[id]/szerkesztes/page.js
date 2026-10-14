@@ -99,7 +99,7 @@ function RoomModal({ isOpen, onClose, room, onSave, projectId }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!name.trim()) { setError('A helyiség neve kötelező'); return; }
+    if (!name.trim()) { setError('A szekció neve kötelező'); return; }
     setSaving(true);
     setError('');
     try {
@@ -118,7 +118,7 @@ function RoomModal({ isOpen, onClose, room, onSave, projectId }) {
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={room ? 'Helyiség szerkesztése' : 'Új helyiség'}>
+    <Modal isOpen={isOpen} onClose={onClose} title={room ? 'Szekció szerkesztése' : 'Új szekció'}>
       {error && (
         <div style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', color: 'var(--danger-text)', padding: '0.65rem', borderRadius: 'var(--radius-md)', fontSize: '0.825rem', display: 'flex', gap: '0.45rem', marginBottom: '0.85rem' }}>
           <AlertCircle size={15} /><span>{error}</span>
@@ -126,8 +126,8 @@ function RoomModal({ isOpen, onClose, room, onSave, projectId }) {
       )}
       <form onSubmit={handleSubmit}>
         <div className="form-group">
-          <label className="form-label">Helyiség neve *</label>
-          <input type="text" required className="form-control" value={name} onChange={e => setName(e.target.value)} placeholder="pl. Nappali, Fürdőszoba..." />
+          <label className="form-label">Szekció neve *</label>
+          <input type="text" required className="form-control" value={name} onChange={e => setName(e.target.value)} placeholder="pl. Konyha, Garázs, Kert..." />
         </div>
         <div className="form-group">
           <label className="form-label">Terület (m²)</label>
@@ -159,12 +159,49 @@ export default function ProjectEditPage() {
     projectRooms, createProjectRoom, updateProjectRoom, deleteProjectRoom, syncRoomsFromQuote,
     quotes, quoteSections,
     isAdmin, currentUser, effectiveMemberships,
+    loading, dataReady,
   } = useApp();
 
   const [entityId, setEntityId] = useState(null);
+  const [fetchedProject, setFetchedProject] = useState(null);
+  const [fetchedClient, setFetchedClient] = useState(null);
+  const [fetchedEntityUsers, setFetchedEntityUsers] = useState([]);
+  const [fetchError, setFetchError] = useState(false);
 
-  const project = (projects || []).find(p => p.id === id);
+  const projectFromContext = (projects || []).find(p => p.id === id);
+  const project = projectFromContext || fetchedProject;
   const rooms = (projectRooms || []).filter(r => r.project_id === id).sort((a, b) => a.sort_order - b.sort_order || a.created_at?.localeCompare(b.created_at || '') || 0);
+
+  // Clients visible in the dropdown — supplement with directly fetched client if context lacks it
+  const resolvedClients = React.useMemo(() => {
+    const base = visibleClients || [];
+    if (fetchedClient && !base.find(c => c.id === fetchedClient.id)) return [...base, fetchedClient];
+    return base;
+  }, [visibleClients, fetchedClient]);
+
+  // Users for member selection — fall back to directly fetched entity users
+  const resolvedEntityUsers = React.useMemo(() => {
+    if (!project) return [];
+    const fromCtx = (visibleUsers || []).filter(u => u.entity_id === project.entity_id);
+    return fromCtx.length > 0 ? fromCtx : fetchedEntityUsers;
+  }, [visibleUsers, project, fetchedEntityUsers]);
+
+  // Fallback: fetch directly if context doesn't have it (e.g. entity mismatch in god mode)
+  useEffect(() => {
+    if (!dataReady || projectFromContext || fetchedProject || fetchError) return;
+    fetch(`/api/projects/${id}`)
+      .then(r => r.json())
+      .then(d => {
+        if (d.project) {
+          setFetchedProject(d.project);
+          if (d.client) setFetchedClient(d.client);
+          if (d.entityUsers?.length) setFetchedEntityUsers(d.entityUsers);
+        } else {
+          setFetchError(true);
+        }
+      })
+      .catch(() => setFetchError(true));
+  }, [dataReady, projectFromContext, id]);
 
   // Project metadata state
   const [name, setName] = useState('');
@@ -204,11 +241,14 @@ export default function ProjectEditPage() {
     }
   }, [project?.id]);
 
+  if (loading || !dataReady) return <PageSpinner />;
+
   if (!isAdmin || !currentUser) {
     return <div className="container" style={{ paddingTop: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>Nincs jogosultsága.</div>;
   }
 
   if (!project) {
+    if (fetchError) return <div className="container" style={{ paddingTop: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>A projekt nem található.</div>;
     return <PageSpinner />;
   }
 
@@ -270,7 +310,7 @@ export default function ProjectEditPage() {
 
   const handleDeleteRoom = (room) => {
     setConfirmModal({
-      message: `Biztosan törölni kívánja a(z) "${room.name}" helyiséget? A hozzárendelt számlák és munkabejegyzések megmaradnak, de elveszítik a helyiség hozzárendelést.`,
+      message: `Biztosan törölni kívánja a(z) "${room.name}" szekciót? A hozzárendelt számlák és munkabejegyzések megmaradnak, de elveszítik a szekció hozzárendelést.`,
       onConfirm: async () => {
         try {
           await deleteProjectRoom(id, room.id);
@@ -357,7 +397,7 @@ export default function ProjectEditPage() {
             <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
               <select className="form-control" value={clientId} onChange={e => setClientId(e.target.value)} style={{ flex: 1 }}>
                 <option value="">– Ügyfél nélkül –</option>
-                {visibleClients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                {resolvedClients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
               <button type="button" className="btn btn-secondary btn-sm" style={{ whiteSpace: 'nowrap', flexShrink: 0 }} onClick={() => setShowNewClientForm(v => !v)}>
                 {showNewClientForm ? <ChevronUp size={14} /> : <Plus size={14} />}
@@ -390,14 +430,20 @@ export default function ProjectEditPage() {
 
           <div style={{ marginTop: '0.75rem', marginBottom: '1.25rem' }}>
             <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', marginBottom: '0.5rem' }}><UserCheck size={14} /> Résztvevők</label>
-            <div style={{ maxHeight: '200px', overflowY: 'auto', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: '0.3rem' }}>
-              {visibleUsers.filter(u => u.entity_id === project.entity_id).map(u => (
-                <label key={u.id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.4rem 0.5rem', borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontSize: '0.85rem' }}>
-                  <input type="checkbox" checked={memberIds.includes(u.id)} onChange={() => toggleMember(u.id)} />
-                  <span style={{ fontWeight: 600 }}>{u.display_name}</span>
-                </label>
-              ))}
-            </div>
+            {resolvedEntityUsers.length > 0 ? (
+              <div style={{ maxHeight: '200px', overflowY: 'auto', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: '0.3rem' }}>
+                {resolvedEntityUsers.map(u => (
+                  <label key={u.id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.4rem 0.5rem', borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontSize: '0.85rem' }}>
+                    <input type="checkbox" checked={memberIds.includes(u.id)} onChange={() => toggleMember(u.id)} />
+                    <span style={{ fontWeight: 600 }}>{u.display_name}</span>
+                  </label>
+                ))}
+              </div>
+            ) : (
+              <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', fontStyle: 'italic', padding: '0.5rem 0' }}>
+                Nincsenek tagok ehhez az entitáshoz.
+              </div>
+            )}
           </div>
 
           <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
@@ -410,7 +456,7 @@ export default function ProjectEditPage() {
       <div className="card" style={{ marginBottom: '1rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.85rem', flexWrap: 'wrap', gap: '0.5rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)' }}>
-            <Home size={13} /> Helyiségek / Területek ({rooms.length})
+            <Home size={13} /> Szekciók ({rooms.length})
           </div>
           <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
             {linkedQuote && unimportedSections.length > 0 && (
@@ -426,7 +472,7 @@ export default function ProjectEditPage() {
               </button>
             )}
             <button type="button" className="btn btn-primary btn-sm" onClick={() => { setEditingRoom(null); setRoomModalOpen(true); }}>
-              <Plus size={14} /> Új helyiség
+              <Plus size={14} /> Új szekció
             </button>
           </div>
         </div>
@@ -434,8 +480,8 @@ export default function ProjectEditPage() {
         {rooms.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '2rem 1rem', color: 'var(--text-muted)', fontSize: '0.85rem', borderRadius: 'var(--radius-md)', background: 'var(--bg-subtle)' }}>
             <Home size={28} style={{ margin: '0 auto 0.5rem', display: 'block', opacity: 0.4 }} />
-            <div style={{ fontWeight: 600 }}>Még nincsenek helyiségek</div>
-            <div style={{ marginTop: '0.25rem' }}>Adjon hozzá helyiségeket kézzel, vagy importálja az ajánlatból.</div>
+            <div style={{ fontWeight: 600 }}>Még nincsenek szekciók</div>
+            <div style={{ marginTop: '0.25rem' }}>Adjon hozzá szekciót kézzel, vagy importálja az ajánlatból.</div>
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>

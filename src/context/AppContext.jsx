@@ -362,7 +362,7 @@ export function AppProvider({ children }) {
     await supabase.auth.signOut();
     setCurrentUser(null);
     setImpersonating(null);
-    router.push('/login');
+    router.push('/');
   };
 
   const changePassword = async (newPassword) => {

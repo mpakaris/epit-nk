@@ -6,6 +6,8 @@ import { redirect, notFound } from 'next/navigation';
 import ProjectDetailClient from './ProjectDetailClient';
 import PageSpinner from '@/components/PageSpinner';
 
+export const dynamic = 'force-dynamic';
+
 export default function ProjectDetailPage({ params }) {
   return (
     <Suspense fallback={<PageSpinner />}>
@@ -57,7 +59,7 @@ async function ProjectDetailContent({ params }) {
 
   const resolvedEntityId = entityId || project.entity_id;
 
-  const [usersRes, invoicesRes, labourRes, allClientsRes, diaryCountRes, roomsRes] = await Promise.all([
+  const [usersRes, invoicesRes, labourRes, allClientsRes, diaryCountRes, roomsRes, paymentPlanRes, splitsRes] = await Promise.all([
     admin.from('profiles')
       .select('id, display_name, email, role, entity_id')
       .eq('entity_id', resolvedEntityId)
@@ -73,6 +75,8 @@ async function ProjectDetailContent({ params }) {
     admin.from('clients').select('*').eq('entity_id', resolvedEntityId).order('name'),
     admin.from('diary_entries').select('id', { count: 'exact', head: true }).eq('project_id', id).eq('entity_id', resolvedEntityId),
     admin.from('project_rooms').select('*').eq('project_id', id).order('sort_order').order('created_at'),
+    admin.from('payment_plan_items').select('*, payment_item_files(*)').eq('project_id', id).order('sort_order').order('created_at'),
+    admin.from('invoice_section_splits').select('*').eq('project_id', id),
   ]);
 
   const allClients = allClientsRes.data || [];
@@ -91,6 +95,8 @@ async function ProjectDetailContent({ params }) {
       isAdmin={isAdminRole}
       initialDiaryCount={diaryCountRes.count ?? 0}
       initialRooms={roomsRes.data || []}
+      initialPaymentPlan={paymentPlanRes.data || []}
+      initialInvoiceSplits={splitsRes.data || []}
     />
   );
 }
