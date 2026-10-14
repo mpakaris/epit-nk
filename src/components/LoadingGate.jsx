@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation';
 
 // Routes that are public — gate is skipped so server-rendered content shows immediately
 // and unauthenticated users don't get stuck on an infinite spinner.
-const PUBLIC_PREFIXES = ['/p/', '/clients/', '/naplo/', '/login', '/change-password'];
+const PUBLIC_PREFIXES = ['/p/', '/clients/', '/naplo/', '/login', '/change-password', '/szakemberek/'];
 
 export default function LoadingGate({ children }) {
   const { loading, dataReady } = useApp();

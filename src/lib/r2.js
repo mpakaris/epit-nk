@@ -1,4 +1,5 @@
 import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
+import sharp from 'sharp';
 
 export function getR2Client() {
   return new S3Client({
@@ -38,6 +39,20 @@ export async function deleteFromR2(key) {
     Bucket: process.env.R2_BUCKET,
     Key: key,
   }));
+}
+
+/**
+ * Convert any image buffer to WebP using sharp.
+ * Returns { buffer, mimeType } — always 'image/webp'.
+ * quality 82 gives good balance for construction/profile photos.
+ */
+export async function toWebp(inputBuffer, { quality = 82, maxDimension = 2400 } = {}) {
+  const webpBuffer = await sharp(inputBuffer)
+    .rotate()                         // auto-rotate from EXIF
+    .resize(maxDimension, maxDimension, { fit: 'inside', withoutEnlargement: true })
+    .webp({ quality })
+    .toBuffer();
+  return { buffer: webpBuffer, mimeType: 'image/webp' };
 }
 
 /** Build the R2 object key for a diary media file. */

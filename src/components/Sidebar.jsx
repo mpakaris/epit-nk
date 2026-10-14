@@ -8,16 +8,17 @@ import {
   Building2, LayoutDashboard, FolderKanban, Users, BookUser,
   FileText, Calendar, User, LogOut, KeyRound, ShieldAlert,
   ChevronLeft, ChevronRight, Eye, X, Menu, ClipboardList, Ruler, Lightbulb,
-  ChevronDown
+  ChevronDown, Globe, ImageIcon
 } from 'lucide-react';
 
-function buildNavItems(isSuperAdmin, isAdmin, impersonating) {
+function buildNavItems(isSuperAdmin, isAdmin, impersonating, websiteUnread = 0) {
   if (isSuperAdmin && !impersonating) {
     return [
       { key: 'sa-entitasok',  href: '/superadmin',              label: 'Entities',  icon: Building2,    exact: true },
       { key: 'sa-projektek',  href: '/superadmin/projektek',    label: 'Projects',  icon: FolderKanban },
       { key: 'sa-ajanlatok',  href: '/superadmin/ajanlatok',    label: 'Quotes',    icon: FileText },
       { key: 'sa-naplo',      href: '/superadmin/naplo',        label: 'Audit Log', icon: ClipboardList },
+      { key: 'sa-keptar',     href: '/admin/keptar',            label: 'Image Lib', icon: ImageIcon },
     ];
   }
   if (isAdmin) {
@@ -30,15 +31,18 @@ function buildNavItems(isSuperAdmin, isAdmin, impersonating) {
       { href: '/ugyfelek',           label: 'Ügyfelek',     icon: BookUser },
       { href: '/otletek',            label: 'Ötletek',      icon: Lightbulb },
       { divider: true, key: 'd1' },
+      { href: '/weboldalam',         label: 'Weboldalem',   icon: Globe, badge: websiteUnread },
       { href: '/admin/felhasznalok', label: 'Felhasználók', icon: Users, exact: true },
     ];
   }
   return [
-    { href: '/projektek', label: 'Projektek',  icon: FolderKanban },
-    { href: '/felmeres',  label: 'Felmérések', icon: Ruler },
-    { href: '/ajanlatok', label: 'Ajánlatok',  icon: FileText },
-    { href: '/naptar',    label: 'Naptár',     icon: Calendar },
-    { href: '/otletek',   label: 'Ötletek',    icon: Lightbulb },
+    { href: '/projektek',  label: 'Projektek',  icon: FolderKanban },
+    { href: '/felmeres',   label: 'Felmérések', icon: Ruler },
+    { href: '/ajanlatok',  label: 'Ajánlatok',  icon: FileText },
+    { href: '/naptar',     label: 'Naptár',     icon: Calendar },
+    { href: '/otletek',    label: 'Ötletek',    icon: Lightbulb },
+    { divider: true, key: 'd1' },
+    { href: '/weboldalam', label: 'Weboldalem', icon: Globe, badge: websiteUnread },
   ];
 }
 
@@ -54,12 +58,22 @@ export default function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [headerVisible, setHeaderVisible] = useState(true);
+  const [websiteUnread, setWebsiteUnread] = useState(0);
   const lastScrollY = React.useRef(0);
 
   useEffect(() => {
     const saved = localStorage.getItem('sb_collapsed');
     if (saved === '1') setCollapsed(true);
   }, []);
+
+  // Fetch unread leads count for the Weboldalem badge (non-superadmin only)
+  useEffect(() => {
+    if (isSuperAdmin || impersonating) return;
+    fetch('/api/website/leads/unread')
+      .then(r => r.json())
+      .then(d => setWebsiteUnread(d.count || 0))
+      .catch(() => {});
+  }, [isSuperAdmin, impersonating, pathname]);
 
   useEffect(() => {
     document.documentElement.style.setProperty('--sidebar-w', collapsed ? '60px' : '240px');
@@ -168,9 +182,9 @@ export default function Sidebar() {
 
   if (!currentUser && pathname === '/login') return null;
   if (!currentUser) return null;
-  if (pathname.startsWith('/naplo/') || pathname.startsWith('/clients/')) return null;
+  if (pathname.startsWith('/naplo/') || pathname.startsWith('/clients/') || pathname.startsWith('/szakemberek/')) return null;
 
-  const navItems = buildNavItems(isSuperAdmin, isAdmin, impersonating);
+  const navItems = buildNavItems(isSuperAdmin, isAdmin, impersonating, websiteUnread);
   const homeHref = isSuperAdmin && !impersonating ? '/superadmin' : isAdmin ? '/admin' : '/projektek';
 
   const UserActions = ({ showLabel = false }) => (
@@ -271,9 +285,19 @@ export default function Sidebar() {
                 href={item.href}
                 className={`sidebar-link ${isActive(item, pathname) ? 'active' : ''}`}
                 title={collapsed ? item.label : ''}
+                style={{ position: 'relative' }}
               >
                 <item.icon size={18} className="link-icon" />
                 {!collapsed && <span>{item.label}</span>}
+                {item.badge > 0 && (
+                  collapsed ? (
+                    <span style={{ position: 'absolute', top: 6, right: 6, width: 7, height: 7, borderRadius: '50%', background: 'var(--primary)', border: '1.5px solid var(--bg-base)' }} />
+                  ) : (
+                    <span style={{ marginLeft: 'auto', background: 'var(--primary)', color: 'white', borderRadius: 99, fontSize: '0.65rem', fontWeight: 700, minWidth: 16, height: 16, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '0 4px' }}>
+                      {item.badge}
+                    </span>
+                  )
+                )}
               </Link>
             )
           )}
@@ -378,6 +402,11 @@ export default function Sidebar() {
                   >
                     <item.icon size={22} />
                     <span>{item.label}</span>
+                    {item.badge > 0 && (
+                      <span style={{ marginLeft: 'auto', background: 'var(--primary)', color: 'white', borderRadius: 99, fontSize: '0.65rem', fontWeight: 700, minWidth: 16, height: 16, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '0 4px' }}>
+                        {item.badge}
+                      </span>
+                    )}
                   </Link>
                 )
               )}
