@@ -5,7 +5,7 @@ import { logAudit } from '@/lib/audit';
 async function getAuth(supabase, admin) {
   const { data: { user }, error: authErr } = await supabase.auth.getUser();
   if (authErr || !user) return { error: 'Unauthenticated', status: 401 };
-  const { data: profile } = await admin.from('profiles').select('id, role, entity_id, display_name').eq('id', user.id).single();
+  const { data: profile } = await admin.from('profiles').select('id, role, entity_id, current_entity_id, display_name').eq('id', user.id).single();
   if (!profile) return { error: 'Profile not found', status: 403 };
   return { user, profile };
 }
@@ -15,7 +15,7 @@ async function resolveEntry(entryId, profile, admin) {
     .select('id, title, project_id, entity_id, created_by')
     .eq('id', entryId);
   // Superadmin can access any entry; others are scoped to their entity
-  if (profile.role !== 'superadmin') query.eq('entity_id', profile.entity_id);
+  if (profile.role !== 'superadmin') query.eq('entity_id', profile.current_entity_id || profile.entity_id);
   const { data: entry } = await query.single();
   return entry;
 }
@@ -32,7 +32,7 @@ export async function PATCH(request, { params }) {
   const isSuperAdmin = profile.role === 'superadmin';
   const isAdminRole = profile.role === 'admin';
   if (!isSuperAdmin && !isAdminRole) return Response.json({ error: 'Csak admin szerkeszthet bejegyzést' }, { status: 403 });
-  if (!isSuperAdmin && !profile.entity_id) return Response.json({ error: 'No entity assigned' }, { status: 400 });
+  if (!isSuperAdmin && !(profile.entity_id || profile.current_entity_id)) return Response.json({ error: 'No entity assigned' }, { status: 400 });
 
   const entry = await resolveEntry(id, profile, admin);
   if (!entry) return Response.json({ error: 'Entry not found or access denied' }, { status: 404 });
@@ -97,7 +97,7 @@ export async function DELETE(request, { params }) {
   if (error) return Response.json({ error }, { status });
 
   const isSuperAdmin = profile.role === 'superadmin';
-  if (!isSuperAdmin && !profile.entity_id) return Response.json({ error: 'No entity assigned' }, { status: 400 });
+  if (!isSuperAdmin && !(profile.entity_id || profile.current_entity_id)) return Response.json({ error: 'No entity assigned' }, { status: 400 });
 
   const entry = await resolveEntry(id, profile, admin);
   if (!entry) return Response.json({ error: 'Entry not found or access denied' }, { status: 404 });

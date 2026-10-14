@@ -5,7 +5,7 @@ import { logAudit } from '@/lib/audit';
 async function getCallerProfile(supabase, admin) {
   const { data: { user }, error } = await supabase.auth.getUser();
   if (error || !user) return { error: 'Unauthenticated', status: 401 };
-  const { data: profile } = await admin.from('profiles').select('id, role, entity_id, display_name').eq('id', user.id).single();
+  const { data: profile } = await admin.from('profiles').select('id, role, entity_id, current_entity_id, display_name').eq('id', user.id).single();
   if (!profile) return { error: 'Profile not found', status: 403 };
   return { user, profile };
 }

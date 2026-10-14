@@ -10,13 +10,13 @@ import {
 } from 'lucide-react';
 
 const FEATURES = [
-  { icon: ClipboardList, title: 'Felmérés',         desc: 'Helyszíni jegyzetek és vázlatok azonnal rögzítve' },
-  { icon: FileText,      title: 'Árajánlat',        desc: 'Részletes, professzionális ajánlatok percek alatt' },
-  { icon: TrendingUp,    title: 'Projektköltségek', desc: 'Számlák, munkaköltség, fotók és munkafázisok' },
-  { icon: Users,         title: 'Alvállalkozók',    desc: 'Koordinált munkavégzés, megosztott költségek' },
-  { icon: Share2,        title: 'Ügyfélportál',     desc: 'Az ügyfeled mindig látja, hol tart a projekt' },
-  { icon: BookUser,      title: 'Ügyfélkezelés',    desc: 'Minden kapcsolat és előzmény egy helyen' },
-  { icon: Globe,         title: 'Saját weboldal',   desc: 'Ingyenes, személyre szabott szakemberlap' },
+  { icon: ClipboardList, title: 'Felmérés',         desc: 'Helyszíni méretek, vázlatok és fotók azonnal rögzítve — papír nélkül, bárhol. Minden szoba dokumentálva, még az ügyfél előtt.' },
+  { icon: FileText,      title: 'Árajánlat',        desc: 'Részletes, professzionális ajánlatok helyiségekre és munkafázisokra bontva. Az ügyfél egy kattintással elfogadhatja.' },
+  { icon: TrendingUp,    title: 'Projektköltségek', desc: 'Számlák, munkadíjak és fotók egy helyen. Látod pontosan, hová megy a pénz — szekciónként és munkafázisonként is.' },
+  { icon: Users,         title: 'Alvállalkozók',    desc: 'Koordinált munkavégzés és megosztott költségelszámolás a teljes csapatnak. Mindenki tudja, mit kell fizetni.' },
+  { icon: Share2,        title: 'Ügyfélportál',     desc: 'Az ügyfeled valós időben látja, hol tart a projekt — ajánlatok, naplóbejegyzések, fizetési terv, képek.' },
+  { icon: BookUser,      title: 'Ügyfélkezelés',    desc: 'Minden megrendelő, kapcsolat és előzmény egy áttekinthető adatbázisban. Soha többé elveszett telefonszám.' },
+  { icon: Globe,         title: 'Saját weboldal',   desc: 'Ingyenes, személyre szabott szakemberlap, amit azonnal megoszthatsz. Galéria, árak, vélemények — profi megjelenés percek alatt.' },
 ];
 
 const FREE_ITEMS = [
@@ -343,12 +343,23 @@ export default function HomePage() {
         .lp-section-label { text-align:left; margin-bottom:3rem; }
         .lp-overline { display:inline-block; font-size:0.72rem; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; color:#94a3b8; margin-bottom:0.6rem; }
         .lp-section-title { font-size:clamp(1.6rem,3.5vw,2.25rem); font-weight:800; color:#0f172a; letter-spacing:-0.03em; margin:0; }
-        .lp-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(min(100%,280px),1fr)); gap:1rem; max-width:1100px; margin:0 auto; }
-        .lp-card { background:#fff; border-radius:12px; padding:1.4rem 1.5rem; border:1px solid #e2e8f0; transition:box-shadow .2s,transform .2s; }
-        .lp-card:hover { box-shadow:0 4px 20px rgba(0,0,0,0.07); transform:translateY(-2px); }
-        .lp-card-icon { width:40px; height:40px; border-radius:9px; background:#f1f5f9; display:flex; align-items:center; justify-content:center; margin-bottom:0.9rem; }
-        .lp-card-title { font-size:0.95rem; font-weight:800; color:#0f172a; margin-bottom:0.3rem; }
-        .lp-card-desc { font-size:0.83rem; color:#64748b; line-height:1.55; }
+
+        .lp-feature-list { display:flex; flex-direction:column; gap:0; max-width:1100px; }
+        .lp-feature-row { display:flex; align-items:center; gap:clamp(2rem,5vw,5rem); padding:clamp(2.5rem,5vw,4rem) 0; border-bottom:1px solid #e2e8f0; }
+        .lp-feature-row:last-child { border-bottom:none; }
+        .lp-feature-img { flex:0 0 52%; min-width:0; }
+        .lp-feature-txt { flex:1; min-width:0; }
+        .lp-feature-num { font-size:0.72rem; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; color:#94a3b8; margin-bottom:0.75rem; }
+        .lp-feature-title { font-size:clamp(1.35rem,3vw,1.85rem); font-weight:800; color:#0f172a; letter-spacing:-0.03em; line-height:1.2; margin:0 0 0.85rem; }
+        .lp-feature-desc { font-size:clamp(0.9rem,1.5vw,1.05rem); color:#475569; line-height:1.75; margin:0; }
+        .lp-mock { background:#fff; border-radius:12px; border:1px solid #e2e8f0; overflow:hidden; box-shadow:0 4px 24px rgba(0,0,0,0.07); }
+        .lp-mock-bar { background:#f8fafc; border-bottom:1px solid #e8ecf0; padding:0.55rem 0.85rem; display:flex; align-items:center; gap:0.35rem; }
+        .lp-mock-dot { width:9px; height:9px; border-radius:50%; }
+        .lp-mock-body { aspect-ratio:16/10; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:0.75rem; background:linear-gradient(160deg,#f8fafc 0%,#f1f5f9 100%); }
+        @media (max-width:700px) {
+          .lp-feature-row { flex-direction:column !important; }
+          .lp-feature-img { flex:none; width:100%; }
+        }
 
         .lp-pricing { padding:clamp(4rem,9vw,7rem) clamp(1.25rem,5vw,4rem); background:#fff; }
         .lp-pricing-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr)); gap:1.25rem; max-width:700px; margin:0 auto; }
@@ -414,14 +425,40 @@ export default function HomePage() {
             <div className="lp-overline">Funkciók</div>
             <h2 className="lp-section-title">Mindent megkap, ami számít</h2>
           </div>
-          <div className="lp-grid">
-            {FEATURES.map(({ icon: Icon, title, desc }) => (
-              <div key={title} className="lp-card">
-                <div className="lp-card-icon"><Icon size={18} color="#334155" /></div>
-                <div className="lp-card-title">{title}</div>
-                <div className="lp-card-desc">{desc}</div>
-              </div>
-            ))}
+          <div className="lp-feature-list">
+            {FEATURES.map(({ icon: Icon, title, desc }, i) => {
+              const reverse = i % 2 === 1;
+              const mockup = (
+                <div className="lp-feature-img">
+                  <div className="lp-mock">
+                    <div className="lp-mock-bar">
+                      <div className="lp-mock-dot" style={{ background: '#f87171' }} />
+                      <div className="lp-mock-dot" style={{ background: '#fbbf24' }} />
+                      <div className="lp-mock-dot" style={{ background: '#34d399' }} />
+                    </div>
+                    <div className="lp-mock-body">
+                      <Icon size={40} color="#cbd5e1" />
+                      <span style={{ fontSize: '0.72rem', color: '#cbd5e1', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+                        Screenshot hamarosan
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              );
+              const text = (
+                <div className="lp-feature-txt">
+                  <div className="lp-feature-num">{String(i + 1).padStart(2, '0')} · {title}</div>
+                  <h3 className="lp-feature-title">{title}</h3>
+                  <p className="lp-feature-desc">{desc}</p>
+                </div>
+              );
+              return (
+                <div key={title} className="lp-feature-row" style={reverse ? { flexDirection: 'row-reverse' } : {}}>
+                  {mockup}
+                  {text}
+                </div>
+              );
+            })}
           </div>
         </section>
 

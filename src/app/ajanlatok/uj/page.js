@@ -187,7 +187,7 @@ const EMPTY_ENTRY_FORM = { entry_type: 'material', work_description: '', quantit
 function NewQuotePageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { clients, users, surveys, loading, createQuote, createQuoteEntry, createQuoteSection, createClient, createSurvey, uploadSurveyMedia, currentUser, effectiveEntityId, effectiveMemberships, fetchSurveyMedia } = useApp();
+  const { clients, users, surveys, loading, createQuote, updateQuote, createQuoteEntry, deleteQuoteEntry, createQuoteSection, createClient, createSurvey, uploadSurveyMedia, currentUser, effectiveEntityId, effectiveMemberships, fetchSurveyMedia } = useApp();
 
   const fromSurveyId = searchParams.get('from_survey') || null;
   const fromEntityId = searchParams.get('entity_id') || null;
@@ -223,6 +223,11 @@ function NewQuotePageInner() {
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Draft: auto-created in DB when coming from a survey so entries persist immediately
+  const [draftQuoteId, setDraftQuoteId] = useState(null);
+  const [sectionIdMap, setSectionIdMap] = useState({}); // _key → DB section id
+  const [draftInitializing, setDraftInitializing] = useState(false);
+
   // Pre-seed sharedWith from linked survey
   useEffect(() => {
     if (!fromSurveyId) return;
@@ -253,6 +258,27 @@ function NewQuotePageInner() {
       .catch(() => {})
       .finally(() => setSectionsLoading(false));
   }, [fromSurveyId]);
+
+  // Auto-create draft in DB as soon as survey rooms are loaded
+  const draftCreatedRef = React.useRef(false);
+  useEffect(() => {
+    if (!fromSurveyId || draftCreatedRef.current || draftInitializing || sectionsLoading || localSections.length === 0 || !currentUser) return;
+    draftCreatedRef.current = true;
+    setDraftInitializing(true);
+    const activeEntity = fromEntityId || effectiveEntityId;
+    const init = async () => {
+      const draftTitle = title.trim() || `Vázlat – ${new Date().toLocaleDateString('hu-HU')}`;
+      const q = await createQuote({ title: draftTitle, location: location.trim(), workType: '', description: description.trim(), startDate: null, endDate: null, clientId: clientId || null, sharedWith: [], taxPercent: Number(taxPercent) || 0, entityId: activeEntity, surveyId: fromSurveyId });
+      setDraftQuoteId(q.id);
+      const map = {};
+      for (const s of localSections) {
+        const sec = await createQuoteSection(q.id, { name: s.name, description: s.description || null, size_m2: s.size_m2 ? Number(s.size_m2) : null, survey_entry_id: s._surveyEntryId || null });
+        map[s._key] = sec.id;
+      }
+      setSectionIdMap(map);
+    };
+    init().catch(err => console.error('[draft init]', err)).finally(() => setDraftInitializing(false));
+  }, [fromSurveyId, localSections, sectionsLoading, currentUser]);
 
   if (loading || !currentUser) return <PageSpinner />;
 
@@ -297,6 +323,7 @@ function NewQuotePageInner() {
     const useQty = entryForm.entry_type === 'material' || entryForm.entry_type === 'labour';
     return {
       _ekey: ekey || `e-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      _dbId: null,
       entry_type: entryForm.entry_type,
       work_description: entryForm.work_description.trim(),
       quantity: useQty && entryForm.quantity ? parseFloat(entryForm.quantity) : null,
@@ -317,7 +344,7 @@ function NewQuotePageInner() {
     setEntryError('');
   };
 
-  const handleSaveEntry = () => {
+  const handleSaveEntry = async () => {
     setEntryError('');
     const hasCurrent = entryForm.work_description.trim();
     if (!hasCurrent && pendingEntries.length === 0) { setEntryError('A megnevezés megadása kötelező!'); return; }
@@ -327,18 +354,36 @@ function NewQuotePageInner() {
       ? [...pendingEntries, buildEntryFromForm(editingEntryKey || undefined)]
       : pendingEntries;
 
+    // If draft exists, persist entries to DB immediately
+    const enriched = [...allEntries];
+    if (draftQuoteId && activeSectionKey) {
+      const sectionId = sectionIdMap[activeSectionKey];
+      for (let i = 0; i < enriched.length; i++) {
+        const e = enriched[i];
+        try {
+          const saved = await createQuoteEntry({ quoteId: draftQuoteId, userId: e.user_id, workDescription: e.work_description, amountHuf: e.amount_huf, notes: e.notes, entryType: e.entry_type, quantity: e.quantity, unit: e.unit, unitPrice: e.unit_price, sectionId });
+          enriched[i] = { ...e, _dbId: saved?.id || null };
+        } catch (err) {
+          setEntryError(err.message || 'Hiba a tétel mentésekor');
+          return;
+        }
+      }
+    }
+
     setLocalSections(prev => prev.map(s => {
       if (s._key !== activeSectionKey) return s;
       if (editingEntryKey) {
-        return { ...s, entries: s.entries.map(e => e._ekey === editingEntryKey ? allEntries[0] : e) };
+        return { ...s, entries: s.entries.map(e => e._ekey === editingEntryKey ? enriched[0] : e) };
       }
-      return { ...s, entries: [...s.entries, ...allEntries] };
+      return { ...s, entries: [...s.entries, ...enriched] };
     }));
     setPendingEntries([]);
     setShowEntryModal(false);
   };
 
   const removeEntry = (sectionKey, ekey) => {
+    const entry = localSections.find(s => s._key === sectionKey)?.entries.find(e => e._ekey === ekey);
+    if (entry?._dbId) deleteQuoteEntry(entry._dbId).catch(() => {});
     setLocalSections(prev => prev.map(s => s._key === sectionKey ? { ...s, entries: s.entries.filter(e => e._ekey !== ekey) } : s));
   };
 
@@ -349,9 +394,15 @@ function NewQuotePageInner() {
     setError('');
     setIsSubmitting(true);
     try {
+      if (draftQuoteId) {
+        // Draft already in DB — just update metadata and navigate
+        const draftTitle = title.trim() || `Vázlat – ${new Date().toLocaleDateString('hu-HU')}`;
+        await updateQuote(draftQuoteId, { title: draftTitle, location: location.trim(), description: description.trim(), client_id: clientId || null, tax_percent: Number(taxPercent) || 0 });
+        router.push(`/ajanlatok/${draftQuoteId}`);
+        return;
+      }
       const draftTitle = title.trim() || `Vázlat – ${new Date().toLocaleDateString('hu-HU')}`;
-      let surveyIdToUse = fromSurveyId || null;
-      const quote = await createQuote({ title: draftTitle, location: location.trim(), workType: workType.trim(), description: description.trim(), startDate: startDate || null, endDate: endDate || null, clientId: clientId || null, sharedWith, taxPercent: Number(taxPercent) || 0, entityId: activeEntityId, surveyId: surveyIdToUse });
+      const quote = await createQuote({ title: draftTitle, location: location.trim(), workType: workType.trim(), description: description.trim(), startDate: startDate || null, endDate: endDate || null, clientId: clientId || null, sharedWith, taxPercent: Number(taxPercent) || 0, entityId: activeEntityId, surveyId: fromSurveyId || null });
       for (const s of localSections) {
         const section = await createQuoteSection(quote.id, { name: s.name, description: s.description || null, size_m2: s.size_m2 ? Number(s.size_m2) : null, survey_entry_id: s._surveyEntryId || null, start_date: s.start_date || null, end_date: s.end_date || null });
         for (const e of s.entries) {
@@ -373,6 +424,13 @@ function NewQuotePageInner() {
     if (!clientId) { setError('Ügyfél megadása kötelező!'); return; }
     setIsSubmitting(true);
     try {
+      if (draftQuoteId) {
+        // Draft already in DB — update metadata, save unsaved entries, navigate
+        await updateQuote(draftQuoteId, { title: title.trim(), location: location.trim(), work_type: workType.trim(), description: description.trim(), start_date: startDate || null, end_date: endDate || null, client_id: clientId, tax_percent: Number(taxPercent) || 0 });
+        router.push(`/ajanlatok/${draftQuoteId}`);
+        return;
+      }
+
       // If any section has pending files but no survey context, auto-create a survey to hold them
       let surveyIdToUse = fromSurveyId || null;
       const hasPendingFiles = localSections.some(s => (s._pendingFiles || []).length > 0);

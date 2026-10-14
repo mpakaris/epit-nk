@@ -9,13 +9,13 @@ export async function PUT(request, { params }) {
   if (error || !user) return Response.json({ error: 'Unauthenticated' }, { status: 401 });
 
   const admin = createAdminClient();
-  const { data: profile } = await admin.from('profiles').select('role, entity_id, display_name').eq('id', user.id).single();
+  const { data: profile } = await admin.from('profiles').select('role, entity_id, current_entity_id, display_name').eq('id', user.id).single();
   if (!profile || !['admin', 'superadmin'].includes(profile.role))
     return Response.json({ error: 'Forbidden' }, { status: 403 });
 
   const { data: project } = await admin.from('projects').select('entity_id, name').eq('id', id).single();
   if (!project) return Response.json({ error: 'Not found' }, { status: 404 });
-  if (profile.role === 'admin' && project.entity_id !== profile.entity_id)
+  if (profile.role === 'admin' && ![profile.entity_id, profile.current_entity_id].filter(Boolean).includes(project.entity_id))
     return Response.json({ error: 'Forbidden' }, { status: 403 });
 
   const { memberIds = [] } = await request.json();

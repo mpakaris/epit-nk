@@ -12,12 +12,12 @@ export async function POST(request, { params }) {
   if (authErr || !user) return Response.json({ error: 'Unauthenticated' }, { status: 401 });
 
   const admin = createAdminClient();
-  const { data: profile } = await admin.from('profiles').select('id, role, entity_id').eq('id', user.id).single();
+  const { data: profile } = await admin.from('profiles').select('id, role, entity_id, current_entity_id').eq('id', user.id).single();
   if (!profile) return Response.json({ error: 'Forbidden' }, { status: 403 });
 
   const { data: quote } = await admin.from('quotes').select('id, entity_id, survey_id').eq('id', quoteId).single();
   if (!quote) return Response.json({ error: 'Quote not found' }, { status: 404 });
-  if (profile.role !== 'superadmin' && quote.entity_id !== profile.entity_id) return Response.json({ error: 'Forbidden' }, { status: 403 });
+  if (profile.role !== 'superadmin' && ![profile.entity_id, profile.current_entity_id].filter(Boolean).includes(quote.entity_id)) return Response.json({ error: 'Forbidden' }, { status: 403 });
   if (!quote.survey_id) return Response.json({ sections: [] });
 
   // Skip if sections already exist

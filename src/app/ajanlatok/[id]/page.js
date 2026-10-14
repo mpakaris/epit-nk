@@ -86,6 +86,12 @@ export default function QuoteDetailPage() {
   const [showConvertModal, setShowConvertModal] = useState(false);
   const [convertMembers, setConvertMembers]     = useState([]);
   const [isConverting, setIsConverting]         = useState(false);
+
+  // Always pre-select the current user when opening the convert modal
+  const openConvertModal = () => {
+    setConvertMembers(currentUser ? [currentUser.id] : []);
+    setShowConvertModal(true);
+  };
   const [confirmModal, setConfirmModal]         = useState(null);
   const [alertModal, setAlertModal]             = useState(null);
   const [copied, setCopied]                     = useState(false);
@@ -120,8 +126,7 @@ export default function QuoteDetailPage() {
 
   const handleStatusChange = async (newStatus) => {
     if (newStatus === 'accepted') {
-      setConvertMembers(users.map(u => u.id));
-      setShowConvertModal(true);
+      openConvertModal();
       return;
     }
     try { await updateQuoteStatus(id, newStatus); }
@@ -376,7 +381,8 @@ export default function QuoteDetailPage() {
           Válassza ki a projekt tagjait. A cím és dátumok az ajánlatból kerülnek át.
         </p>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', marginBottom: '1.25rem' }}>
-          {users.map(u => (
+          {/* Always show current user even if not in the entity's user list */}
+          {[...(currentUser && !users.find(u => u.id === currentUser.id) ? [{ id: currentUser.id, display_name: `${currentUser.display_name} (Ön)` }] : []), ...users].map(u => (
             <label key={u.id} style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', padding: '0.5rem 0.75rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)', cursor: 'pointer', background: convertMembers.includes(u.id) ? 'var(--accent-light)' : '#fff' }}>
               <input type="checkbox" checked={convertMembers.includes(u.id)} onChange={e => setConvertMembers(prev => e.target.checked ? [...prev, u.id] : prev.filter(x => x !== u.id))} />
               <span style={{ fontWeight: 600, fontSize: '0.875rem' }}>{u.display_name}</span>
@@ -385,7 +391,7 @@ export default function QuoteDetailPage() {
         </div>
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
           <button type="button" className="btn btn-secondary btn-sm" onClick={() => setShowConvertModal(false)}>Mégse</button>
-          <button type="button" onClick={handleConvert} disabled={isConverting || convertMembers.length === 0} className="btn btn-sm" style={{ background: 'var(--success)', color: '#fff', border: 'none' }}>
+          <button type="button" onClick={handleConvert} disabled={isConverting} className="btn btn-sm" style={{ background: 'var(--success)', color: '#fff', border: 'none' }}>
             {isConverting ? <><Loader2 size={14} className="animate-spin" />Átalakítás...</> : <><FolderKanban size={14} />Projekt létrehozása</>}
           </button>
         </div>

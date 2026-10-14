@@ -15,12 +15,12 @@ export async function POST(request) {
 
   const { data: profile } = await admin
     .from('profiles')
-    .select('id, role, entity_id')
+    .select('id, role, entity_id, current_entity_id')
     .eq('id', user.id)
     .single();
 
   if (!profile) return Response.json({ error: 'Profile not found' }, { status: 403 });
-  if (profile.role !== 'superadmin' && !profile.entity_id) return Response.json({ error: 'No entity assigned' }, { status: 400 });
+  if (profile.role !== 'superadmin' && !(profile.entity_id || profile.current_entity_id)) return Response.json({ error: 'No entity assigned' }, { status: 400 });
 
   let formData;
   try {
@@ -30,7 +30,7 @@ export async function POST(request) {
   }
 
   // Resolve entity_id — superadmin passes project_id in form so we can derive it
-  let entityId = profile.entity_id;
+  let entityId = profile.current_entity_id || profile.entity_id;
   if (profile.role === 'superadmin') {
     const projectId = formData.get('project_id');
     if (!projectId) return Response.json({ error: 'project_id required for superadmin uploads' }, { status: 400 });

@@ -11,13 +11,13 @@ export async function DELETE(request, { params }) {
   const { data: { user }, error: authErr } = await supabase.auth.getUser();
   if (authErr || !user) return Response.json({ error: 'Unauthenticated' }, { status: 401 });
 
-  const { data: profile } = await admin.from('profiles').select('id, role, entity_id, display_name').eq('id', user.id).single();
+  const { data: profile } = await admin.from('profiles').select('id, role, entity_id, current_entity_id, display_name').eq('id', user.id).single();
   if (!profile || !['admin', 'superadmin'].includes(profile.role)) return Response.json({ error: 'Admin required' }, { status: 403 });
 
   // Fetch token and verify entity ownership
   const { data: token } = await admin.from('diary_share_tokens').select('id, entity_id, project_id').eq('id', id).single();
   if (!token) return Response.json({ error: 'Token not found' }, { status: 404 });
-  if (profile.entity_id && token.entity_id !== profile.entity_id) {
+  if (profile.entity_id && ![profile.entity_id, profile.current_entity_id].filter(Boolean).includes(token.entity_id)) {
     return Response.json({ error: 'Access denied' }, { status: 403 });
   }
 

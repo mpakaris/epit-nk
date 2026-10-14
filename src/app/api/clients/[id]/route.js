@@ -8,13 +8,13 @@ async function getCallerAndClient(id) {
   if (error || !user) return { err: 'Unauthenticated', status: 401 };
 
   const admin = createAdminClient();
-  const { data: profile } = await admin.from('profiles').select('role, entity_id, display_name').eq('id', user.id).single();
+  const { data: profile } = await admin.from('profiles').select('role, entity_id, current_entity_id, display_name').eq('id', user.id).single();
   if (!profile || !['admin', 'superadmin'].includes(profile.role))
     return { err: 'Forbidden', status: 403 };
 
   const { data: client } = await admin.from('clients').select('entity_id, name').eq('id', id).single();
   if (!client) return { err: 'Not found', status: 404 };
-  if (profile.role === 'admin' && client.entity_id !== profile.entity_id)
+  if (profile.role === 'admin' && ![profile.entity_id, profile.current_entity_id].filter(Boolean).includes(client.entity_id))
     return { err: 'Forbidden', status: 403 };
 
   return { user, profile, admin, client };

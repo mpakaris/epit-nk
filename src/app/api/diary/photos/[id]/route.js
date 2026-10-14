@@ -13,19 +13,19 @@ export async function DELETE(request, { params }) {
 
   const { data: profile } = await admin
     .from('profiles')
-    .select('id, role, entity_id')
+    .select('id, role, entity_id, current_entity_id')
     .eq('id', user.id)
     .single();
 
   if (!profile) return Response.json({ error: 'Profile not found' }, { status: 403 });
-  if (profile.role !== 'superadmin' && !profile.entity_id) return Response.json({ error: 'No entity assigned' }, { status: 400 });
+  if (profile.role !== 'superadmin' && !(profile.entity_id || profile.current_entity_id)) return Response.json({ error: 'No entity assigned' }, { status: 400 });
 
   // Fetch photo + its entry to check ownership
   const photoQuery = admin
     .from('diary_photos')
     .select('id, drive_file_id, entry_id, entity_id')
     .eq('id', id);
-  if (profile.role !== 'superadmin') photoQuery.eq('entity_id', profile.entity_id);
+  if (profile.role !== 'superadmin') photoQuery.eq('entity_id', profile.current_entity_id || profile.entity_id);
   const { data: photo } = await photoQuery.single();
 
   if (!photo) return Response.json({ error: 'Photo not found or access denied' }, { status: 404 });
@@ -58,7 +58,7 @@ export async function DELETE(request, { params }) {
     .from('diary_photos')
     .delete()
     .eq('id', id)
-    .eq('entity_id', profile.entity_id);
+    .eq('entity_id', profile.current_entity_id || profile.entity_id);
 
   if (delErr) return Response.json({ error: delErr.message }, { status: 500 });
 

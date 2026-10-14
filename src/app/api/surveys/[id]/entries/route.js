@@ -6,13 +6,17 @@ async function getCtx(surveyId) {
   const { data: { user }, error } = await supabase.auth.getUser();
   if (error || !user) return { err: 'Unauthenticated', status: 401 };
   const admin = createAdminClient();
-  const { data: profile } = await admin.from('profiles').select('id, role, entity_id, display_name').eq('id', user.id).single();
+  const { data: profile } = await admin.from('profiles').select('id, role, entity_id, current_entity_id, display_name').eq('id', user.id).single();
   if (!profile) return { err: 'Forbidden', status: 403 };
   const { data: survey } = await admin.from('surveys').select('*').eq('id', surveyId).single();
   if (!survey) return { err: 'Not found', status: 404 };
   if (profile.role !== 'superadmin') {
-    const { data: mem } = await admin.from('memberships').select('id').eq('user_id', profile.id).eq('entity_id', survey.entity_id).eq('status', 'active').maybeSingle();
-    if (!mem) return { err: 'Forbidden', status: 403 };
+    const profileEntityIds = [profile.entity_id, profile.current_entity_id].filter(Boolean);
+    const isOwnEntity = profileEntityIds.includes(survey.entity_id);
+    if (!isOwnEntity) {
+      const { data: mem } = await admin.from('memberships').select('id').eq('user_id', profile.id).eq('entity_id', survey.entity_id).eq('status', 'active').maybeSingle();
+      if (!mem) return { err: 'Forbidden', status: 403 };
+    }
   }
   const isAdmin = ['admin', 'superadmin'].includes(profile.role);
   // shared_with may be absent if migration 028 hasn't been applied yet

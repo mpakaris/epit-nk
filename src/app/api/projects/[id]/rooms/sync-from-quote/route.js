@@ -9,13 +9,13 @@ export async function POST(request, { params }) {
   if (authErr || !user) return Response.json({ error: 'Unauthenticated' }, { status: 401 });
 
   const admin = createAdminClient();
-  const { data: profile } = await admin.from('profiles').select('id, role, entity_id').eq('id', user.id).single();
+  const { data: profile } = await admin.from('profiles').select('id, role, entity_id, current_entity_id').eq('id', user.id).single();
   if (!profile || !['admin', 'superadmin'].includes(profile.role))
     return Response.json({ error: 'Forbidden' }, { status: 403 });
 
   const { data: project } = await admin.from('projects').select('id, entity_id').eq('id', projectId).single();
   if (!project) return Response.json({ error: 'Project not found' }, { status: 404 });
-  if (profile.role !== 'superadmin' && project.entity_id !== profile.entity_id)
+  if (profile.role !== 'superadmin' && ![profile.entity_id, profile.current_entity_id].filter(Boolean).includes(project.entity_id))
     return Response.json({ error: 'Forbidden' }, { status: 403 });
 
   // Find the linked quote

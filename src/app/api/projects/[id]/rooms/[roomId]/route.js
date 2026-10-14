@@ -6,12 +6,12 @@ async function getCtx(projectId) {
   const { data: { user }, error } = await supabase.auth.getUser();
   if (error || !user) return { err: 'Unauthenticated', status: 401 };
   const admin = createAdminClient();
-  const { data: profile } = await admin.from('profiles').select('id, role, entity_id').eq('id', user.id).single();
+  const { data: profile } = await admin.from('profiles').select('id, role, entity_id, current_entity_id').eq('id', user.id).single();
   if (!profile) return { err: 'Forbidden', status: 403 };
   if (!['admin', 'superadmin'].includes(profile.role)) return { err: 'Forbidden', status: 403 };
   const { data: project } = await admin.from('projects').select('id, entity_id').eq('id', projectId).single();
   if (!project) return { err: 'Project not found', status: 404 };
-  if (profile.role !== 'superadmin' && project.entity_id !== profile.entity_id) return { err: 'Forbidden', status: 403 };
+  if (profile.role !== 'superadmin' && ![profile.entity_id, profile.current_entity_id].filter(Boolean).includes(project.entity_id)) return { err: 'Forbidden', status: 403 };
   return { profile, admin, project };
 }
 

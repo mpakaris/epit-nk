@@ -5,10 +5,10 @@ import { logAudit } from '@/lib/audit';
 async function requireAdmin(supabase, admin) {
   const { data: { user }, error } = await supabase.auth.getUser();
   if (error || !user) return { error: 'Unauthenticated', status: 401 };
-  const { data: profile } = await admin.from('profiles').select('id, role, entity_id, display_name').eq('id', user.id).single();
+  const { data: profile } = await admin.from('profiles').select('id, role, entity_id, current_entity_id, display_name').eq('id', user.id).single();
   if (!profile) return { error: 'Profile not found', status: 403 };
   if (!['admin', 'superadmin'].includes(profile.role)) return { error: 'Admin required', status: 403 };
-  if (profile.role !== 'superadmin' && !profile.entity_id) return { error: 'No entity assigned', status: 400 };
+  if (profile.role !== 'superadmin' && !(profile.entity_id || profile.current_entity_id)) return { error: 'No entity assigned', status: 400 };
   return { profile };
 }
 
@@ -24,7 +24,7 @@ export async function GET(request) {
   if (!projectId) return Response.json({ error: 'Missing project_id' }, { status: 400 });
 
   // Verify project belongs to caller's entity
-  const entityId = profile.entity_id;
+  const entityId = profile.current_entity_id || profile.entity_id;
   if (entityId) {
     const { data: project } = await admin.from('projects').select('id').eq('id', projectId).eq('entity_id', entityId).single();
     if (!project) return Response.json({ error: 'Project not found or access denied' }, { status: 404 });
@@ -54,7 +54,7 @@ export async function POST(request) {
   // Verify project belongs to caller's entity
   const { data: project } = await admin.from('projects').select('id, entity_id').eq('id', project_id).single();
   if (!project) return Response.json({ error: 'Project not found' }, { status: 404 });
-  if (profile.entity_id && project.entity_id !== profile.entity_id) {
+  if (profile.entity_id && ![profile.entity_id, profile.current_entity_id].filter(Boolean).includes(project.entity_id)) {
     return Response.json({ error: 'Access denied — project belongs to a different entity' }, { status: 403 });
   }
 

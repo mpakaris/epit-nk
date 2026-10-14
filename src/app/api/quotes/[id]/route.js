@@ -8,7 +8,7 @@ async function getCallerAndQuote(id) {
   if (error || !user) return { err: 'Unauthenticated', status: 401 };
 
   const admin = createAdminClient();
-  const { data: profile } = await admin.from('profiles').select('role, entity_id, display_name').eq('id', user.id).single();
+  const { data: profile } = await admin.from('profiles').select('role, entity_id, current_entity_id, display_name').eq('id', user.id).single();
   if (!profile) return { err: 'Forbidden', status: 403 };
 
   const { data: quote } = await admin.from('quotes').select('*').eq('id', id).single();
@@ -17,8 +17,11 @@ async function getCallerAndQuote(id) {
   const isAdmin = ['admin', 'superadmin'].includes(profile.role);
   const isCreator = quote.created_by === user.id;
   if (!isAdmin && !isCreator) return { err: 'Forbidden', status: 403 };
-  if (profile.role !== 'superadmin' && quote.entity_id !== profile.entity_id)
-    return { err: 'Forbidden', status: 403 };
+  if (profile.role !== 'superadmin') {
+    const profileEntityIds = [profile.entity_id, profile.current_entity_id].filter(Boolean);
+    if (!profileEntityIds.includes(quote.entity_id))
+      return { err: 'Forbidden', status: 403 };
+  }
 
   return { user, profile, admin, quote };
 }

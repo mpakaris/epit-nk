@@ -12,7 +12,7 @@ export async function POST(request) {
   const { data: { user }, error: authErr } = await supabase.auth.getUser();
   if (authErr || !user) return Response.json({ error: 'Unauthenticated' }, { status: 401 });
 
-  const { data: profile } = await admin.from('profiles').select('id, role, entity_id').eq('id', user.id).single();
+  const { data: profile } = await admin.from('profiles').select('id, role, entity_id, current_entity_id').eq('id', user.id).single();
   if (!profile) return Response.json({ error: 'Profile not found' }, { status: 403 });
   let formData;
   try { formData = await request.formData(); }
@@ -26,8 +26,12 @@ export async function POST(request) {
   const { data: survey } = await admin.from('surveys').select('entity_id, shared_with').eq('id', surveyId).single();
   if (!survey) return Response.json({ error: 'Felmérés nem található' }, { status: 404 });
   if (profile.role !== 'superadmin') {
-    const { data: mem } = await admin.from('memberships').select('id').eq('user_id', profile.id).eq('entity_id', survey.entity_id).eq('status', 'active').maybeSingle();
-    if (!mem) return Response.json({ error: 'Forbidden' }, { status: 403 });
+    const profileEntityIds = [profile.entity_id, profile.current_entity_id].filter(Boolean);
+    const isOwnEntity = profileEntityIds.includes(survey.entity_id);
+    if (!isOwnEntity) {
+      const { data: mem } = await admin.from('memberships').select('id').eq('user_id', profile.id).eq('entity_id', survey.entity_id).eq('status', 'active').maybeSingle();
+      if (!mem) return Response.json({ error: 'Forbidden' }, { status: 403 });
+    }
   }
   const isAdmin = ['admin', 'superadmin'].includes(profile.role);
   const isSharedMember = (survey.shared_with || []).includes(profile.id);

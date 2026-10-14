@@ -6,11 +6,11 @@ async function getCtx(quoteId) {
   const { data: { user }, error } = await supabase.auth.getUser();
   if (error || !user) return { err: 'Unauthenticated', status: 401 };
   const admin = createAdminClient();
-  const { data: profile } = await admin.from('profiles').select('id, role, entity_id').eq('id', user.id).single();
+  const { data: profile } = await admin.from('profiles').select('id, role, entity_id, current_entity_id').eq('id', user.id).single();
   if (!profile) return { err: 'Forbidden', status: 403 };
   const { data: quote } = await admin.from('quotes').select('id, entity_id, survey_id').eq('id', quoteId).single();
   if (!quote) return { err: 'Quote not found', status: 404 };
-  if (profile.role !== 'superadmin' && quote.entity_id !== profile.entity_id) return { err: 'Forbidden', status: 403 };
+  if (profile.role !== 'superadmin' && ![profile.entity_id, profile.current_entity_id].filter(Boolean).includes(quote.entity_id)) return { err: 'Forbidden', status: 403 };
   return { profile, admin, quote };
 }
 

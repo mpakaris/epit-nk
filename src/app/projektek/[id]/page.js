@@ -26,7 +26,7 @@ async function ProjectDetailContent({ params }) {
   const admin = createAdminClient();
   const { data: profile } = await admin
     .from('profiles')
-    .select('id, role, entity_id, display_name')
+    .select('id, role, entity_id, current_entity_id, display_name')
     .eq('id', user.id)
     .single();
 
@@ -34,7 +34,7 @@ async function ProjectDetailContent({ params }) {
 
   const isAdminRole = ['admin', 'superadmin'].includes(profile.role);
 
-  let entityId = profile.entity_id;
+  let entityId = profile.current_entity_id || profile.entity_id;
   if (profile.role === 'superadmin') {
     const cookieStore = await cookies();
     entityId = cookieStore.get('god_mode_entity')?.value || null;

@@ -10,12 +10,12 @@ export async function DELETE(request, { params }) {
   if (authErr || !user) return Response.json({ error: 'Unauthenticated' }, { status: 401 });
 
   const admin = createAdminClient();
-  const { data: profile } = await admin.from('profiles').select('id, role, entity_id').eq('id', user.id).single();
+  const { data: profile } = await admin.from('profiles').select('id, role, entity_id, current_entity_id').eq('id', user.id).single();
   if (!profile) return Response.json({ error: 'Forbidden' }, { status: 403 });
 
   const { data: survey } = await admin.from('surveys').select('entity_id, shared_with').eq('id', surveyId).single();
   if (!survey) return Response.json({ error: 'Not found' }, { status: 404 });
-  if (profile.role !== 'superadmin' && survey.entity_id !== profile.entity_id) {
+  if (profile.role !== 'superadmin' && ![profile.entity_id, profile.current_entity_id].filter(Boolean).includes(survey.entity_id)) {
     return Response.json({ error: 'Forbidden' }, { status: 403 });
   }
   const isAdmin = ['admin', 'superadmin'].includes(profile.role);

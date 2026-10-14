@@ -9,13 +9,13 @@ export async function GET(request, { params }) {
   if (authErr || !user) return Response.json({ error: 'Unauthenticated' }, { status: 401 });
 
   const admin = createAdminClient();
-  const { data: profile } = await admin.from('profiles').select('role, entity_id').eq('id', user.id).single();
+  const { data: profile } = await admin.from('profiles').select('role, entity_id, current_entity_id').eq('id', user.id).single();
   if (!profile) return Response.json({ error: 'Forbidden' }, { status: 403 });
 
   const { data: project } = await admin.from('projects').select('*').eq('id', id).single();
   if (!project) return Response.json({ error: 'Not found' }, { status: 404 });
 
-  if (profile.role === 'admin' && project.entity_id !== profile.entity_id)
+  if (profile.role === 'admin' && ![profile.entity_id, profile.current_entity_id].filter(Boolean).includes(project.entity_id))
     return Response.json({ error: 'Forbidden' }, { status: 403 });
 
   const [memberRes, clientRes, usersRes] = await Promise.all([
@@ -39,7 +39,7 @@ async function getCallerAndProject(request, id) {
   if (error || !user) return { err: 'Unauthenticated', status: 401 };
 
   const admin = createAdminClient();
-  const { data: profile } = await admin.from('profiles').select('role, entity_id, display_name').eq('id', user.id).single();
+  const { data: profile } = await admin.from('profiles').select('role, entity_id, current_entity_id, display_name').eq('id', user.id).single();
   if (!profile) return { err: 'Forbidden', status: 403 };
 
   const { data: project } = await admin.from('projects').select('entity_id, name, created_by').eq('id', id).single();
@@ -51,11 +51,11 @@ async function getCallerAndProject(request, id) {
   if (!isAdmin && !isCreator) return { err: 'Forbidden', status: 403 };
 
   // Entity admins and creators can only touch projects in their own entity
-  if (profile.role === 'admin' && project.entity_id !== profile.entity_id)
+  if (profile.role === 'admin' && ![profile.entity_id, profile.current_entity_id].filter(Boolean).includes(project.entity_id))
     return { err: 'Forbidden', status: 403 };
   if (!isAdmin && isCreator) {
     const { data: pm } = await admin.from('project_members').select('user_id').eq('project_id', id).eq('user_id', user.id).single();
-    if (!pm && project.entity_id !== profile.entity_id) return { err: 'Forbidden', status: 403 };
+    if (!pm && ![profile.entity_id, profile.current_entity_id].filter(Boolean).includes(project.entity_id)) return { err: 'Forbidden', status: 403 };
   }
 
   return { user, profile, admin, project };

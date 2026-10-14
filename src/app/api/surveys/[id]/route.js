@@ -8,15 +8,28 @@ async function getCallerAndSurvey(id) {
   if (error || !user) return { err: 'Unauthenticated', status: 401 };
 
   const admin = createAdminClient();
-  const { data: profile } = await admin.from('profiles').select('id, role, entity_id').eq('id', user.id).single();
+  const { data: profile } = await admin.from('profiles').select('id, role, entity_id, current_entity_id').eq('id', user.id).single();
   if (!profile) return { err: 'Forbidden', status: 403 };
 
   const { data: survey } = await admin.from('surveys').select('*').eq('id', id).single();
   if (!survey) return { err: 'Not found', status: 404 };
 
   if (profile.role !== 'superadmin') {
-    const { data: mem } = await admin.from('memberships').select('id').eq('user_id', profile.id).eq('entity_id', survey.entity_id).eq('status', 'active').maybeSingle();
-    if (!mem) return { err: 'Forbidden', status: 403 };
+    const profileEntityIds = [profile.entity_id, profile.current_entity_id].filter(Boolean);
+    const isOwnEntity = profileEntityIds.includes(survey.entity_id);
+    console.log('[survey GET auth]', {
+      userId: profile.id,
+      role: profile.role,
+      profile_entity_id: profile.entity_id,
+      profile_current_entity_id: profile.current_entity_id,
+      survey_entity_id: survey.entity_id,
+      isOwnEntity,
+    });
+    if (!isOwnEntity) {
+      const { data: mem } = await admin.from('memberships').select('id').eq('user_id', profile.id).eq('entity_id', survey.entity_id).eq('status', 'active').maybeSingle();
+      console.log('[survey GET auth] membership check result:', mem);
+      if (!mem) return { err: 'Forbidden', status: 403 };
+    }
   }
 
   const isSharedMember = (survey.shared_with || []).includes(profile.id);
