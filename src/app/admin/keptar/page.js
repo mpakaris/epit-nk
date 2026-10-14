@@ -5,7 +5,7 @@ import { useApp } from '@/context/AppContext';
 import { useRouter } from 'next/navigation';
 import {
   Upload, Trash2, X, Loader2, ImageIcon, Filter, Check, AlertCircle,
-  ChevronLeft, ChevronRight,
+  ChevronLeft, ChevronRight, Star,
 } from 'lucide-react';
 import PageSpinner from '@/components/PageSpinner';
 
@@ -78,7 +78,7 @@ function Lightbox({ images, index, onClose, onNav }) {
   );
 }
 
-function ImageGrid({ title, images, aspect, cols, tradeName, deleting, onDelete, onOpen }) {
+function ImageGrid({ title, images, aspect, cols, tradeName, deleting, onDelete, onOpen, onSetHero, settingHero }) {
   if (images.length === 0) return null;
   return (
     <div style={{ marginBottom: '2rem' }}>
@@ -87,15 +87,24 @@ function ImageGrid({ title, images, aspect, cols, tradeName, deleting, onDelete,
       </p>
       <div style={{ display: 'grid', gridTemplateColumns: cols, gap: '0.75rem' }}>
         {images.map((img, idx) => (
-          <div key={img.id} style={{ position: 'relative', borderRadius: 10, overflow: 'hidden', border: '1px solid var(--border-subtle)', background: 'var(--bg-subtle)' }}>
+          <div key={img.id} style={{ position: 'relative', borderRadius: 10, overflow: 'hidden', border: img.is_platform_hero ? '2px solid #f59e0b' : '1px solid var(--border-subtle)', background: 'var(--bg-subtle)' }}>
             <img
               src={img.url} alt={img.alt_text || ''}
               onClick={() => onOpen(idx)}
               style={{ width: '100%', aspectRatio: aspect, objectFit: 'cover', display: 'block', cursor: 'zoom-in' }}
               loading="lazy"
             />
-            <div style={{ padding: '0.4rem 0.6rem', background: 'var(--bg-card)' }}>
-              <p style={{ margin: 0, fontSize: '0.72rem', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{tradeName(img.trade_id)}</p>
+            <div style={{ padding: '0.4rem 0.6rem', background: 'var(--bg-card)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+              <p style={{ margin: 0, fontSize: '0.72rem', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{tradeName(img.trade_id)}</p>
+              <button
+                type="button"
+                onClick={() => onSetHero(img)}
+                disabled={settingHero === img.id}
+                title={img.is_platform_hero ? 'Hero eltávolítása' : 'Beállítás platform heroként'}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0.1rem', display: 'flex', alignItems: 'center', flexShrink: 0, opacity: settingHero === img.id ? 0.5 : 1 }}
+              >
+                <Star size={14} color={img.is_platform_hero ? '#f59e0b' : '#94a3b8'} fill={img.is_platform_hero ? '#f59e0b' : 'none'} />
+              </button>
             </div>
             <button
               type="button" onClick={() => onDelete(img.id)} disabled={deleting === img.id}
@@ -121,6 +130,7 @@ export default function ImageLibraryPage() {
   const [uploading, setUploading] = useState(false);
   const [uploadErr, setUploadErr] = useState('');
   const [deleting, setDeleting] = useState(null);
+  const [settingHero, setSettingHero] = useState(null);
   const [lightbox, setLightbox] = useState(null); // { images, index }
 
   const [form, setForm] = useState({ trade_id: '', orientation: 'horizontal', alt_text: '' });
@@ -173,6 +183,25 @@ export default function ImageLibraryPage() {
     } finally {
       setUploading(false);
     }
+  };
+
+  const handleSetHero = async (img) => {
+    setSettingHero(img.id);
+    try {
+      const next = !img.is_platform_hero;
+      const res = await fetch('/api/superadmin/image-library', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: img.id, is_platform_hero: next }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setImages(prev => prev.map(i => ({
+        ...i,
+        is_platform_hero: i.id === img.id ? next : (next ? false : i.is_platform_hero),
+      })));
+    } catch { /* ignore */ }
+    finally { setSettingHero(null); }
   };
 
   const handleDelete = async (id) => {
@@ -324,8 +353,8 @@ export default function ImageLibraryPage() {
             const vert  = images.filter(i => i.orientation === 'vertical');
             return (
               <>
-                <ImageGrid title="Horizontal (hero)" images={horiz} aspect="16/9" cols="repeat(auto-fill, minmax(220px, 1fr))" tradeName={tradeName} deleting={deleting} onDelete={handleDelete} onOpen={idx => setLightbox({ images: horiz, index: idx })} />
-                <ImageGrid title="Vertical (portrait)" images={vert} aspect="3/4" cols="repeat(auto-fill, minmax(140px, 1fr))" tradeName={tradeName} deleting={deleting} onDelete={handleDelete} onOpen={idx => setLightbox({ images: vert, index: idx })} />
+                <ImageGrid title="Horizontal (hero)" images={horiz} aspect="16/9" cols="repeat(auto-fill, minmax(220px, 1fr))" tradeName={tradeName} deleting={deleting} onDelete={handleDelete} onOpen={idx => setLightbox({ images: horiz, index: idx })} onSetHero={handleSetHero} settingHero={settingHero} />
+                <ImageGrid title="Vertical (portrait)" images={vert} aspect="3/4" cols="repeat(auto-fill, minmax(140px, 1fr))" tradeName={tradeName} deleting={deleting} onDelete={handleDelete} onOpen={idx => setLightbox({ images: vert, index: idx })} onSetHero={handleSetHero} settingHero={settingHero} />
               </>
             );
           })()}

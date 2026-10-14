@@ -87,6 +87,29 @@ export async function POST(request) {
   return Response.json({ images: results }, { status: 201 });
 }
 
+export async function PATCH(request) {
+  const auth = await requireSuperadmin();
+  if (auth.error) return Response.json({ error: auth.error }, { status: auth.status });
+
+  const { id, is_platform_hero } = await request.json();
+  if (!id) return Response.json({ error: 'id szükséges' }, { status: 400 });
+
+  if (is_platform_hero) {
+    // Unset any existing hero first
+    await auth.admin.from('image_library').update({ is_platform_hero: false }).eq('is_platform_hero', true);
+  }
+
+  const { data: img, error } = await auth.admin
+    .from('image_library')
+    .update({ is_platform_hero: !!is_platform_hero })
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) return Response.json({ error: error.message }, { status: 500 });
+  return Response.json({ image: { ...img, url: r2PublicUrl(img.r2_key) } });
+}
+
 export async function DELETE(request) {
   const auth = await requireSuperadmin();
   if (auth.error) return Response.json({ error: auth.error }, { status: auth.status });

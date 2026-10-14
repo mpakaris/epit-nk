@@ -292,6 +292,11 @@ export default function HomePage() {
   const { currentUser, loading } = useApp();
   const [show, setShow] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
+  const [heroImageUrl, setHeroImageUrl] = useState(null);
+
+  useEffect(() => {
+    fetch('/api/platform/hero').then(r => r.json()).then(d => { if (d.url) setHeroImageUrl(d.url); }).catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (!loading) {
@@ -319,12 +324,12 @@ export default function HomePage() {
         .lp-nav-btn { padding:0.45rem 1.1rem; border-radius:8px; background:rgba(255,255,255,0.1); color:#fff; font-weight:700; font-size:0.875rem; border:1px solid rgba(255,255,255,0.18); cursor:pointer; font-family:inherit; transition:background .15s; }
         .lp-nav-btn:hover { background:rgba(255,255,255,0.18); }
 
-        .lp-hero { background:#0f172a; padding:clamp(5rem,12vw,9rem) clamp(1.25rem,5vw,4rem) clamp(4rem,10vw,7rem); text-align:center; }
+        .lp-hero { background:#0f172a; padding:clamp(5rem,12vw,9rem) clamp(1.25rem,5vw,4rem) clamp(4rem,10vw,7rem); text-align:left; background-size:cover; background-position:center; }
         .lp-eyebrow { display:inline-flex; align-items:center; gap:0.4rem; background:rgba(255,255,255,0.07); color:#94a3b8; font-size:0.78rem; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; padding:0.3rem 0.85rem; border-radius:999px; border:1px solid rgba(255,255,255,0.1); margin-bottom:1.75rem; }
-        .lp-h1 { font-size:clamp(2.5rem,6vw,4.25rem); font-weight:800; color:#fff; letter-spacing:-0.04em; line-height:1.08; margin:0 auto 1.25rem; max-width:820px; }
+        .lp-h1 { font-size:clamp(2.5rem,6vw,4.25rem); font-weight:800; color:#fff; letter-spacing:-0.04em; line-height:1.08; margin:0 0 1.25rem; max-width:820px; }
         .lp-h1 em { font-style:normal; color:#e2e8f0; }
-        .lp-sub { font-size:clamp(0.95rem,2vw,1.15rem); color:#64748b; max-width:500px; margin:0 auto 2.5rem; line-height:1.65; }
-        .lp-ctas { display:flex; gap:0.85rem; justify-content:center; flex-wrap:wrap; }
+        .lp-sub { font-size:clamp(0.95rem,2vw,1.15rem); color:#94a3b8; max-width:500px; margin:0 0 2.5rem; line-height:1.65; }
+        .lp-ctas { display:flex; gap:0.85rem; justify-content:flex-start; flex-wrap:wrap; }
         .lp-cta-primary { display:inline-flex; align-items:center; gap:0.45rem; padding:0.8rem 1.6rem; background:#fff; color:#0f172a; font-weight:800; font-size:0.95rem; border-radius:10px; border:none; cursor:pointer; font-family:inherit; transition:all .15s; }
         .lp-cta-primary:hover { background:#f1f5f9; transform:translateY(-1px); }
         .lp-cta-secondary { display:inline-flex; align-items:center; gap:0.45rem; padding:0.8rem 1.6rem; background:transparent; color:#94a3b8; font-weight:600; font-size:0.95rem; border-radius:10px; border:1px solid rgba(255,255,255,0.12); cursor:pointer; font-family:inherit; transition:all .15s; text-decoration:none; }
@@ -335,7 +340,7 @@ export default function HomePage() {
         .lp-demo-box span { color:#334155; font-size:0.85rem; font-weight:600; }
 
         .lp-features { padding:clamp(4rem,9vw,7rem) clamp(1.25rem,5vw,4rem); background:#f8fafc; }
-        .lp-section-label { text-align:center; margin-bottom:3rem; }
+        .lp-section-label { text-align:left; margin-bottom:3rem; }
         .lp-overline { display:inline-block; font-size:0.72rem; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; color:#94a3b8; margin-bottom:0.6rem; }
         .lp-section-title { font-size:clamp(1.6rem,3.5vw,2.25rem); font-weight:800; color:#0f172a; letter-spacing:-0.03em; margin:0; }
         .lp-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(min(100%,280px),1fr)); gap:1rem; max-width:1100px; margin:0 auto; }
@@ -385,7 +390,7 @@ export default function HomePage() {
           <button className="lp-nav-btn" onClick={() => setAuthOpen(true)}>Bejelentkezés</button>
         </nav>
 
-        <section className="lp-hero">
+        <section className="lp-hero" style={heroImageUrl ? { backgroundImage: `linear-gradient(rgba(15,23,42,0.72) 0%, rgba(15,23,42,0.88) 100%), url(${heroImageUrl})` } : {}}>
           <div className="lp-eyebrow"><Hammer size={11} /> Szakembereknek</div>
           <h1 className="lp-h1">Az építkezés <em>profi eszköze.</em></h1>
           <p className="lp-sub">Felmérés, árajánlat, projektköltség, ügyfélportál — minden egy helyen.</p>
