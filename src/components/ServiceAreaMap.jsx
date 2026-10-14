@@ -2,17 +2,17 @@
 
 import React, { useEffect, useRef } from 'react';
 
-// Loaded dynamically (no SSR) — leaflet CSS injected at runtime
 export default function ServiceAreaMap({ lat, lng, radiusKm, onChange, editable = false, height = 300 }) {
   const containerRef = useRef(null);
-  const mapRef = useRef(null);
-  const markerRef = useRef(null);
-  const circleRef = useRef(null);
+  const mapRef       = useRef(null);
+  const markerRef    = useRef(null);
+  const circleRef    = useRef(null);
+  const onChangeRef  = useRef(onChange);
+  useEffect(() => { onChangeRef.current = onChange; });
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
-    // Inject leaflet CSS once
     if (!document.getElementById('leaflet-css')) {
       const link = document.createElement('link');
       link.id = 'leaflet-css';
@@ -24,19 +24,12 @@ export default function ServiceAreaMap({ lat, lng, radiusKm, onChange, editable 
     import('leaflet').then((L) => {
       const Leaflet = L.default;
 
-      // Fix default icon paths broken by webpack
-      delete Leaflet.Icon.Default.prototype._getIconUrl;
-      Leaflet.Icon.Default.mergeOptions({
-        iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-        iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
-        shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-      });
-
       if (mapRef.current) {
-        // Update existing map
-        mapRef.current.setView([lat, lng]);
-        markerRef.current?.setLatLng([lat, lng]);
-        circleRef.current?.setLatLng([lat, lng]);
+        if (!editable) {
+          mapRef.current.setView([lat, lng]);
+          markerRef.current?.setLatLng([lat, lng]);
+          circleRef.current?.setLatLng([lat, lng]);
+        }
         circleRef.current?.setRadius(radiusKm * 1000);
         return;
       }
@@ -46,9 +39,13 @@ export default function ServiceAreaMap({ lat, lng, radiusKm, onChange, editable 
       const map = Leaflet.map(containerRef.current, {
         center: [lat, lng],
         zoom: 8,
-        zoomControl: true,
-        dragging: true,
+        zoomControl: editable,
+        dragging: editable,
         scrollWheelZoom: false,
+        doubleClickZoom: false,
+        touchZoom: editable,
+        boxZoom: editable,
+        keyboard: editable,
       });
 
       Leaflet.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -64,25 +61,40 @@ export default function ServiceAreaMap({ lat, lng, radiusKm, onChange, editable 
         weight: 2,
       }).addTo(map);
 
-      const marker = Leaflet.marker([lat, lng], { draggable: editable }).addTo(map);
-
-      if (editable && onChange) {
-        marker.on('dragend', (e) => {
-          const { lat: newLat, lng: newLng } = e.target.getLatLng();
-          circle.setLatLng([newLat, newLng]);
-          onChange({ lat: newLat, lng: newLng });
-        });
+      if (!editable) {
+        map.fitBounds(circle.getBounds(), { padding: [24, 24] });
       }
 
-      mapRef.current = map;
-      markerRef.current = marker;
+      if (editable && onChange) {
+        // Circle follows map center in real-time
+        map.on('move', () => {
+          const c = map.getCenter();
+          circle.setLatLng([c.lat, c.lng]);
+        });
+        // Save when pan ends — use ref so we always call the latest onChange
+        map.on('moveend', () => {
+          const c = map.getCenter();
+          onChangeRef.current?.({ lat: c.lat, lng: c.lng });
+        });
+      } else {
+        // View mode: static marker
+        delete Leaflet.Icon.Default.prototype._getIconUrl;
+        Leaflet.Icon.Default.mergeOptions({
+          iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+          iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+          shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+        });
+        markerRef.current = Leaflet.marker([lat, lng]).addTo(map);
+      }
+
+      mapRef.current  = map;
       circleRef.current = circle;
     });
 
     return () => {
       if (mapRef.current) {
         mapRef.current.remove();
-        mapRef.current = null;
+        mapRef.current    = null;
         markerRef.current = null;
         circleRef.current = null;
       }
@@ -90,17 +102,21 @@ export default function ServiceAreaMap({ lat, lng, radiusKm, onChange, editable 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Keep circle radius in sync with prop changes (slider)
   useEffect(() => {
-    if (circleRef.current) {
-      circleRef.current.setRadius(radiusKm * 1000);
-    }
+    circleRef.current?.setRadius(radiusKm * 1000);
   }, [radiusKm]);
 
   return (
-    <div
-      ref={containerRef}
-      style={{ height, borderRadius: 'var(--radius-md)', overflow: 'hidden', border: '1px solid var(--border-subtle)', zIndex: 0 }}
-    />
+    <div style={{ position: 'relative' }}>
+      <div
+        ref={containerRef}
+        style={{ height, borderRadius: 'var(--radius-md)', overflow: 'hidden', border: '1px solid var(--border-subtle)', zIndex: 0 }}
+      />
+      {editable && (
+        <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', pointerEvents: 'none', zIndex: 1000 }}>
+          <div style={{ width: 16, height: 16, borderRadius: '50%', background: '#f97316', border: '3px solid #fff', boxShadow: '0 2px 8px rgba(0,0,0,0.35)' }} />
+        </div>
+      )}
+    </div>
   );
 }

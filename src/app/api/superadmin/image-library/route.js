@@ -33,7 +33,8 @@ export async function GET(request) {
     .select('*, trade:trades(name_hu)')
     .order('created_at', { ascending: false });
 
-  if (tradeId) query = query.eq('trade_id', tradeId);
+  if (tradeId === 'generic') query = query.is('trade_id', null);
+  else if (tradeId)          query = query.eq('trade_id', tradeId);
 
   const { data, error } = await query;
   if (error) return Response.json({ error: error.message }, { status: 500 });

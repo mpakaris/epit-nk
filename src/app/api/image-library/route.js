@@ -17,8 +17,9 @@ export async function GET(request) {
     .select('id, trade_id, r2_key, orientation, alt_text')
     .order('created_at', { ascending: false });
 
-  if (tradeId)     query = query.eq('trade_id', tradeId);
-  if (orientation) query = query.eq('orientation', orientation);
+  if (tradeId === 'generic') query = query.is('trade_id', null);
+  else if (tradeId)          query = query.eq('trade_id', tradeId);
+  if (orientation)           query = query.eq('orientation', orientation);
 
   const { data, error } = await query;
   if (error) return Response.json({ error: error.message }, { status: 500 });

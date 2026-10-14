@@ -5,13 +5,11 @@ const SECTION_ORDER = [
   'hero', 'about', 'services', 'certifications', 'gallery',
   'pricing', 'testimonials', 'faq', 'service_area', 'contact',
 ];
-const FREE_SECTIONS = new Set(['hero', 'about', 'services', 'contact']);
-
 function buildDefaultSections(websiteId) {
   return SECTION_ORDER.map((type, i) => ({
     website_id: websiteId,
     section_type: type,
-    enabled: FREE_SECTIONS.has(type),
+    enabled: true,
     content: {},
     order_index: i,
   }));

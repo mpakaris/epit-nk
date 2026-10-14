@@ -128,10 +128,13 @@ export function AppProvider({ children }) {
   })();
 
   // ---- Route guard ------------------------------------------------------------
+  const PUBLIC_ROUTE_PREFIXES = ['/login', '/change-password', '/szakemberek/', '/p/', '/clients/', '/naplo/'];
   useEffect(() => {
     if (loading) return;
     if (!currentUser) {
-      if (pathname !== '/login') router.replace('/login');
+      if (!PUBLIC_ROUTE_PREFIXES.some(prefix => pathname.startsWith(prefix))) {
+        router.replace('/login');
+      }
       return;
     }
     if (currentUser.must_change_password && pathname !== '/change-password') {

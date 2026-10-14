@@ -9,11 +9,37 @@ import {
   Eye, Star, User, Wrench, Award, Image, DollarSign,
   MessageSquare, HelpCircle, MapPin, Phone,
   CheckCircle2, Copy, Upload, Camera, QrCode,
-  Download, ChevronUp,
+  Download, ChevronUp, Video,
 } from 'lucide-react';
 import Link from 'next/link';
 import PageSpinner from '@/components/PageSpinner';
 import { COLOR_SCHEMES, TYPOGRAPHY } from '@/lib/websiteThemes';
+
+function extractSocialHandle(value, platform) {
+  if (!value) return '';
+  let v = value.trim();
+  // If someone pastes a full URL, extract the handle
+  if (v.includes('tiktok.com/')) v = v.split('tiktok.com/').pop().split('/')[0];
+  if (v.includes('instagram.com/')) v = v.split('instagram.com/').pop().split('/')[0];
+  // Normalize: always store with leading @
+  return '@' + v.replace(/^@+/, '');
+}
+
+function formatHunPhone(raw) {
+  const digits = (raw || '').replace(/\D/g, '');
+  if (!digits) return '';
+  let num = digits;
+  if (num.startsWith('36')) num = num.slice(2);
+  else if (num.startsWith('06')) num = num.slice(2);
+  else if (num.startsWith('0')) num = num.slice(1);
+  num = num.slice(0, 9);
+  let out = '+36';
+  if (num.length >= 1) out += ' ' + num.slice(0, 2);
+  if (num.length >= 3) out += ' ' + num.slice(2, 5);
+  if (num.length >= 6) out += ' ' + num.slice(5, 7);
+  if (num.length >= 8) out += ' ' + num.slice(7, 9);
+  return out;
+}
 
 // Leaflet requires no SSR
 const ServiceAreaMap = dynamic(() => import('@/components/ServiceAreaMap'), { ssr: false, loading: () => (
@@ -541,7 +567,7 @@ function ImagePickerModal({ tradeId, selectedImageId, onSelect, onClose, orienta
   useEffect(() => {
     setLoading(true);
     const params = new URLSearchParams();
-    if (activeTrade) params.set('trade_id', activeTrade);
+    if (activeTrade) params.set('trade_id', activeTrade); // 'generic' handled by API
     if (orientation) params.set('orientation', orientation);
     fetch(`/api/image-library?${params.toString()}`)
       .then(r => r.json())
@@ -876,81 +902,101 @@ function AboutEditor({ content, onChange, tradeId }) {
   );
 }
 
-function ListEditor({ items, onChange, fields, addLabel, maxItems = 10, limitNote }) {
-  const update = (i, key, val) => {
-    const next = items.map((it, idx) => idx === i ? { ...it, [key]: val } : it);
-    onChange(next);
-  };
+function CharCount({ value, max }) {
+  const len = (value || '').length;
+  const pct = len / max;
+  return (
+    <span style={{ fontSize: '0.62rem', color: pct >= 0.9 ? 'var(--danger)' : 'var(--text-muted)', marginTop: '0.1rem', display: 'block', textAlign: 'right' }}>
+      {len}/{max}
+    </span>
+  );
+}
+
+function ListEditor({ items, onChange, fields, addLabel, totalLimit = 10, freeLimit = null, isPremium = true }) {
+  const update = (i, key, val) => onChange(items.map((it, idx) => idx === i ? { ...it, [key]: val } : it));
   const remove = (i) => onChange(items.filter((_, idx) => idx !== i));
-  const add = () => onChange([...items, Object.fromEntries(fields.map(f => [f.key, '']))]);
+  const add    = () => onChange([...items, Object.fromEntries(fields.map(f => [f.key, '']))]);
+
+  const canAdd = items.length < totalLimit;
+  const freeVisible = freeLimit ?? totalLimit;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-      {items.map((item, i) => (
-        <div key={i} style={{ background: 'var(--bg-subtle)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: '0.75rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-            <span style={{ fontSize: '0.775rem', fontWeight: 600, color: 'var(--text-muted)' }}>#{i + 1}</span>
-            <button type="button" onClick={() => remove(i)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--danger)', padding: '0.1rem' }}>
-              <Trash2 size={14} />
-            </button>
+      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+        <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+          {items.length}/{totalLimit} bejegyzés
+        </span>
+      </div>
+      {items.map((item, i) => {
+        const hiddenForFree = !isPremium && i >= freeVisible;
+        return (
+          <div key={i} style={{ background: hiddenForFree ? 'var(--bg-base)' : 'var(--bg-subtle)', border: `1px solid ${hiddenForFree ? '#fde68a' : 'var(--border-subtle)'}`, borderRadius: 'var(--radius-md)', padding: '0.75rem', opacity: hiddenForFree ? 0.75 : 1 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                <span style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-muted)' }}>#{i + 1}</span>
+                {hiddenForFree && (
+                  <span style={{ fontSize: '0.62rem', fontWeight: 700, padding: '0.1rem 0.35rem', borderRadius: 99, background: '#fef9c3', color: '#854d0e', border: '1px solid #fde68a' }}>
+                    PRÉMIUM – nem jelenik meg
+                  </span>
+                )}
+              </div>
+              <button type="button" onClick={() => remove(i)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--danger)', padding: '0.1rem' }}>
+                <Trash2 size={14} />
+              </button>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+              {fields.map(f => (
+                <div key={f.key}>
+                  {f.type === 'textarea' ? (
+                    <textarea
+                      className="form-control" rows={2}
+                      value={item[f.key] || ''} maxLength={f.max || 200}
+                      onChange={e => update(i, f.key, e.target.value)}
+                      placeholder={f.placeholder}
+                      style={{ resize: 'none', fontSize: '0.825rem' }}
+                    />
+                  ) : (
+                    <input
+                      type={f.type || 'text'} className="form-control"
+                      value={item[f.key] || ''} maxLength={f.max || 100}
+                      onChange={e => update(i, f.key, e.target.value)}
+                      placeholder={f.placeholder}
+                      style={{ fontSize: '0.825rem' }}
+                    />
+                  )}
+                  {f.max && <CharCount value={item[f.key]} max={f.max} />}
+                </div>
+              ))}
+            </div>
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-            {fields.map(f => (
-              f.type === 'textarea' ? (
-                <textarea
-                  key={f.key} className="form-control" rows={2}
-                  value={item[f.key] || ''} maxLength={f.max || 200}
-                  onChange={e => update(i, f.key, e.target.value)}
-                  placeholder={f.placeholder}
-                  style={{ resize: 'none', fontSize: '0.825rem' }}
-                />
-              ) : (
-                <input
-                  key={f.key} type={f.type || 'text'} className="form-control"
-                  value={item[f.key] || ''} maxLength={f.max || 100}
-                  onChange={e => update(i, f.key, e.target.value)}
-                  placeholder={f.placeholder}
-                  style={{ fontSize: '0.825rem' }}
-                />
-              )
-            ))}
-          </div>
-        </div>
-      ))}
-      {items.length < maxItems ? (
-        <button
-          type="button" className="btn btn-secondary btn-sm"
-          onClick={add}
-          style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', width: 'fit-content' }}
-        >
+        );
+      })}
+      {canAdd ? (
+        <button type="button" className="btn btn-secondary btn-sm" onClick={add} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', width: 'fit-content' }}>
           <Plus size={14} /> {addLabel}
         </button>
-      ) : limitNote ? (
+      ) : (
         <p style={{ margin: 0, fontSize: '0.775rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-          <Lock size={12} /> {limitNote}
+          <Lock size={12} /> Maximum {totalLimit} bejegyzés engedélyezett
         </p>
-      ) : null}
+      )}
     </div>
   );
 }
 
 function ServicesEditor({ content, onChange, isPremium, tradeId }) {
   const items = content.items || [];
-  const maxItems = isPremium ? 15 : 3;
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-      <ListEditor
-        items={items}
-        onChange={next => onChange({ ...content, items: next })}
-        addLabel="Szolgáltatás hozzáadása"
-        maxItems={maxItems}
-        limitNote={!isPremium ? 'Ingyenes fiókkal maximum 3 szolgáltatás adható meg. Prémium fiókkal 15.' : null}
-        fields={[
-          { key: 'title',       placeholder: 'Szolgáltatás neve (pl. Belső festés)', max: 80 },
-          { key: 'description', placeholder: 'Rövid leírás (pl. Teljes körű belső festési munkák)', type: 'textarea', max: 200 },
-        ]}
-      />
-    </div>
+    <ListEditor
+      items={items}
+      onChange={next => onChange({ ...content, items: next })}
+      addLabel="Szolgáltatás hozzáadása"
+      totalLimit={8} freeLimit={3} isPremium={isPremium}
+      fields={[
+        { key: 'title',       placeholder: 'Szolgáltatás neve (pl. Belső festés)', max: 80 },
+        { key: 'description', placeholder: 'Rövid leírás (pl. Teljes körű belső festési munkák)', type: 'textarea', max: 200 },
+      ]}
+    />
   );
 }
 
@@ -961,7 +1007,7 @@ function CertificationsEditor({ content, onChange }) {
       items={items}
       onChange={next => onChange({ ...content, items: next })}
       addLabel="Képesítés hozzáadása"
-      maxItems={8}
+      totalLimit={8}
       fields={[
         { key: 'title',  placeholder: 'Képesítés neve (pl. Mesterfestő bizonyítvány)', max: 100 },
         { key: 'issuer', placeholder: 'Kiállító intézmény (pl. MKIK)', max: 100 },
@@ -971,21 +1017,77 @@ function CertificationsEditor({ content, onChange }) {
   );
 }
 
+const PRICE_UNITS = ['m²', 'm³', 'm', 'fm', 'db', 'óra', 'nap', 'kg', 't', 'átalány'];
+
+function normalisePricingContent(content) {
+  const raw = content.items || [];
+  if (!raw.length || raw[0].entries !== undefined) return content;
+  return {
+    ...content,
+    cols: 2,
+    items: raw.map(old => ({
+      title: old.service || '',
+      vat: 'gross',
+      entries: old.price ? [{ label: old.note || '', price: old.price, unit: old.unit || 'm²' }] : [],
+    })),
+  };
+}
+
 function PricingEditor({ content, onChange }) {
-  const items = content.items || [];
+  const norm  = normalisePricingContent(content);
+  const items = norm.items || [];
+
+  const updCards = (next)          => onChange({ ...norm, items: next });
+  const addCard  = ()              => updCards([...items, { title: '', vat: 'gross', entries: [{ label: '', price: '', unit: 'm²' }] }]);
+  const remCard  = (i)             => updCards(items.filter((_, idx) => idx !== i));
+  const patCard  = (i, patch)      => updCards(items.map((it, idx) => idx === i ? { ...it, ...patch } : it));
+  const addEntry = (i)             => patCard(i, { entries: [...(items[i].entries || []), { label: '', price: '', unit: 'm²' }] });
+  const remEntry = (i, j)          => patCard(i, { entries: items[i].entries.filter((_, idx) => idx !== j) });
+  const patEntry = (i, j, patch)   => patCard(i, { entries: items[i].entries.map((e, idx) => idx === j ? { ...e, ...patch } : e) });
+
   return (
-    <ListEditor
-      items={items}
-      onChange={next => onChange({ ...content, items: next })}
-      addLabel="Árkategória hozzáadása"
-      maxItems={10}
-      fields={[
-        { key: 'service', placeholder: 'Szolgáltatás neve (pl. Beltéri festés)', max: 80 },
-        { key: 'price',   placeholder: 'Ár (pl. 1500)', max: 20 },
-        { key: 'unit',    placeholder: 'Egység (pl. Ft/m²)', max: 20 },
-        { key: 'note',    placeholder: 'Megjegyzés (opcionális)', max: 100 },
-      ]}
-    />
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+      {/* Cards */}
+      {items.map((card, i) => (
+        <div key={i} style={{ border: '1px solid var(--border-subtle)', borderRadius: 12, padding: '0.85rem', display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+          <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
+            <input className="form-control form-control-sm" placeholder="Kategória neve (pl. Gipszkarton)" value={card.title || ''} onChange={e => patCard(i, { title: e.target.value })} maxLength={60} style={{ flex: 1 }} />
+            <div style={{ display: 'flex', borderRadius: 8, overflow: 'hidden', border: '1px solid var(--border-subtle)', flexShrink: 0 }}>
+              {[['gross','Bruttó'],['net','Nettó']].map(([v, l]) => (
+                <button key={v} type="button" onClick={() => patCard(i, { vat: v })}
+                  style={{ padding: '0.2rem 0.5rem', fontSize: '0.68rem', fontWeight: 700, border: 'none', cursor: 'pointer', background: (card.vat || 'gross') === v ? 'var(--primary)' : 'transparent', color: (card.vat || 'gross') === v ? '#fff' : 'var(--text-muted)' }}>
+                  {l}
+                </button>
+              ))}
+            </div>
+            <button type="button" onClick={() => remCard(i)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--danger)', padding: '0.2rem', flexShrink: 0 }}>
+              <Trash2 size={14} />
+            </button>
+          </div>
+
+          {(card.entries || []).map((entry, j) => (
+            <div key={j} style={{ display: 'flex', gap: '0.35rem', alignItems: 'center' }}>
+              <input className="form-control form-control-sm" placeholder="Megnevezés (pl. Rakás)" value={entry.label || ''} onChange={e => patEntry(i, j, { label: e.target.value })} maxLength={60} style={{ flex: 2, minWidth: 0 }} />
+              <input className="form-control form-control-sm" placeholder="Ár" value={entry.price || ''} onChange={e => patEntry(i, j, { price: e.target.value.replace(/\D/g, '') })} inputMode="numeric" maxLength={10} style={{ flex: 1, minWidth: 60 }} />
+              <select className="form-control form-control-sm" value={entry.unit || 'm²'} onChange={e => patEntry(i, j, { unit: e.target.value })} style={{ flex: 1, minWidth: 70 }}>
+                {PRICE_UNITS.map(u => <option key={u} value={u}>{u}</option>)}
+              </select>
+              <button type="button" onClick={() => remEntry(i, j)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: '0.2rem', flexShrink: 0 }}>
+                <X size={13} />
+              </button>
+            </div>
+          ))}
+
+          <button type="button" className="btn btn-secondary btn-sm" onClick={() => addEntry(i)} style={{ alignSelf: 'flex-start', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+            <Plus size={12} /> Sor hozzáadása
+          </button>
+        </div>
+      ))}
+
+      <button type="button" className="btn btn-secondary btn-sm" onClick={addCard} disabled={items.length >= 10} style={{ alignSelf: 'flex-start', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+        <Plus size={13} /> Kategória hozzáadása
+      </button>
+    </div>
   );
 }
 
@@ -996,7 +1098,7 @@ function TestimonialsEditor({ content, onChange }) {
       items={items}
       onChange={next => onChange({ ...content, items: next })}
       addLabel="Vélemény hozzáadása"
-      maxItems={8}
+      totalLimit={10}
       fields={[
         { key: 'name', placeholder: 'Ügyfél neve (pl. Kovács Péter)', max: 60 },
         { key: 'text', placeholder: 'Vélemény szövege', type: 'textarea', max: 300 },
@@ -1012,7 +1114,7 @@ function FaqEditor({ content, onChange }) {
       items={items}
       onChange={next => onChange({ ...content, items: next })}
       addLabel="Kérdés hozzáadása"
-      maxItems={10}
+      totalLimit={6}
       fields={[
         { key: 'question', placeholder: 'Kérdés (pl. Adtok garanciát a munkára?)', max: 120 },
         { key: 'answer',   placeholder: 'Válasz', type: 'textarea', max: 300 },
@@ -1021,36 +1123,53 @@ function FaqEditor({ content, onChange }) {
   );
 }
 
-function ContactEditor({ content, onChange }) {
+// Defined outside ContactEditor to prevent unmount-on-render (which kills input focus)
+function ContactPremiumField({ label, isPremium, children }) {
+  return (
+    <div className="form-group" style={{ margin: 0, position: 'relative' }}>
+      <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+        {label}
+        <span style={{ fontSize: '0.62rem', fontWeight: 700, padding: '0.1rem 0.35rem', borderRadius: 99, background: '#fef9c3', color: '#854d0e', border: '1px solid #fde68a' }}>PRÉMIUM</span>
+      </label>
+      <div style={{ position: 'relative' }}>
+        {children}
+        {!isPremium && <div style={{ position: 'absolute', inset: 0, background: 'rgba(255,255,255,0.6)', borderRadius: 6, cursor: 'not-allowed', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Lock size={14} style={{ color: 'var(--text-muted)' }} /></div>}
+      </div>
+    </div>
+  );
+}
+
+function ContactEditor({ content, onChange, isPremium }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+      <div style={{ background: 'var(--bg-subtle)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: '0.6rem 0.85rem', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+        Az Epitünk kapcsolatfelvételi form mindig elérhető. Prémium fiókkal telefon, e-mail és közösségi elérhetőségek is megjelennek.
+      </div>
+
       <div className="form-group" style={{ margin: 0 }}>
         <label className="form-label">E-mail cím</label>
-        <input
-          type="email" className="form-control"
-          value={content.email || ''}
-          onChange={e => onChange({ ...content, email: e.target.value })}
-          placeholder="neve@email.hu"
-        />
+        <input type="email" className="form-control" value={content.email || ''} onChange={e => onChange({ ...content, email: e.target.value })} placeholder="neve@email.hu" />
       </div>
-      <div className="form-group" style={{ margin: 0 }}>
-        <label className="form-label">Telefonszám</label>
-        <input
-          type="tel" className="form-control"
-          value={content.phone || ''}
-          onChange={e => onChange({ ...content, phone: e.target.value })}
-          placeholder="+36 70 123 4567"
-        />
-      </div>
-      <div className="form-group" style={{ margin: 0 }}>
-        <label className="form-label">WhatsApp <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>(opcionális)</span></label>
-        <input
-          type="tel" className="form-control"
-          value={content.whatsapp || ''}
-          onChange={e => onChange({ ...content, whatsapp: e.target.value })}
-          placeholder="+36 70 123 4567"
-        />
-      </div>
+
+      <ContactPremiumField label="Telefonszám" isPremium={isPremium}>
+        <input type="tel" className="form-control" value={content.phone || ''} onChange={e => onChange({ ...content, phone: e.target.value })} onBlur={e => onChange({ ...content, phone: formatHunPhone(e.target.value) })} placeholder="+36 70 123 45 67" disabled={!isPremium} />
+      </ContactPremiumField>
+
+      <ContactPremiumField label="WhatsApp" isPremium={isPremium}>
+        <input type="tel" className="form-control" value={content.whatsapp || ''} onChange={e => onChange({ ...content, whatsapp: e.target.value })} onBlur={e => onChange({ ...content, whatsapp: formatHunPhone(e.target.value) })} placeholder="+36 70 123 45 67" disabled={!isPremium} />
+      </ContactPremiumField>
+
+      <ContactPremiumField label="Viber" isPremium={isPremium}>
+        <input type="tel" className="form-control" value={content.viber || ''} onChange={e => onChange({ ...content, viber: e.target.value })} onBlur={e => onChange({ ...content, viber: formatHunPhone(e.target.value) })} placeholder="+36 70 123 45 67" disabled={!isPremium} />
+      </ContactPremiumField>
+
+      <ContactPremiumField label="TikTok" isPremium={isPremium}>
+        <input type="text" className="form-control" value={content.tiktok || ''} onChange={e => onChange({ ...content, tiktok: e.target.value })} onBlur={e => onChange({ ...content, tiktok: extractSocialHandle(e.target.value, 'tiktok') })} placeholder="@felhasznalonev" disabled={!isPremium} />
+      </ContactPremiumField>
+
+      <ContactPremiumField label="Instagram" isPremium={isPremium}>
+        <input type="text" className="form-control" value={content.instagram || ''} onChange={e => onChange({ ...content, instagram: e.target.value })} onBlur={e => onChange({ ...content, instagram: extractSocialHandle(e.target.value, 'instagram') })} placeholder="@felhasznalonev" disabled={!isPremium} />
+      </ContactPremiumField>
     </div>
   );
 }
@@ -1058,18 +1177,20 @@ function ContactEditor({ content, onChange }) {
 function GalleryEditor({ content, onChange }) {
   const [uploading, setUploading] = useState(false);
   const [uploadErr, setUploadErr] = useState('');
-  const fileRef = useRef(null);
-  const items = content.items || [];
+  const imgRef = useRef(null);
+  const vidRef = useRef(null);
+  const items  = content.items || [];
+  const imgCount = items.filter(i => i.type !== 'video').length;
+  const vidCount = items.filter(i => i.type === 'video').length;
 
-  const handleUpload = async (e) => {
-    const files = Array.from(e.target.files || []);
+  const upload = async (files) => {
     if (!files.length) return;
     setUploading(true);
     setUploadErr('');
     try {
       const fd = new FormData();
       fd.append('type', 'gallery');
-      files.slice(0, 10).forEach(f => fd.append('files', f));
+      files.forEach(f => fd.append('files', f));
       const r = await fetch('/api/website/upload', { method: 'POST', body: fd });
       const d = await r.json();
       if (!r.ok) { setUploadErr(d.error || 'Feltöltési hiba'); return; }
@@ -1078,8 +1199,29 @@ function GalleryEditor({ content, onChange }) {
       setUploadErr('Hálózati hiba');
     } finally {
       setUploading(false);
-      if (fileRef.current) fileRef.current.value = '';
+      if (imgRef.current) imgRef.current.value = '';
+      if (vidRef.current) vidRef.current.value = '';
     }
+  };
+
+  const handleImgUpload = (e) => upload(Array.from(e.target.files || []).slice(0, 10));
+
+  const handleVidUpload = async (e) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+    for (const f of files) {
+      if (f.size > 25 * 1024 * 1024) { setUploadErr(`"${f.name}" túl nagy (max 25 MB)`); return; }
+      const ok = await new Promise(resolve => {
+        const url = URL.createObjectURL(f);
+        const v = document.createElement('video');
+        v.preload = 'metadata';
+        v.onloadedmetadata = () => { URL.revokeObjectURL(url); resolve(v.duration <= 60); };
+        v.onerror = () => { URL.revokeObjectURL(url); resolve(false); };
+        v.src = url;
+      });
+      if (!ok) { setUploadErr(`"${f.name}" túl hosszú (max 1 perc)`); return; }
+    }
+    await upload(files);
   };
 
   const removeItem = async (idx) => {
@@ -1094,61 +1236,99 @@ function GalleryEditor({ content, onChange }) {
     onChange({ ...content, items: items.filter((_, i) => i !== idx) });
   };
 
-  const updateCaption = (idx, caption) => {
+  const updateCaption = (idx, caption) =>
     onChange({ ...content, items: items.map((it, i) => i === idx ? { ...it, caption } : it) });
-  };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
-      {/* Uploaded images grid */}
-      {items.length > 0 && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: '0.5rem' }}>
-          {items.map((item, i) => (
-            <div key={i} style={{ position: 'relative', borderRadius: 10, overflow: 'hidden', border: '1px solid var(--border-subtle)' }}>
+      {items.length > 0 && (() => {
+        const images = items.map((it, i) => ({ ...it, _i: i })).filter(it => it.type !== 'video');
+        const videos = items.map((it, i) => ({ ...it, _i: i })).filter(it => it.type === 'video');
+        const renderCard = (item) => (
+          <div key={item._i} style={{ position: 'relative', borderRadius: 10, overflow: 'hidden', border: '1px solid var(--border-subtle)' }}>
+            {item.type === 'video' ? (
+              <div style={{ width: '100%', aspectRatio: '1', background: '#0f172a', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Video size={28} style={{ color: '#94a3b8' }} />
+              </div>
+            ) : (
               <img src={item.url} alt="" style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', display: 'block' }} />
-              <button
-                type="button"
-                onClick={() => removeItem(i)}
-                style={{
-                  position: 'absolute', top: 4, right: 4,
-                  background: 'rgba(0,0,0,0.6)', border: 'none', borderRadius: 6,
-                  width: 22, height: 22, cursor: 'pointer', color: 'white',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                }}
-              >
-                <X size={12} />
-              </button>
-              <input
-                type="text"
-                value={item.caption || ''}
-                onChange={e => updateCaption(i, e.target.value)}
-                placeholder="Felirat…"
-                style={{
-                  width: '100%', border: 'none', borderTop: '1px solid var(--border-subtle)',
-                  background: 'var(--bg-subtle)', fontSize: '0.72rem', padding: '0.3rem 0.4rem',
-                  boxSizing: 'border-box',
-                }}
-              />
-            </div>
-          ))}
-        </div>
-      )}
+            )}
+            <button type="button" onClick={() => removeItem(item._i)} style={{ position: 'absolute', top: 4, right: 4, background: 'rgba(0,0,0,0.6)', border: 'none', borderRadius: 6, width: 22, height: 22, cursor: 'pointer', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <X size={12} />
+            </button>
+            <input type="text" value={item.caption || ''} onChange={e => updateCaption(item._i, e.target.value)} placeholder="Felirat…" style={{ width: '100%', border: 'none', borderTop: '1px solid var(--border-subtle)', background: 'var(--bg-subtle)', fontSize: '0.72rem', padding: '0.3rem 0.4rem', boxSizing: 'border-box' }} />
+          </div>
+        );
+        return (
+          <>
+            {images.length > 0 && <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(110px, 1fr))', gap: '0.5rem' }}>{images.map(renderCard)}</div>}
+            {images.length > 0 && videos.length > 0 && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', margin: '0.25rem 0' }}>
+                <div style={{ flex: 1, height: 1, background: 'var(--border-subtle)' }} />
+                <span style={{ fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Videók</span>
+                <div style={{ flex: 1, height: 1, background: 'var(--border-subtle)' }} />
+              </div>
+            )}
+            {videos.length > 0 && <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(110px, 1fr))', gap: '0.5rem' }}>{videos.map(renderCard)}</div>}
+          </>
+        );
+      })()}
 
-      <div>
-        <input type="file" ref={fileRef} accept="image/*" multiple style={{ display: 'none' }} onChange={handleUpload} />
-        <button
-          type="button" className="btn btn-secondary btn-sm"
-          onClick={() => fileRef.current?.click()}
-          disabled={uploading || items.length >= 20}
-          style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}
-        >
-          {uploading ? <><Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> Feltöltés…</> : <><Upload size={13} /> Képek hozzáadása</>}
-        </button>
-        <p style={{ margin: '0.25rem 0 0', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-          Max 20 kép · JPG, PNG, WebP · Egyszerre 10 tölthető fel · Automatikusan WebP-vé konvertálva
-        </p>
+      <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+        <div>
+          <input type="file" ref={imgRef} accept="image/*" multiple style={{ display: 'none' }} onChange={handleImgUpload} />
+          <button type="button" className="btn btn-secondary btn-sm" onClick={() => imgRef.current?.click()} disabled={uploading || imgCount >= 25} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+            {uploading ? <Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> : <Upload size={13} />}
+            Képek ({imgCount}/25)
+          </button>
+        </div>
+        <div>
+          <input type="file" ref={vidRef} accept="video/mp4,video/quicktime,video/webm" style={{ display: 'none' }} onChange={handleVidUpload} />
+          <button type="button" className="btn btn-secondary btn-sm" onClick={() => vidRef.current?.click()} disabled={uploading || vidCount >= 10} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+            {uploading ? <Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> : <Video size={13} />}
+            Videók ({vidCount}/10)
+          </button>
+        </div>
       </div>
+      <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+        Kép: max 15 MB · JPG, PNG, WebP · Videó: max 25 MB, max 1 perc · MP4, MOV, WebM
+      </p>
       {uploadErr && <p style={{ margin: 0, fontSize: '0.775rem', color: 'var(--danger)' }}>{uploadErr}</p>}
+    </div>
+  );
+}
+
+function BannerEditor({ content, onChange, tradeId }) {
+  const [pickerOpen, setPickerOpen] = useState(false);
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+      <p style={{ margin: 0, fontSize: '0.825rem', color: 'var(--text-muted)' }}>
+        Válassz egy vízszintes képet a szakmádhoz tartozó könyvtárból. Ez jelenik meg a szekciók között díszítőként.
+      </p>
+      {content.image_url ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+          <img src={content.image_url} alt="" style={{ width: '100%', aspectRatio: '3/1', objectFit: 'cover', borderRadius: 10, border: '1px solid var(--border-subtle)' }} />
+          <div style={{ display: 'flex', gap: '0.4rem' }}>
+            <button type="button" className="btn btn-secondary btn-sm" onClick={() => setPickerOpen(true)}>Csere</button>
+            <button type="button" className="btn btn-danger btn-sm" onClick={() => onChange({ ...content, image_id: null, image_url: null })}>
+              <Trash2 size={13} />
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button type="button" className="btn btn-secondary btn-sm" onClick={() => setPickerOpen(true)} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', alignSelf: 'flex-start' }}>
+          <Image size={13} /> Kép kiválasztása
+        </button>
+      )}
+      {pickerOpen && (
+        <ImagePickerModal
+          tradeId={tradeId}
+          selectedImageId={content.image_id}
+          orientation="horizontal"
+          onSelect={img => { onChange({ ...content, image_id: img.id, image_url: img.url }); setPickerOpen(false); }}
+          onClose={() => setPickerOpen(false)}
+        />
+      )}
     </div>
   );
 }
@@ -1161,7 +1341,7 @@ function ServiceAreaEditor({ content, onChange }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
       <p style={{ margin: 0, fontSize: '0.825rem', color: 'var(--text-muted)' }}>
-        Húzd a jelzőt a megfelelő helyre, majd állítsd be a sugarát.
+        Mozgasd a térképet úgy, hogy a narancssárga pont a kívánt helyre essen, majd állítsd be a sugarát.
       </p>
       <ServiceAreaMap
         lat={lat} lng={lng} radiusKm={radius}
@@ -1195,7 +1375,7 @@ function SectionContentEditor({ section, onChange, isPremium, tradeId }) {
     case 'testimonials':   return <TestimonialsEditor content={c} onChange={update} />;
     case 'faq':            return <FaqEditor content={c} onChange={update} />;
     case 'service_area':   return <ServiceAreaEditor content={c} onChange={update} />;
-    case 'contact':        return <ContactEditor content={c} onChange={update} />;
+    case 'contact':        return <ContactEditor content={c} onChange={update} isPremium={isPremium} />;
     default:               return null;
   }
 }
@@ -1205,75 +1385,53 @@ function SectionContentEditor({ section, onChange, isPremium, tradeId }) {
 function SectionCard({ section, isPremium, expanded, onToggleExpand, onChange, tradeId }) {
   const meta = SECTION_META[section.section_type] || {};
   const Icon = meta.icon;
-  const isLocked = !meta.free && !isPremium;
-
-  const handleEnable = (e) => {
-    e.stopPropagation();
-    if (isLocked) return;
-    onChange({ ...section, enabled: !section.enabled });
-  };
+  const isPremiumSection = !meta.free;
+  const hiddenOnPublish = isPremiumSection && !isPremium;
 
   return (
     <div style={{
-      border: `1px solid ${isLocked ? 'var(--border-subtle)' : expanded ? 'var(--primary)' : 'var(--border-subtle)'}`,
+      border: `1px solid ${expanded ? 'var(--primary)' : 'var(--border-subtle)'}`,
       borderRadius: 'var(--radius-lg)',
       overflow: 'hidden',
-      opacity: isLocked ? 0.55 : 1,
     }}>
       {/* Header row */}
       <div
-        onClick={() => !isLocked && onToggleExpand()}
+        onClick={onToggleExpand}
         style={{
           display: 'flex', alignItems: 'center', gap: '0.75rem',
           padding: '0.85rem 1rem',
           background: expanded ? 'var(--primary-bg)' : 'var(--bg-card)',
-          cursor: isLocked ? 'default' : 'pointer',
-          userSelect: 'none',
+          cursor: 'pointer', userSelect: 'none',
         }}
       >
-        <div style={{
-          width: 34, height: 34, borderRadius: 8,
-          background: isLocked ? 'var(--bg-subtle)' : 'var(--primary-bg)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-        }}>
-          {Icon && <Icon size={16} style={{ color: isLocked ? 'var(--text-muted)' : 'var(--primary)' }} />}
+        <div style={{ width: 34, height: 34, borderRadius: 8, background: 'var(--primary-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          {Icon && <Icon size={16} style={{ color: 'var(--primary)' }} />}
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
             <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>{meta.label}</span>
-            {!meta.free && (
+            {isPremiumSection && (
               <span style={{
                 fontSize: '0.65rem', fontWeight: 700, padding: '0.1rem 0.4rem',
                 borderRadius: 'var(--radius-pill)',
-                background: isPremium ? '#fef9c3' : 'var(--bg-subtle)',
-                color: isPremium ? '#854d0e' : 'var(--text-muted)',
-                border: `1px solid ${isPremium ? '#fde68a' : 'var(--border-subtle)'}`,
-              }}>
-                {isPremium ? 'PRÉMIUM' : 'PRÉMIUM'}
+                background: '#fef9c3', color: '#854d0e', border: '1px solid #fde68a',
+              }}>PRÉMIUM</span>
+            )}
+            {hiddenOnPublish && (
+              <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                – nem jelenik meg az élő oldalon
               </span>
             )}
-            {isLocked && <Lock size={12} style={{ color: 'var(--text-muted)' }} />}
           </div>
           <p style={{ margin: 0, fontSize: '0.775rem', color: 'var(--text-muted)' }}>{meta.desc}</p>
         </div>
-
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexShrink: 0 }}>
-          {/* Enable toggle */}
-          <PillToggle
-            on={section.enabled}
-            onChange={handleEnable}
-            disabled={isLocked}
-          />
-          {!isLocked && (
-            expanded
-              ? <ChevronDown size={16} style={{ color: 'var(--text-muted)' }} />
-              : <ChevronRight size={16} style={{ color: 'var(--text-muted)' }} />
-          )}
+          <PillToggle on={section.enabled} onChange={e => { e.stopPropagation(); onChange({ ...section, enabled: !section.enabled }); }} />
+          {expanded ? <ChevronDown size={16} style={{ color: 'var(--text-muted)' }} /> : <ChevronRight size={16} style={{ color: 'var(--text-muted)' }} />}
         </div>
       </div>
 
-      {/* Expanded editor */}
-      {expanded && !isLocked && (
+      {expanded && (
         <div style={{ padding: '1rem', background: 'var(--bg-base)', borderTop: '1px solid var(--border-subtle)' }}>
           <SectionContentEditor section={section} onChange={onChange} isPremium={isPremium} tradeId={tradeId} />
         </div>
@@ -1341,10 +1499,10 @@ function QrModal({ url, onClose }) {
 
 // ---- builder editor ---------------------------------------------------------
 
-function BuilderEditor({ website: initialWebsite, sections: initialSections }) {
+function BuilderEditor({ website: initialWebsite, sections: initialSections, userEmail }) {
   const [website, setWebsite] = useState(initialWebsite);
   const [sections, setSections] = useState(initialSections);
-  const [isPremium, setIsPremium] = useState(false);
+  const [showPublishWarning, setShowPublishWarning] = useState(false);
   const [expandedSection, setExpandedSection] = useState(null);
   const [saving, setSaving] = useState(false);
   const [publishing, setPublishing] = useState(false);
@@ -1355,6 +1513,8 @@ function BuilderEditor({ website: initialWebsite, sections: initialSections }) {
   const [activeTab, setActiveTab] = useState('sections'); // 'sections' | 'design' | 'leads'
 
   const [theme, setTheme] = useState(website.theme || { color_scheme: 'classic', typography: 'modern' });
+  const [bannerPickerOpen, setBannerPickerOpen]   = useState(false);
+  const [bannerPickerIndex, setBannerPickerIndex] = useState(0);
 
   const updateTheme = async (next) => {
     setTheme(next);
@@ -1366,6 +1526,23 @@ function BuilderEditor({ website: initialWebsite, sections: initialSections }) {
       });
       if (r.ok) showToast('Design mentve');
     } catch { /* silent */ }
+  };
+
+  const isTestUser = userEmail === 'testo@testo.com';
+  const [testPremium, setTestPremium] = useState(website.is_premium || false);
+  const isPremium = isTestUser ? testPremium : (website.is_premium || false);
+
+  const toggleTestPremium = async () => {
+    const next = !testPremium;
+    setTestPremium(next);
+    setWebsite(w => ({ ...w, is_premium: next }));
+    try {
+      await fetch('/api/website', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_premium: next }),
+      });
+    } catch { /* silent — migration may not be applied yet */ }
   };
 
   const dirty = useRef(false);
@@ -1421,7 +1598,13 @@ function BuilderEditor({ website: initialWebsite, sections: initialSections }) {
     }
   };
 
+  const handlePublishClick = () => {
+    if (!isPremium) { setShowPublishWarning(true); return; }
+    handlePublish();
+  };
+
   const handlePublish = async () => {
+    setShowPublishWarning(false);
     setPublishing(true);
     setError('');
     try {
@@ -1513,7 +1696,7 @@ function BuilderEditor({ website: initialWebsite, sections: initialSections }) {
               Vázlat
             </button>
           ) : (
-            <button type="button" onClick={handlePublish} disabled={publishing} className="btn btn-primary btn-sm" style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+            <button type="button" onClick={handlePublishClick} disabled={publishing} className="btn btn-primary btn-sm" style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
               {publishing ? <Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> : <Globe size={13} />}
               Közzétesz
             </button>
@@ -1574,37 +1757,24 @@ function BuilderEditor({ website: initialWebsite, sections: initialSections }) {
       {/* ---- Sections tab ---- */}
       {activeTab === 'sections' && (
         <>
-          {/* Premium / Freemium toggle */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'var(--bg-card)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: '0.75rem 1rem', marginBottom: '1.25rem' }}>
-            <div>
-              <p style={{ margin: 0, fontWeight: 700, fontSize: '0.875rem' }}>{isPremium ? 'Prémium nézet' : 'Ingyenes nézet'}</p>
-              <p style={{ margin: 0, fontSize: '0.775rem', color: 'var(--text-muted)' }}>{isPremium ? 'Összes szekció szerkeszthető' : 'Csak az ingyenes szekciók láthatók'}</p>
+          {isTestUser && (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#fdf2f8', border: '1px solid #f0abfc', borderRadius: 'var(--radius-md)', padding: '0.5rem 0.85rem', marginBottom: '0.75rem' }}>
+              <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#86198f' }}>🧪 TEST: {isPremium ? 'Prémium' : 'Ingyenes'}</span>
+              <PillToggle on={testPremium} onChange={toggleTestPremium} />
             </div>
-            <PillToggle on={isPremium} onChange={() => setIsPremium(p => !p)} size="lg" />
-          </div>
-
-          {/* Section cards */}
+          )}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-            {sections
-              .filter(s => isPremium || SECTION_META[s.section_type]?.free)
-              .map(section => (
-                <SectionCard
-                  key={section.section_type}
-                  section={section}
-                  isPremium={isPremium}
-                  expanded={expandedSection === section.section_type}
-                  onToggleExpand={() => setExpandedSection(prev => prev === section.section_type ? null : section.section_type)}
-                  onChange={updateSection}
-                  tradeId={website.trade_id}
-                />
-              ))
-            }
-            {!isPremium && (
-              <div style={{ background: 'var(--bg-subtle)', border: '1px dashed var(--border-subtle)', borderRadius: 'var(--radius-lg)', padding: '1rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.825rem' }}>
-                <Lock size={16} style={{ display: 'block', margin: '0 auto 0.35rem' }} />
-                <strong>6 prémium szekció</strong> – Kapcsold be a prémium nézetet a megtekintéshez
-              </div>
-            )}
+            {sections.map(section => (
+              <SectionCard
+                key={section.section_type}
+                section={section}
+                isPremium={isPremium}
+                expanded={expandedSection === section.section_type}
+                onToggleExpand={() => setExpandedSection(prev => prev === section.section_type ? null : section.section_type)}
+                onChange={updateSection}
+                tradeId={website.trade_id}
+              />
+            ))}
           </div>
         </>
       )}
@@ -1684,6 +1854,55 @@ function BuilderEditor({ website: initialWebsite, sections: initialSections }) {
             </div>
           </div>
 
+          {/* Banner images */}
+          <div>
+            <p style={{ margin: '0 0 0.35rem', fontWeight: 700, fontSize: '0.875rem' }}>Banner képek</p>
+            <p style={{ margin: '0 0 0.85rem', fontSize: '0.775rem', color: 'var(--text-muted)' }}>
+              {isPremium ? 'Prémium: 2 kép — 3 szekció · banner · 3 szekció · banner · 3 szekció' : 'Ingyenes: 1 kép — 2 szekció · banner · 2 szekció'}
+            </p>
+            {[...Array(isPremium ? 2 : 1)].map((_, idx) => {
+              const banner = theme.banners?.[idx];
+              return (
+                <div key={idx} style={{ marginBottom: '0.85rem' }}>
+                  <p style={{ margin: '0 0 0.4rem', fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    {idx + 1}. banner
+                  </p>
+                  {banner?.image_url ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                      <img src={banner.image_url} alt="" style={{ width: '100%', aspectRatio: '3/1', objectFit: 'cover', borderRadius: 8, border: '1px solid var(--border-subtle)' }} />
+                      <div style={{ display: 'flex', gap: '0.4rem' }}>
+                        <button type="button" className="btn btn-secondary btn-sm" onClick={() => { setBannerPickerIndex(idx); setBannerPickerOpen(true); }}>Csere</button>
+                        <button type="button" className="btn btn-danger btn-sm" onClick={() => {
+                          const next = [...(theme.banners || [])];
+                          next[idx] = null;
+                          updateTheme({ ...theme, banners: next });
+                        }}><Trash2 size={13} /></button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button type="button" className="btn btn-secondary btn-sm" onClick={() => { setBannerPickerIndex(idx); setBannerPickerOpen(true); }} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                      <Image size={13} /> Kép kiválasztása
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+            {bannerPickerOpen && (
+              <ImagePickerModal
+                tradeId={website.trade_id}
+                selectedImageId={theme.banners?.[bannerPickerIndex]?.image_id}
+                orientation="horizontal"
+                onSelect={img => {
+                  const next = [...(theme.banners || [null, null])];
+                  next[bannerPickerIndex] = { image_id: img.id, image_url: img.url };
+                  updateTheme({ ...theme, banners: next });
+                  setBannerPickerOpen(false);
+                }}
+                onClose={() => setBannerPickerOpen(false)}
+              />
+            )}
+          </div>
+
         </div>
       )}
 
@@ -1691,6 +1910,32 @@ function BuilderEditor({ website: initialWebsite, sections: initialSections }) {
       <p style={{ marginTop: '1.5rem', fontSize: '0.775rem', color: 'var(--text-muted)', textAlign: 'center' }}>
         <a href={publicUrl} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary)' }}>epitunk.hu/szakemberek/{website.slug}</a>
       </p>
+
+      {/* Free user publish warning modal */}
+      {showPublishWarning && (
+        <>
+          <div onClick={() => setShowPublishWarning(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, backdropFilter: 'blur(3px)' }} />
+          <div style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', zIndex: 1001, width: 'min(440px, 90vw)', background: 'var(--bg-card)', borderRadius: 'var(--radius-lg)', boxShadow: '0 24px 60px rgba(0,0,0,0.25)', padding: '1.5rem' }}>
+            <h3 style={{ margin: '0 0 0.75rem', fontSize: '1.05rem', fontWeight: 800 }}>Figyelem – Ingyenes csomag</h3>
+            <p style={{ margin: '0 0 0.5rem', fontSize: '0.875rem', color: 'var(--text-muted)', lineHeight: 1.6 }}>
+              Jelenleg az <strong>ingyenes csomagot</strong> használod. Közzététel esetén csak az ingyenes szekciók jelennek meg az élő oldalon:
+            </p>
+            <p style={{ margin: '0 0 1rem', fontSize: '0.825rem', color: 'var(--text)', background: 'var(--bg-subtle)', borderRadius: 'var(--radius-md)', padding: '0.6rem 0.85rem', lineHeight: 1.7 }}>
+              ✓ Fejléc · Rólam · Szolgáltatások · Kapcsolat
+            </p>
+            <p style={{ margin: '0 0 1.25rem', fontSize: '0.875rem', color: 'var(--text-muted)', lineHeight: 1.6 }}>
+              Az összes szekció megjelenítéséhez válts <strong>Prémium</strong> csomagra. A tartalmaid megmaradnak – bármikor aktiválhatod.
+            </p>
+            <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
+              <button type="button" className="btn btn-secondary" onClick={() => setShowPublishWarning(false)}>Mégse</button>
+              <button type="button" className="btn btn-primary" onClick={handlePublish} disabled={publishing} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                {publishing ? <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> : <Globe size={14} />}
+                Közzéteszem így is
+              </button>
+            </div>
+          </div>
+        </>
+      )}
 
       {/* Auto-save toast */}
       {toast && (
@@ -1764,6 +2009,7 @@ export default function WeboldaPage() {
     <BuilderEditor
       website={website}
       sections={sections}
+      userEmail={currentUser?.email}
     />
   );
 }

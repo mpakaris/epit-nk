@@ -142,6 +142,9 @@ export default function ImageLibraryPage() {
     setLoading(false);
   };
 
+  // When showing all, count generic (no trade) images locally
+  const genericCount = images.filter(img => !img.trade_id).length;
+
   const handleFilterChange = (val) => {
     setFilterTrade(val);
     loadImages(val);
@@ -262,6 +265,18 @@ export default function ImageLibraryPage() {
             }}
           >
             All ({images.length})
+          </button>
+          <button
+            type="button"
+            onClick={() => handleFilterChange('generic')}
+            style={{
+              padding: '0.25rem 0.65rem', borderRadius: 99, fontSize: '0.8rem', cursor: 'pointer',
+              background: filterTrade === 'generic' ? 'var(--primary)' : 'var(--bg-subtle)',
+              color: filterTrade === 'generic' ? 'white' : 'var(--text-muted)',
+              border: 'none', fontWeight: filterTrade === 'generic' ? 700 : 400,
+            }}
+          >
+            Általános ({filterTrade === 'generic' ? images.length : genericCount})
           </button>
           {trades.map(t => {
             const count = images.filter(img => img.trade_id === t.id).length;
