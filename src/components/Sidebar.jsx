@@ -7,7 +7,7 @@ import { useApp } from '@/context/AppContext';
 import {
   Building2, LayoutDashboard, FolderKanban, Users, BookUser,
   FileText, Calendar, User, LogOut, KeyRound, ShieldAlert,
-  ChevronLeft, ChevronRight, Eye, X, Menu, ClipboardList, Ruler, LayoutTemplate, Lightbulb,
+  ChevronLeft, ChevronRight, Eye, X, Menu, ClipboardList, Ruler, Lightbulb,
   ChevronDown
 } from 'lucide-react';
 
@@ -25,7 +25,6 @@ function buildNavItems(isSuperAdmin, isAdmin, impersonating) {
       { href: '/projektek',          label: 'Dashboard',    icon: LayoutDashboard, exact: true },
       { href: '/felmeres',           label: 'Felmérések',   icon: Ruler },
       { href: '/ajanlatok',          label: 'Ajánlatok',    icon: FileText },
-      { href: '/sablonok',           label: 'Sablonok',     icon: LayoutTemplate, sub: true },
       { href: '/admin/projektek',    label: 'Projektek',    icon: FolderKanban },
       { href: '/naptar',             label: 'Naptár',       icon: Calendar },
       { href: '/ugyfelek',           label: 'Ügyfelek',     icon: BookUser },

@@ -26,7 +26,7 @@ export async function POST(request, { params }) {
   const ctx = await getCtx(surveyId);
   if (ctx.err) return Response.json({ error: ctx.err }, { status: ctx.status });
 
-  const { name, description, size_m2, height_m, window_count, door_count, sort_order } = await request.json();
+  const { name, description, size_m2, height_m, perimeter_m, window_count, door_count, sort_order } = await request.json();
   if (!name?.trim()) return Response.json({ error: 'A hely neve kötelező' }, { status: 400 });
 
   const entryInsert = {
@@ -36,6 +36,7 @@ export async function POST(request, { params }) {
     description: description?.trim() || null,
     size_m2:      size_m2      != null && size_m2      !== '' ? Number(size_m2)      : null,
     height_m:     height_m     != null && height_m     !== '' ? Number(height_m)     : null,
+    perimeter_m:  perimeter_m  != null && perimeter_m  !== '' ? Number(perimeter_m)  : null,
     window_count: window_count != null && window_count !== '' ? Number(window_count) : 0,
     door_count:   door_count   != null && door_count   !== '' ? Number(door_count)   : 0,
     sort_order: sort_order ?? 0,

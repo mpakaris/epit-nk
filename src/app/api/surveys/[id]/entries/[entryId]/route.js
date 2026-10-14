@@ -27,7 +27,7 @@ export async function PATCH(request, { params }) {
   if (ctx.err) return Response.json({ error: ctx.err }, { status: ctx.status });
 
   const fields = await request.json();
-  const allowed = ['name', 'description', 'size_m2', 'height_m', 'window_count', 'door_count', 'sort_order'];
+  const allowed = ['name', 'description', 'size_m2', 'height_m', 'perimeter_m', 'window_count', 'door_count', 'sort_order'];
   const update = {};
   for (const k of allowed) if (k in fields) update[k] = fields[k];
   if (update.name !== undefined) update.name = update.name?.trim();

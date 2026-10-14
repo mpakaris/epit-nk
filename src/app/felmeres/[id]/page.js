@@ -82,6 +82,44 @@ function MediaGrid({ media }) {
 }
 
 // ── Main page ─────────────────────────────────────────────────────────────────
+const PILL = { fontSize: '0.75rem', fontWeight: 700, padding: '0.15rem 0.5rem', borderRadius: 'var(--radius-pill)', background: 'var(--bg-subtle)', border: '1px solid var(--border-subtle)', color: 'var(--text-secondary)', display: 'inline-flex', alignItems: 'center', gap: '0.2rem' };
+
+const WINDOW_M2 = 1.2 * 1.2;
+const DOOR_M2   = 0.9 * 2.1;
+
+function AreaSummary({ entry }) {
+  const { size_m2, height_m, perimeter_m, window_count, door_count } = entry;
+  const hasFloor = size_m2 != null;
+  const hasWall  = height_m != null && perimeter_m != null;
+  if (!hasFloor && !hasWall) return null;
+
+  const windowArea = (window_count || 0) * WINDOW_M2;
+  const doorArea   = (door_count   || 0) * DOOR_M2;
+  const openings   = windowArea + doorArea;
+  const grossWall  = hasWall ? perimeter_m * height_m : null;
+  const netWall    = grossWall != null ? Math.max(0, grossWall - openings) : null;
+
+  const fmt = v => Number(v).toFixed(2).replace('.', ',') + ' m²';
+  const Row = ({ label, value, sub, bold }) => (
+    <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.5rem', padding: '0.2rem 0' }}>
+      <span style={{ fontSize: '0.78rem', color: sub ? 'var(--text-muted)' : 'var(--text-secondary)', fontWeight: sub ? 400 : 600, paddingLeft: sub ? '0.75rem' : 0 }}>{label}</span>
+      <span style={{ fontSize: '0.78rem', fontWeight: bold ? 800 : 600, color: bold ? 'var(--text-primary)' : 'var(--text-secondary)', fontFamily: 'var(--font-mono)' }}>{value}</span>
+    </div>
+  );
+
+  return (
+    <div style={{ background: 'var(--bg-subtle)', borderRadius: 'var(--radius-md)', padding: '0.65rem 0.85rem', marginTop: '0.65rem' }}>
+      <div style={{ fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', marginBottom: '0.35rem' }}>Területek</div>
+      {hasFloor && <Row label="Padló / Mennyezet" value={fmt(size_m2)} />}
+      {grossWall != null && <Row label="Falfelület (bruttó)" value={fmt(grossWall)} />}
+      {openings > 0 && <Row label={`Kivonások (${window_count || 0} ablak + ${door_count || 0} ajtó)`} value={`− ${fmt(openings)}`} sub />}
+      {netWall != null && <Row label="Falfelület (nettó)" value={fmt(netWall)} bold />}
+      {!hasWall && openings > 0 && <Row label="Nyílások összesen" value={fmt(openings)} sub />}
+      <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: '0.3rem' }}>Ablak: 1,2×1,2 m · Ajtó: 0,9×2,1 m</div>
+    </div>
+  );
+}
+
 export default function SurveyDetailPage() {
   const { id } = useParams();
   const router = useRouter();
@@ -257,11 +295,10 @@ export default function SurveyDetailPage() {
                 <div style={{ flex: 1 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
                     <span style={{ fontWeight: 800, fontSize: '1rem', color: 'var(--text-primary)' }}>{entry.name}</span>
-                    {entry.size_m2 != null && (
-                      <span style={{ fontSize: '0.75rem', fontWeight: 700, padding: '0.15rem 0.5rem', borderRadius: 'var(--radius-pill)', background: 'var(--bg-subtle)', border: '1px solid var(--border-subtle)', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
-                        <Ruler size={11} />{entry.size_m2} m²
-                      </span>
-                    )}
+                    {entry.size_m2   != null && <span style={PILL}><Ruler size={11} />{entry.size_m2} m²</span>}
+                    {entry.height_m  != null && <span style={PILL}>{entry.height_m} m mag.</span>}
+                    {entry.window_count > 0  && <span style={PILL}>{entry.window_count} ablak</span>}
+                    {entry.door_count   > 0  && <span style={PILL}>{entry.door_count} ajtó</span>}
                     {entry.created_by_name && (
                       <span style={{ fontSize: '0.7rem', fontWeight: 700, padding: '0.1rem 0.45rem', borderRadius: 'var(--radius-pill)', background: entry.created_by === currentUser?.id ? 'var(--accent-light)' : 'var(--bg-subtle)', border: `1px solid ${entry.created_by === currentUser?.id ? 'var(--accent-border)' : 'var(--border-subtle)'}`, color: entry.created_by === currentUser?.id ? 'var(--accent)' : 'var(--text-muted)' }}>
                         {entry.created_by_name}
@@ -271,6 +308,7 @@ export default function SurveyDetailPage() {
                   {entry.description && (
                     <p style={{ marginTop: '0.3rem', fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.55, whiteSpace: 'pre-wrap' }}>{entry.description}</p>
                   )}
+                  <AreaSummary entry={entry} />
                 </div>
               </div>
               {entry.media?.length > 0 && (

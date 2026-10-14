@@ -38,8 +38,6 @@ export function AppProvider({ children }) {
   const [surveyLayoutsBySurvey, setSurveyLayoutsBySurvey] = useState({});
   const [surveyDrawingsBySurvey, setSurveyDrawingsBySurvey] = useState({});
 
-  // Templates
-  const [templates, setTemplates] = useState([]);
 
   // Diary — keyed by project_id, loaded on demand
   const [diaryEntriesByProject, setDiaryEntriesByProject] = useState({});
@@ -228,7 +226,7 @@ export function AppProvider({ children }) {
           setAllMemberships(d.allMemberships || []);
           setDataReady(true);
         }
-        // When in god mode, also fetch entity-scoped data (surveys, templates, projectRooms)
+        // When in god mode, also fetch entity-scoped data (surveys, projectRooms)
         // /api/entity/data reads the god_mode_entity cookie to determine the entity
         const godEntityId = typeof document !== 'undefined'
           ? document.cookie.match(/god_mode_entity=([a-f0-9-]+)/)?.[1]
@@ -238,13 +236,12 @@ export function AppProvider({ children }) {
           if (entityRes.ok) {
             const d = await entityRes.json();
             setSurveys(d.surveys || []);
-            setTemplates(d.templates || []);
             setProjectRooms(d.projectRooms || []);
           }
         } else {
           // Leaving god mode — clear entity-scoped data
           setSurveys([]);
-          setTemplates([]);
+
           setProjectRooms([]);
         }
         return;
@@ -262,7 +259,6 @@ export function AppProvider({ children }) {
         setQuoteEntries(d.quoteEntries);
         setQuoteSections(d.quoteSections || []);
         setSurveys(d.surveys || []);
-        setTemplates(d.templates || []);
         setProjectRooms(d.projectRooms || []);
         setDataReady(true);
       }
@@ -367,11 +363,10 @@ export function AppProvider({ children }) {
     setImpersonating(impersonatingProfile);
     if (activeEntityId) {
       document.cookie = `god_mode_entity=${activeEntityId}; path=/; SameSite=Lax`;
-      // Fetch entity-scoped data immediately (surveys, templates, projectRooms)
+      // Fetch entity-scoped data immediately (surveys, projectRooms)
       fetch('/api/entity/data').then(r => r.ok ? r.json() : null).then(d => {
         if (!d) return;
         setSurveys(d.surveys || []);
-        setTemplates(d.templates || []);
         setProjectRooms(d.projectRooms || []);
       }).catch(() => {});
     }
@@ -383,7 +378,6 @@ export function AppProvider({ children }) {
     setImpersonating(null);
     document.cookie = 'god_mode_entity=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
     setSurveys([]);
-    setTemplates([]);
     setProjectRooms([]);
     router.push('/superadmin');
   };
@@ -417,7 +411,6 @@ export function AppProvider({ children }) {
     fetch('/api/entity/data').then(r => r.ok ? r.json() : null).then(d => {
       if (!d) return;
       setSurveys(d.surveys || []);
-      setTemplates(d.templates || []);
       setProjectRooms(d.projectRooms || []);
     }).catch(() => {});
   };
@@ -1003,49 +996,6 @@ export function AppProvider({ children }) {
     }));
   };
 
-  // ---- Templates --------------------------------------------------------------
-
-  const createTemplate = async ({ name, title, location, work_type, description, tax_percent, sections = [], entityId: entityIdOverride }) => {
-    if (!isAdmin) throw new Error('Csak adminisztrátor hozhat létre sablont!');
-    const res = await fetch('/api/templates', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, title, location, work_type, description, tax_percent, sections, entity_id: entityIdOverride || effectiveEntityId }),
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Hiba a sablon mentésekor');
-    setTemplates(prev => [data.template, ...prev]);
-    return data.template;
-  };
-
-  const updateTemplate = async (templateId, { name, title, location, work_type, description, tax_percent, sections }) => {
-    if (!isAdmin) throw new Error('Csak adminisztrátor módosíthat sablont!');
-    const res = await fetch(`/api/templates/${templateId}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, title, location, work_type, description, tax_percent, sections }),
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Hiba a sablon módosításakor');
-    setTemplates(prev => prev.map(t => t.id === templateId ? data.template : t));
-    return data.template;
-  };
-
-  const deleteTemplate = async (templateId) => {
-    if (!isAdmin) throw new Error('Csak adminisztrátor törölhet sablont!');
-    const res = await fetch(`/api/templates/${templateId}`, { method: 'DELETE' });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Hiba a sablon törlésekor');
-    setTemplates(prev => prev.filter(t => t.id !== templateId));
-  };
-
-  const fetchTemplateDetail = async (templateId) => {
-    const res = await fetch(`/api/templates/${templateId}`);
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Hiba a sablon betöltésekor');
-    return data; // { template, sections, entries }
-  };
-
   // ---- Quotes -----------------------------------------------------------------
 
   const createQuote = async ({ title, location, workType, description, startDate, endDate, clientId, sharedWith = [], taxPercent = 27, entityId: entityIdOverride, surveyId }) => {
@@ -1445,12 +1395,6 @@ export function AppProvider({ children }) {
         createSurveyEntry,
         updateSurveyEntry,
         deleteSurveyEntry,
-        // Templates
-        templates,
-        createTemplate,
-        updateTemplate,
-        deleteTemplate,
-        fetchTemplateDetail,
         // Project rooms
         projectRooms,
         createProjectRoom,

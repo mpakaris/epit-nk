@@ -141,14 +141,58 @@ function MediaGrid({ media, onDelete }) {
   );
 }
 
+const PILL = { fontSize: '0.75rem', fontWeight: 700, padding: '0.15rem 0.5rem', borderRadius: 'var(--radius-pill)', background: 'var(--bg-subtle)', border: '1px solid var(--border-subtle)', color: 'var(--text-secondary)', display: 'inline-flex', alignItems: 'center', gap: '0.2rem' };
+function EntryPill({ label, icon }) { return <span style={PILL}>{icon}{label}</span>; }
+
+// Standard European opening sizes
+const WINDOW_M2 = 1.2 * 1.2; // 1.44 m²  (1.2 × 1.2 m)
+const DOOR_M2   = 0.9 * 2.1; // 1.89 m²  (0.9 × 2.1 m)
+
+function AreaSummary({ entry }) {
+  const { size_m2, height_m, perimeter_m, window_count, door_count } = entry;
+  const hasFloor = size_m2 != null;
+  const hasWall  = height_m != null && perimeter_m != null;
+  if (!hasFloor && !hasWall) return null;
+
+  const windowArea  = (window_count || 0) * WINDOW_M2;
+  const doorArea    = (door_count   || 0) * DOOR_M2;
+  const openings    = windowArea + doorArea;
+  const grossWall   = hasWall ? perimeter_m * height_m : null;
+  const netWall     = grossWall != null ? Math.max(0, grossWall - openings) : null;
+
+  const fmt = v => Number(v).toFixed(2).replace('.', ',') + ' m²';
+
+  const Row = ({ label, value, sub, bold }) => (
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '0.5rem', padding: '0.2rem 0' }}>
+      <span style={{ fontSize: '0.78rem', color: sub ? 'var(--text-muted)' : 'var(--text-secondary)', fontWeight: sub ? 400 : 600, paddingLeft: sub ? '0.75rem' : 0 }}>{label}</span>
+      <span style={{ fontSize: '0.78rem', fontWeight: bold ? 800 : 600, color: bold ? 'var(--text-primary)' : 'var(--text-secondary)', fontFamily: 'var(--font-mono)' }}>{value}</span>
+    </div>
+  );
+
+  return (
+    <div style={{ marginTop: '0.75rem', borderTop: '1px solid var(--border-subtle)', paddingTop: '0.65rem', background: 'var(--bg-subtle)', borderRadius: 'var(--radius-md)', padding: '0.65rem 0.85rem' }}>
+      <div style={{ fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', marginBottom: '0.35rem' }}>Területek</div>
+      {hasFloor && <Row label="Padló / Mennyezet" value={fmt(size_m2)} />}
+      {grossWall != null && <Row label="Falfelület (bruttó)" value={fmt(grossWall)} />}
+      {openings > 0 && <Row label={`Kivonások (${window_count || 0} ablak × ${WINDOW_M2} + ${door_count || 0} ajtó × ${DOOR_M2})`} value={`− ${fmt(openings)}`} sub />}
+      {netWall != null && <Row label="Falfelület (nettó)" value={fmt(netWall)} bold />}
+      {!hasWall && openings > 0 && <Row label="Nyílások összesen" value={fmt(openings)} sub />}
+      <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: '0.3rem' }}>
+        Ablak: 1,2 × 1,2 m · Ajtó: 0,9 × 2,1 m
+      </div>
+    </div>
+  );
+}
+
 function EntryForm({ initial, surveyId, onSave, onCancel }) {
   const { uploadSurveyMedia, deleteSurveyEntry } = useApp();
   const [name, setName]               = useState(initial?.name || '');
   const [description, setDescription] = useState(initial?.description || '');
-  const [sizeM2, setSizeM2]           = useState(initial?.size_m2      != null ? String(initial.size_m2)      : '');
-  const [heightM, setHeightM]         = useState(initial?.height_m     != null ? String(initial.height_m)     : '');
-  const [windowCount, setWindowCount] = useState(initial?.window_count != null ? String(initial.window_count) : '');
-  const [doorCount, setDoorCount]     = useState(initial?.door_count   != null ? String(initial.door_count)   : '');
+  const [sizeM2, setSizeM2]             = useState(initial?.size_m2      != null ? String(initial.size_m2)      : '');
+  const [heightM, setHeightM]           = useState(initial?.height_m     != null ? String(initial.height_m)     : '');
+  const [perimeterM, setPerimeterM]     = useState(initial?.perimeter_m  != null ? String(initial.perimeter_m)  : '');
+  const [windowCount, setWindowCount]   = useState(initial?.window_count != null ? String(initial.window_count) : '');
+  const [doorCount, setDoorCount]       = useState(initial?.door_count   != null ? String(initial.door_count)   : '');
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   const fileInputRef = useRef(null);
@@ -180,6 +224,7 @@ function EntryForm({ initial, surveyId, onSave, onCancel }) {
         description: description.trim() || null,
         size_m2:      sizeM2      ? Number(sizeM2)      : null,
         height_m:     heightM     ? Number(heightM)     : null,
+        perimeter_m:  perimeterM  ? Number(perimeterM)  : null,
         window_count: windowCount ? Number(windowCount) : 0,
         door_count:   doorCount   ? Number(doorCount)   : 0,
       });
@@ -227,6 +272,10 @@ function EntryForm({ initial, surveyId, onSave, onCancel }) {
           <label className="form-label" htmlFor="entry-doors">Ajtók száma</label>
           <input id="entry-doors" type="number" min="0" step="1" className="form-control" value={doorCount} onChange={e => setDoorCount(e.target.value)} placeholder="0" />
         </div>
+      </div>
+      <div className="form-group" style={{ marginTop: '0.5rem', marginBottom: 0 }}>
+        <label className="form-label" htmlFor="entry-perimeter">Falkerület (m) <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>— a falfelület számításhoz</span></label>
+        <input id="entry-perimeter" type="number" min="0" step="0.1" className="form-control" value={perimeterM} onChange={e => setPerimeterM(e.target.value)} placeholder="pl. 14.4" />
       </div>
       <div className="form-group" style={{ marginTop: '0.75rem' }}>
         <label className="form-label" htmlFor="entry-desc">Megjegyzés</label>
@@ -541,15 +590,15 @@ export default function SurveyEditPage() {
                     <div style={{ flex: 1 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
                         <span style={{ fontWeight: 800, fontSize: '1rem', color: 'var(--text-primary)' }}>{entry.name}</span>
-                        {entry.size_m2 != null && (
-                          <span style={{ fontSize: '0.75rem', fontWeight: 700, padding: '0.15rem 0.5rem', borderRadius: 'var(--radius-pill)', background: 'var(--bg-subtle)', border: '1px solid var(--border-subtle)', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
-                            <Ruler size={11} />{entry.size_m2} m²
-                          </span>
-                        )}
+                        {entry.size_m2   != null && <EntryPill label={`${entry.size_m2} m²`} icon={<Ruler size={11} />} />}
+                        {entry.height_m  != null && <EntryPill label={`${entry.height_m} m mag.`} />}
+                        {entry.window_count > 0  && <EntryPill label={`${entry.window_count} ablak`} />}
+                        {entry.door_count   > 0  && <EntryPill label={`${entry.door_count} ajtó`} />}
                       </div>
                       {entry.description && (
                         <p style={{ marginTop: '0.3rem', fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.55, whiteSpace: 'pre-wrap' }}>{entry.description}</p>
                       )}
+                      <AreaSummary entry={entry} />
                     </div>
                     <div style={{ display: 'flex', gap: '0.3rem', flexShrink: 0 }}>
                       <button type="button" onClick={() => { setEditingEntry(entry); setShowAddEntry(false); }} className="btn btn-secondary btn-sm" style={{ padding: '0.3rem 0.5rem' }}><Edit3 size={13} /></button>

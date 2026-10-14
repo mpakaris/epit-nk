@@ -23,13 +23,12 @@ export async function GET(request) {
     if (!entityId) return Response.json({ error: 'No entity assigned to this user' }, { status: 400 });
   }
 
-  const [usersRes, projectsRes, clientsRes, quotesRes, surveysRes, templatesRes, entityInfoRes] = await Promise.all([
+  const [usersRes, projectsRes, clientsRes, quotesRes, surveysRes, entityInfoRes] = await Promise.all([
     admin.from('profiles').select('*').eq('entity_id', entityId).order('display_name'),
     admin.from('projects').select('*').eq('entity_id', entityId).order('created_at', { ascending: false }),
     admin.from('clients').select('*').eq('entity_id', entityId).order('name'),
     admin.from('quotes').select('*').eq('entity_id', entityId).order('created_at', { ascending: false }),
     admin.from('surveys').select('*').eq('entity_id', entityId).order('date', { ascending: false, nullsFirst: false }).order('created_at', { ascending: false }),
-    admin.from('quote_templates').select('*').eq('entity_id', entityId).order('name'),
     admin.from('entities').select('type').eq('id', entityId).single(),
   ]);
 
@@ -142,7 +141,6 @@ export async function GET(request) {
     quoteEntries:   quoteEntriesRes.data || [],
     quoteSections:  quoteSectionsRes.data || [],
     surveys:        surveysRes.data || [],
-    templates:      templatesRes.data || [],
     projectRooms:   projectRoomsRes.data || [],
   });
 }
