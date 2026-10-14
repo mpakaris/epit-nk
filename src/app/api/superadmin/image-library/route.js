@@ -53,6 +53,7 @@ export async function POST(request) {
   const tradeId = formData.get('trade_id') || null;
   const orientation = formData.get('orientation') || 'horizontal';
   const altText = formData.get('alt_text') || '';
+  const isPlatformOnly = formData.get('is_platform_only') === 'true';
   const files = formData.getAll('files');
 
   if (!files?.length) return Response.json({ error: 'Nincs fájl' }, { status: 400 });
@@ -78,6 +79,7 @@ export async function POST(request) {
       orientation,
       alt_text: altText,
       created_by: auth.user.id,
+      is_platform_only: isPlatformOnly,
     }).select().single();
 
     if (dbErr) return Response.json({ error: dbErr.message }, { status: 500 });

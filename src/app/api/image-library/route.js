@@ -15,6 +15,7 @@ export async function GET(request) {
   let query = admin
     .from('image_library')
     .select('id, trade_id, r2_key, orientation, alt_text')
+    .eq('is_platform_only', false)   // never expose superadmin-internal images to users
     .order('created_at', { ascending: false });
 
   if (tradeId === 'generic') query = query.is('trade_id', null);

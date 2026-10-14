@@ -293,9 +293,15 @@ export default function HomePage() {
   const [show, setShow] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
   const [heroImageUrl, setHeroImageUrl] = useState(null);
+  const [featureImages, setFeatureImages] = useState(Array(7).fill(null));
 
   useEffect(() => {
     fetch('/api/platform/hero').then(r => r.json()).then(d => { if (d.url) setHeroImageUrl(d.url); }).catch(() => {});
+    fetch('/api/platform/features').then(r => r.json()).then(d => {
+      const imgs = Array(7).fill(null);
+      (d.slots || []).forEach(s => { if (s.image_url) imgs[s.slot_index] = s.image_url; });
+      setFeatureImages(imgs);
+    }).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -317,8 +323,10 @@ export default function HomePage() {
     <>
       <style>{`
         .lp-wrap { position:fixed; inset:0; overflow-y:auto; background:#fff; z-index:9999; font-family:'Plus Jakarta Sans',sans-serif; color:#0f172a; }
+        .lp-inner { max-width:1280px; margin:0 auto; width:100%; }
 
-        .lp-nav { position:sticky; top:0; z-index:100; display:flex; align-items:center; justify-content:space-between; padding:0 clamp(1.25rem,5vw,4rem); height:64px; background:rgba(15,23,42,0.97); backdrop-filter:blur(12px); border-bottom:1px solid rgba(255,255,255,0.06); }
+        .lp-nav { position:sticky; top:0; z-index:100; background:rgba(15,23,42,0.97); backdrop-filter:blur(12px); border-bottom:1px solid rgba(255,255,255,0.06); }
+        .lp-nav-inner { max-width:1280px; margin:0 auto; display:flex; align-items:center; justify-content:space-between; padding:0 clamp(1.25rem,5vw,4rem); height:64px; }
         .lp-logo { display:flex; align-items:center; gap:0.6rem; color:#fff; font-size:1.15rem; font-weight:800; letter-spacing:-0.03em; }
         .lp-logo-icon { width:30px; height:30px; background:#fff; border-radius:7px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
         .lp-nav-btn { padding:0.45rem 1.1rem; border-radius:8px; background:rgba(255,255,255,0.1); color:#fff; font-weight:700; font-size:0.875rem; border:1px solid rgba(255,255,255,0.18); cursor:pointer; font-family:inherit; transition:background .15s; }
@@ -394,22 +402,26 @@ export default function HomePage() {
 
       <div className="lp-wrap">
         <nav className="lp-nav">
-          <div className="lp-logo">
-            <span className="lp-logo-icon"><Hammer size={16} color="#0f172a" /></span>
-            Epitek
+          <div className="lp-nav-inner">
+            <div className="lp-logo">
+              <span className="lp-logo-icon"><Hammer size={16} color="#0f172a" /></span>
+              Epitek
+            </div>
+            <button className="lp-nav-btn" onClick={() => setAuthOpen(true)}>Bejelentkezés</button>
           </div>
-          <button className="lp-nav-btn" onClick={() => setAuthOpen(true)}>Bejelentkezés</button>
         </nav>
 
         <section className="lp-hero" style={heroImageUrl ? { backgroundImage: `linear-gradient(rgba(15,23,42,0.72) 0%, rgba(15,23,42,0.88) 100%), url(${heroImageUrl})` } : {}}>
-          <div className="lp-eyebrow"><Hammer size={11} /> Szakembereknek</div>
-          <h1 className="lp-h1">Az építkezés <em>profi eszköze.</em></h1>
-          <p className="lp-sub">Felmérés, árajánlat, projektköltség, ügyfélportál — minden egy helyen.</p>
-          <div className="lp-ctas">
-            <button className="lp-cta-primary" onClick={() => setAuthOpen(true)}>
-              Kezdj el ingyen <ArrowRight size={15} />
-            </button>
-            <a href="#features" className="lp-cta-secondary">Megnézem a funkciókat</a>
+          <div className="lp-inner">
+            <div className="lp-eyebrow"><Hammer size={11} /> Szakembereknek</div>
+            <h1 className="lp-h1">Az építkezés <em>profi eszköze.</em></h1>
+            <p className="lp-sub">Felmérés, árajánlat, projektköltség, ügyfélportál — minden egy helyen.</p>
+            <div className="lp-ctas">
+              <button className="lp-cta-primary" onClick={() => setAuthOpen(true)}>
+                Kezdj el ingyen <ArrowRight size={15} />
+              </button>
+              <a href="#features" className="lp-cta-secondary">Megnézem a funkciókat</a>
+            </div>
           </div>
         </section>
 
@@ -421,6 +433,7 @@ export default function HomePage() {
         </div>
 
         <section className="lp-features" id="features">
+          <div className="lp-inner">
           <div className="lp-section-label">
             <div className="lp-overline">Funkciók</div>
             <h2 className="lp-section-title">Mindent megkap, ami számít</h2>
@@ -428,21 +441,26 @@ export default function HomePage() {
           <div className="lp-feature-list">
             {FEATURES.map(({ icon: Icon, title, desc }, i) => {
               const reverse = i % 2 === 1;
+              const featureImg = featureImages[i];
               const mockup = (
                 <div className="lp-feature-img">
-                  <div className="lp-mock">
-                    <div className="lp-mock-bar">
-                      <div className="lp-mock-dot" style={{ background: '#f87171' }} />
-                      <div className="lp-mock-dot" style={{ background: '#fbbf24' }} />
-                      <div className="lp-mock-dot" style={{ background: '#34d399' }} />
+                  {featureImg ? (
+                    <img src={featureImg} alt={title} style={{ width: '100%', borderRadius: 12, display: 'block', boxShadow: '0 4px 24px rgba(0,0,0,0.07)', border: '1px solid #e2e8f0' }} />
+                  ) : (
+                    <div className="lp-mock">
+                      <div className="lp-mock-bar">
+                        <div className="lp-mock-dot" style={{ background: '#f87171' }} />
+                        <div className="lp-mock-dot" style={{ background: '#fbbf24' }} />
+                        <div className="lp-mock-dot" style={{ background: '#34d399' }} />
+                      </div>
+                      <div className="lp-mock-body">
+                        <Icon size={40} color="#cbd5e1" />
+                        <span style={{ fontSize: '0.72rem', color: '#cbd5e1', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+                          Screenshot hamarosan
+                        </span>
+                      </div>
                     </div>
-                    <div className="lp-mock-body">
-                      <Icon size={40} color="#cbd5e1" />
-                      <span style={{ fontSize: '0.72rem', color: '#cbd5e1', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
-                        Screenshot hamarosan
-                      </span>
-                    </div>
-                  </div>
+                  )}
                 </div>
               );
               const text = (
@@ -460,9 +478,11 @@ export default function HomePage() {
               );
             })}
           </div>
+          </div>
         </section>
 
         <section className="lp-pricing" id="pricing">
+          <div className="lp-inner">
           <div className="lp-section-label">
             <div className="lp-overline">Árazás</div>
             <h2 className="lp-section-title">Egyszerű, átlátható</h2>
@@ -488,14 +508,17 @@ export default function HomePage() {
               <button className="lp-plan-btn prem" onClick={() => setAuthOpen(true)}>Váltás prémiumra</button>
             </div>
           </div>
+          </div>
         </section>
 
         <section className="lp-footer-cta">
-          <h2 className="lp-footer-h">Készen állsz?</h2>
-          <p className="lp-footer-sub">Ingyenesen kezdhetsz, bármikor.</p>
-          <button className="lp-cta-primary" onClick={() => setAuthOpen(true)}>
-            Bejelentkezés <ArrowRight size={15} />
-          </button>
+          <div className="lp-inner">
+            <h2 className="lp-footer-h">Készen állsz?</h2>
+            <p className="lp-footer-sub">Ingyenesen kezdhetsz, bármikor.</p>
+            <button className="lp-cta-primary" onClick={() => setAuthOpen(true)}>
+              Bejelentkezés <ArrowRight size={15} />
+            </button>
+          </div>
         </section>
 
         <div className="lp-footer-copy">© {new Date().getFullYear()} Epitek · Minden jog fenntartva</div>

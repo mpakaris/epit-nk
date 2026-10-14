@@ -78,7 +78,7 @@ function Lightbox({ images, index, onClose, onNav }) {
   );
 }
 
-function ImageGrid({ title, images, aspect, cols, tradeName, deleting, onDelete, onOpen, onSetHero, settingHero }) {
+function ImageGrid({ title, images, aspect, cols, tradeName, deleting, onDelete, onOpen, onSetHero, settingHero, onAssignFeature, pickingSlot }) {
   if (images.length === 0) return null;
   return (
     <div style={{ marginBottom: '2rem' }}>
@@ -87,11 +87,11 @@ function ImageGrid({ title, images, aspect, cols, tradeName, deleting, onDelete,
       </p>
       <div style={{ display: 'grid', gridTemplateColumns: cols, gap: '0.75rem' }}>
         {images.map((img, idx) => (
-          <div key={img.id} style={{ position: 'relative', borderRadius: 10, overflow: 'hidden', border: img.is_platform_hero ? '2px solid #f59e0b' : '1px solid var(--border-subtle)', background: 'var(--bg-subtle)' }}>
+          <div key={img.id} style={{ position: 'relative', borderRadius: 10, overflow: 'hidden', border: img.is_platform_hero ? '2px solid #f59e0b' : pickingSlot !== null ? '2px solid var(--accent-border)' : '1px solid var(--border-subtle)', background: 'var(--bg-subtle)' }}>
             <img
               src={img.url} alt={img.alt_text || ''}
-              onClick={() => onOpen(idx)}
-              style={{ width: '100%', aspectRatio: aspect, objectFit: 'cover', display: 'block', cursor: 'zoom-in' }}
+              onClick={() => pickingSlot !== null ? onAssignFeature?.(img) : onOpen(idx)}
+              style={{ width: '100%', aspectRatio: aspect, objectFit: 'cover', display: 'block', cursor: pickingSlot !== null ? 'pointer' : 'zoom-in' }}
               loading="lazy"
             />
             <div style={{ padding: '0.4rem 0.6rem', background: 'var(--bg-card)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
@@ -123,6 +123,8 @@ export default function ImageLibraryPage() {
   const { isSuperAdmin, dataReady } = useApp();
   const router = useRouter();
 
+  const FEATURE_NAMES = ['Felmérés','Árajánlat','Projektköltségek','Alvállalkozók','Ügyfélportál','Ügyfélkezelés','Saját weboldal'];
+
   const [trades, setTrades] = useState([]);
   const [images, setImages] = useState([]);
   const [filterTrade, setFilterTrade] = useState('');
@@ -131,7 +133,13 @@ export default function ImageLibraryPage() {
   const [uploadErr, setUploadErr] = useState('');
   const [deleting, setDeleting] = useState(null);
   const [settingHero, setSettingHero] = useState(null);
-  const [lightbox, setLightbox] = useState(null); // { images, index }
+  const [lightbox, setLightbox] = useState(null);
+
+  // Feature image slots (0-6)
+  const [featureSlots, setFeatureSlots] = useState(Array(7).fill(null));
+  const [pickingSlot, setPickingSlot] = useState(null); // null | 0-6
+  const [savingSlot, setSavingSlot] = useState(null);
+  const featureFileRefs = useRef(Array.from({ length: 7 }, () => React.createRef()));
 
   const [form, setForm] = useState({ trade_id: '', orientation: 'horizontal', alt_text: '' });
   const fileRef = useRef(null);
@@ -139,6 +147,11 @@ export default function ImageLibraryPage() {
   useEffect(() => {
     if (!dataReady) return;
     if (!isSuperAdmin) { router.replace('/projektek'); return; }
+    fetch('/api/platform/features').then(r => r.json()).then(d => {
+      const slots = Array(7).fill(null);
+      (d.slots || []).forEach(s => { slots[s.slot_index] = s; });
+      setFeatureSlots(slots);
+    }).catch(() => {});
     fetch('/api/trades').then(r => r.json()).then(d => setTrades(d.trades || []));
     loadImages();
   }, [dataReady, isSuperAdmin]);
@@ -202,6 +215,63 @@ export default function ImageLibraryPage() {
       })));
     } catch { /* ignore */ }
     finally { setSettingHero(null); }
+  };
+
+  const handleAssignFeature = async (img) => {
+    if (pickingSlot === null) return;
+    setSavingSlot(pickingSlot);
+    try {
+      const res = await fetch('/api/platform/features', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ slot_index: pickingSlot, image_id: img.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setFeatureSlots(prev => prev.map((s, i) => i === pickingSlot ? { ...s, ...data.slot } : s));
+      setPickingSlot(null);
+    } catch { /* ignore */ }
+    finally { setSavingSlot(null); }
+  };
+
+  const handleFeatureUpload = async (slotIndex, files) => {
+    if (!files?.length) return;
+    setSavingSlot(slotIndex);
+    try {
+      const fd = new FormData();
+      fd.append('files', files[0]);
+      fd.append('orientation', 'horizontal');
+      fd.append('is_platform_only', 'true');
+      const uploadRes = await fetch('/api/superadmin/image-library', { method: 'POST', body: fd });
+      const uploadData = await uploadRes.json();
+      if (!uploadRes.ok) throw new Error(uploadData.error);
+      const img = uploadData.images?.[0];
+      if (!img) throw new Error('Upload failed');
+      // Assign to slot
+      const res = await fetch('/api/platform/features', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ slot_index: slotIndex, image_id: img.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setFeatureSlots(prev => prev.map((s, i) => i === slotIndex ? { ...s, ...data.slot } : s));
+      setPickingSlot(null);
+    } catch (err) { alert(err.message); }
+    finally { setSavingSlot(null); }
+  };
+
+  const handleClearFeature = async (slotIndex) => {
+    setSavingSlot(slotIndex);
+    try {
+      await fetch('/api/platform/features', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ slot_index: slotIndex, image_id: null }),
+      });
+      setFeatureSlots(prev => prev.map((s, i) => i === slotIndex ? { ...s, image_url: null, image_id: null } : s));
+    } catch { /* ignore */ }
+    finally { setSavingSlot(null); }
   };
 
   const handleDelete = async (id) => {
@@ -279,6 +349,58 @@ export default function ImageLibraryPage() {
         )}
       </div>
 
+      {/* Feature image slots */}
+      <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-lg)', padding: '1.25rem', marginBottom: '1.5rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+          <div>
+            <h2 style={{ margin: 0, fontSize: '1rem', fontWeight: 700 }}>Funkció képek</h2>
+            <p style={{ margin: '0.15rem 0 0', fontSize: '0.78rem', color: 'var(--text-muted)' }}>7 szekció a főoldalon — kattints egy slotra, majd válassz képet alulról</p>
+          </div>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(140px,100%), 1fr))', gap: '0.6rem' }}>
+          {FEATURE_NAMES.map((name, i) => {
+            const slot = featureSlots[i];
+            const isActive = pickingSlot === i;
+            const isSaving = savingSlot === i;
+            return (
+              <div key={i} style={{ borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)', overflow: 'hidden', opacity: isSaving ? 0.6 : 1 }}>
+                <input
+                  type="file"
+                  accept="image/*"
+                  ref={featureFileRefs.current[i]}
+                  style={{ display: 'none' }}
+                  onChange={e => { handleFeatureUpload(i, e.target.files); e.target.value = ''; }}
+                />
+                <div
+                  onClick={() => featureFileRefs.current[i].current?.click()}
+                  style={{ cursor: 'pointer', position: 'relative' }}
+                  title="Kattints a kép feltöltéséhez"
+                >
+                  {slot?.image_url ? (
+                    <img src={slot.image_url} alt={name} style={{ width: '100%', aspectRatio: '16/9', objectFit: 'cover', display: 'block' }} />
+                  ) : (
+                    <div style={{ width: '100%', aspectRatio: '16/9', background: 'var(--bg-subtle)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '0.3rem' }}>
+                      {isSaving ? <Loader2 size={18} color="var(--text-muted)" style={{ animation: 'spin 1s linear infinite' }} /> : <Upload size={18} color="var(--text-muted)" style={{ opacity: 0.5 }} />}
+                      {!isSaving && <span style={{ fontSize: '0.62rem', color: 'var(--text-muted)', fontWeight: 600 }}>Feltöltés</span>}
+                    </div>
+                  )}
+                </div>
+                <div style={{ padding: '0.3rem 0.5rem', background: 'var(--bg-card)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.25rem' }}>
+                  <span style={{ fontSize: '0.68rem', fontWeight: 700, color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {String(i + 1).padStart(2, '0')} {name}
+                  </span>
+                  {slot?.image_url && (
+                    <button type="button" onClick={() => handleClearFeature(i)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--danger-text)', padding: 0, display: 'flex', flexShrink: 0 }} title="Törlés">
+                      <X size={11} />
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
       {/* Filter */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
         <Filter size={14} style={{ color: 'var(--text-muted)' }} />
@@ -353,8 +475,8 @@ export default function ImageLibraryPage() {
             const vert  = images.filter(i => i.orientation === 'vertical');
             return (
               <>
-                <ImageGrid title="Horizontal (hero)" images={horiz} aspect="16/9" cols="repeat(auto-fill, minmax(220px, 1fr))" tradeName={tradeName} deleting={deleting} onDelete={handleDelete} onOpen={idx => setLightbox({ images: horiz, index: idx })} onSetHero={handleSetHero} settingHero={settingHero} />
-                <ImageGrid title="Vertical (portrait)" images={vert} aspect="3/4" cols="repeat(auto-fill, minmax(140px, 1fr))" tradeName={tradeName} deleting={deleting} onDelete={handleDelete} onOpen={idx => setLightbox({ images: vert, index: idx })} onSetHero={handleSetHero} settingHero={settingHero} />
+                <ImageGrid title="Horizontal (hero)" images={horiz} aspect="16/9" cols="repeat(auto-fill, minmax(220px, 1fr))" tradeName={tradeName} deleting={deleting} onDelete={handleDelete} onOpen={idx => setLightbox({ images: horiz, index: idx })} onSetHero={handleSetHero} settingHero={settingHero} onAssignFeature={handleAssignFeature} pickingSlot={pickingSlot} />
+                <ImageGrid title="Vertical (portrait)" images={vert} aspect="3/4" cols="repeat(auto-fill, minmax(140px, 1fr))" tradeName={tradeName} deleting={deleting} onDelete={handleDelete} onOpen={idx => setLightbox({ images: vert, index: idx })} onSetHero={handleSetHero} settingHero={settingHero} onAssignFeature={handleAssignFeature} pickingSlot={pickingSlot} />
               </>
             );
           })()}
