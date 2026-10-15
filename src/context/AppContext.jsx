@@ -326,11 +326,11 @@ export function AppProvider({ children }) {
     if (error) throw error;
   };
 
-  const registerWithEmail = async (name, email, password) => {
+  const registerWithEmail = async (name, email, password, gdprConsentedAt) => {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { display_name: name, must_change_password: false } },
+      options: { data: { display_name: name, must_change_password: false, gdpr_consented_at: gdprConsentedAt } },
     });
     if (error) throw error;
     if (data.session) {

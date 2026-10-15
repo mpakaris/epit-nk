@@ -50,6 +50,8 @@ function AuthModal({ onClose }) {
   const [rEmail, setREmail] = useState('');
   const [rPassword, setRPassword] = useState('');
   const [rPassword2, setRPassword2] = useState('');
+  const [rGdpr, setRGdpr] = useState(false);
+  const [rAszf, setRAszf] = useState(false);
 
   // Forgot state
   const [fEmail, setFEmail] = useState('');
@@ -73,10 +75,14 @@ function AuthModal({ onClose }) {
     e.preventDefault();
     setError('');
     if (rPassword !== rPassword2) { setError('A két jelszó nem egyezik.'); return; }
-    if (rPassword.length < 6) { setError('A jelszó legalább 6 karakter legyen.'); return; }
+    if (rPassword.length < 8) { setError('A jelszó legalább 8 karakter legyen.'); return; }
+    if (!/[A-Z]/.test(rPassword)) { setError('A jelszónak tartalmaznia kell legalább egy nagybetűt.'); return; }
+    if (!/[0-9]/.test(rPassword)) { setError('A jelszónak tartalmaznia kell legalább egy számot.'); return; }
+    if (!/[^A-Za-z0-9]/.test(rPassword)) { setError('A jelszónak tartalmaznia kell legalább egy speciális karaktert (!@#$%...).'); return; }
+    if (!rGdpr || !rAszf) { setError('Az adatkezelési tájékoztató és az ÁSZF elfogadása kötelező.'); return; }
     setSubmitting(true);
     try {
-      const data = await registerWithEmail(rName.trim(), rEmail.trim(), rPassword);
+      const data = await registerWithEmail(rName.trim(), rEmail.trim(), rPassword, new Date().toISOString());
       if (!data.session) {
         setError('');
         switchView('confirm');
@@ -212,20 +218,38 @@ function AuthModal({ onClose }) {
                 <div style={{ marginBottom:'0.75rem' }}>
                   <label style={{ display:'block', fontSize:'0.78rem', fontWeight:700, color:'#374151', marginBottom:'0.3rem' }}>Jelszó</label>
                   <div style={{ position:'relative' }}>
-                    <input type="password" required placeholder="min. 6 karakter" value={rPassword} onChange={e => setRPassword(e.target.value)} className="auth-input" />
+                    <input type="password" required placeholder="min. 8 kar., nagybetű, szám, spec. karakter" value={rPassword} onChange={e => setRPassword(e.target.value)} className="auth-input" />
                     <Lock size={14} color="#94a3b8" style={{ position:'absolute', left:'0.85rem', top:'50%', transform:'translateY(-50%)', pointerEvents:'none' }} />
                   </div>
                 </div>
-                <div style={{ marginBottom:'1.25rem' }}>
+                <div style={{ marginBottom:'0.75rem' }}>
                   <label style={{ display:'block', fontSize:'0.78rem', fontWeight:700, color:'#374151', marginBottom:'0.3rem' }}>Jelszó megerősítése</label>
                   <div style={{ position:'relative' }}>
                     <input type="password" required placeholder="••••••••" value={rPassword2} onChange={e => setRPassword2(e.target.value)} className="auth-input" />
                     <Lock size={14} color="#94a3b8" style={{ position:'absolute', left:'0.85rem', top:'50%', transform:'translateY(-50%)', pointerEvents:'none' }} />
                   </div>
                 </div>
-                <button type="submit" disabled={submitting} style={{ width:'100%', padding:'0.8rem', background: submitting ? '#334155' : '#0f172a', color:'#fff', fontWeight:800, fontSize:'0.9rem', border:'none', borderRadius:'9px', cursor: submitting ? 'not-allowed' : 'pointer', fontFamily:'inherit' }}>
-                  {submitting ? 'Regisztráció…' : 'Regisztráció'}
-                </button>
+                <div style={{ display:'flex', flexDirection:'column', gap:'0.5rem', marginBottom:'1.25rem' }}>
+                  <label style={{ display:'flex', alignItems:'flex-start', gap:'0.5rem', cursor:'pointer', fontSize:'0.8rem', color:'#374151', lineHeight:1.5 }}>
+                    <input type="checkbox" checked={rGdpr} onChange={e => setRGdpr(e.target.checked)} style={{ marginTop:'2px', flexShrink:0 }} />
+                    <span>Elolvastam és elfogadom az <a href="/adatkezeles" target="_blank" style={{ color:'#0f172a', fontWeight:700 }}>Adatkezelési Tájékoztatót</a>.</span>
+                  </label>
+                  <label style={{ display:'flex', alignItems:'flex-start', gap:'0.5rem', cursor:'pointer', fontSize:'0.8rem', color:'#374151', lineHeight:1.5 }}>
+                    <input type="checkbox" checked={rAszf} onChange={e => setRAszf(e.target.checked)} style={{ marginTop:'2px', flexShrink:0 }} />
+                    <span>Elfogadom az <a href="/aszf" target="_blank" style={{ color:'#0f172a', fontWeight:700 }}>Általános Szerződési Feltételeket</a>.</span>
+                  </label>
+                </div>
+                {(() => {
+                  const valid = rName.trim().length > 0 && rEmail.trim().length > 0
+                    && rPassword.length >= 8 && /[A-Z]/.test(rPassword)
+                    && /[0-9]/.test(rPassword) && /[^A-Za-z0-9]/.test(rPassword)
+                    && rPassword === rPassword2 && rGdpr && rAszf;
+                  return (
+                    <button type="submit" disabled={submitting || !valid} style={{ width:'100%', padding:'0.8rem', background: submitting ? '#334155' : valid ? '#0f172a' : '#cbd5e1', color: valid ? '#fff' : '#94a3b8', fontWeight:800, fontSize:'0.9rem', border:'none', borderRadius:'9px', cursor: (submitting || !valid) ? 'not-allowed' : 'pointer', fontFamily:'inherit', transition:'background .2s,color .2s' }}>
+                      {submitting ? 'Regisztráció…' : 'Regisztráció'}
+                    </button>
+                  );
+                })()}
               </form>
               <p style={{ textAlign:'center', fontSize:'0.82rem', color:'#94a3b8', marginTop:'1.25rem', marginBottom:0 }}>
                 Már van fiókod?{' '}
