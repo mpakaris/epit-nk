@@ -22,7 +22,7 @@ async function AdminProjectsContent() {
   const admin = createAdminClient();
   const { data: profile } = await admin
     .from('profiles')
-    .select('id, role, entity_id, current_entity_id, display_name')
+    .select('id, role, active_collective_id, display_name')
     .eq('id', user.id)
     .single();
 
@@ -30,20 +30,28 @@ async function AdminProjectsContent() {
     redirect('/projektek');
   }
 
-  // Superadmins have no entity_id themselves — read it from the god_mode_entity cookie
-  let entityId = profile.current_entity_id || profile.entity_id;
+  const cookieStore = await cookies();
+  let collectiveId    = profile.active_collective_id || null;
+  let effectiveUserId = user.id;
+
   if (profile.role === 'superadmin') {
-    const cookieStore = await cookies();
-    entityId = cookieStore.get('god_mode_entity')?.value || null;
-    if (!entityId) redirect('/superadmin');
+    const godUser   = cookieStore.get('god_mode_user')?.value   || null;
+    const godEntity = cookieStore.get('god_mode_entity')?.value || null;
+    if (!godUser) redirect('/superadmin');
+    effectiveUserId = godUser;
+    collectiveId    = godEntity || null;
   }
 
-  if (!entityId) redirect('/superadmin');
+  const isPersonal = !collectiveId;
 
   const [usersRes, projectsRes, clientsRes] = await Promise.all([
-    admin.from('profiles').select('id, display_name, email, role, entity_id').eq('entity_id', entityId).order('display_name'),
-    admin.from('projects').select('*').eq('entity_id', entityId).order('created_at', { ascending: false }),
-    admin.from('clients').select('*').eq('entity_id', entityId).order('name'),
+    collectiveId
+      ? admin.from('collective_members').select('user_id, role, profiles(id, display_name, email, role)').eq('collective_id', collectiveId).eq('status', 'active')
+      : admin.from('profiles').select('id, display_name, email, role').eq('id', effectiveUserId),
+    isPersonal
+      ? admin.from('projects').select('*').eq('owner_id', effectiveUserId).is('collective_id', null).order('created_at', { ascending: false })
+      : admin.from('projects').select('*').or(`collective_id.eq.${collectiveId},and(owner_id.eq.${effectiveUserId},collective_id.is.null)`).order('created_at', { ascending: false }),
+    admin.from('clients').select('*').eq('owner_id', effectiveUserId).order('name'),
   ]);
 
   const projects = projectsRes.data || [];

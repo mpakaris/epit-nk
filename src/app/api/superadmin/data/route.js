@@ -39,7 +39,7 @@ export async function GET() {
   // Fetch all active memberships (used for entity stats, handleJump, and personal entity lookup)
   const { data: allMembershipsRaw } = await admin
     .from('memberships')
-    .select('user_id, entity_id, role, status, entities(type)')
+    .select('user_id, entity_id, role, status, entities(type), profiles!memberships_user_id_fkey(id, display_name, email, role)')
     .eq('status', 'active');
 
   const personalEntityByUser = {};
@@ -48,7 +48,13 @@ export async function GET() {
     if (m.entities?.type === 'personal') {
       personalEntityByUser[m.user_id] = m.entity_id;
     } else {
-      collectiveMemberships.push({ user_id: m.user_id, entity_id: m.entity_id, role: m.role });
+      collectiveMemberships.push({
+        user_id:      m.user_id,
+        entity_id:    m.entity_id,
+        role:         m.role,
+        display_name: m.profiles?.display_name || m.user_id,
+        email:        m.profiles?.email || null,
+      });
     }
   }
 

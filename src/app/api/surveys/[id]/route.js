@@ -8,32 +8,33 @@ async function getCallerAndSurvey(id) {
   if (error || !user) return { err: 'Unauthenticated', status: 401 };
 
   const admin = createAdminClient();
-  const { data: profile } = await admin.from('profiles').select('id, role, entity_id, current_entity_id').eq('id', user.id).single();
+  const { data: profile } = await admin.from('profiles').select('id, role').eq('id', user.id).single();
   if (!profile) return { err: 'Forbidden', status: 403 };
 
   const { data: survey } = await admin.from('surveys').select('*').eq('id', id).single();
   if (!survey) return { err: 'Not found', status: 404 };
 
-  if (profile.role !== 'superadmin') {
-    const profileEntityIds = [profile.entity_id, profile.current_entity_id].filter(Boolean);
-    const isOwnEntity = profileEntityIds.includes(survey.entity_id);
-    console.log('[survey GET auth]', {
-      userId: profile.id,
-      role: profile.role,
-      profile_entity_id: profile.entity_id,
-      profile_current_entity_id: profile.current_entity_id,
-      survey_entity_id: survey.entity_id,
-      isOwnEntity,
-    });
-    if (!isOwnEntity) {
-      const { data: mem } = await admin.from('memberships').select('id').eq('user_id', profile.id).eq('entity_id', survey.entity_id).eq('status', 'active').maybeSingle();
-      console.log('[survey GET auth] membership check result:', mem);
-      if (!mem) return { err: 'Forbidden', status: 403 };
-    }
+  if (profile.role === 'superadmin') {
+    return { user, profile, admin, survey, isOwner: true };
   }
 
-  const isSharedMember = (survey.shared_with || []).includes(profile.id);
-  return { user, profile, admin, survey, isSharedMember };
+  const isOwner   = survey.owner_id === user.id || survey.created_by === user.id;
+  const isShared  = (survey.shared_with || []).includes(user.id);
+
+  if (isOwner || isShared) return { user, profile, admin, survey, isOwner };
+
+  if (survey.collective_id) {
+    const { data: mem } = await admin
+      .from('collective_members')
+      .select('role')
+      .eq('collective_id', survey.collective_id)
+      .eq('user_id', user.id)
+      .eq('status', 'active')
+      .maybeSingle();
+    if (mem) return { user, profile, admin, survey, isOwner: false, memberRole: mem.role };
+  }
+
+  return { err: 'Forbidden', status: 403 };
 }
 
 export async function GET(request, { params }) {
@@ -68,24 +69,16 @@ export async function PATCH(request, { params }) {
   const ctx = await getCallerAndSurvey(id);
   if (ctx.err) return Response.json({ error: ctx.err }, { status: ctx.status });
 
-  if (!['admin', 'superadmin'].includes(ctx.profile.role) && !ctx.isSharedMember) {
-    return Response.json({ error: 'Forbidden' }, { status: 403 });
-  }
-
   const fields = await request.json();
-  const isAdmin = ['admin', 'superadmin'].includes(ctx.profile.role);
-  const isCreator = ctx.survey.created_by === ctx.user.id;
+  const isOwner      = ctx.isOwner || ctx.survey.created_by === ctx.user.id;
+  const isSuperAdmin = ctx.profile.role === 'superadmin';
 
-  // entity_id may only be changed by admins or the original creator
-  if ('entity_id' in fields && !isAdmin && !isCreator) {
-    return Response.json({ error: 'Csak a létrehozó vagy adminisztrátor változtathat entitást.' }, { status: 403 });
-  }
+  if ('collective_id' in fields && !isOwner && !isSuperAdmin)
+    return Response.json({ error: 'Csak a tulajdonos helyezhet át felmérést.' }, { status: 403 });
 
-  const allowed = isAdmin
-    ? ['title', 'notes', 'date', 'location', 'client_id', 'shared_with', 'entity_id']
-    : isCreator
-      ? ['shared_with', 'entity_id']
-      : ['shared_with'];
+  const allowed = (isOwner || isSuperAdmin)
+    ? ['title', 'notes', 'date', 'location', 'client_id', 'shared_with', 'collective_id']
+    : ['shared_with'];
   const update = {};
   for (const k of allowed) if (k in fields) update[k] = fields[k];
 
@@ -99,9 +92,10 @@ export async function DELETE(request, { params }) {
   const ctx = await getCallerAndSurvey(id);
   if (ctx.err) return Response.json({ error: ctx.err }, { status: ctx.status });
 
-  if (!['admin', 'superadmin'].includes(ctx.profile.role)) {
-    return Response.json({ error: 'Forbidden' }, { status: 403 });
-  }
+  const isOwner      = ctx.isOwner || ctx.survey.created_by === ctx.user.id;
+  const isSuperAdmin = ctx.profile.role === 'superadmin';
+  if (!isOwner && !isSuperAdmin)
+    return Response.json({ error: 'Csak a tulajdonos törölheti a felmérést.' }, { status: 403 });
 
   const { data: media } = await ctx.admin.from('survey_media').select('drive_file_id').eq('survey_id', id);
   if (media?.length) {

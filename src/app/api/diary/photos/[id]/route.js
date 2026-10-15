@@ -58,7 +58,7 @@ export async function DELETE(request, { params }) {
     .from('diary_photos')
     .delete()
     .eq('id', id)
-    .eq('entity_id', profile.current_entity_id || profile.entity_id);
+    .eq('uploaded_by', user.id);
 
   if (delErr) return Response.json({ error: delErr.message }, { status: 500 });
 

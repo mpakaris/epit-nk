@@ -5,86 +5,68 @@ import { logAudit } from '@/lib/audit';
 
 export async function POST(request) {
   try {
-    // 1. Identify the caller
     const serverClient = await createClient();
     const { data: { user: caller } } = await serverClient.auth.getUser();
-    if (!caller) {
-      return NextResponse.json({ error: 'Bejelentkezés szükséges!' }, { status: 401 });
-    }
+    if (!caller) return NextResponse.json({ error: 'Bejelentkezés szükséges!' }, { status: 401 });
 
     const adminClient = createAdminClient();
     const { data: callerProfile } = await adminClient
       .from('profiles')
-      .select('*')
+      .select('role, active_collective_id, display_name')
       .eq('id', caller.id)
       .single();
 
-    if (!callerProfile || !['admin', 'superadmin'].includes(callerProfile.role)) {
+    if (!callerProfile || !['admin', 'superadmin'].includes(callerProfile.role))
       return NextResponse.json({ error: 'Nincs jogosultsága!' }, { status: 403 });
-    }
 
-    const { displayName, email, password, role = 'user', entityId } = await request.json();
+    const { displayName, email, password, role = 'user', collectiveId } = await request.json();
 
-    if (!displayName || !email || !password) {
-      return NextResponse.json(
-        { error: 'Név, email cím és jelszó megadása kötelező!' },
-        { status: 400 }
-      );
-    }
+    if (!displayName || !email || !password)
+      return NextResponse.json({ error: 'Név, email cím és jelszó megadása kötelező!' }, { status: 400 });
 
-    // 2. Determine final entity_id and role based on caller's permissions
-    let finalEntityId;
+    let finalCollectiveId;
     let finalRole;
 
     if (callerProfile.role === 'superadmin') {
-      finalEntityId = entityId || null;
+      finalCollectiveId = collectiveId || null;
       finalRole = role;
     } else {
-      // Entity admin: can create 'user' or 'admin' within their own entity, never superadmin
-      finalEntityId = callerProfile.entity_id;
+      // Admin: adds user to their currently active collective
+      finalCollectiveId = callerProfile.active_collective_id || null;
       finalRole = role === 'admin' ? 'admin' : 'user';
     }
 
-    // 3. Create auth user
     const { data: authData, error: authError } = await adminClient.auth.admin.createUser({
       email,
       password,
       email_confirm: true,
       user_metadata: {
-        display_name: displayName,
-        role: finalRole,
-        entity_id: finalEntityId,
-        must_change_password: true
-      }
+        display_name:       displayName,
+        role:               finalRole,
+        collective_id:      finalCollectiveId,
+        must_change_password: true,
+      },
     });
 
-    if (authError) {
-      return NextResponse.json({ error: authError.message }, { status: 400 });
-    }
+    if (authError) return NextResponse.json({ error: authError.message }, { status: 400 });
 
-    // 4. Upsert profile (trigger should handle it, but upsert to be safe)
-    const { error: profileError } = await adminClient
-      .from('profiles')
-      .upsert({
-        id: authData.user.id,
-        email,
-        display_name: displayName,
-        role: finalRole,
-        entity_id: finalEntityId,
-        must_change_password: true
-      });
-
-    if (profileError) {
-      return NextResponse.json({ error: profileError.message }, { status: 400 });
-    }
+    // Upsert profile as safety net (trigger should handle it)
+    await adminClient.from('profiles').upsert({
+      id:                   authData.user.id,
+      email,
+      display_name:         displayName,
+      role:                 finalRole,
+      active_collective_id: finalCollectiveId,
+      must_change_password: true,
+    });
 
     logAudit({
-      entityId: finalEntityId,
-      userId: caller.id,
+      entityId: finalCollectiveId || caller.id,
+      userId:   caller.id,
       userName: callerProfile.display_name,
-      action: 'Felhasználó létrehozva',
+      action:   'Felhasználó létrehozva',
       targetType: 'user',
-      targetId: authData.user.id,
+      targetId:   authData.user.id,
       targetName: displayName,
       details: { email, role: finalRole },
     });
@@ -92,13 +74,13 @@ export async function POST(request) {
     return NextResponse.json({
       success: true,
       user: {
-        id: authData.user.id,
+        id:                   authData.user.id,
         email,
-        display_name: displayName,
-        role: finalRole,
-        entity_id: finalEntityId,
-        must_change_password: true
-      }
+        display_name:         displayName,
+        role:                 finalRole,
+        active_collective_id: finalCollectiveId,
+        must_change_password: true,
+      },
     });
   } catch (err) {
     console.error('Error in create-user route:', err);

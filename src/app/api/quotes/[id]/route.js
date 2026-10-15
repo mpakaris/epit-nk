@@ -8,22 +8,29 @@ async function getCallerAndQuote(id) {
   if (error || !user) return { err: 'Unauthenticated', status: 401 };
 
   const admin = createAdminClient();
-  const { data: profile } = await admin.from('profiles').select('role, entity_id, current_entity_id, display_name').eq('id', user.id).single();
+  const { data: profile } = await admin.from('profiles').select('role, active_collective_id, display_name').eq('id', user.id).single();
   if (!profile) return { err: 'Forbidden', status: 403 };
 
   const { data: quote } = await admin.from('quotes').select('*').eq('id', id).single();
   if (!quote) return { err: 'Not found', status: 404 };
 
-  const isAdmin = ['admin', 'superadmin'].includes(profile.role);
-  const isCreator = quote.created_by === user.id;
-  if (!isAdmin && !isCreator) return { err: 'Forbidden', status: 403 };
-  if (profile.role !== 'superadmin') {
-    const profileEntityIds = [profile.entity_id, profile.current_entity_id].filter(Boolean);
-    if (!profileEntityIds.includes(quote.entity_id))
-      return { err: 'Forbidden', status: 403 };
+  const isSuperAdmin = profile.role === 'superadmin';
+  const isOwner      = quote.owner_id === user.id || quote.created_by === user.id;
+  if (isSuperAdmin) return { user, profile, admin, quote };
+  if (isOwner)      return { user, profile, admin, quote };
+
+  if (quote.collective_id) {
+    const { data: mem } = await admin
+      .from('collective_members')
+      .select('role')
+      .eq('collective_id', quote.collective_id)
+      .eq('user_id', user.id)
+      .eq('status', 'active')
+      .single();
+    if (mem) return { user, profile, admin, quote, memberRole: mem.role };
   }
 
-  return { user, profile, admin, quote };
+  return { err: 'Forbidden', status: 403 };
 }
 
 export async function PATCH(request, { params }) {
@@ -32,41 +39,41 @@ export async function PATCH(request, { params }) {
   if (ctx.err) return Response.json({ error: ctx.err }, { status: ctx.status });
 
   const fields = await request.json();
-  const isAdmin = ['admin', 'superadmin'].includes(ctx.profile.role);
-  const isCreator = ctx.quote.created_by === ctx.user.id;
+  const isOwner      = ctx.quote.owner_id === ctx.user.id || ctx.quote.created_by === ctx.user.id;
+  const isSuperAdmin = ctx.profile.role === 'superadmin';
 
-  // entity_id may only be changed by admins or the original creator
-  if ('entity_id' in fields && !isAdmin && !isCreator) {
-    return Response.json({ error: 'Csak a létrehozó vagy adminisztrátor változtathat entitást.' }, { status: 403 });
-  }
+  if ('collective_id' in fields && !isOwner && !isSuperAdmin)
+    return Response.json({ error: 'Csak a tulajdonos helyezhet át ajánlatot.' }, { status: 403 });
 
   const allowed = ['title', 'location', 'work_type', 'description', 'start_date', 'end_date',
                    'status', 'client_id', 'shared_with', 'tax_percent', 'survey_id',
                    'updated_at', 'updated_by_name',
-                   ...(isAdmin || isCreator ? ['entity_id'] : [])];
+                   ...(isOwner || isSuperAdmin ? ['collective_id'] : [])];
   const update = {};
   for (const k of allowed) if (k in fields) update[k] = fields[k];
 
-  if (Array.isArray(update.shared_with) && update.shared_with.length > 0) {
+  // Validate shared_with users are in the same collective
+  if (Array.isArray(update.shared_with) && update.shared_with.length > 0 && ctx.quote.collective_id) {
     const { data: validUsers } = await ctx.admin
-      .from('profiles').select('id').in('id', update.shared_with).eq('entity_id', ctx.quote.entity_id);
-    const validIds = new Set((validUsers || []).map(u => u.id));
+      .from('collective_members')
+      .select('user_id')
+      .eq('collective_id', ctx.quote.collective_id)
+      .in('user_id', update.shared_with)
+      .eq('status', 'active');
+    const validIds = new Set((validUsers || []).map(u => u.user_id));
     update.shared_with = update.shared_with.filter(uid => validIds.has(uid));
   }
 
   const { data, error } = await ctx.admin.from('quotes').update(update).eq('id', id).select().single();
   if (error) return Response.json({ error: error.message }, { status: 400 });
 
-  const actionLabel = update.status
-    ? `Ajánlat státusza módosítva: ${update.status}`
-    : 'Ajánlat módosítva';
   logAudit({
-    entityId: ctx.quote.entity_id,
-    userId: ctx.user.id,
+    entityId: ctx.quote.collective_id || ctx.user.id,
+    userId:   ctx.user.id,
     userName: ctx.profile.display_name || ctx.user.email,
-    action: actionLabel,
+    action:   update.status ? `Ajánlat státusza módosítva: ${update.status}` : 'Ajánlat módosítva',
     targetType: 'quote',
-    targetId: id,
+    targetId:   id,
     targetName: ctx.quote.title,
     details: update.status ? { status: update.status } : null,
   });
@@ -79,19 +86,23 @@ export async function DELETE(request, { params }) {
   const ctx = await getCallerAndQuote(id);
   if (ctx.err) return Response.json({ error: ctx.err }, { status: ctx.status });
 
-  const quoteTitle = ctx.quote.title;
+  const isOwner      = ctx.quote.owner_id === ctx.user.id || ctx.quote.created_by === ctx.user.id;
+  const isSuperAdmin = ctx.profile.role === 'superadmin';
+  if (!isOwner && !isSuperAdmin)
+    return Response.json({ error: 'Csak a tulajdonos törölheti az ajánlatot.' }, { status: 403 });
+
   await ctx.admin.from('quote_entries').delete().eq('quote_id', id);
   const { error } = await ctx.admin.from('quotes').delete().eq('id', id);
   if (error) return Response.json({ error: error.message }, { status: 400 });
 
   logAudit({
-    entityId: ctx.quote.entity_id,
-    userId: ctx.user.id,
+    entityId: ctx.quote.collective_id || ctx.user.id,
+    userId:   ctx.user.id,
     userName: ctx.profile.display_name || ctx.user.email,
-    action: 'Ajánlat törölve',
+    action:   'Ajánlat törölve',
     targetType: 'quote',
-    targetId: id,
-    targetName: quoteTitle,
+    targetId:   id,
+    targetName: ctx.quote.title,
   });
 
   return Response.json({ success: true });

@@ -4,10 +4,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 export async function GET() {
   const supabase = await createClient();
   const { data: { user }, error: authErr } = await supabase.auth.getUser();
-
-  if (authErr || !user) {
-    return Response.json({ error: 'Unauthenticated' }, { status: 401 });
-  }
+  if (authErr || !user) return Response.json({ error: 'Unauthenticated' }, { status: 401 });
 
   const admin = createAdminClient();
   const { data: profile, error } = await admin
@@ -16,25 +13,22 @@ export async function GET() {
     .eq('id', user.id)
     .single();
 
-  if (error) {
-    return Response.json({ error: error.message }, { status: 500 });
-  }
+  if (error) return Response.json({ error: error.message }, { status: 500 });
 
+  // Return collective memberships for the context switcher
   const { data: membershipsRaw } = await admin
-    .from('memberships')
-    .select('id, entity_id, role, status, entities(id, name, type)')
+    .from('collective_members')
+    .select('collective_id, role, status, collectives(id, name)')
     .eq('user_id', user.id)
     .eq('status', 'active');
 
-  const memberships = (membershipsRaw || []).map(m => ({
-    id: m.id,
-    entity_id: m.entity_id,
-    role: m.role,
-    entity_name: m.entities?.name || null,
-    entity_type: m.entities?.type || 'collective',
+  const collectives = (membershipsRaw || []).map(m => ({
+    collective_id: m.collective_id,
+    role:          m.role,
+    name:          m.collectives?.name || null,
   }));
 
-  return Response.json({ profile, memberships });
+  return Response.json({ profile, collectives });
 }
 
 export async function PATCH(request) {
@@ -44,7 +38,6 @@ export async function PATCH(request) {
 
   const body = await request.json();
 
-  // Only allow a user to clear their own must_change_password flag
   if (Object.keys(body).length !== 1 || body.must_change_password !== false)
     return Response.json({ error: 'Forbidden' }, { status: 403 });
 

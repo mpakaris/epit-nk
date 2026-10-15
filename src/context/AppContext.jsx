@@ -15,7 +15,7 @@ export function AppProvider({ children }) {
   const [currentUser, setCurrentUser] = useState(null);   // real authenticated user
   const [impersonating, setImpersonating] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [memberships, setMemberships] = useState([]);      // current user's own memberships (context switcher)
+  const [collectives, setCollectives] = useState([]);       // current user's collective memberships (context switcher)
   const [allMemberships, setAllMemberships] = useState([]); // all collective memberships — superadmin only
 
   // Data
@@ -46,84 +46,56 @@ export function AppProvider({ children }) {
   const effectiveUser = impersonating || currentUser;
   const isSuperAdmin = currentUser?.role === 'superadmin';
   const isAdmin = ['admin', 'superadmin'].includes(effectiveUser?.role);
-  // entity_id of the active context — prefers current_entity_id (context switcher), falls back to entity_id
-  const effectiveEntityId = (() => {
+  // Active collective id — null means personal context
+  const activeCollectiveId = (() => {
     if (effectiveUser?.role !== 'superadmin')
-      return effectiveUser?.current_entity_id ?? effectiveUser?.entity_id ?? null;
+      return effectiveUser?.active_collective_id ?? null;
     if (impersonating)
-      return impersonating.current_entity_id ?? impersonating.entity_id ?? null;
-    if (currentUser?.entity_id) return currentUser.entity_id;
-    if (entities.length === 1) return entities[0].id;
+      return impersonating.active_collective_id ?? null;
     return null;
   })();
+  // Keep effectiveEntityId as alias for superadmin god mode cookie (still uses entity UUID)
+  const effectiveEntityId = activeCollectiveId;
 
   const uid = effectiveUser?.id;
 
-  // Memberships for whoever is the effective user (impersonated or self)
-  const effectiveMemberships = (() => {
-    if (!impersonating) return memberships;
-    // SA impersonating: compute from allMemberships (already loaded) + personal entity
-    return [
-      ...allMemberships
-        .filter(m => m.user_id === impersonating.id)
-        .map(m => ({
-          entity_id: m.entity_id,
-          entity_name: entities.find(e => e.id === m.entity_id)?.name || '…',
-          entity_type: 'collective',
-          role: m.role,
-        })),
-      ...(impersonating.personal_entity_id ? [{
-        entity_id: impersonating.personal_entity_id,
-        entity_name: `${impersonating.display_name} – Személyes`,
-        entity_type: 'personal',
-        role: 'owner',
-      }] : []),
-    ];
+  // Collectives for the effective user (context switcher list)
+  const effectiveCollectives = (() => {
+    if (!impersonating) return collectives;
+    return allMemberships
+      .filter(m => m.user_id === impersonating.id)
+      .map(m => ({
+        collective_id: m.entity_id,
+        name: entities.find(e => e.id === m.entity_id)?.name || '…',
+        role: m.role,
+      }));
   })();
   // True if the *effective* user (real or impersonated) has admin-level access
   const effectiveIsAdmin = ['admin', 'superadmin'].includes(effectiveUser?.role);
 
+  // /api/entity/data already scopes data to the active context — minimal client-side filtering needed
   const visibleProjects = (() => {
     if (isSuperAdmin && !impersonating) return projects;
-    // SA impersonating: always scope to the impersonated user's entity first
-    if (isSuperAdmin && impersonating && effectiveEntityId) {
-      const entityProjects = projects.filter(p => p.entity_id === effectiveEntityId);
-      // If impersonating a non-admin, further restrict to their project memberships
-      if (!effectiveIsAdmin && uid)
-        return entityProjects.filter(p => (p.members || []).includes(uid));
-      return entityProjects;
-    }
-    // Regular non-admin: only their assigned projects (API already entity-scoped)
     if (!effectiveIsAdmin && uid)
-      return projects.filter(p => (p.members || []).includes(uid));
-    // Entity admin: all entity projects (already scoped by /api/entity/data)
+      return projects.filter(p => (p.members || []).includes(uid) || p.owner_id === uid);
     return projects;
   })();
 
   const visibleQuotes = (() => {
     if (isSuperAdmin && !impersonating) return quotes;
-    if (isSuperAdmin && impersonating && effectiveEntityId && effectiveIsAdmin)
-      return quotes.filter(q => q.entity_id === effectiveEntityId);
-    // Non-admin: only own/shared, and always scoped to entity
     if (!effectiveIsAdmin && uid)
-      return quotes.filter(q =>
-        q.entity_id === effectiveEntityId &&
-        (q.created_by === uid || (q.shared_with || []).includes(uid))
-      );
-    // Entity admin: all entity quotes (already scoped by /api/entity/data)
-    return quotes.filter(q => !effectiveEntityId || q.entity_id === effectiveEntityId);
+      return quotes.filter(q => q.owner_id === uid || (q.shared_with || []).includes(uid));
+    return quotes;
   })();
 
   const visibleClients = (() => {
     if (isSuperAdmin && !impersonating) return clients;
-    if (isSuperAdmin && impersonating && effectiveEntityId)
-      return clients.filter(c => c.entity_id === effectiveEntityId);
+    // Clients are always personal — already filtered server-side by owner_id
     return clients;
   })();
 
   const visibleUsers = (() => {
     if (isSuperAdmin && !impersonating) return users;
-    if (effectiveEntityId) return users.filter(u => u.entity_id === effectiveEntityId);
     return users;
   })();
 
@@ -148,8 +120,8 @@ export function AppProvider({ children }) {
   const fetchProfile = async () => {
     const res = await fetch('/api/auth/profile');
     if (!res.ok) return null;
-    const { profile, memberships: m } = await res.json();
-    if (m) setMemberships(m);
+    const { profile, collectives: c } = await res.json();
+    if (c) setCollectives(c);
     return profile || null;
   };
 
@@ -166,8 +138,7 @@ export function AppProvider({ children }) {
             email: session.user.email,
             display_name: profile?.display_name || session.user.email,
             role: profile?.role || 'user',
-            entity_id: profile?.entity_id || null,
-            current_entity_id: profile?.current_entity_id || profile?.entity_id || null,
+            active_collective_id: profile?.active_collective_id || null,
             must_change_password: profile?.must_change_password ?? false
           };
           setCurrentUser(user);
@@ -200,8 +171,11 @@ export function AppProvider({ children }) {
         const data = JSON.parse(saved);
         setImpersonating(data);
         // Re-sync cookie so server components see it after a hard refresh
-        if (data?.entity_id) {
-          document.cookie = `god_mode_entity=${data.entity_id}; path=/; SameSite=Lax`;
+        if (data?.id) {
+          document.cookie = `god_mode_user=${data.id}; path=/; SameSite=Lax`;
+        }
+        if (data?.active_collective_id) {
+          document.cookie = `god_mode_entity=${data.active_collective_id}; path=/; SameSite=Lax`;
         }
       }
     } catch {}
@@ -233,22 +207,36 @@ export function AppProvider({ children }) {
           setAllMemberships(d.allMemberships || []);
           setDataReady(true);
         }
-        // When in god mode, also fetch entity-scoped data (surveys, projectRooms)
-        // /api/entity/data reads the god_mode_entity cookie to determine the entity
-        const godEntityId = typeof document !== 'undefined'
-          ? document.cookie.match(/god_mode_entity=([a-f0-9-]+)/)?.[1]
+        // Only replace SA's global data with entity-scoped data when actively impersonating.
+        // Check sessionStorage (kept in sync with impersonating state) to avoid stale cookies.
+        const isActivelyImpersonating = typeof sessionStorage !== 'undefined'
+          && !!sessionStorage.getItem('god_mode');
+        const godModeUser = typeof document !== 'undefined'
+          ? document.cookie.match(/god_mode_user=([a-f0-9-]+)/)?.[1]
           : null;
-        if (godEntityId) {
+        if (godModeUser && isActivelyImpersonating) {
           const entityRes = await fetch('/api/entity/data');
           if (entityRes.ok) {
             const d = await entityRes.json();
+            setUsers(d.users || []);
+            setProjects(d.projects || []);
+            setClients(d.clients || []);
+            setQuotes(d.quotes || []);
+            setQuoteEntries(d.quoteEntries || []);
+            setQuoteSections(d.quoteSections || []);
+            setInvoices(d.invoices || []);
+            setLabourEntries(d.labourEntries || []);
             setSurveys(d.surveys || []);
             setProjectRooms(d.projectRooms || []);
+            setDataReady(true);
           }
         } else {
-          // Leaving god mode — clear entity-scoped data
+          // Clear any stale god mode cookies
+          if (typeof document !== 'undefined' && godModeUser) {
+            document.cookie = 'god_mode_user=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
+            document.cookie = 'god_mode_entity=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
+          }
           setSurveys([]);
-
           setProjectRooms([]);
         }
         return;
@@ -296,15 +284,14 @@ export function AppProvider({ children }) {
       email: data.user.email,
       display_name: profile?.display_name || data.user.email,
       role: profile?.role || 'user',
-      entity_id: profile?.entity_id || null,
-      current_entity_id: profile?.current_entity_id || profile?.entity_id || null,
+      active_collective_id: profile?.active_collective_id || null,
       must_change_password: profile?.must_change_password ?? false
     };
 
     setCurrentUser(user);
     await refreshSupabaseData(user);
 
-    auditLog('Bejelentkezés', { entityId: user.entity_id });
+    auditLog('Bejelentkezés', { entityId: user.active_collective_id || user.id });
 
     if (user.must_change_password) {
       router.push('/change-password');
@@ -340,8 +327,7 @@ export function AppProvider({ children }) {
         email: data.user.email,
         display_name: profile?.display_name || name,
         role: profile?.role || 'user',
-        entity_id: profile?.entity_id || null,
-        current_entity_id: profile?.current_entity_id || null,
+        active_collective_id: profile?.active_collective_id || null,
         must_change_password: false,
       };
       setCurrentUser(user);
@@ -384,7 +370,7 @@ export function AppProvider({ children }) {
     }
 
     setCurrentUser(prev => ({ ...prev, must_change_password: false }));
-    auditLog('Jelszó megváltoztatva', { entityId: currentUser?.entity_id });
+    auditLog('Jelszó megváltoztatva', { entityId: currentUser?.active_collective_id || currentUser?.id });
 
     if (currentUser?.role === 'superadmin') router.push('/superadmin');
     else if (currentUser?.role === 'admin') router.push('/admin');
@@ -403,20 +389,24 @@ export function AppProvider({ children }) {
       profile = data.profile;
     }
     // entityIdOverride lets the SA jump into a specific context (e.g. personal entity)
-    const activeEntityId = entityIdOverride ?? profile?.current_entity_id ?? profile?.entity_id;
+    const activeCollectiveId = entityIdOverride ?? profile?.active_collective_id ?? null;
     const impersonatingProfile = entityIdOverride
-      ? { ...profile, current_entity_id: entityIdOverride }
+      ? { ...profile, active_collective_id: entityIdOverride }
       : profile;
     setImpersonating(impersonatingProfile);
-    if (activeEntityId) {
-      document.cookie = `god_mode_entity=${activeEntityId}; path=/; SameSite=Lax`;
-      // Fetch entity-scoped data immediately (surveys, projectRooms)
-      fetch('/api/entity/data').then(r => r.ok ? r.json() : null).then(d => {
-        if (!d) return;
-        setSurveys(d.surveys || []);
-        setProjectRooms(d.projectRooms || []);
-      }).catch(() => {});
+    // Always set god_mode_user so entity/data knows whose personal data to show
+    document.cookie = `god_mode_user=${userId}; path=/; SameSite=Lax`;
+    if (activeCollectiveId) {
+      document.cookie = `god_mode_entity=${activeCollectiveId}; path=/; SameSite=Lax`;
+    } else {
+      document.cookie = 'god_mode_entity=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
     }
+    // Always fetch entity-scoped data (personal or collective)
+    fetch('/api/entity/data').then(r => r.ok ? r.json() : null).then(d => {
+      if (!d) return;
+      setSurveys(d.surveys || []);
+      setProjectRooms(d.projectRooms || []);
+    }).catch(() => {});
     if (profile?.role === 'admin') router.push('/admin');
     else router.push('/projektek');
   };
@@ -424,6 +414,7 @@ export function AppProvider({ children }) {
   const stopImpersonation = () => {
     setImpersonating(null);
     document.cookie = 'god_mode_entity=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
+    document.cookie = 'god_mode_user=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
     setSurveys([]);
     setProjectRooms([]);
     router.push('/superadmin');
@@ -431,30 +422,32 @@ export function AppProvider({ children }) {
 
   // ---- Context Switcher -------------------------------------------------------
 
-  const setActiveContext = async (entityId) => {
-    setCurrentUser(prev => prev ? { ...prev, current_entity_id: entityId } : prev);
+  const setActiveContext = async (collectiveId) => {
+    setCurrentUser(prev => prev ? { ...prev, active_collective_id: collectiveId } : prev);
 
     const res = await fetch('/api/auth/context', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ entity_id: entityId }),
+      body: JSON.stringify({ collective_id: collectiveId }),
     });
 
     if (!res.ok) {
-      setCurrentUser(prev => prev ? { ...prev, current_entity_id: prev.entity_id } : prev);
+      setCurrentUser(prev => prev ? { ...prev, active_collective_id: prev.active_collective_id } : prev);
       throw new Error('Hiba a kontextus váltásakor');
     }
 
     setDataReady(false);
     await refreshSupabaseData();
-    router.refresh(); // re-render server components (dashboard, etc.)
+    router.refresh();
   };
 
-  // While impersonating, context switch is local-only — no DB write, no re-fetch
-  // (SA already has all entity data loaded; effectiveEntityId re-computes instantly)
-  const switchImpersonatingContext = (entityId) => {
-    setImpersonating(prev => prev ? { ...prev, current_entity_id: entityId } : prev);
-    document.cookie = `god_mode_entity=${entityId}; path=/; SameSite=Lax`;
+  const switchImpersonatingContext = (collectiveId) => {
+    setImpersonating(prev => prev ? { ...prev, active_collective_id: collectiveId } : prev);
+    if (collectiveId) {
+      document.cookie = `god_mode_entity=${collectiveId}; path=/; SameSite=Lax`;
+    } else {
+      document.cookie = 'god_mode_entity=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
+    }
     fetch('/api/entity/data').then(r => r.ok ? r.json() : null).then(d => {
       if (!d) return;
       setSurveys(d.surveys || []);
@@ -489,12 +482,10 @@ export function AppProvider({ children }) {
     });
     const resData = await res.json();
     if (!res.ok) throw new Error(resData.error || 'Hiba a törléskor');
-    const deletedProjectIds = new Set(projects.filter(p => p.entity_id === entityId).map(p => p.id));
+    const deletedProjectIds = new Set(projects.filter(p => p.collective_id === entityId).map(p => p.id));
     setEntities(prev => prev.filter(e => e.id !== entityId));
-    setUsers(prev => prev.filter(u => u.entity_id !== entityId));
-    setProjects(prev => prev.filter(p => p.entity_id !== entityId));
-    setClients(prev => prev.filter(c => c.entity_id !== entityId));
-    setQuotes(prev => prev.filter(q => q.entity_id !== entityId));
+    setProjects(prev => prev.filter(p => p.collective_id !== entityId));
+    setQuotes(prev => prev.filter(q => q.collective_id !== entityId));
     setInvoices(prev => prev.filter(inv => !deletedProjectIds.has(inv.project_id)));
   };
 
@@ -824,12 +815,12 @@ export function AppProvider({ children }) {
 
   // ---- Clients ----------------------------------------------------------------
 
-  const createClient = async ({ name, address, phone, email, notes, discountPercent = 0, entityId: entityIdOverride }) => {
+  const createClient = async ({ name, address, phone, email, notes, discountPercent = 0 }) => {
     if (!isAdmin) throw new Error('Csak adminisztrátor hozhat létre ügyfelet!');
     const res = await fetch('/api/clients', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, address, phone, email, notes, discountPercent, entityId: entityIdOverride || effectiveEntityId }),
+      body: JSON.stringify({ name, address, phone, email, notes, discountPercent }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Hiba az ügyfél létrehozásakor');
@@ -862,12 +853,12 @@ export function AppProvider({ children }) {
 
   // ---- Surveys ----------------------------------------------------------------
 
-  const createSurvey = async ({ title, notes, date, location, clientId, sharedWith = [], entityId: entityIdOverride }) => {
+  const createSurvey = async ({ title, notes, date, location, clientId, sharedWith = [], collectiveId: collectiveIdOverride }) => {
     if (!isAdmin) throw new Error('Csak adminisztrátor hozhat létre felmérést!');
     const res = await fetch('/api/surveys', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title, notes, date: date || null, location, client_id: clientId || null, entity_id: entityIdOverride || effectiveEntityId, shared_with: sharedWith }),
+      body: JSON.stringify({ title, notes, date: date || null, location, client_id: clientId || null, collective_id: collectiveIdOverride ?? activeCollectiveId ?? null, shared_with: sharedWith }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Hiba a felmérés létrehozásakor');
@@ -1045,15 +1036,15 @@ export function AppProvider({ children }) {
 
   // ---- Quotes -----------------------------------------------------------------
 
-  const createQuote = async ({ title, location, workType, description, startDate, endDate, clientId, sharedWith = [], taxPercent = 27, entityId: entityIdOverride, surveyId }) => {
+  const createQuote = async ({ title, location, workType, description, startDate, endDate, clientId, sharedWith = [], taxPercent = 27, collectiveId: collectiveIdOverride, surveyId }) => {
     if (!effectiveUser) throw new Error('Bejelentkezés szükséges!');
-    const targetEntityId = entityIdOverride || effectiveEntityId;
-    if (!targetEntityId) throw new Error('Nincs entitás hozzárendelve!');
+    const targetCollectiveId = collectiveIdOverride ?? activeCollectiveId ?? null;
 
     const { data, error } = await supabase
       .from('quotes')
       .insert([{
-        entity_id: targetEntityId,
+        owner_id:      effectiveUser.id,
+        collective_id: targetCollectiveId,
         title,
         location,
         work_type: workType,
@@ -1166,7 +1157,7 @@ export function AppProvider({ children }) {
     if (quote.created_by !== effectiveUser?.id && !isAdmin) throw new Error('Nincs jogosultsága!');
     // Only share with users within the same entity
     const recipient = users.find(u => u.id === userId);
-    if (!recipient || recipient.entity_id !== quote.entity_id) throw new Error('A felhasználó nem tartozik ehhez az entitáshoz!');
+    if (!recipient) throw new Error('A felhasználó nem található!');
     const newShared = [...new Set([...(quote.shared_with || []), userId])];
     return updateQuote(quoteId, { shared_with: newShared });
   };
@@ -1229,15 +1220,14 @@ export function AppProvider({ children }) {
     const quote = quotes.find(q => q.id === quoteId);
     if (!quote) throw new Error('Az ajánlat nem található!');
     if (!isAdmin && quote.created_by !== effectiveUser?.id) throw new Error('Nincs jogosultsága!');
-    const targetEntityId = quote.entity_id || effectiveEntityId;
-    if (!targetEntityId) throw new Error('Nincs entitás hozzárendelve!');
 
     const projDescription = [quote.work_type, quote.description].filter(Boolean).join(' – ');
 
     const { data: proj, error: projErr } = await supabase
       .from('projects')
       .insert([{
-        entity_id: targetEntityId,
+        owner_id:      effectiveUser.id,
+        collective_id: quote.collective_id || null,
         name: quote.title,
         description: projDescription,
         created_by: effectiveUser.id,
@@ -1356,11 +1346,12 @@ export function AppProvider({ children }) {
         isSuperAdmin,
         isAdmin,
         effectiveEntityId,
+        activeCollectiveId,
         loading,
         dataReady,
-        // Memberships & context switcher
-        memberships,
-        effectiveMemberships,
+        // Collectives & context switcher
+        collectives,
+        effectiveCollectives,
         allMemberships,
         setActiveContext,
         switchImpersonatingContext,

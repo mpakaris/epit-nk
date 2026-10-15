@@ -5,7 +5,7 @@ import { logAudit } from '@/lib/audit';
 async function getCallerProfile(supabase, admin) {
   const { data: { user }, error } = await supabase.auth.getUser();
   if (error || !user) return { error: 'Unauthenticated', status: 401 };
-  const { data: profile } = await admin.from('profiles').select('id, role, entity_id, current_entity_id, display_name').eq('id', user.id).single();
+  const { data: profile } = await admin.from('profiles').select('id, role, active_collective_id, display_name').eq('id', user.id).single();
   if (!profile) return { error: 'Profile not found', status: 403 };
   return { user, profile };
 }
@@ -16,13 +16,12 @@ export async function GET(request) {
   const ctx = await getCallerProfile(supabase, admin);
   if (ctx.error) return Response.json({ error: ctx.error }, { status: ctx.status });
 
-  let entityId = ctx.profile.entity_id;
+  let entityId = ctx.profile.active_collective_id || ctx.user.id;
   if (ctx.profile.role === 'superadmin') {
     const { searchParams } = new URL(request.url);
-    entityId = searchParams.get('entity_id');
-    if (!entityId) return Response.json({ error: 'entity_id kötelező' }, { status: 400 });
+    entityId = searchParams.get('entity_id') || null;
+    if (!entityId) return Response.json({ ideas: [] });
   }
-  if (!entityId) return Response.json({ error: 'Nincs entitás hozzárendelve!' }, { status: 400 });
 
   const { data, error } = await admin
     .from('ideas')
@@ -45,7 +44,7 @@ export async function POST(request) {
 
   const entityId = ctx.profile.role === 'superadmin'
     ? (entityIdOverride || null)
-    : ctx.profile.entity_id;
+    : (ctx.profile.active_collective_id || ctx.user.id);
   if (!entityId) return Response.json({ error: 'Nincs entitás hozzárendelve!' }, { status: 400 });
 
   const { data, error } = await admin

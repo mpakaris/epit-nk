@@ -13,14 +13,8 @@ export async function POST(request) {
   const { data: { user }, error: authErr } = await supabase.auth.getUser();
   if (authErr || !user) return Response.json({ error: 'Unauthenticated' }, { status: 401 });
 
-  const { data: profile } = await admin
-    .from('profiles')
-    .select('id, role, entity_id, current_entity_id')
-    .eq('id', user.id)
-    .single();
-
+  const { data: profile } = await admin.from('profiles').select('id, role').eq('id', user.id).single();
   if (!profile) return Response.json({ error: 'Profile not found' }, { status: 403 });
-  if (profile.role !== 'superadmin' && !(profile.entity_id || profile.current_entity_id)) return Response.json({ error: 'No entity assigned' }, { status: 400 });
 
   let formData;
   try {
@@ -29,15 +23,8 @@ export async function POST(request) {
     return Response.json({ error: 'Érvénytelen feltöltési kérés' }, { status: 400 });
   }
 
-  // Resolve entity_id — superadmin passes project_id in form so we can derive it
-  let entityId = profile.current_entity_id || profile.entity_id;
-  if (profile.role === 'superadmin') {
-    const projectId = formData.get('project_id');
-    if (!projectId) return Response.json({ error: 'project_id required for superadmin uploads' }, { status: 400 });
-    const { data: proj } = await admin.from('projects').select('entity_id').eq('id', projectId).single();
-    if (!proj) return Response.json({ error: 'Project not found' }, { status: 404 });
-    entityId = proj.entity_id;
-  }
+  // Use user.id as the storage namespace — no entity_id needed
+  const entityId = user.id;
 
   const files = formData.getAll('files');
   if (!files || files.length === 0) return Response.json({ error: 'Nincs feltöltendő fájl' }, { status: 400 });

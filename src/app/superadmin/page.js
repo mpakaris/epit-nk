@@ -81,23 +81,23 @@ export default function SuperAdminPage() {
     }
   };
 
-  // ---- Entity jump / admin picker ----
+  // ---- Entity jump / user picker ────────────────────────────────────────
   const handleJump = (entity) => {
-    const adminMemberIds = allMemberships
-      .filter(m => m.entity_id === entity.id && ['owner', 'admin'].includes(m.role))
-      .map(m => m.user_id);
-    const admins = users.filter(u => adminMemberIds.includes(u.id));
-    if (admins.length === 0) {
-      setAlertModal({ message: `"${entity.name}" has no administrator yet. Create one in the entity detail view.` });
+    // Build member list directly from allMemberships (includes display_name)
+    const members = allMemberships
+      .filter(m => m.entity_id === entity.id)
+      .map(m => ({ id: m.user_id, display_name: m.display_name, email: m.email, role: m.role }));
+
+    if (members.length === 0) {
+      setAlertModal({ message: `"${entity.name}" has no members yet.` });
       return;
     }
-    if (admins.length === 1) {
-      startImpersonation(admins[0].id).catch(err => setAlertModal({ message: err.message }));
+    if (members.length === 1) {
+      startImpersonation(members[0].id).catch(err => setAlertModal({ message: err.message }));
       return;
     }
-    // Multiple admins — show picker
     setPickerEntity(entity);
-    setPickerAdmins(admins);
+    setPickerAdmins(members);
   };
 
   const handleDelete = (entity) => {
@@ -166,11 +166,9 @@ export default function SuperAdminPage() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(320px, 100%), 1fr))', gap: '1rem' }}>
           {collectiveEntities.map(entity => {
             const entityMemberships = allMemberships.filter(m => m.entity_id === entity.id);
-            const entityAdminIds    = entityMemberships.filter(m => ['owner', 'admin'].includes(m.role)).map(m => m.user_id);
-            const entityMemberIds   = entityMemberships.filter(m => m.role === 'member').map(m => m.user_id);
-            const entityAdmins      = users.filter(u => entityAdminIds.includes(u.id));
-            const entityMembers     = users.filter(u => entityMemberIds.includes(u.id));
-            const entityProjects    = projects.filter(p => p.entity_id === entity.id);
+            const entityAdmins      = entityMemberships.filter(m => ['owner', 'admin'].includes(m.role));
+            const entityMembers     = entityMemberships.filter(m => !['owner', 'admin'].includes(m.role));
+            const entityProjects    = projects.filter(p => p.entity_id === entity.id || p.collective_id === entity.id);
 
             return (
               <div key={entity.id} className="card" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>

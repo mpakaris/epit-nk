@@ -2,48 +2,43 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { logAudit } from '@/lib/audit';
 
-async function getCallerProfile(supabase, admin) {
-  const { data: { user }, error } = await supabase.auth.getUser();
-  if (error || !user) return { error: 'Unauthenticated', status: 401 };
-  const { data: profile } = await admin.from('profiles').select('id, role, entity_id, display_name').eq('id', user.id).single();
-  if (!profile) return { error: 'Profile not found', status: 403 };
-  // Superadmin allowed — entity_id resolved per-project in each handler
-  if (profile.role !== 'superadmin' && !profile.entity_id) return { error: 'No entity assigned', status: 400 };
-  return { profile };
-}
+async function getCallerAndProject(admin, userId, projectId) {
+  const { data: profile } = await admin.from('profiles').select('id, role, display_name').eq('id', userId).single();
+  if (!profile) return { err: 'Profile not found', status: 403 };
 
-// Resolve the entity_id for a project, respecting superadmin's cross-entity access
-async function resolveEntityId(admin, projectId, profile) {
-  if (profile.role === 'superadmin') {
-    const { data: p } = await admin.from('projects').select('entity_id').eq('id', projectId).single();
-    return p?.entity_id || null;
+  const { data: project } = await admin.from('projects').select('id, owner_id, collective_id, created_by').eq('id', projectId).single();
+  if (!project) return { err: 'Project not found', status: 404 };
+
+  if (profile.role === 'superadmin') return { profile, project };
+
+  const isOwner = project.owner_id === userId || project.created_by === userId;
+  if (isOwner) return { profile, project };
+
+  if (project.collective_id) {
+    const { data: mem } = await admin.from('collective_members').select('role').eq('collective_id', project.collective_id).eq('user_id', userId).eq('status', 'active').maybeSingle();
+    if (mem) return { profile, project };
   }
-  return profile.entity_id;
+
+  return { err: 'Forbidden', status: 403 };
 }
 
-// GET /api/diary?project_id=X — list entries with photos, entity-scoped
 export async function GET(request) {
   const supabase = await createClient();
-  const admin = createAdminClient();
-  const { profile, error, status } = await getCallerProfile(supabase, admin);
-  if (error) return Response.json({ error }, { status });
+  const { data: { user }, error: authErr } = await supabase.auth.getUser();
+  if (authErr || !user) return Response.json({ error: 'Unauthenticated' }, { status: 401 });
 
   const { searchParams } = new URL(request.url);
   const projectId = searchParams.get('project_id');
   if (!projectId) return Response.json({ error: 'Missing project_id' }, { status: 400 });
 
-  const entityId = await resolveEntityId(admin, projectId, profile);
-  if (!entityId) return Response.json({ error: 'Project not found' }, { status: 404 });
-
-  // Verify project exists and belongs to the resolved entity
-  const { data: project } = await admin.from('projects').select('id').eq('id', projectId).eq('entity_id', entityId).single();
-  if (!project) return Response.json({ error: 'Project not found or access denied' }, { status: 404 });
+  const admin = createAdminClient();
+  const ctx = await getCallerAndProject(admin, user.id, projectId);
+  if (ctx.err) return Response.json({ error: ctx.err }, { status: ctx.status });
 
   const { data: entries, error: entriesErr } = await admin
     .from('diary_entries')
     .select('*')
     .eq('project_id', projectId)
-    .eq('entity_id', entityId)
     .order('entry_date', { ascending: false })
     .order('created_at', { ascending: false });
 
@@ -56,7 +51,6 @@ export async function GET(request) {
       .from('diary_photos')
       .select('*')
       .in('entry_id', entryIds)
-      .eq('entity_id', entityId)
       .order('created_at');
     photos = p || [];
   }
@@ -69,61 +63,47 @@ export async function GET(request) {
   return Response.json({ entries: entriesWithPhotos });
 }
 
-// POST /api/diary — create entry
 export async function POST(request) {
   const supabase = await createClient();
-  const admin = createAdminClient();
-  const { profile, error, status } = await getCallerProfile(supabase, admin);
-  if (error) return Response.json({ error }, { status });
+  const { data: { user }, error: authErr } = await supabase.auth.getUser();
+  if (authErr || !user) return Response.json({ error: 'Unauthenticated' }, { status: 401 });
 
   const body = await request.json();
   const { project_id, title, body: entryBody, entry_date, photo_ids, work_type, internal_note, client_note, is_public } = body;
-
   if (!project_id || !title?.trim()) return Response.json({ error: 'project_id és title kötelező' }, { status: 400 });
 
-  const entityId = await resolveEntityId(admin, project_id, profile);
-  if (!entityId) return Response.json({ error: 'Project not found' }, { status: 404 });
-
-  const { data: project } = await admin.from('projects').select('id, entity_id').eq('id', project_id).eq('entity_id', entityId).single();
-  if (!project) return Response.json({ error: 'Project not found or access denied' }, { status: 404 });
+  const admin = createAdminClient();
+  const ctx = await getCallerAndProject(admin, user.id, project_id);
+  if (ctx.err) return Response.json({ error: ctx.err }, { status: ctx.status });
 
   const { data: entry, error: insertErr } = await admin.from('diary_entries').insert([{
     project_id,
-    entity_id: entityId,
-    created_by: profile.id,
-    title: title.trim(),
-    body: entryBody || null,
-    entry_date: entry_date || new Date().toISOString().split('T')[0],
-    work_type: work_type?.trim() || null,
+    created_by:    user.id,
+    title:         title.trim(),
+    body:          entryBody || null,
+    entry_date:    entry_date || new Date().toISOString().split('T')[0],
+    work_type:     work_type?.trim() || null,
     internal_note: internal_note?.trim() || null,
-    client_note: client_note?.trim() || null,
-    is_public: Boolean(is_public),
+    client_note:   client_note?.trim() || null,
+    is_public:     Boolean(is_public),
   }]).select().single();
 
   if (insertErr) return Response.json({ error: insertErr.message }, { status: 500 });
 
   let photos = [];
   if (Array.isArray(photo_ids) && photo_ids.length > 0) {
-    await admin.from('diary_photos')
-      .update({ entry_id: entry.id })
-      .in('id', photo_ids)
-      .eq('entity_id', entityId);
-    const { data: linkedPhotos } = await admin
-      .from('diary_photos')
-      .select('*')
-      .in('id', photo_ids)
-      .eq('entity_id', entityId)
-      .order('created_at');
+    await admin.from('diary_photos').update({ entry_id: entry.id }).in('id', photo_ids);
+    const { data: linkedPhotos } = await admin.from('diary_photos').select('*').in('id', photo_ids).order('created_at');
     photos = linkedPhotos || [];
   }
 
   logAudit({
-    entityId,
-    userId: profile.id,
-    userName: profile.display_name,
-    action: 'diary_entry_created',
+    entityId: ctx.project.collective_id || user.id,
+    userId:   user.id,
+    userName: ctx.profile.display_name,
+    action:   'diary_entry_created',
     targetType: 'diary_entry',
-    targetId: entry.id,
+    targetId:   entry.id,
     targetName: title.trim(),
     details: { project_id },
   });

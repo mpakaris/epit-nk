@@ -53,7 +53,7 @@ function isActive(item, pathname) {
 
 export default function Sidebar() {
   const pathname = usePathname();
-  const { currentUser, isSuperAdmin, isAdmin, impersonating, stopImpersonation, logout, memberships, setActiveContext, switchImpersonatingContext, effectiveEntityId, allMemberships, entities } = useApp();
+  const { currentUser, isSuperAdmin, isAdmin, impersonating, stopImpersonation, logout, collectives, setActiveContext, switchImpersonatingContext, activeCollectiveId, allMemberships, entities } = useApp();
 
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -130,33 +130,29 @@ export default function Sidebar() {
     return () => document.removeEventListener('touchmove', prevent, { passive: false });
   }, [mobileOpen]);
 
-  // When impersonating, build the impersonated user's membership list from SA's loaded data.
-  // Personal entity is always sorted first.
-  const activeMemberships = (impersonating
+  // Build context switcher list — personal workspace always first, then collectives
+  const activeMemberships = impersonating
     ? [
+        { collective_id: null, name: `${impersonating.display_name} – Személyes`, role: 'owner' },
         ...allMemberships
           .filter(m => m.user_id === impersonating.id)
           .map(m => ({
-            entity_id: m.entity_id,
-            entity_name: entities.find(e => e.id === m.entity_id)?.name || '…',
-            entity_type: 'collective',
+            collective_id: m.entity_id,
+            name: entities.find(e => e.id === m.entity_id)?.name || '…',
             role: m.role,
           })),
-        ...(impersonating.personal_entity_id ? [{
-          entity_id: impersonating.personal_entity_id,
-          entity_name: `${impersonating.display_name} – Személyes`,
-          entity_type: 'personal',
-          role: 'owner',
-        }] : []),
       ]
-    : memberships
-  ).slice().sort((a, b) => (a.entity_type === 'personal' ? -1 : 1) - (b.entity_type === 'personal' ? -1 : 1));
+    : [
+        { collective_id: null, name: 'Személyes', role: 'owner' },
+        ...(collectives || []),
+      ];
 
   const showContextSwitcher = activeMemberships.length > 1 && (impersonating || !isSuperAdmin);
 
-  const handleContextChange = (entityId) => {
-    if (impersonating) switchImpersonatingContext(entityId);
-    else setActiveContext(entityId);
+  const handleContextChange = (value) => {
+    const collectiveId = value === '' ? null : value;
+    if (impersonating) switchImpersonatingContext(collectiveId);
+    else setActiveContext(collectiveId);
   };
 
   const ContextSwitcher = () => {
@@ -165,13 +161,13 @@ export default function Sidebar() {
       <div className="ctx-switcher">
         <select
           className="ctx-switcher-select"
-          value={effectiveEntityId || ''}
+          value={activeCollectiveId || ''}
           onChange={e => handleContextChange(e.target.value)}
           title="Kontextus váltás"
         >
           {activeMemberships.map(m => (
-            <option key={m.entity_id} value={m.entity_id}>
-              {m.entity_name}{m.role === 'admin' ? ' (admin)' : ''}
+            <option key={m.collective_id || 'personal'} value={m.collective_id || ''}>
+              {m.name}{m.role === 'admin' ? ' (admin)' : ''}
             </option>
           ))}
         </select>

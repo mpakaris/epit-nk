@@ -26,7 +26,7 @@ async function ProjectDetailContent({ params }) {
   const admin = createAdminClient();
   const { data: profile } = await admin
     .from('profiles')
-    .select('id, role, entity_id, current_entity_id, display_name')
+    .select('id, role, active_collective_id, display_name')
     .eq('id', user.id)
     .single();
 
@@ -34,36 +34,35 @@ async function ProjectDetailContent({ params }) {
 
   const isAdminRole = ['admin', 'superadmin'].includes(profile.role);
 
-  let entityId = profile.current_entity_id || profile.entity_id;
+  const cookieStore = await cookies();
+  let collectiveId    = profile.active_collective_id || null;
+  let effectiveUserId = user.id;
+
   if (profile.role === 'superadmin') {
-    const cookieStore = await cookies();
-    entityId = cookieStore.get('god_mode_entity')?.value || null;
+    const godUser   = cookieStore.get('god_mode_user')?.value   || null;
+    const godEntity = cookieStore.get('god_mode_entity')?.value || null;
+    if (godUser) effectiveUserId = godUser;
+    collectiveId = godEntity || null;
   }
 
-  const projectQueryBuilder = admin.from('projects').select('*').eq('id', id);
-  if (entityId) projectQueryBuilder.eq('entity_id', entityId);
-  const { data: project } = await projectQueryBuilder.single();
-
+  // Fetch project and verify access
+  const { data: project } = await admin.from('projects').select('*').eq('id', id).single();
   if (!project) notFound();
 
-  const { data: memberRows } = await admin
-    .from('project_members')
-    .select('user_id')
-    .eq('project_id', id);
+  const isOwner = project.owner_id === effectiveUserId || project.created_by === effectiveUserId;
+  const isCollectiveMember = project.collective_id && (project.collective_id === collectiveId);
 
+  const { data: memberRows } = await admin.from('project_members').select('user_id').eq('project_id', id);
   const memberIds = (memberRows || []).map(m => m.user_id);
 
-  if (!isAdminRole && !memberIds.includes(user.id)) {
+  if (!isAdminRole && !isOwner && !isCollectiveMember && !memberIds.includes(effectiveUserId)) {
     redirect('/projektek');
   }
 
-  const resolvedEntityId = entityId || project.entity_id;
-
   const [usersRes, invoicesRes, labourRes, allClientsRes, diaryCountRes, roomsRes, paymentPlanRes, splitsRes] = await Promise.all([
-    admin.from('profiles')
-      .select('id, display_name, email, role, entity_id')
-      .eq('entity_id', resolvedEntityId)
-      .order('display_name'),
+    project.collective_id
+      ? admin.from('collective_members').select('user_id, role, profiles(id, display_name, email, role)').eq('collective_id', project.collective_id).eq('status', 'active')
+      : admin.from('profiles').select('id, display_name, email, role').eq('id', effectiveUserId),
     admin.from('invoices')
       .select('*')
       .eq('project_id', id)
@@ -72,8 +71,8 @@ async function ProjectDetailContent({ params }) {
       .select('*')
       .eq('project_id', id)
       .order('date', { ascending: false }),
-    admin.from('clients').select('*').eq('entity_id', resolvedEntityId).order('name'),
-    admin.from('diary_entries').select('id', { count: 'exact', head: true }).eq('project_id', id).eq('entity_id', resolvedEntityId),
+    admin.from('clients').select('*').eq('owner_id', effectiveUserId).order('name'),
+    admin.from('diary_entries').select('id', { count: 'exact', head: true }).eq('project_id', id),
     admin.from('project_rooms').select('*').eq('project_id', id).order('sort_order').order('created_at'),
     admin.from('payment_plan_items').select('*, payment_item_files(*)').eq('project_id', id).order('sort_order').order('created_at'),
     admin.from('invoice_section_splits').select('*').eq('project_id', id),
@@ -91,7 +90,7 @@ async function ProjectDetailContent({ params }) {
       initialLabourEntries={labourRes.data || []}
       client={client}
       clients={allClients}
-      currentUser={{ id: user.id, email: user.email, display_name: profile.display_name || user.email, role: profile.role, entity_id: resolvedEntityId }}
+      currentUser={{ id: effectiveUserId, email: user.email, display_name: profile.display_name || user.email, role: profile.role, active_collective_id: collectiveId }}
       isAdmin={isAdminRole}
       initialDiaryCount={diaryCountRes.count ?? 0}
       initialRooms={roomsRes.data || []}

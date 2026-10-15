@@ -22,7 +22,7 @@ async function ProjectsListContent() {
   const admin = createAdminClient();
   const { data: profile } = await admin
     .from('profiles')
-    .select('id, role, entity_id, current_entity_id, display_name')
+    .select('id, role, active_collective_id, display_name')
     .eq('id', user.id)
     .single();
 
@@ -31,34 +31,40 @@ async function ProjectsListContent() {
   const isSuperAdmin = profile.role === 'superadmin';
   const isAdmin = ['admin', 'superadmin'].includes(profile.role);
 
-  let entityId = profile.current_entity_id || profile.entity_id;
-  let impersonating = null;
+  const cookieStore = await cookies();
+  let collectiveId = profile.active_collective_id || null;
+  let effectiveUserId = user.id;
 
   if (isSuperAdmin) {
-    const cookieStore = await cookies();
+    const godUser   = cookieStore.get('god_mode_user')?.value   || null;
     const godEntity = cookieStore.get('god_mode_entity')?.value || null;
-    entityId = godEntity;
-    impersonating = godEntity ? { entity_id: godEntity } : null;
+    if (!godUser) redirect('/superadmin/projektek');
+    effectiveUserId = godUser;
+    collectiveId    = godEntity || null;
   }
 
   const currentUser = {
-    id: user.id,
-    email: user.email,
+    id:           effectiveUserId,
+    email:        user.email,
     display_name: profile.display_name || user.email,
-    role: profile.role,
-    entity_id: entityId,
+    role:         profile.role,
   };
 
-  if (!entityId) {
-    // Superadmin without god mode — send them to their own projects dashboard
-    redirect('/superadmin/projektek');
-  }
+  // Projects: personal (owner_id = user, no collective) + collective if active
+  const isPersonal = !collectiveId;
 
   const [projectsRes, usersRes, clientsRes, quotesRes] = await Promise.all([
-    admin.from('projects').select('*').eq('entity_id', entityId).order('created_at', { ascending: false }),
-    admin.from('profiles').select('id, display_name, email, role, entity_id').eq('entity_id', entityId).order('display_name'),
-    admin.from('clients').select('*').eq('entity_id', entityId).order('name'),
-    admin.from('quotes').select('*').eq('entity_id', entityId).order('created_at', { ascending: false }),
+    isPersonal
+      ? admin.from('projects').select('*').eq('owner_id', effectiveUserId).is('collective_id', null).order('created_at', { ascending: false })
+      : admin.from('projects').select('*').or(`collective_id.eq.${collectiveId},and(owner_id.eq.${effectiveUserId},collective_id.is.null)`).order('created_at', { ascending: false }),
+    collectiveId
+      ? admin.from('collective_members').select('user_id, role, profiles(id, display_name, email, role)').eq('collective_id', collectiveId).eq('status', 'active')
+      : admin.from('profiles').select('id, display_name, email, role').eq('id', effectiveUserId),
+    // Clients are always personal — only the owner sees their own
+    admin.from('clients').select('*').eq('owner_id', effectiveUserId).order('name'),
+    isPersonal
+      ? admin.from('quotes').select('*').eq('owner_id', effectiveUserId).is('collective_id', null).order('created_at', { ascending: false })
+      : admin.from('quotes').select('*').or(`collective_id.eq.${collectiveId},and(owner_id.eq.${effectiveUserId},collective_id.is.null)`).order('created_at', { ascending: false }),
   ]);
 
   const projects = projectsRes.data || [];
@@ -98,8 +104,8 @@ async function ProjectsListContent() {
       currentUser={currentUser}
       isAdmin={isAdmin}
       isSuperAdmin={isSuperAdmin}
-      impersonating={impersonating}
-      effectiveEntityId={entityId}
+      impersonating={isSuperAdmin ? { collective_id: collectiveId } : null}
+      effectiveEntityId={collectiveId}
     />
   );
 }

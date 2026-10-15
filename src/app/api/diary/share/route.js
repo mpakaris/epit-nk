@@ -23,11 +23,17 @@ export async function GET(request) {
   const projectId = searchParams.get('project_id');
   if (!projectId) return Response.json({ error: 'Missing project_id' }, { status: 400 });
 
-  // Verify project belongs to caller's entity
-  const entityId = profile.current_entity_id || profile.entity_id;
-  if (entityId) {
-    const { data: project } = await admin.from('projects').select('id').eq('id', projectId).eq('entity_id', entityId).single();
-    if (!project) return Response.json({ error: 'Project not found or access denied' }, { status: 404 });
+  // Verify caller can access this project
+  const { data: projectCheck } = await admin.from('projects').select('id, owner_id, collective_id, created_by').eq('id', projectId).single();
+  if (!projectCheck) return Response.json({ error: 'Project not found or access denied' }, { status: 404 });
+  if (profile.role !== 'superadmin') {
+    const isOwner = projectCheck.owner_id === profile.id || projectCheck.created_by === profile.id;
+    if (!isOwner && projectCheck.collective_id) {
+      const { data: mem } = await admin.from('collective_members').select('collective_id').eq('collective_id', projectCheck.collective_id).eq('user_id', profile.id).eq('status', 'active').maybeSingle();
+      if (!mem) return Response.json({ error: 'Project not found or access denied' }, { status: 404 });
+    } else if (!isOwner) {
+      return Response.json({ error: 'Project not found or access denied' }, { status: 404 });
+    }
   }
 
   const { data: tokens, error: tokensErr } = await admin
@@ -51,16 +57,15 @@ export async function POST(request) {
   const { project_id, label, expires_at } = body;
   if (!project_id) return Response.json({ error: 'Missing project_id' }, { status: 400 });
 
-  // Verify project belongs to caller's entity
-  const { data: project } = await admin.from('projects').select('id, entity_id').eq('id', project_id).single();
+  const { data: project } = await admin.from('projects').select('id, owner_id, collective_id, created_by').eq('id', project_id).single();
   if (!project) return Response.json({ error: 'Project not found' }, { status: 404 });
-  if (profile.entity_id && ![profile.entity_id, profile.current_entity_id].filter(Boolean).includes(project.entity_id)) {
-    return Response.json({ error: 'Access denied — project belongs to a different entity' }, { status: 403 });
+  if (profile.role !== 'superadmin') {
+    const isOwner = project.owner_id === profile.id || project.created_by === profile.id;
+    if (!isOwner) return Response.json({ error: 'Access denied' }, { status: 403 });
   }
 
   const { data: token, error: insertErr } = await admin.from('diary_share_tokens').insert([{
     project_id,
-    entity_id: project.entity_id,
     label: label || null,
     created_by: profile.id,
     expires_at: expires_at || null,

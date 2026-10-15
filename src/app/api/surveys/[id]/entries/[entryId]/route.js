@@ -7,22 +7,20 @@ async function getCtx(surveyId, entryId) {
   const { data: { user }, error } = await supabase.auth.getUser();
   if (error || !user) return { err: 'Unauthenticated', status: 401 };
   const admin = createAdminClient();
-  const { data: profile } = await admin.from('profiles').select('id, role, entity_id, current_entity_id').eq('id', user.id).single();
+  const { data: profile } = await admin.from('profiles').select('id, role').eq('id', user.id).single();
   if (!profile) return { err: 'Forbidden', status: 403 };
-  const { data: survey } = await admin.from('surveys').select('entity_id, shared_with').eq('id', surveyId).single();
+  const { data: survey } = await admin.from('surveys').select('owner_id, collective_id, shared_with, created_by').eq('id', surveyId).single();
   if (!survey) return { err: 'Not found', status: 404 };
   if (profile.role !== 'superadmin') {
-    const profileEntityIds = [profile.entity_id, profile.current_entity_id].filter(Boolean);
-    const isOwnEntity = profileEntityIds.includes(survey.entity_id);
-    if (!isOwnEntity) {
-      const { data: mem } = await admin.from('memberships').select('id').eq('user_id', profile.id).eq('entity_id', survey.entity_id).eq('status', 'active').maybeSingle();
+    const isOwner  = survey.owner_id === user.id || survey.created_by === user.id;
+    const isShared = (survey.shared_with || []).includes(user.id);
+    if (!isOwner && !isShared) {
+      if (!survey.collective_id) return { err: 'Forbidden', status: 403 };
+      const { data: mem } = await admin.from('collective_members').select('collective_id').eq('collective_id', survey.collective_id).eq('user_id', user.id).eq('status', 'active').maybeSingle();
       if (!mem) return { err: 'Forbidden', status: 403 };
     }
   }
-  const isAdmin = ['admin', 'superadmin'].includes(profile.role);
-  const isSharedMember = (survey.shared_with || []).includes(profile.id);
-  if (!isAdmin && !isSharedMember) return { err: 'Forbidden', status: 403 };
-  return { profile, admin, entityId: survey.entity_id };
+  return { profile, admin, entityId: null };
 }
 
 export async function PATCH(request, { params }) {

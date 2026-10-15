@@ -5,19 +5,28 @@ import { logAudit } from '@/lib/audit';
 async function getAuth(supabase, admin) {
   const { data: { user }, error: authErr } = await supabase.auth.getUser();
   if (authErr || !user) return { error: 'Unauthenticated', status: 401 };
-  const { data: profile } = await admin.from('profiles').select('id, role, entity_id, current_entity_id, display_name').eq('id', user.id).single();
+  const { data: profile } = await admin.from('profiles').select('id, role, display_name').eq('id', user.id).single();
   if (!profile) return { error: 'Profile not found', status: 403 };
   return { user, profile };
 }
 
-async function resolveEntry(entryId, profile, admin) {
-  const query = admin.from('diary_entries')
-    .select('id, title, project_id, entity_id, created_by')
-    .eq('id', entryId);
-  // Superadmin can access any entry; others are scoped to their entity
-  if (profile.role !== 'superadmin') query.eq('entity_id', profile.current_entity_id || profile.entity_id);
-  const { data: entry } = await query.single();
-  return entry;
+async function resolveEntry(entryId, userId, profile, admin) {
+  const { data: entry } = await admin.from('diary_entries')
+    .select('id, title, project_id, created_by')
+    .eq('id', entryId)
+    .single();
+  if (!entry) return null;
+  if (profile.role === 'superadmin') return entry;
+  // Verify user can access the project
+  const { data: project } = await admin.from('projects').select('owner_id, collective_id, created_by').eq('id', entry.project_id).single();
+  if (!project) return null;
+  const isOwner = project.owner_id === userId || project.created_by === userId;
+  if (isOwner) return entry;
+  if (project.collective_id) {
+    const { data: mem } = await admin.from('collective_members').select('collective_id').eq('collective_id', project.collective_id).eq('user_id', userId).eq('status', 'active').maybeSingle();
+    if (mem) return entry;
+  }
+  return null;
 }
 
 // PATCH /api/diary/[id] — admin or superadmin only
@@ -31,13 +40,8 @@ export async function PATCH(request, { params }) {
 
   const isSuperAdmin = profile.role === 'superadmin';
   const isAdminRole = profile.role === 'admin';
-  if (!isSuperAdmin && !isAdminRole) return Response.json({ error: 'Csak admin szerkeszthet bejegyzést' }, { status: 403 });
-  if (!isSuperAdmin && !(profile.entity_id || profile.current_entity_id)) return Response.json({ error: 'No entity assigned' }, { status: 400 });
-
-  const entry = await resolveEntry(id, profile, admin);
+  const entry = await resolveEntry(id, user.id, profile, admin);
   if (!entry) return Response.json({ error: 'Entry not found or access denied' }, { status: 404 });
-
-  const entityId = entry.entity_id;
 
   const body = await request.json();
   const { title, body: entryBody, work_type, internal_note, client_note, entry_date, add_photo_ids, is_public } = body;
@@ -97,18 +101,15 @@ export async function DELETE(request, { params }) {
   if (error) return Response.json({ error }, { status });
 
   const isSuperAdmin = profile.role === 'superadmin';
-  if (!isSuperAdmin && !(profile.entity_id || profile.current_entity_id)) return Response.json({ error: 'No entity assigned' }, { status: 400 });
-
-  const entry = await resolveEntry(id, profile, admin);
+  const entry = await resolveEntry(id, user.id, profile, admin);
   if (!entry) return Response.json({ error: 'Entry not found or access denied' }, { status: 404 });
 
-  const isAdminRole = ['admin'].includes(profile.role);
-  const isOwner = entry.created_by === profile.id;
-  if (!isSuperAdmin && !isAdminRole && !isOwner) {
+  const isOwner = entry.created_by === user.id;
+  if (!isSuperAdmin && !isOwner) {
     return Response.json({ error: 'Nincs jogosultsága törölni ezt a bejegyzést' }, { status: 403 });
   }
 
-  const { error: delErr } = await admin.from('diary_entries').delete().eq('id', id).eq('entity_id', entry.entity_id);
+  const { error: delErr } = await admin.from('diary_entries').delete().eq('id', id);
   if (delErr) return Response.json({ error: delErr.message }, { status: 500 });
 
   logAudit({

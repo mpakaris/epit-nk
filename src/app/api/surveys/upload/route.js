@@ -12,7 +12,7 @@ export async function POST(request) {
   const { data: { user }, error: authErr } = await supabase.auth.getUser();
   if (authErr || !user) return Response.json({ error: 'Unauthenticated' }, { status: 401 });
 
-  const { data: profile } = await admin.from('profiles').select('id, role, entity_id, current_entity_id').eq('id', user.id).single();
+  const { data: profile } = await admin.from('profiles').select('id, role').eq('id', user.id).single();
   if (!profile) return Response.json({ error: 'Profile not found' }, { status: 403 });
   let formData;
   try { formData = await request.formData(); }
@@ -23,21 +23,19 @@ export async function POST(request) {
   const entryId = formData.get('entry_id') || null;
   const mediaType = formData.get('media_type') || 'photo';
 
-  const { data: survey } = await admin.from('surveys').select('entity_id, shared_with').eq('id', surveyId).single();
+  const { data: survey } = await admin.from('surveys').select('owner_id, collective_id, shared_with, created_by').eq('id', surveyId).single();
   if (!survey) return Response.json({ error: 'Felmérés nem található' }, { status: 404 });
   if (profile.role !== 'superadmin') {
-    const profileEntityIds = [profile.entity_id, profile.current_entity_id].filter(Boolean);
-    const isOwnEntity = profileEntityIds.includes(survey.entity_id);
-    if (!isOwnEntity) {
-      const { data: mem } = await admin.from('memberships').select('id').eq('user_id', profile.id).eq('entity_id', survey.entity_id).eq('status', 'active').maybeSingle();
+    const isOwner  = survey.owner_id === user.id || survey.created_by === user.id;
+    const isShared = (survey.shared_with || []).includes(user.id);
+    if (!isOwner && !isShared) {
+      if (!survey.collective_id) return Response.json({ error: 'Forbidden' }, { status: 403 });
+      const { data: mem } = await admin.from('collective_members').select('collective_id').eq('collective_id', survey.collective_id).eq('user_id', user.id).eq('status', 'active').maybeSingle();
       if (!mem) return Response.json({ error: 'Forbidden' }, { status: 403 });
     }
   }
-  const isAdmin = ['admin', 'superadmin'].includes(profile.role);
-  const isSharedMember = (survey.shared_with || []).includes(profile.id);
-  if (!isAdmin && !isSharedMember) return Response.json({ error: 'Forbidden' }, { status: 403 });
 
-  const entityId = survey.entity_id;
+  const entityId = survey.collective_id || user.id;
   const files = formData.getAll('files');
   if (!files?.length) return Response.json({ error: 'Nincs feltöltendő fájl' }, { status: 400 });
   if (files.length > MAX_FILES) return Response.json({ error: `Max ${MAX_FILES} fájl egyszerre` }, { status: 400 });
