@@ -9,7 +9,7 @@ import { formatDate, formatHUF } from '@/lib/constants';
 import {
   Building2, Plus, Users, FolderKanban, Eye, Trash2,
   ShieldAlert, AlertCircle, CheckCircle2, Edit3, ArrowUpRight,
-  FileText, Receipt, Coins, Globe, CreditCard, Image
+  FileText, Receipt, Coins, Globe, CreditCard, Image, Mail, Loader2
 } from 'lucide-react';
 
 export default function SuperAdminPage() {
@@ -31,6 +31,23 @@ export default function SuperAdminPage() {
 
   const [confirmModal, setConfirmModal] = useState(null);
   const [alertModal, setAlertModal] = useState(null);
+
+  const [smtpPinging, setSmtpPinging] = useState(false);
+  const [smtpStatus, setSmtpStatus] = useState(null); // null | { ok, from } | { ok: false, error }
+
+  const handleSmtpPing = async () => {
+    setSmtpPinging(true);
+    setSmtpStatus(null);
+    try {
+      const res = await fetch('/api/superadmin/email/ping', { method: 'POST' });
+      const data = await res.json();
+      setSmtpStatus(data);
+    } catch (err) {
+      setSmtpStatus({ ok: false, error: err.message });
+    } finally {
+      setSmtpPinging(false);
+    }
+  };
 
   if (loading) return <div className="container" style={{ paddingTop: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>Loading...</div>;
 
@@ -306,6 +323,35 @@ export default function SuperAdminPage() {
           <button type="button" className="btn btn-secondary btn-sm" onClick={() => setPickerEntity(null)}>Cancel</button>
         </div>
       </Modal>
+
+      {/* ── SMTP / Email ── */}
+      <div className="card" style={{ padding: '1.15rem', marginBottom: '1.5rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.85rem', gap: '0.5rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+            <Mail size={16} color="var(--accent)" />
+            <h3 style={{ fontSize: '0.9rem', fontWeight: 800, margin: 0 }}>Email / SMTP</h3>
+          </div>
+          <button type="button" className="btn btn-secondary btn-sm" onClick={handleSmtpPing} disabled={smtpPinging}>
+            {smtpPinging ? <><Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> Tesztelés…</> : <>Kapcsolat tesztelése</>}
+          </button>
+        </div>
+        {smtpStatus && (
+          <div style={{ padding: '0.65rem 0.85rem', borderRadius: 'var(--radius-md)', fontSize: '0.825rem', display: 'flex', alignItems: 'center', gap: '0.5rem',
+            background: smtpStatus.ok ? 'var(--success-bg)' : 'var(--danger-bg)',
+            border: `1px solid ${smtpStatus.ok ? 'var(--success-border)' : 'var(--danger-border)'}`,
+            color: smtpStatus.ok ? 'var(--success-text)' : 'var(--danger-text)',
+          }}>
+            {smtpStatus.ok
+              ? <><CheckCircle2 size={15} /> Sikeres kapcsolat — küldés innen: <strong>{smtpStatus.from}</strong></>
+              : <><AlertCircle size={15} /> Hiba: {smtpStatus.error}</>}
+          </div>
+        )}
+        {!smtpStatus && (
+          <p style={{ fontSize: '0.825rem', color: 'var(--text-muted)', margin: 0 }}>
+            Gmail SMTP · <code>smtp.gmail.com:587</code> · {process.env.SMTP_FROM_EMAIL || 'SMTP_FROM_EMAIL not set'}
+          </p>
+        )}
+      </div>
 
       <ConfirmModal isOpen={!!confirmModal} onClose={() => setConfirmModal(null)} onConfirm={() => confirmModal?.onConfirm()} title="Delete Entity" message={confirmModal?.message} />
       <AlertModal isOpen={!!alertModal} onClose={() => setAlertModal(null)} message={alertModal?.message} />

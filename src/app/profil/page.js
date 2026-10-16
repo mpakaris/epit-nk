@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from '@/context/AppContext';
-import { User, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
+import { User, CheckCircle2, AlertCircle, Loader2, FileText, Upload, Trash2 } from 'lucide-react';
 
 export default function ProfilPage() {
   const { currentUser } = useApp();
@@ -22,6 +22,13 @@ export default function ProfilPage() {
   const [success,  setSuccess]  = useState(false);
   const [error,    setError]    = useState('');
 
+  const [termsPdfUrl,        setTermsPdfUrl]        = useState(null);
+  const [termsPdfName,       setTermsPdfName]       = useState(null);
+  const [termsPdfUploadedAt, setTermsPdfUploadedAt] = useState(null);
+  const [uploadingPdf,       setUploadingPdf]       = useState(false);
+  const [pdfError,           setPdfError]           = useState('');
+  const pdfInputRef = useRef(null);
+
   useEffect(() => {
     fetch('/api/auth/profile')
       .then(r => r.json())
@@ -36,6 +43,9 @@ export default function ProfilPage() {
         setCity(profile.city                  || '');
         setTaxNumber(profile.tax_number       || '');
         setDefaultTaxPct(profile.default_tax_percent != null ? String(profile.default_tax_percent) : '27');
+        setTermsPdfUrl(profile.terms_pdf_url               || null);
+        setTermsPdfName(profile.terms_pdf_name             || null);
+        setTermsPdfUploadedAt(profile.terms_pdf_uploaded_at || null);
       })
       .finally(() => setLoading(false));
   }, []);
@@ -67,6 +77,40 @@ export default function ProfilPage() {
       setError(err.message);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handlePdfUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setPdfError(''); setUploadingPdf(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const res = await fetch('/api/auth/profile/terms-pdf', { method: 'POST', body: fd });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Hiba a feltöltéskor');
+      setTermsPdfUrl(data.terms_pdf_url);
+      setTermsPdfName(data.terms_pdf_name);
+      setTermsPdfUploadedAt(data.terms_pdf_uploaded_at || null);
+    } catch (err) {
+      setPdfError(err.message);
+    } finally {
+      setUploadingPdf(false);
+      e.target.value = '';
+    }
+  };
+
+  const handlePdfDelete = async () => {
+    setPdfError(''); setUploadingPdf(true);
+    try {
+      const res = await fetch('/api/auth/profile/terms-pdf', { method: 'DELETE' });
+      if (!res.ok) throw new Error('Hiba a törléskor');
+      setTermsPdfUrl(null); setTermsPdfName(null); setTermsPdfUploadedAt(null);
+    } catch (err) {
+      setPdfError(err.message);
+    } finally {
+      setUploadingPdf(false);
     }
   };
 
@@ -150,6 +194,53 @@ export default function ProfilPage() {
           </button>
         </div>
       </form>
+      {/* Terms & Conditions PDF */}
+      <div style={{ marginTop: '1.5rem' }}>
+        <h2 style={{ fontSize: '0.95rem', fontWeight: 800, marginBottom: '0.35rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+          <FileText size={16} color="var(--accent)" /> Általános Szerződési Feltételek (ÁSZF)
+        </h2>
+        <p style={{ fontSize: '0.825rem', color: 'var(--text-muted)', marginBottom: '0.85rem' }}>
+          Az itt feltöltött PDF automatikusan csatolódik az ajánlat e-mailekhez (ki lehet kapcsolni küldés előtt).
+        </p>
+
+        <div className="card" style={{ padding: '1rem' }}>
+          {pdfError && (
+            <div style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', color: 'var(--danger-text)', padding: '0.55rem 0.75rem', borderRadius: 'var(--radius-md)', fontSize: '0.825rem', marginBottom: '0.75rem', display: 'flex', gap: '0.4rem' }}>
+              <AlertCircle size={14} style={{ flexShrink: 0, marginTop: 1 }} />{pdfError}
+            </div>
+          )}
+
+          {termsPdfUrl ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'var(--bg-subtle)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: '0.6rem 0.85rem', minWidth: 0 }}>
+                <FileText size={16} color="var(--accent)" style={{ flexShrink: 0 }} />
+                <div style={{ minWidth: 0 }}>
+                  <a href={termsPdfUrl} target="_blank" rel="noopener noreferrer" style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--accent)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block' }}>
+                    {termsPdfName || 'aszf.pdf'}
+                  </a>
+                  {termsPdfUploadedAt && (
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '1px' }}>
+                      Feltöltve: {new Date(termsPdfUploadedAt).toLocaleString('hu-HU', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                    </div>
+                  )}
+                </div>
+              </div>
+              <button type="button" className="btn btn-secondary btn-sm" onClick={() => pdfInputRef.current?.click()} disabled={uploadingPdf}>
+                <Upload size={13} /> Csere
+              </button>
+              <button type="button" className="btn btn-danger btn-sm" onClick={handlePdfDelete} disabled={uploadingPdf}>
+                {uploadingPdf ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
+              </button>
+            </div>
+          ) : (
+            <button type="button" className="btn btn-secondary" onClick={() => pdfInputRef.current?.click()} disabled={uploadingPdf} style={{ width: '100%', justifyContent: 'center', gap: '0.5rem' }}>
+              {uploadingPdf ? <><Loader2 size={15} className="animate-spin" /> Feltöltés…</> : <><Upload size={15} /> PDF feltöltése</>}
+            </button>
+          )}
+
+          <input ref={pdfInputRef} type="file" accept="application/pdf" style={{ display: 'none' }} onChange={handlePdfUpload} />
+        </div>
+      </div>
     </div>
   );
 }

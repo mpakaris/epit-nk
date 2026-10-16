@@ -483,6 +483,53 @@ export default function QuoteDetailPage() {
   const [convertMembers, setConvertMembers]     = useState([]);
   const [isConverting, setIsConverting]         = useState(false);
 
+  const [showSendConfirm, setShowSendConfirm] = useState(false);
+  const [attachTerms, setAttachTerms] = useState(true);
+  const [termsPdfName, setTermsPdfName] = useState(null);
+
+  const openSendConfirm = async () => {
+    if (!client?.email) { setAlertModal({ message: 'Az ügyfélnek nincs megadva email cím.' }); return; }
+    try {
+      const res = await fetch('/api/auth/profile');
+      const data = await res.json();
+      setTermsPdfName(data.profile?.terms_pdf_name || null);
+      setAttachTerms(!!data.profile?.terms_pdf_url);
+    } catch { setTermsPdfName(null); setAttachTerms(false); }
+    setShowSendConfirm(true);
+  };
+  const [sendProgress, setSendProgress] = useState(null); // null | { step, done, error }
+
+  const SEND_STEPS = [
+    { key: 'pdf',        label: 'PDF összeállítása…',      ms: 0    },
+    { key: 'message',    label: 'E-mail szöveg elkészítése…', ms: 18000 },
+    { key: 'recipients', label: 'Címzett hozzáadása…',     ms: 22000 },
+    { key: 'sending',    label: 'Küldés…',                 ms: 25000 },
+  ];
+
+  const handleSendEmail = async () => {
+    setShowSendConfirm(false);
+    setSendProgress({ step: 0, done: false, error: null });
+
+    // Advance steps on a timer while API runs
+    const timers = [];
+    SEND_STEPS.forEach((s, i) => {
+      if (i === 0) return; // step 0 starts immediately
+      timers.push(setTimeout(() => setSendProgress(p => p && !p.done && !p.error ? { ...p, step: i } : p), s.ms));
+    });
+
+    try {
+      const res = await fetch(`/api/quotes/${id}/send`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ attachTerms }) });
+      const data = await res.json();
+      timers.forEach(clearTimeout);
+      if (!res.ok) throw new Error(data.error || 'Ismeretlen hiba');
+      await updateQuoteStatus(id, 'sent');
+      setSendProgress({ step: SEND_STEPS.length - 1, done: true, error: null, sentTo: data.sentTo });
+    } catch (err) {
+      timers.forEach(clearTimeout);
+      setSendProgress(p => ({ ...p, done: false, error: err.message }));
+    }
+  };
+
   const [confirmModal, setConfirmModal] = useState(null);
   const [alertModal, setAlertModal]     = useState(null);
   const [copied, setCopied]             = useState(false);
@@ -542,8 +589,9 @@ export default function QuoteDetailPage() {
     metaTaxPercent  !== String(quote.tax_percent ?? 27)
   );
 
-  const handleSaveMeta = async () => {
-    if (!metaTitle.trim()) return;
+  const STATUS_LABELS_HU = { draft: 'Tervezet', sent: 'Kiküldve', accepted: 'Elfogadva', rejected: 'Elutasítva' };
+
+  const doSaveMeta = async (revert) => {
     setSavingMeta(true);
     try {
       await updateQuote(id, {
@@ -551,9 +599,22 @@ export default function QuoteDetailPage() {
         description: metaDescription.trim(), start_date: metaStartDate || null, end_date: metaEndDate || null,
         client_id: metaClientId || null, tax_percent: Number(metaTaxPercent) || 0,
       });
-      setMetaInitialized(false); // re-sync from updated quote
+      if (revert) await updateQuoteStatus(id, 'draft');
+      setMetaInitialized(false);
     } catch (err) { setAlertModal({ message: err.message }); }
     finally { setSavingMeta(false); }
+  };
+
+  const handleSaveMeta = async () => {
+    if (!metaTitle.trim()) return;
+    if (!quote || quote.status === 'draft') { doSaveMeta(false); return; }
+    setConfirmModal({
+      message: `Az ajánlat jelenlegi státusza: „${STATUS_LABELS_HU[quote.status] || quote.status}". Visszaállítja „Tervezet" státuszra?`,
+      confirmLabel: 'Igen, visszaállítás',
+      cancelLabel: 'Nem, maradjon',
+      onConfirm: () => doSaveMeta(true),
+      onClose:   () => doSaveMeta(false),
+    });
   };
 
   // ── Status handlers ───────────────────────────────────────────────────────
@@ -647,11 +708,8 @@ export default function QuoteDetailPage() {
     setEntryError('');
   };
 
-  const handleSaveEntry = async () => {
-    setEntryError('');
+  const doSaveEntry = async (revert) => {
     const hasCurrent = entryForm.work_description.trim();
-    if (!hasCurrent && pendingEntries.length === 0) { setEntryError('A megnevezés megadása kötelező!'); return; }
-    if (hasCurrent && previewAmount <= 0) { setEntryError('Az összeg nem lehet nulla!'); return; }
     setSavingEntry(true);
     try {
       if (editingEntryId) {
@@ -662,6 +720,7 @@ export default function QuoteDetailPage() {
           await createQuoteEntry({ quoteId: id, userId: e.user_id, workDescription: e.work_description, amountHuf: e.amount_huf, notes: e.notes, entryType: e.entry_type, quantity: e.quantity, unit: e.unit, unitPrice: e.unit_price, sectionId: activeSectionId });
         }
       }
+      if (revert) await updateQuoteStatus(id, 'draft');
       setPendingEntries([]);
       setShowEntryModal(false);
     } catch (err) {
@@ -669,6 +728,21 @@ export default function QuoteDetailPage() {
     } finally {
       setSavingEntry(false);
     }
+  };
+
+  const handleSaveEntry = async () => {
+    setEntryError('');
+    const hasCurrent = entryForm.work_description.trim();
+    if (!hasCurrent && pendingEntries.length === 0) { setEntryError('A megnevezés megadása kötelező!'); return; }
+    if (hasCurrent && previewAmount <= 0) { setEntryError('Az összeg nem lehet nulla!'); return; }
+    if (!quote || quote.status === 'draft') { doSaveEntry(false); return; }
+    setConfirmModal({
+      message: `Az ajánlat jelenlegi státusza: „${STATUS_LABELS_HU[quote.status] || quote.status}". Visszaállítja „Tervezet" státuszra?`,
+      confirmLabel: 'Igen, visszaállítás',
+      cancelLabel: 'Nem, maradjon',
+      onConfirm: () => doSaveEntry(true),
+      onClose:   () => doSaveEntry(false),
+    });
   };
 
   const handleDeleteEntry = (entry) => {
@@ -799,15 +873,50 @@ export default function QuoteDetailPage() {
       {canModify && !isLocked && (
         <div className="card mb-4" style={{ padding: '0.75rem 1rem' }}>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', alignItems: 'center' }}>
-            <span style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.05em', marginRight: '0.25rem' }}>Státusz:</span>
+            {/* Current status badge */}
+            <span style={{ ...sc, fontSize: '0.78rem', fontWeight: 800, padding: '0.25rem 0.65rem', borderRadius: 'var(--radius-pill)', border: `1px solid`, display: 'inline-flex', alignItems: 'center', gap: '0.3rem', flexShrink: 0 }}>
+              {quote.status === 'draft' && <><Edit3 size={12} /> Tervezet</>}
+              {quote.status === 'sent'  && <><Send size={12} /> Kiküldve</>}
+            </span>
+
+            <span style={{ color: 'var(--border-subtle)', fontSize: '1rem', marginLeft: '0.25rem' }}>→</span>
+
+            {/* Primary next action */}
             {quote.status === 'draft' && (
-              <button type="button" onClick={() => handleStatusChange('sent')} className="btn btn-secondary btn-sm"><Send size={14} /> Kiküldve</button>
+              <button type="button" onClick={openSendConfirm} className="btn btn-primary btn-sm" title={!client?.email ? 'Az ügyfélnek nincs email címe' : ''}>
+                <Send size={14} /> Küldés emailben
+              </button>
             )}
+
+            {/* Resend for sent status */}
+            {quote.status === 'sent' && (
+              <button type="button" onClick={openSendConfirm} className="btn btn-secondary btn-sm" title={!client?.email ? 'Az ügyfélnek nincs email címe' : ''}>
+                <Send size={14} /> Újraküldés
+              </button>
+            )}
+
+            {/* Accept — primary on sent, secondary on draft */}
             {(quote.status === 'draft' || quote.status === 'sent') && (
-              <>
-                <button type="button" onClick={() => handleStatusChange('accepted')} className="btn btn-sm" style={{ background: 'var(--success)', color: '#fff', border: 'none' }}><CheckCircle2 size={14} /> Elfogadva → Projektté</button>
-                <button type="button" onClick={() => handleStatusChange('rejected')} className="btn btn-danger btn-sm"><XCircle size={14} /> Elutasítva</button>
-              </>
+              <button
+                type="button"
+                onClick={() => handleStatusChange('accepted')}
+                className={quote.status === 'sent' ? 'btn btn-sm' : 'btn btn-secondary btn-sm'}
+                style={quote.status === 'sent' ? { background: 'var(--success)', color: '#fff', border: 'none' } : {}}
+              >
+                <CheckCircle2 size={14} /> Elfogadva → Projektté
+              </button>
+            )}
+
+            {/* Reject — always subtle */}
+            {(quote.status === 'draft' || quote.status === 'sent') && (
+              <button
+                type="button"
+                onClick={() => handleStatusChange('rejected')}
+                className="btn btn-secondary btn-sm"
+                style={{ color: 'var(--danger-text)', borderColor: 'var(--danger-border)' }}
+              >
+                <XCircle size={14} /> Elutasítva
+              </button>
             )}
           </div>
         </div>
@@ -1057,8 +1166,108 @@ export default function QuoteDetailPage() {
         </div>
       </Modal>
 
-      <ConfirmModal isOpen={!!confirmModal} onClose={() => setConfirmModal(null)} onConfirm={() => confirmModal?.onConfirm()} title="Megerősítés" message={confirmModal?.message} />
-      <AlertModal isOpen={!!alertModal} onClose={() => setAlertModal(null)} message={alertModal?.message} />
+      <ConfirmModal
+        isOpen={!!confirmModal}
+        onClose={() => { confirmModal?.onClose?.(); setConfirmModal(null); }}
+        onConfirm={() => confirmModal?.onConfirm?.()}
+        title="Megerősítés"
+        message={confirmModal?.message}
+        confirmLabel={confirmModal?.confirmLabel}
+        cancelLabel={confirmModal?.cancelLabel}
+      />
+      {/* Email sending progress — blocking modal */}
+      {sendProgress && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.7)', zIndex: 500, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
+          <div style={{ background: '#fff', borderRadius: 'var(--radius-xl)', padding: '2rem 2.5rem', maxWidth: 400, width: '100%', boxShadow: '0 24px 48px rgba(0,0,0,0.2)' }}>
+            <h3 style={{ margin: '0 0 1.5rem', fontSize: '1rem', fontWeight: 800 }}>
+              {sendProgress.error ? 'Hiba történt' : sendProgress.done ? 'Elküldve!' : 'Ajánlat küldése…'}
+            </h3>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '1.5rem' }}>
+              {SEND_STEPS.map((s, i) => {
+                const isActive  = !sendProgress.done && !sendProgress.error && sendProgress.step === i;
+                const isDone    = sendProgress.done || sendProgress.step > i;
+                const isPending = !isDone && !isActive;
+                return (
+                  <div key={s.key} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    <div style={{ width: 24, height: 24, borderRadius: '50%', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      background: isDone ? 'var(--success)' : isActive ? 'var(--accent)' : 'var(--bg-subtle)',
+                      border: isPending ? '1px solid var(--border-subtle)' : 'none',
+                    }}>
+                      {isDone  && <CheckCircle2 size={14} color="#fff" />}
+                      {isActive && <Loader2 size={14} color="#fff" style={{ animation: 'spin 1s linear infinite' }} />}
+                    </div>
+                    <span style={{ fontSize: '0.875rem', fontWeight: isActive ? 700 : 500, color: isPending ? 'var(--text-muted)' : 'var(--text-primary)' }}>
+                      {s.label}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+
+            {sendProgress.error && (
+              <div style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', color: 'var(--danger-text)', borderRadius: 'var(--radius-md)', padding: '0.65rem 0.85rem', fontSize: '0.825rem', marginBottom: '1rem' }}>
+                {sendProgress.error}
+              </div>
+            )}
+
+            {(sendProgress.done || sendProgress.error) && (
+              <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                <button type="button" className="btn btn-primary btn-sm" onClick={() => setSendProgress(null)}>
+                  Bezárás
+                </button>
+              </div>
+            )}
+
+            {sendProgress.done && sendProgress.sentTo && (
+              <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '0.5rem 0 0' }}>
+                Elküldve: <strong>{sendProgress.sentTo}</strong>
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Email send confirmation */}
+      {showSendConfirm && (
+        <Modal isOpen={true} onClose={() => setShowSendConfirm(false)} title="Ajánlat kiküldése emailben">
+          <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', lineHeight: 1.6, margin: '0 0 1.25rem' }}>
+            Biztosan elküldi az ajánlatot{' '}
+            <strong style={{ color: 'var(--text-primary)' }}>{client?.name}</strong>{' '}
+            email-címére?
+          </p>
+          <div style={{ background: 'var(--bg-subtle)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: '0.6rem 0.85rem', marginBottom: '1rem', fontSize: '0.875rem', fontWeight: 700, color: 'var(--accent)' }}>
+            {client?.email}
+          </div>
+
+          {termsPdfName && (
+            <button
+              type="button"
+              onClick={() => setAttachTerms(v => !v)}
+              style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', width: '100%', background: attachTerms ? 'var(--success-bg)' : 'var(--bg-subtle)', border: `1px solid ${attachTerms ? 'var(--success-border)' : 'var(--border-subtle)'}`, borderRadius: 'var(--radius-md)', padding: '0.65rem 0.85rem', cursor: 'pointer', textAlign: 'left', marginBottom: '1.25rem' }}
+            >
+              <div style={{ width: 36, height: 20, borderRadius: 10, background: attachTerms ? 'var(--success)' : 'var(--border-subtle)', position: 'relative', transition: 'background 0.2s', flexShrink: 0 }}>
+                <div style={{ position: 'absolute', top: 2, left: attachTerms ? 18 : 2, width: 16, height: 16, borderRadius: '50%', background: '#fff', transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }} />
+              </div>
+              <div>
+                <div style={{ fontSize: '0.85rem', fontWeight: 700, color: attachTerms ? 'var(--success-text)' : 'var(--text-primary)' }}>
+                  {attachTerms ? 'ÁSZF csatolva' : 'ÁSZF nem csatolva'}
+                </div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{termsPdfName}</div>
+              </div>
+            </button>
+          )}
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+            <button type="button" className="btn btn-secondary btn-sm" onClick={() => setShowSendConfirm(false)}>Mégse</button>
+            <button type="button" className="btn btn-primary btn-sm" onClick={handleSendEmail}>
+              <Send size={14} /> Küldés
+            </button>
+          </div>
+        </Modal>
+      )}
+
+      <AlertModal isOpen={!!alertModal} onClose={() => setAlertModal(null)} message={alertModal?.message} variant={alertModal?.variant} />
     </div>
   );
 }
