@@ -576,37 +576,15 @@ export function AppProvider({ children }) {
 
   const createInvoice = async ({ projectId, valueHuf, category, description, imageUrl, storagePath, ocrSuggestedValue, roomId, aiLineItems, aiTotal }) => {
     if (!effectiveUser) throw new Error('Bejelentkezés szükséges!');
-
-    const { data, error } = await supabase
-      .from('invoices')
-      .insert([{
-        project_id: projectId,
-        uploaded_by: effectiveUser.id,
-        uploader_name: effectiveUser.display_name,
-        value_huf: Number(valueHuf),
-        ocr_suggested_value: ocrSuggestedValue ? Number(ocrSuggestedValue) : null,
-        category,
-        description: description || '',
-        image_url: imageUrl || '',
-        storage_path: storagePath || '',
-        room_id: roomId || null,
-        ai_line_items: aiLineItems && aiLineItems.length > 0 ? aiLineItems : null,
-        ai_total: aiTotal ? Number(aiTotal) : null,
-      }])
-      .select()
-      .single();
-
-    if (error) throw error;
-    setInvoices(prev => [data, ...prev]);
-    const proj = projects.find(p => p.id === projectId);
-    auditLog('Számla feltöltve', {
-      entityId: effectiveEntityId,
-      targetType: 'invoice',
-      targetId: data.id,
-      targetName: proj?.name,
-      details: { value_huf: Number(valueHuf), category },
+    const res = await fetch('/api/invoices', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ projectId, valueHuf, category, description, imageUrl, storagePath, ocrSuggestedValue, roomId, aiLineItems, aiTotal }),
     });
-    return data;
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.error || 'Hiba a számla mentésekor');
+    setInvoices(prev => [json.invoice, ...prev]);
+    return json.invoice;
   };
 
   const updateInvoice = async (invoiceId, fields) => {
@@ -642,37 +620,15 @@ export function AppProvider({ children }) {
 
   const createLabourEntry = async ({ projectId, date, labourType, hours, hourlyRate, description, roomId, unit }) => {
     if (!effectiveUser) throw new Error('Bejelentkezés szükséges!');
-
-    const valueHuf = Math.round(Number(hours) * Number(hourlyRate));
-
-    const { data, error } = await supabase
-      .from('labour_entries')
-      .insert([{
-        project_id: projectId,
-        uploaded_by: effectiveUser.id,
-        date,
-        labour_type: labourType,
-        hours: Number(hours),
-        hourly_rate: Number(hourlyRate),
-        value_huf: valueHuf,
-        description: description || '',
-        room_id: roomId || null,
-        unit: unit || 'h',
-      }])
-      .select()
-      .single();
-
-    if (error) throw error;
-    setLabourEntries(prev => [data, ...prev]);
-    const proj = projects.find(p => p.id === projectId);
-    auditLog('Munkabejegyzés rögzítve', {
-      entityId: effectiveEntityId,
-      targetType: 'labour_entry',
-      targetId: data.id,
-      targetName: proj?.name,
-      details: { labour_type: labourType, hours: Number(hours), value_huf: valueHuf },
+    const res = await fetch('/api/labour-entries', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ projectId, date, labourType, hours, hourlyRate, description, roomId, unit }),
     });
-    return data;
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.error || 'Hiba a munkabejegyzés mentésekor');
+    setLabourEntries(prev => [json.labourEntry, ...prev]);
+    return json.labourEntry;
   };
 
   const updateLabourEntry = async (entryId, fields) => {

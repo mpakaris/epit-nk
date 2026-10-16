@@ -10,6 +10,7 @@ import { formatHUF, formatDate, INVOICE_CATEGORIES } from '@/lib/constants';
 import InvoiceCard from '@/components/InvoiceCard';
 import StatCard from '@/components/StatCard';
 import Modal, { ConfirmModal, AlertModal } from '@/components/Modal';
+import { ResponsiveContainer, AreaChart, Area, ReferenceLine, XAxis, YAxis, Tooltip, BarChart, Bar, Cell, LabelList } from 'recharts';
 import {
   ArrowLeft, Plus, Receipt, Coins, Users, TrendingUp, TrendingDown,
   CheckCircle2, Camera, ArrowRight, Hammer, Clock, Trash2, Wallet, BookOpen,
@@ -120,45 +121,16 @@ function MediaLightbox({ media, startIndex, onClose }) {
 function BurndownCard({ invoices, labourEntries, projectRooms, startDate, endDate }) {
   const quotedTotal = projectRooms.reduce((s, r) => s + Number(r.quoted_amount_net || 0), 0);
 
-  // Build cost events sorted by date
   const events = [
     ...invoices.map(i => ({ date: i.created_at?.slice(0, 10), amount: Number(i.value_huf || 0) })),
     ...labourEntries.map(l => ({ date: l.date, amount: Number(l.value_huf || 0) })),
   ].filter(e => e.date).sort((a, b) => a.date.localeCompare(b.date));
 
   const totalActual = events.reduce((s, e) => s + e.amount, 0);
-
-  // Cumulative series
-  const today = new Date().toISOString().slice(0, 10);
-  const seriesStart = startDate || events[0]?.date || today;
-  let cum = 0;
-  const pts = [{ date: seriesStart, cum: 0 }];
-  for (const e of events) {
-    cum += e.amount;
-    const last = pts[pts.length - 1];
-    if (last.date === e.date) { last.cum = cum; } else { pts.push({ date: e.date, cum }); }
-  }
-  if (pts[pts.length - 1].date < today) pts.push({ date: today, cum });
-
-  const seriesEnd = endDate && endDate > today ? endDate : today;
-  const t0 = new Date(seriesStart).getTime();
-  const t1 = new Date(seriesEnd).getTime();
-  const tRange = Math.max(t1 - t0, 86400000);
-  const maxVal = Math.max(quotedTotal, totalActual) * 1.08 || 1;
-
-  const W = 220, H = 68, PL = 2, PR = 2, PT = 6, PB = 14;
-  const cW = W - PL - PR, cH = H - PT - PB;
-  const px = d => PL + ((new Date(d).getTime() - t0) / tRange) * cW;
-  const py = v => PT + cH - (v / maxVal) * cH;
-
-  const linePath = pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${px(p.date).toFixed(1)},${py(p.cum).toFixed(1)}`).join(' ');
-  const areaPath = `${linePath} L${px(pts[pts.length - 1].date).toFixed(1)},${(PT + cH).toFixed(1)} L${PL},${(PT + cH).toFixed(1)} Z`;
-
   const pct = quotedTotal > 0 ? Math.round((totalActual / quotedTotal) * 100) : null;
   const isOver = pct !== null && pct > 100;
-
-  const accentColor = isOver ? 'var(--danger-text)' : 'var(--success-text)';
-  const accentFill  = isOver ? 'rgba(220,38,38,0.08)' : 'rgba(34,197,94,0.10)';
+  const lineColor = isOver ? '#ef4444' : '#22c55e';
+  const fillColor = isOver ? 'rgba(239,68,68,0.10)' : 'rgba(34,197,94,0.12)';
 
   if (!quotedTotal && events.length === 0) {
     return (
@@ -169,47 +141,150 @@ function BurndownCard({ invoices, labourEntries, projectRooms, startDate, endDat
     );
   }
 
+  // Build cumulative data points
+  const today = new Date().toISOString().slice(0, 10);
+  const seriesStart = startDate || events[0]?.date || today;
+  let cum = 0;
+  const chartData = [{ date: seriesStart, cost: 0 }];
+  for (const e of events) {
+    cum += e.amount;
+    const last = chartData[chartData.length - 1];
+    if (last.date === e.date) { last.cost = cum; } else { chartData.push({ date: e.date, cost: cum }); }
+  }
+  if (chartData[chartData.length - 1].date < today) chartData.push({ date: today, cost: cum });
+
+  const fmt = (d) => new Date(d).toLocaleDateString('hu-HU', { month: 'short', day: 'numeric' });
+  const fmtHuf = (v) => new Intl.NumberFormat('hu-HU', { notation: 'compact', maximumFractionDigits: 1 }).format(v) + ' Ft';
+
   return (
-    <div className="stat-card" style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
+    <div className="stat-card" style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
         <div className="stat-label">Elköltés az ajánlathoz</div>
         {pct !== null && (
-          <span style={{ fontSize: '0.72rem', fontWeight: 800, color: accentColor }}>{pct}%</span>
+          <span style={{ fontSize: '0.72rem', fontWeight: 800, color: lineColor }}>{pct}%</span>
         )}
       </div>
 
-      <svg viewBox={`0 0 ${W} ${H}`} width="100%" style={{ display: 'block', overflow: 'visible', margin: '0.15rem 0' }}>
-        {/* baseline */}
-        <line x1={PL} y1={PT + cH} x2={PL + cW} y2={PT + cH} stroke="var(--border-subtle)" strokeWidth="1" />
+      {quotedTotal > 0 && (
+        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', gap: '0.75rem' }}>
+          <span>Elköltve: <strong style={{ color: lineColor }}>{fmtHuf(totalActual)}</strong></span>
+          <span>Ajánlat: <strong>{fmtHuf(quotedTotal)}</strong></span>
+        </div>
+      )}
 
-        {/* quoted reference line */}
-        {quotedTotal > 0 && (() => {
-          const qy = py(quotedTotal);
-          return (
-            <>
-              <line x1={PL} y1={qy} x2={PL + cW} y2={qy} stroke="var(--accent)" strokeWidth="1.2" strokeDasharray="3 3" opacity="0.7" />
-              <text x={PL + cW - 1} y={qy - 2} textAnchor="end" fontSize="7" fill="var(--accent)" fontWeight="700" opacity="0.8">Ajánlat</text>
-            </>
-          );
-        })()}
-
-        {/* area fill */}
-        {pts.length > 1 && <path d={areaPath} fill={accentFill} />}
-
-        {/* cost line */}
-        {pts.length > 1 && <path d={linePath} fill="none" stroke={accentColor} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />}
-
-        {/* last dot */}
-        {pts.length > 0 && (
-          <circle cx={px(pts[pts.length - 1].date).toFixed(1)} cy={py(cum).toFixed(1)} r="2.5" fill={accentColor} />
-        )}
-      </svg>
-
-      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 600 }}>
-        <span>{new Date(seriesStart).toLocaleDateString('hu-HU', { month: 'short', day: 'numeric' })}</span>
-        <span style={{ color: accentColor, fontWeight: 700 }}>{new Intl.NumberFormat('hu-HU', { notation: 'compact', maximumFractionDigits: 1 }).format(totalActual)} Ft</span>
-        <span>{new Date(seriesEnd).toLocaleDateString('hu-HU', { month: 'short', day: 'numeric' })}</span>
+      <div style={{ height: 180, marginTop: '0.35rem' }}>
+        <ResponsiveContainer width="100%" height="100%">
+          <AreaChart data={chartData} margin={{ top: 8, right: 12, left: 8, bottom: 0 }}>
+            <defs>
+              <linearGradient id="burnFill" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor={lineColor} stopOpacity={0.2} />
+                <stop offset="95%" stopColor={lineColor} stopOpacity={0} />
+              </linearGradient>
+            </defs>
+            <XAxis
+              dataKey="date"
+              tickFormatter={fmt}
+              tick={{ fontSize: 10, fill: '#94a3b8' }}
+              tickLine={false}
+              axisLine={false}
+              interval="preserveStartEnd"
+            />
+            <YAxis
+              tickFormatter={(v) => new Intl.NumberFormat('hu-HU', { notation: 'compact', maximumFractionDigits: 0 }).format(v)}
+              tick={{ fontSize: 10, fill: '#94a3b8' }}
+              tickLine={false}
+              axisLine={false}
+              width={48}
+            />
+            <Tooltip
+              formatter={(v) => [fmtHuf(v), 'Költség']}
+              labelFormatter={fmt}
+              contentStyle={{ fontSize: '0.75rem', borderRadius: 6, border: '1px solid #e2e8f0', boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}
+            />
+            {quotedTotal > 0 && (
+              <ReferenceLine y={quotedTotal} stroke="#6366f1" strokeDasharray="4 3" strokeWidth={1.5}
+                label={{ value: 'Ajánlat', position: 'insideTopRight', fontSize: 10, fill: '#6366f1' }} />
+            )}
+            <Area type="monotone" dataKey="cost" stroke={lineColor} strokeWidth={2}
+              fill="url(#burnFill)" dot={false} activeDot={{ r: 4 }} />
+          </AreaChart>
+        </ResponsiveContainer>
       </div>
+    </div>
+  );
+}
+
+const CAT_COLORS = {
+  'Anyag':             '#6366f1',
+  'Szerszám/Eszköz':   '#f59e0b',
+  'Szállítás':         '#3b82f6',
+  'Engedély/Hatóság':  '#ef4444',
+  'Egyéb':             '#94a3b8',
+  'Munkadíj':          '#22c55e',
+};
+
+function CostBreakdownCard({ invoices, labourTotal }) {
+  const cats = ['Anyag', 'Szerszám/Eszköz', 'Szállítás', 'Engedély/Hatóság', 'Egyéb'];
+  const totals = Object.fromEntries(cats.map(c => [c, 0]));
+  for (const inv of invoices) {
+    if (inv.category in totals) totals[inv.category] += Number(inv.value_huf || 0);
+  }
+
+  const data = [
+    ...cats.map(c => ({ name: c, value: totals[c] })),
+    { name: 'Munkadíj', value: labourTotal },
+  ];
+
+  const fmtHuf = (v) => new Intl.NumberFormat('hu-HU', { notation: 'compact', maximumFractionDigits: 1 }).format(v) + ' Ft';
+
+  return (
+    <div className="stat-card" style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+      <div className="stat-label">Költségek megoszlása</div>
+      <div style={{ height: 180, marginTop: '0.35rem' }}>
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={data} layout="vertical" margin={{ top: 0, right: 60, left: 0, bottom: 0 }}>
+            <XAxis type="number" hide />
+            <YAxis
+              type="category"
+              dataKey="name"
+              width={110}
+              tick={{ fontSize: 11, fill: '#64748b' }}
+              tickLine={false}
+              axisLine={false}
+            />
+            <Tooltip
+              formatter={(v) => [fmtHuf(v), 'Összeg']}
+              contentStyle={{ fontSize: '0.75rem', borderRadius: 6, border: '1px solid #e2e8f0' }}
+            />
+            <Bar dataKey="value" radius={[0, 4, 4, 0]} barSize={14}>
+              {data.map((entry) => (
+                <Cell key={entry.name} fill={CAT_COLORS[entry.name] || '#94a3b8'} opacity={entry.value === 0 ? 0.2 : 1} />
+              ))}
+              <LabelList dataKey="value" position="right" formatter={fmtHuf} style={{ fontSize: 10, fill: '#64748b' }} />
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+  );
+}
+
+function CombinedStatsCard({ totalCost, invoiceCount, totalLabour, labourCount, collective, ownPaid, balance }) {
+  const row = (label, value, sub, color) => (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.5rem 0', borderBottom: '1px solid var(--border-subtle)' }}>
+      <div>
+        <div style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)' }}>{label}</div>
+        <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.1rem' }}>{sub}</div>
+      </div>
+      <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, fontSize: '0.95rem', color: color || 'var(--text-primary)' }}>{value}</div>
+    </div>
+  );
+  return (
+    <div className="stat-card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+      {row('Összes kiadás', formatHUF(totalCost), `${invoiceCount} db számla`)}
+      {row('Munkadíj', formatHUF(totalLabour), `${labourCount} bejegyzés`, 'var(--success-text)')}
+      {collective && row('Általad fizetve', formatHUF(ownPaid), 'saját számlák')}
+      {collective && row('Egyenleg', balance > 0 ? `+${formatHUF(balance)}` : formatHUF(balance), balance > 0 ? 'követelés' : balance < 0 ? 'tartozás' : 'rendezett', balance > 0 ? 'var(--success-text)' : balance < 0 ? 'var(--danger-text)' : undefined)}
     </div>
   );
 }
@@ -1878,6 +1953,16 @@ export default function ProjectDetailClient({
         </div>
         )}
 
+        <CombinedStatsCard
+          totalCost={fin.totalCost}
+          invoiceCount={fin.projectInvoices.length}
+          totalLabour={fin.totalLabourValue}
+          labourCount={fin.projectLabour.length}
+          collective={!!activeCollectiveId}
+          ownPaid={fin.ownPaid}
+          balance={fin.balance}
+        />
+
         <div className="card">
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: '0.6rem' }}>
             <CalendarDays size={13} /> Adatok
@@ -1899,30 +1984,19 @@ export default function ProjectDetailClient({
         </div>
       </div>
 
-      {/* Stat grid */}
-      <div className="stat-grid" style={{ marginBottom: '1.5rem' }}>
-        <StatCard label="Összes kiadás" value={formatHUF(fin.totalCost)} sub={`${fin.projectInvoices.length} db számla`} icon={Coins} />
-        <StatCard label="Munkadíj összesen" value={formatHUF(fin.totalLabourValue)} sub={`${fin.projectLabour.length} bejegyzés`} icon={Hammer} />
-        {activeCollectiveId ? (
-          <>
-            <StatCard label="Általad kifizetve" value={formatHUF(fin.ownPaid)} sub="Az Ön számlái" icon={Receipt} />
-            <div className={`stat-card ${fin.balance > 0 ? 'success' : fin.balance < 0 ? 'danger' : ''}`}>
-              <div className="stat-label">Összesített egyenleg</div>
-              <div className="stat-value" style={{ color: fin.balance > 0 ? 'var(--success-text)' : fin.balance < 0 ? 'var(--danger-text)' : 'var(--text-primary)' }}>
-                {fin.balance > 0 ? `+${formatHUF(fin.balance)}` : formatHUF(fin.balance)}
-              </div>
-              <div className="stat-sub">{fin.balance > 0 ? 'A többiek tartoznak neked' : fin.balance < 0 ? 'Kiegyenlítendő tartozás' : 'Egyensúlyban'}</div>
-            </div>
-          </>
-        ) : (
-          <BurndownCard
-            invoices={fin.projectInvoices}
-            labourEntries={fin.projectLabour}
-            projectRooms={projectRooms}
-            startDate={project.start_date}
-            endDate={project.end_date}
-          />
-        )}
+      {/* Chart row: bar chart (40%) + burndown (60%) */}
+      <div style={{ display: 'grid', gridTemplateColumns: '2fr 3fr', gap: '0.85rem', marginBottom: '1.5rem' }}>
+        <CostBreakdownCard
+          invoices={fin.projectInvoices}
+          labourTotal={fin.totalLabourValue}
+        />
+        <BurndownCard
+          invoices={fin.projectInvoices}
+          labourEntries={fin.projectLabour}
+          projectRooms={projectRooms}
+          startDate={project.start_date}
+          endDate={project.end_date}
+        />
       </div>
 
       {/* Sections */}

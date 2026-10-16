@@ -50,7 +50,7 @@ function ModalBase({ isOpen, onClose, children, style, persistent }) {
   if (!isOpen) return null;
 
   return (
-    <div className="modal-overlay" onClick={persistent ? undefined : onClose}>
+    <div className="modal-overlay">
       <div className="modal-dialog" style={style} onClick={(e) => e.stopPropagation()}>
         {children}
       </div>
