@@ -27,16 +27,23 @@ export async function POST(request, { params }) {
   const ctx = await getCtx(surveyId);
   if (ctx.err) return Response.json({ error: ctx.err }, { status: ctx.status });
 
-  const { name, description, size_m2, height_m, perimeter_m, window_count, door_count, sort_order } = await request.json();
+  const { name, description, width_m, length_m, height_m, window_count, door_count, sort_order } = await request.json();
   if (!name?.trim()) return Response.json({ error: 'A hely neve kötelező' }, { status: 400 });
+
+  const { count } = await ctx.admin.from('survey_entries').select('id', { count: 'exact', head: true }).eq('survey_id', surveyId);
+  if (count >= 30) return Response.json({ error: 'Egy felméréshez maximum 30 helyiség adható hozzá.' }, { status: 400 });
+
+  const wNum = width_m  != null && width_m  !== '' ? Number(width_m)  : null;
+  const lNum = length_m != null && length_m !== '' ? Number(length_m) : null;
 
   const entryInsert = {
     survey_id: surveyId,
     name: name.trim(),
     description: description?.trim() || null,
-    size_m2:      size_m2      != null && size_m2      !== '' ? Number(size_m2)      : null,
+    width_m:      wNum,
+    length_m:     lNum,
+    size_m2:      wNum > 0 && lNum > 0 ? wNum * lNum : null,
     height_m:     height_m     != null && height_m     !== '' ? Number(height_m)     : null,
-    perimeter_m:  perimeter_m  != null && perimeter_m  !== '' ? Number(perimeter_m)  : null,
     window_count: window_count != null && window_count !== '' ? Number(window_count) : 0,
     door_count:   door_count   != null && door_count   !== '' ? Number(door_count)   : 0,
     sort_order: sort_order ?? 0,

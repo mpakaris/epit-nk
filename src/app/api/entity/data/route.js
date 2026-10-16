@@ -42,7 +42,7 @@ export async function GET(request) {
   const projectsRes = await projectsQuery;
 
   // ── Quotes ────────────────────────────────────────────────────────────────
-  let quotesQuery = admin.from('quotes').select('*').order('created_at', { ascending: false });
+  let quotesQuery = admin.from('quotes').select('*').is('deleted_at', null).order('created_at', { ascending: false });
   if (isPersonal) {
     quotesQuery = quotesQuery.eq('owner_id', userId).is('collective_id', null);
   } else {
@@ -51,7 +51,7 @@ export async function GET(request) {
   const quotesRes = await quotesQuery;
 
   // ── Surveys ───────────────────────────────────────────────────────────────
-  let surveysQuery = admin.from('surveys').select('*')
+  let surveysQuery = admin.from('surveys').select('*').is('deleted_at', null)
     .order('date', { ascending: false, nullsFirst: false })
     .order('created_at', { ascending: false });
   if (isPersonal) {
@@ -60,6 +60,7 @@ export async function GET(request) {
     surveysQuery = surveysQuery.eq('collective_id', collectiveId);
   }
   const surveysRes = await surveysQuery;
+  const realSurveys = surveysRes.data || [];
 
   // ── Clients — always personal (owner_id = current user) ──────────────────
   const clientsRes = await admin
@@ -115,7 +116,7 @@ export async function GET(request) {
   }));
 
   // ── Survey counts (layouts, photos, drawings) ─────────────────────────────
-  const surveyIds = (surveysRes.data || []).map(s => s.id);
+  const surveyIds = realSurveys.map(s => s.id);
   const [surveyMediaCountRes, surveyDrawingCountRes] = await Promise.all([
     surveyIds.length > 0
       ? admin.from('survey_media').select('survey_id, media_type, entry_id').in('survey_id', surveyIds)
@@ -136,7 +137,7 @@ export async function GET(request) {
     drawingCounts[d.survey_id] = (drawingCounts[d.survey_id] || 0) + 1;
   }
 
-  const surveysWithCounts = (surveysRes.data || []).map(s => ({
+  const surveysWithCounts = realSurveys.map(s => ({
     ...s,
     _layout_count:  mediaCounts[s.id]?.layouts  || 0,
     _photo_count:   mediaCounts[s.id]?.photos   || 0,

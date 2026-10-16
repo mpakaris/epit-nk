@@ -8,7 +8,7 @@ import { processMediaFile } from '@/lib/mediaGate';
 import { AlertModal } from '@/components/Modal';
 import {
   ArrowLeft, Camera, X, Upload, CheckCircle2, Lock, Eye,
-  HardHat, FileText, MessageSquare, Video, Image
+  HardHat, FileText, MessageSquare, Video, Image, Loader2
 } from 'lucide-react';
 
 const MAX_PHOTOS = 10;
@@ -344,7 +344,7 @@ export default function NewDiaryEntryPage() {
         {/* ── Submit ── */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem', paddingBottom: '2rem' }}>
           <button type="submit" className="btn btn-primary" style={{ width: '100%', justifyContent: 'center', gap: '0.5rem' }} disabled={isProcessing}>
-            {submitting ? 'Mentés…' : uploading ? <><Upload size={16} /> Feltöltés folyamatban…</> : <><CheckCircle2 size={16} /> Bejegyzés mentése</>}
+            {submitting ? <><Loader2 size={16} className="animate-spin" />Mentés</> : uploading ? <><Loader2 size={16} className="animate-spin" />Feltöltés</> : <><CheckCircle2 size={16} /> Bejegyzés mentése</>}
           </button>
           <Link href={`/projektek/${projectId}`} className="btn btn-secondary" style={{ width: '100%', justifyContent: 'center' }}>
             Mégse

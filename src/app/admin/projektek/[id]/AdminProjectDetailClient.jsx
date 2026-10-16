@@ -12,7 +12,7 @@ import {
   ArrowLeft, Receipt, ShieldCheck, Coins, AlertCircle,
   CheckCircle2, Plus, Edit3, UserCheck, BookUser, CalendarDays, ChevronDown, ChevronUp,
   Phone, Mail, MapPin, Users, FileText, BarChart3, BookOpen, Camera, Trash2, Link2, Copy, Check,
-  Hammer, Clock, ChevronLeft, ChevronRight, X, Play, ZoomIn
+  Hammer, Clock, ChevronLeft, ChevronRight, X, Play, ZoomIn, Loader2
 } from 'lucide-react';
 
 function MediaLightbox({ media, startIndex, onClose }) {
@@ -238,7 +238,7 @@ function EditProjectModal({ isOpen, onClose, project, clients, users, updateProj
             <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
               <button type="button" className="btn btn-secondary btn-sm" onClick={() => { setShowNewClientForm(false); setNewClientError(''); }}>Mégse</button>
               <button type="button" className="btn btn-primary btn-sm" disabled={creatingClient} onClick={handleCreateClient}>
-                {creatingClient ? 'Létrehozás...' : 'Ügyfél létrehozása'}
+                {creatingClient ? <><Loader2 size={13} className="animate-spin" />Létrehozás</> : 'Ügyfél létrehozása'}
               </button>
             </div>
           </div>
@@ -260,7 +260,7 @@ function EditProjectModal({ isOpen, onClose, project, clients, users, updateProj
 
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
           <button type="button" className="btn btn-secondary btn-sm" onClick={onClose}>Mégse</button>
-          <button type="submit" className="btn btn-primary btn-sm" disabled={submitting}>{submitting ? 'Mentés...' : 'Mentés'}</button>
+          <button type="submit" className="btn btn-primary btn-sm" disabled={submitting}>{submitting ? <><Loader2 size={13} className="animate-spin" />Mentés</> : 'Mentés'}</button>
         </div>
       </form>
     </Modal>
@@ -828,7 +828,7 @@ export default function AdminProjectDetailClient({
           </div>
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
             <button type="button" className="btn btn-secondary btn-sm" onClick={() => setEditingInvoice(null)}>Mégse</button>
-            <button type="submit" className="btn btn-primary btn-sm" disabled={isSubmitting}>{isSubmitting ? 'Mentés...' : 'Mentés'}</button>
+            <button type="submit" className="btn btn-primary btn-sm" disabled={isSubmitting}>{isSubmitting ? <><Loader2 size={13} className="animate-spin" />Mentés</> : 'Mentés'}</button>
           </div>
         </form>
       </Modal>
@@ -845,7 +845,7 @@ export default function AdminProjectDetailClient({
           </div>
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
             <button type="button" className="btn btn-secondary btn-sm" onClick={() => setShowNewTokenModal(false)}>Mégse</button>
-            <button type="submit" className="btn btn-primary btn-sm" disabled={tokenSaving}>{tokenSaving ? 'Létrehozás...' : 'Link létrehozása'}</button>
+            <button type="submit" className="btn btn-primary btn-sm" disabled={tokenSaving}>{tokenSaving ? <><Loader2 size={13} className="animate-spin" />Létrehozás</> : 'Link létrehozása'}</button>
           </div>
         </form>
       </Modal>

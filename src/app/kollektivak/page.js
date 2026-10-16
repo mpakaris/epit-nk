@@ -7,7 +7,7 @@ import Modal, { ConfirmModal, AlertModal } from '@/components/Modal';
 import PageSpinner from '@/components/PageSpinner';
 import {
   Users, Plus, Crown, UserCheck, Trash2, UserMinus,
-  Mail, AlertCircle, CheckCircle2, Settings, ChevronDown, ChevronUp,
+  Mail, AlertCircle, CheckCircle2, Settings, ChevronDown, ChevronUp, Loader2,
 } from 'lucide-react';
 
 const ROLE_LABEL = { owner: 'Tulajdonos', admin: 'Admin', contributor: 'Közreműködő' };
@@ -291,7 +291,7 @@ export default function KollektivakPage() {
           </div>
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '0.5rem' }}>
             <button type="button" className="btn btn-secondary btn-sm" onClick={() => setShowCreate(false)}>Mégse</button>
-            <button type="submit" className="btn btn-primary btn-sm" disabled={creating}>{creating ? 'Létrehozás...' : 'Létrehozás'}</button>
+            <button type="submit" className="btn btn-primary btn-sm" disabled={creating}>{creating ? <><Loader2 size={13} className="animate-spin" />Létrehozás</> : 'Létrehozás'}</button>
           </div>
         </form>
       </Modal>
@@ -349,7 +349,7 @@ export default function KollektivakPage() {
           </div>
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '0.5rem' }}>
             <button type="button" className="btn btn-secondary btn-sm" onClick={() => setRenameCollective(null)}>Mégse</button>
-            <button type="submit" className="btn btn-primary btn-sm" disabled={renaming}>{renaming ? 'Mentés...' : 'Mentés'}</button>
+            <button type="submit" className="btn btn-primary btn-sm" disabled={renaming}>{renaming ? <><Loader2 size={13} className="animate-spin" />Mentés</> : 'Mentés'}</button>
           </div>
         </form>
       </Modal>

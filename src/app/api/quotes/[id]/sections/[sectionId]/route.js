@@ -23,11 +23,22 @@ export async function PATCH(request, { params }) {
   if (ctx.err) return Response.json({ error: ctx.err }, { status: ctx.status });
 
   const body = await request.json();
-  const allowed = ['name', 'description', 'size_m2', 'sort_order', 'start_date', 'end_date', 'survey_entry_id'];
+  const allowed = ['name', 'description', 'width_m', 'length_m', 'height_m', 'window_count', 'door_count', 'sort_order', 'start_date', 'end_date', 'survey_entry_id'];
   const update = {};
   for (const k of allowed) if (k in body) update[k] = body[k];
   if ('name' in update) { update.name = update.name?.trim(); if (!update.name) return Response.json({ error: 'Név kötelező' }, { status: 400 }); }
-  if ('size_m2' in update) update.size_m2 = update.size_m2 != null && update.size_m2 !== '' ? Number(update.size_m2) : null;
+  for (const numField of ['width_m', 'length_m', 'height_m']) {
+    if (numField in update) update[numField] = update[numField] != null && update[numField] !== '' ? Number(update[numField]) : null;
+  }
+  for (const intField of ['window_count', 'door_count']) {
+    if (intField in update) update[intField] = update[intField] != null ? Number(update[intField]) : 0;
+  }
+  // Recompute size_m2 from stored dimensions
+  if ('width_m' in update || 'length_m' in update) {
+    const w = update.width_m  ?? null;
+    const l = update.length_m ?? null;
+    update.size_m2 = w > 0 && l > 0 ? w * l : null;
+  }
 
   const { data, error } = await ctx.admin.from('quote_sections').update(update).eq('id', sectionId).eq('quote_id', quoteId).select().single();
   if (error) return Response.json({ error: error.message }, { status: 400 });

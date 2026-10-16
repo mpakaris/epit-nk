@@ -17,7 +17,7 @@ import {
   AlertCircle,
   CheckCircle2,
   FileText,
-  FolderKanban,
+  FolderKanban, Loader2,
 } from 'lucide-react';
 import PageSpinner from '@/components/PageSpinner';
 import WorkspaceBadge from '@/components/WorkspaceBadge';
@@ -279,7 +279,7 @@ export default function AdminClientsPage() {
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '0.5rem' }}>
             <button type="button" className="btn btn-secondary btn-sm" onClick={() => setShowCreateModal(false)}>Mégse</button>
             <button type="submit" className="btn btn-primary btn-sm" disabled={isSubmitting}>
-              {isSubmitting ? 'Mentés...' : (editingClient ? 'Módosítás' : 'Létrehozás')}
+              {isSubmitting ? <><Loader2 size={13} className="animate-spin" />{editingClient ? 'Módosítás' : 'Létrehozás'}</> : (editingClient ? 'Módosítás' : 'Létrehozás')}
             </button>
           </div>
         </form>

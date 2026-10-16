@@ -2,7 +2,7 @@
 
 import React, { useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
-import { Undo2, Trash2, Check, X } from 'lucide-react';
+import { Undo2, Trash2, Check, X, Loader2 } from 'lucide-react';
 
 const ReactSketchCanvas = dynamic(
   () => import('react-sketch-canvas').then(m => m.ReactSketchCanvas),
@@ -114,7 +114,7 @@ export default function DrawingPad({ onSave, onCancel, saving }) {
           <X size={14} /> Mégse
         </button>
         <button type="button" onClick={handleSave} className="btn btn-primary btn-sm" disabled={saving}>
-          {saving ? 'Mentés...' : <><Check size={14} /> Mentés</>}
+          {saving ? <><Loader2 size={14} className="animate-spin" />Mentés</> : <><Check size={14} /> Mentés</>}
         </button>
       </div>
     </div>

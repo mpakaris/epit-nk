@@ -31,28 +31,24 @@ export async function POST(request, { params }) {
   const ctx = await getCtx(quoteId);
   if (ctx.err) return Response.json({ error: ctx.err }, { status: ctx.status });
 
-  const { name, description, size_m2, sort_order, survey_entry_id, start_date, end_date } = await request.json();
+  const { name, description, width_m, length_m, height_m, window_count, door_count, sort_order, survey_entry_id, start_date, end_date } = await request.json();
   if (!name?.trim()) return Response.json({ error: 'Szekció neve kötelező' }, { status: 400 });
 
-  let effectiveSurveyEntryId = survey_entry_id || null;
-  if (!effectiveSurveyEntryId && ctx.quote.survey_id) {
-    const { data: newEntry } = await ctx.admin.from('survey_entries').insert([{
-      survey_id: ctx.quote.survey_id,
-      name: name.trim(),
-      description: description?.trim() || null,
-      size_m2: size_m2 != null && size_m2 !== '' ? Number(size_m2) : null,
-      sort_order: sort_order ?? 0,
-    }]).select().single();
-    if (newEntry) effectiveSurveyEntryId = newEntry.id;
-  }
+  const wNum = width_m  != null && width_m  !== '' ? Number(width_m)  : null;
+  const lNum = length_m != null && length_m !== '' ? Number(length_m) : null;
 
   const { data: section, error } = await ctx.admin.from('quote_sections').insert([{
     quote_id: quoteId,
     name: name.trim(),
     description: description?.trim() || null,
-    size_m2: size_m2 != null && size_m2 !== '' ? Number(size_m2) : null,
+    width_m:      wNum,
+    length_m:     lNum,
+    size_m2:      wNum > 0 && lNum > 0 ? wNum * lNum : null,
+    height_m:     height_m     != null && height_m     !== '' ? Number(height_m)     : null,
+    window_count: window_count != null                        ? Number(window_count) : 0,
+    door_count:   door_count   != null                        ? Number(door_count)   : 0,
     sort_order: sort_order ?? 0,
-    survey_entry_id: effectiveSurveyEntryId,
+    survey_entry_id: survey_entry_id || null,
     start_date: start_date || null,
     end_date: end_date || null,
   }]).select().single();

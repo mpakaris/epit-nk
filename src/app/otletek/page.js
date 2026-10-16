@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useApp } from '@/context/AppContext';
 import { ConfirmModal } from '@/components/Modal';
-import { Lightbulb, Plus, Trash2, X, Send } from 'lucide-react';
+import { Lightbulb, Plus, Trash2, X, Send, Loader2 } from 'lucide-react';
 import PageSpinner from '@/components/PageSpinner';
 
 export default function IdeasPage() {
@@ -97,7 +97,7 @@ export default function IdeasPage() {
           <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
             <button type="submit" className="btn btn-primary btn-sm" disabled={submitting || !ideaText.trim()}>
               <Send size={14} />
-              {submitting ? 'Mentés…' : 'Beküld'}
+              {submitting ? <><Loader2 size={13} className="animate-spin" />Beküld</> : 'Beküld'}
             </button>
           </div>
         </form>

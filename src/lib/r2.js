@@ -1,4 +1,4 @@
-import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, DeleteObjectCommand, CopyObjectCommand } from '@aws-sdk/client-s3';
 import sharp from 'sharp';
 
 export function getR2Client() {
@@ -30,6 +30,15 @@ export async function uploadToR2(key, buffer, mimeType) {
     Key: key,
     Body: buffer,
     ContentType: mimeType || 'application/octet-stream',
+  }));
+}
+
+export async function copyR2Object(sourceKey, destKey) {
+  const client = getR2Client();
+  await client.send(new CopyObjectCommand({
+    Bucket: process.env.R2_BUCKET,
+    CopySource: `${process.env.R2_BUCKET}/${sourceKey}`,
+    Key: destKey,
   }));
 }
 

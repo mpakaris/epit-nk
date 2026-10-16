@@ -13,7 +13,7 @@ import {
   FolderKanban, Plus, Users,
   ArrowLeft, AlertCircle, CheckCircle2, User, ChevronUp,
   Search, Calendar, ArrowUpDown, Building2, Receipt, Hammer, BookOpen,
-  UserCheck,
+  UserCheck, Loader2,
 } from 'lucide-react';
 
 const today = () => new Date().toISOString().split('T')[0];
@@ -151,7 +151,7 @@ function CreateProjectModal({ isOpen, onClose, users, clients, currentUser, effe
           </div>
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
             <button type="button" className="btn btn-secondary btn-sm" onClick={onClose}>Mégse</button>
-            <button type="submit" className="btn btn-primary btn-sm" disabled={submitting}>{submitting ? 'Létrehozás...' : 'Létrehozás'}</button>
+            <button type="submit" className="btn btn-primary btn-sm" disabled={submitting}>{submitting ? <><Loader2 size={13} className="animate-spin" />Létrehozás</> : 'Létrehozás'}</button>
           </div>
         </form>
       </Modal>
@@ -167,7 +167,7 @@ function CreateProjectModal({ isOpen, onClose, users, clients, currentUser, effe
           <div className="form-group" style={{ marginTop: '0.75rem', marginBottom: '1.25rem' }}><label className="form-label" htmlFor="nc-addr">Cím</label><input id="nc-addr" type="text" className="form-control" value={clientAddr} onChange={e => setClientAddr(e.target.value)} placeholder="Irányítószám, Város, utca" /></div>
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
             <button type="button" className="btn btn-secondary btn-sm" onClick={() => setShowNewClient(false)}>Mégse</button>
-            <button type="submit" className="btn btn-primary btn-sm" disabled={clientSaving}>{clientSaving ? 'Mentés...' : 'Létrehozás'}</button>
+            <button type="submit" className="btn btn-primary btn-sm" disabled={clientSaving}>{clientSaving ? <><Loader2 size={13} className="animate-spin" />Létrehozás</> : 'Létrehozás'}</button>
           </div>
         </form>
       </Modal>
@@ -271,13 +271,13 @@ function EditProjectModal({ isOpen, onClose, project, clients, effectiveEntityId
             <div className="form-group" style={{ marginTop: '0.65rem', marginBottom: '0.65rem' }}><label className="form-label">Cím</label><input type="text" className="form-control" value={newClientAddr} onChange={e => setNewClientAddr(e.target.value)} placeholder="Irányítószám, Város, utca" /></div>
             <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
               <button type="button" className="btn btn-secondary btn-sm" onClick={() => { setShowNewClient(false); setNewClientError(''); }}>Mégse</button>
-              <button type="button" className="btn btn-primary btn-sm" disabled={creatingClient} onClick={handleCreateClient}>{creatingClient ? 'Létrehozás...' : 'Ügyfél létrehozása'}</button>
+              <button type="button" className="btn btn-primary btn-sm" disabled={creatingClient} onClick={handleCreateClient}>{creatingClient ? <><Loader2 size={13} className="animate-spin" />Létrehozás</> : 'Ügyfél létrehozása'}</button>
             </div>
           </div>
         )}
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
           <button type="button" className="btn btn-secondary btn-sm" onClick={onClose}>Mégse</button>
-          <button type="submit" className="btn btn-primary btn-sm" disabled={submitting}>{submitting ? 'Mentés...' : 'Mentés'}</button>
+          <button type="submit" className="btn btn-primary btn-sm" disabled={submitting}>{submitting ? <><Loader2 size={13} className="animate-spin" />Mentés</> : 'Mentés'}</button>
         </div>
       </form>
     </Modal>
@@ -328,7 +328,7 @@ function AssignMembersModal({ isOpen, onClose, project, users, updateProjectMemb
         </div>
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
           <button type="button" className="btn btn-secondary btn-sm" onClick={onClose}>Mégse</button>
-          <button type="submit" className="btn btn-primary btn-sm" disabled={submitting}>{submitting ? 'Mentés...' : 'Tagok mentése'}</button>
+          <button type="submit" className="btn btn-primary btn-sm" disabled={submitting}>{submitting ? <><Loader2 size={13} className="animate-spin" />Mentés</> : 'Tagok mentése'}</button>
         </div>
       </form>
     </Modal>

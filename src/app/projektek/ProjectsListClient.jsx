@@ -8,7 +8,7 @@ import { calculateProjectFinancials } from '@/lib/calculations';
 import { formatHUF, formatDate } from '@/lib/constants';
 import {
   FolderKanban, Users, TrendingUp, TrendingDown, CheckCircle2,
-  Plus, AlertCircle, UserCheck, ChevronRight,
+  Plus, AlertCircle, UserCheck, ChevronRight, Loader2,
 } from 'lucide-react';
 import Modal from '@/components/Modal';
 import EntitySelector from '@/components/EntitySelector';
@@ -309,7 +309,7 @@ export default function ProjectsListClient({
                 <div className="form-group" style={{ marginTop: '0.65rem', marginBottom: '0.65rem' }}><label className="form-label">Cím</label><input type="text" className="form-control" value={newClientAddr} onChange={e => setNewClientAddr(e.target.value)} /></div>
                 <div style={{ display: 'flex', gap: '0.4rem', justifyContent: 'flex-end' }}>
                   <button type="button" className="btn btn-secondary btn-sm" onClick={() => { setShowNewClient(false); setNewClientError(''); }}>Mégse</button>
-                  <button type="submit" className="btn btn-primary btn-sm" disabled={creatingClient}>{creatingClient ? 'Létrehozás...' : 'Ügyfél létrehozása'}</button>
+                  <button type="submit" className="btn btn-primary btn-sm" disabled={creatingClient}>{creatingClient ? <><Loader2 size={13} className="animate-spin" />Létrehozás</> : 'Ügyfél létrehozása'}</button>
                 </div>
               </form>
             </div>
@@ -338,7 +338,7 @@ export default function ProjectsListClient({
           </div>
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
             <button type="button" className="btn btn-secondary btn-sm" onClick={() => setShowCreate(false)}>Mégse</button>
-            <button type="submit" className="btn btn-primary btn-sm" disabled={isSubmitting}>{isSubmitting ? 'Létrehozás...' : 'Projekt létrehozása'}</button>
+            <button type="submit" className="btn btn-primary btn-sm" disabled={isSubmitting}>{isSubmitting ? <><Loader2 size={13} className="animate-spin" />Létrehozás</> : 'Projekt létrehozása'}</button>
           </div>
         </form>
       </Modal>

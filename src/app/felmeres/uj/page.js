@@ -67,7 +67,7 @@ function NewClientModal({ isOpen, onClose, onCreate }) {
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
           <button type="button" className="btn btn-secondary btn-sm" onClick={handleClose}>Mégse</button>
           <button type="submit" className="btn btn-primary btn-sm" disabled={saving}>
-            {saving ? 'Mentés...' : 'Létrehozás'}
+            {saving ? <><Loader2 size={13} className="animate-spin" />Létrehozás</> : 'Létrehozás'}
           </button>
         </div>
       </form>

@@ -422,7 +422,7 @@ function EditDiaryEntryModal({ isOpen, onClose, entry, onSave, onDeletePhoto, ro
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '1rem' }}>
           <button type="button" className="btn btn-secondary btn-sm" onClick={onClose} disabled={saving}>Mégse</button>
           <button type="submit" className="btn btn-primary btn-sm" disabled={saving || !!deletingPhotoId}>
-            {saving ? 'Mentés…' : 'Mentés'}
+            {saving ? <><Loader2 size={13} className="animate-spin" />Mentés</> : 'Mentés'}
           </button>
         </div>
       </form>
@@ -521,7 +521,7 @@ function LabourEditModal({ entry, onClose, onSave, rooms = [] }) {
         )}
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '1.25rem' }}>
           <button type="button" className="btn btn-secondary btn-sm" onClick={onClose} disabled={saving}>Mégse</button>
-          <button type="submit" className="btn btn-primary btn-sm" disabled={saving}>{saving ? 'Mentés...' : 'Mentés'}</button>
+          <button type="submit" className="btn btn-primary btn-sm" disabled={saving}>{saving ? <><Loader2 size={13} className="animate-spin" />Mentés</> : 'Mentés'}</button>
         </div>
       </form>
     </Modal>
@@ -1060,7 +1060,7 @@ function PaymentPlanModal({ isOpen, onClose, onSave, editItem, itemCount }) {
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
           <button type="button" className="btn btn-secondary btn-sm" onClick={onClose} disabled={saving}>Mégse</button>
           <button type="submit" className="btn btn-primary btn-sm" disabled={saving}>
-            {saving ? 'Mentés...' : (editItem ? 'Módosítás' : 'Hozzáadás')}
+            {saving ? <><Loader2 size={13} className="animate-spin" />{editItem ? 'Módosítás' : 'Hozzáadás'}</> : (editItem ? 'Módosítás' : 'Hozzáadás')}
           </button>
         </div>
       </form>
@@ -1150,7 +1150,7 @@ function RoomModal({ isOpen, onClose, room, onSave }) {
         </div>
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
           <button type="button" className="btn btn-secondary btn-sm" onClick={onClose} disabled={saving}>Mégse</button>
-          <button type="submit" className="btn btn-primary btn-sm" disabled={saving}>{saving ? 'Mentés...' : 'Mentés'}</button>
+          <button type="submit" className="btn btn-primary btn-sm" disabled={saving}>{saving ? <><Loader2 size={13} className="animate-spin" />Mentés</> : 'Mentés'}</button>
         </div>
       </form>
     </Modal>
@@ -1296,13 +1296,13 @@ function ProjectEditModal({ isOpen, onClose, project, clients, onSave, onCreateC
             <div className="form-group" style={{ marginTop: '0.65rem', marginBottom: '0.65rem' }}><label className="form-label">Cím</label><input type="text" className="form-control" value={newClientAddress} onChange={e => setNewClientAddress(e.target.value)} /></div>
             <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
               <button type="button" className="btn btn-secondary btn-sm" onClick={() => { setShowNewClient(false); setNewClientError(''); }}>Mégse</button>
-              <button type="button" className="btn btn-primary btn-sm" disabled={creatingClient} onClick={handleCreateClient}>{creatingClient ? 'Létrehozás...' : 'Ügyfél létrehozása'}</button>
+              <button type="button" className="btn btn-primary btn-sm" disabled={creatingClient} onClick={handleCreateClient}>{creatingClient ? <><Loader2 size={13} className="animate-spin" />Létrehozás</> : 'Ügyfél létrehozása'}</button>
             </div>
           </div>
         )}
 
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '0.5rem' }}>
-          <button type="submit" className="btn btn-primary btn-sm" disabled={saving}>{saving ? 'Mentés...' : 'Adatok mentése'}</button>
+          <button type="submit" className="btn btn-primary btn-sm" disabled={saving}>{saving ? <><Loader2 size={13} className="animate-spin" />Mentés</> : 'Adatok mentése'}</button>
         </div>
       </form>
 

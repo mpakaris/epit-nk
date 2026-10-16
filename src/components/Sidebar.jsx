@@ -191,13 +191,22 @@ export default function Sidebar() {
 
   if (!currentUser && pathname === '/login') return null;
   if (!currentUser) return null;
-  if (pathname.startsWith('/naplo/') || pathname.startsWith('/clients/') || pathname.startsWith('/szakemberek/')) return null;
+  if (pathname.startsWith('/naplo/') || pathname.startsWith('/clients/') || pathname.startsWith('/szakemberek/') || pathname.endsWith('/nyomtatas')) return null;
 
   const navItems = buildNavItems(isSuperAdmin, isAdmin, impersonating, websiteUnread);
   const homeHref = isSuperAdmin && !impersonating ? '/superadmin' : isAdmin ? '/admin' : '/projektek';
 
   const UserActions = ({ showLabel = false }) => (
     <div style={{ display: 'flex', gap: '0.35rem' }}>
+      <Link
+        href="/profil"
+        className="btn btn-secondary btn-sm"
+        style={{ padding: '0.3rem 0.5rem' }}
+        title="Profil &amp; fejléc"
+      >
+        <User size={14} />
+        {showLabel && <span>Profil</span>}
+      </Link>
       <Link
         href="/change-password"
         className="btn btn-secondary btn-sm"

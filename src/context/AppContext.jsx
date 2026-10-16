@@ -142,6 +142,7 @@ export function AppProvider({ children }) {
             active_collective_id: profile?.active_collective_id || null,
             must_change_password: profile?.must_change_password ?? false,
             is_subscription_premium: profile?.is_subscription_premium ?? false,
+            default_tax_percent: profile?.default_tax_percent ?? 27,
           };
           setCurrentUser(user);
           await refreshSupabaseData(user);
@@ -289,6 +290,7 @@ export function AppProvider({ children }) {
       active_collective_id: profile?.active_collective_id || null,
       must_change_password: profile?.must_change_password ?? false,
       is_subscription_premium: profile?.is_subscription_premium ?? false,
+      default_tax_percent: profile?.default_tax_percent ?? 27,
     };
 
     setCurrentUser(user);
@@ -333,6 +335,7 @@ export function AppProvider({ children }) {
         active_collective_id: profile?.active_collective_id || null,
         must_change_password: false,
         is_subscription_premium: profile?.is_subscription_premium ?? false,
+        default_tax_percent: profile?.default_tax_percent ?? 27,
       };
       setCurrentUser(user);
       await refreshSupabaseData(user);
@@ -987,11 +990,11 @@ export function AppProvider({ children }) {
     }
   };
 
-  const createSurveyEntry = async (surveyId, { name, description, size_m2 }) => {
+  const createSurveyEntry = async (surveyId, { name, description, width_m, length_m, height_m, window_count, door_count, sort_order }) => {
     const res = await fetch(`/api/surveys/${surveyId}/entries`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, description, size_m2 }),
+      body: JSON.stringify({ name, description, width_m, length_m, height_m, window_count, door_count, sort_order }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Hiba a helyiség létrehozásakor');
@@ -1075,9 +1078,10 @@ export function AppProvider({ children }) {
     if (!effectiveUser) throw new Error('Bejelentkezés szükséges!');
     const targetCollectiveId = collectiveIdOverride ?? activeCollectiveId ?? null;
 
-    const { data, error } = await supabase
-      .from('quotes')
-      .insert([{
+    const res = await fetch('/api/quotes', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
         owner_id:      effectiveUser.id,
         collective_id: targetCollectiveId,
         title,
@@ -1086,26 +1090,17 @@ export function AppProvider({ children }) {
         description,
         start_date: startDate || null,
         end_date: endDate || null,
-        status: 'draft',
         client_id: clientId || null,
-        project_id: null,
         created_by: effectiveUser.id,
         shared_with: sharedWith,
         tax_percent: Number(taxPercent) || 0,
         survey_id: surveyId || null,
-      }])
-      .select()
-      .single();
-
-    if (error) throw error;
-    setQuotes(prev => [data, ...prev]);
-
-    auditLog('Ajánlat létrehozva', {
-      entityId: targetCollectiveId,
-      targetType: 'quote',
-      targetId: data.id,
-      targetName: title,
+      }),
     });
+    const payload = await res.json();
+    if (!res.ok) throw new Error(payload.error || 'Hiba az ajánlat létrehozásakor');
+    const data = payload.quote;
+    setQuotes(prev => [data, ...prev]);
     return data;
   };
 
@@ -1140,28 +1135,15 @@ export function AppProvider({ children }) {
 
   // ---- Quote sections ---------------------------------------------------------
 
-  const createQuoteSection = async (quoteId, { name, description, size_m2, survey_entry_id, start_date, end_date }) => {
+  const createQuoteSection = async (quoteId, { name, description, width_m, length_m, height_m, window_count, door_count, survey_entry_id, sort_order, start_date, end_date }) => {
     const res = await fetch(`/api/quotes/${quoteId}/sections`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, description, size_m2, survey_entry_id, start_date, end_date }),
+      body: JSON.stringify({ name, description, width_m, length_m, height_m, window_count, door_count, survey_entry_id, sort_order, start_date, end_date }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Hiba a szekció létrehozásakor');
     setQuoteSections(prev => [...prev, data.section]);
-    // If the API auto-created a survey entry, add a stub so SectionMediaGrid finds it immediately
-    if (data.section.survey_entry_id) {
-      const quote = quotes.find(q => q.id === quoteId);
-      if (quote?.survey_id) {
-        setSurveyEntriesBySurvey(prev => ({
-          ...prev,
-          [quote.survey_id]: [
-            ...(prev[quote.survey_id] || []).filter(e => e.id !== data.section.survey_entry_id),
-            { id: data.section.survey_entry_id, name, media: [] },
-          ],
-        }));
-      }
-    }
     return data.section;
   };
 
@@ -1224,30 +1206,37 @@ export function AppProvider({ children }) {
       created_by_name: effectiveUser.display_name || null,
     };
 
-    const { data, error } = await supabase.from('quote_entries').insert([payload]).select().single();
-    if (error) throw error;
-    setQuoteEntries(prev => [...prev, data]);
-    return data;
+    const res = await fetch(`/api/quotes/${quoteId}/entries`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Hiba a tétel létrehozásakor');
+    setQuoteEntries(prev => [...prev, data.entry]);
+    return data.entry;
   };
 
   const updateQuoteEntry = async (entryId, fields) => {
     const entry = quoteEntries.find(e => e.id === entryId);
     if (!entry) return;
-    if (entry.user_id !== effectiveUser?.id && !isAdmin) throw new Error('Csak saját tételt módosíthat!');
-
-    const { data, error } = await supabase.from('quote_entries').update(fields).eq('id', entryId).select().single();
-    if (error) throw error;
-    setQuoteEntries(prev => prev.map(e => e.id === entryId ? data : e));
-    return data;
+    const res = await fetch(`/api/quotes/${entry.quote_id}/entries/${entryId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(fields),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Hiba a tétel módosításakor');
+    setQuoteEntries(prev => prev.map(e => e.id === entryId ? data.entry : e));
+    return data.entry;
   };
 
   const deleteQuoteEntry = async (entryId) => {
     const entry = quoteEntries.find(e => e.id === entryId);
     if (!entry) return;
-    if (entry.user_id !== effectiveUser?.id && !isAdmin) throw new Error('Csak saját tételt törölhet!');
-
-    const { error } = await supabase.from('quote_entries').delete().eq('id', entryId);
-    if (error) throw error;
+    const res = await fetch(`/api/quotes/${entry.quote_id}/entries/${entryId}`, { method: 'DELETE' });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Hiba a tétel törlésekor');
     setQuoteEntries(prev => prev.filter(e => e.id !== entryId));
   };
 

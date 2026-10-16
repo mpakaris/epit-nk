@@ -91,8 +91,7 @@ export async function DELETE(request, { params }) {
   if (!isOwner && !isSuperAdmin)
     return Response.json({ error: 'Csak a tulajdonos törölheti az ajánlatot.' }, { status: 403 });
 
-  await ctx.admin.from('quote_entries').delete().eq('quote_id', id);
-  const { error } = await ctx.admin.from('quotes').delete().eq('id', id);
+  const { error } = await ctx.admin.from('quotes').update({ deleted_at: new Date().toISOString(), deleted_by: ctx.user.id }).eq('id', id);
   if (error) return Response.json({ error: error.message }, { status: 400 });
 
   logAudit({

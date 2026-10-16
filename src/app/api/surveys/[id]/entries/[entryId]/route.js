@@ -29,12 +29,20 @@ export async function PATCH(request, { params }) {
   if (ctx.err) return Response.json({ error: ctx.err }, { status: ctx.status });
 
   const fields = await request.json();
-  const allowed = ['name', 'description', 'size_m2', 'height_m', 'perimeter_m', 'window_count', 'door_count', 'sort_order'];
+  const allowed = ['name', 'description', 'width_m', 'length_m', 'height_m', 'window_count', 'door_count', 'sort_order'];
   const update = {};
   for (const k of allowed) if (k in fields) update[k] = fields[k];
   if (update.name !== undefined) update.name = update.name?.trim();
   if (!update.name) return Response.json({ error: 'A hely neve kötelező' }, { status: 400 });
-  if ('size_m2' in update) update.size_m2 = update.size_m2 != null && update.size_m2 !== '' ? Number(update.size_m2) : null;
+  for (const f of ['width_m', 'length_m', 'height_m']) {
+    if (f in update) update[f] = update[f] != null && update[f] !== '' ? Number(update[f]) : null;
+  }
+  // Recompute size_m2 from stored dimensions
+  if ('width_m' in update || 'length_m' in update) {
+    const w = update.width_m  ?? null;
+    const l = update.length_m ?? null;
+    update.size_m2 = w > 0 && l > 0 ? w * l : null;
+  }
 
   const { data, error } = await ctx.admin.from('survey_entries').update(update).eq('id', entryId).eq('survey_id', surveyId).select().single();
   if (error) return Response.json({ error: error.message }, { status: 400 });

@@ -158,9 +158,9 @@ function EntryForm({ initial, surveyId, onSave, onCancel }) {
   const { uploadSurveyMedia, deleteSurveyEntry } = useApp();
   const [name, setName]               = useState(initial?.name || '');
   const [description, setDescription] = useState(initial?.description || '');
-  const [widthM, setWidthM]           = useState('');
-  const [lengthM, setLengthM]         = useState('');
-  const [heightM, setHeightM]         = useState(initial?.height_m     != null ? String(initial.height_m)     : '');
+  const [widthM, setWidthM]           = useState(initial?.width_m  != null ? String(initial.width_m)  : '');
+  const [lengthM, setLengthM]         = useState(initial?.length_m != null ? String(initial.length_m) : '');
+  const [heightM, setHeightM]         = useState(initial?.height_m != null ? String(initial.height_m) : '');
   const [windowCount, setWindowCount] = useState(initial?.window_count != null ? String(initial.window_count) : '');
   const [doorCount, setDoorCount]     = useState(initial?.door_count   != null ? String(initial.door_count)   : '');
   const [wallM2, setWallM2]           = useState('');
@@ -204,17 +204,13 @@ function EntryForm({ initial, surveyId, onSave, onCancel }) {
     if (!name.trim()) { setError('A hely neve kötelező!'); return; }
     setSaving(true);
     try {
-      const h   = parseFloat(heightM) || 0;
-      const ded = (parseInt(windowCount) || 0) * WINDOW_M2 + (parseInt(doorCount) || 0) * DOOR_M2;
-      const perimeterVal = wallM2 && h > 0
-        ? (parseFloat(wallM2) + ded) / h
-        : (computedPerimeter ?? (initial?.perimeter_m ?? null));
+      const h = parseFloat(heightM) || 0;
       const entry = await onSave({
         name: name.trim(),
         description: description.trim() || null,
-        size_m2:      computedArea != null ? computedArea : (initial?.size_m2 ?? null),
+        width_m:      parseFloat(widthM)  || null,
+        length_m:     parseFloat(lengthM) || null,
         height_m:     h || null,
-        perimeter_m:  perimeterVal || null,
         window_count: parseInt(windowCount) || 0,
         door_count:   parseInt(doorCount)   || 0,
       });
@@ -306,7 +302,7 @@ function EntryForm({ initial, surveyId, onSave, onCancel }) {
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '1rem' }}>
         <button type="button" className="btn btn-secondary btn-sm" onClick={onCancel} disabled={saving}>Mégse</button>
         <button type="submit" className="btn btn-primary btn-sm" disabled={saving}>
-          {saving ? (selectedFiles.length > 0 && !initial ? 'Feltöltés...' : 'Mentés...') : (initial ? 'Módosítás' : 'Helyiség hozzáadása')}
+          {saving ? <><Loader2 size={13} className="animate-spin" />{initial ? 'Módosítás' : selectedFiles.length > 0 ? 'Feltöltés' : 'Mentés'}</> : (initial ? 'Módosítás' : 'Helyiség hozzáadása')}
         </button>
       </div>
     </form>
@@ -412,15 +408,18 @@ const WINDOW_M2 = 1.5;
 const DOOR_M2   = 2.0;
 
 function AreaSummary({ entry }) {
-  const { size_m2, height_m, perimeter_m, window_count, door_count } = entry;
-  const hasFloor = size_m2 != null;
-  const hasWall  = height_m != null && perimeter_m != null;
+  const { width_m, length_m, size_m2, height_m, window_count, door_count } = entry;
+  const w = Number(width_m), l = Number(length_m);
+  const floorArea = w > 0 && l > 0 ? w * l : (size_m2 != null ? Number(size_m2) : null);
+  const perimeter = w > 0 && l > 0 ? 2 * (w + l) : null;
+  const hasFloor = floorArea != null;
+  const hasWall  = height_m != null && perimeter != null;
   if (!hasFloor && !hasWall) return null;
 
   const windowArea = (window_count || 0) * WINDOW_M2;
   const doorArea   = (door_count   || 0) * DOOR_M2;
   const openings   = windowArea + doorArea;
-  const grossWall  = hasWall ? perimeter_m * height_m : null;
+  const grossWall  = hasWall ? perimeter * height_m : null;
   const netWall    = grossWall != null ? Math.max(0, grossWall - openings) : null;
 
   const fmt = v => Number(v).toFixed(2).replace('.', ',') + ' m²';
@@ -434,7 +433,7 @@ function AreaSummary({ entry }) {
   return (
     <div style={{ background: 'var(--bg-subtle)', borderRadius: 'var(--radius-md)', padding: '0.65rem 0.85rem', marginTop: '0.65rem' }}>
       <div style={{ fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', marginBottom: '0.35rem' }}>Területek</div>
-      {hasFloor && <Row label="Padló / Mennyezet" value={fmt(size_m2)} />}
+      {hasFloor && <Row label="Padló / Mennyezet" value={fmt(floorArea)} />}
       {grossWall != null && <Row label="Falfelület (bruttó)" value={fmt(grossWall)} />}
       {openings > 0 && <Row label={`Kivonások (${window_count || 0} ablak + ${door_count || 0} ajtó)`} value={`− ${fmt(openings)}`} sub />}
       {netWall != null && <Row label="Falfelület (nettó)" value={fmt(netWall)} bold />}
@@ -498,13 +497,6 @@ export default function SurveyDetailPage() {
 
   const linkedQuote   = quotes.find(q => q.survey_id === id);
   const linkedProject = projects.find(p => p.survey_id === id);
-
-  const toQuoteParams = new URLSearchParams();
-  toQuoteParams.set('from_survey', id);
-  if (survey.title)    toQuoteParams.set('title', survey.title);
-  if (survey.client_id) toQuoteParams.set('client_id', survey.client_id);
-  if (survey.location)  toQuoteParams.set('location', survey.location);
-  if (survey.notes)     toQuoteParams.set('description', survey.notes);
 
   const handleDeleteSurvey = () => {
     const entryCount   = entries.length;
@@ -660,15 +652,18 @@ export default function SurveyDetailPage() {
             <Home size={15} color="var(--accent)" />
             <h2 style={{ fontSize: '1rem', fontWeight: 800, margin: 0 }}>Helyiségek ({entries.length})</h2>
           </div>
-          {canEdit && (
+          {canEdit && entries.length < 30 && (
             <button type="button" onClick={() => { setShowAddEntry(true); setEditingEntry(null); }} className="btn btn-primary btn-sm">
               <Plus size={14} /> Helyiség hozzáadása
             </button>
           )}
+          {canEdit && entries.length >= 30 && (
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>Maximum 30 helyiség</span>
+          )}
         </div>
 
         {canEdit && showAddEntry && !editingEntry && (
-          <div className="card mb-3" style={{ padding: '1rem', border: '2px solid var(--accent-border)', background: 'var(--accent-light)' }}>
+          <div className="card" style={{ padding: '1rem', border: '2px solid var(--accent-border)', background: 'var(--accent-light)', marginBottom: '0.75rem' }}>
             <div style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--accent)', letterSpacing: '0.05em', marginBottom: '0.75rem' }}>Új helyiség</div>
             <EntryForm
               surveyId={id}
@@ -682,7 +677,7 @@ export default function SurveyDetailPage() {
           <div className="card" style={{ textAlign: 'center', padding: '2rem 1.5rem', color: 'var(--text-muted)', fontSize: '0.875rem' }}>
             <Home size={28} color="var(--text-muted)" style={{ margin: '0 auto 0.5rem' }} />
             <p style={{ marginBottom: canEdit ? '1rem' : 0 }}>Még nincsenek helyiségek.</p>
-            {canEdit && (
+            {canEdit && entries.length < 30 && (
               <button type="button" onClick={() => setShowAddEntry(true)} className="btn btn-primary btn-sm">
                 <Plus size={14} /> Helyiség hozzáadása
               </button>
@@ -705,7 +700,7 @@ export default function SurveyDetailPage() {
                 </div>
               ) : (
                 <div className="card" style={{ padding: '1rem' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.5rem', marginBottom: (entry.description || entry.size_m2 != null || entry.media?.length) ? '0.65rem' : 0 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.5rem' }}>
                     <div style={{ flex: 1 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
                         <span style={{ fontWeight: 800, fontSize: '1rem', color: 'var(--text-primary)' }}>{entry.name}</span>
@@ -722,7 +717,6 @@ export default function SurveyDetailPage() {
                       {entry.description && (
                         <p style={{ marginTop: '0.3rem', fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.55, whiteSpace: 'pre-wrap' }}>{entry.description}</p>
                       )}
-                      <AreaSummary entry={entry} />
                     </div>
                     {canEdit && (
                       <div style={{ display: 'flex', gap: '0.3rem', flexShrink: 0 }}>
@@ -731,6 +725,7 @@ export default function SurveyDetailPage() {
                       </div>
                     )}
                   </div>
+                  <AreaSummary entry={entry} />
 
                   <div style={{ marginTop: '0.75rem', borderTop: '1px solid var(--border-subtle)', paddingTop: '0.75rem' }}>
                     {entry.media?.length > 0 ? (
@@ -761,34 +756,30 @@ export default function SurveyDetailPage() {
         </div>
       </div>
 
-      {/* Linked offer */}
-      <div className="card mb-4" style={{ padding: '1rem' }}>
-        <div style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.05em', marginBottom: '0.75rem' }}>
-          Kapcsolódó ajánlat
+      {/* Linked offer / project — only shown when something is linked */}
+      {(linkedQuote || linkedProject) && (
+        <div className="card mb-4" style={{ padding: '1rem' }}>
+          <div style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.05em', marginBottom: '0.75rem' }}>
+            Kapcsolódó
+          </div>
+          {linkedProject && (
+            <div style={{ padding: '0.75rem 1rem', borderRadius: 'var(--radius-md)', background: 'var(--success-bg)', border: '1px solid var(--success-border)', display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: linkedQuote ? '0.5rem' : 0 }}>
+              <FolderKanban size={15} color="var(--success)" />
+              <span style={{ fontSize: '0.875rem', color: 'var(--success-text)' }}>
+                Projekt: <Link href={`/projektek/${linkedProject.id}`} style={{ fontWeight: 700, color: 'var(--success-text)' }}>{linkedProject.name}</Link>
+              </span>
+            </div>
+          )}
+          {linkedQuote && (
+            <div style={{ padding: '0.75rem 1rem', borderRadius: 'var(--radius-md)', background: 'var(--warning-bg)', border: '1px solid var(--warning-border)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <FileText size={15} color="var(--warning-text)" />
+              <span style={{ fontSize: '0.875rem', color: 'var(--warning-text)' }}>
+                Ajánlat: <Link href={`/ajanlatok/${linkedQuote.id}`} style={{ fontWeight: 700, color: 'var(--warning-text)' }}>{linkedQuote.title}</Link>
+              </span>
+            </div>
+          )}
         </div>
-        {linkedProject && (
-          <div style={{ padding: '0.75rem 1rem', borderRadius: 'var(--radius-md)', background: 'var(--success-bg)', border: '1px solid var(--success-border)', display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: linkedQuote ? '0.5rem' : 0 }}>
-            <FolderKanban size={15} color="var(--success)" />
-            <span style={{ fontSize: '0.875rem', color: 'var(--success-text)' }}>
-              Projekt: <Link href={`/projektek/${linkedProject.id}`} style={{ fontWeight: 700, color: 'var(--success-text)' }}>{linkedProject.name}</Link>
-            </span>
-          </div>
-        )}
-        {linkedQuote ? (
-          <div style={{ padding: '0.75rem 1rem', borderRadius: 'var(--radius-md)', background: 'var(--warning-bg)', border: '1px solid var(--warning-border)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <FileText size={15} color="var(--warning-text)" />
-            <span style={{ fontSize: '0.875rem', color: 'var(--warning-text)' }}>
-              Ajánlat: <Link href={`/ajanlatok/${linkedQuote.id}`} style={{ fontWeight: 700, color: 'var(--warning-text)' }}>{linkedQuote.title}</Link>
-            </span>
-          </div>
-        ) : (
-          !linkedProject && canEdit && (
-            <Link href={`/ajanlatok/uj?${toQuoteParams.toString()}`} className="btn btn-secondary btn-sm">
-              <FileText size={14} /> Ajánlat létrehozása ebből a felmérésből
-            </Link>
-          )
-        )}
-      </div>
+      )}
 
       <MetaDrawer
         survey={survey}

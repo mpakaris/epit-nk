@@ -37,16 +37,23 @@ export async function PATCH(request) {
   if (authErr || !user) return Response.json({ error: 'Unauthenticated' }, { status: 401 });
 
   const body = await request.json();
-
-  if (Object.keys(body).length !== 1 || body.must_change_password !== false)
-    return Response.json({ error: 'Forbidden' }, { status: 403 });
-
   const admin = createAdminClient();
-  const { error } = await admin
-    .from('profiles')
-    .update({ must_change_password: false })
-    .eq('id', user.id);
 
+  // Password-reset acknowledgement (internal flag)
+  if (Object.keys(body).length === 1 && body.must_change_password === false) {
+    const { error } = await admin.from('profiles').update({ must_change_password: false }).eq('id', user.id);
+    if (error) return Response.json({ error: error.message }, { status: 500 });
+    return Response.json({ success: true });
+  }
+
+  // Letterhead / profile info update
+  const allowed = ['display_name', 'first_name', 'last_name', 'company_name', 'street', 'street_number', 'zip', 'city', 'tax_number', 'default_tax_percent'];
+  const update = {};
+  for (const k of allowed) if (k in body) update[k] = body[k] ?? null;
+  if (Object.keys(update).length === 0)
+    return Response.json({ error: 'No updatable fields' }, { status: 400 });
+
+  const { data, error } = await admin.from('profiles').update(update).eq('id', user.id).select().single();
   if (error) return Response.json({ error: error.message }, { status: 500 });
-  return Response.json({ success: true });
+  return Response.json({ profile: data });
 }
