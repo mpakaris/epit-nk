@@ -12,25 +12,22 @@ export async function GET(request) {
   const now = new Date().toISOString();
   const { data: tokenRow } = await admin
     .from('diary_share_tokens')
-    .select('id, project_id, entity_id, label, expires_at')
+    .select('id, project_id, label, expires_at')
     .eq('token', tokenValue)
     .single();
 
   if (!tokenRow) return Response.json({ error: 'invalid_token' }, { status: 404 });
   if (tokenRow.expires_at && tokenRow.expires_at < now) return Response.json({ error: 'expired_token' }, { status: 410 });
 
-  const { project_id, entity_id } = tokenRow;
+  const { project_id } = tokenRow;
 
-  // Fetch project info
-  const { data: project } = await admin.from('projects').select('id, name, description').eq('id', project_id).eq('entity_id', entity_id).single();
+  const { data: project } = await admin.from('projects').select('id, name, description').eq('id', project_id).single();
   if (!project) return Response.json({ error: 'invalid_token' }, { status: 404 });
 
-  // Fetch diary entries with photos — always entity-scoped
   const { data: entries } = await admin
     .from('diary_entries')
     .select('id, title, body, work_type, client_note, entry_date, created_at, created_by')
     .eq('project_id', project_id)
-    .eq('entity_id', entity_id)
     .order('entry_date', { ascending: false })
     .order('created_at', { ascending: false });
 
@@ -41,7 +38,6 @@ export async function GET(request) {
       .from('diary_photos')
       .select('id, entry_id, drive_view_url, thumbnail_url, mime_type')
       .in('entry_id', entryIds)
-      .eq('entity_id', entity_id)
       .order('created_at');
     photos = p || [];
   }

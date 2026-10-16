@@ -46,9 +46,13 @@ export async function DELETE(request, { params }) {
   const ctx = await getCtx(surveyId, entryId);
   if (ctx.err) return Response.json({ error: ctx.err }, { status: ctx.status });
 
-  // Delete R2 objects for this entry's media
-  const { data: media } = await ctx.admin.from('survey_media').select('drive_file_id').eq('entry_id', entryId);
-  if (media?.length) await Promise.allSettled(media.map(m => deleteFromR2(m.drive_file_id)));
+  const { data: media } = await ctx.admin.from('survey_media').select('id, drive_file_id').eq('entry_id', entryId);
+  if (media?.length) {
+    await Promise.allSettled(media.map(m => deleteFromR2(m.drive_file_id)));
+    await ctx.admin.from('survey_media').delete().eq('entry_id', entryId);
+  }
+
+  await ctx.admin.from('survey_drawings').delete().eq('entry_id', entryId);
 
   const { error } = await ctx.admin.from('survey_entries').delete().eq('id', entryId).eq('survey_id', surveyId);
   if (error) return Response.json({ error: error.message }, { status: 400 });

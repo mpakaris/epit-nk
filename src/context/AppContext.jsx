@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { createClient as createSupabaseClient } from '@/lib/supabase/client';
+import { processMediaFiles } from '@/lib/mediaGate';
 
 const AppContext = createContext(null);
 
@@ -906,7 +907,10 @@ export function AppProvider({ children }) {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Hiba a felmérés törlésekor');
     setSurveys(prev => prev.filter(s => s.id !== surveyId));
-    setSurveyMediaBySurvey(prev => { const n = { ...prev }; delete n[surveyId]; return n; });
+    setSurveyMediaBySurvey(prev =>    { const n = { ...prev }; delete n[surveyId]; return n; });
+    setSurveyLayoutsBySurvey(prev =>  { const n = { ...prev }; delete n[surveyId]; return n; });
+    setSurveyEntriesBySurvey(prev =>  { const n = { ...prev }; delete n[surveyId]; return n; });
+    setSurveyDrawingsBySurvey(prev => { const n = { ...prev }; delete n[surveyId]; return n; });
   };
 
   const fetchSurveyMedia = async (surveyId) => {
@@ -922,10 +926,12 @@ export function AppProvider({ children }) {
 
   const uploadSurveyMedia = async (surveyId, files, { entryId = null, mediaType = 'photo' } = {}) => {
     const survey = surveys.find(s => s.id === surveyId);
+    const isOwner  = survey?.owner_id === uid || survey?.created_by === uid;
     const isShared = (survey?.shared_with || []).includes(effectiveUser?.id);
-    if (!isAdmin && !isShared) throw new Error('Nincs jogosultsága!');
+    if (!isAdmin && !isOwner && !isShared) throw new Error('Nincs jogosultsága!');
+    const processed = await processMediaFiles(files);
     const formData = new FormData();
-    for (const file of files) formData.append('files', file);
+    for (const file of processed) formData.append('files', file);
     formData.append('survey_id', surveyId);
     if (entryId) formData.append('entry_id', entryId);
     formData.append('media_type', mediaType);
@@ -955,8 +961,9 @@ export function AppProvider({ children }) {
 
   const deleteSurveyMedia = async (mediaId, surveyId, entryId = null, mediaType = 'photo') => {
     const survey = surveys.find(s => s.id === surveyId);
+    const isOwner  = survey?.owner_id === uid || survey?.created_by === uid;
     const isShared = (survey?.shared_with || []).includes(effectiveUser?.id);
-    if (!isAdmin && !isShared) throw new Error('Nincs jogosultsága!');
+    if (!isAdmin && !isOwner && !isShared) throw new Error('Nincs jogosultsága!');
     const res = await fetch(`/api/surveys/${surveyId}/media/${mediaId}`, { method: 'DELETE' });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Hiba a média törlésekor');
@@ -997,8 +1004,9 @@ export function AppProvider({ children }) {
 
   const updateSurveyEntry = async (surveyId, entryId, fields) => {
     const survey = surveys.find(s => s.id === surveyId);
+    const isOwner  = survey?.owner_id === uid || survey?.created_by === uid;
     const isShared = (survey?.shared_with || []).includes(effectiveUser?.id);
-    if (!isAdmin && !isShared) throw new Error('Nincs jogosultsága!');
+    if (!isAdmin && !isOwner && !isShared) throw new Error('Nincs jogosultsága!');
     const res = await fetch(`/api/surveys/${surveyId}/entries/${entryId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
@@ -1017,8 +1025,9 @@ export function AppProvider({ children }) {
 
   const deleteSurveyEntry = async (surveyId, entryId) => {
     const survey = surveys.find(s => s.id === surveyId);
+    const isOwner  = survey?.owner_id === uid || survey?.created_by === uid;
     const isShared = (survey?.shared_with || []).includes(effectiveUser?.id);
-    if (!isAdmin && !isShared) throw new Error('Nincs jogosultsága!');
+    if (!isAdmin && !isOwner && !isShared) throw new Error('Nincs jogosultsága!');
     const res = await fetch(`/api/surveys/${surveyId}/entries/${entryId}`, { method: 'DELETE' });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Hiba a törléskor');
@@ -1026,6 +1035,11 @@ export function AppProvider({ children }) {
       ...prev,
       [surveyId]: (prev[surveyId] || []).filter(e => e.id !== entryId),
     }));
+    setSurveyDrawingsBySurvey(prev => ({
+      ...prev,
+      [surveyId]: (prev[surveyId] || []).filter(d => d.entry_id !== entryId),
+    }));
+    setSurveyMediaBySurvey(prev => ({ ...prev }));
   };
 
   // ---- Survey drawings --------------------------------------------------------
@@ -1346,8 +1360,9 @@ export function AppProvider({ children }) {
   };
 
   const uploadDiaryPhotos = async (projectId, files) => {
+    const processed = await processMediaFiles(files);
     const formData = new FormData();
-    for (const file of files) formData.append('files', file);
+    for (const file of processed) formData.append('files', file);
     formData.append('project_id', projectId); // needed for superadmin entity resolution
     const res = await fetch('/api/diary/upload', { method: 'POST', body: formData });
     const data = await res.json();

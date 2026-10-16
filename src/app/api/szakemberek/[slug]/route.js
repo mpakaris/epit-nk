@@ -26,7 +26,10 @@ export async function GET(request, { params }) {
   if (isPreview) {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user || user.id !== website.user_id) {
+    if (!user) return Response.json({ error: 'Forbidden' }, { status: 403 });
+    const { data: profile } = await admin.from('profiles').select('role').eq('id', user.id).single();
+    const isSA = profile?.role === 'superadmin';
+    if (!isSA && user.id !== website.user_id) {
       return Response.json({ error: 'Forbidden' }, { status: 403 });
     }
   }

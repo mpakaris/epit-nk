@@ -3,7 +3,8 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { uploadToR2, r2PublicUrl, diaryMediaKey } from '@/lib/r2';
 
 const MAX_FILES = 10;
-const MAX_SIZE_BYTES = 200 * 1024 * 1024; // 200 MB per file (videos can be large)
+const MAX_IMAGE_BYTES = 4 * 1024 * 1024;   // 4 MB
+const MAX_VIDEO_BYTES = 10 * 1024 * 1024;  // 10 MB
 
 // POST /api/diary/upload — upload photos/videos to Cloudflare R2
 export async function POST(request) {
@@ -34,8 +35,10 @@ export async function POST(request) {
 
   for (const file of files) {
     if (!(file instanceof File)) continue;
-    if (file.size > MAX_SIZE_BYTES) {
-      return Response.json({ error: `A "${file.name}" fájl túl nagy (max 200 MB)` }, { status: 400 });
+    const isVideo = (file.type || '').startsWith('video/');
+    const limit   = isVideo ? MAX_VIDEO_BYTES : MAX_IMAGE_BYTES;
+    if (file.size > limit) {
+      return Response.json({ error: `"${file.name}" túl nagy (max ${limit / 1024 / 1024} MB)` }, { status: 400 });
     }
 
     const mimeType = file.type || 'application/octet-stream';
@@ -52,10 +55,10 @@ export async function POST(request) {
     const isImage = mimeType.startsWith('image/');
 
     const { data: photo, error: dbErr } = await admin.from('diary_photos').insert([{
-      entity_id: entityId,
       entry_id: null,
-      drive_file_id: key,           // repurposed: stores the R2 object key
-      drive_view_url: publicUrl,    // repurposed: stores the R2 public URL
+      uploaded_by: user.id,
+      drive_file_id: key,
+      drive_view_url: publicUrl,
       thumbnail_url: isImage ? publicUrl : null,
       mime_type: mimeType,
     }]).select().single();

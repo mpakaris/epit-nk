@@ -97,10 +97,18 @@ export async function DELETE(request, { params }) {
   if (!isOwner && !isSuperAdmin)
     return Response.json({ error: 'Csak a tulajdonos törölheti a felmérést.' }, { status: 403 });
 
+  // Delete all R2 objects first (survey-level + entry-level media)
   const { data: media } = await ctx.admin.from('survey_media').select('drive_file_id').eq('survey_id', id);
   if (media?.length) {
     await Promise.allSettled(media.map(m => deleteFromR2(m.drive_file_id)));
   }
+
+  // Explicitly clean up all child rows before deleting the survey
+  await Promise.allSettled([
+    ctx.admin.from('survey_media').delete().eq('survey_id', id),
+    ctx.admin.from('survey_drawings').delete().eq('survey_id', id),
+    ctx.admin.from('survey_entries').delete().eq('survey_id', id),
+  ]);
 
   const { error } = await ctx.admin.from('surveys').delete().eq('id', id);
   if (error) return Response.json({ error: error.message }, { status: 400 });

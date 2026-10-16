@@ -19,7 +19,7 @@ async function getCtx(surveyId) {
       if (!mem) return { err: 'Forbidden', status: 403 };
     }
   }
-  return { profile, admin, entityId: survey.entity_id };
+  return { profile, admin };
 }
 
 export async function POST(request, { params }) {
@@ -32,7 +32,6 @@ export async function POST(request, { params }) {
 
   const entryInsert = {
     survey_id: surveyId,
-    entity_id: ctx.entityId,
     name: name.trim(),
     description: description?.trim() || null,
     size_m2:      size_m2      != null && size_m2      !== '' ? Number(size_m2)      : null,

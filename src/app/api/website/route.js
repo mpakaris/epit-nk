@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { resolveEffectiveUserId } from '@/lib/godMode';
 
 const SECTION_ORDER = [
   'hero', 'about', 'services', 'certifications', 'gallery',
@@ -21,16 +22,17 @@ async function getAuthedUser(supabase, admin) {
   return user;
 }
 
-export async function GET() {
+export async function GET(request) {
   const supabase = await createClient();
   const user = await getAuthedUser(supabase, null);
   if (!user) return Response.json({ error: 'Unauthenticated' }, { status: 401 });
 
   const admin = createAdminClient();
+  const effectiveUserId = await resolveEffectiveUserId(request, user, admin);
   const { data: website } = await admin
     .from('user_websites')
     .select('*, trade:trades(id, name_hu, slug_prefix)')
-    .eq('user_id', user.id)
+    .eq('user_id', effectiveUserId)
     .maybeSingle();
 
   if (!website) return Response.json({ website: null, sections: [] });
@@ -51,11 +53,12 @@ export async function POST(request) {
 
   const body = await request.json();
   const admin = createAdminClient();
+  const effectiveUserId = await resolveEffectiveUserId(request, user, admin);
 
   const { data: existing } = await admin
     .from('user_websites')
     .select('id')
-    .eq('user_id', user.id)
+    .eq('user_id', effectiveUserId)
     .maybeSingle();
 
   if (existing) {
@@ -109,7 +112,7 @@ export async function POST(request) {
 
   const { data: website, error: createErr } = await admin
     .from('user_websites')
-    .insert({ user_id: user.id, slug: slug.toLowerCase().trim(), trade_id: trade_id || null })
+    .insert({ user_id: effectiveUserId, slug: slug.toLowerCase().trim(), trade_id: trade_id || null })
     .select('*, trade:trades(id, name_hu, slug_prefix)')
     .single();
 

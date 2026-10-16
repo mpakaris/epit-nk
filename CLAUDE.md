@@ -53,18 +53,18 @@ surveys              id, owner_id, collective_id (nullable), created_by, ...
 clients              id, owner_id (ALWAYS personal, never shared — GDPR), ...
 ```
 
-### Old tables kept (migration 052 is additive — old columns NOT dropped yet)
+### Old tables kept (migrations 052+053 — tables NOT dropped yet)
 ```
 entities             still exists — personal + collective types
 memberships          still exists — old role values: owner|admin|member
-profiles.entity_id          old column, kept for backward compat
-profiles.current_entity_id  old column, kept for backward compat
 ```
-Migration 053 (not yet applied) will drop the old columns.
+Migration 053 drops all old `entity_id` columns from profiles/projects/quotes/surveys/clients.
+Migration 054 (pending) will drop the `entities` and `memberships` tables once god-mode
+code is updated to use `collective_members` / `collectives`.
 
 ### Data scoping rules
 - `projects/quotes/surveys`: personal = `owner_id = user.id AND collective_id IS NULL`
-- collective context also shows personal: `collective_id = X OR (owner_id = user.id AND collective_id IS NULL)`
+- collective context = `collective_id = X` only (separated views — no personal bleedthrough)
 - `clients`: ALWAYS `owner_id = user.id` — never shared across collective (GDPR)
 - `invoices/labour_entries`: scoped via `project_id` (inherit from project)
 
@@ -174,7 +174,7 @@ roles-permissions-pricing.md      Full permission matrix + future phases
 ---
 
 ## Known Issues / In Progress
-- Migration 053 (drop old entity_id columns) NOT YET APPLIED — old columns still exist
+- Migration 053 written — apply via Supabase SQL editor to drop old entity_id columns
 - RLS policies still reference old `current_entity_id()` function — not enforced, rewrite pending
 - `admin` role in collective_members exists in schema but no UI to promote yet
 - Approval workflow (`status: pending|approved`) schema exists, logic not active

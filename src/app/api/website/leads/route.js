@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { resolveEffectiveUserId } from '@/lib/godMode';
 
 async function getWebsiteForUser(admin, userId) {
   const { data } = await admin
@@ -10,13 +11,14 @@ async function getWebsiteForUser(admin, userId) {
   return data;
 }
 
-export async function GET() {
+export async function GET(request) {
   const supabase = await createClient();
   const { data: { user }, error: authErr } = await supabase.auth.getUser();
   if (authErr || !user) return Response.json({ error: 'Unauthenticated' }, { status: 401 });
 
   const admin = createAdminClient();
-  const website = await getWebsiteForUser(admin, user.id);
+  const effectiveUserId = await resolveEffectiveUserId(request, user, admin);
+  const website = await getWebsiteForUser(admin, effectiveUserId);
   if (!website) return Response.json({ leads: [], unread: 0 });
 
   const { data: leads, error } = await admin
@@ -40,7 +42,8 @@ export async function PATCH(request) {
   const { id, markAllRead } = body;
 
   const admin = createAdminClient();
-  const website = await getWebsiteForUser(admin, user.id);
+  const effectiveUserId = await resolveEffectiveUserId(request, user, admin);
+  const website = await getWebsiteForUser(admin, effectiveUserId);
   if (!website) return Response.json({ error: 'Weboldal nem található' }, { status: 404 });
 
   if (markAllRead) {

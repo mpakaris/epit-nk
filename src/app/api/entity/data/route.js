@@ -1,6 +1,8 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request) {
   const supabase = await createClient();
   const { data: { user }, error: authErr } = await supabase.auth.getUser();
@@ -35,7 +37,7 @@ export async function GET(request) {
   if (isPersonal) {
     projectsQuery = projectsQuery.eq('owner_id', userId).is('collective_id', null);
   } else {
-    projectsQuery = projectsQuery.or(`collective_id.eq.${collectiveId},and(owner_id.eq.${userId},collective_id.is.null)`);
+    projectsQuery = projectsQuery.eq('collective_id', collectiveId);
   }
   const projectsRes = await projectsQuery;
 
@@ -44,7 +46,7 @@ export async function GET(request) {
   if (isPersonal) {
     quotesQuery = quotesQuery.eq('owner_id', userId).is('collective_id', null);
   } else {
-    quotesQuery = quotesQuery.or(`collective_id.eq.${collectiveId},and(owner_id.eq.${userId},collective_id.is.null)`);
+    quotesQuery = quotesQuery.eq('collective_id', collectiveId);
   }
   const quotesRes = await quotesQuery;
 
@@ -55,7 +57,7 @@ export async function GET(request) {
   if (isPersonal) {
     surveysQuery = surveysQuery.eq('owner_id', userId).is('collective_id', null);
   } else {
-    surveysQuery = surveysQuery.or(`collective_id.eq.${collectiveId},and(owner_id.eq.${userId},collective_id.is.null)`);
+    surveysQuery = surveysQuery.eq('collective_id', collectiveId);
   }
   const surveysRes = await surveysQuery;
 
@@ -112,6 +114,35 @@ export async function GET(request) {
     members: projectMembers.filter(pm => pm.project_id === p.id).map(pm => pm.user_id),
   }));
 
+  // ── Survey counts (layouts, photos, drawings) ─────────────────────────────
+  const surveyIds = (surveysRes.data || []).map(s => s.id);
+  const [surveyMediaCountRes, surveyDrawingCountRes] = await Promise.all([
+    surveyIds.length > 0
+      ? admin.from('survey_media').select('survey_id, media_type, entry_id').in('survey_id', surveyIds)
+      : Promise.resolve({ data: [] }),
+    surveyIds.length > 0
+      ? admin.from('survey_drawings').select('survey_id').in('survey_id', surveyIds)
+      : Promise.resolve({ data: [] }),
+  ]);
+
+  const mediaCounts = {};
+  for (const m of (surveyMediaCountRes.data || [])) {
+    if (!mediaCounts[m.survey_id]) mediaCounts[m.survey_id] = { layouts: 0, photos: 0 };
+    if (!m.entry_id && m.media_type === 'layout') mediaCounts[m.survey_id].layouts++;
+    else mediaCounts[m.survey_id].photos++;
+  }
+  const drawingCounts = {};
+  for (const d of (surveyDrawingCountRes.data || [])) {
+    drawingCounts[d.survey_id] = (drawingCounts[d.survey_id] || 0) + 1;
+  }
+
+  const surveysWithCounts = (surveysRes.data || []).map(s => ({
+    ...s,
+    _layout_count:  mediaCounts[s.id]?.layouts  || 0,
+    _photo_count:   mediaCounts[s.id]?.photos   || 0,
+    _drawing_count: drawingCounts[s.id]         || 0,
+  }));
+
   return Response.json({
     users:         usersData,
     projects:      projectsWithMembers,
@@ -121,9 +152,9 @@ export async function GET(request) {
     quotes,
     quoteEntries:  quoteEntriesRes.data  || [],
     quoteSections: quoteSectionsRes.data || [],
-    surveys:       surveysRes.data       || [],
+    surveys:       surveysWithCounts,
     projectRooms:  projectRoomsRes.data  || [],
     isPersonal,
     collectiveId,
-  });
+  }, { headers: { 'Cache-Control': 'no-store' } });
 }

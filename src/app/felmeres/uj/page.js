@@ -115,7 +115,7 @@ export default function NewSurveyPage() {
     setIsSubmitting(true);
     try {
       const survey = await createSurvey({ title: title.trim(), notes: notes.trim(), date: date || null, location: location.trim(), clientId, sharedWith, entityId: activeEntityId });
-      router.push(`/felmeres/${survey.id}/szerkesztes`);
+      router.push(`/felmeres/${survey.id}`);
     } catch (err) {
       setError(err.message || 'Hiba a felmérés mentésekor');
       setIsSubmitting(false);

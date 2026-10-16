@@ -8,6 +8,7 @@ import { formatDate } from '@/lib/constants';
 import Modal, { ConfirmModal, AlertModal } from '@/components/Modal';
 import EntitySelector from '@/components/EntitySelector';
 import ClientSelect from '@/components/ClientSelect';
+import WorkspaceBadge from '@/components/WorkspaceBadge';
 import {
   FolderKanban, Plus, Users,
   ArrowLeft, AlertCircle, CheckCircle2, User, ChevronUp,
@@ -415,7 +416,7 @@ export default function AdminProjectsClient({
       <div className="page-header" style={{ padding: '0.5rem 0 1rem' }}>
         <div className="page-header-row">
           <div>
-            <h1 className="page-title">Projektek kezelése</h1>
+            <h1 className="page-title" style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>Projektek kezelése <WorkspaceBadge /></h1>
             <p className="page-subtitle">Építkezési projektek létrehozása és tagok hozzárendelése</p>
           </div>
           <button type="button" className="btn btn-primary btn-sm" onClick={() => setCreateOpen(true)}>

@@ -3,7 +3,8 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { uploadToR2, r2PublicUrl, diaryMediaKey } from '@/lib/r2';
 
 const MAX_FILES = 10;
-const MAX_SIZE_BYTES = 200 * 1024 * 1024;
+const MAX_IMAGE_BYTES = 4 * 1024 * 1024;   // 4 MB — client compresses to ~400 KB, headroom for WebP
+const MAX_VIDEO_BYTES = 10 * 1024 * 1024;  // 10 MB
 
 export async function POST(request) {
   const supabase = await createClient();
@@ -43,7 +44,10 @@ export async function POST(request) {
   const results = [];
   for (const file of files) {
     if (!(file instanceof File)) continue;
-    if (file.size > MAX_SIZE_BYTES) return Response.json({ error: `"${file.name}" túl nagy (max 200 MB)` }, { status: 400 });
+    const isVideo = (file.type || '').startsWith('video/');
+    const limit   = isVideo ? MAX_VIDEO_BYTES : MAX_IMAGE_BYTES;
+    const limitMB = limit / 1024 / 1024;
+    if (file.size > limit) return Response.json({ error: `"${file.name}" túl nagy (max ${limitMB} MB)` }, { status: 400 });
 
     const mimeType = file.type || 'application/octet-stream';
     const key = diaryMediaKey(entityId, mimeType, file.name);

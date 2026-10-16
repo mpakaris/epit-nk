@@ -6,11 +6,14 @@ async function getCtx(quoteId) {
   const { data: { user }, error } = await supabase.auth.getUser();
   if (error || !user) return { err: 'Unauthenticated', status: 401 };
   const admin = createAdminClient();
-  const { data: profile } = await admin.from('profiles').select('id, role, entity_id, current_entity_id').eq('id', user.id).single();
+  const { data: profile } = await admin.from('profiles').select('id, role').eq('id', user.id).single();
   if (!profile) return { err: 'Forbidden', status: 403 };
-  const { data: quote } = await admin.from('quotes').select('id, entity_id').eq('id', quoteId).single();
+  const { data: quote } = await admin.from('quotes').select('id, owner_id, created_by, collective_id, shared_with').eq('id', quoteId).single();
   if (!quote) return { err: 'Quote not found', status: 404 };
-  if (profile.role !== 'superadmin' && ![profile.entity_id, profile.current_entity_id].filter(Boolean).includes(quote.entity_id)) return { err: 'Forbidden', status: 403 };
+  const isSuperAdmin = profile.role === 'superadmin';
+  const isOwner = quote.owner_id === user.id || quote.created_by === user.id;
+  const isShared = (quote.shared_with || []).includes(user.id);
+  if (!isSuperAdmin && !isOwner && !isShared) return { err: 'Forbidden', status: 403 };
   return { profile, admin, quote };
 }
 

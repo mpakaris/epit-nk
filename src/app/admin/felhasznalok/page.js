@@ -10,6 +10,7 @@ import {
   RotateCcw, UserMinus, Users, ShieldCheck, User as UserIcon,
 } from 'lucide-react';
 import PageSpinner from '@/components/PageSpinner';
+import WorkspaceBadge from '@/components/WorkspaceBadge';
 
 function CreateUserModal({ isOpen, onClose, createUser, onSuccess }) {
   const [displayName, setDisplayName] = useState('');
@@ -235,8 +236,8 @@ export default function AdminUsersPage() {
       <div className="page-header" style={{ padding: '0.5rem 0 1rem' }}>
         <div className="page-header-row">
           <div>
-            <h1 className="page-title" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <Users size={22} /> Csoport tagjai
+            <h1 className="page-title" style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
+              <Users size={22} /> Csoport tagjai <WorkspaceBadge />
             </h1>
             {collectiveName
               ? <p className="page-subtitle">Aktív csoport: <strong>{collectiveName}</strong></p>

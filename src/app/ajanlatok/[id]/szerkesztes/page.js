@@ -14,7 +14,7 @@ import {
   User, Coins, Home, Ruler, Calendar, X, Camera,
 } from 'lucide-react';
 import PageSpinner from '@/components/PageSpinner';
-import { convertIfHeif } from '@/lib/imageUtils';
+import { processMediaFile } from '@/lib/mediaGate';
 
 const ENTRY_TYPE_ORDER = { material: 0, labour: 1, transport: 2, equipment: 3, other: 4 };
 const sortEntries = (arr) => [...arr].sort((a, b) => (ENTRY_TYPE_ORDER[a.entry_type] ?? 4) - (ENTRY_TYPE_ORDER[b.entry_type] ?? 4));
@@ -86,7 +86,7 @@ function SectionForm({ initial, surveyId, onSave, onCancel }) {
     const raw = Array.from(e.target.files || []);
     e.target.value = '';
     if (!raw.length) return;
-    const arr = await Promise.all(raw.map(convertIfHeif));
+    const arr = await Promise.all(raw.map(processMediaFile));
     setSelectedFiles(prev => [...prev, ...arr]);
     setPreviews(prev => [...prev, ...arr.map(f => ({ key: `${f.name}-${f.size}`, isVideo: f.type.startsWith('video/'), url: f.type.startsWith('video/') ? null : URL.createObjectURL(f) }))]);
   };
@@ -183,7 +183,7 @@ function SectionPhotoZone({ quoteId, quoteSurveyId, quoteTitle, quoteClientId, e
     const raw = Array.from(e.target.files || []);
     e.target.value = '';
     if (!raw.length) return;
-    const files = await Promise.all(raw.map(convertIfHeif));
+    const files = await Promise.all(raw.map(processMediaFile));
     setUploading(true); setUploadErr('');
     try {
       // Ensure a survey exists for this quote

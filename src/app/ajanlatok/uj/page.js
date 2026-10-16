@@ -7,7 +7,7 @@ import { useApp } from '@/context/AppContext';
 import Modal from '@/components/Modal';
 import SectionMediaGrid from '@/components/SectionMediaGrid';
 import PageSpinner from '@/components/PageSpinner';
-import { convertIfHeif } from '@/lib/imageUtils';
+import { processMediaFile } from '@/lib/mediaGate';
 import { formatHUF, formatDate, QUOTE_ENTRY_TYPES, QUANTITY_UNITS, LABOUR_UNITS } from '@/lib/constants';
 import {
   ArrowLeft, AlertCircle, Check, Loader2, Plus, Trash2, Edit3,
@@ -93,7 +93,7 @@ function SectionForm({ initial, surveyId, onSave, onCancel }) {
     const raw = Array.from(e.target.files || []);
     e.target.value = '';
     if (!raw.length) return;
-    const arr = await Promise.all(raw.map(convertIfHeif));
+    const arr = await Promise.all(raw.map(processMediaFile));
     setSelectedFiles(prev => [...prev, ...arr]);
     setPreviews(prev => [...prev, ...arr.map(f => ({ key: `${f.name}-${f.size}`, isVideo: f.type.startsWith('video/'), url: f.type.startsWith('video/') ? null : URL.createObjectURL(f) }))]);
   };

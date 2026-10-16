@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
-import { convertIfHeif } from '@/lib/imageUtils';
+import { processMediaFile } from '@/lib/mediaGate';
 import { calculateProjectFinancials } from '@/lib/calculations';
 import { formatHUF, formatDate, INVOICE_CATEGORIES } from '@/lib/constants';
 import InvoiceCard from '@/components/InvoiceCard';
@@ -219,7 +219,7 @@ function EditDiaryEntryModal({ isOpen, onClose, entry, onSave, onDeletePhoto, ro
     const remaining = MAX_PHOTOS - totalCount;
     if (remaining <= 0) return;
     const raw = Array.from(files).slice(0, remaining);
-    const toAdd = await Promise.all(raw.map(convertIfHeif));
+    const toAdd = await Promise.all(raw.map(processMediaFile));
     setPendingFiles(prev => [...prev, ...toAdd]);
     const newPreviews = toAdd.map(file => ({
       url: file.type.startsWith('image/') ? URL.createObjectURL(file) : null,
@@ -1756,6 +1756,7 @@ export default function ProjectDetailClient({
           )}
         </div>
 
+        {(activeCollectiveId || projectMemberUsers.length > 0) && (
         <div className="card">
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: '0.6rem' }}>
             <Users size={13} /> Résztvevők
@@ -1777,6 +1778,7 @@ export default function ProjectDetailClient({
             <div style={{ fontSize: '0.825rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>Nincsenek hozzárendelt tagok</div>
           )}
         </div>
+        )}
 
         <div className="card">
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: '0.6rem' }}>
@@ -1797,6 +1799,30 @@ export default function ProjectDetailClient({
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Stat grid */}
+      <div className="stat-grid" style={{ marginBottom: '1.5rem' }}>
+        <StatCard label="Összes kiadás" value={formatHUF(fin.totalCost)} sub={`${fin.projectInvoices.length} db számla`} icon={Coins} />
+        <StatCard label="Munkadíj összesen" value={formatHUF(fin.totalLabourValue)} sub={`${fin.projectLabour.length} bejegyzés`} icon={Hammer} />
+        {activeCollectiveId ? (
+          <>
+            <StatCard label="Általad kifizetve" value={formatHUF(fin.ownPaid)} sub="Az Ön számlái" icon={Receipt} />
+            <div className={`stat-card ${fin.balance > 0 ? 'success' : fin.balance < 0 ? 'danger' : ''}`}>
+              <div className="stat-label">Összesített egyenleg</div>
+              <div className="stat-value" style={{ color: fin.balance > 0 ? 'var(--success-text)' : fin.balance < 0 ? 'var(--danger-text)' : 'var(--text-primary)' }}>
+                {fin.balance > 0 ? `+${formatHUF(fin.balance)}` : formatHUF(fin.balance)}
+              </div>
+              <div className="stat-sub">{fin.balance > 0 ? 'A többiek tartoznak neked' : fin.balance < 0 ? 'Kiegyenlítendő tartozás' : 'Egyensúlyban'}</div>
+            </div>
+          </>
+        ) : (
+          <div className="stat-card">
+            <div className="stat-label">Teljes költség</div>
+            <div className="stat-value">{formatHUF(fin.totalCost + fin.totalLabourValue)}</div>
+            <div className="stat-sub">Számlák + munkadíj</div>
+          </div>
+        )}
       </div>
 
       {/* Sections */}
@@ -1981,30 +2007,6 @@ export default function ProjectDetailClient({
           </div>
         );
       })()}
-
-      {/* Stat grid */}
-      <div className="stat-grid" style={{ marginBottom: '1.5rem' }}>
-        <StatCard label="Összes kiadás" value={formatHUF(fin.totalCost)} sub={`${fin.projectInvoices.length} db számla`} icon={Coins} />
-        <StatCard label="Munkadíj összesen" value={formatHUF(fin.totalLabourValue)} sub={`${fin.projectLabour.length} bejegyzés`} icon={Hammer} />
-        {activeCollectiveId ? (
-          <>
-            <StatCard label="Általad kifizetve" value={formatHUF(fin.ownPaid)} sub="Az Ön számlái" icon={Receipt} />
-            <div className={`stat-card ${fin.balance > 0 ? 'success' : fin.balance < 0 ? 'danger' : ''}`}>
-              <div className="stat-label">Összesített egyenleg</div>
-              <div className="stat-value" style={{ color: fin.balance > 0 ? 'var(--success-text)' : fin.balance < 0 ? 'var(--danger-text)' : 'var(--text-primary)' }}>
-                {fin.balance > 0 ? `+${formatHUF(fin.balance)}` : formatHUF(fin.balance)}
-              </div>
-              <div className="stat-sub">{fin.balance > 0 ? 'A többiek tartoznak neked' : fin.balance < 0 ? 'Kiegyenlítendő tartozás' : 'Egyensúlyban'}</div>
-            </div>
-          </>
-        ) : (
-          <div className="stat-card">
-            <div className="stat-label">Teljes költség</div>
-            <div className="stat-value">{formatHUF(fin.totalCost + fin.totalLabourValue)}</div>
-            <div className="stat-sub">Számlák + munkadíj</div>
-          </div>
-        )}
-      </div>
 
       {/* Member breakdown + Settlement — collective only */}
       {activeCollectiveId && <div className="card mb-6">

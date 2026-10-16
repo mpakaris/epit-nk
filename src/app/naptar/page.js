@@ -9,6 +9,7 @@ import {
   Calendar, List
 } from 'lucide-react';
 import PageSpinner from '@/components/PageSpinner';
+import WorkspaceBadge from '@/components/WorkspaceBadge';
 
 const DAYS_HU  = ['H', 'K', 'Sze', 'Cs', 'P', 'Szo', 'V'];
 const MONTHS_HU = [
@@ -170,7 +171,7 @@ export default function CalendarPage() {
       <div className="page-header">
         <div className="page-header-row">
           <div>
-            <h1 className="page-title">Naptár</h1>
+            <h1 className="page-title" style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>Naptár <WorkspaceBadge /></h1>
             <p className="page-subtitle">Projektek és ajánlatok ütemezése</p>
           </div>
           <div style={{ display: 'flex', gap: '0.4rem', background: 'var(--bg-subtle)', padding: '0.3rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)', flexShrink: 0 }}>

@@ -915,7 +915,7 @@ export default function SzakemberPage() {
       .finally(() => setLoading(false));
   }, [slug]);
 
-  const _pageBgForEffect = data ? (resolveTheme(data.website.theme).scheme.darkHero ? '#060a12' : '#eef0f2') : null;
+  const _pageBgForEffect = data?.website ? (resolveTheme(data.website.theme).scheme.darkHero ? '#060a12' : '#eef0f2') : null;
   useEffect(() => {
     if (!_pageBgForEffect) return;
     document.body.style.background = _pageBgForEffect;
@@ -933,7 +933,7 @@ export default function SzakemberPage() {
     </div>
   );
 
-  if (notFound || !data) return (
+  if (notFound || !data || !data.website) return (
     <div style={{ position: 'fixed', inset: 0, background: C.dark, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', zIndex: 100, color: C.white }}>
       <p style={{ fontSize: '3.5rem', margin: '0 0 0.5rem', fontWeight: 900, color: '#1e293b' }}>404</p>
       <p style={{ color: '#334155', margin: '0 0 1.5rem', fontSize: '0.9rem' }}>Ez az oldal nem található</p>

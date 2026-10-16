@@ -3,7 +3,7 @@
 import React from 'react';
 import { Camera, Play, X, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
-import { convertIfHeif } from '@/lib/imageUtils';
+import { processMediaFile } from '@/lib/mediaGate';
 
 function Lightbox({ media, startIndex, onClose }) {
   const [idx, setIdx] = React.useState(startIndex);
@@ -45,7 +45,7 @@ export default function SectionMediaGrid({ surveyId, surveyEntryId, isLocked }) 
     const raw = Array.from(e.target.files || []);
     e.target.value = '';
     if (!raw.length) return;
-    const files = await Promise.all(raw.map(convertIfHeif));
+    const files = await Promise.all(raw.map(processMediaFile));
     setUploading(true); setUploadErr('');
     try { await uploadSurveyMedia(surveyId, files, { entryId: surveyEntryId, mediaType: 'photo' }); }
     catch (err) { setUploadErr(err.message || 'Hiba'); }

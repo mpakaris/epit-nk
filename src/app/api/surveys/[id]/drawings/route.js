@@ -23,7 +23,7 @@ async function getCtx(surveyId) {
     }
   }
 
-  return { user, profile, admin, survey, isAdmin };
+  return { user, profile, admin, survey };
 }
 
 export async function POST(request, { params }) {

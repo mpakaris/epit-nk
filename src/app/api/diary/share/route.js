@@ -2,21 +2,19 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { logAudit } from '@/lib/audit';
 
-async function requireAdmin(supabase, admin) {
+async function requireAuth(supabase, admin) {
   const { data: { user }, error } = await supabase.auth.getUser();
   if (error || !user) return { error: 'Unauthenticated', status: 401 };
-  const { data: profile } = await admin.from('profiles').select('id, role, entity_id, current_entity_id, display_name').eq('id', user.id).single();
+  const { data: profile } = await admin.from('profiles').select('id, role, display_name').eq('id', user.id).single();
   if (!profile) return { error: 'Profile not found', status: 403 };
-  if (!['admin', 'superadmin'].includes(profile.role)) return { error: 'Admin required', status: 403 };
-  if (profile.role !== 'superadmin' && !(profile.entity_id || profile.current_entity_id)) return { error: 'No entity assigned', status: 400 };
-  return { profile };
+  return { profile, user };
 }
 
 // GET /api/diary/share?project_id=X — list tokens for project (admin only)
 export async function GET(request) {
   const supabase = await createClient();
   const admin = createAdminClient();
-  const { profile, error, status } = await requireAdmin(supabase, admin);
+  const { profile, error, status } = await requireAuth(supabase, admin);
   if (error) return Response.json({ error }, { status });
 
   const { searchParams } = new URL(request.url);
@@ -50,7 +48,7 @@ export async function GET(request) {
 export async function POST(request) {
   const supabase = await createClient();
   const admin = createAdminClient();
-  const { profile, error, status } = await requireAdmin(supabase, admin);
+  const { profile, error, status } = await requireAuth(supabase, admin);
   if (error) return Response.json({ error }, { status });
 
   const body = await request.json();
@@ -74,7 +72,7 @@ export async function POST(request) {
   if (insertErr) return Response.json({ error: insertErr.message }, { status: 500 });
 
   logAudit({
-    entityId: project.entity_id,
+    entityId: project.id,
     userId: profile.id,
     userName: profile.display_name,
     action: 'diary_share_token_created',

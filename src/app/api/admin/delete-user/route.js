@@ -11,7 +11,7 @@ export async function DELETE(request) {
 
     const adminClient = createAdminClient();
     const { data: callerProfile } = await adminClient
-      .from('profiles').select('role, entity_id, display_name').eq('id', caller.id).single();
+      .from('profiles').select('role, active_collective_id, display_name').eq('id', caller.id).single();
 
     if (!callerProfile || !['admin', 'superadmin'].includes(callerProfile.role))
       return NextResponse.json({ error: 'Nincs jogosultsága!' }, { status: 403 });
@@ -23,7 +23,7 @@ export async function DELETE(request) {
       return NextResponse.json({ error: 'Saját fiókját nem törölheti!' }, { status: 400 });
 
     const { data: targetProfile } = await adminClient
-      .from('profiles').select('role, entity_id, display_name').eq('id', userId).single();
+      .from('profiles').select('role, display_name').eq('id', userId).single();
 
     if (!targetProfile) return NextResponse.json({ error: 'A felhasználó nem található!' }, { status: 404 });
 
@@ -31,8 +31,12 @@ export async function DELETE(request) {
       if (targetProfile.role === 'superadmin')
         return NextResponse.json({ error: 'Superadmin nem távolítható el!' }, { status: 403 });
     } else {
-      if (targetProfile.entity_id !== callerProfile.entity_id)
-        return NextResponse.json({ error: 'Nincs jogosultsága más entitás felhasználójához!' }, { status: 403 });
+      // Admin can only delete users in their active collective
+      if (callerProfile.active_collective_id) {
+        const { data: mem } = await adminClient.from('collective_members')
+          .select('user_id').eq('collective_id', callerProfile.active_collective_id).eq('user_id', userId).eq('status', 'active').maybeSingle();
+        if (!mem) return NextResponse.json({ error: 'Nincs jogosultsága más kollektíva felhasználójához!' }, { status: 403 });
+      }
       if (targetProfile.role === 'admin')
         return NextResponse.json({ error: 'Admin fiókot csak Superadmin távolíthat el!' }, { status: 403 });
     }
@@ -81,7 +85,7 @@ export async function DELETE(request) {
     await adminClient.auth.admin.updateUserById(userId, { ban_duration: '876000h' });
 
     logAudit({
-      entityId: targetProfile.entity_id,
+      entityId: callerProfile.active_collective_id || caller.id,
       userId: caller.id,
       userName: callerProfile.display_name || caller.email,
       action: 'Tag kiléptetése',

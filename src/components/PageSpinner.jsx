@@ -3,13 +3,11 @@
 export default function PageSpinner() {
   return (
     <div style={{
-      position: 'fixed',
-      inset: 0,
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      background: 'var(--bg-base, #f8fafc)',
-      zIndex: 9999,
+      minHeight: '60vh',
+      width: '100%',
     }}>
       <div className="global-spinner" />
     </div>

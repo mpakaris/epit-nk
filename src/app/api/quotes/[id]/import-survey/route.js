@@ -12,12 +12,15 @@ export async function POST(request, { params }) {
   if (authErr || !user) return Response.json({ error: 'Unauthenticated' }, { status: 401 });
 
   const admin = createAdminClient();
-  const { data: profile } = await admin.from('profiles').select('id, role, entity_id, current_entity_id').eq('id', user.id).single();
+  const { data: profile } = await admin.from('profiles').select('id, role').eq('id', user.id).single();
   if (!profile) return Response.json({ error: 'Forbidden' }, { status: 403 });
 
-  const { data: quote } = await admin.from('quotes').select('id, entity_id, survey_id').eq('id', quoteId).single();
+  const { data: quote } = await admin.from('quotes').select('id, owner_id, created_by, collective_id, shared_with, survey_id').eq('id', quoteId).single();
   if (!quote) return Response.json({ error: 'Quote not found' }, { status: 404 });
-  if (profile.role !== 'superadmin' && ![profile.entity_id, profile.current_entity_id].filter(Boolean).includes(quote.entity_id)) return Response.json({ error: 'Forbidden' }, { status: 403 });
+  const isSuperAdmin = profile.role === 'superadmin';
+  const isOwner = quote.owner_id === user.id || quote.created_by === user.id;
+  const isShared = (quote.shared_with || []).includes(user.id);
+  if (!isSuperAdmin && !isOwner && !isShared) return Response.json({ error: 'Forbidden' }, { status: 403 });
   if (!quote.survey_id) return Response.json({ sections: [] });
 
   // Skip if sections already exist
@@ -40,7 +43,6 @@ export async function POST(request, { params }) {
   // Copy into quote_sections
   const rows = surveyEntries.map(e => ({
     quote_id: quoteId,
-    entity_id: quote.entity_id,
     name: e.name,
     description: e.description || null,
     size_m2: e.size_m2 || null,

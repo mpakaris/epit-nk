@@ -1969,12 +1969,12 @@ function BuilderEditor({ website: initialWebsite, sections: initialSections, use
 // ---- main page component ---------------------------------------------------
 
 export default function WeboldaPage() {
-  const { currentUser, isSuperAdmin, dataReady } = useApp();
+  const { currentUser, isSuperAdmin, impersonating, activeCollectiveId, collectives, dataReady } = useApp();
   const [website, setWebsite] = useState(undefined); // undefined = loading
   const [sections, setSections] = useState([]);
 
   useEffect(() => {
-    if (!dataReady || !currentUser || isSuperAdmin) return;
+    if (!dataReady || !currentUser || (isSuperAdmin && !impersonating)) return;
     fetch('/api/website')
       .then(r => r.json())
       .then(d => {
@@ -1986,12 +1986,27 @@ export default function WeboldaPage() {
 
   if (!dataReady || website === undefined) return <PageSpinner />;
 
-  if (isSuperAdmin) {
+  if (isSuperAdmin && !impersonating) {
     return (
       <div style={{ maxWidth: 560, margin: '4rem auto', textAlign: 'center', padding: '1rem' }}>
         <Globe size={32} style={{ color: 'var(--text-muted)', marginBottom: '0.75rem' }} />
         <h2 style={{ fontWeight: 700 }}>Személyes weboldal</h2>
         <p style={{ color: 'var(--text-muted)' }}>Ez a funkció egyéni felhasználók számára érhető el.</p>
+      </div>
+    );
+  }
+
+  if (activeCollectiveId || (collectives && collectives.length > 0)) {
+    return (
+      <div style={{ maxWidth: 560, margin: '4rem auto', textAlign: 'center', padding: '1rem' }}>
+        <Globe size={48} style={{ color: 'var(--accent)', marginBottom: '1rem', opacity: 0.5 }} />
+        <h2 style={{ fontWeight: 800, marginBottom: '0.5rem' }}>Kollektíva weboldal</h2>
+        <p style={{ color: 'var(--text-muted)', marginBottom: '1rem' }}>
+          A kollektívák számára készülő weboldalfunkció hamarosan elérhetővé válik.
+        </p>
+        <span style={{ display: 'inline-block', background: 'var(--accent-light)', color: 'var(--accent)', border: '1px solid var(--accent-border)', borderRadius: 'var(--radius-pill)', padding: '0.3rem 0.9rem', fontSize: '0.8rem', fontWeight: 700 }}>
+          Hamarosan
+        </span>
       </div>
     );
   }

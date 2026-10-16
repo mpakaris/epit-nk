@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { uploadToR2, deleteFromR2, r2PublicUrl, toWebp } from '@/lib/r2';
+import { resolveEffectiveUserId } from '@/lib/godMode';
 
 const MAX_SIZE_ABOUT        = 5  * 1024 * 1024;  // 5 MB
 const MAX_SIZE_GALLERY_IMG  = 15 * 1024 * 1024;  // 15 MB
@@ -31,11 +32,12 @@ export async function POST(request) {
   if (authErr || !user) return Response.json({ error: 'Unauthenticated' }, { status: 401 });
 
   const admin = createAdminClient();
+  const effectiveUserId = await resolveEffectiveUserId(request, user, admin);
 
   const { data: website } = await admin
     .from('user_websites')
     .select('id')
-    .eq('user_id', user.id)
+    .eq('user_id', effectiveUserId)
     .maybeSingle();
   if (!website) return Response.json({ error: 'Weboldal nem található' }, { status: 404 });
 
@@ -104,13 +106,13 @@ export async function POST(request) {
     const inputBuffer = Buffer.from(await file.arrayBuffer());
 
     if (isVideo) {
-      const key = galleryKey(user.id, file.name, true);
+      const key = galleryKey(effectiveUserId, file.name, true);
       await uploadToR2(key, inputBuffer, mimeType);
       results.push({ r2_key: key, url: r2PublicUrl(key), caption: '', type: 'video' });
     } else {
       const maxDimension = type === 'about' ? 1200 : 2400;
       const { buffer: webpBuffer } = await toWebp(inputBuffer, { quality: 82, maxDimension });
-      const key = type === 'about' ? aboutKey(user.id) : galleryKey(user.id, file.name, false);
+      const key = type === 'about' ? aboutKey(effectiveUserId) : galleryKey(effectiveUserId, file.name, false);
       await uploadToR2(key, webpBuffer, 'image/webp');
       results.push({ r2_key: key, url: r2PublicUrl(key), caption: '', type: 'image' });
     }
@@ -124,10 +126,13 @@ export async function DELETE(request) {
   const { data: { user }, error: authErr } = await supabase.auth.getUser();
   if (authErr || !user) return Response.json({ error: 'Unauthenticated' }, { status: 401 });
 
+  const admin = createAdminClient();
+  const effectiveUserId = await resolveEffectiveUserId(request, user, admin);
+
   const { r2_key } = await request.json();
   if (!r2_key) return Response.json({ error: 'r2_key szükséges' }, { status: 400 });
 
-  if (!r2_key.startsWith(`user-uploads/${user.id}/`)) {
+  if (!r2_key.startsWith(`user-uploads/${effectiveUserId}/`)) {
     return Response.json({ error: 'Forbidden' }, { status: 403 });
   }
 

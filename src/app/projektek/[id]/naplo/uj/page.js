@@ -4,7 +4,7 @@ import React, { useState, useRef } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
-import { convertIfHeif } from '@/lib/imageUtils';
+import { processMediaFile } from '@/lib/mediaGate';
 import { AlertModal } from '@/components/Modal';
 import {
   ArrowLeft, Camera, X, Upload, CheckCircle2, Lock, Eye,
@@ -83,7 +83,7 @@ export default function NewDiaryEntryPage() {
   const addFiles = async (files) => {
     if (!files || files.length === 0) return;
     const raw = Array.from(files);
-    const converted = await Promise.all(raw.map(convertIfHeif));
+    const converted = await Promise.all(raw.map(processMediaFile));
     const newFiles = [...selectedFiles, ...converted].slice(0, MAX_PHOTOS);
     setSelectedFiles(newFiles);
 

@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
 import { INVOICE_CATEGORIES, formatHUF } from '@/lib/constants';
-import { convertIfHeif } from '@/lib/imageUtils';
+import { processMediaFile } from '@/lib/mediaGate';
 import {
   ArrowLeft,
   Camera,
@@ -182,7 +182,7 @@ export default function MobileUploadPage() {
 
   const handleFileChange = async (e) => {
     const raw = e.target.files?.[0];
-    if (raw) processFile(await convertIfHeif(raw));
+    if (raw) processFile(await processMediaFile(raw));
   };
 
   const handleClearImage = () => {

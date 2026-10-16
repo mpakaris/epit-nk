@@ -6,11 +6,23 @@ async function getCtx(quoteId) {
   const { data: { user }, error } = await supabase.auth.getUser();
   if (error || !user) return { err: 'Unauthenticated', status: 401 };
   const admin = createAdminClient();
-  const { data: profile } = await admin.from('profiles').select('id, role, entity_id, current_entity_id').eq('id', user.id).single();
+  const { data: profile } = await admin.from('profiles').select('id, role').eq('id', user.id).single();
   if (!profile) return { err: 'Forbidden', status: 403 };
-  const { data: quote } = await admin.from('quotes').select('id, entity_id, survey_id').eq('id', quoteId).single();
+  const { data: quote } = await admin.from('quotes').select('id, owner_id, created_by, collective_id, survey_id').eq('id', quoteId).single();
   if (!quote) return { err: 'Quote not found', status: 404 };
-  if (profile.role !== 'superadmin' && ![profile.entity_id, profile.current_entity_id].filter(Boolean).includes(quote.entity_id)) return { err: 'Forbidden', status: 403 };
+
+  const isSuperAdmin = profile.role === 'superadmin';
+  const isOwner = quote.owner_id === user.id || quote.created_by === user.id;
+  const isShared = (quote.shared_with || []).includes(user.id);
+
+  let isCollectiveMember = false;
+  if (!isSuperAdmin && !isOwner && !isShared && quote.collective_id) {
+    const { data: mem } = await admin.from('collective_members')
+      .select('user_id').eq('collective_id', quote.collective_id).eq('user_id', user.id).eq('status', 'active').maybeSingle();
+    isCollectiveMember = !!mem;
+  }
+
+  if (!isSuperAdmin && !isOwner && !isShared && !isCollectiveMember) return { err: 'Forbidden', status: 403 };
   return { profile, admin, quote };
 }
 
@@ -22,12 +34,10 @@ export async function POST(request, { params }) {
   const { name, description, size_m2, sort_order, survey_entry_id, start_date, end_date } = await request.json();
   if (!name?.trim()) return Response.json({ error: 'Szekció neve kötelező' }, { status: 400 });
 
-  // If the quote comes from a survey and no entry is linked yet, auto-create one
   let effectiveSurveyEntryId = survey_entry_id || null;
   if (!effectiveSurveyEntryId && ctx.quote.survey_id) {
     const { data: newEntry } = await ctx.admin.from('survey_entries').insert([{
       survey_id: ctx.quote.survey_id,
-      entity_id: ctx.quote.entity_id,
       name: name.trim(),
       description: description?.trim() || null,
       size_m2: size_m2 != null && size_m2 !== '' ? Number(size_m2) : null,
@@ -38,7 +48,6 @@ export async function POST(request, { params }) {
 
   const { data: section, error } = await ctx.admin.from('quote_sections').insert([{
     quote_id: quoteId,
-    entity_id: ctx.quote.entity_id,
     name: name.trim(),
     description: description?.trim() || null,
     size_m2: size_m2 != null && size_m2 !== '' ? Number(size_m2) : null,

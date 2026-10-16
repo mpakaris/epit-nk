@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useApp } from '@/context/AppContext';
 import { formatDate } from '@/lib/constants';
 import { ConfirmModal, AlertModal } from '@/components/Modal';
-import { Ruler, Plus, MapPin, Calendar, User, FileText, FolderKanban, Trash2 } from 'lucide-react';
+import { Ruler, Plus, MapPin, Calendar, User, FileText, FolderKanban, Trash2, LayoutPanelLeft, Camera, PenLine } from 'lucide-react';
 import PageSpinner from '@/components/PageSpinner';
 import WorkspaceBadge from '@/components/WorkspaceBadge';
 
@@ -38,8 +38,15 @@ export default function SurveyListPage() {
   });
 
   const handleDelete = (survey) => {
+    const parts = [];
+    const photoCount = (survey._photo_count || 0) + (survey._layout_count || 0);
+    if (photoCount)              parts.push(`${photoCount} fotó / videó`);
+    if (survey._drawing_count)   parts.push(`${survey._drawing_count} vázlat`);
+    const detail = parts.length
+      ? ` Véglegesen törlődik: ${parts.join(', ')}. Ez nem vonható vissza.`
+      : ' Ez nem vonható vissza.';
     setConfirmModal({
-      message: `Biztosan törölni kívánja „${survey.title}" felmérést?`,
+      message: `Biztosan törölni kívánja „${survey.title}" felmérést?${detail}`,
       onConfirm: async () => {
         try { await deleteSurvey(survey.id); }
         catch (err) { setAlertModal({ message: err.message || 'Hiba a törléskor' }); }
@@ -137,6 +144,17 @@ export default function SurveyListPage() {
                       <Trash2 size={13} />
                     </button>
                   )}
+                </div>
+                <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
+                  {[
+                    { icon: <LayoutPanelLeft size={11} />, label: 'alaprajz', count: survey._layout_count  || 0 },
+                    { icon: <Camera         size={11} />, label: 'fotó',      count: survey._photo_count   || 0 },
+                    { icon: <PenLine        size={11} />, label: 'vázlat',    count: survey._drawing_count || 0 },
+                  ].map(({ icon, label, count }) => (
+                    <span key={label} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.7rem', fontWeight: 700, padding: '0.15rem 0.5rem', borderRadius: 'var(--radius-pill)', background: count > 0 ? 'var(--accent-light)' : 'var(--bg-subtle)', border: `1px solid ${count > 0 ? 'var(--accent-border)' : 'var(--border-subtle)'}`, color: count > 0 ? 'var(--accent)' : 'var(--text-muted)' }}>
+                      {icon}{count} {label}
+                    </span>
+                  ))}
                 </div>
               </Link>
             );

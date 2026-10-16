@@ -14,6 +14,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import PageSpinner from '@/components/PageSpinner';
+import WorkspaceBadge from '@/components/WorkspaceBadge';
 
 const STATUS_COLORS = {
   draft: { bg: 'var(--bg-subtle)', color: 'var(--text-secondary)', border: 'var(--border-subtle)' },
@@ -58,7 +59,7 @@ export default function QuotesListPage() {
       <div className="page-header">
         <div className="page-header-row">
           <div>
-            <h1 className="page-title">Ajánlatok</h1>
+            <h1 className="page-title" style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>Ajánlatok <WorkspaceBadge /></h1>
             <p className="page-subtitle">Ügyfeleknek küldött árajánlatok és státuszaik</p>
           </div>
           <Link href="/ajanlatok/uj" className="btn btn-primary btn-sm">
