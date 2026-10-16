@@ -186,9 +186,9 @@ function EntryCard({ entry, index }) {
         </div>
 
         {/* Photos flush to card edge */}
-        {entry.photos && entry.photos.length > 0 && (
+        {entry.photos && entry.photos.filter(p => !p.is_private).length > 0 && (
           <div style={{ padding: '0 1.1rem 1rem' }}>
-            <PhotoGrid photos={entry.photos} />
+            <PhotoGrid photos={entry.photos.filter(p => !p.is_private)} />
           </div>
         )}
       </div>

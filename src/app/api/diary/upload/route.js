@@ -30,6 +30,7 @@ export async function POST(request) {
   const files = formData.getAll('files');
   if (!files || files.length === 0) return Response.json({ error: 'Nincs feltöltendő fájl' }, { status: 400 });
   if (files.length > MAX_FILES) return Response.json({ error: `Egyszerre legfeljebb ${MAX_FILES} fájlt lehet feltölteni` }, { status: 400 });
+  const isPrivate = formData.get('is_private') === 'true';
 
   const results = [];
 
@@ -61,6 +62,7 @@ export async function POST(request) {
       drive_view_url: publicUrl,
       thumbnail_url: isImage ? publicUrl : null,
       mime_type: mimeType,
+      is_private: isPrivate,
     }]).select().single();
 
     if (dbErr) return Response.json({ error: `DB hiba: ${dbErr.message}` }, { status: 500 });

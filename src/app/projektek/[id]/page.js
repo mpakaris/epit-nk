@@ -91,7 +91,7 @@ async function ProjectDetailContent({ params }) {
       client={client}
       clients={allClients}
       currentUser={{ id: effectiveUserId, email: user.email, display_name: profile.display_name || user.email, role: profile.role, active_collective_id: collectiveId }}
-      isAdmin={isAdminRole}
+      isAdmin={isAdminRole || isOwner}
       initialDiaryCount={diaryCountRes.count ?? 0}
       initialRooms={roomsRes.data || []}
       initialPaymentPlan={paymentPlanRes.data || []}

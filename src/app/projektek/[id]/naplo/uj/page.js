@@ -8,7 +8,7 @@ import { processMediaFile } from '@/lib/mediaGate';
 import { AlertModal } from '@/components/Modal';
 import {
   ArrowLeft, Camera, X, Upload, CheckCircle2, Lock, Eye,
-  HardHat, FileText, MessageSquare, Video, Image, Loader2
+  HardHat, Video, Image, Loader2
 } from 'lucide-react';
 
 const MAX_PHOTOS = 10;
@@ -54,6 +54,20 @@ function MediaPreviewGrid({ previews, onRemove, disabled }) {
   );
 }
 
+function MediaButtons({ disabled, count, onCamera, onGallery }) {
+  if (count >= MAX_PHOTOS) return null;
+  return (
+    <div style={{ display: 'flex', gap: '0.5rem' }}>
+      <button type="button" className="btn btn-secondary btn-sm" style={{ gap: '0.35rem' }} disabled={disabled} onClick={onCamera}>
+        <Camera size={14} /> Fényképezés
+      </button>
+      <button type="button" className="btn btn-secondary btn-sm" style={{ gap: '0.35rem' }} disabled={disabled} onClick={onGallery}>
+        <Upload size={14} /> Galéria
+      </button>
+    </div>
+  );
+}
+
 export default function NewDiaryEntryPage() {
   const { id: projectId } = useParams();
   const router = useRouter();
@@ -64,54 +78,65 @@ export default function NewDiaryEntryPage() {
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const [internalNote, setInternalNote] = useState('');
-  const [clientNote, setClientNote] = useState('');
   const [isPublic, setIsPublic] = useState(false);
   const [roomId, setRoomId] = useState('');
 
-  const [selectedFiles, setSelectedFiles] = useState([]);
-  const [previews, setPreviews] = useState([]);
+  // Client media
+  const [clientFiles, setClientFiles] = useState([]);
+  const [clientPreviews, setClientPreviews] = useState([]);
+  const clientCameraRef = useRef(null);
+  const clientGalleryRef = useRef(null);
+
+  // Private media
+  const [privateFiles, setPrivateFiles] = useState([]);
+  const [privatePreviews, setPrivatePreviews] = useState([]);
+  const privateCameraRef = useRef(null);
+  const privateGalleryRef = useRef(null);
+
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [alertModal, setAlertModal] = useState(null);
 
-  const galleryRef = useRef(null);
-  const cameraRef = useRef(null);
-  const videoRef = useRef(null);
-
   const project = projects.find(p => p.id === projectId);
 
-  const addFiles = async (files) => {
-    if (!files || files.length === 0) return;
-    const raw = Array.from(files);
-    const converted = await Promise.all(raw.map(processMediaFile));
-    const newFiles = [...selectedFiles, ...converted].slice(0, MAX_PHOTOS);
-    setSelectedFiles(newFiles);
-
-    const newPreviews = [...previews];
-    const remaining = MAX_PHOTOS - previews.length;
-    converted.slice(0, remaining).forEach(file => {
+  const makeAddFiles = (files, setFiles, previews, setPreviews) => async (raw) => {
+    if (!raw || raw.length === 0) return;
+    const converted = await Promise.all(Array.from(raw).map(processMediaFile));
+    const remaining = MAX_PHOTOS - files.length;
+    const toAdd = converted.slice(0, remaining);
+    setFiles(prev => [...prev, ...toAdd].slice(0, MAX_PHOTOS));
+    const newPreviews = toAdd.map(file => {
       const isVideo = file.type.startsWith('video/');
-      const isImage = file.type.startsWith('image/');
-      if (isImage) {
-        newPreviews.push({ url: URL.createObjectURL(file), name: file.name, isVideo: false });
-      } else {
-        newPreviews.push({ url: null, name: file.name, isVideo });
-      }
+      return isVideo
+        ? { url: null, name: file.name, isVideo: true }
+        : { url: URL.createObjectURL(file), name: file.name, isVideo: false };
     });
-    setPreviews(newPreviews.slice(0, MAX_PHOTOS));
+    setPreviews(prev => [...prev, ...newPreviews].slice(0, MAX_PHOTOS));
   };
 
-  const removeFile = (index) => {
-    setSelectedFiles(prev => prev.filter((_, i) => i !== index));
-    setPreviews(prev => {
+  const addClientFiles = makeAddFiles(clientFiles, setClientFiles, clientPreviews, setClientPreviews);
+  const addPrivateFiles = makeAddFiles(privateFiles, setPrivateFiles, privatePreviews, setPrivatePreviews);
+
+  const removeClientFile = (index) => {
+    setClientFiles(prev => prev.filter((_, i) => i !== index));
+    setClientPreviews(prev => {
       const removed = prev[index];
       if (removed?.url) URL.revokeObjectURL(removed.url);
       return prev.filter((_, i) => i !== index);
     });
   };
 
-  const handleFileChange = async (e) => {
-    await addFiles(Array.from(e.target.files || []));
+  const removePrivateFile = (index) => {
+    setPrivateFiles(prev => prev.filter((_, i) => i !== index));
+    setPrivatePreviews(prev => {
+      const removed = prev[index];
+      if (removed?.url) URL.revokeObjectURL(removed.url);
+      return prev.filter((_, i) => i !== index);
+    });
+  };
+
+  const makeHandleChange = (addFn) => async (e) => {
+    await addFn(Array.from(e.target.files || []));
     e.target.value = '';
   };
 
@@ -121,11 +146,14 @@ export default function NewDiaryEntryPage() {
 
     let photoIds = [];
 
-    if (selectedFiles.length > 0) {
+    if (clientFiles.length > 0 || privateFiles.length > 0) {
       setUploading(true);
       try {
-        const photos = await uploadDiaryPhotos(projectId, selectedFiles);
-        photoIds = photos.map(p => p.id);
+        const [clientPhotos, privatePhotos] = await Promise.all([
+          clientFiles.length > 0 ? uploadDiaryPhotos(projectId, clientFiles, false) : Promise.resolve([]),
+          privateFiles.length > 0 ? uploadDiaryPhotos(projectId, privateFiles, true) : Promise.resolve([]),
+        ]);
+        photoIds = [...clientPhotos, ...privatePhotos].map(p => p.id);
       } catch (err) {
         setAlertModal({ message: err.message || 'Hiba a médiafájlok feltöltésekor' });
         setUploading(false);
@@ -144,7 +172,6 @@ export default function NewDiaryEntryPage() {
         photoIds,
         workType: workType.trim() || undefined,
         internalNote: internalNote.trim() || undefined,
-        clientNote: clientNote.trim() || undefined,
         isPublic,
         roomId: roomId || undefined,
       });
@@ -167,7 +194,6 @@ export default function NewDiaryEntryPage() {
 
   const projectRooms = (ctxProjectRooms || []).filter(r => r.project_id === projectId);
   const isProcessing = uploading || submitting;
-  const canAddMore = selectedFiles.length < MAX_PHOTOS;
 
   return (
     <div className="container">
@@ -184,11 +210,16 @@ export default function NewDiaryEntryPage() {
 
       <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
 
-        {/* ── Card 1: Date & Work type ── */}
+        {/* ── Card 1: Alapadatok ── */}
         <div className="card" style={{ padding: '1.15rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.85rem' }}>
             <HardHat size={16} color="var(--accent)" />
             <h3 style={{ fontSize: '0.9rem', fontWeight: 800, margin: 0 }}>Alapadatok</h3>
+          </div>
+
+          <div className="form-group">
+            <label className="form-label" htmlFor="entry-title">Cím *</label>
+            <input id="entry-title" type="text" required className="form-control" placeholder="pl. Alapozás befejezve" value={title} onChange={e => setTitle(e.target.value)} />
           </div>
 
           <div className="grid-2col">
@@ -224,61 +255,41 @@ export default function NewDiaryEntryPage() {
           )}
         </div>
 
-        {/* ── Card 2: Title + Description ── */}
+        {/* ── Card 2: Ügyfélnek ── */}
         <div className="card" style={{ padding: '1.15rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.85rem' }}>
-            <FileText size={16} color="var(--accent)" />
-            <h3 style={{ fontSize: '0.9rem', fontWeight: 800, margin: 0 }}>Bejegyzés</h3>
+            <Eye size={16} color="var(--accent)" />
+            <h3 style={{ fontSize: '0.9rem', fontWeight: 800, margin: 0 }}>Ügyfélnek</h3>
           </div>
 
           <div className="form-group">
-            <label className="form-label" htmlFor="entry-title">Cím *</label>
-            <input id="entry-title" type="text" required className="form-control" placeholder="pl. Alapozás befejezve" value={title} onChange={e => setTitle(e.target.value)} />
-          </div>
-          <div className="form-group" style={{ marginBottom: 0 }}>
-            <label className="form-label" htmlFor="entry-body">Leírás</label>
-            <textarea id="entry-body" rows={4} className="form-control" placeholder="A nap munkálatainak részletes leírása…" value={body} onChange={e => setBody(e.target.value)} />
-          </div>
-        </div>
-
-        {/* ── Card 3: Notes ── */}
-        <div className="card" style={{ padding: '1.15rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.85rem' }}>
-            <MessageSquare size={16} color="var(--accent)" />
-            <h3 style={{ fontSize: '0.9rem', fontWeight: 800, margin: 0 }}>Megjegyzések</h3>
-          </div>
-
-          <div className="form-group">
-            <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-              <Lock size={13} color="var(--text-muted)" /> Belső megjegyzés
-            </label>
+            <label className="form-label">Leírás / üzenet az ügyfélnek</label>
             <textarea
-              rows={3}
-              className="form-control"
-              placeholder="Csak a csapat látja — nem kerül ki az ügyfélnek…"
-              value={internalNote}
-              onChange={e => setInternalNote(e.target.value)}
-            />
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.3rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-              <Lock size={11} /> Nem látható az ügyfél számára
-            </div>
-          </div>
-
-          <div className="form-group">
-            <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-              <Eye size={13} color="var(--accent)" /> Üzenet az ügyfélnek
-            </label>
-            <textarea
-              rows={3}
+              rows={4}
               className="form-control"
               placeholder="Ez a szöveg megjelenik az ügyfél oldalán…"
-              value={clientNote}
-              onChange={e => setClientNote(e.target.value)}
+              value={body}
+              onChange={e => setBody(e.target.value)}
             />
           </div>
 
-          {/* Public toggle */}
-          <div style={{ marginBottom: 0 }}>
+          <div style={{ marginBottom: '0.85rem' }}>
+            <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', marginBottom: '0.5rem' }}>
+              <Camera size={13} color="var(--accent)" /> Fotók / videók az ügyfélnek
+              <span style={{ marginLeft: 'auto', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>{clientFiles.length}/{MAX_PHOTOS}</span>
+            </label>
+            <MediaPreviewGrid previews={clientPreviews} onRemove={removeClientFile} disabled={isProcessing} />
+            <MediaButtons
+              disabled={isProcessing}
+              count={clientFiles.length}
+              onCamera={() => clientCameraRef.current?.click()}
+              onGallery={() => clientGalleryRef.current?.click()}
+            />
+            <input ref={clientCameraRef} type="file" accept="image/*" capture="environment" style={{ display: 'none' }} onChange={makeHandleChange(addClientFiles)} />
+            <input ref={clientGalleryRef} type="file" accept="image/*" multiple style={{ display: 'none' }} onChange={makeHandleChange(addClientFiles)} />
+          </div>
+
+          <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: '0.85rem' }}>
             <button
               type="button"
               onClick={() => setIsPublic(v => !v)}
@@ -289,64 +300,59 @@ export default function NewDiaryEntryPage() {
               </div>
               <div>
                 <div style={{ fontSize: '0.85rem', fontWeight: 700, color: isPublic ? 'var(--success-text)' : 'var(--text-primary)' }}>
-                  {isPublic ? 'Nyilvános — látható az ügyfélnek' : 'Privát — csak a csapat látja'}
+                  {isPublic ? 'Nyilvános — az ügyfél látja' : 'Privát — még nem jelenik meg az ügyfélnek'}
                 </div>
                 <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                  {isPublic ? 'Megjelenik a projekt nyilvános oldalán' : 'Az ügyfél nem látja ezt a bejegyzést'}
+                  {isPublic ? 'A fenti tartalom megjelenik a projekt nyilvános oldalán' : 'Kapcsold be, ha az ügyfél is láthatja ezt a bejegyzést'}
                 </div>
               </div>
             </button>
           </div>
         </div>
 
-        {/* ── Card 4: Photos & Videos ── */}
-        <div className="card" style={{ padding: '1.15rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+        {/* ── Card 3: Saját feljegyzés (PRIVÁT) ── */}
+        <div className="card" style={{ padding: '1.15rem', borderColor: 'var(--border-subtle)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.85rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-              <Camera size={16} color="var(--accent)" />
-              <h3 style={{ fontSize: '0.9rem', fontWeight: 800, margin: 0 }}>Fotók & Videók</h3>
+              <Lock size={16} color="var(--text-muted)" />
+              <h3 style={{ fontSize: '0.9rem', fontWeight: 800, margin: 0 }}>Saját feljegyzés</h3>
             </div>
-            <span style={{ fontSize: '0.775rem', color: 'var(--text-muted)', fontWeight: 600 }}>{selectedFiles.length}/{MAX_PHOTOS}</span>
+            <span style={{ fontSize: '0.7rem', fontWeight: 800, letterSpacing: '0.06em', color: '#fff', background: '#dc2626', borderRadius: '4px', padding: '2px 7px' }}>PRIVÁT</span>
           </div>
 
-          <MediaPreviewGrid previews={previews} onRemove={removeFile} disabled={isProcessing} />
+          <div className="form-group">
+            <textarea
+              rows={3}
+              className="form-control"
+              placeholder="Csak én látom — soha nem jelenik meg az ügyfélnek…"
+              value={internalNote}
+              onChange={e => setInternalNote(e.target.value)}
+            />
+          </div>
 
-          {canAddMore && (
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
-              <button type="button" className="btn btn-secondary" style={{ justifyContent: 'center', gap: '0.4rem' }} disabled={isProcessing} onClick={() => cameraRef.current?.click()}>
-                <Camera size={15} /> Fényképezés
-              </button>
-              <button type="button" className="btn btn-secondary" style={{ justifyContent: 'center', gap: '0.4rem' }} disabled={isProcessing} onClick={() => galleryRef.current?.click()}>
-                <Upload size={15} /> Galéria / Fájl
-              </button>
-            </div>
-          )}
-
-          {/* Video upload separate button */}
-          {canAddMore && (
-            <button type="button" className="btn btn-secondary" style={{ width: '100%', justifyContent: 'center', gap: '0.4rem', marginTop: '0.5rem' }} disabled={isProcessing} onClick={() => videoRef.current?.click()}>
-              <Video size={15} /> Videó hozzáadása
-            </button>
-          )}
-
-          {/* Hidden inputs */}
-          <input ref={cameraRef} type="file" accept="image/*" capture="environment" style={{ display: 'none' }} onChange={handleFileChange} />
-          <input ref={galleryRef} type="file" accept="image/*" multiple style={{ display: 'none' }} onChange={handleFileChange} />
-          <input ref={videoRef} type="file" accept="video/*" multiple style={{ display: 'none' }} onChange={handleFileChange} />
-
-          {uploading && (
-            <div style={{ marginTop: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', color: 'var(--accent)', fontWeight: 600 }}>
-              <Upload size={15} /> Feltöltés folyamatban… ({selectedFiles.length} fájl)
-            </div>
-          )}
+          <div>
+            <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', marginBottom: '0.5rem' }}>
+              <Camera size={13} color="var(--text-muted)" /> Privát fotók / videók
+              <span style={{ marginLeft: 'auto', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>{privateFiles.length}/{MAX_PHOTOS}</span>
+            </label>
+            <MediaPreviewGrid previews={privatePreviews} onRemove={removePrivateFile} disabled={isProcessing} />
+            <MediaButtons
+              disabled={isProcessing}
+              count={privateFiles.length}
+              onCamera={() => privateCameraRef.current?.click()}
+              onGallery={() => privateGalleryRef.current?.click()}
+            />
+            <input ref={privateCameraRef} type="file" accept="image/*" capture="environment" style={{ display: 'none' }} onChange={makeHandleChange(addPrivateFiles)} />
+            <input ref={privateGalleryRef} type="file" accept="image/*" multiple style={{ display: 'none' }} onChange={makeHandleChange(addPrivateFiles)} />
+          </div>
         </div>
 
         {/* ── Submit ── */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem', paddingBottom: '2rem' }}>
-          <button type="submit" className="btn btn-primary" style={{ width: '100%', justifyContent: 'center', gap: '0.5rem' }} disabled={isProcessing}>
-            {submitting ? <><Loader2 size={16} className="animate-spin" />Mentés</> : uploading ? <><Loader2 size={16} className="animate-spin" />Feltöltés</> : <><CheckCircle2 size={16} /> Bejegyzés mentése</>}
+        <div style={{ display: 'flex', gap: '0.65rem', justifyContent: 'flex-end', paddingBottom: '2rem' }}>
+          <button type="submit" className="btn btn-primary" style={{ justifyContent: 'center', gap: '0.5rem' }} disabled={isProcessing}>
+            {submitting ? <><Loader2 size={16} className="animate-spin" />Mentés…</> : uploading ? <><Loader2 size={16} className="animate-spin" />Feltöltés…</> : <><CheckCircle2 size={16} /> Bejegyzés mentése</>}
           </button>
-          <Link href={`/projektek/${projectId}`} className="btn btn-secondary" style={{ width: '100%', justifyContent: 'center' }}>
+          <Link href={`/projektek/${projectId}`} className="btn btn-secondary" style={{ justifyContent: 'center' }}>
             Mégse
           </Link>
         </div>

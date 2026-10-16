@@ -778,7 +778,7 @@ function InvoiceDetailDrawer({ invoice, isAdmin, rooms, splits = [], onClose, on
     setSaving(true);
     try {
       await onSave(invoice.id, {
-        value_huf: Number(editValue),
+        value_huf: Math.round(Number(editValue)),
         category: editCategory,
         description: editDesc,
         ai_line_items: lineItems.length > 0 ? lineItems : null,
@@ -1027,9 +1027,14 @@ function InvoiceDetailDrawer({ invoice, isAdmin, rooms, splits = [], onClose, on
           ) : (
             <>
               {invoice.image_url && (
-                <button type="button" className="btn btn-secondary btn-sm" onClick={() => setShowImage(true)}>
-                  <Eye size={14} /> Bizonylat
-                </button>
+                <>
+                  <button type="button" className="btn btn-secondary btn-sm" onClick={() => setShowImage(true)}>
+                    <Eye size={14} /> Bizonylat
+                  </button>
+                  <a href={invoice.image_url} download target="_blank" rel="noopener noreferrer" className="btn btn-secondary btn-sm">
+                    <Download size={14} /> Letöltés
+                  </a>
+                </>
               )}
               {isAdmin && (
                 <button type="button" className="btn btn-primary btn-sm" onClick={() => setIsEditing(true)} style={{ marginLeft: 'auto' }}>
@@ -1985,7 +1990,7 @@ export default function ProjectDetailClient({
       </div>
 
       {/* Chart row: bar chart (40%) + burndown (60%) */}
-      <div style={{ display: 'grid', gridTemplateColumns: '2fr 3fr', gap: '0.85rem', marginBottom: '1.5rem' }}>
+      <div className="grid-chart" style={{ marginBottom: '1.5rem' }}>
         <CostBreakdownCard
           invoices={fin.projectInvoices}
           labourTotal={fin.totalLabourValue}
@@ -2154,29 +2159,25 @@ export default function ProjectDetailClient({
         const STATUS_LABELS = { draft: 'Tervezet', sent: 'Kiküldve', accepted: 'Elfogadva', rejected: 'Elutasítva' };
         return (
           <div className="card mb-6" style={{ borderLeft: '3px solid var(--accent)', padding: '1rem 1.1rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', flexWrap: 'wrap' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <FileText size={16} color="var(--accent)" />
-                <div>
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '0.5rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', minWidth: 0 }}>
+                <FileText size={16} color="var(--accent)" style={{ flexShrink: 0 }} />
+                <div style={{ minWidth: 0 }}>
                   <div style={{ fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', marginBottom: '0.1rem' }}>Kapcsolt ajánlat</div>
-                  <div style={{ fontWeight: 800, fontSize: '0.95rem', color: 'var(--text-primary)' }}>
+                  <div style={{ fontWeight: 800, fontSize: '0.95rem', color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     {linkedQuote.title}
                     <span style={{ marginLeft: '0.5rem', fontSize: '0.7rem', fontWeight: 700, color: sc[linkedQuote.status] || 'var(--text-muted)' }}>
                       {STATUS_LABELS[linkedQuote.status] || linkedQuote.status}
                     </span>
                   </div>
+                  <div style={{ marginTop: '0.2rem', fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 600 }}>
+                    Bruttó: <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, color: 'var(--text-primary)' }}>{formatHUF(grossTotal)}</span>
+                  </div>
                 </div>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
-                <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 600 }}>Bruttó összesen</div>
-                  <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, fontSize: '1rem' }}>{formatHUF(grossTotal)}</div>
-                </div>
-                <div style={{ display: 'flex', gap: '0.4rem' }}>
-                  <Link href={`/ajanlatok/${linkedQuote.id}`} className="btn btn-secondary btn-sm"><FileText size={13} /> Megtekint</Link>
-                  <a href={`/naplo/${project.id}/ajanlat`} target="_blank" rel="noopener noreferrer" className="btn btn-primary btn-sm">↓ Letöltés</a>
-                </div>
-              </div>
+              <Link href={`/ajanlatok/${linkedQuote.id}`} className="btn btn-secondary btn-sm" style={{ flexShrink: 0 }}>
+                <FileText size={13} /> Megtekint
+              </Link>
             </div>
           </div>
         );
@@ -2761,7 +2762,7 @@ export default function ProjectDetailClient({
               <Link href={`/projektek/${project.id}/naplo/uj`} className="btn btn-primary btn-sm"><Plus size={15} /> Első bejegyzés</Link>
             </div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(320px, 100%), 1fr))', gap: '0.85rem' }}>
               {(diaryEntriesByProject[project.id] || []).map(entry => {
                 const entryDateStr = entry.entry_date ? new Date(entry.entry_date).toLocaleDateString('hu-HU', { year: 'numeric', month: 'long', day: 'numeric' }) : null;
                 const author = initialUsers.find(u => u.id === entry.created_by);
@@ -2793,10 +2794,10 @@ export default function ProjectDetailClient({
                         )}
                       </div>
                       <div style={{ display: 'flex', gap: '0.35rem', flexShrink: 0 }}>
-                        {isAdmin && (
-                          <button type="button" className="btn btn-secondary btn-sm" style={{ padding: '0.25rem 0.5rem' }} onClick={() => setEditingDiaryEntry(entry)}>
+                        {(isAdmin || entry.created_by === currentUser?.id) && (
+                          <Link href={`/projektek/${project.id}/naplo/${entry.id}`} className="btn btn-secondary btn-sm" style={{ padding: '0.25rem 0.5rem' }}>
                             <Edit3 size={13} />
-                          </button>
+                          </Link>
                         )}
                         {canDelete && (
                           <button type="button" className="btn btn-danger btn-sm" style={{ padding: '0.25rem 0.5rem' }} onClick={() => setConfirmModal({ message: 'Biztosan törölni kívánja ezt a naplóbejegyzést?', onConfirm: async () => { try { await ctxDeleteDiaryEntry(entry.id, project.id); } catch (err) { setAlertModal({ message: err.message || 'Hiba a törléskor' }); } } })}>

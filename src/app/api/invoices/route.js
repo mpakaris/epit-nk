@@ -40,8 +40,8 @@ export async function POST(request) {
     project_id:          projectId,
     uploaded_by:         user.id,
     uploader_name:       callerProfile?.display_name || user.email,
-    value_huf:           Number(valueHuf),
-    ocr_suggested_value: ocrSuggestedValue ? Number(ocrSuggestedValue) : null,
+    value_huf:           Math.round(Number(valueHuf)),
+    ocr_suggested_value: ocrSuggestedValue ? Math.round(Number(ocrSuggestedValue)) : null,
     category:            category || 'Egyéb',
     description:         description || '',
     image_url:           imageUrl || '',
@@ -61,7 +61,7 @@ export async function POST(request) {
     targetType: 'invoice',
     targetId:   data.id,
     targetName: project.name,
-    details:    { value_huf: Number(valueHuf), category },
+    details:    { value_huf: Math.round(Number(valueHuf)), category },
   });
 
   return Response.json({ invoice: data }, { status: 201 });

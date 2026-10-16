@@ -1304,11 +1304,12 @@ export function AppProvider({ children }) {
     }
   };
 
-  const uploadDiaryPhotos = async (projectId, files) => {
+  const uploadDiaryPhotos = async (projectId, files, isPrivate = false) => {
     const processed = await processMediaFiles(files);
     const formData = new FormData();
     for (const file of processed) formData.append('files', file);
-    formData.append('project_id', projectId); // needed for superadmin entity resolution
+    formData.append('project_id', projectId);
+    formData.append('is_private', String(isPrivate));
     const res = await fetch('/api/diary/upload', { method: 'POST', body: formData });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Hiba a fotók feltöltésekor');

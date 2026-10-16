@@ -626,7 +626,7 @@ input[type="month"] {
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 100;
+  z-index: 300;
   padding: 1rem;
   animation: fadeIn 0.15s ease-out;
   touch-action: none;
@@ -1266,6 +1266,16 @@ input[type="month"] {
 .grid-2col > * { min-width: 0; }
 @media (max-width: 500px) {
   .grid-2col { grid-template-columns: 1fr; }
+}
+
+.grid-chart {
+  display: grid;
+  grid-template-columns: 2fr 3fr;
+  gap: 0.85rem;
+}
+.grid-chart > * { min-width: 0; }
+@media (max-width: 640px) {
+  .grid-chart { grid-template-columns: 1fr; }
 }
 
 /* Responsive card grids — cards min 280px, 1 per row on phones */
