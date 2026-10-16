@@ -57,7 +57,7 @@ function MediaPreviewGrid({ previews, onRemove, disabled }) {
 export default function NewDiaryEntryPage() {
   const { id: projectId } = useParams();
   const router = useRouter();
-  const { projects, uploadDiaryPhotos, createDiaryEntry } = useApp();
+  const { projects, uploadDiaryPhotos, createDiaryEntry, projectRooms: ctxProjectRooms } = useApp();
 
   const [entryDate, setEntryDate] = useState(today());
   const [workType, setWorkType] = useState('');
@@ -66,6 +66,7 @@ export default function NewDiaryEntryPage() {
   const [internalNote, setInternalNote] = useState('');
   const [clientNote, setClientNote] = useState('');
   const [isPublic, setIsPublic] = useState(false);
+  const [roomId, setRoomId] = useState('');
 
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [previews, setPreviews] = useState([]);
@@ -145,6 +146,7 @@ export default function NewDiaryEntryPage() {
         internalNote: internalNote.trim() || undefined,
         clientNote: clientNote.trim() || undefined,
         isPublic,
+        roomId: roomId || undefined,
       });
       router.push(`/projektek/${projectId}?tab=naplo`);
     } catch (err) {
@@ -163,6 +165,7 @@ export default function NewDiaryEntryPage() {
     );
   }
 
+  const projectRooms = (ctxProjectRooms || []).filter(r => r.project_id === projectId);
   const isProcessing = uploading || submitting;
   const canAddMore = selectedFiles.length < MAX_PHOTOS;
 
@@ -209,6 +212,16 @@ export default function NewDiaryEntryPage() {
               </datalist>
             </div>
           </div>
+
+          {projectRooms.length > 0 && (
+            <div className="form-group" style={{ marginTop: '0.75rem', marginBottom: 0 }}>
+              <label className="form-label">Szekció (opcionális)</label>
+              <select className="form-control" value={roomId} onChange={e => setRoomId(e.target.value)}>
+                <option value="">– Általános (szekció nélkül) –</option>
+                {projectRooms.map(r => <option key={r.id} value={r.id}>{r.name}{r.size_m2 ? ` (${r.size_m2} m²)` : ''}</option>)}
+              </select>
+            </div>
+          )}
         </div>
 
         {/* ── Card 2: Title + Description ── */}

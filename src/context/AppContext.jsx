@@ -139,7 +139,8 @@ export function AppProvider({ children }) {
             display_name: profile?.display_name || session.user.email,
             role: profile?.role || 'user',
             active_collective_id: profile?.active_collective_id || null,
-            must_change_password: profile?.must_change_password ?? false
+            must_change_password: profile?.must_change_password ?? false,
+            is_subscription_premium: profile?.is_subscription_premium ?? false,
           };
           setCurrentUser(user);
           await refreshSupabaseData(user);
@@ -215,7 +216,7 @@ export function AppProvider({ children }) {
           ? document.cookie.match(/god_mode_user=([a-f0-9-]+)/)?.[1]
           : null;
         if (godModeUser && isActivelyImpersonating) {
-          const entityRes = await fetch('/api/entity/data');
+          const entityRes = await fetch('/api/entity/data', { cache: 'no-store' });
           if (entityRes.ok) {
             const d = await entityRes.json();
             setUsers(d.users || []);
@@ -242,7 +243,7 @@ export function AppProvider({ children }) {
         return;
       }
 
-      const entityRes = await fetch('/api/entity/data');
+      const entityRes = await fetch('/api/entity/data', { cache: 'no-store' });
       if (entityRes.ok) {
         const d = await entityRes.json();
         setUsers(d.users);
@@ -285,7 +286,8 @@ export function AppProvider({ children }) {
       display_name: profile?.display_name || data.user.email,
       role: profile?.role || 'user',
       active_collective_id: profile?.active_collective_id || null,
-      must_change_password: profile?.must_change_password ?? false
+      must_change_password: profile?.must_change_password ?? false,
+      is_subscription_premium: profile?.is_subscription_premium ?? false,
     };
 
     setCurrentUser(user);
@@ -300,7 +302,7 @@ export function AppProvider({ children }) {
     } else if (user.role === 'admin') {
       router.push('/admin');
     } else {
-      router.push('/projektek');
+      router.push('/dashboard');
     }
     return user;
   };
@@ -329,10 +331,11 @@ export function AppProvider({ children }) {
         role: profile?.role || 'user',
         active_collective_id: profile?.active_collective_id || null,
         must_change_password: false,
+        is_subscription_premium: profile?.is_subscription_premium ?? false,
       };
       setCurrentUser(user);
       await refreshSupabaseData(user);
-      router.push('/projektek');
+      router.push('/dashboard');
     }
     return data;
   };
@@ -374,7 +377,7 @@ export function AppProvider({ children }) {
 
     if (currentUser?.role === 'superadmin') router.push('/superadmin');
     else if (currentUser?.role === 'admin') router.push('/admin');
-    else router.push('/projektek');
+    else router.push('/dashboard');
   };
 
   // ---- God Mode ---------------------------------------------------------------
@@ -402,13 +405,13 @@ export function AppProvider({ children }) {
       document.cookie = 'god_mode_entity=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
     }
     // Always fetch entity-scoped data (personal or collective)
-    fetch('/api/entity/data').then(r => r.ok ? r.json() : null).then(d => {
+    fetch('/api/entity/data', { cache: 'no-store' }).then(r => r.ok ? r.json() : null).then(d => {
       if (!d) return;
       setSurveys(d.surveys || []);
       setProjectRooms(d.projectRooms || []);
     }).catch(() => {});
     if (profile?.role === 'admin') router.push('/admin');
-    else router.push('/projektek');
+    else router.push('/dashboard');
   };
 
   const stopImpersonation = () => {
@@ -436,9 +439,7 @@ export function AppProvider({ children }) {
       throw new Error('Hiba a kontextus váltásakor');
     }
 
-    setDataReady(false);
     await refreshSupabaseData();
-    router.refresh();
   };
 
   const switchImpersonatingContext = (collectiveId) => {
@@ -448,8 +449,16 @@ export function AppProvider({ children }) {
     } else {
       document.cookie = 'god_mode_entity=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
     }
-    fetch('/api/entity/data').then(r => r.ok ? r.json() : null).then(d => {
+    fetch('/api/entity/data', { cache: 'no-store' }).then(r => r.ok ? r.json() : null).then(d => {
       if (!d) return;
+      setUsers(d.users || []);
+      setProjects(d.projects || []);
+      setInvoices(d.invoices || []);
+      setLabourEntries(d.labourEntries || []);
+      setClients(d.clients || []);
+      setQuotes(d.quotes || []);
+      setQuoteEntries(d.quoteEntries || []);
+      setQuoteSections(d.quoteSections || []);
       setSurveys(d.surveys || []);
       setProjectRooms(d.projectRooms || []);
     }).catch(() => {});
@@ -719,7 +728,9 @@ export function AppProvider({ children }) {
   };
 
   const updateProject = async (projectId, fields) => {
-    if (!isAdmin) throw new Error('Csak adminisztrátor módosíthat projektet!');
+    const proj = projects.find(p => p.id === projectId);
+    const isOwner = proj?.owner_id === uid || proj?.created_by === uid;
+    if (!isAdmin && !isOwner) throw new Error('Csak adminisztrátor vagy a projekt tulajdonosa módosíthat!');
     const res = await fetch(`/api/projects/${projectId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
@@ -732,7 +743,9 @@ export function AppProvider({ children }) {
   };
 
   const updateProjectMembers = async (projectId, memberIds) => {
-    if (!isAdmin) throw new Error('Csak adminisztrátor módosíthat tagságot!');
+    const proj = projects.find(p => p.id === projectId);
+    const isOwner = proj?.owner_id === uid || proj?.created_by === uid;
+    if (!isAdmin && !isOwner) throw new Error('Csak adminisztrátor vagy a projekt tulajdonosa módosíthat tagságot!');
     const res = await fetch(`/api/projects/${projectId}/members`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
@@ -744,12 +757,10 @@ export function AppProvider({ children }) {
   };
 
   const closeProject = async (projectId) => {
-    if (!isAdmin) throw new Error('Csak adminisztrátor zárhat le projektet!');
     return updateProject(projectId, { closed_at: new Date().toISOString() });
   };
 
   const reopenProject = async (projectId) => {
-    if (!isAdmin) throw new Error('Csak adminisztrátor nyithat meg projektet!');
     return updateProject(projectId, { closed_at: null });
   };
 
@@ -769,7 +780,8 @@ export function AppProvider({ children }) {
   // ---- Project rooms ----------------------------------------------------------
 
   const createProjectRoom = async (projectId, { name, size_m2, work_types, description, quoted_amount_net, sort_order, source_section_id }) => {
-    if (!isAdmin) throw new Error('Csak adminisztrátor hozhat létre helyiséget!');
+    const proj = projects.find(p => p.id === projectId);
+    if (!isAdmin && proj?.owner_id !== uid && proj?.created_by !== uid) throw new Error('Nincs jogosultsága!');
     const res = await fetch(`/api/projects/${projectId}/rooms`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -782,7 +794,8 @@ export function AppProvider({ children }) {
   };
 
   const updateProjectRoom = async (projectId, roomId, fields) => {
-    if (!isAdmin) throw new Error('Csak adminisztrátor módosíthat helyiséget!');
+    const proj = projects.find(p => p.id === projectId);
+    if (!isAdmin && proj?.owner_id !== uid && proj?.created_by !== uid) throw new Error('Nincs jogosultsága!');
     const res = await fetch(`/api/projects/${projectId}/rooms/${roomId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
@@ -795,7 +808,8 @@ export function AppProvider({ children }) {
   };
 
   const deleteProjectRoom = async (projectId, roomId) => {
-    if (!isAdmin) throw new Error('Csak adminisztrátor törölhet helyiséget!');
+    const proj = projects.find(p => p.id === projectId);
+    if (!isAdmin && proj?.owner_id !== uid && proj?.created_by !== uid) throw new Error('Nincs jogosultsága!');
     const res = await fetch(`/api/projects/${projectId}/rooms/${roomId}`, { method: 'DELETE' });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Hiba a helyiség törlésekor');
@@ -803,7 +817,8 @@ export function AppProvider({ children }) {
   };
 
   const syncRoomsFromQuote = async (projectId) => {
-    if (!isAdmin) throw new Error('Csak adminisztrátor szinkronizálhat helyiségeket!');
+    const proj = projects.find(p => p.id === projectId);
+    if (!isAdmin && proj?.owner_id !== uid && proj?.created_by !== uid) throw new Error('Nincs jogosultsága!');
     const res = await fetch(`/api/projects/${projectId}/rooms/sync-from-quote`, { method: 'POST' });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Hiba a szinkronizáláskor');
@@ -816,7 +831,7 @@ export function AppProvider({ children }) {
   // ---- Clients ----------------------------------------------------------------
 
   const createClient = async ({ name, address, phone, email, notes, discountPercent = 0 }) => {
-    if (!isAdmin) throw new Error('Csak adminisztrátor hozhat létre ügyfelet!');
+    if (!effectiveUser) throw new Error('Bejelentkezés szükséges!');
     const res = await fetch('/api/clients', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -829,7 +844,8 @@ export function AppProvider({ children }) {
   };
 
   const updateClient = async (clientId, fields) => {
-    if (!isAdmin) throw new Error('Csak adminisztrátor módosíthat ügyfelet!');
+    const client = clients.find(c => c.id === clientId);
+    if (!isAdmin && client?.owner_id !== uid) throw new Error('Csak adminisztrátor vagy az ügyfél tulajdonosa módosíthat!');
     const res = await fetch(`/api/clients/${clientId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
@@ -842,7 +858,8 @@ export function AppProvider({ children }) {
   };
 
   const deleteClient = async (clientId) => {
-    if (!isAdmin) throw new Error('Csak adminisztrátor törölhet ügyfelet!');
+    const client = clients.find(c => c.id === clientId);
+    if (!isAdmin && client?.owner_id !== uid) throw new Error('Csak adminisztrátor vagy az ügyfél tulajdonosa törölhet!');
     const res = await fetch(`/api/clients/${clientId}`, { method: 'DELETE' });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Hiba az ügyfél törlésekor');
@@ -854,7 +871,7 @@ export function AppProvider({ children }) {
   // ---- Surveys ----------------------------------------------------------------
 
   const createSurvey = async ({ title, notes, date, location, clientId, sharedWith = [], collectiveId: collectiveIdOverride }) => {
-    if (!isAdmin) throw new Error('Csak adminisztrátor hozhat létre felmérést!');
+    if (!effectiveUser) throw new Error('Bejelentkezés szükséges!');
     const res = await fetch('/api/surveys', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -867,7 +884,9 @@ export function AppProvider({ children }) {
   };
 
   const updateSurvey = async (surveyId, fields) => {
-    if (!isAdmin) throw new Error('Csak adminisztrátor módosíthat felmérést!');
+    const survey = surveys.find(s => s.id === surveyId);
+    const isSurveyOwner = survey?.owner_id === uid || survey?.created_by === uid;
+    if (!isAdmin && !isSurveyOwner) throw new Error('Csak adminisztrátor vagy a felmérés tulajdonosa módosíthat!');
     const res = await fetch(`/api/surveys/${surveyId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
@@ -880,7 +899,9 @@ export function AppProvider({ children }) {
   };
 
   const deleteSurvey = async (surveyId) => {
-    if (!isAdmin) throw new Error('Csak adminisztrátor törölhet felmérést!');
+    const survey = surveys.find(s => s.id === surveyId);
+    const isSurveyOwner = survey?.owner_id === uid || survey?.created_by === uid;
+    if (!isAdmin && !isSurveyOwner) throw new Error('Csak adminisztrátor vagy a felmérés tulajdonosa törölhet!');
     const res = await fetch(`/api/surveys/${surveyId}`, { method: 'DELETE' });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Hiba a felmérés törlésekor');
@@ -1066,7 +1087,7 @@ export function AppProvider({ children }) {
     setQuotes(prev => [data, ...prev]);
 
     auditLog('Ajánlat létrehozva', {
-      entityId: targetEntityId,
+      entityId: targetCollectiveId,
       targetType: 'quote',
       targetId: data.id,
       targetName: title,
@@ -1262,11 +1283,11 @@ export function AppProvider({ children }) {
     return data.entries;
   };
 
-  const createDiaryEntry = async ({ projectId, title, body, entryDate, photoIds = [], workType, internalNote, clientNote, isPublic = false }) => {
+  const createDiaryEntry = async ({ projectId, title, body, entryDate, photoIds = [], workType, internalNote, clientNote, isPublic = false, roomId }) => {
     const res = await fetch('/api/diary', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ project_id: projectId, title, body, entry_date: entryDate, photo_ids: photoIds, work_type: workType, internal_note: internalNote, client_note: clientNote, is_public: isPublic }),
+      body: JSON.stringify({ project_id: projectId, title, body, entry_date: entryDate, photo_ids: photoIds, work_type: workType, internal_note: internalNote, client_note: clientNote, is_public: isPublic, room_id: roomId || null }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Hiba a bejegyzés létrehozásakor');

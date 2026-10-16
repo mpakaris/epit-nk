@@ -334,7 +334,7 @@ export default function HomePage() {
         if (currentUser.must_change_password) router.replace('/change-password');
         else if (currentUser.role === 'superadmin') router.replace('/superadmin');
         else if (currentUser.role === 'admin') router.replace('/admin');
-        else router.replace('/projektek');
+        else router.replace('/dashboard');
       } else {
         setShow(true);
       }

@@ -29,7 +29,7 @@ export async function GET(request) {
     const collectiveId = searchParams.get('collective_id');
     if (collectiveId) query = query.eq('collective_id', collectiveId);
   } else if (profile.active_collective_id) {
-    query = query.or(`collective_id.eq.${profile.active_collective_id},and(owner_id.eq.${user.id},collective_id.is.null)`);
+    query = query.eq('collective_id', profile.active_collective_id);
   } else {
     query = query.eq('owner_id', user.id).is('collective_id', null);
   }

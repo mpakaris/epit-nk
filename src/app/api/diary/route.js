@@ -69,7 +69,7 @@ export async function POST(request) {
   if (authErr || !user) return Response.json({ error: 'Unauthenticated' }, { status: 401 });
 
   const body = await request.json();
-  const { project_id, title, body: entryBody, entry_date, photo_ids, work_type, internal_note, client_note, is_public } = body;
+  const { project_id, title, body: entryBody, entry_date, photo_ids, work_type, internal_note, client_note, is_public, room_id } = body;
   if (!project_id || !title?.trim()) return Response.json({ error: 'project_id és title kötelező' }, { status: 400 });
 
   const admin = createAdminClient();
@@ -86,6 +86,7 @@ export async function POST(request) {
     internal_note: internal_note?.trim() || null,
     client_note:   client_note?.trim() || null,
     is_public:     Boolean(is_public),
+    room_id:       room_id || null,
   }]).select().single();
 
   if (insertErr) return Response.json({ error: insertErr.message }, { status: 500 });

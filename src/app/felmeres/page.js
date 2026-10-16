@@ -7,6 +7,7 @@ import { formatDate } from '@/lib/constants';
 import { ConfirmModal, AlertModal } from '@/components/Modal';
 import { Ruler, Plus, MapPin, Calendar, User, FileText, FolderKanban, Trash2 } from 'lucide-react';
 import PageSpinner from '@/components/PageSpinner';
+import WorkspaceBadge from '@/components/WorkspaceBadge';
 
 function getSurveyStatus(surveyId, quotes, projects) {
   const linkedProject = projects.find(p => p.survey_id === surveyId);
@@ -51,10 +52,10 @@ export default function SurveyListPage() {
       <div className="page-header">
         <div className="page-header-row">
           <div>
-            <h1 className="page-title">Felmérések</h1>
+            <h1 className="page-title" style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>Felmérések <WorkspaceBadge /></h1>
             <p className="page-subtitle">Helyszíni felmérések és fotódokumentációk</p>
           </div>
-          {isAdmin && (
+          {currentUser && (
             <Link href="/felmeres/uj" className="btn btn-primary btn-sm">
               <Plus size={15} /> Új felmérés
             </Link>

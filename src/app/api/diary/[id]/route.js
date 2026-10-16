@@ -44,7 +44,7 @@ export async function PATCH(request, { params }) {
   if (!entry) return Response.json({ error: 'Entry not found or access denied' }, { status: 404 });
 
   const body = await request.json();
-  const { title, body: entryBody, work_type, internal_note, client_note, entry_date, add_photo_ids, is_public } = body;
+  const { title, body: entryBody, work_type, internal_note, client_note, entry_date, add_photo_ids, is_public, room_id } = body;
   if (!title?.trim()) return Response.json({ error: 'A cím nem lehet üres' }, { status: 400 });
 
   const { data: updated, error: updateErr } = await admin.from('diary_entries')
@@ -56,30 +56,23 @@ export async function PATCH(request, { params }) {
       client_note: client_note?.trim() || null,
       entry_date: entry_date || undefined,
       is_public: typeof is_public === 'boolean' ? is_public : undefined,
+      room_id: 'room_id' in body ? (room_id || null) : undefined,
     })
     .eq('id', id)
-    .eq('entity_id', entityId)
     .select()
     .single();
 
   if (updateErr) return Response.json({ error: updateErr.message }, { status: 500 });
 
   if (Array.isArray(add_photo_ids) && add_photo_ids.length > 0) {
-    await admin.from('diary_photos')
-      .update({ entry_id: id })
-      .in('id', add_photo_ids)
-      .eq('entity_id', entityId);
+    await admin.from('diary_photos').update({ entry_id: id }).in('id', add_photo_ids);
   }
 
   const { data: photos } = await admin
-    .from('diary_photos')
-    .select('*')
-    .eq('entry_id', id)
-    .eq('entity_id', entityId)
-    .order('created_at');
+    .from('diary_photos').select('*').eq('entry_id', id).order('created_at');
 
   logAudit({
-    entityId,
+    entityId: entry.project_id,
     userId: profile.id,
     userName: profile.display_name,
     action: 'diary_entry_updated',
@@ -104,8 +97,8 @@ export async function DELETE(request, { params }) {
   const entry = await resolveEntry(id, user.id, profile, admin);
   if (!entry) return Response.json({ error: 'Entry not found or access denied' }, { status: 404 });
 
-  const isOwner = entry.created_by === user.id;
-  if (!isSuperAdmin && !isOwner) {
+  const isCreator = entry.created_by === user.id;
+  if (!isSuperAdmin && !isCreator) {
     return Response.json({ error: 'Nincs jogosultsága törölni ezt a bejegyzést' }, { status: 403 });
   }
 
@@ -113,7 +106,7 @@ export async function DELETE(request, { params }) {
   if (delErr) return Response.json({ error: delErr.message }, { status: 500 });
 
   logAudit({
-    entityId: entry.entity_id,
+    entityId: entry.project_id,
     userId: profile.id,
     userName: profile.display_name,
     action: 'diary_entry_deleted',

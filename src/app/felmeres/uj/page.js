@@ -98,7 +98,7 @@ export default function NewSurveyPage() {
   const shareableUsers = (users || []).filter(u => u.id !== currentUser?.id && !u.deleted_at);
 
   if (loading) return <PageSpinner />;
-  if (!isAdmin) return <div className="container" style={{ paddingTop: '3rem', textAlign: 'center', color: 'var(--danger-text)' }}>Nincs jogosultsága.</div>;
+  if (!currentUser) return <div className="container" style={{ paddingTop: '3rem', textAlign: 'center', color: 'var(--danger-text)' }}>Nincs jogosultsága.</div>;
 
   const activeEntityId = selectedEntityId || effectiveEntityId;
 

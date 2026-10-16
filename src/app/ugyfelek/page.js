@@ -8,7 +8,6 @@ import {
   Users,
   Plus,
   Search,
-  ShieldCheck,
   Phone,
   Mail,
   MapPin,
@@ -21,6 +20,7 @@ import {
   FolderKanban,
 } from 'lucide-react';
 import PageSpinner from '@/components/PageSpinner';
+import WorkspaceBadge from '@/components/WorkspaceBadge';
 
 export default function AdminClientsPage() {
   const { isAdmin, loading, dataReady, effectiveEntityId, clients, quotes, projects, createClient, updateClient, deleteClient } = useApp();
@@ -44,17 +44,7 @@ export default function AdminClientsPage() {
 
   if (loading || !dataReady) return <PageSpinner />;
 
-  if (!isAdmin) {
-    return (
-      <div className="container" style={{ paddingTop: '2.5rem', textAlign: 'center' }}>
-        <h2 style={{ color: 'var(--danger)' }}>Hozzáférés megtagadva</h2>
-        <Link href="/projektek" className="btn btn-secondary mt-4">Vissza</Link>
-      </div>
-    );
-  }
-
-  const filteredClients = clients.filter(c =>
-    !c.is_personal_client && (
+  const filteredClients = clients.filter(c => (
       c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (c.email || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
       (c.phone || '').includes(searchQuery)
@@ -150,10 +140,7 @@ export default function AdminClientsPage() {
       <div className="page-header">
         <div className="page-header-row">
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', color: 'var(--warning-text)', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', marginBottom: '0.15rem' }}>
-              <ShieldCheck size={15} /> Adminisztráció
-            </div>
-            <h1 className="page-title">Ügyfelek</h1>
+            <h1 className="page-title" style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>Ügyfelek <WorkspaceBadge /></h1>
             <p className="page-subtitle">Megrendelők adatbázisa és előzmények</p>
           </div>
           <button type="button" onClick={openCreateModal} className="btn btn-primary btn-sm">

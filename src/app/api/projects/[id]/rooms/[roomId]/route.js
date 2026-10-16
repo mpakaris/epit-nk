@@ -1,23 +1,34 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 
-async function getCtx(projectId) {
-  const supabase = await createClient();
-  const { data: { user }, error } = await supabase.auth.getUser();
-  if (error || !user) return { err: 'Unauthenticated', status: 401 };
+async function getCtx(projectId, userId) {
   const admin = createAdminClient();
-  const { data: profile } = await admin.from('profiles').select('id, role, entity_id, current_entity_id').eq('id', user.id).single();
+  const { data: profile } = await admin.from('profiles').select('id, role').eq('id', userId).single();
   if (!profile) return { err: 'Forbidden', status: 403 };
-  if (!['admin', 'superadmin'].includes(profile.role)) return { err: 'Forbidden', status: 403 };
-  const { data: project } = await admin.from('projects').select('id, entity_id').eq('id', projectId).single();
+  const { data: project } = await admin.from('projects').select('id, owner_id, created_by, collective_id').eq('id', projectId).single();
   if (!project) return { err: 'Project not found', status: 404 };
-  if (profile.role !== 'superadmin' && ![profile.entity_id, profile.current_entity_id].filter(Boolean).includes(project.entity_id)) return { err: 'Forbidden', status: 403 };
+
+  const isSuperAdmin = profile.role === 'superadmin';
+  const isOwner = project.owner_id === userId || project.created_by === userId;
+
+  let isCollectiveMember = false;
+  if (!isSuperAdmin && !isOwner && project.collective_id) {
+    const { data: mem } = await admin.from('collective_members')
+      .select('user_id').eq('collective_id', project.collective_id).eq('user_id', userId).eq('status', 'active').maybeSingle();
+    isCollectiveMember = !!mem;
+  }
+
+  if (!isSuperAdmin && !isOwner && !isCollectiveMember) return { err: 'Forbidden', status: 403 };
   return { profile, admin, project };
 }
 
 export async function PATCH(request, { params }) {
   const { id: projectId, roomId } = await params;
-  const ctx = await getCtx(projectId);
+  const supabase = await createClient();
+  const { data: { user }, error } = await supabase.auth.getUser();
+  if (error || !user) return Response.json({ error: 'Unauthenticated' }, { status: 401 });
+
+  const ctx = await getCtx(projectId, user.id);
   if (ctx.err) return Response.json({ error: ctx.err }, { status: ctx.status });
 
   const body = await request.json();
@@ -32,29 +43,32 @@ export async function PATCH(request, { params }) {
   if ('quoted_amount_net' in update) update.quoted_amount_net = update.quoted_amount_net != null && update.quoted_amount_net !== '' ? Number(update.quoted_amount_net) : null;
   if ('work_types' in update && !Array.isArray(update.work_types)) update.work_types = [];
 
-  const { data, error } = await ctx.admin
-    .from('project_rooms')
-    .update(update)
-    .eq('id', roomId)
-    .eq('project_id', projectId)
-    .select()
-    .single();
+  const { data, error: updateErr } = await ctx.admin
+    .from('project_rooms').update(update).eq('id', roomId).eq('project_id', projectId).select().single();
 
-  if (error) return Response.json({ error: error.message }, { status: 400 });
+  if (updateErr) return Response.json({ error: updateErr.message }, { status: 400 });
   return Response.json({ room: data });
 }
 
 export async function DELETE(request, { params }) {
   const { id: projectId, roomId } = await params;
-  const ctx = await getCtx(projectId);
+  const supabase = await createClient();
+  const { data: { user }, error } = await supabase.auth.getUser();
+  if (error || !user) return Response.json({ error: 'Unauthenticated' }, { status: 401 });
+
+  const ctx = await getCtx(projectId, user.id);
   if (ctx.err) return Response.json({ error: ctx.err }, { status: ctx.status });
 
-  const { error } = await ctx.admin
-    .from('project_rooms')
-    .delete()
-    .eq('id', roomId)
-    .eq('project_id', projectId);
+  // Unassign all related entries before deleting the room (move to general/unassigned)
+  await Promise.all([
+    ctx.admin.from('invoices').update({ room_id: null }).eq('room_id', roomId),
+    ctx.admin.from('labour_entries').update({ room_id: null }).eq('room_id', roomId),
+    ctx.admin.from('invoice_splits').update({ room_id: null }).eq('room_id', roomId),
+  ]);
 
-  if (error) return Response.json({ error: error.message }, { status: 400 });
+  const { error: deleteErr } = await ctx.admin
+    .from('project_rooms').delete().eq('id', roomId).eq('project_id', projectId);
+
+  if (deleteErr) return Response.json({ error: deleteErr.message }, { status: 400 });
   return Response.json({ success: true });
 }

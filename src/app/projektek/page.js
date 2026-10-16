@@ -56,7 +56,7 @@ async function ProjectsListContent() {
   const [projectsRes, usersRes, clientsRes, quotesRes] = await Promise.all([
     isPersonal
       ? admin.from('projects').select('*').eq('owner_id', effectiveUserId).is('collective_id', null).order('created_at', { ascending: false })
-      : admin.from('projects').select('*').or(`collective_id.eq.${collectiveId},and(owner_id.eq.${effectiveUserId},collective_id.is.null)`).order('created_at', { ascending: false }),
+      : admin.from('projects').select('*').eq('collective_id', collectiveId).order('created_at', { ascending: false }),
     collectiveId
       ? admin.from('collective_members').select('user_id, role, profiles(id, display_name, email, role)').eq('collective_id', collectiveId).eq('status', 'active')
       : admin.from('profiles').select('id, display_name, email, role').eq('id', effectiveUserId),
@@ -64,7 +64,7 @@ async function ProjectsListContent() {
     admin.from('clients').select('*').eq('owner_id', effectiveUserId).order('name'),
     isPersonal
       ? admin.from('quotes').select('*').eq('owner_id', effectiveUserId).is('collective_id', null).order('created_at', { ascending: false })
-      : admin.from('quotes').select('*').or(`collective_id.eq.${collectiveId},and(owner_id.eq.${effectiveUserId},collective_id.is.null)`).order('created_at', { ascending: false }),
+      : admin.from('quotes').select('*').eq('collective_id', collectiveId).order('created_at', { ascending: false }),
   ]);
 
   const projects = projectsRes.data || [];

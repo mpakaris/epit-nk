@@ -8,7 +8,7 @@ import {
   Building2, LayoutDashboard, FolderKanban, Users, BookUser,
   FileText, Calendar, User, LogOut, KeyRound, ShieldAlert,
   ChevronLeft, ChevronRight, Eye, X, Menu, ClipboardList, Ruler, Lightbulb,
-  ChevronDown, Globe, ImageIcon
+  ChevronDown, Globe, ImageIcon, UsersRound,
 } from 'lucide-react';
 
 function buildNavItems(isSuperAdmin, isAdmin, impersonating, websiteUnread = 0) {
@@ -21,29 +21,25 @@ function buildNavItems(isSuperAdmin, isAdmin, impersonating, websiteUnread = 0) 
       { key: 'sa-keptar',     href: '/admin/keptar',            label: 'Image Lib', icon: ImageIcon },
     ];
   }
+  const commonNav = [
+    { href: '/dashboard',    label: 'Dashboard',    icon: LayoutDashboard, exact: true },
+    { href: '/felmeres',     label: 'Felmérések',   icon: Ruler },
+    { href: '/ajanlatok',    label: 'Ajánlatok',    icon: FileText },
+    { href: '/projektek',    label: 'Projektek',    icon: FolderKanban },
+    { href: '/kollektivak',  label: 'Kollektívák',  icon: UsersRound },
+    { href: '/naptar',       label: 'Naptár',       icon: Calendar },
+    { href: '/ugyfelek',     label: 'Ügyfelek',     icon: BookUser },
+    { href: '/otletek',      label: 'Ötletek',      icon: Lightbulb },
+    { divider: true, key: 'd1' },
+    { href: '/weboldalam',   label: 'Weboldalom',   icon: Globe, badge: websiteUnread },
+  ];
   if (isAdmin) {
     return [
-      { href: '/projektek',          label: 'Dashboard',    icon: LayoutDashboard, exact: true },
-      { href: '/felmeres',           label: 'Felmérések',   icon: Ruler },
-      { href: '/ajanlatok',          label: 'Ajánlatok',    icon: FileText },
-      { href: '/admin/projektek',    label: 'Projektek',    icon: FolderKanban },
-      { href: '/naptar',             label: 'Naptár',       icon: Calendar },
-      { href: '/ugyfelek',           label: 'Ügyfelek',     icon: BookUser },
-      { href: '/otletek',            label: 'Ötletek',      icon: Lightbulb },
-      { divider: true, key: 'd1' },
-      { href: '/weboldalam',         label: 'Weboldalom',   icon: Globe, badge: websiteUnread },
+      ...commonNav,
       { href: '/admin/felhasznalok', label: 'Felhasználók', icon: Users, exact: true },
     ];
   }
-  return [
-    { href: '/projektek',  label: 'Projektek',  icon: FolderKanban },
-    { href: '/felmeres',   label: 'Felmérések', icon: Ruler },
-    { href: '/ajanlatok',  label: 'Ajánlatok',  icon: FileText },
-    { href: '/naptar',     label: 'Naptár',     icon: Calendar },
-    { href: '/otletek',    label: 'Ötletek',    icon: Lightbulb },
-    { divider: true, key: 'd1' },
-    { href: '/weboldalam', label: 'Weboldalom', icon: Globe, badge: websiteUnread },
-  ];
+  return commonNav;
 }
 
 function isActive(item, pathname) {
@@ -59,6 +55,7 @@ export default function Sidebar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [headerVisible, setHeaderVisible] = useState(true);
   const [websiteUnread, setWebsiteUnread] = useState(0);
+  const [showWsTooltip, setShowWsTooltip] = useState(false);
   const lastScrollY = React.useRef(0);
 
   useEffect(() => {
@@ -149,6 +146,22 @@ export default function Sidebar() {
 
   const showContextSwitcher = activeMemberships.length > 1 && (impersonating || !isSuperAdmin);
 
+  useEffect(() => {
+    if (!showContextSwitcher) return;
+    // Establish 7-day window from first appearance
+    let first = localStorage.getItem('ws_tooltip_first');
+    if (!first) { first = Date.now().toString(); localStorage.setItem('ws_tooltip_first', first); }
+    const daysElapsed = (Date.now() - Number(first)) / 86400000;
+    if (daysElapsed > 7) return;
+    // Show every login session unless dismissed this session
+    if (!sessionStorage.getItem('ws_tooltip_dismissed')) setShowWsTooltip(true);
+  }, [showContextSwitcher]);
+
+  const dismissWsTooltip = () => {
+    sessionStorage.setItem('ws_tooltip_dismissed', '1');
+    setShowWsTooltip(false);
+  };
+
   const handleContextChange = (value) => {
     const collectiveId = value === '' ? null : value;
     if (impersonating) switchImpersonatingContext(collectiveId);
@@ -233,7 +246,21 @@ export default function Sidebar() {
         </div>
 
         {/* Context switcher */}
-        {!collapsed && <ContextSwitcher />}
+        {!collapsed && (
+          <div style={{ position: 'relative' }}>
+            <ContextSwitcher />
+            {showWsTooltip && (
+              <div style={{ position: 'absolute', top: 'calc(100% + 10px)', left: '0.75rem', right: '0.75rem', background: 'linear-gradient(135deg, #6366f1, #8b5cf6)', color: 'white', borderRadius: 'var(--radius-md)', padding: '0.65rem 0.75rem', fontSize: '0.78rem', lineHeight: 1.4, zIndex: 100, boxShadow: '0 4px 20px rgba(99,102,241,0.4)' }}>
+                <div style={{ position: 'absolute', top: -6, left: 20, width: 12, height: 12, background: '#6366f1', transform: 'rotate(45deg)', borderRadius: 2 }} />
+                <div style={{ fontWeight: 800, marginBottom: '0.3rem', fontSize: '0.82rem' }}>💡 Munkaterület váltó</div>
+                Váltsd a munkaterületet az összes adatod megtekintéséhez!
+                <button onClick={dismissWsTooltip} style={{ display: 'block', marginTop: '0.55rem', background: 'rgba(255,255,255,0.2)', border: '1px solid rgba(255,255,255,0.3)', color: 'white', borderRadius: 'var(--radius-sm)', padding: '0.3rem 0.6rem', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer', width: '100%' }}>
+                  Értettem ✓
+                </button>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* God mode section */}
         {impersonating && (
@@ -304,9 +331,26 @@ export default function Sidebar() {
           {!collapsed && (
             <div className="sidebar-user-info">
               <span className="sidebar-user-name">{currentUser.display_name}</span>
-              <span className="sidebar-user-role">
-                {currentUser.role === 'superadmin' ? 'Superadmin' : currentUser.role === 'admin' ? 'Admin' : 'Member'}
-              </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginTop: '0.15rem' }}>
+                <span className="sidebar-user-role">
+                  {currentUser.role === 'superadmin' ? 'Superadmin' : currentUser.role === 'admin' ? 'Admin' : 'Tag'}
+                </span>
+                {!isSuperAdmin && (
+                  <Link
+                    href="/elofizetes"
+                    style={{
+                      fontSize: '0.62rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.04em',
+                      padding: '0.1rem 0.45rem', borderRadius: 'var(--radius-pill)', textDecoration: 'none',
+                      ...(currentUser.is_subscription_premium
+                        ? { background: '#fef9c3', color: '#854d0e', border: '1px solid #fde047' }
+                        : { background: 'var(--bg-subtle)', color: 'var(--text-muted)', border: '1px solid var(--border-subtle)' }
+                      )
+                    }}
+                  >
+                    {currentUser.is_subscription_premium ? '⭐ Prémium' : 'Bázis'}
+                  </Link>
+                )}
+              </div>
             </div>
           )}
           <div className="sidebar-user-actions">
@@ -317,21 +361,29 @@ export default function Sidebar() {
 
       {/* ===== MOBILE HEADER ===== */}
       <header className="mobile-header" style={{ transform: headerVisible ? 'translateY(0)' : 'translateY(-100%)', transition: 'transform 0.25s ease' }}>
-        <Link href={homeHref} className="sidebar-brand">
-          <div className="sidebar-brand-icon"><Building2 size={16} /></div>
-          <span>Epitünk</span>
+        <Link href={homeHref} className="sidebar-brand-icon" style={{ flexShrink: 0 }}>
+          <Building2 size={18} />
         </Link>
 
-        {impersonating && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.75rem', fontWeight: 700, color: '#7c3aed' }}>
-            <Eye size={13} />
-            <span style={{ maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {impersonating.display_name}
-            </span>
+        {showContextSwitcher && (
+          <div style={{ position: 'relative', flex: 1, minWidth: 0 }}>
+            <ContextSwitcher />
+            {showWsTooltip && (
+              <div style={{ position: 'absolute', top: 'calc(100% + 10px)', left: 0, right: 0, background: 'linear-gradient(135deg, #6366f1, #8b5cf6)', color: 'white', borderRadius: 'var(--radius-md)', padding: '0.65rem 0.75rem', fontSize: '0.78rem', lineHeight: 1.4, zIndex: 200, boxShadow: '0 4px 20px rgba(99,102,241,0.4)' }}>
+                <div style={{ position: 'absolute', top: -6, left: 16, width: 12, height: 12, background: '#6366f1', transform: 'rotate(45deg)', borderRadius: 2 }} />
+                <div style={{ fontWeight: 800, marginBottom: '0.3rem', fontSize: '0.82rem' }}>💡 Munkaterület váltó</div>
+                Váltsd a munkaterületet az összes adatod megtekintéséhez!
+                <button onClick={dismissWsTooltip} style={{ display: 'block', marginTop: '0.55rem', background: 'rgba(255,255,255,0.2)', border: '1px solid rgba(255,255,255,0.3)', color: 'white', borderRadius: 'var(--radius-sm)', padding: '0.3rem 0.6rem', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer', width: '100%' }}>
+                  Értettem ✓
+                </button>
+              </div>
+            )}
           </div>
         )}
 
-        <button type="button" className="mobile-menu-btn" onClick={() => setMobileOpen(true)} aria-label="Menü">
+        {impersonating && <Eye size={15} style={{ flexShrink: 0, color: '#7c3aed' }} />}
+
+        <button type="button" className="mobile-menu-btn" onClick={() => setMobileOpen(true)} aria-label="Menü" style={{ flexShrink: 0 }}>
           <Menu size={20} />
         </button>
       </header>
@@ -364,12 +416,6 @@ export default function Sidebar() {
                 >
                   <X size={11} /> Kilépés
                 </button>
-              </div>
-            )}
-
-            {showContextSwitcher && (
-              <div style={{ padding: '0.5rem 0.75rem 0' }}>
-                <ContextSwitcher />
               </div>
             )}
 

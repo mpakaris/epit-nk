@@ -16,7 +16,7 @@ import {
   Edit3, UserCheck, CalendarDays, BookUser, BarChart3, ShieldCheck,
   Phone, Mail, MapPin, ChevronUp, Link2, Copy, Check, AlertCircle, Lock, Eye,
   ChevronLeft, ChevronRight, X, Play, ZoomIn, FileText, Ruler, Home, Calendar, User,
-  Sparkles, Loader2, Settings, ChevronDown
+  Sparkles, Loader2, Settings, ChevronDown, Download
 } from 'lucide-react';
 
 function MediaLightbox({ media, startIndex, onClose }) {
@@ -173,7 +173,7 @@ const WORK_TYPES = [
 
 const MAX_PHOTOS = 10;
 
-function EditDiaryEntryModal({ isOpen, onClose, entry, onSave, onDeletePhoto }) {
+function EditDiaryEntryModal({ isOpen, onClose, entry, onSave, onDeletePhoto, rooms = [] }) {
   const [title, setTitle] = React.useState('');
   const [entryDate, setEntryDate] = React.useState('');
   const [workType, setWorkType] = React.useState('');
@@ -181,6 +181,7 @@ function EditDiaryEntryModal({ isOpen, onClose, entry, onSave, onDeletePhoto }) 
   const [internalNote, setInternalNote] = React.useState('');
   const [clientNote, setClientNote] = React.useState('');
   const [isPublic, setIsPublic] = React.useState(false);
+  const [roomId, setRoomId] = React.useState('');
   const [saving, setSaving] = React.useState(false);
   const [error, setError] = React.useState('');
   const [deletingPhotoId, setDeletingPhotoId] = React.useState(null);
@@ -201,6 +202,7 @@ function EditDiaryEntryModal({ isOpen, onClose, entry, onSave, onDeletePhoto }) 
       setInternalNote(entry.internal_note || '');
       setClientNote(entry.client_note || '');
       setIsPublic(Boolean(entry.is_public));
+      setRoomId(entry.room_id || '');
       setError('');
       setPendingFiles([]);
       setPendingPreviews([]);
@@ -255,7 +257,7 @@ function EditDiaryEntryModal({ isOpen, onClose, entry, onSave, onDeletePhoto }) 
     try {
       await onSave(
         entry.id,
-        { title: title.trim(), body: body.trim() || null, work_type: workType.trim() || null, internal_note: internalNote.trim() || null, client_note: clientNote.trim() || null, entry_date: entryDate || undefined, is_public: isPublic },
+        { title: title.trim(), body: body.trim() || null, work_type: workType.trim() || null, internal_note: internalNote.trim() || null, client_note: clientNote.trim() || null, entry_date: entryDate || undefined, is_public: isPublic, room_id: roomId || null },
         pendingFiles,
       );
       onClose();
@@ -286,6 +288,17 @@ function EditDiaryEntryModal({ isOpen, onClose, entry, onSave, onDeletePhoto }) 
             <datalist id="edit-work-types">{WORK_TYPES.map(t => <option key={t} value={t} />)}</datalist>
           </div>
         </div>
+
+        {/* Room selector */}
+        {rooms.length > 0 && (
+          <div className="form-group" style={{ marginTop: '0.75rem', marginBottom: 0 }}>
+            <label className="form-label">Szekció</label>
+            <select className="form-control" value={roomId} onChange={e => setRoomId(e.target.value)}>
+              <option value="">– Általános (szekció nélkül) –</option>
+              {rooms.map(r => <option key={r.id} value={r.id}>{r.name}{r.size_m2 ? ` (${r.size_m2} m²)` : ''}</option>)}
+            </select>
+          </div>
+        )}
 
         {/* Title */}
         <div className="form-group" style={{ marginTop: '0.75rem' }}>
@@ -419,13 +432,14 @@ function EditDiaryEntryModal({ isOpen, onClose, entry, onSave, onDeletePhoto }) 
 
 const LABOUR_UNITS = ['h', 'nap', 'm²', 'm³', 'm', 'fm', 'db', 'l', 'kg'];
 
-function LabourEditModal({ entry, onClose, onSave }) {
+function LabourEditModal({ entry, onClose, onSave, rooms = [] }) {
   const [labourType, setLabourType] = React.useState('');
   const [date, setDate] = React.useState('');
   const [hours, setHours] = React.useState('');
   const [unit, setUnit] = React.useState('h');
   const [hourlyRate, setHourlyRate] = React.useState('');
   const [description, setDescription] = React.useState('');
+  const [roomId, setRoomId] = React.useState('');
   const [saving, setSaving] = React.useState(false);
   const [err, setErr] = React.useState('');
 
@@ -437,6 +451,7 @@ function LabourEditModal({ entry, onClose, onSave }) {
       setUnit(entry.unit || 'h');
       setHourlyRate(entry.hourly_rate != null ? String(entry.hourly_rate) : '');
       setDescription(entry.description || '');
+      setRoomId(entry.room_id || '');
       setErr('');
     }
   }, [entry?.id]);
@@ -449,7 +464,7 @@ function LabourEditModal({ entry, onClose, onSave }) {
     setSaving(true);
     setErr('');
     try {
-      await onSave({ labour_type: labourType.trim(), date, hours: parseFloat(hours), hourly_rate: parseInt(hourlyRate, 10), unit, description: description.trim() || null });
+      await onSave({ labour_type: labourType.trim(), date, hours: parseFloat(hours), hourly_rate: parseInt(hourlyRate, 10), unit, description: description.trim() || null, room_id: roomId || null });
     } catch (error) {
       setErr(error.message || 'Hiba a mentésnél');
       setSaving(false);
@@ -491,11 +506,20 @@ function LabourEditModal({ entry, onClose, onSave }) {
             Munkadíj: {hours} {unit} × {formatHUF(parseInt(hourlyRate, 10) || 0)} = {formatHUF(preview)}
           </div>
         )}
-        <div className="form-group" style={{ marginTop: '0.75rem', marginBottom: '1.25rem' }}>
+        <div className="form-group" style={{ marginTop: '0.75rem', marginBottom: 0 }}>
           <label className="form-label">Megjegyzés</label>
           <textarea rows={2} className="form-control" value={description} onChange={e => setDescription(e.target.value)} />
         </div>
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+        {rooms.length > 0 && (
+          <div className="form-group" style={{ marginTop: '0.75rem', marginBottom: 0 }}>
+            <label className="form-label">Szekció (opcionális)</label>
+            <select className="form-control" value={roomId} onChange={e => setRoomId(e.target.value)}>
+              <option value="">– Általános (szekció nélkül) –</option>
+              {rooms.map(r => <option key={r.id} value={r.id}>{r.name}{r.size_m2 ? ` (${r.size_m2} m²)` : ''}</option>)}
+            </select>
+          </div>
+        )}
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '1.25rem' }}>
           <button type="button" className="btn btn-secondary btn-sm" onClick={onClose} disabled={saving}>Mégse</button>
           <button type="submit" className="btn btn-primary btn-sm" disabled={saving}>{saving ? 'Mentés...' : 'Mentés'}</button>
         </div>
@@ -1044,6 +1068,279 @@ function PaymentPlanModal({ isOpen, onClose, onSave, editItem, itemCount }) {
   );
 }
 
+function WorkTypeSelector({ selected, onChange }) {
+  const [custom, setCustom] = React.useState('');
+  const toggle = (type) => onChange(selected.includes(type) ? selected.filter(t => t !== type) : [...selected, type]);
+  const addCustom = () => {
+    const v = custom.trim();
+    if (!v || selected.includes(v)) { setCustom(''); return; }
+    onChange([...selected, v]);
+    setCustom('');
+  };
+  return (
+    <div>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem', marginBottom: '0.5rem' }}>
+        {WORK_TYPES.map(type => (
+          <button key={type} type="button" onClick={() => toggle(type)} style={{ padding: '0.2rem 0.65rem', borderRadius: 'var(--radius-pill)', border: selected.includes(type) ? '1.5px solid var(--accent)' : '1px solid var(--border-subtle)', background: selected.includes(type) ? 'var(--accent-light)' : 'var(--bg-subtle)', color: selected.includes(type) ? 'var(--accent)' : 'var(--text-secondary)', fontWeight: selected.includes(type) ? 700 : 500, fontSize: '0.78rem', cursor: 'pointer' }}>{type}</button>
+        ))}
+      </div>
+      {selected.filter(t => !WORK_TYPES.includes(t)).map(t => (
+        <span key={t} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', padding: '0.2rem 0.55rem', borderRadius: 'var(--radius-pill)', background: 'var(--accent-light)', border: '1.5px solid var(--accent)', color: 'var(--accent)', fontWeight: 700, fontSize: '0.78rem', marginRight: '0.35rem', marginBottom: '0.35rem' }}>
+          {t}<button type="button" onClick={() => onChange(selected.filter(x => x !== t))} style={{ border: 'none', background: 'none', cursor: 'pointer', color: 'var(--accent)', padding: 0, display: 'flex' }}><X size={11} /></button>
+        </span>
+      ))}
+      <div style={{ display: 'flex', gap: '0.4rem', marginTop: '0.35rem' }}>
+        <input type="text" className="form-control" placeholder="Egyéni típus..." value={custom} onChange={e => setCustom(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addCustom(); } }} style={{ flex: 1, fontSize: '0.82rem' }} />
+        <button type="button" className="btn btn-secondary btn-sm" onClick={addCustom} disabled={!custom.trim()}>Hozzáad</button>
+      </div>
+    </div>
+  );
+}
+
+function RoomModal({ isOpen, onClose, room, onSave }) {
+  const [name, setName] = React.useState('');
+  const [sizeM2, setSizeM2] = React.useState('');
+  const [workTypes, setWorkTypes] = React.useState([]);
+  const [description, setDescription] = React.useState('');
+  const [saving, setSaving] = React.useState(false);
+  const [error, setError] = React.useState('');
+
+  React.useEffect(() => {
+    if (isOpen) {
+      setName(room?.name || '');
+      setSizeM2(room?.size_m2 != null ? String(room.size_m2) : '');
+      setWorkTypes(room?.work_types || []);
+      setDescription(room?.description || '');
+      setError('');
+    }
+  }, [isOpen, room?.id]);
+
+  if (!isOpen) return null;
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!name.trim()) { setError('A szekció neve kötelező'); return; }
+    setSaving(true); setError('');
+    try {
+      await onSave({ name: name.trim(), size_m2: sizeM2 !== '' ? Number(sizeM2) : null, work_types: workTypes, description: description.trim() || null });
+      onClose();
+    } catch (err) { setError(err.message || 'Hiba a mentésnél'); }
+    finally { setSaving(false); }
+  };
+
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} title={room ? 'Szekció szerkesztése' : 'Új szekció'}>
+      {error && <div style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', color: 'var(--danger-text)', padding: '0.65rem', borderRadius: 'var(--radius-md)', fontSize: '0.825rem', marginBottom: '0.85rem' }}>{error}</div>}
+      <form onSubmit={handleSubmit}>
+        <div className="form-group">
+          <label className="form-label">Szekció neve *</label>
+          <input type="text" required className="form-control" value={name} onChange={e => setName(e.target.value)} placeholder="pl. Konyha, Garázs, Kert..." autoFocus />
+        </div>
+        <div className="form-group">
+          <label className="form-label">Terület (m²)</label>
+          <input type="number" min="0" step="0.1" className="form-control" value={sizeM2} onChange={e => setSizeM2(e.target.value)} placeholder="pl. 18.5" />
+        </div>
+        <div className="form-group">
+          <label className="form-label">Munkák típusai</label>
+          <WorkTypeSelector selected={workTypes} onChange={setWorkTypes} />
+        </div>
+        <div className="form-group" style={{ marginBottom: '1.25rem' }}>
+          <label className="form-label">Leírás / Megjegyzés</label>
+          <textarea rows={2} className="form-control" value={description} onChange={e => setDescription(e.target.value)} />
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+          <button type="button" className="btn btn-secondary btn-sm" onClick={onClose} disabled={saving}>Mégse</button>
+          <button type="submit" className="btn btn-primary btn-sm" disabled={saving}>{saving ? 'Mentés...' : 'Mentés'}</button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+const nextDay = (d) => { const dt = new Date(d); dt.setDate(dt.getDate() + 1); return dt.toISOString().split('T')[0]; };
+const todayStr = () => new Date().toISOString().split('T')[0];
+
+function ProjectEditModal({ isOpen, onClose, project, clients, onSave, onCreateClient, collectives, activeCollectiveId, onMove }) {
+  const [name, setName] = React.useState('');
+  const [desc, setDesc] = React.useState('');
+  const [startDate, setStartDate] = React.useState('');
+  const [endDate, setEndDate] = React.useState('');
+  const [clientId, setClientId] = React.useState('');
+  const [saving, setSaving] = React.useState(false);
+  const [error, setError] = React.useState('');
+
+  const [showNewClient, setShowNewClient] = React.useState(false);
+  const [newClientName, setNewClientName] = React.useState('');
+  const [newClientPhone, setNewClientPhone] = React.useState('');
+  const [newClientEmail, setNewClientEmail] = React.useState('');
+  const [newClientAddress, setNewClientAddress] = React.useState('');
+  const [newClientError, setNewClientError] = React.useState('');
+  const [creatingClient, setCreatingClient] = React.useState(false);
+
+  const [moveTarget, setMoveTarget] = React.useState('');
+  const [moveConfirm, setMoveConfirm] = React.useState(false);
+  const [moving, setMoving] = React.useState(false);
+  const [moveError, setMoveError] = React.useState('');
+  const [moveDone, setMoveDone] = React.useState(null);
+
+  React.useEffect(() => {
+    if (isOpen && project) {
+      setName(project.name || '');
+      setDesc(project.description || '');
+      setStartDate(project.start_date || '');
+      setEndDate(project.end_date || '');
+      setClientId(project.client_id || '');
+      setError('');
+      setShowNewClient(false);
+      setMoveTarget(''); setMoveConfirm(false); setMoveDone(null); setMoveError('');
+    }
+  }, [isOpen, project?.id]);
+
+  const handleSave = async (e) => {
+    e.preventDefault();
+    setSaving(true); setError('');
+    try {
+      await onSave({ name: name.trim(), description: desc.trim() || null, start_date: startDate || null, end_date: endDate || null, client_id: clientId || null });
+      onClose();
+    } catch (err) {
+      setError(err.message || 'Hiba a mentésnél');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleCreateClient = async (e) => {
+    e.preventDefault();
+    if (!newClientName.trim()) { setNewClientError('A név megadása kötelező!'); return; }
+    setCreatingClient(true); setNewClientError('');
+    try {
+      const c = await onCreateClient({ name: newClientName.trim(), phone: newClientPhone.trim(), email: newClientEmail.trim(), address: newClientAddress.trim() });
+      setClientId(c.id);
+      setShowNewClient(false);
+      setNewClientName(''); setNewClientPhone(''); setNewClientEmail(''); setNewClientAddress('');
+    } catch (err) {
+      setNewClientError(err.message || 'Hiba az ügyfél létrehozásakor');
+    } finally {
+      setCreatingClient(false);
+    }
+  };
+
+  const handleMove = async () => {
+    if (!moveTarget) return;
+    setMoving(true); setMoveError('');
+    try {
+      await onMove(moveTarget);
+      const name = collectives.find(c => c.collective_id === moveTarget)?.name || 'Kollektíva';
+      setMoveDone({ collectiveId: moveTarget, name });
+      setMoveConfirm(false);
+    } catch (err) {
+      setMoveError(err.message || 'Hiba az áthelyezéskor');
+    } finally {
+      setMoving(false);
+    }
+  };
+
+  const selectedClient = (clients || []).find(c => c.id === clientId);
+  const showMoveCard = !activeCollectiveId && !project?.collective_id && collectives?.length > 0;
+
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} title="Projekt szerkesztése">
+      {error && <div style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', color: 'var(--danger-text)', padding: '0.65rem', borderRadius: 'var(--radius-md)', fontSize: '0.825rem', display: 'flex', gap: '0.45rem', marginBottom: '0.85rem' }}><AlertCircle size={15} /><span>{error}</span></div>}
+      <form onSubmit={handleSave}>
+        <div className="form-group">
+          <label className="form-label">Projekt neve *</label>
+          <input type="text" required className="form-control" value={name} onChange={e => setName(e.target.value)} />
+        </div>
+        <div className="form-group">
+          <label className="form-label">Leírás</label>
+          <textarea rows={2} className="form-control" value={desc} onChange={e => setDesc(e.target.value)} />
+        </div>
+        <div className="grid-2col">
+          <div className="form-group" style={{ marginBottom: 0 }}>
+            <label className="form-label">Kezdés</label>
+            <input type="date" className="form-control" value={startDate} onChange={e => { const v = e.target.value; setStartDate(v); if (v && (!endDate || endDate <= v)) setEndDate(nextDay(v)); }} />
+          </div>
+          <div className="form-group" style={{ marginBottom: 0 }}>
+            <label className="form-label">Befejezés</label>
+            <input type="date" className="form-control" min={startDate ? nextDay(startDate) : todayStr()} value={endDate} onChange={e => setEndDate(e.target.value)} />
+          </div>
+        </div>
+        <div className="form-group" style={{ marginTop: '0.75rem' }}>
+          <label className="form-label">Megrendelő</label>
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+            <select className="form-control" value={clientId} onChange={e => setClientId(e.target.value)} style={{ flex: 1 }}>
+              <option value="">– Ügyfél nélkül –</option>
+              {(clients || []).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+            <button type="button" className="btn btn-secondary btn-sm" style={{ whiteSpace: 'nowrap', flexShrink: 0 }} onClick={() => setShowNewClient(v => !v)}>
+              {showNewClient ? <ChevronUp size={14} /> : <Plus size={14} />}
+              {showNewClient ? 'Bezár' : 'Új ügyfél'}
+            </button>
+          </div>
+          {selectedClient && !showNewClient && (
+            <div style={{ marginTop: '0.4rem', fontSize: '0.78rem', color: 'var(--accent)', fontWeight: 600 }}>
+              {selectedClient.phone && `${selectedClient.phone} · `}{selectedClient.email}
+            </div>
+          )}
+        </div>
+
+        {showNewClient && (
+          <div style={{ border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: '0.85rem', marginBottom: '0.75rem', background: 'var(--bg-subtle)' }}>
+            <div style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '0.65rem' }}>Új ügyfél</div>
+            {newClientError && <div style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', color: 'var(--danger-text)', padding: '0.5rem 0.65rem', borderRadius: 'var(--radius-md)', fontSize: '0.8rem', marginBottom: '0.65rem' }}>{newClientError}</div>}
+            <div className="form-group"><label className="form-label">Név *</label><input type="text" className="form-control" value={newClientName} onChange={e => setNewClientName(e.target.value)} placeholder="pl. Horváth Béla" /></div>
+            <div className="grid-2col">
+              <div className="form-group" style={{ margin: 0 }}><label className="form-label">Telefon</label><input type="tel" className="form-control" value={newClientPhone} onChange={e => setNewClientPhone(e.target.value)} /></div>
+              <div className="form-group" style={{ margin: 0 }}><label className="form-label">E-mail</label><input type="email" className="form-control" value={newClientEmail} onChange={e => setNewClientEmail(e.target.value)} /></div>
+            </div>
+            <div className="form-group" style={{ marginTop: '0.65rem', marginBottom: '0.65rem' }}><label className="form-label">Cím</label><input type="text" className="form-control" value={newClientAddress} onChange={e => setNewClientAddress(e.target.value)} /></div>
+            <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+              <button type="button" className="btn btn-secondary btn-sm" onClick={() => { setShowNewClient(false); setNewClientError(''); }}>Mégse</button>
+              <button type="button" className="btn btn-primary btn-sm" disabled={creatingClient} onClick={handleCreateClient}>{creatingClient ? 'Létrehozás...' : 'Ügyfél létrehozása'}</button>
+            </div>
+          </div>
+        )}
+
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '0.5rem' }}>
+          <button type="submit" className="btn btn-primary btn-sm" disabled={saving}>{saving ? 'Mentés...' : 'Adatok mentése'}</button>
+        </div>
+      </form>
+
+      {showMoveCard && (
+        <div style={{ marginTop: '1.25rem', borderTop: '1px solid var(--border-subtle)', paddingTop: '1.25rem' }}>
+          <div style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '0.75rem' }}>Projekt áthelyezése kollektívába</div>
+          {moveDone ? (
+            <div style={{ background: 'var(--success-bg)', border: '1px solid var(--success-border)', color: 'var(--success-text)', padding: '0.75rem 1rem', borderRadius: 'var(--radius-md)', fontSize: '0.875rem', fontWeight: 600 }}>
+              <Check size={14} style={{ verticalAlign: 'middle', marginRight: '0.35rem' }} />Áthelyezve: <strong>{moveDone.name}</strong>
+            </div>
+          ) : (
+            <>
+              <select className="form-control" value={moveTarget} onChange={e => { setMoveTarget(e.target.value); setMoveConfirm(false); }} style={{ marginBottom: '0.65rem' }}>
+                <option value="">– Válassz kollektívát –</option>
+                {collectives.map(c => <option key={c.collective_id} value={c.collective_id}>{c.name}</option>)}
+              </select>
+              {moveTarget && !moveConfirm && (
+                <button type="button" className="btn btn-secondary btn-sm" onClick={() => setMoveConfirm(true)}>Áthelyezés</button>
+              )}
+              {moveConfirm && (
+                <div style={{ background: 'var(--warning-bg)', border: '1px solid var(--warning-border)', borderRadius: 'var(--radius-md)', padding: '0.85rem' }}>
+                  <div style={{ fontWeight: 700, marginBottom: '0.4rem', color: 'var(--warning-text)', fontSize: '0.875rem' }}>Figyelem!</div>
+                  <p style={{ fontSize: '0.85rem', marginBottom: '0.65rem', color: 'var(--text-primary)' }}>A projekt adatai az összes kollektíva tag számára láthatóvá válnak. <strong>Ez a lépés nem vonható vissza.</strong></p>
+                  {moveError && <div style={{ color: 'var(--danger-text)', fontSize: '0.82rem', marginBottom: '0.5rem' }}>{moveError}</div>}
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <button type="button" className="btn btn-secondary btn-sm" onClick={() => setMoveConfirm(false)} disabled={moving}>Mégse</button>
+                    <button type="button" className="btn btn-danger btn-sm" onClick={handleMove} disabled={moving}>{moving ? 'Áthelyezés...' : 'Igen, áthelyezem'}</button>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
+    </Modal>
+  );
+}
+
 export default function ProjectDetailClient({
   project,
   initialUsers,
@@ -1078,19 +1375,31 @@ export default function ProjectDetailClient({
     uploadDiaryPhotos,
     projectRooms: ctxProjectRooms,
     syncRoomsFromQuote,
+    createProjectRoom,
+    updateProjectRoom,
+    deleteProjectRoom,
+    quoteSections,
+    activeCollectiveId,
+    loading: ctxLoading,
+    updateProject,
+    createClient,
+    clients: ctxClients,
+    collectives,
   } = useApp();
 
-  // Prefer context rooms (updated after sync) over initial server-side rooms
   const projectRooms = React.useMemo(() => {
+    const sort = arr => [...arr].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0) || (a.created_at || '').localeCompare(b.created_at || ''));
     const ctx = (ctxProjectRooms || []).filter(r => r.project_id === project.id);
-    // Merge server + context: context wins for same id (captures mutations), server fills the rest
+    // Once context has loaded, use it as the sole source of truth so deletions are reflected immediately.
+    // Before context loads, merge with initialRooms (server-side prop) to avoid flash of empty content.
+    if (!ctxLoading) return sort(ctx);
     const ctxById = Object.fromEntries(ctx.map(r => [r.id, r]));
     const serverById = Object.fromEntries(initialRooms.map(r => [r.id, r]));
     const allIds = new Set([...Object.keys(serverById), ...Object.keys(ctxById)]);
-    const merged = Array.from(allIds).map(id => ctxById[id] || serverById[id]);
-    return merged.sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0) || (a.created_at || '').localeCompare(b.created_at || ''));
-  }, [ctxProjectRooms, initialRooms, project.id]);
+    return sort(Array.from(allIds).map(id => ctxById[id] || serverById[id]));
+  }, [ctxProjectRooms, initialRooms, project.id, ctxLoading]);
 
+  const [editProjectOpen, setEditProjectOpen] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState('ALL');
   const [uploaderFilter, setUploaderFilter] = useState('ALL');
   const [labourUploaderFilter, setLabourUploaderFilter] = useState('ALL');
@@ -1106,6 +1415,8 @@ export default function ProjectDetailClient({
   const [detailInvoice, setDetailInvoice] = useState(null);
   const [roomFilter, setRoomFilter] = useState('ALL');
   const [syncing, setSyncing] = useState(false);
+  const [roomModalOpen, setRoomModalOpen] = useState(false);
+  const [editingRoom, setEditingRoom] = useState(null);
   const [invoiceSplits, setInvoiceSplits] = useState(initialInvoiceSplits);
   const [paymentPlan, setPaymentPlan] = useState(
     initialPaymentPlan.map(item => ({ ...item, files: item.payment_item_files || [] }))
@@ -1296,6 +1607,41 @@ export default function ProjectDetailClient({
     syncRoomsFromQuote(project.id).catch(() => {});
   }, [isAdmin, project.id]);
 
+  // Room management
+  const linkedQuoteForRooms = (quotes || []).find(q => q.project_id === project.id);
+  const unimportedSections = linkedQuoteForRooms
+    ? (quoteSections || []).filter(s => s.quote_id === linkedQuoteForRooms.id && !projectRooms.some(r => r.source_section_id === s.id))
+    : [];
+
+  const handleSaveRoom = async (fields) => {
+    if (editingRoom) {
+      await updateProjectRoom(project.id, editingRoom.id, fields);
+    } else {
+      await createProjectRoom(project.id, { ...fields, sort_order: projectRooms.length });
+    }
+  };
+
+  const handleDeleteRoom = (room) => {
+    const invCount = (fin.projectInvoices || []).filter(i => i.room_id === room.id).length;
+    const labCount = (fin.projectLabour || []).filter(l => l.room_id === room.id).length;
+    const hasEntries = invCount > 0 || labCount > 0;
+    const entryNote = hasEntries
+      ? ` (${[invCount > 0 ? `${invCount} számla` : '', labCount > 0 ? `${labCount} munkabejegyzés` : ''].filter(Boolean).join(', ')} szekció nélkülivé válik)`
+      : '';
+    setConfirmModal({
+      message: `Biztosan törölni kívánja a(z) "${room.name}" szekciót?${entryNote}`,
+      onConfirm: async () => {
+        try { await deleteProjectRoom(project.id, room.id); } catch (err) { setAlertModal({ message: err.message }); }
+        setConfirmModal(null);
+      },
+    });
+  };
+
+  const handleSyncRooms = async () => {
+    setSyncing(true);
+    try { await syncRoomsFromQuote(project.id); } catch (err) { setAlertModal({ message: err.message }); } finally { setSyncing(false); }
+  };
+
   const fmt = (d) => d ? new Date(d).toLocaleDateString('hu-HU', { year: 'numeric', month: 'short', day: 'numeric' }) : null;
 
   return (
@@ -1347,15 +1693,15 @@ export default function ProjectDetailClient({
 
                 {showOptionsMenu && (
                   <div style={{ position: 'absolute', top: 'calc(100% + 6px)', right: 0, background: 'var(--bg-card, #fff)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', boxShadow: '0 6px 24px rgba(0,0,0,0.12)', zIndex: 200, minWidth: '170px', padding: '0.3rem', overflow: 'hidden' }}>
-                    <Link
-                      href={`/projektek/${project.id}/szerkesztes`}
-                      onClick={() => setShowOptionsMenu(false)}
-                      style={{ display: 'flex', alignItems: 'center', gap: '0.55rem', padding: '0.55rem 0.75rem', borderRadius: 'var(--radius-sm)', color: 'var(--text-primary)', fontSize: '0.875rem', fontWeight: 600, textDecoration: 'none' }}
+                    <button
+                      type="button"
+                      onClick={() => { setShowOptionsMenu(false); setEditProjectOpen(true); }}
+                      style={{ display: 'flex', width: '100%', alignItems: 'center', gap: '0.55rem', padding: '0.55rem 0.75rem', borderRadius: 'var(--radius-sm)', background: 'none', border: 'none', color: 'var(--text-primary)', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', textAlign: 'left' }}
                       onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-subtle)'}
                       onMouseLeave={e => e.currentTarget.style.background = ''}
                     >
                       <Edit3 size={14} color="var(--text-muted)" /> Szerkesztés
-                    </Link>
+                    </button>
 
                     <button
                       type="button"
@@ -1454,7 +1800,7 @@ export default function ProjectDetailClient({
       </div>
 
       {/* Sections */}
-      {projectRooms.length > 0 && (() => {
+      {(() => {
         // Invoices that have splits — their cost is tracked via splits, not room_id
         const invoicesWithSplits = new Set(invoiceSplits.map(s => s.invoice_id));
         // Split totals per room
@@ -1483,9 +1829,28 @@ export default function ProjectDetailClient({
         };
         return (
           <div style={{ marginBottom: '0.85rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
-              <Ruler size={13} /> Szekciók
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)' }}>
+                <Ruler size={13} /> Szekciók ({projectRooms.length})
+              </div>
+              <div style={{ display: 'flex', gap: '0.4rem' }}>
+                {unimportedSections.length > 0 && (
+                  <button type="button" className="btn btn-secondary btn-sm" onClick={handleSyncRooms} disabled={syncing} style={{ fontSize: '0.75rem' }}>
+                    {syncing ? <Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> : <Download size={13} />}
+                    Import ({unimportedSections.length})
+                  </button>
+                )}
+                <button type="button" className="btn btn-primary btn-sm" style={{ fontSize: '0.75rem' }} onClick={() => { setEditingRoom(null); setRoomModalOpen(true); }}>
+                  <Plus size={13} /> Új szekció
+                </button>
+              </div>
             </div>
+            {projectRooms.length === 0 && (
+              <div style={{ textAlign: 'center', padding: '1.5rem 1rem', color: 'var(--text-muted)', fontSize: '0.85rem', borderRadius: 'var(--radius-md)', background: 'var(--bg-subtle)' }}>
+                <Home size={24} style={{ margin: '0 auto 0.35rem', display: 'block', opacity: 0.4 }} />
+                Még nincsenek szekciók. Adj hozzá egyet, vagy importáld az ajánlatból.
+              </div>
+            )}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(280px, 100%), 1fr))', gap: '0.65rem' }}>
               {projectRooms.map(room => {
                 const actual = roomCost(room.id);
@@ -1532,6 +1897,14 @@ export default function ProjectDetailClient({
                         {labCount > 0 && <span>{labCount} munka</span>}
                       </div>
                     )}
+                    <div style={{ display: 'flex', gap: '0.3rem', marginTop: '0.5rem', borderTop: '1px solid var(--border-subtle)', paddingTop: '0.5rem' }}>
+                      <button type="button" className="btn btn-secondary btn-sm" style={{ padding: '0.2rem 0.45rem', fontSize: '0.72rem' }} onClick={() => { setEditingRoom(room); setRoomModalOpen(true); }}>
+                        <Edit3 size={11} /> Szerkesztés
+                      </button>
+                      <button type="button" className="btn btn-danger btn-sm" style={{ padding: '0.2rem 0.45rem', fontSize: '0.72rem' }} onClick={() => handleDeleteRoom(room)}>
+                        <Trash2 size={11} /> Törlés
+                      </button>
+                    </div>
                   </div>
                 );
               })}
@@ -1613,18 +1986,28 @@ export default function ProjectDetailClient({
       <div className="stat-grid" style={{ marginBottom: '1.5rem' }}>
         <StatCard label="Összes kiadás" value={formatHUF(fin.totalCost)} sub={`${fin.projectInvoices.length} db számla`} icon={Coins} />
         <StatCard label="Munkadíj összesen" value={formatHUF(fin.totalLabourValue)} sub={`${fin.projectLabour.length} bejegyzés`} icon={Hammer} />
-        <StatCard label="Általad kifizetve" value={formatHUF(fin.ownPaid)} sub="Az Ön számlái" icon={Receipt} />
-        <div className={`stat-card ${fin.balance > 0 ? 'success' : fin.balance < 0 ? 'danger' : ''}`}>
-          <div className="stat-label">Összesített egyenleg</div>
-          <div className="stat-value" style={{ color: fin.balance > 0 ? 'var(--success-text)' : fin.balance < 0 ? 'var(--danger-text)' : 'var(--text-primary)' }}>
-            {fin.balance > 0 ? `+${formatHUF(fin.balance)}` : formatHUF(fin.balance)}
+        {activeCollectiveId ? (
+          <>
+            <StatCard label="Általad kifizetve" value={formatHUF(fin.ownPaid)} sub="Az Ön számlái" icon={Receipt} />
+            <div className={`stat-card ${fin.balance > 0 ? 'success' : fin.balance < 0 ? 'danger' : ''}`}>
+              <div className="stat-label">Összesített egyenleg</div>
+              <div className="stat-value" style={{ color: fin.balance > 0 ? 'var(--success-text)' : fin.balance < 0 ? 'var(--danger-text)' : 'var(--text-primary)' }}>
+                {fin.balance > 0 ? `+${formatHUF(fin.balance)}` : formatHUF(fin.balance)}
+              </div>
+              <div className="stat-sub">{fin.balance > 0 ? 'A többiek tartoznak neked' : fin.balance < 0 ? 'Kiegyenlítendő tartozás' : 'Egyensúlyban'}</div>
+            </div>
+          </>
+        ) : (
+          <div className="stat-card">
+            <div className="stat-label">Teljes költség</div>
+            <div className="stat-value">{formatHUF(fin.totalCost + fin.totalLabourValue)}</div>
+            <div className="stat-sub">Számlák + munkadíj</div>
           </div>
-          <div className="stat-sub">{fin.balance > 0 ? 'A többiek tartoznak neked' : fin.balance < 0 ? 'Kiegyenlítendő tartozás' : 'Egyensúlyban'}</div>
-        </div>
+        )}
       </div>
 
-      {/* Member breakdown */}
-      <div className="card mb-6">
+      {/* Member breakdown + Settlement — collective only */}
+      {activeCollectiveId && <div className="card mb-6">
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.85rem' }}>
           <Users size={18} color="var(--accent)" />
           <h3 style={{ fontSize: '1rem', fontWeight: 800 }}>Résztvevők elszámolása</h3>
@@ -1682,10 +2065,9 @@ export default function ProjectDetailClient({
             <strong>Egyenleg = </strong>(Kifizetve − Kiadásrész) + (Munkadíj − Munkadíjrész) &nbsp;·&nbsp; Kiadásrész: {formatHUF(fin.equalCostShare)}, Munkadíjrész: {formatHUF(fin.equalLabourShare)}
           </div>
         )}
-      </div>
+      </div>}
 
-      {/* Settlement */}
-      <div className="card mb-6">
+      {activeCollectiveId && <div className="card mb-6">
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.85rem' }}>
           <Wallet size={18} color="var(--accent)" />
           <h3 style={{ fontSize: '1rem', fontWeight: 800 }}>Ki kinek tartozik?</h3>
@@ -1712,7 +2094,7 @@ export default function ProjectDetailClient({
             ))}
           </div>
         )}
-      </div>
+      </div>}
 
       {/* Tabs */}
       <div style={{ display: 'flex', gap: 0, marginBottom: '1rem', borderBottom: '2px solid var(--border-subtle)', paddingBottom: 0, overflowX: 'auto', WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
@@ -2215,6 +2597,7 @@ export default function ProjectDetailClient({
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem', alignItems: 'center' }}>
                         {entryDateStr && <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--accent)', background: 'var(--accent-light)', padding: '0.15rem 0.55rem', borderRadius: 'var(--radius-pill)' }}>{entryDateStr}</span>}
                         {entry.work_type && <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-secondary)', background: 'var(--bg-subtle)', border: '1px solid var(--border-subtle)', padding: '0.12rem 0.5rem', borderRadius: 'var(--radius-pill)' }}>{entry.work_type}</span>}
+                        {(() => { const r = projectRooms.find(r => r.id === entry.room_id); return r ? <span style={{ fontSize: '0.68rem', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '0.25rem', padding: '0.12rem 0.5rem', borderRadius: 'var(--radius-pill)', background: 'var(--accent-light)', border: '1px solid var(--accent-border)', color: 'var(--accent)' }}><Home size={10} />{r.name}</span> : null; })()}
                         {/* Public/private pill */}
                         {isAdmin || entry.created_by === currentUser?.id ? (
                           <button
@@ -2291,6 +2674,7 @@ export default function ProjectDetailClient({
       {isAdmin && editingLabour && (
         <LabourEditModal
           entry={editingLabour}
+          rooms={projectRooms}
           onClose={() => setEditingLabour(null)}
           onSave={async (fields) => {
             await ctxUpdateLabourEntry(editingLabour.id, fields);
@@ -2301,12 +2685,25 @@ export default function ProjectDetailClient({
         />
       )}
 
+      <ProjectEditModal
+        isOpen={editProjectOpen}
+        onClose={() => setEditProjectOpen(false)}
+        project={project}
+        clients={ctxClients}
+        collectives={collectives}
+        activeCollectiveId={activeCollectiveId}
+        onSave={async (fields) => { await updateProject(project.id, fields); router.refresh(); }}
+        onCreateClient={async (fields) => createClient(fields)}
+        onMove={async (collectiveId) => { await updateProject(project.id, { collective_id: collectiveId }); router.refresh(); }}
+      />
+      <RoomModal isOpen={roomModalOpen} onClose={() => setRoomModalOpen(false)} room={editingRoom} onSave={handleSaveRoom} />
       <ConfirmModal isOpen={!!confirmModal} onClose={() => setConfirmModal(null)} onConfirm={() => confirmModal?.onConfirm()} title="Megerősítés" message={confirmModal?.message} />
       <AlertModal isOpen={!!alertModal} onClose={() => setAlertModal(null)} message={alertModal?.message} />
 
       <EditDiaryEntryModal
         isOpen={!!editingDiaryEntry}
         onClose={() => setEditingDiaryEntry(null)}
+        rooms={projectRooms}
         entry={editingDiaryEntry
           ? (diaryEntriesByProject[project.id]?.find(e => e.id === editingDiaryEntry.id) ?? editingDiaryEntry)
           : null

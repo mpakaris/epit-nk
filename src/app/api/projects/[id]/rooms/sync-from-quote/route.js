@@ -9,13 +9,20 @@ export async function POST(request, { params }) {
   if (authErr || !user) return Response.json({ error: 'Unauthenticated' }, { status: 401 });
 
   const admin = createAdminClient();
-  const { data: profile } = await admin.from('profiles').select('id, role, entity_id, current_entity_id').eq('id', user.id).single();
-  if (!profile || !['admin', 'superadmin'].includes(profile.role))
-    return Response.json({ error: 'Forbidden' }, { status: 403 });
+  const { data: profile } = await admin.from('profiles').select('id, role').eq('id', user.id).single();
+  if (!profile) return Response.json({ error: 'Forbidden' }, { status: 403 });
 
-  const { data: project } = await admin.from('projects').select('id, entity_id').eq('id', projectId).single();
+  const { data: project } = await admin.from('projects').select('id, owner_id, created_by, collective_id').eq('id', projectId).single();
   if (!project) return Response.json({ error: 'Project not found' }, { status: 404 });
-  if (profile.role !== 'superadmin' && ![profile.entity_id, profile.current_entity_id].filter(Boolean).includes(project.entity_id))
+
+  const isSuperAdmin = profile.role === 'superadmin';
+  const isOwner = project.owner_id === user.id || project.created_by === user.id;
+  let isCollectiveMember = false;
+  if (!isSuperAdmin && !isOwner && project.collective_id) {
+    const { data: mem } = await admin.from('collective_members').select('user_id').eq('collective_id', project.collective_id).eq('user_id', user.id).eq('status', 'active').maybeSingle();
+    isCollectiveMember = !!mem;
+  }
+  if (!isSuperAdmin && !isOwner && !isCollectiveMember)
     return Response.json({ error: 'Forbidden' }, { status: 403 });
 
   // Find the linked quote
@@ -63,7 +70,6 @@ export async function POST(request, { params }) {
     .filter(s => !importedIds.has(s.id))
     .map((s, i) => ({
       project_id: projectId,
-      entity_id: project.entity_id,
       name: s.name,
       size_m2: s.size_m2 || null,
       work_types: [],
