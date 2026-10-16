@@ -834,12 +834,12 @@ export function AppProvider({ children }) {
 
   // ---- Clients ----------------------------------------------------------------
 
-  const createClient = async ({ name, address, phone, email, notes, discountPercent = 0 }) => {
+  const createClient = async ({ name, address, phone, email, notes, discountPercent = 0, companyName, taxNumber, gdprConsent }) => {
     if (!effectiveUser) throw new Error('Bejelentkezés szükséges!');
     const res = await fetch('/api/clients', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, address, phone, email, notes, discountPercent }),
+      body: JSON.stringify({ name, address, phone, email, notes, discountPercent, companyName, taxNumber, gdprConsent }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Hiba az ügyfél létrehozásakor');

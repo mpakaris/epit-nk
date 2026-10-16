@@ -25,11 +25,12 @@ export async function POST(request, { params }) {
   if (!isSuperAdmin && !isOwner && !isCollectiveMember)
     return Response.json({ error: 'Forbidden' }, { status: 403 });
 
-  // Find the linked quote
+  // Find the linked quote (exclude soft-deleted)
   const { data: linkedQuote } = await admin
     .from('quotes')
     .select('id')
     .eq('project_id', projectId)
+    .is('deleted_at', null)
     .maybeSingle();
 
   if (!linkedQuote) return Response.json({ created: 0, message: 'Nincs kapcsolt ajánlat' });

@@ -15,8 +15,10 @@ export async function POST(request) {
     .single();
   if (!profile) return Response.json({ error: 'Forbidden' }, { status: 403 });
 
-  const { name, address, phone, email, notes, discountPercent = 0 } = await request.json();
-  if (!name?.trim()) return Response.json({ error: 'A név megadása kötelező!' }, { status: 400 });
+  const { name, address, phone, email, notes, discountPercent = 0, companyName, taxNumber, gdprConsent } = await request.json();
+  if (!gdprConsent) return Response.json({ error: 'GDPR hozzájárulás kötelező!' }, { status: 400 });
+  if (!name?.trim())  return Response.json({ error: 'A név megadása kötelező!' }, { status: 400 });
+  if (!email?.trim()) return Response.json({ error: 'Az e-mail megadása kötelező!' }, { status: 400 });
 
   // Clients are always personal — owner_id = calling user
   const ownerId = user.id;
@@ -31,6 +33,10 @@ export async function POST(request) {
       email,
       notes,
       discount_percent: Number(discountPercent),
+      company_name:      companyName?.trim() || null,
+      tax_number:        taxNumber?.trim()   || null,
+      gdpr_consented_at: new Date().toISOString(),
+      gdpr_consented_by: user.id,
     }])
     .select()
     .single();

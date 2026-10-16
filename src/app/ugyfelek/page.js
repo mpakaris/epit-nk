@@ -17,7 +17,11 @@ import {
   AlertCircle,
   CheckCircle2,
   FileText,
-  FolderKanban, Loader2,
+  FolderKanban,
+  Loader2,
+  Building2,
+  Hash,
+  ShieldCheck,
 } from 'lucide-react';
 import PageSpinner from '@/components/PageSpinner';
 import WorkspaceBadge from '@/components/WorkspaceBadge';
@@ -36,11 +40,14 @@ export default function AdminClientsPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [formName, setFormName] = useState('');
+  const [formCompanyName, setFormCompanyName] = useState('');
+  const [formTaxNumber, setFormTaxNumber] = useState('');
   const [formAddress, setFormAddress] = useState('');
   const [formPhone, setFormPhone] = useState('');
   const [formEmail, setFormEmail] = useState('');
   const [formNotes, setFormNotes] = useState('');
   const [formDiscount, setFormDiscount] = useState('0');
+  const [formGdpr, setFormGdpr] = useState(false);
 
   if (loading || !dataReady) return <PageSpinner />;
 
@@ -61,8 +68,9 @@ export default function AdminClientsPage() {
   };
 
   const openCreateModal = () => {
-    setFormName(''); setFormAddress(''); setFormPhone('');
-    setFormEmail(''); setFormNotes(''); setFormDiscount('0');
+    setFormName(''); setFormCompanyName(''); setFormTaxNumber('');
+    setFormAddress(''); setFormPhone(''); setFormEmail('');
+    setFormNotes(''); setFormDiscount('0'); setFormGdpr(false);
     setFormError('');
     setEditingClient(null);
     setShowCreateModal(true);
@@ -70,6 +78,8 @@ export default function AdminClientsPage() {
 
   const openEditModal = (client) => {
     setFormName(client.name);
+    setFormCompanyName(client.company_name || '');
+    setFormTaxNumber(client.tax_number || '');
     setFormAddress(client.address || '');
     setFormPhone(client.phone || '');
     setFormEmail(client.email || '');
@@ -91,26 +101,21 @@ export default function AdminClientsPage() {
 
     setIsSubmitting(true);
     try {
+      const sharedFields = {
+        name:         formName.trim(),
+        company_name: formCompanyName.trim() || null,
+        tax_number:   formTaxNumber.trim()   || null,
+        address:      formAddress.trim(),
+        phone:        formPhone.trim(),
+        email:        formEmail.trim(),
+        notes:        formNotes.trim(),
+      };
       if (editingClient) {
-        await updateClient(editingClient.id, {
-          name: formName.trim(),
-          address: formAddress.trim(),
-          phone: formPhone.trim(),
-          email: formEmail.trim(),
-          notes: formNotes.trim(),
-          discount_percent: parseFloat(formDiscount) || 0
-        });
+        await updateClient(editingClient.id, { ...sharedFields, discount_percent: parseFloat(formDiscount) || 0 });
         setSuccessMsg('Ügyfél sikeresen módosítva.');
       } else {
-        await createClient({
-          name: formName.trim(),
-          address: formAddress.trim(),
-          phone: formPhone.trim(),
-          email: formEmail.trim(),
-          notes: formNotes.trim(),
-          discountPercent: parseFloat(formDiscount) || 0,
-          entityId: effectiveEntityId,
-        });
+        await createClient({ ...sharedFields, discountPercent: parseFloat(formDiscount) || 0, entityId: effectiveEntityId,
+          companyName: formCompanyName.trim() || null, taxNumber: formTaxNumber.trim() || null, gdprConsent: formGdpr });
         setSuccessMsg('Ügyfél sikeresen létrehozva.');
       }
       setShowCreateModal(false);
@@ -193,7 +198,7 @@ export default function AdminClientsPage() {
                 {/* Top: name + actions */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.75rem' }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '0.3rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '0.15rem' }}>
                       <h3 style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--text-primary)' }}>{client.name}</h3>
                       {client.discount_percent > 0 && (
                         <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.2rem', fontSize: '0.7rem', fontWeight: 700, background: '#fef3c7', color: '#92400e', border: '1px solid #fde68a', padding: '0.1rem 0.4rem', borderRadius: 'var(--radius-pill)' }}>
@@ -201,6 +206,12 @@ export default function AdminClientsPage() {
                         </span>
                       )}
                     </div>
+                    {(client.company_name || client.tax_number) && (
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', fontSize: '0.775rem', color: 'var(--text-secondary)', marginBottom: '0.2rem', fontWeight: 600 }}>
+                        {client.company_name && <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}><Building2 size={12} /> {client.company_name}</span>}
+                        {client.tax_number && <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}><Hash size={12} /> {client.tax_number}</span>}
+                      </div>
+                    )}
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', fontSize: '0.775rem', color: 'var(--text-muted)' }}>
                       {client.phone && <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}><Phone size={12} /> {client.phone}</span>}
                       {client.email && <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}><Mail size={12} /> {client.email}</span>}
@@ -221,13 +232,18 @@ export default function AdminClientsPage() {
                 </div>
 
                 {/* Bottom: stats pills */}
-                <div style={{ display: 'flex', gap: '0.4rem', marginTop: 'auto', paddingTop: '0.5rem', borderTop: '1px solid var(--border-subtle)' }}>
+                <div style={{ display: 'flex', gap: '0.4rem', marginTop: 'auto', paddingTop: '0.5rem', borderTop: '1px solid var(--border-subtle)', flexWrap: 'wrap' }}>
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.72rem', fontWeight: 700, background: 'var(--warning-bg)', color: 'var(--warning-text)', border: '1px solid var(--warning-border)', padding: '0.2rem 0.55rem', borderRadius: 'var(--radius-pill)' }}>
                     <FileText size={11} /> {stats.quotesCount} ajánlat
                   </span>
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.72rem', fontWeight: 700, background: 'var(--success-bg)', color: 'var(--success-text)', border: '1px solid var(--success-border)', padding: '0.2rem 0.55rem', borderRadius: 'var(--radius-pill)' }}>
                     <FolderKanban size={11} /> {stats.projectsCount} projekt
                   </span>
+                  {client.gdpr_consented_at && (
+                    <span title={`GDPR: ${new Date(client.gdpr_consented_at).toLocaleDateString('hu-HU')}`} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.72rem', fontWeight: 700, background: 'var(--accent-light)', color: 'var(--accent)', border: '1px solid var(--accent-border)', padding: '0.2rem 0.55rem', borderRadius: 'var(--radius-pill)' }}>
+                      <ShieldCheck size={11} /> GDPR
+                    </span>
+                  )}
                 </div>
               </Link>
             );
@@ -250,10 +266,20 @@ export default function AdminClientsPage() {
 
         <form onSubmit={handleSubmit}>
           <div className="form-group">
-            <label className="form-label" htmlFor="c-name">Név *</label>
-            <input id="c-name" type="text" className="form-control" required value={formName} onChange={(e) => setFormName(e.target.value)} placeholder="Pl. Horváth Béla vagy Fekete Kft." />
+            <label className="form-label" htmlFor="c-name">Kapcsolattartó neve *</label>
+            <input id="c-name" type="text" className="form-control" required autoFocus value={formName} onChange={(e) => setFormName(e.target.value)} placeholder="Pl. Horváth Béla" />
           </div>
-          <div className="form-group">
+          <div className="grid-2col">
+            <div className="form-group" style={{ margin: 0 }}>
+              <label className="form-label" htmlFor="c-company">Cégnév</label>
+              <input id="c-company" type="text" className="form-control" value={formCompanyName} onChange={(e) => setFormCompanyName(e.target.value)} placeholder="Pl. Fekete Kft." />
+            </div>
+            <div className="form-group" style={{ margin: 0 }}>
+              <label className="form-label" htmlFor="c-tax">Adószám</label>
+              <input id="c-tax" type="text" className="form-control" value={formTaxNumber} onChange={(e) => setFormTaxNumber(e.target.value)} placeholder="12345678-1-01" />
+            </div>
+          </div>
+          <div className="form-group" style={{ marginTop: '0.75rem' }}>
             <label className="form-label" htmlFor="c-address">Cím</label>
             <input id="c-address" type="text" className="form-control" value={formAddress} onChange={(e) => setFormAddress(e.target.value)} placeholder="8600 Siófok, Fő utca 12." />
           </div>
@@ -263,8 +289,8 @@ export default function AdminClientsPage() {
               <input id="c-phone" type="tel" className="form-control" value={formPhone} onChange={(e) => setFormPhone(e.target.value)} placeholder="+36 70 123 4567" />
             </div>
             <div className="form-group" style={{ margin: 0 }}>
-              <label className="form-label" htmlFor="c-email">E-mail</label>
-              <input id="c-email" type="email" className="form-control" value={formEmail} onChange={(e) => setFormEmail(e.target.value)} placeholder="email@example.com" />
+              <label className="form-label" htmlFor="c-email">E-mail *</label>
+              <input id="c-email" type="email" className="form-control" required value={formEmail} onChange={(e) => setFormEmail(e.target.value)} placeholder="email@example.com" />
             </div>
           </div>
           <div className="form-group" style={{ marginTop: '0.75rem' }}>
@@ -276,9 +302,19 @@ export default function AdminClientsPage() {
             <textarea id="c-notes" rows={2} className="form-control" value={formNotes} onChange={(e) => setFormNotes(e.target.value)} placeholder="Egyéb tudnivalók az ügyfélről..." />
           </div>
 
+          {!editingClient && (
+            <label style={{ display: 'flex', alignItems: 'flex-start', gap: '0.6rem', padding: '0.75rem', borderRadius: 'var(--radius-md)', background: 'var(--bg-subtle)', border: `1px solid ${formGdpr ? 'var(--success-border)' : 'var(--border-subtle)'}`, cursor: 'pointer', marginTop: '0.5rem', marginBottom: '0.75rem', transition: 'border-color 0.15s' }}>
+              <input type="checkbox" checked={formGdpr} onChange={e => setFormGdpr(e.target.checked)} style={{ marginTop: '0.15rem', flexShrink: 0, accentColor: 'var(--accent)', width: 15, height: 15 }} />
+              <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
+                Megerősítem, hogy az ügyfél hozzájárult személyes adatainak CRM-rendszerünkben való tárolásához.{' '}
+                <span style={{ color: 'var(--danger-text)', fontWeight: 700 }}>*</span>
+              </span>
+            </label>
+          )}
+
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '0.5rem' }}>
             <button type="button" className="btn btn-secondary btn-sm" onClick={() => setShowCreateModal(false)}>Mégse</button>
-            <button type="submit" className="btn btn-primary btn-sm" disabled={isSubmitting}>
+            <button type="submit" className="btn btn-primary btn-sm" disabled={isSubmitting || (!editingClient && !formGdpr)}>
               {isSubmitting ? <><Loader2 size={13} className="animate-spin" />{editingClient ? 'Módosítás' : 'Létrehozás'}</> : (editingClient ? 'Módosítás' : 'Létrehozás')}
             </button>
           </div>

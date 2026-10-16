@@ -8,7 +8,7 @@ import { calculateProjectFinancials } from '@/lib/calculations';
 import { formatHUF, formatDate } from '@/lib/constants';
 import {
   FolderKanban, Users, TrendingUp, TrendingDown, CheckCircle2,
-  Plus, AlertCircle, UserCheck, ChevronRight, Loader2,
+  Plus, AlertCircle, UserCheck, ChevronRight, Loader2, Search, X, FileText,
 } from 'lucide-react';
 import Modal from '@/components/Modal';
 import EntitySelector from '@/components/EntitySelector';
@@ -39,6 +39,7 @@ export default function ProjectsListClient({
     users: _ctxUsers,
     effectiveMemberships,
     dataReady,
+    refreshSupabaseData,
   } = useApp();
 
   const projects      = dataReady ? _ctxProjects      : initialProjects;
@@ -61,11 +62,15 @@ export default function ProjectsListClient({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
 
+  const [quoteSearch, setQuoteSearch] = useState('');
+  const [showQuoteDropdown, setShowQuoteDropdown] = useState(false);
+
   const [showNewClient, setShowNewClient] = useState(false);
   const [newClientName, setNewClientName] = useState('');
   const [newClientPhone, setNewClientPhone] = useState('');
   const [newClientEmail, setNewClientEmail] = useState('');
   const [newClientAddr, setNewClientAddr] = useState('');
+  const [newClientGdpr, setNewClientGdpr] = useState(false);
   const [newClientError, setNewClientError] = useState('');
   const [creatingClient, setCreatingClient] = useState(false);
 
@@ -76,6 +81,7 @@ export default function ProjectsListClient({
     setProjName(''); setProjDesc(''); setProjStart(''); setProjEnd('');
     setProjClientId(''); setProjLinkedQuoteId(''); setProjEntityId(null);
     setMemberIds(effectiveCurrentUserId ? [effectiveCurrentUserId] : []);
+    setQuoteSearch(''); setShowQuoteDropdown(false);
     setError('');
     setShowNewClient(false);
     setShowCreate(true);
@@ -86,14 +92,33 @@ export default function ProjectsListClient({
     if (!quoteId) return;
     const q = (quotes || []).find(x => x.id === quoteId);
     if (!q) return;
-    if (q.entity_id) setProjEntityId(q.entity_id);
+    if (q.collective_id) setProjEntityId(q.collective_id);
     const seed = [...new Set([
       ...(effectiveCurrentUserId ? [effectiveCurrentUserId] : []),
       ...(q.shared_with || []),
     ])];
     setMemberIds(seed);
-    if (q.client_id && !projClientId) setProjClientId(q.client_id);
+    if (q.title       && !projName)     setProjName(q.title);
+    if (q.description && !projDesc)     setProjDesc(q.description);
+    if (q.start_date  && !projStart)    setProjStart(q.start_date);
+    if (q.end_date    && !projEnd)      setProjEnd(q.end_date);
+    if (q.client_id   && !projClientId) setProjClientId(q.client_id);
   };
+
+  const clearQuote = () => {
+    setProjLinkedQuoteId('');
+    setQuoteSearch('');
+    setProjName('');
+    setProjDesc('');
+    setProjStart('');
+    setProjEnd('');
+    setProjClientId('');
+  };
+
+  const norm = s => (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+  const filteredQuotes = quoteSearch
+    ? (quotes || []).filter(q => norm(q.title).includes(norm(quoteSearch)) || norm(q.location || '').includes(norm(quoteSearch)))
+    : (quotes || []);
 
   const handleCreateClient = async (e) => {
     e.preventDefault();
@@ -101,10 +126,10 @@ export default function ProjectsListClient({
     if (!newClientName.trim()) { setNewClientError('A név megadása kötelező!'); return; }
     setCreatingClient(true);
     try {
-      const c = await ctxCreateClient({ name: newClientName.trim(), phone: newClientPhone.trim(), email: newClientEmail.trim(), address: newClientAddr.trim(), entityId: activeCreateEntityId });
+      const c = await ctxCreateClient({ name: newClientName.trim(), phone: newClientPhone.trim(), email: newClientEmail.trim(), address: newClientAddr.trim(), entityId: activeCreateEntityId, gdprConsent: newClientGdpr });
       setProjClientId(c.id);
       setShowNewClient(false);
-      setNewClientName(''); setNewClientPhone(''); setNewClientEmail(''); setNewClientAddr('');
+      setNewClientName(''); setNewClientPhone(''); setNewClientEmail(''); setNewClientAddr(''); setNewClientGdpr(false);
     } catch (err) {
       setNewClientError(err.message || 'Hiba az ügyfél létrehozásakor');
     } finally {
@@ -121,12 +146,12 @@ export default function ProjectsListClient({
       const res = await fetch('/api/projects', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: projName, description: projDesc, memberIds, startDate: projStart || null, endDate: projEnd || null, clientId: projClientId || null, entityId: activeCreateEntityId }),
+        body: JSON.stringify({ name: projName, description: projDesc, memberIds, startDate: projStart || null, endDate: projEnd || null, clientId: projClientId || null, collectiveId: activeCreateEntityId, quoteId: projLinkedQuoteId || null }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Hiba a projekt létrehozásakor');
-      setShowCreate(false);
-      router.refresh();
+      await refreshSupabaseData();
+      router.push(`/projektek/${data.project.id}`);
     } catch (err) {
       setError(err.message || 'Hiba a projekt létrehozásakor');
     } finally {
@@ -269,6 +294,49 @@ export default function ProjectsListClient({
         <form onSubmit={handleCreate}>
           <EntitySelector value={activeCreateEntityId} onChange={setProjEntityId} memberships={effectiveMemberships} />
           <div className="form-group">
+            <label className="form-label">Kapcsolódó ajánlat <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>(opcionális)</span></label>
+            {projLinkedQuoteId ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.65rem 1rem', borderRadius: 'var(--radius-md)', background: 'var(--accent-light)', border: '1px solid var(--accent-border)' }}>
+                <FileText size={15} color="var(--accent)" style={{ flexShrink: 0 }} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 700, fontSize: '0.875rem', color: 'var(--accent)' }}>{(quotes || []).find(q => q.id === projLinkedQuoteId)?.title}</div>
+                </div>
+                <button type="button" onClick={clearQuote} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--accent)', padding: '0.2rem', display: 'flex' }}>
+                  <X size={15} />
+                </button>
+              </div>
+            ) : (
+              <div style={{ position: 'relative' }}>
+                <Search size={14} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', pointerEvents: 'none' }} />
+                <input
+                  type="text"
+                  className="form-control"
+                  style={{ paddingLeft: '2.25rem' }}
+                  placeholder={(quotes || []).length === 0 ? 'Jelenleg nincs ajánlat' : 'Keresés az ajánlatok között…'}
+                  disabled={(quotes || []).length === 0}
+                  value={quoteSearch}
+                  onChange={e => { setQuoteSearch(e.target.value); setShowQuoteDropdown(true); }}
+                  onFocus={() => setShowQuoteDropdown(true)}
+                  onBlur={() => setTimeout(() => setShowQuoteDropdown(false), 150)}
+                />
+                {showQuoteDropdown && (quotes || []).length > 0 && (
+                  <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 50, background: '#fff', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', boxShadow: '0 4px 16px rgba(0,0,0,0.1)', maxHeight: '200px', overflowY: 'auto', marginTop: '0.25rem' }}>
+                    {filteredQuotes.length === 0 ? (
+                      <div style={{ padding: '0.85rem 1rem', color: 'var(--text-muted)', fontSize: '0.82rem' }}>Nincs találat</div>
+                    ) : filteredQuotes.map(q => (
+                      <button key={q.id} type="button"
+                        onMouseDown={() => { handleQuoteLink(q.id); setQuoteSearch(''); setShowQuoteDropdown(false); }}
+                        style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '0.1rem', padding: '0.65rem 1rem', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', borderBottom: '1px solid var(--border-subtle)' }}>
+                        <span style={{ fontWeight: 700, fontSize: '0.875rem', color: 'var(--text-primary)' }}>{q.title}</span>
+                        {q.location && <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{q.location}</span>}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+          <div className="form-group">
             <label className="form-label" htmlFor="mp-name">Projekt neve *</label>
             <input id="mp-name" type="text" className="form-control" required autoFocus value={projName} onChange={e => setProjName(e.target.value)} placeholder="pl. Balatoni Nyaraló Felújítás" />
           </div>
@@ -276,16 +344,6 @@ export default function ProjectsListClient({
             <label className="form-label" htmlFor="mp-desc">Leírás</label>
             <textarea id="mp-desc" rows={2} className="form-control" value={projDesc} onChange={e => setProjDesc(e.target.value)} placeholder="Rövid leírás…" />
           </div>
-          {(quotes || []).length > 0 && (
-            <div className="form-group">
-              <label className="form-label">Kapcsolódó ajánlat (opcionális)</label>
-              <select className="form-control" value={projLinkedQuoteId} onChange={e => handleQuoteLink(e.target.value)}>
-                <option value="">– Nincs kapcsolódó ajánlat –</option>
-                {(quotes || []).map(q => <option key={q.id} value={q.id}>{q.title}</option>)}
-              </select>
-              {projLinkedQuoteId && <span style={{ fontSize: '0.75rem', color: 'var(--accent)', fontWeight: 600, marginTop: '0.25rem', display: 'block' }}>✓ Tagok előre töltve az ajánlat résztvevőiből</span>}
-            </div>
-          )}
           <div className="form-group">
             <label className="form-label">Megrendelő *</label>
             <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
@@ -304,17 +362,21 @@ export default function ProjectsListClient({
                 <div className="form-group"><label className="form-label">Név *</label><input type="text" className="form-control" value={newClientName} onChange={e => setNewClientName(e.target.value)} placeholder="Pl. Horváth Béla" autoFocus /></div>
                 <div className="grid-2col">
                   <div className="form-group" style={{ margin: 0 }}><label className="form-label">Telefon</label><input type="tel" className="form-control" value={newClientPhone} onChange={e => setNewClientPhone(e.target.value)} /></div>
-                  <div className="form-group" style={{ margin: 0 }}><label className="form-label">E-mail</label><input type="email" className="form-control" value={newClientEmail} onChange={e => setNewClientEmail(e.target.value)} /></div>
+                  <div className="form-group" style={{ margin: 0 }}><label className="form-label">E-mail *</label><input type="email" className="form-control" required value={newClientEmail} onChange={e => setNewClientEmail(e.target.value)} /></div>
                 </div>
-                <div className="form-group" style={{ marginTop: '0.65rem', marginBottom: '0.65rem' }}><label className="form-label">Cím</label><input type="text" className="form-control" value={newClientAddr} onChange={e => setNewClientAddr(e.target.value)} /></div>
+                <div className="form-group" style={{ marginTop: '0.65rem' }}><label className="form-label">Cím</label><input type="text" className="form-control" value={newClientAddr} onChange={e => setNewClientAddr(e.target.value)} /></div>
+                <label style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', padding: '0.6rem', borderRadius: 'var(--radius-md)', background: '#fff', border: `1px solid ${newClientGdpr ? 'var(--success-border)' : 'var(--border-subtle)'}`, cursor: 'pointer', marginBottom: '0.65rem' }}>
+                  <input type="checkbox" checked={newClientGdpr} onChange={e => setNewClientGdpr(e.target.checked)} style={{ marginTop: '0.15rem', flexShrink: 0, accentColor: 'var(--accent)', width: 14, height: 14 }} />
+                  <span style={{ fontSize: '0.76rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>Az ügyfél hozzájárult adatainak tárolásához. <span style={{ color: 'var(--danger-text)', fontWeight: 700 }}>*</span></span>
+                </label>
                 <div style={{ display: 'flex', gap: '0.4rem', justifyContent: 'flex-end' }}>
                   <button type="button" className="btn btn-secondary btn-sm" onClick={() => { setShowNewClient(false); setNewClientError(''); }}>Mégse</button>
-                  <button type="submit" className="btn btn-primary btn-sm" disabled={creatingClient}>{creatingClient ? <><Loader2 size={13} className="animate-spin" />Létrehozás</> : 'Ügyfél létrehozása'}</button>
+                  <button type="submit" className="btn btn-primary btn-sm" disabled={creatingClient || !newClientGdpr}>{creatingClient ? <><Loader2 size={13} className="animate-spin" />Létrehozás</> : 'Ügyfél létrehozása'}</button>
                 </div>
               </form>
             </div>
           )}
-          <div className="grid-2col">
+          <div className="grid-2col" style={{ marginBottom: '1.25rem' }}>
             <div className="form-group" style={{ marginBottom: 0 }}>
               <label className="form-label" htmlFor="mp-start">Kezdés</label>
               <input id="mp-start" type="date" className="form-control" value={projStart} onChange={e => setProjStart(e.target.value)} />
@@ -324,18 +386,20 @@ export default function ProjectsListClient({
               <input id="mp-end" type="date" className="form-control" min={projStart || undefined} value={projEnd} onChange={e => setProjEnd(e.target.value)} />
             </div>
           </div>
-          <div className="form-group" style={{ marginTop: '0.75rem', marginBottom: '1.25rem' }}>
-            <label className="form-label">Résztvevők</label>
-            <div style={{ maxHeight: '150px', overflowY: 'auto', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: '0.4rem' }}>
-              {users.map(u => (
-                <label key={u.id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.35rem 0.45rem', borderRadius: 'var(--radius-sm)', cursor: u.id === currentUser?.id ? 'default' : 'pointer', fontSize: '0.825rem' }}>
-                  <input type="checkbox" checked={memberIds.includes(u.id)} disabled={u.id === currentUser?.id} onChange={() => toggleMember(u.id)} />
-                  <span style={{ fontWeight: 600 }}>{u.display_name}</span>
-                  {u.id === currentUser?.id && <span style={{ fontSize: '0.7rem', color: 'var(--accent)', background: 'var(--accent-light)', borderRadius: 'var(--radius-pill)', padding: '0.05rem 0.4rem', fontWeight: 700 }}>én</span>}
-                </label>
-              ))}
+          {activeCreateEntityId && (
+            <div className="form-group" style={{ marginTop: '0.75rem', marginBottom: '1.25rem' }}>
+              <label className="form-label">Résztvevők</label>
+              <div style={{ maxHeight: '150px', overflowY: 'auto', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: '0.4rem' }}>
+                {users.map(u => (
+                  <label key={u.id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.35rem 0.45rem', borderRadius: 'var(--radius-sm)', cursor: u.id === currentUser?.id ? 'default' : 'pointer', fontSize: '0.825rem' }}>
+                    <input type="checkbox" checked={memberIds.includes(u.id)} disabled={u.id === currentUser?.id} onChange={() => toggleMember(u.id)} />
+                    <span style={{ fontWeight: 600 }}>{u.display_name}</span>
+                    {u.id === currentUser?.id && <span style={{ fontSize: '0.7rem', color: 'var(--accent)', background: 'var(--accent-light)', borderRadius: 'var(--radius-pill)', padding: '0.05rem 0.4rem', fontWeight: 700 }}>én</span>}
+                  </label>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
             <button type="button" className="btn btn-secondary btn-sm" onClick={() => setShowCreate(false)}>Mégse</button>
             <button type="submit" className="btn btn-primary btn-sm" disabled={isSubmitting}>{isSubmitting ? <><Loader2 size={13} className="animate-spin" />Létrehozás</> : 'Projekt létrehozása'}</button>

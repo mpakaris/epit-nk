@@ -117,6 +117,103 @@ function MediaLightbox({ media, startIndex, onClose }) {
   );
 }
 
+function BurndownCard({ invoices, labourEntries, projectRooms, startDate, endDate }) {
+  const quotedTotal = projectRooms.reduce((s, r) => s + Number(r.quoted_amount_net || 0), 0);
+
+  // Build cost events sorted by date
+  const events = [
+    ...invoices.map(i => ({ date: i.created_at?.slice(0, 10), amount: Number(i.value_huf || 0) })),
+    ...labourEntries.map(l => ({ date: l.date, amount: Number(l.value_huf || 0) })),
+  ].filter(e => e.date).sort((a, b) => a.date.localeCompare(b.date));
+
+  const totalActual = events.reduce((s, e) => s + e.amount, 0);
+
+  // Cumulative series
+  const today = new Date().toISOString().slice(0, 10);
+  const seriesStart = startDate || events[0]?.date || today;
+  let cum = 0;
+  const pts = [{ date: seriesStart, cum: 0 }];
+  for (const e of events) {
+    cum += e.amount;
+    const last = pts[pts.length - 1];
+    if (last.date === e.date) { last.cum = cum; } else { pts.push({ date: e.date, cum }); }
+  }
+  if (pts[pts.length - 1].date < today) pts.push({ date: today, cum });
+
+  const seriesEnd = endDate && endDate > today ? endDate : today;
+  const t0 = new Date(seriesStart).getTime();
+  const t1 = new Date(seriesEnd).getTime();
+  const tRange = Math.max(t1 - t0, 86400000);
+  const maxVal = Math.max(quotedTotal, totalActual) * 1.08 || 1;
+
+  const W = 220, H = 68, PL = 2, PR = 2, PT = 6, PB = 14;
+  const cW = W - PL - PR, cH = H - PT - PB;
+  const px = d => PL + ((new Date(d).getTime() - t0) / tRange) * cW;
+  const py = v => PT + cH - (v / maxVal) * cH;
+
+  const linePath = pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${px(p.date).toFixed(1)},${py(p.cum).toFixed(1)}`).join(' ');
+  const areaPath = `${linePath} L${px(pts[pts.length - 1].date).toFixed(1)},${(PT + cH).toFixed(1)} L${PL},${(PT + cH).toFixed(1)} Z`;
+
+  const pct = quotedTotal > 0 ? Math.round((totalActual / quotedTotal) * 100) : null;
+  const isOver = pct !== null && pct > 100;
+
+  const accentColor = isOver ? 'var(--danger-text)' : 'var(--success-text)';
+  const accentFill  = isOver ? 'rgba(220,38,38,0.08)' : 'rgba(34,197,94,0.10)';
+
+  if (!quotedTotal && events.length === 0) {
+    return (
+      <div className="stat-card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+        <div className="stat-label">Elköltés az ajánlathoz</div>
+        <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.35rem' }}>Nincs kapcsolt ajánlat</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="stat-card" style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+        <div className="stat-label">Elköltés az ajánlathoz</div>
+        {pct !== null && (
+          <span style={{ fontSize: '0.72rem', fontWeight: 800, color: accentColor }}>{pct}%</span>
+        )}
+      </div>
+
+      <svg viewBox={`0 0 ${W} ${H}`} width="100%" style={{ display: 'block', overflow: 'visible', margin: '0.15rem 0' }}>
+        {/* baseline */}
+        <line x1={PL} y1={PT + cH} x2={PL + cW} y2={PT + cH} stroke="var(--border-subtle)" strokeWidth="1" />
+
+        {/* quoted reference line */}
+        {quotedTotal > 0 && (() => {
+          const qy = py(quotedTotal);
+          return (
+            <>
+              <line x1={PL} y1={qy} x2={PL + cW} y2={qy} stroke="var(--accent)" strokeWidth="1.2" strokeDasharray="3 3" opacity="0.7" />
+              <text x={PL + cW - 1} y={qy - 2} textAnchor="end" fontSize="7" fill="var(--accent)" fontWeight="700" opacity="0.8">Ajánlat</text>
+            </>
+          );
+        })()}
+
+        {/* area fill */}
+        {pts.length > 1 && <path d={areaPath} fill={accentFill} />}
+
+        {/* cost line */}
+        {pts.length > 1 && <path d={linePath} fill="none" stroke={accentColor} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />}
+
+        {/* last dot */}
+        {pts.length > 0 && (
+          <circle cx={px(pts[pts.length - 1].date).toFixed(1)} cy={py(cum).toFixed(1)} r="2.5" fill={accentColor} />
+        )}
+      </svg>
+
+      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 600 }}>
+        <span>{new Date(seriesStart).toLocaleDateString('hu-HU', { month: 'short', day: 'numeric' })}</span>
+        <span style={{ color: accentColor, fontWeight: 700 }}>{new Intl.NumberFormat('hu-HU', { notation: 'compact', maximumFractionDigits: 1 }).format(totalActual)} Ft</span>
+        <span>{new Date(seriesEnd).toLocaleDateString('hu-HU', { month: 'short', day: 'numeric' })}</span>
+      </div>
+    </div>
+  );
+}
+
 function EntryMediaGrid({ photos }) {
   const [lightbox, setLightbox] = React.useState(null);
   if (!photos || photos.length === 0) return null;
@@ -1597,15 +1694,16 @@ export default function ProjectDetailClient({
     navigator.clipboard.writeText(url).then(() => { setCopiedTokenId(token.id); setTimeout(() => setCopiedTokenId(null), 2000); });
   };
 
-  // Auto-sync rooms from linked quote on first load (additive only)
+
+  // One-time room import on first load for projects with a linked quote but no rooms yet
   const syncedRef = React.useRef(false);
   React.useEffect(() => {
-    if (!isAdmin || syncedRef.current || projectRooms.length > 0) return;
+    if (syncedRef.current || projectRooms.length > 0) return;
     const linkedQuote = (quotes || []).find(q => q.project_id === project.id);
     if (!linkedQuote) return;
     syncedRef.current = true;
     syncRoomsFromQuote(project.id).catch(() => {});
-  }, [isAdmin, project.id]);
+  }, [project.id, projectRooms.length, quotes]);
 
   // Room management
   const linkedQuoteForRooms = (quotes || []).find(q => q.project_id === project.id);
@@ -1817,11 +1915,13 @@ export default function ProjectDetailClient({
             </div>
           </>
         ) : (
-          <div className="stat-card">
-            <div className="stat-label">Teljes költség</div>
-            <div className="stat-value">{formatHUF(fin.totalCost + fin.totalLabourValue)}</div>
-            <div className="stat-sub">Számlák + munkadíj</div>
-          </div>
+          <BurndownCard
+            invoices={fin.projectInvoices}
+            labourEntries={fin.projectLabour}
+            projectRooms={projectRooms}
+            startDate={project.start_date}
+            endDate={project.end_date}
+          />
         )}
       </div>
 

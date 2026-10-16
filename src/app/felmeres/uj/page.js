@@ -16,10 +16,11 @@ function NewClientModal({ isOpen, onClose, onCreate }) {
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
   const [address, setAddress] = useState('');
+  const [gdpr, setGdpr] = useState(false);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
 
-  const reset = () => { setName(''); setPhone(''); setEmail(''); setAddress(''); setError(''); };
+  const reset = () => { setName(''); setPhone(''); setEmail(''); setAddress(''); setGdpr(false); setError(''); };
 
   const handleClose = () => { reset(); onClose(); };
 
@@ -29,7 +30,7 @@ function NewClientModal({ isOpen, onClose, onCreate }) {
     if (!name.trim()) { setError('A név megadása kötelező!'); return; }
     setSaving(true);
     try {
-      await onCreate({ name: name.trim(), phone: phone.trim(), email: email.trim(), address: address.trim() });
+      await onCreate({ name: name.trim(), phone: phone.trim(), email: email.trim(), address: address.trim(), gdprConsent: gdpr });
       reset();
     } catch (err) {
       setError(err.message || 'Hiba az ügyfél létrehozásakor');
@@ -56,17 +57,21 @@ function NewClientModal({ isOpen, onClose, onCreate }) {
             <input id="nc-phone" type="tel" className="form-control" value={phone} onChange={e => setPhone(e.target.value)} placeholder="+36 70 …" />
           </div>
           <div className="form-group" style={{ margin: 0 }}>
-            <label className="form-label" htmlFor="nc-email">E-mail</label>
-            <input id="nc-email" type="email" className="form-control" value={email} onChange={e => setEmail(e.target.value)} placeholder="email@…" />
+            <label className="form-label" htmlFor="nc-email">E-mail *</label>
+            <input id="nc-email" type="email" className="form-control" required value={email} onChange={e => setEmail(e.target.value)} placeholder="email@…" />
           </div>
         </div>
         <div className="form-group" style={{ marginTop: '0.75rem', marginBottom: '1.25rem' }}>
           <label className="form-label" htmlFor="nc-addr">Cím</label>
           <input id="nc-addr" type="text" className="form-control" value={address} onChange={e => setAddress(e.target.value)} placeholder="Irányítószám, Város, utca" />
         </div>
+        <label style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', padding: '0.65rem', borderRadius: 'var(--radius-md)', background: 'var(--bg-subtle)', border: `1px solid ${gdpr ? 'var(--success-border)' : 'var(--border-subtle)'}`, cursor: 'pointer', marginBottom: '0.75rem' }}>
+          <input type="checkbox" checked={gdpr} onChange={e => setGdpr(e.target.checked)} style={{ marginTop: '0.15rem', flexShrink: 0, accentColor: 'var(--accent)', width: 14, height: 14 }} />
+          <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>Az ügyfél hozzájárult adatainak tárolásához. <span style={{ color: 'var(--danger-text)', fontWeight: 700 }}>*</span></span>
+        </label>
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
           <button type="button" className="btn btn-secondary btn-sm" onClick={handleClose}>Mégse</button>
-          <button type="submit" className="btn btn-primary btn-sm" disabled={saving}>
+          <button type="submit" className="btn btn-primary btn-sm" disabled={saving || !gdpr}>
             {saving ? <><Loader2 size={13} className="animate-spin" />Létrehozás</> : 'Létrehozás'}
           </button>
         </div>
