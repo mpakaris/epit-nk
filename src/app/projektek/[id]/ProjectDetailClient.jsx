@@ -2305,6 +2305,7 @@ export default function ProjectDetailClient({
                 {projectRooms.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
               </select>
             )}
+            <Link href={`/projektek/${project.id}/feltoltes`} className="btn btn-primary btn-sm" style={{ marginLeft: 'auto', whiteSpace: 'nowrap' }}><Plus size={15} /> Új bejegyzés</Link>
           </div>
           {filteredInvoices.length === 0 ? (
             <div className="card" style={{ textAlign: 'center', padding: '2.5rem 1.5rem' }}>
@@ -2345,6 +2346,7 @@ export default function ProjectDetailClient({
                 {projectRooms.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
               </select>
             )}
+            <Link href={`/projektek/${project.id}/feltoltes`} className="btn btn-primary btn-sm" style={{ marginLeft: 'auto', whiteSpace: 'nowrap' }}><Plus size={15} /> Új bejegyzés</Link>
           </div>
 
           {filteredLabour.length === 0 ? (
@@ -2356,7 +2358,7 @@ export default function ProjectDetailClient({
             </div>
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(300px, 100%), 1fr))', gap: '0.85rem' }}>
-              {filteredLabour.map(entry => {
+              {filteredLabour.map((entry) => {
                 const uploader = initialUsers.find(u => u.id === entry.uploaded_by);
                 const canDelete = entry.uploaded_by === currentUser?.id || isAdmin;
                 const entryRoom = projectRooms.find(r => r.id === entry.room_id) || null;
