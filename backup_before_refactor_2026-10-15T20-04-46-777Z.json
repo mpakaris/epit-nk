@@ -1,0 +1,998 @@
+{
+  "profiles": [
+    {
+      "id": "2038ab5d-0592-4311-9c79-8197ae4769ec",
+      "display_name": "Nikos Mpakaris",
+      "role": "superadmin",
+      "entity_id": null,
+      "must_change_password": false,
+      "created_at": "2026-10-05T09:47:18.115917+00:00",
+      "email": "nikos.mpakaris@gmail.com",
+      "current_entity_id": null,
+      "is_website_premium": false,
+      "is_subscription_premium": false
+    },
+    {
+      "id": "be023797-c628-4e87-b047-4c2a5cd4ab32",
+      "display_name": "Mikodi-Bana Ákos",
+      "role": "admin",
+      "entity_id": "e9643e04-bf11-4393-b0eb-dcdb4772b598",
+      "must_change_password": false,
+      "created_at": "2026-10-05T09:47:18.115917+00:00",
+      "email": "akimikodi@gmail.com",
+      "current_entity_id": "e9643e04-bf11-4393-b0eb-dcdb4772b598",
+      "is_website_premium": false,
+      "is_subscription_premium": false
+    },
+    {
+      "id": "37b15529-f9bb-4274-a4e6-d9901504968c",
+      "display_name": "Nandor (Admin)",
+      "role": "admin",
+      "entity_id": "e9643e04-bf11-4393-b0eb-dcdb4772b598",
+      "must_change_password": false,
+      "created_at": "2026-10-05T09:47:18.115917+00:00",
+      "email": "admin@admin.com",
+      "current_entity_id": "e9643e04-bf11-4393-b0eb-dcdb4772b598",
+      "is_website_premium": false,
+      "is_subscription_premium": false
+    },
+    {
+      "id": "45b35934-d9d9-46d7-b97b-62d82d39e33c",
+      "display_name": "Major Áron",
+      "role": "user",
+      "entity_id": "e9643e04-bf11-4393-b0eb-dcdb4772b598",
+      "must_change_password": true,
+      "created_at": "2026-10-08T18:51:00.777788+00:00",
+      "email": "majoraron14@gmail.com",
+      "current_entity_id": "e9643e04-bf11-4393-b0eb-dcdb4772b598",
+      "is_website_premium": false,
+      "is_subscription_premium": false
+    },
+    {
+      "id": "73c7439a-2b7d-4f61-a300-30d7dd87fc18",
+      "display_name": "Farkas Laszló",
+      "role": "admin",
+      "entity_id": "b11668ac-0210-491a-a19f-d1670835391b",
+      "must_change_password": false,
+      "created_at": "2026-10-08T14:25:39.352509+00:00",
+      "email": "testo@testo.com",
+      "current_entity_id": "d087cf84-76ce-4000-817a-f3d8ef31b861",
+      "is_website_premium": false,
+      "is_subscription_premium": true
+    },
+    {
+      "id": "3c789872-a154-49c1-88f4-249a69fffa6b",
+      "display_name": "Eszter Mpakaris",
+      "role": "user",
+      "entity_id": null,
+      "must_change_password": false,
+      "created_at": "2026-10-15T19:30:34.59809+00:00",
+      "email": "mpakaris@gmail.com",
+      "current_entity_id": "96a6a3fd-11e9-447d-a4d5-7fecf26598a7",
+      "is_website_premium": false,
+      "is_subscription_premium": false
+    }
+  ],
+  "entities": [
+    {
+      "id": "e9643e04-bf11-4393-b0eb-dcdb4772b598",
+      "name": "Nandor Csoport Balaton",
+      "created_at": "2026-10-05T09:47:18.115917+00:00",
+      "google_drive_folder_id": null,
+      "type": "collective"
+    },
+    {
+      "id": "b11668ac-0210-491a-a19f-d1670835391b",
+      "name": "MPAK Epitesi Csoport",
+      "created_at": "2026-10-08T14:24:59.031115+00:00",
+      "google_drive_folder_id": null,
+      "type": "collective"
+    },
+    {
+      "id": "4a630e2d-b512-4ab8-9464-44597398a35b",
+      "name": "Major Áron – Személyes",
+      "created_at": "2026-10-13T20:53:36.889182+00:00",
+      "google_drive_folder_id": null,
+      "type": "personal"
+    },
+    {
+      "id": "d087cf84-76ce-4000-817a-f3d8ef31b861",
+      "name": "My Test User – Személyes",
+      "created_at": "2026-10-13T20:53:36.889182+00:00",
+      "google_drive_folder_id": null,
+      "type": "personal"
+    },
+    {
+      "id": "c170c565-c716-43e4-a2f0-5245e032098a",
+      "name": "Nandor (Admin) – Személyes",
+      "created_at": "2026-10-13T20:53:36.889182+00:00",
+      "google_drive_folder_id": null,
+      "type": "personal"
+    },
+    {
+      "id": "61be4c83-4bfd-482a-b0e4-3d2ddbc6e3fc",
+      "name": "Mikodi-Bana Ákos – Személyes",
+      "created_at": "2026-10-13T20:53:36.889182+00:00",
+      "google_drive_folder_id": null,
+      "type": "personal"
+    },
+    {
+      "id": "96a6a3fd-11e9-447d-a4d5-7fecf26598a7",
+      "name": "Eszter Mpakaris – Személyes",
+      "created_at": "2026-10-15T19:30:34.59809+00:00",
+      "google_drive_folder_id": null,
+      "type": "personal"
+    }
+  ],
+  "memberships": [
+    {
+      "id": "d3758ce6-0e30-406e-b3f7-509344bb1a1d",
+      "user_id": "be023797-c628-4e87-b047-4c2a5cd4ab32",
+      "entity_id": "e9643e04-bf11-4393-b0eb-dcdb4772b598",
+      "role": "admin",
+      "status": "active",
+      "invited_by": null,
+      "joined_at": "2026-10-13T20:41:27.150152+00:00",
+      "created_at": "2026-10-13T20:41:27.150152+00:00"
+    },
+    {
+      "id": "4e2ad29f-3a97-4b56-a079-d4bad75c5411",
+      "user_id": "37b15529-f9bb-4274-a4e6-d9901504968c",
+      "entity_id": "e9643e04-bf11-4393-b0eb-dcdb4772b598",
+      "role": "admin",
+      "status": "active",
+      "invited_by": null,
+      "joined_at": "2026-10-13T20:41:27.150152+00:00",
+      "created_at": "2026-10-13T20:41:27.150152+00:00"
+    },
+    {
+      "id": "7f90a238-cd14-4de7-bc32-a7eb372186b6",
+      "user_id": "73c7439a-2b7d-4f61-a300-30d7dd87fc18",
+      "entity_id": "b11668ac-0210-491a-a19f-d1670835391b",
+      "role": "admin",
+      "status": "active",
+      "invited_by": null,
+      "joined_at": "2026-10-13T20:41:27.150152+00:00",
+      "created_at": "2026-10-13T20:41:27.150152+00:00"
+    },
+    {
+      "id": "3ad6d784-1e28-48ef-b9b8-dff73492fc6b",
+      "user_id": "45b35934-d9d9-46d7-b97b-62d82d39e33c",
+      "entity_id": "e9643e04-bf11-4393-b0eb-dcdb4772b598",
+      "role": "member",
+      "status": "active",
+      "invited_by": null,
+      "joined_at": "2026-10-13T20:41:27.150152+00:00",
+      "created_at": "2026-10-13T20:41:27.150152+00:00"
+    },
+    {
+      "id": "5b91c48e-7c4a-4588-af71-c704b1a89b4a",
+      "user_id": "45b35934-d9d9-46d7-b97b-62d82d39e33c",
+      "entity_id": "4a630e2d-b512-4ab8-9464-44597398a35b",
+      "role": "owner",
+      "status": "active",
+      "invited_by": null,
+      "joined_at": "2026-10-13T20:53:36.889182+00:00",
+      "created_at": "2026-10-13T20:53:36.889182+00:00"
+    },
+    {
+      "id": "67b2776c-3fce-4772-bd57-fee1df4e8fc3",
+      "user_id": "73c7439a-2b7d-4f61-a300-30d7dd87fc18",
+      "entity_id": "d087cf84-76ce-4000-817a-f3d8ef31b861",
+      "role": "owner",
+      "status": "active",
+      "invited_by": null,
+      "joined_at": "2026-10-13T20:53:36.889182+00:00",
+      "created_at": "2026-10-13T20:53:36.889182+00:00"
+    },
+    {
+      "id": "1259b3ee-73a7-446d-a9b9-d7076212d629",
+      "user_id": "37b15529-f9bb-4274-a4e6-d9901504968c",
+      "entity_id": "c170c565-c716-43e4-a2f0-5245e032098a",
+      "role": "owner",
+      "status": "active",
+      "invited_by": null,
+      "joined_at": "2026-10-13T20:53:36.889182+00:00",
+      "created_at": "2026-10-13T20:53:36.889182+00:00"
+    },
+    {
+      "id": "378e249a-8865-4391-b523-0671cf1b5eb1",
+      "user_id": "be023797-c628-4e87-b047-4c2a5cd4ab32",
+      "entity_id": "61be4c83-4bfd-482a-b0e4-3d2ddbc6e3fc",
+      "role": "owner",
+      "status": "active",
+      "invited_by": null,
+      "joined_at": "2026-10-13T20:53:36.889182+00:00",
+      "created_at": "2026-10-13T20:53:36.889182+00:00"
+    },
+    {
+      "id": "c7afaeb4-f737-435c-81cf-08af23ca6041",
+      "user_id": "3c789872-a154-49c1-88f4-249a69fffa6b",
+      "entity_id": "96a6a3fd-11e9-447d-a4d5-7fecf26598a7",
+      "role": "owner",
+      "status": "active",
+      "invited_by": null,
+      "joined_at": "2026-10-15T19:30:34.59809+00:00",
+      "created_at": "2026-10-15T19:30:34.59809+00:00"
+    }
+  ],
+  "projects": [
+    {
+      "id": "24c1fb03-014e-4714-be58-eb961b3c47a2",
+      "entity_id": "e9643e04-bf11-4393-b0eb-dcdb4772b598",
+      "name": "Szőlősgyörök, Táncsics utca 22.",
+      "description": "Merciék, házbővítés",
+      "start_date": "2026-10-09",
+      "end_date": "2026-10-10",
+      "created_by": "37b15529-f9bb-4274-a4e6-d9901504968c",
+      "created_at": "2026-10-05T16:10:51.851477+00:00",
+      "client_id": "b6f62664-08d9-4579-8a76-d9aa70a7a798",
+      "survey_id": null,
+      "closed_at": null
+    },
+    {
+      "id": "0a0e7693-14e6-4d0e-972c-174318418a3b",
+      "entity_id": "e9643e04-bf11-4393-b0eb-dcdb4772b598",
+      "name": "Fürdő felújítás, Látrányban",
+      "description": "Komplett munka, burkolással.",
+      "start_date": "2026-10-12",
+      "end_date": "2026-10-30",
+      "created_by": "37b15529-f9bb-4274-a4e6-d9901504968c",
+      "created_at": "2026-10-07T22:34:11.431395+00:00",
+      "client_id": "fec4c071-a5a3-4914-91eb-5392f97734b5",
+      "survey_id": null,
+      "closed_at": null
+    },
+    {
+      "id": "7893fc03-8f21-4f2e-8983-abd8537e92e1",
+      "entity_id": "e9643e04-bf11-4393-b0eb-dcdb4772b598",
+      "name": "Balatonmáriafürdő, Hullám U. 66.",
+      "description": "Fürdő felújítás, alapszerelés",
+      "start_date": "2026-10-06",
+      "end_date": "2026-10-08",
+      "created_by": "37b15529-f9bb-4274-a4e6-d9901504968c",
+      "created_at": "2026-10-05T16:05:37.449238+00:00",
+      "client_id": "dff29457-9ad7-45f7-928d-fc62e5fc7283",
+      "survey_id": null,
+      "closed_at": null
+    },
+    {
+      "id": "ebc0d31b-b06c-4d30-ad13-60111ca5c026",
+      "entity_id": "d087cf84-76ce-4000-817a-f3d8ef31b861",
+      "name": "Varga Marianna – Kossuth utca 38. lakásfelújítás",
+      "description": "Teljes lakásfelújítás: burkolatok, festés, nyílászárók felülvizsgálata.\n  Ügyfél szeretné megtartani a meglévő beépített szekrényeket. Munkák tervezett kezdete:\n   2026 november.",
+      "start_date": "2026-10-20",
+      "end_date": "2026-10-24",
+      "created_by": "73c7439a-2b7d-4f61-a300-30d7dd87fc18",
+      "created_at": "2026-10-14T21:46:10.805321+00:00",
+      "client_id": "e75801a3-4da1-451a-8c1b-0f543c781143",
+      "survey_id": "c2c4fb6b-271c-4576-b5a8-148715f7d8d0",
+      "closed_at": null
+    }
+  ],
+  "clients": [
+    {
+      "id": "b6f62664-08d9-4579-8a76-d9aa70a7a798",
+      "entity_id": "e9643e04-bf11-4393-b0eb-dcdb4772b598",
+      "name": "Hugyecz Ádám",
+      "address": "8692 Szolosgyorok, Táncsics utca 22.",
+      "phone": "",
+      "email": "adamjo140@gmail.com",
+      "notes": "",
+      "discount_percent": 0,
+      "created_at": "2026-10-05T21:50:51.138964+00:00"
+    },
+    {
+      "id": "dff29457-9ad7-45f7-928d-fc62e5fc7283",
+      "entity_id": "e9643e04-bf11-4393-b0eb-dcdb4772b598",
+      "name": "Kisgéczi László",
+      "address": "Balatonmáriafürdő, Hullám utca 66.",
+      "phone": "+36302562346",
+      "email": "laszlo.kisgeczi@gmail.com",
+      "notes": null,
+      "discount_percent": 0,
+      "created_at": "2026-10-07T22:31:05.709803+00:00"
+    },
+    {
+      "id": "fec4c071-a5a3-4914-91eb-5392f97734b5",
+      "entity_id": "e9643e04-bf11-4393-b0eb-dcdb4772b598",
+      "name": "Sipos László és Elvira",
+      "address": "Látrány, Csalogány köz 3.",
+      "phone": "+36 30 695 4874",
+      "email": "fett81@gmail.com",
+      "notes": null,
+      "discount_percent": 0,
+      "created_at": "2026-10-07T22:37:30.793087+00:00"
+    },
+    {
+      "id": "9dc4bc82-fc44-4d29-8d94-9666392cd790",
+      "entity_id": "e9643e04-bf11-4393-b0eb-dcdb4772b598",
+      "name": "Gál-Takács Zoltán",
+      "address": "Fonyód, Bartók Béla utca 4.",
+      "phone": "+36 70 747 7676",
+      "email": "",
+      "notes": null,
+      "discount_percent": 0,
+      "created_at": "2026-10-07T22:43:08.9992+00:00"
+    },
+    {
+      "id": "9ad9f5f3-6a79-412e-a899-5c293dd64800",
+      "entity_id": "e9643e04-bf11-4393-b0eb-dcdb4772b598",
+      "name": "Fábián Edit",
+      "address": "Marcali Templom utca 23.",
+      "phone": "06 30 487 9695",
+      "email": "duds8905@gmail.com",
+      "notes": null,
+      "discount_percent": 0,
+      "created_at": "2026-10-10T14:49:07.31315+00:00"
+    },
+    {
+      "id": "d52ef221-ecc7-461f-8092-7514abc8cd4c",
+      "entity_id": "e9643e04-bf11-4393-b0eb-dcdb4772b598",
+      "name": "Tótné Emi és Zoli bácsi",
+      "address": "Lengyeltóti Petőfi Sándor utca 12.",
+      "phone": "+36 20 944 4116",
+      "email": "zoli4426@gmail.com",
+      "notes": "",
+      "discount_percent": 0,
+      "created_at": "2026-10-12T22:23:41.028348+00:00"
+    },
+    {
+      "id": "e75801a3-4da1-451a-8c1b-0f543c781143",
+      "entity_id": "d087cf84-76ce-4000-817a-f3d8ef31b861",
+      "name": "Kovács Béla",
+      "address": "Budapest, Erzsébet utca 14. II/6.",
+      "phone": "+36 30 412 8871",
+      "email": "kovacs.bela74@gmail.com",
+      "notes": null,
+      "discount_percent": 0,
+      "created_at": "2026-06-16T20:58:31.124804+00:00"
+    },
+    {
+      "id": "c9a72444-f0cb-4974-a217-2525bc950013",
+      "entity_id": "d087cf84-76ce-4000-817a-f3d8ef31b861",
+      "name": "Horváth Erzsébet",
+      "address": "Pécs, Alkotmány utca 7.",
+      "phone": "+36 20 953 1140",
+      "email": "horvath.erzsi@freemail.hu",
+      "notes": "Idős néni, lassan dönt, de mindig fizet pontosan.",
+      "discount_percent": 5,
+      "created_at": "2026-07-01T20:58:31.124804+00:00"
+    },
+    {
+      "id": "14079c07-36d4-423a-83fe-19ca7410781b",
+      "entity_id": "d087cf84-76ce-4000-817a-f3d8ef31b861",
+      "name": "Nagy Zoltán és\n  Krisztina",
+      "address": "Debrecen, Kossuth utca 38.",
+      "phone": "+36 70 234 5678",
+      "email": "nagy.zoltan@citromail.hu",
+      "notes": null,
+      "discount_percent": 0,
+      "created_at": "2026-07-16T20:58:31.124804+00:00"
+    },
+    {
+      "id": "e4c810c3-f00d-44fb-bf62-011da09d3472",
+      "entity_id": "d087cf84-76ce-4000-817a-f3d8ef31b861",
+      "name": "Fekete Építőipari\n  Kft.",
+      "address": "Győr, Ipari park sor 3.",
+      "phone": "+36 96 412 880",
+      "email": "iroda@feketeepito.hu",
+      "notes": "Cég — ÁFÁ-s számlát kér minden esetben.",
+      "discount_percent": 10,
+      "created_at": "2026-07-21T20:58:31.124804+00:00"
+    },
+    {
+      "id": "c90bcf71-7b65-4475-894c-2039eecac807",
+      "entity_id": "d087cf84-76ce-4000-817a-f3d8ef31b861",
+      "name": "Szabó Péter",
+      "address": "Miskolc, Szeles utca 21. fszt. 3.",
+      "phone": "+36 30 711 2293",
+      "email": "szabo.peter1981@gmail.com",
+      "notes": null,
+      "discount_percent": 0,
+      "created_at": "2026-07-31T20:58:31.124804+00:00"
+    },
+    {
+      "id": "9f789d70-32f3-455c-91a3-e2439273ecf2",
+      "entity_id": "d087cf84-76ce-4000-817a-f3d8ef31b861",
+      "name": "Varga Marianna",
+      "address": "Kecskemét, Arany János tér 5.",
+      "phone": "+36 70 883 4412",
+      "email": "varga.mari@outlook.com",
+      "notes": "Baráti ajánlás útján jött.",
+      "discount_percent": 5,
+      "created_at": "2026-08-10T20:58:31.124804+00:00"
+    },
+    {
+      "id": "d05772c4-f006-414c-997a-a2b9410c3104",
+      "entity_id": "d087cf84-76ce-4000-817a-f3d8ef31b861",
+      "name": "Tóth Gábor",
+      "address": "Sopron, Fő tér 2. III/11.",
+      "phone": "+36 20 562 9930",
+      "email": "toth.gabor@gmail.com",
+      "notes": null,
+      "discount_percent": 0,
+      "created_at": "2026-08-17T20:58:31.124804+00:00"
+    },
+    {
+      "id": "afd9679c-60b0-4abd-972e-7605abf0d26a",
+      "entity_id": "d087cf84-76ce-4000-817a-f3d8ef31b861",
+      "name": "Molnár János és Éva",
+      "address": "Eger, Rákóczi út 19.",
+      "phone": "+36 30 177 6654",
+      "email": "molnar.janos@freemail.hu",
+      "notes": "Nyaralót is tervez felújítani jövőre.",
+      "discount_percent": 0,
+      "created_at": "2026-08-30T20:58:31.124804+00:00"
+    },
+    {
+      "id": "4c96d3b4-26d2-4f74-a2f2-f2c6a315e6eb",
+      "entity_id": "d087cf84-76ce-4000-817a-f3d8ef31b861",
+      "name": "Kiss András",
+      "address": "Siófok, Balaton fasor 11.",
+      "phone": "+36 70 345 8823",
+      "email": "kiss.andras.siofok@gmail.com",
+      "notes": null,
+      "discount_percent": 0,
+      "created_at": "2026-09-06T20:58:31.124804+00:00"
+    },
+    {
+      "id": "ccf87dfb-ed41-4d6f-88c4-a00fd7f3516d",
+      "entity_id": "d087cf84-76ce-4000-817a-f3d8ef31b861",
+      "name": "Lakatos Róbert",
+      "address": "Veszprém, Jutasi út 44.",
+      "phone": "+36 20 981 3307",
+      "email": "lakatos.rob@gmail.com",
+      "notes": "Gyors döntéshozó, sürgős határidőket kér.",
+      "discount_percent": 0,
+      "created_at": "2026-09-14T20:58:31.124804+00:00"
+    },
+    {
+      "id": "aecad054-deed-4cc7-b1ca-4016ff5b9efb",
+      "entity_id": "d087cf84-76ce-4000-817a-f3d8ef31b861",
+      "name": "Farkas Judit",
+      "address": "Szombathely, Paragvári utca 6. I/2.",
+      "phone": "+36 30 628 1155",
+      "email": "farkas.judit@gmail.com",
+      "notes": null,
+      "discount_percent": 5,
+      "created_at": "2026-09-22T20:58:31.124804+00:00"
+    },
+    {
+      "id": "ea506f4d-30a1-46fa-9d8c-93a47429badc",
+      "entity_id": "d087cf84-76ce-4000-817a-f3d8ef31b861",
+      "name": "Simon Tibor",
+      "address": "Nyíregyháza, Bessenyei tér 3.",
+      "phone": "+36 70 414 7788",
+      "email": "simon.tibor85@citromail.hu",
+      "notes": null,
+      "discount_percent": 0,
+      "created_at": "2026-09-30T20:58:31.124804+00:00"
+    },
+    {
+      "id": "9718f4f4-a905-4d59-abe8-dba317dd25fc",
+      "entity_id": "d087cf84-76ce-4000-817a-f3d8ef31b861",
+      "name": "Balogh Imre és Ágnes",
+      "address": "Székesfehérvár, Budai út 112.",
+      "phone": "+36 20 733 2281",
+      "email": "balogh.imre@gmail.com",
+      "notes": "Hétvégi ház teljes felújítása — nagyobb projekt várható.",
+      "discount_percent": 0,
+      "created_at": "2026-10-09T20:58:31.124804+00:00"
+    }
+  ],
+  "quotes": [
+    {
+      "id": "88455d33-f605-4ef2-86df-d8fa8409308d",
+      "entity_id": "d087cf84-76ce-4000-817a-f3d8ef31b861",
+      "title": "Varga Marianna – Kossuth utca 38. lakásfelújítás",
+      "location": "Kecskemét, Kossuth utca 38. II/4.",
+      "work_type": "",
+      "description": "Teljes lakásfelújítás: burkolatok, festés, nyílászárók felülvizsgálata.\n  Ügyfél szeretné megtartani a meglévő beépített szekrényeket. Munkák tervezett kezdete:\n   2026 november.",
+      "start_date": "2026-10-20",
+      "end_date": "2026-10-24",
+      "status": "accepted",
+      "client_id": "e75801a3-4da1-451a-8c1b-0f543c781143",
+      "project_id": "ebc0d31b-b06c-4d30-ad13-60111ca5c026",
+      "created_by": "73c7439a-2b7d-4f61-a300-30d7dd87fc18",
+      "shared_with": [],
+      "created_at": "2026-10-14T21:37:54.848147+00:00",
+      "tax_percent": 0,
+      "survey_id": "c2c4fb6b-271c-4576-b5a8-148715f7d8d0",
+      "updated_at": "2026-10-14T21:45:04.345+00:00",
+      "updated_by_name": "Farkas Laszló"
+    },
+    {
+      "id": "b88a5945-8969-430e-90bc-db14f0a7a89f",
+      "entity_id": "e9643e04-bf11-4393-b0eb-dcdb4772b598",
+      "title": "Padlás hőszigetelés",
+      "location": "Marcali Templom utca 23.",
+      "work_type": "Hőszigetelés",
+      "description": "Gyapot szigetelés térítése fedett gerendázaton",
+      "start_date": "2026-11-09",
+      "end_date": "2026-11-11",
+      "status": "sent",
+      "client_id": "9ad9f5f3-6a79-412e-a899-5c293dd64800",
+      "project_id": null,
+      "created_by": "be023797-c628-4e87-b047-4c2a5cd4ab32",
+      "shared_with": [
+        "37b15529-f9bb-4274-a4e6-d9901504968c"
+      ],
+      "created_at": "2026-10-10T14:50:48.669134+00:00",
+      "tax_percent": 0,
+      "survey_id": null,
+      "updated_at": null,
+      "updated_by_name": null
+    },
+    {
+      "id": "500b2f0e-093a-42a9-94f6-9eaf12adb719",
+      "entity_id": "e9643e04-bf11-4393-b0eb-dcdb4772b598",
+      "title": "Fonyód víz és csatorna hálózat felújítása",
+      "location": "Fonyód, Bartók Béla utca 4.",
+      "work_type": "A ház alsó szintjének vizes munkái",
+      "description": "",
+      "start_date": "2026-11-01",
+      "end_date": "2026-11-06",
+      "status": "sent",
+      "client_id": null,
+      "project_id": null,
+      "created_by": "37b15529-f9bb-4274-a4e6-d9901504968c",
+      "shared_with": [
+        "be023797-c628-4e87-b047-4c2a5cd4ab32",
+        "37b15529-f9bb-4274-a4e6-d9901504968c"
+      ],
+      "created_at": "2026-10-07T22:52:22.190362+00:00",
+      "tax_percent": 0,
+      "survey_id": null,
+      "updated_at": null,
+      "updated_by_name": null
+    },
+    {
+      "id": "b1f0e642-57fa-45d6-88d6-6caa459c656b",
+      "entity_id": "e9643e04-bf11-4393-b0eb-dcdb4772b598",
+      "title": "Biztonsági rács",
+      "location": "Lengyeltóti",
+      "work_type": "Lakatos",
+      "description": "Lakóház pince szinti ablakokra valamint melléképület ablak és ajtóra biztonsági rács telepítése.",
+      "start_date": "2026-10-15",
+      "end_date": "2026-11-09",
+      "status": "sent",
+      "client_id": "d52ef221-ecc7-461f-8092-7514abc8cd4c",
+      "project_id": null,
+      "created_by": "be023797-c628-4e87-b047-4c2a5cd4ab32",
+      "shared_with": [
+        "37b15529-f9bb-4274-a4e6-d9901504968c"
+      ],
+      "created_at": "2026-10-12T22:42:45.455234+00:00",
+      "tax_percent": 0,
+      "survey_id": null,
+      "updated_at": null,
+      "updated_by_name": null
+    }
+  ],
+  "quote_entries": [
+    {
+      "id": "44817b91-52f2-4eba-827c-22913c256259",
+      "quote_id": "500b2f0e-093a-42a9-94f6-9eaf12adb719",
+      "user_id": "37b15529-f9bb-4274-a4e6-d9901504968c",
+      "entry_type": "labour",
+      "work_description": "Régi hálózat bontása",
+      "quantity": 7,
+      "unit": "db",
+      "unit_price": 7143,
+      "amount_huf": 50001,
+      "notes": "",
+      "created_at": "2026-10-07T22:52:22.513497+00:00",
+      "survey_entry_id": null,
+      "section_id": null,
+      "created_by_name": null
+    },
+    {
+      "id": "26328e52-1cd9-4a0a-a8f6-5c7d34c461b7",
+      "quote_id": "500b2f0e-093a-42a9-94f6-9eaf12adb719",
+      "user_id": "37b15529-f9bb-4274-a4e6-d9901504968c",
+      "entry_type": "labour",
+      "work_description": "Fürdő új hálózat kiépítése",
+      "quantity": 18,
+      "unit": "db",
+      "unit_price": 10000,
+      "amount_huf": 180000,
+      "notes": "",
+      "created_at": "2026-10-07T22:52:22.62943+00:00",
+      "survey_entry_id": null,
+      "section_id": null,
+      "created_by_name": null
+    },
+    {
+      "id": "da3b6ce9-4f4b-443d-b402-e917f40a23d1",
+      "quote_id": "500b2f0e-093a-42a9-94f6-9eaf12adb719",
+      "user_id": "37b15529-f9bb-4274-a4e6-d9901504968c",
+      "entry_type": "labour",
+      "work_description": "Konyha kialakítása az új helyen",
+      "quantity": 12,
+      "unit": "db",
+      "unit_price": 5834,
+      "amount_huf": 70008,
+      "notes": "",
+      "created_at": "2026-10-07T22:52:22.742291+00:00",
+      "survey_entry_id": null,
+      "section_id": null,
+      "created_by_name": null
+    },
+    {
+      "id": "318e0777-3c81-49f0-aaca-ed3378d71dc2",
+      "quote_id": "500b2f0e-093a-42a9-94f6-9eaf12adb719",
+      "user_id": "37b15529-f9bb-4274-a4e6-d9901504968c",
+      "entry_type": "labour",
+      "work_description": "Házon kívüli víz és csatorna szerelés",
+      "quantity": 20,
+      "unit": "db",
+      "unit_price": 10000,
+      "amount_huf": 200000,
+      "notes": "",
+      "created_at": "2026-10-07T22:52:22.849827+00:00",
+      "survey_entry_id": null,
+      "section_id": null,
+      "created_by_name": null
+    },
+    {
+      "id": "847d0891-e03d-48f3-971f-82ec15bb2b16",
+      "quote_id": "b88a5945-8969-430e-90bc-db14f0a7a89f",
+      "user_id": "be023797-c628-4e87-b047-4c2a5cd4ab32",
+      "entry_type": "material",
+      "work_description": "Üveggyapot, páraáteresztő fólia, ragasztó szalag",
+      "quantity": 93,
+      "unit": "m²",
+      "unit_price": 4950,
+      "amount_huf": 460350,
+      "notes": "",
+      "created_at": "2026-10-10T14:59:50.298643+00:00",
+      "survey_entry_id": null,
+      "section_id": "bd4a1a4f-d1c0-4974-95ed-288e0de00500",
+      "created_by_name": null
+    },
+    {
+      "id": "0091acf2-54d2-484b-95f8-7ae095524bc8",
+      "quote_id": "b88a5945-8969-430e-90bc-db14f0a7a89f",
+      "user_id": "be023797-c628-4e87-b047-4c2a5cd4ab32",
+      "entry_type": "labour",
+      "work_description": "Padlás hőszigetelés rétegrend kialakítása",
+      "quantity": 93,
+      "unit": "m²",
+      "unit_price": 4950,
+      "amount_huf": 460350,
+      "notes": "",
+      "created_at": "2026-10-10T14:59:50.551443+00:00",
+      "survey_entry_id": null,
+      "section_id": "bd4a1a4f-d1c0-4974-95ed-288e0de00500",
+      "created_by_name": null
+    },
+    {
+      "id": "4a58b7d3-3fa6-45d3-9e47-12531b5cb271",
+      "quote_id": "88455d33-f605-4ef2-86df-d8fa8409308d",
+      "user_id": "73c7439a-2b7d-4f61-a300-30d7dd87fc18",
+      "entry_type": "material",
+      "work_description": "Falicsempe (30×60 cm, fényes fehér)",
+      "quantity": 42,
+      "unit": "m²",
+      "unit_price": 7800,
+      "amount_huf": 327600,
+      "notes": "Hidrofug fugázóval együtt",
+      "created_at": "2026-10-14T21:31:58.502023+00:00",
+      "survey_entry_id": null,
+      "section_id": "879c0677-ec34-4eaf-a15a-d8b56f098e79",
+      "created_by_name": "Farkas László"
+    },
+    {
+      "id": "ffcf8a54-2b80-4001-8cc7-8fbb36173d3e",
+      "quote_id": "88455d33-f605-4ef2-86df-d8fa8409308d",
+      "user_id": "73c7439a-2b7d-4f61-a300-30d7dd87fc18",
+      "entry_type": "material",
+      "work_description": "Padlólap (60×60 cm, csúszásmentes)",
+      "quantity": 15,
+      "unit": "m²",
+      "unit_price": 9200,
+      "amount_huf": 138000,
+      "notes": "5-10% veszteséggel kalkulálva",
+      "created_at": "2026-10-14T21:32:58.502023+00:00",
+      "survey_entry_id": null,
+      "section_id": "879c0677-ec34-4eaf-a15a-d8b56f098e79",
+      "created_by_name": "Farkas László"
+    },
+    {
+      "id": "77d3f2aa-a4a1-48d2-8d59-7d60d687c467",
+      "quote_id": "88455d33-f605-4ef2-86df-d8fa8409308d",
+      "user_id": "73c7439a-2b7d-4f61-a300-30d7dd87fc18",
+      "entry_type": "labour",
+      "work_description": "Csempézés és burkolás munkadíja (fal + padló)",
+      "quantity": 57,
+      "unit": "m²",
+      "unit_price": 5200,
+      "amount_huf": 296400,
+      "notes": "Alapozással és fugázással együtt",
+      "created_at": "2026-10-14T21:33:58.502023+00:00",
+      "survey_entry_id": null,
+      "section_id": "879c0677-ec34-4eaf-a15a-d8b56f098e79",
+      "created_by_name": "Farkas László"
+    },
+    {
+      "id": "4b8a1c9c-826c-4c37-a0f9-29ee765531d2",
+      "quote_id": "88455d33-f605-4ef2-86df-d8fa8409308d",
+      "user_id": "73c7439a-2b7d-4f61-a300-30d7dd87fc18",
+      "entry_type": "material",
+      "work_description": "Zuhanytálca (90×90 cm) + csaptelep csere",
+      "quantity": 1,
+      "unit": "db",
+      "unit_price": 92000,
+      "amount_huf": 92000,
+      "notes": "Hansgrohe vagy egyenértékű",
+      "created_at": "2026-10-14T21:34:58.502023+00:00",
+      "survey_entry_id": null,
+      "section_id": "879c0677-ec34-4eaf-a15a-d8b56f098e79",
+      "created_by_name": "Farkas László"
+    },
+    {
+      "id": "100b9b7f-d26b-4b31-aeac-fd74402d7561",
+      "quote_id": "88455d33-f605-4ef2-86df-d8fa8409308d",
+      "user_id": "73c7439a-2b7d-4f61-a300-30d7dd87fc18",
+      "entry_type": "labour",
+      "work_description": "Vízvezeték-szerelési munkadíj (zuhanytálca, csaptelep)",
+      "quantity": 1,
+      "unit": "átalány",
+      "unit_price": 48000,
+      "amount_huf": 48000,
+      "notes": "",
+      "created_at": "2026-10-14T21:35:58.502023+00:00",
+      "survey_entry_id": null,
+      "section_id": "879c0677-ec34-4eaf-a15a-d8b56f098e79",
+      "created_by_name": "Farkas László"
+    },
+    {
+      "id": "a599d527-b326-4ac2-bcee-02c97bb8ab1d",
+      "quote_id": "b1f0e642-57fa-45d6-88d6-6caa459c656b",
+      "user_id": "be023797-c628-4e87-b047-4c2a5cd4ab32",
+      "entry_type": "material",
+      "work_description": "Fém rácsok",
+      "quantity": 5,
+      "unit": "db",
+      "unit_price": 22000,
+      "amount_huf": 110000,
+      "notes": "Vasanyag, festék, hegesztési kellékanyag",
+      "created_at": "2026-10-12T22:42:48.123894+00:00",
+      "survey_entry_id": null,
+      "section_id": "5f0f93f7-5e57-482f-8f7d-1c89bee456ab",
+      "created_by_name": null
+    },
+    {
+      "id": "ce536a61-3f6f-44ed-b8f1-5116fca9c3db",
+      "quote_id": "b1f0e642-57fa-45d6-88d6-6caa459c656b",
+      "user_id": "be023797-c628-4e87-b047-4c2a5cd4ab32",
+      "entry_type": "labour",
+      "work_description": "Biztonsági rács gyártás, telepítése",
+      "quantity": 5,
+      "unit": "db",
+      "unit_price": 37800,
+      "amount_huf": 189000,
+      "notes": "Hegesztés, csiszolás, festès, felszerelés",
+      "created_at": "2026-10-12T22:42:48.293843+00:00",
+      "survey_entry_id": null,
+      "section_id": "5f0f93f7-5e57-482f-8f7d-1c89bee456ab",
+      "created_by_name": null
+    },
+    {
+      "id": "b4a024f9-c73a-4e99-bbb1-21168b182ec7",
+      "quote_id": "b1f0e642-57fa-45d6-88d6-6caa459c656b",
+      "user_id": "be023797-c628-4e87-b047-4c2a5cd4ab32",
+      "entry_type": "material",
+      "work_description": "Fém rácsok",
+      "quantity": 2,
+      "unit": "db",
+      "unit_price": 78000,
+      "amount_huf": 156000,
+      "notes": "Vasanyag, festék, hegesztési kellékanyag. Az ablak és ajtó rács nem kerül ugyan annyiba, az ajtó rács a drágább, csak a programban egyenlően tudom csak elosztani a költségeket.",
+      "created_at": "2026-10-12T22:42:49.816896+00:00",
+      "survey_entry_id": null,
+      "section_id": "9c016def-37e5-4e49-b4e5-6d900c5150b7",
+      "created_by_name": null
+    },
+    {
+      "id": "f3bead70-0a7b-47bc-957c-56f7c79420c2",
+      "quote_id": "b1f0e642-57fa-45d6-88d6-6caa459c656b",
+      "user_id": "be023797-c628-4e87-b047-4c2a5cd4ab32",
+      "entry_type": "labour",
+      "work_description": "Biztonsági rács gyártása és telepítése (ablak/toló ajtó)",
+      "quantity": 2,
+      "unit": "db",
+      "unit_price": 148000,
+      "amount_huf": 296000,
+      "notes": "Hegesztés, csiszolás, festès, felszerelés. Itt is igaz, hogy a költségek az ajtónál magasabbak, csak a program...",
+      "created_at": "2026-10-12T22:42:49.986736+00:00",
+      "survey_entry_id": null,
+      "section_id": "9c016def-37e5-4e49-b4e5-6d900c5150b7",
+      "created_by_name": null
+    },
+    {
+      "id": "e6bb05ee-a06b-46aa-bce9-568339203f59",
+      "quote_id": "88455d33-f605-4ef2-86df-d8fa8409308d",
+      "user_id": "73c7439a-2b7d-4f61-a300-30d7dd87fc18",
+      "entry_type": "labour",
+      "work_description": "Glettelés, festés – mennyezet és nem csempézett falfelületek",
+      "quantity": 14,
+      "unit": "m²",
+      "unit_price": 3500,
+      "amount_huf": 49000,
+      "notes": "Penészgátló festékkel",
+      "created_at": "2026-10-14T21:36:58.502023+00:00",
+      "survey_entry_id": null,
+      "section_id": "879c0677-ec34-4eaf-a15a-d8b56f098e79",
+      "created_by_name": "Farkas László"
+    },
+    {
+      "id": "d3e106e7-7b37-4df8-a5da-2630092c6144",
+      "quote_id": "88455d33-f605-4ef2-86df-d8fa8409308d",
+      "user_id": "73c7439a-2b7d-4f61-a300-30d7dd87fc18",
+      "entry_type": "material",
+      "work_description": "Műanyag ablakcsere (60×90 cm) + beépítés",
+      "quantity": 1,
+      "unit": "db",
+      "unit_price": 65000,
+      "amount_huf": 65000,
+      "notes": "Meglévő tok elbontásával együtt",
+      "created_at": "2026-10-14T21:37:58.502023+00:00",
+      "survey_entry_id": null,
+      "section_id": "879c0677-ec34-4eaf-a15a-d8b56f098e79",
+      "created_by_name": "Farkas László"
+    },
+    {
+      "id": "251f0b56-0fe0-4d45-9f1c-4f393eacd796",
+      "quote_id": "88455d33-f605-4ef2-86df-d8fa8409308d",
+      "user_id": "73c7439a-2b7d-4f61-a300-30d7dd87fc18",
+      "entry_type": "transport",
+      "work_description": "Gipszkarton",
+      "quantity": null,
+      "unit": null,
+      "unit_price": null,
+      "amount_huf": 40000,
+      "notes": "",
+      "created_at": "2026-10-14T21:45:06.291637+00:00",
+      "survey_entry_id": null,
+      "section_id": "b7a48721-ec46-4791-aa44-915336356ac9",
+      "created_by_name": "Farkas Laszló"
+    }
+  ],
+  "surveys": [
+    {
+      "id": "c2c4fb6b-271c-4576-b5a8-148715f7d8d0",
+      "entity_id": "d087cf84-76ce-4000-817a-f3d8ef31b861",
+      "client_id": "e75801a3-4da1-451a-8c1b-0f543c781143",
+      "title": "Varga Marianna – Kossuth utca 38. lakásfelújítás",
+      "notes": "Teljes lakásfelújítás: burkolatok, festés, nyílászárók felülvizsgálata.\n  Ügyfél szeretné megtartani a meglévő beépített szekrényeket. Munkák tervezett kezdete:\n   2026 november.",
+      "date": "2026-10-14",
+      "location": "Kecskemét, Kossuth utca 38. II/4.",
+      "created_by": "73c7439a-2b7d-4f61-a300-30d7dd87fc18",
+      "created_at": "2026-10-14T21:16:47.546386+00:00",
+      "shared_with": []
+    }
+  ],
+  "invoices": [
+    {
+      "id": "eee921ac-2485-451d-ae57-55e9a88c4b1c",
+      "project_id": "ebc0d31b-b06c-4d30-ad13-60111ca5c026",
+      "uploaded_by": "73c7439a-2b7d-4f61-a300-30d7dd87fc18",
+      "uploader_name": "Farkas Laszló",
+      "image_url": "https://bqaqylcvaeiodfuddtte.supabase.co/storage/v1/object/public/invoices/73c7439a-2b7d-4f61-a300-30d7dd87fc18/1792014732117_1n7fbj.gif",
+      "storage_path": "73c7439a-2b7d-4f61-a300-30d7dd87fc18/1792014732117_1n7fbj.gif",
+      "value_huf": 61155,
+      "ocr_suggested_value": null,
+      "description": "Gipszkarton",
+      "category": "Anyag",
+      "created_at": "2026-10-14T21:52:12.483191+00:00",
+      "room_id": "546349d5-f287-4255-85dc-07cdc05f62e6",
+      "ai_line_items": [
+        {
+          "name": "Sony DSC-W320B fényképezőgép",
+          "total": 26766.52,
+          "currency": "HUF",
+          "quantity": 1,
+          "unitPrice": 26766.52
+        },
+        {
+          "name": "Hauser C 10 aprító",
+          "total": 7620,
+          "currency": "HUF",
+          "quantity": 1,
+          "unitPrice": 7620
+        },
+        {
+          "name": "Sony DSC-W320B fényképezőgép",
+          "total": 26766.52,
+          "currency": "HUF",
+          "quantity": 1,
+          "unitPrice": 26766.52
+        }
+      ],
+      "ai_total": 61155,
+      "deleted_at": null,
+      "deleted_by_name": null
+    }
+  ],
+  "labour_entries": [
+    {
+      "id": "d5a3d399-8178-4f4e-aed5-f049770d1c5f",
+      "project_id": "7893fc03-8f21-4f2e-8983-abd8537e92e1",
+      "uploaded_by": "37b15529-f9bb-4274-a4e6-d9901504968c",
+      "date": "2026-10-05",
+      "labour_type": "Fürdő felújítás 1. fázis",
+      "hours": 20,
+      "hourly_rate": 10000,
+      "value_huf": 200000,
+      "description": "",
+      "created_at": "2026-10-05T16:07:14.969276+00:00",
+      "room_id": null,
+      "unit": "h"
+    }
+  ],
+  "project_members": [
+    {
+      "project_id": "24c1fb03-014e-4714-be58-eb961b3c47a2",
+      "user_id": "37b15529-f9bb-4274-a4e6-d9901504968c"
+    },
+    {
+      "project_id": "24c1fb03-014e-4714-be58-eb961b3c47a2",
+      "user_id": "be023797-c628-4e87-b047-4c2a5cd4ab32"
+    },
+    {
+      "project_id": "0a0e7693-14e6-4d0e-972c-174318418a3b",
+      "user_id": "37b15529-f9bb-4274-a4e6-d9901504968c"
+    },
+    {
+      "project_id": "0a0e7693-14e6-4d0e-972c-174318418a3b",
+      "user_id": "be023797-c628-4e87-b047-4c2a5cd4ab32"
+    },
+    {
+      "project_id": "7893fc03-8f21-4f2e-8983-abd8537e92e1",
+      "user_id": "37b15529-f9bb-4274-a4e6-d9901504968c"
+    },
+    {
+      "project_id": "7893fc03-8f21-4f2e-8983-abd8537e92e1",
+      "user_id": "be023797-c628-4e87-b047-4c2a5cd4ab32"
+    },
+    {
+      "project_id": "ebc0d31b-b06c-4d30-ad13-60111ca5c026",
+      "user_id": "73c7439a-2b7d-4f61-a300-30d7dd87fc18"
+    }
+  ],
+  "project_rooms": [
+    {
+      "id": "546349d5-f287-4255-85dc-07cdc05f62e6",
+      "project_id": "ebc0d31b-b06c-4d30-ad13-60111ca5c026",
+      "entity_id": "d087cf84-76ce-4000-817a-f3d8ef31b861",
+      "name": "Fürdőszoba",
+      "size_m2": 14,
+      "work_types": [],
+      "description": "Komplett felújítás szükséges. Jelenlegi csempézet repedezett,\n  több helyen ki is vált a falból. A zuhanytálca tömítése hiányos, a csaptelep cseréje\n  indokolt. Egy darab kis ablak az udvarra néz, tok korrodált. Álmennyezet nincs,\n  glettelés és festés szükséges.",
+      "quoted_amount_net": 1016000,
+      "sort_order": 0,
+      "source_section_id": "879c0677-ec34-4eaf-a15a-d8b56f098e79",
+      "created_at": "2026-10-14T21:47:24.453368+00:00",
+      "start_date": null,
+      "end_date": null
+    },
+    {
+      "id": "52c57110-c80b-43fc-ba01-e23900621205",
+      "project_id": "ebc0d31b-b06c-4d30-ad13-60111ca5c026",
+      "entity_id": "d087cf84-76ce-4000-817a-f3d8ef31b861",
+      "name": "Konyha",
+      "size_m2": 16.2,
+      "work_types": [],
+      "description": "L-alakú konyha, két ablakkal az utcafrontra. A meglévő konyhabútor marad, csak a\n  munkalap és a csempesáv kerül cserére. A villanytűzhely helye áthelyezendő a bal\n  oldali falra. Padló: jelenlegi terrakotta járólap felszedése, új burkolat szükséges.\n  Mennyezet és falak festése.",
+      "quoted_amount_net": 40000,
+      "sort_order": 0,
+      "source_section_id": "b7a48721-ec46-4791-aa44-915336356ac9",
+      "created_at": "2026-10-14T21:47:24.453368+00:00",
+      "start_date": null,
+      "end_date": null
+    }
+  ],
+  "diary_entries": []
+}

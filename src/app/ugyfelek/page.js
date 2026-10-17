@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState } from 'react';
-import Link from 'next/link';
 import { useApp } from '@/context/AppContext';
 import Modal, { ConfirmModal, AlertModal } from '@/components/Modal';
 import {
@@ -27,6 +26,7 @@ import {
 } from 'lucide-react';
 import PageSpinner from '@/components/PageSpinner';
 import WorkspaceBadge from '@/components/WorkspaceBadge';
+import ClientDetailModal from '@/components/ClientDetailModal';
 
 export default function AdminClientsPage() {
   const { isAdmin, loading, dataReady, effectiveEntityId, activeCollectiveId, clients, quotes, projects, collectives, createClient, updateClient, deleteClient } = useApp();
@@ -52,6 +52,8 @@ export default function AdminClientsPage() {
   const [formShares, setFormShares] = useState([]);
   const [formSharesInitial, setFormSharesInitial] = useState([]);
   const [formSharesGdpr, setFormSharesGdpr] = useState(false);
+
+  const [selectedClientId, setSelectedClientId] = useState(null);
 
   if (loading || !dataReady) return <PageSpinner />;
 
@@ -233,7 +235,7 @@ export default function AdminClientsPage() {
             const stats = getClientStats(client.id);
             const shareCount = client.client_collective_shares?.length || 0;
             return (
-              <Link key={client.id} href={`/ugyfelek/${client.id}`} className="card card-interactive" style={{ padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem', textDecoration: 'none', color: 'inherit' }}>
+              <div key={client.id} role="button" tabIndex={0} onClick={() => setSelectedClientId(client.id)} onKeyDown={e => e.key === 'Enter' && setSelectedClientId(client.id)} className="card card-interactive" style={{ padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem', cursor: 'pointer' }}>
                 {/* Top: name + actions */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.75rem' }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
@@ -261,10 +263,10 @@ export default function AdminClientsPage() {
                     )}
                   </div>
                   <div style={{ display: 'flex', gap: '0.35rem', flexShrink: 0 }}>
-                    <button type="button" onClick={e => { e.preventDefault(); e.stopPropagation(); openEditModal(client); }} className="btn btn-secondary btn-sm" title="Szerkesztés">
+                    <button type="button" onClick={e => { e.stopPropagation(); setSelectedClientId(client.id); }} className="btn btn-secondary btn-sm" title="Szerkesztés">
                       <Edit3 size={13} />
                     </button>
-                    <button type="button" onClick={e => { e.preventDefault(); e.stopPropagation(); handleDelete(client); }} className="btn btn-danger btn-sm" title="Törlés">
+                    <button type="button" onClick={e => { e.stopPropagation(); handleDelete(client); }} className="btn btn-danger btn-sm" title="Törlés">
                       <Trash2 size={13} />
                     </button>
                   </div>
@@ -294,7 +296,7 @@ export default function AdminClientsPage() {
                     </span>
                   )}
                 </div>
-              </Link>
+              </div>
             );
           })}
         </div>
@@ -408,6 +410,14 @@ export default function AdminClientsPage() {
 
       <ConfirmModal isOpen={!!confirmModal} onClose={() => setConfirmModal(null)} onConfirm={() => confirmModal?.onConfirm()} title="Ügyfél törlése" message={confirmModal?.message} />
       <AlertModal isOpen={!!alertModal} onClose={() => setAlertModal(null)} message={alertModal?.message} />
+
+      {selectedClientId && (
+        <ClientDetailModal
+          clientId={selectedClientId}
+          onClose={() => setSelectedClientId(null)}
+          onDeleted={() => { setSelectedClientId(null); setSuccessMsg('Ügyfél törölve.'); }}
+        />
+      )}
     </div>
   );
 }
