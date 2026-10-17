@@ -101,7 +101,7 @@ export function AppProvider({ children }) {
   })();
 
   // ---- Route guard ------------------------------------------------------------
-  const PUBLIC_ROUTE_PREFIXES = ['/login', '/change-password', '/szakemberek/', '/p/', '/clients/', '/naplo/', '/auth/'];
+  const PUBLIC_ROUTE_PREFIXES = ['/login', '/change-password', '/szakemberek/', '/p/', '/clients/', '/naplo/', '/auth/', '/invitations/'];
   const PUBLIC_ROUTE_EXACT = ['/'];
   useEffect(() => {
     if (loading) return;
@@ -276,7 +276,7 @@ export function AppProvider({ children }) {
 
   // ---- Auth -------------------------------------------------------------------
 
-  const login = async (email, password) => {
+  const login = async (email, password, { noRedirect = false } = {}) => {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) throw error;
 
@@ -298,14 +298,16 @@ export function AppProvider({ children }) {
 
     auditLog('Bejelentkezés', { entityId: user.active_collective_id || user.id });
 
-    if (user.must_change_password) {
-      router.push('/change-password');
-    } else if (user.role === 'superadmin') {
-      router.push('/superadmin');
-    } else if (user.role === 'admin') {
-      router.push('/admin');
-    } else {
-      router.push('/dashboard');
+    if (!noRedirect) {
+      if (user.must_change_password) {
+        router.push('/change-password');
+      } else if (user.role === 'superadmin') {
+        router.push('/superadmin');
+      } else if (user.role === 'admin') {
+        router.push('/admin');
+      } else {
+        router.push('/dashboard');
+      }
     }
     return user;
   };
@@ -318,7 +320,7 @@ export function AppProvider({ children }) {
     if (error) throw error;
   };
 
-  const registerWithEmail = async (name, email, password, gdprConsentedAt) => {
+  const registerWithEmail = async (name, email, password, gdprConsentedAt, { noRedirect = false } = {}) => {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
@@ -339,7 +341,7 @@ export function AppProvider({ children }) {
       };
       setCurrentUser(user);
       await refreshSupabaseData(user);
-      router.push('/dashboard');
+      if (!noRedirect) router.push('/dashboard');
     }
     return data;
   };
@@ -430,19 +432,17 @@ export function AppProvider({ children }) {
   // ---- Context Switcher -------------------------------------------------------
 
   const setActiveContext = async (collectiveId) => {
-    setCurrentUser(prev => prev ? { ...prev, active_collective_id: collectiveId } : prev);
-
+    // Update DB first — creation routes read active_collective_id from the DB,
+    // so the client must not reflect the new context until the write is confirmed.
     const res = await fetch('/api/auth/context', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ collective_id: collectiveId }),
     });
 
-    if (!res.ok) {
-      setCurrentUser(prev => prev ? { ...prev, active_collective_id: prev.active_collective_id } : prev);
-      throw new Error('Hiba a kontextus váltásakor');
-    }
+    if (!res.ok) throw new Error('Hiba a kontextus váltásakor');
 
+    setCurrentUser(prev => prev ? { ...prev, active_collective_id: collectiveId } : prev);
     await refreshSupabaseData();
   };
 

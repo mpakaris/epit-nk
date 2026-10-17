@@ -7,7 +7,7 @@ import { AlertModal } from '@/components/Modal';
 import { formatDate } from '@/lib/constants';
 import {
   ArrowLeft, ShieldCheck, CheckCircle2, Crown, Star,
-  Users, Search, RefreshCw
+  Users, Search, RefreshCw, Building2, UserCheck
 } from 'lucide-react';
 
 function formatLastLogin(iso) {
@@ -29,10 +29,14 @@ export default function SuperadminSubscriptionsPage() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [toggling, setToggling] = useState(null);
+  const [updatingCollective, setUpdatingCollective] = useState(null);
   const [successMsg, setSuccessMsg] = useState('');
   const [alertModal, setAlertModal] = useState(null);
   const [search, setSearch] = useState('');
   const [filterPremium, setFilterPremium] = useState('all');
+
+  // Inline seat editor state: { collectiveId, value }
+  const [editingSeats, setEditingSeats] = useState(null);
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);
@@ -52,7 +56,7 @@ export default function SuperadminSubscriptionsPage() {
     if (!appLoading && isSuperAdmin) fetchUsers();
   }, [appLoading, isSuperAdmin, fetchUsers]);
 
-  const handleToggle = async (user) => {
+  const handlePersonalToggle = async (user) => {
     setToggling(user.id);
     const next = !user.is_subscription_premium;
     try {
@@ -64,12 +68,74 @@ export default function SuperadminSubscriptionsPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       setUsers(prev => prev.map(u => u.id === user.id ? { ...u, is_subscription_premium: next } : u));
-      setSuccessMsg(`${user.display_name} — ${next ? 'Premium activated' : 'Premium removed'}`);
+      setSuccessMsg(`${user.display_name} — personal: ${next ? 'Premium' : 'Basic'}`);
       setTimeout(() => setSuccessMsg(''), 3000);
     } catch (err) {
       setAlertModal({ message: err.message });
     } finally {
       setToggling(null);
+    }
+  };
+
+  const handleCollectiveTypeToggle = async (collective, currentType) => {
+    const nextType = currentType === 'premium' ? 'seats' : 'premium';
+    setUpdatingCollective(collective.id);
+    try {
+      const res = await fetch('/api/superadmin/subscriptions', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          collectiveId: collective.id,
+          subscription_type: nextType,
+          seat_count: collective.seat_count ?? 1,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setUsers(prev => prev.map(u => ({
+        ...u,
+        owned_collectives: u.owned_collectives.map(c =>
+          c.id === collective.id ? { ...c, subscription_type: nextType } : c
+        ),
+      })));
+      setSuccessMsg(`${collective.name} — type: ${nextType === 'premium' ? 'Premium' : 'Seats'}`);
+      setTimeout(() => setSuccessMsg(''), 3000);
+    } catch (err) {
+      setAlertModal({ message: err.message });
+    } finally {
+      setUpdatingCollective(null);
+    }
+  };
+
+  const handleSeatCountSave = async (collective, newCount) => {
+    const seats = parseInt(newCount, 10);
+    if (!seats || seats < 1) { setEditingSeats(null); return; }
+    setUpdatingCollective(collective.id);
+    try {
+      const res = await fetch('/api/superadmin/subscriptions', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          collectiveId: collective.id,
+          subscription_type: 'seats',
+          seat_count: seats,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setUsers(prev => prev.map(u => ({
+        ...u,
+        owned_collectives: u.owned_collectives.map(c =>
+          c.id === collective.id ? { ...c, seat_count: seats } : c
+        ),
+      })));
+      setSuccessMsg(`${collective.name} — ${seats} seats saved`);
+      setTimeout(() => setSuccessMsg(''), 3000);
+    } catch (err) {
+      setAlertModal({ message: err.message });
+    } finally {
+      setUpdatingCollective(null);
+      setEditingSeats(null);
     }
   };
 
@@ -89,11 +155,13 @@ export default function SuperadminSubscriptionsPage() {
     const matchFilter =
       filterPremium === 'all' ||
       (filterPremium === 'premium' && u.is_subscription_premium) ||
-      (filterPremium === 'free' && !u.is_subscription_premium);
+      (filterPremium === 'free' && !u.is_subscription_premium) ||
+      (filterPremium === 'collective' && u.owned_collectives?.length > 0);
     return matchSearch && matchFilter;
   });
 
   const premiumCount = users.filter(u => u.is_subscription_premium).length;
+  const collectiveOwnerCount = users.filter(u => u.owned_collectives?.length > 0).length;
 
   return (
     <div className="container">
@@ -110,7 +178,7 @@ export default function SuperadminSubscriptionsPage() {
               <ShieldCheck size={15} /> Superadmin
             </div>
             <h1 className="page-title">Subscriptions</h1>
-            <p className="page-subtitle">{users.length} users · {premiumCount} premium</p>
+            <p className="page-subtitle">{users.length} users · {premiumCount} premium · {collectiveOwnerCount} collective owners</p>
           </div>
           <button type="button" onClick={fetchUsers} className="btn btn-secondary btn-sm" disabled={loading}>
             <RefreshCw size={13} style={loading ? { animation: 'spin 1s linear infinite' } : {}} /> Refresh
@@ -138,14 +206,19 @@ export default function SuperadminSubscriptionsPage() {
           />
         </div>
         <div style={{ display: 'flex', gap: '0.4rem' }}>
-          {['all', 'premium', 'free'].map(f => (
+          {[
+            { key: 'all', label: 'All' },
+            { key: 'premium', label: 'Premium' },
+            { key: 'free', label: 'Basic' },
+            { key: 'collective', label: 'Collective' },
+          ].map(f => (
             <button
-              key={f}
+              key={f.key}
               type="button"
-              onClick={() => setFilterPremium(f)}
-              className={filterPremium === f ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm'}
+              onClick={() => setFilterPremium(f.key)}
+              className={filterPremium === f.key ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm'}
             >
-              {f === 'all' ? 'All' : f === 'premium' ? 'Premium' : 'Free'}
+              {f.label}
             </button>
           ))}
         </div>
@@ -167,45 +240,128 @@ export default function SuperadminSubscriptionsPage() {
                 <th className="hide-mobile">Role</th>
                 <th className="hide-mobile">Last login</th>
                 <th className="hide-mobile">Registered</th>
-                <th style={{ textAlign: 'right' }}>Subscription</th>
+                <th style={{ textAlign: 'center' }}>Personal</th>
+                <th style={{ textAlign: 'center' }}>Collective type</th>
+                <th style={{ textAlign: 'center' }}>Seats</th>
               </tr>
             </thead>
             <tbody>
-              {filtered.map(u => (
-                <tr key={u.id}>
-                  <td>
-                    <div style={{ fontWeight: 700 }}>{u.display_name}</div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{u.email}</div>
-                  </td>
-                  <td className="hide-mobile">
-                    <span className={`role-tag ${u.role}`}>{ROLE_LABELS[u.role] ?? u.role}</span>
-                  </td>
-                  <td className="hide-mobile" style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
-                    {formatLastLogin(u.last_sign_in_at)}
-                  </td>
-                  <td className="hide-mobile" style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
-                    {formatDate(u.created_at)}
-                  </td>
-                  <td style={{ textAlign: 'right' }}>
-                    <button
-                      type="button"
-                      onClick={() => handleToggle(u)}
-                      disabled={toggling === u.id || u.role === 'superadmin'}
-                      className={u.is_subscription_premium ? 'btn btn-sm' : 'btn btn-secondary btn-sm'}
-                      style={u.is_subscription_premium ? {
-                        background: 'linear-gradient(135deg, #d97706, #f59e0b)',
-                        color: '#fff',
-                        border: 'none',
-                        gap: '0.35rem',
-                      } : { gap: '0.35rem' }}
-                      title={u.role === 'superadmin' ? 'Cannot modify superadmin' : undefined}
-                    >
-                      {u.is_subscription_premium ? <Crown size={13} /> : <Star size={13} />}
-                      {toggling === u.id ? '...' : (u.is_subscription_premium ? 'Premium' : 'Free')}
-                    </button>
-                  </td>
-                </tr>
-              ))}
+              {filtered.map(u => {
+                const collective = u.owned_collectives?.[0] ?? null;
+                const isUpdatingC = updatingCollective === collective?.id;
+
+                return (
+                  <tr key={u.id}>
+                    <td>
+                      <div style={{ fontWeight: 700 }}>{u.display_name}</div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{u.email}</div>
+                    </td>
+                    <td className="hide-mobile">
+                      <span className={`role-tag ${u.role}`}>{ROLE_LABELS[u.role] ?? u.role}</span>
+                    </td>
+                    <td className="hide-mobile" style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+                      {formatLastLogin(u.last_sign_in_at)}
+                    </td>
+                    <td className="hide-mobile" style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+                      {formatDate(u.created_at)}
+                    </td>
+
+                    {/* Personal subscription */}
+                    <td style={{ textAlign: 'center' }}>
+                      <button
+                        type="button"
+                        onClick={() => handlePersonalToggle(u)}
+                        disabled={toggling === u.id || u.role === 'superadmin'}
+                        className={u.is_subscription_premium ? 'btn btn-sm' : 'btn btn-secondary btn-sm'}
+                        style={u.is_subscription_premium ? {
+                          background: 'linear-gradient(135deg, #d97706, #f59e0b)',
+                          color: '#fff',
+                          border: 'none',
+                          gap: '0.35rem',
+                          minWidth: '82px',
+                        } : { gap: '0.35rem', minWidth: '82px' }}
+                        title={u.role === 'superadmin' ? 'Cannot modify superadmin' : undefined}
+                      >
+                        {u.is_subscription_premium ? <Crown size={13} /> : <Star size={13} />}
+                        {toggling === u.id ? '...' : (u.is_subscription_premium ? 'Premium' : 'Basic')}
+                      </button>
+                    </td>
+
+                    {/* Collective subscription type */}
+                    <td style={{ textAlign: 'center' }}>
+                      {collective ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.25rem' }}>
+                          <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={collective.name}>
+                            {collective.name}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleCollectiveTypeToggle(collective, collective.subscription_type)}
+                            disabled={isUpdatingC}
+                            className={collective.subscription_type === 'seats' ? 'btn btn-sm' : 'btn btn-secondary btn-sm'}
+                            style={collective.subscription_type === 'seats' ? {
+                              background: 'linear-gradient(135deg, #7c3aed, #4f46e5)',
+                              color: '#fff',
+                              border: 'none',
+                              gap: '0.35rem',
+                              fontSize: '0.775rem',
+                              minWidth: '80px',
+                            } : { gap: '0.35rem', fontSize: '0.775rem', minWidth: '80px' }}
+                          >
+                            <Building2 size={12} />
+                            {isUpdatingC ? '...' : (collective.subscription_type === 'seats' ? 'Seats' : 'Premium')}
+                          </button>
+                        </div>
+                      ) : (
+                        <span style={{ color: 'var(--text-muted)', fontSize: '0.82rem' }}>—</span>
+                      )}
+                    </td>
+
+                    {/* Seats */}
+                    <td style={{ textAlign: 'center' }}>
+                      {collective && collective.subscription_type === 'seats' ? (
+                        editingSeats?.collectiveId === collective.id ? (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', justifyContent: 'center' }}>
+                            <input
+                              type="number"
+                              min={1}
+                              max={99}
+                              value={editingSeats.value}
+                              onChange={e => setEditingSeats(s => ({ ...s, value: e.target.value }))}
+                              onKeyDown={e => {
+                                if (e.key === 'Enter') handleSeatCountSave(collective, editingSeats.value);
+                                if (e.key === 'Escape') setEditingSeats(null);
+                              }}
+                              autoFocus
+                              style={{ width: 52, padding: '0.2rem 0.35rem', fontSize: '0.82rem', textAlign: 'center', borderRadius: 'var(--radius-sm)', border: '1px solid var(--accent-border)' }}
+                            />
+                            <button
+                              type="button"
+                              className="btn btn-primary btn-sm"
+                              style={{ padding: '0.2rem 0.45rem', fontSize: '0.75rem' }}
+                              onClick={() => handleSeatCountSave(collective, editingSeats.value)}
+                              disabled={isUpdatingC}
+                            >
+                              <UserCheck size={12} />
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => setEditingSeats({ collectiveId: collective.id, value: String(collective.seat_count ?? 1) })}
+                            style={{ background: 'none', border: '1px dashed var(--border-subtle)', borderRadius: 'var(--radius-sm)', padding: '0.2rem 0.6rem', cursor: 'pointer', fontSize: '0.82rem', color: 'var(--text-primary)', fontWeight: 700 }}
+                            title="Click to edit"
+                          >
+                            {collective.seat_count ?? 1}
+                          </button>
+                        )
+                      ) : (
+                        <span style={{ color: 'var(--text-muted)', fontSize: '0.82rem' }}>—</span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

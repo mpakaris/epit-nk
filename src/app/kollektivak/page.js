@@ -5,14 +5,15 @@ import { useRouter } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
 import Modal, { ConfirmModal, AlertModal } from '@/components/Modal';
 import PageSpinner from '@/components/PageSpinner';
+import { formatDate } from '@/lib/constants';
 import {
   Users, Plus, Crown, UserCheck, Trash2, UserMinus,
-  Mail, AlertCircle, CheckCircle2, Settings, ChevronDown, ChevronUp, Loader2,
+  Mail, AlertCircle, CheckCircle2, Settings, Loader2, X, Ban, ShieldCheck, RefreshCw,
 } from 'lucide-react';
 
 const ROLE_LABEL = { owner: 'Tulajdonos', admin: 'Admin', contributor: 'Közreműködő' };
-const ROLE_COLOR = { owner: 'var(--accent)', admin: 'var(--warning-text)', contributor: 'var(--text-secondary)' };
-const ROLE_BG    = { owner: 'var(--accent-light)', admin: 'var(--warning-bg)', contributor: 'var(--bg-subtle)' };
+const ROLE_COLOR = { owner: 'var(--accent)', admin: 'var(--warning-text)', contributor: 'var(--success-text)' };
+const ROLE_BG    = { owner: 'var(--accent-light)', admin: 'var(--warning-bg)', contributor: 'var(--success-bg)' };
 
 export default function KollektivakPage() {
   const router = useRouter();
@@ -38,16 +39,81 @@ export default function KollektivakPage() {
   const [renaming, setRenaming] = useState(false);
   const [renameError, setRenameError] = useState('');
 
+  const [retractingId, setRetractingId]   = useState(null);
+  const [reInvitingId, setReInvitingId]   = useState(null);
+  const [blockingId, setBlockingId]       = useState(null);
+
+  const handleBlockMember = async (collective, member, action) => {
+    setBlockingId(member.user_id);
+    const res = await fetch(`/api/collectives/${collective.id}/members/${member.user_id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action }),
+    });
+    const data = await res.json();
+    setBlockingId(null);
+    if (!res.ok) { setAlertModal({ message: data.error }); return; }
+    toast(action === 'block'
+      ? `${member.display_name} kitiltva a kollektívából.`
+      : `${member.display_name} hozzáférése visszaállítva.`
+    );
+    fetchCollectives();
+  };
+
+  const handleReInvite = async (collectiveId, inv) => {
+    setReInvitingId(inv.id);
+    const res  = await fetch(`/api/collectives/${collectiveId}/invite`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: inv.email }),
+    });
+    const data = await res.json();
+    setReInvitingId(null);
+    if (!res.ok) { setAlertModal({ message: data.error }); return; }
+    toast(`Meghívó újraküldve: ${inv.email}`);
+    fetchCollectives();
+  };
+
+  const handleRetractInvitation = async (inv) => {
+    setRetractingId(inv.id);
+    const res = await fetch(`/api/collectives/invitations/${inv.id}`, { method: 'DELETE' });
+    const data = await res.json();
+    setRetractingId(null);
+    if (!res.ok) { setAlertModal({ message: data.error }); return; }
+    toast('Meghívó visszavonva.');
+    fetchCollectives();
+  };
+
   const [confirmModal, setConfirmModal] = useState(null);
   const [alertModal, setAlertModal] = useState(null);
   const [successMsg, setSuccessMsg] = useState('');
 
-  const [expandedId, setExpandedId] = useState(null);
-
   const fetchCollectives = async () => {
-    const res = await fetch('/api/collectives');
-    const data = await res.json();
-    if (res.ok) setCollectives(data.collectives || []);
+    const [colRes, invRes] = await Promise.all([
+      fetch('/api/collectives'),
+      fetch('/api/collectives/invitations'),
+    ]);
+    const colData = await colRes.json();
+    const invData = invRes.ok ? await invRes.json() : { invitations: [] };
+
+    if (colRes.ok) {
+      const pendingBy  = {};
+      const declinedBy = {};
+      for (const inv of (invData.invitations || [])) {
+        if (inv.status === 'pending') {
+          if (!pendingBy[inv.collective_id])  pendingBy[inv.collective_id]  = [];
+          pendingBy[inv.collective_id].push(inv);
+        } else if (inv.status === 'declined') {
+          if (!declinedBy[inv.collective_id]) declinedBy[inv.collective_id] = [];
+          declinedBy[inv.collective_id].push(inv);
+        }
+      }
+      setCollectives((colData.collectives || []).map(c => ({
+        ...c,
+        pending_invitations:  pendingBy[c.id]  || [],
+        declined_invitations: declinedBy[c.id] || [],
+      })));
+    }
     setFetching(false);
   };
 
@@ -79,7 +145,7 @@ export default function KollektivakPage() {
   const handleInvite = async (e) => {
     e.preventDefault();
     setInviting(true); setInviteError('');
-    const res = await fetch(`/api/collectives/${inviteCollectiveId}/members`, {
+    const res = await fetch(`/api/collectives/${inviteCollectiveId}/invite`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email: inviteEmail.trim() }),
@@ -89,7 +155,7 @@ export default function KollektivakPage() {
     if (!res.ok) { setInviteError(data.error || 'Hiba a meghívásnál'); return; }
     setInviteCollectiveId(null);
     setInviteEmail('');
-    toast('Tag sikeresen meghívva.');
+    toast('Meghívó elküldve e-mailben.');
     fetchCollectives();
   };
 
@@ -145,81 +211,174 @@ export default function KollektivakPage() {
   const myCollectives       = collectives.filter(c => c.my_role === 'owner');
   const invitedCollectives  = collectives.filter(c => c.my_role !== 'owner');
 
-  const renderCollective = (collective) => {
-    const isOwner    = collective.my_role === 'owner';
-    const isExpanded = expandedId === collective.id;
+  const renderMemberRow = (collective, member) => {
+    const isOwnerViewing = collective.my_role === 'owner';
+    const isSelf         = member.user_id === currentUser?.id;
+    const isBlocked      = member.status === 'blocked';
+    const isThisOwner    = member.role === 'owner';
+    const isWorking      = blockingId === member.user_id;
 
     return (
-      <div key={collective.id} className="card" style={{ marginBottom: '0.75rem' }}>
-        {/* Header row */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flex: 1, minWidth: 0 }}>
-            <div style={{ width: 36, height: 36, borderRadius: 'var(--radius-md)', background: 'var(--accent-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-              <Users size={18} color="var(--accent)" />
-            </div>
-            <div style={{ minWidth: 0 }}>
-              <div style={{ fontWeight: 800, fontSize: '1rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{collective.name}</div>
-              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.4rem', marginTop: '0.1rem' }}>
-                <span style={{ background: ROLE_BG[collective.my_role], color: ROLE_COLOR[collective.my_role], fontWeight: 700, padding: '0.05rem 0.45rem', borderRadius: 'var(--radius-pill)', fontSize: '0.68rem' }}>
-                  {ROLE_LABEL[collective.my_role]}
-                </span>
-                <span>{collective.members.filter(m => m.status === 'active').length} tag</span>
-              </div>
-            </div>
+      <div key={member.user_id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.6rem 0', borderBottom: '1px solid var(--border-subtle)', gap: '0.75rem', opacity: isBlocked ? 0.55 : 1 }}>
+        {/* Avatar + info */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', minWidth: 0 }}>
+          <div style={{ width: 32, height: 32, borderRadius: '50%', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            background: isBlocked ? 'var(--danger-bg)' : isThisOwner ? 'var(--accent-light)' : 'var(--bg-subtle)',
+            border: `1px solid ${isBlocked ? 'var(--danger-border)' : isThisOwner ? 'var(--accent-border)' : 'var(--border-subtle)'}`,
+          }}>
+            {isBlocked    ? <Ban size={13} color="var(--danger)" />
+             : isThisOwner ? <Crown size={13} color="var(--accent)" />
+             : <UserCheck size={13} color="var(--text-muted)" />}
           </div>
-          <div style={{ display: 'flex', gap: '0.35rem', alignItems: 'center', flexShrink: 0 }}>
-            {isOwner && (
-              <>
-                <button type="button" className="btn btn-secondary btn-sm" title="Tag meghívása" onClick={() => { setInviteCollectiveId(collective.id); setInviteEmail(''); setInviteError(''); }}>
-                  <Mail size={13} /> Meghívás
-                </button>
-                <button type="button" className="btn btn-secondary btn-sm" title="Átnevezés" onClick={() => { setRenameCollective(collective); setRenameName(collective.name); setRenameError(''); }}>
-                  <Settings size={13} />
-                </button>
-                <button type="button" className="btn btn-danger btn-sm" title="Törlés" onClick={() => handleDeleteCollective(collective)}>
-                  <Trash2 size={13} />
-                </button>
-              </>
-            )}
-            <button type="button" className="btn btn-secondary btn-sm" onClick={() => setExpandedId(isExpanded ? null : collective.id)}>
-              {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-            </button>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontWeight: 700, fontSize: '0.875rem', display: 'flex', alignItems: 'center', gap: '0.3rem', flexWrap: 'wrap' }}>
+              {member.display_name}
+              {isSelf      && <span style={{ fontSize: '0.6rem', background: 'var(--accent-light)', color: 'var(--accent)', fontWeight: 700, padding: '0.05rem 0.35rem', borderRadius: 'var(--radius-pill)' }}>én</span>}
+              {isBlocked   && <span style={{ fontSize: '0.6rem', background: 'var(--danger-bg)', color: 'var(--danger)', fontWeight: 700, padding: '0.05rem 0.35rem', borderRadius: 'var(--radius-pill)' }}>Tiltott</span>}
+            </div>
+            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'flex', gap: '0.35rem', flexWrap: 'wrap', alignItems: 'center' }}>
+              <span>{member.email}</span>
+              <span style={{ background: ROLE_BG[member.role], color: ROLE_COLOR[member.role], fontWeight: 700, padding: '0.05rem 0.4rem', borderRadius: 'var(--radius-pill)', fontSize: '0.6rem' }}>{ROLE_LABEL[member.role]}</span>
+              {member.joined_at && <span>· Csatlakozott: {formatDate(member.joined_at)}</span>}
+            </div>
           </div>
         </div>
 
-        {/* Members list */}
-        {isExpanded && (
-          <div style={{ marginTop: '0.85rem', borderTop: '1px solid var(--border-subtle)', paddingTop: '0.85rem' }}>
-            {collective.members.map(member => {
-              const isSelf = member.user_id === currentUser?.id;
-              const canRemove = isOwner ? !isSelf || collective.members.filter(m => m.role === 'owner').length > 1 : isSelf;
-              return (
-                <div key={member.user_id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.45rem 0', borderBottom: '1px solid var(--border-subtle)', gap: '0.5rem' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', minWidth: 0 }}>
-                    <div style={{ width: 30, height: 30, borderRadius: '50%', background: 'var(--bg-subtle)', border: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                      {member.role === 'owner' ? <Crown size={14} color="var(--accent)" /> : <UserCheck size={14} color="var(--text-muted)" />}
-                    </div>
-                    <div style={{ minWidth: 0 }}>
-                      <div style={{ fontWeight: 700, fontSize: '0.875rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                        {member.display_name}
-                        {isSelf && <span style={{ fontSize: '0.65rem', background: 'var(--accent-light)', color: 'var(--accent)', fontWeight: 700, padding: '0.05rem 0.35rem', borderRadius: 'var(--radius-pill)' }}>én</span>}
-                      </div>
-                      <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                        <span>{member.email}</span>
-                        <span style={{ background: ROLE_BG[member.role], color: ROLE_COLOR[member.role], fontWeight: 700, padding: '0.05rem 0.4rem', borderRadius: 'var(--radius-pill)', fontSize: '0.65rem' }}>{ROLE_LABEL[member.role]}</span>
-                      </div>
-                    </div>
-                  </div>
-                  {canRemove && (
-                    <button type="button" className="btn btn-secondary btn-sm" style={{ padding: '0.2rem 0.45rem' }} title={isSelf ? 'Kilépés' : 'Eltávolítás'} onClick={() => handleRemoveMember(collective, member)}>
-                      <UserMinus size={13} />
-                    </button>
-                  )}
-                </div>
-              );
-            })}
+        {/* Buttons — owner sees controls for non-owner members; members see only Leave for themselves */}
+        {isOwnerViewing && !isThisOwner && (
+          <div style={{ display: 'flex', gap: '0.35rem', flexShrink: 0 }}>
+            {isBlocked ? (
+              <button type="button" className="btn btn-secondary btn-sm" disabled={isWorking} onClick={() => handleBlockMember(collective, member, 'unblock')} style={{ gap: '0.3rem' }}>
+                {isWorking ? <Loader2 size={12} style={{ animation: 'spin 1s linear infinite' }} /> : <ShieldCheck size={12} />} Tiltás feloldása
+              </button>
+            ) : (
+              <button type="button" className="btn btn-secondary btn-sm" disabled={isWorking} onClick={() => handleBlockMember(collective, member, 'block')} style={{ gap: '0.3rem' }}>
+                {isWorking ? <Loader2 size={12} style={{ animation: 'spin 1s linear infinite' }} /> : <Ban size={12} />} Tiltás
+              </button>
+            )}
+            <button type="button" className="btn btn-danger btn-sm" onClick={() => handleRemoveMember(collective, member)} style={{ gap: '0.3rem' }}>
+              <UserMinus size={12} /> Eltávolítás
+            </button>
           </div>
         )}
+        {!isOwnerViewing && isSelf && (
+          <button type="button" className="btn btn-secondary btn-sm" onClick={() => handleRemoveMember(collective, member)} style={{ gap: '0.3rem', flexShrink: 0 }}>
+            <UserMinus size={12} /> Kilépés
+          </button>
+        )}
+      </div>
+    );
+  };
+
+  const renderCollective = (collective) => {
+    const isOwner       = collective.my_role === 'owner';
+    const activeMembers = (collective.members || []).filter(m => m.status === 'active');
+    const blockedMembers= (collective.members || []).filter(m => m.status === 'blocked');
+    const pendingInvs   = collective.pending_invitations  || [];
+    const declinedInvs  = collective.declined_invitations || [];
+
+    return (
+      <div key={collective.id} className="card" style={{ marginBottom: '1rem' }}>
+
+        {/* ── Header ── */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', marginBottom: '0.75rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', minWidth: 0 }}>
+            <div style={{ width: 38, height: 38, borderRadius: 'var(--radius-md)', background: 'var(--accent-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <Users size={19} color="var(--accent)" />
+            </div>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontWeight: 800, fontSize: '1.05rem' }}>{collective.name}</div>
+              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'flex', gap: '0.5rem', alignItems: 'center', marginTop: '0.1rem' }}>
+                <span style={{ background: ROLE_BG[collective.my_role], color: ROLE_COLOR[collective.my_role], fontWeight: 700, padding: '0.05rem 0.45rem', borderRadius: 'var(--radius-pill)', fontSize: '0.65rem' }}>
+                  {ROLE_LABEL[collective.my_role]}
+                </span>
+                <span><strong>{activeMembers.length}</strong> aktív tag</span>
+                {pendingInvs.length > 0 && <span>· {pendingInvs.length} függőben lévő meghívó</span>}
+              </div>
+            </div>
+          </div>
+          {isOwner && (
+            <div style={{ display: 'flex', gap: '0.35rem', flexShrink: 0 }}>
+              <button type="button" className="btn btn-primary btn-sm" style={{ gap: '0.3rem' }} onClick={() => { setInviteCollectiveId(collective.id); setInviteEmail(''); setInviteError(''); }}>
+                <Mail size={13} /> Meghívás
+              </button>
+              <button type="button" className="btn btn-secondary btn-sm" onClick={() => { setRenameCollective(collective); setRenameName(collective.name); setRenameError(''); }}>
+                <Settings size={13} />
+              </button>
+              <button type="button" className="btn btn-danger btn-sm" onClick={() => handleDeleteCollective(collective)}>
+                <Trash2 size={13} />
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* ── Active members ── */}
+        {activeMembers.length > 0 && (
+          <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: '0.75rem', marginBottom: '0.5rem' }}>
+            <div style={{ fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: '0.35rem' }}>Tagok</div>
+            {activeMembers.map(m => renderMemberRow(collective, m))}
+          </div>
+        )}
+
+        {/* ── Blocked members (owner only) ── */}
+        {isOwner && blockedMembers.length > 0 && (
+          <div style={{ marginTop: '0.75rem', marginBottom: '0.5rem' }}>
+            <div style={{ fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--danger)', marginBottom: '0.35rem' }}>Tiltott tagok</div>
+            {blockedMembers.map(m => renderMemberRow(collective, m))}
+          </div>
+        )}
+
+        {/* ── Pending invitations (owner only) ── */}
+        {isOwner && pendingInvs.length > 0 && (
+          <div style={{ marginTop: '0.75rem', marginBottom: '0.5rem' }}>
+            <div style={{ fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--warning-text)', marginBottom: '0.35rem' }}>Függőben lévő meghívók</div>
+            {pendingInvs.map(inv => (
+              <div key={inv.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.5rem 0', borderBottom: '1px solid var(--border-subtle)', gap: '0.75rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', minWidth: 0 }}>
+                  <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'var(--warning-bg)', border: '1px solid var(--warning-border)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <Mail size={13} color="var(--warning-text)" />
+                  </div>
+                  <div>
+                    <div style={{ fontWeight: 600, fontSize: '0.875rem' }}>{inv.email}</div>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--warning-text)', fontWeight: 600 }}>Meghívó elküldve · {formatDate(inv.created_at)}</div>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: '0.35rem', flexShrink: 0 }}>
+                  <button type="button" className="btn btn-secondary btn-sm" disabled={reInvitingId === inv.id} onClick={() => handleReInvite(collective.id, inv)} style={{ gap: '0.3rem' }}>
+                    {reInvitingId === inv.id ? <Loader2 size={12} style={{ animation: 'spin 1s linear infinite' }} /> : <Mail size={12} />} Újraküldés
+                  </button>
+                  <button type="button" className="btn btn-danger btn-sm" disabled={retractingId === inv.id} onClick={() => handleRetractInvitation(inv)} style={{ gap: '0.3rem' }}>
+                    {retractingId === inv.id ? <Loader2 size={12} style={{ animation: 'spin 1s linear infinite' }} /> : <X size={12} />} Visszavonás
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* ── Declined invitations (owner only) ── */}
+        {isOwner && declinedInvs.length > 0 && (
+          <div style={{ marginTop: '0.75rem' }}>
+            <div style={{ fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--danger)', marginBottom: '0.35rem' }}>Visszautasított meghívók</div>
+            {declinedInvs.map(inv => (
+              <div key={inv.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.5rem 0', borderBottom: '1px solid var(--border-subtle)', gap: '0.75rem', opacity: 0.7 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', minWidth: 0 }}>
+                  <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <X size={13} color="var(--danger)" />
+                  </div>
+                  <div>
+                    <div style={{ fontWeight: 600, fontSize: '0.875rem' }}>{inv.email}</div>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--danger)', fontWeight: 600 }}>Visszautasítva · {formatDate(inv.created_at)}</div>
+                  </div>
+                </div>
+                <button type="button" className="btn btn-secondary btn-sm" disabled={reInvitingId === inv.id} onClick={() => handleReInvite(collective.id, inv)} style={{ gap: '0.3rem', flexShrink: 0 }}>
+                  {reInvitingId === inv.id ? <Loader2 size={12} style={{ animation: 'spin 1s linear infinite' }} /> : <Mail size={12} />} Újra meghívás
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
       </div>
     );
   };
@@ -232,9 +391,14 @@ export default function KollektivakPage() {
             <h1 className="page-title">Kollektívák</h1>
             <p className="page-subtitle">Megosztott csapatmunkaterületek kezelése</p>
           </div>
-          <button type="button" className="btn btn-primary btn-sm" onClick={() => { setCreateName(''); setCreateError(''); setShowCreate(true); }}>
-            <Plus size={15} /> Új kollektíva
-          </button>
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <button type="button" className="btn btn-secondary btn-sm" onClick={fetchCollectives} disabled={fetching} title="Frissítés">
+              <RefreshCw size={13} style={fetching ? { animation: 'spin 1s linear infinite' } : {}} />
+            </button>
+            <button type="button" className="btn btn-primary btn-sm" onClick={() => { setCreateName(''); setCreateError(''); setShowCreate(true); }}>
+              <Plus size={15} /> Új kollektíva
+            </button>
+          </div>
         </div>
       </div>
 
@@ -326,7 +490,7 @@ export default function KollektivakPage() {
           <div className="form-group">
             <label className="form-label">Meghívott e-mail címe *</label>
             <input type="email" required autoFocus className="form-control" value={inviteEmail} onChange={e => setInviteEmail(e.target.value)} placeholder="pelda@email.hu" />
-            <div style={{ fontSize: '0.775rem', color: 'var(--text-muted)', marginTop: '0.35rem' }}>A felhasználónak regisztrált fiókkal kell rendelkeznie.</div>
+            <div style={{ fontSize: '0.775rem', color: 'var(--text-muted)', marginTop: '0.35rem' }}>Meghívó e-mailt kap. Még nem regisztrált tagok is meghívhatók.</div>
           </div>
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '0.5rem' }}>
             <button type="button" className="btn btn-secondary btn-sm" onClick={() => setInviteCollectiveId(null)}>Mégse</button>

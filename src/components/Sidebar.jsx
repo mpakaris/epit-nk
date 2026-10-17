@@ -191,7 +191,7 @@ export default function Sidebar() {
 
   if (!currentUser && pathname === '/login') return null;
   if (!currentUser) return null;
-  if (pathname.startsWith('/naplo/') || pathname.startsWith('/clients/') || pathname.startsWith('/szakemberek/') || pathname.endsWith('/nyomtatas')) return null;
+  if (pathname.startsWith('/naplo/') || pathname.startsWith('/clients/') || pathname.startsWith('/szakemberek/') || pathname.startsWith('/invitations/') || pathname.endsWith('/nyomtatas')) return null;
 
   const navItems = buildNavItems(isSuperAdmin, isAdmin, impersonating, websiteUnread);
   const homeHref = isSuperAdmin && !impersonating ? '/superadmin' : isAdmin ? '/admin' : '/projektek';

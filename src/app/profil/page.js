@@ -1,11 +1,32 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
 import { User, CheckCircle2, AlertCircle, Loader2, FileText, Upload, Trash2 } from 'lucide-react';
 
 export default function ProfilPage() {
-  const { currentUser } = useApp();
+  const { currentUser, logout } = useApp();
+  const router = useRouter();
+
+  const [deletingAccount,    setDeletingAccount]    = useState(false);
+  const [deleteConfirmOpen,  setDeleteConfirmOpen]  = useState(false);
+  const [deleteConfirmText,  setDeleteConfirmText]  = useState('');
+  const [deleteError,        setDeleteError]        = useState('');
+
+  const handleDeleteAccount = async () => {
+    setDeletingAccount(true); setDeleteError('');
+    try {
+      const res = await fetch('/api/auth/account', { method: 'DELETE' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      await logout();
+      router.replace('/');
+    } catch (err) {
+      setDeleteError(err.message || 'Hiba történt.');
+      setDeletingAccount(false);
+    }
+  };
 
   const [firstName,       setFirstName]       = useState('');
   const [lastName,        setLastName]        = useState('');
@@ -240,6 +261,53 @@ export default function ProfilPage() {
 
           <input ref={pdfInputRef} type="file" accept="application/pdf" style={{ display: 'none' }} onChange={handlePdfUpload} />
         </div>
+
+      {/* Danger zone */}
+      <div className="card" style={{ marginTop: '2rem', border: '1px solid var(--danger-border)' }}>
+        <h3 style={{ fontWeight: 800, fontSize: '0.95rem', color: 'var(--danger)', marginBottom: '0.25rem' }}>Veszélyes zóna</h3>
+        <p style={{ fontSize: '0.825rem', color: 'var(--text-secondary)', marginBottom: '1.25rem', lineHeight: 1.6 }}>
+          A fiók törlése végleges és nem visszavonható. Automatikusan ki leszel léptetve minden kollektívából, és az összes tulajdonos értesítést kap.
+        </p>
+
+        {!deleteConfirmOpen ? (
+          <button type="button" className="btn btn-danger btn-sm" onClick={() => setDeleteConfirmOpen(true)}>
+            <Trash2 size={14} /> Fiók törlése
+          </button>
+        ) : (
+          <div>
+            <p style={{ fontSize: '0.825rem', color: 'var(--danger)', fontWeight: 700, marginBottom: '0.5rem' }}>
+              A megerősítéshez írd be: <strong>TÖRLÉS</strong>
+            </p>
+            <input
+              type="text"
+              className="form-control"
+              placeholder="TÖRLÉS"
+              value={deleteConfirmText}
+              onChange={e => setDeleteConfirmText(e.target.value)}
+              style={{ marginBottom: '0.75rem' }}
+            />
+            {deleteError && (
+              <div style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', color: 'var(--danger)', padding: '0.5rem 0.75rem', borderRadius: 'var(--radius-md)', fontSize: '0.8rem', marginBottom: '0.75rem' }}>
+                {deleteError}
+              </div>
+            )}
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <button type="button" className="btn btn-secondary btn-sm" onClick={() => { setDeleteConfirmOpen(false); setDeleteConfirmText(''); setDeleteError(''); }}>
+                Mégse
+              </button>
+              <button
+                type="button"
+                className="btn btn-danger btn-sm"
+                disabled={deleteConfirmText !== 'TÖRLÉS' || deletingAccount}
+                onClick={handleDeleteAccount}
+              >
+                {deletingAccount ? <><Loader2 size={13} className="animate-spin" /> Törlés…</> : 'Fiók végleges törlése'}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
       </div>
     </div>
   );

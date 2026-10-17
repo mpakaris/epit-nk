@@ -20,26 +20,41 @@ export async function GET() {
   const collectiveIds = (memberships || []).map(m => m.collective_id);
   if (collectiveIds.length === 0) return Response.json({ collectives: [] });
 
-  // Fetch all members for those collectives
-  const { data: allMembers } = await admin
+  // Fetch members without embedded join — separate profile lookup avoids PostgREST schema cache issues
+  const { data: allMembers, error: membersErr } = await admin
     .from('collective_members')
-    .select('collective_id, user_id, role, status, profiles(id, display_name, email)')
+    .select('collective_id, user_id, role, status, created_at')
     .in('collective_id', collectiveIds);
 
+  if (membersErr) return Response.json({ error: membersErr.message }, { status: 500 });
+
+  // Fetch profiles for all member user_ids in one query
+  const userIds = [...new Set((allMembers || []).map(m => m.user_id))];
+  const { data: profileRows } = userIds.length > 0
+    ? await admin.from('profiles').select('id, display_name, email').in('id', userIds)
+    : { data: [] };
+
+  const profileMap = {};
+  for (const p of (profileRows || [])) profileMap[p.id] = p;
+
   const collectives = (memberships || []).map(m => ({
-    id: m.collective_id,
-    name: m.collectives?.name,
+    id:       m.collective_id,
+    name:     m.collectives?.name,
     created_at: m.collectives?.created_at,
-    my_role: m.role,
-    members: (allMembers || [])
+    my_role:  m.role,
+    members:  (allMembers || [])
       .filter(mb => mb.collective_id === m.collective_id)
-      .map(mb => ({
-        user_id: mb.user_id,
-        role: mb.role,
-        status: mb.status,
-        display_name: mb.profiles?.display_name || mb.profiles?.email || mb.user_id,
-        email: mb.profiles?.email,
-      })),
+      .map(mb => {
+        const p = profileMap[mb.user_id] || {};
+        return {
+          user_id:      mb.user_id,
+          role:         mb.role,
+          status:       mb.status,
+          joined_at:    mb.created_at,
+          display_name: p.display_name || p.email || mb.user_id,
+          email:        p.email || null,
+        };
+      }),
   }));
 
   return Response.json({ collectives });
@@ -63,7 +78,7 @@ export async function POST(req) {
 
   const { data: collective, error: createErr } = await admin
     .from('collectives')
-    .insert({ name: name.trim() })
+    .insert({ id: crypto.randomUUID(), name: name.trim() })
     .select()
     .single();
 

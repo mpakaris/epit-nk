@@ -7,7 +7,7 @@ export async function POST(request) {
   if (authErr || !user) return Response.json({ error: 'Unauthenticated' }, { status: 401 });
 
   const admin = createAdminClient();
-  const { data: profile } = await admin.from('profiles').select('id, role, display_name').eq('id', user.id).single();
+  const { data: profile } = await admin.from('profiles').select('id, role, display_name, active_collective_id').eq('id', user.id).single();
   if (!profile) return Response.json({ error: 'Forbidden' }, { status: 403 });
 
   const body = await request.json();
@@ -15,14 +15,31 @@ export async function POST(request) {
     title, location, work_type, description,
     start_date, end_date, status = 'draft',
     client_id, created_by, shared_with = [], tax_percent = 0,
-    survey_id, owner_id, collective_id,
+    survey_id,
+    // collective_id from body only honoured for superadmin — others use DB profile
+    collective_id: bodyCollectiveId,
   } = body;
 
   if (!title?.trim()) return Response.json({ error: 'Az ajánlat neve kötelező' }, { status: 400 });
 
+  const collectiveId = profile.role === 'superadmin'
+    ? (bodyCollectiveId || null)
+    : (profile.active_collective_id || null);
+
+  if (collectiveId && profile.role !== 'superadmin') {
+    const { data: mem } = await admin
+      .from('collective_members')
+      .select('collective_id')
+      .eq('user_id', user.id)
+      .eq('collective_id', collectiveId)
+      .eq('status', 'active')
+      .maybeSingle();
+    if (!mem) return Response.json({ error: 'Nincs hozzáférés ehhez a csoporthoz' }, { status: 403 });
+  }
+
   const { data, error } = await admin.from('quotes').insert([{
-    owner_id:      owner_id      || user.id,
-    collective_id: collective_id || null,
+    owner_id:      user.id,
+    collective_id: collectiveId,
     title:         title.trim(),
     location:      location      || null,
     work_type:     work_type     || null,

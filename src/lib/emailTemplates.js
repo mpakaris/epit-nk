@@ -55,6 +55,160 @@ export function wrapEmail(bodyHtml, preheader = '') {
 export const EMAIL_TEMPLATES = {
 
   /**
+   * Collective invitation.
+   * Vars: inviter_name, collective_name, accept_url, decline_url, is_new_user (truthy string)
+   */
+  collective_invitation: {
+    id: 'collective_invitation',
+    name: 'Collective invitation',
+    subject: '{{inviter_name}} invited you to join {{collective_name}}',
+    bodyHtml: `
+<p style="margin:0 0 16px;font-size:15px;color:#334155;line-height:1.6;">
+  <strong>{{inviter_name}}</strong> meghívott a(z)
+  <strong style="color:#1e293b;">{{collective_name}}</strong> kollektívába a <strong>${APP_NAME}</strong> platformon.
+</p>
+
+{{note_block}}
+
+<p style="margin:0 0 24px;font-size:14px;color:#64748b;line-height:1.7;">
+  A kollektíva egy megosztott munkaterület, ahol közösen kezelheted a projekteket, árajánlatokat és számlákat.
+</p>
+
+<table style="border-collapse:collapse;margin-bottom:28px;">
+  <tr>
+    <td style="padding-right:12px;">
+      <a href="{{accept_url}}"
+         style="display:inline-block;padding:13px 28px;background:#16a34a;color:#fff;font-size:14px;font-weight:800;border-radius:8px;text-decoration:none;">
+        ✓ {{cta_label}}
+      </a>
+    </td>
+    <td>
+      <a href="{{decline_url}}"
+         style="display:inline-block;padding:13px 28px;background:#dc2626;color:#fff;font-size:14px;font-weight:800;border-radius:8px;text-decoration:none;">
+        ✕ Visszautasítás
+      </a>
+    </td>
+  </tr>
+</table>
+
+<p style="margin:0;font-size:12px;color:#94a3b8;line-height:1.6;">
+  Ha nem vártál ilyen meghívót, egyszerűen hagyd figyelmen kívül ezt az e-mailt.
+</p>
+`,
+  },
+
+  /**
+   * Member left collective voluntarily — notifies the collective owner(s).
+   * Vars: member_name, collective_name
+   */
+  member_left: {
+    id: 'member_left',
+    name: 'Member left collective',
+    subject: '{{member_name}} elhagyta a(z) {{collective_name}} kollektívát',
+    bodyHtml: `
+<p style="margin:0 0 16px;font-size:15px;color:#334155;line-height:1.6;">
+  <strong>{{member_name}}</strong> elhagyta a(z)
+  <strong style="color:#1e293b;">{{collective_name}}</strong> kollektívát.
+</p>
+<p style="margin:0;font-size:13px;color:#64748b;line-height:1.6;">
+  A fiókja megmarad, de már nem fér hozzá a kollektíva munkaterületéhez.
+</p>
+`,
+  },
+
+  /**
+   * Member deleted their account — notifies each collective owner.
+   * Vars: member_name, collective_name
+   */
+  member_account_deleted: {
+    id: 'member_account_deleted',
+    name: 'Member deleted account',
+    subject: '{{member_name}} törölte fiókját — {{collective_name}}',
+    bodyHtml: `
+<p style="margin:0 0 16px;font-size:15px;color:#334155;line-height:1.6;">
+  <strong>{{member_name}}</strong> törölte TecTon fiókját, és ezzel automatikusan kilépett a(z)
+  <strong style="color:#1e293b;">{{collective_name}}</strong> kollektívából.
+</p>
+<p style="margin:0;font-size:13px;color:#64748b;line-height:1.6;">
+  Semmilyen teendő nincs — a felhasználó adatai eltávolításra kerültek.
+</p>
+`,
+  },
+
+  /**
+   * Member removed from collective — notifies the removed member.
+   * Vars: owner_name, collective_name
+   */
+  member_removed: {
+    id: 'member_removed',
+    name: 'Removed from collective',
+    subject: 'Eltávolítottak a(z) {{collective_name}} kollektívából',
+    bodyHtml: `
+<p style="margin:0 0 16px;font-size:15px;color:#334155;line-height:1.6;">
+  <strong>{{owner_name}}</strong> eltávolított téged a(z)
+  <strong style="color:#1e293b;">{{collective_name}}</strong> kollektívából.
+</p>
+<p style="margin:0;font-size:13px;color:#64748b;line-height:1.6;">
+  Többé nem férsz hozzá a kollektíva projektjeihez és dokumentumaihoz.<br>
+  Ha úgy gondolod, hogy ez tévedés volt, vedd fel a kapcsolatot a kollektíva tulajdonosával.
+</p>
+`,
+  },
+
+  /**
+   * Member blocked from collective — notifies the blocked member.
+   * Vars: owner_name, collective_name
+   */
+  member_blocked: {
+    id: 'member_blocked',
+    name: 'Blocked from collective',
+    subject: 'Kitiltottak a(z) {{collective_name}} kollektívából',
+    bodyHtml: `
+<p style="margin:0 0 16px;font-size:15px;color:#334155;line-height:1.6;">
+  <strong>{{owner_name}}</strong> letiltotta a hozzáférésedet a(z)
+  <strong style="color:#1e293b;">{{collective_name}}</strong> kollektívához.
+</p>
+<p style="margin:0;font-size:13px;color:#64748b;line-height:1.6;">
+  Ha úgy gondolod, hogy ez tévedés volt, vedd fel a kapcsolatot a kollektíva tulajdonosával.
+</p>
+`,
+  },
+
+  /**
+   * Invitation accepted — notifies the collective owner.
+   * Vars: invitee_email, collective_name
+   */
+  invitation_accepted: {
+    id: 'invitation_accepted',
+    name: 'Invitation accepted',
+    subject: '{{invitee_email}} accepted your invitation to {{collective_name}}',
+    bodyHtml: `
+<p style="margin:0 0 16px;font-size:15px;color:#334155;line-height:1.6;">
+  <strong>{{invitee_email}}</strong> accepted your invitation and joined
+  <strong style="color:#1e293b;">{{collective_name}}</strong>.
+</p>
+<p style="margin:0;font-size:13px;color:#64748b;">They can now collaborate on your collective projects.</p>
+`,
+  },
+
+  /**
+   * Invitation declined — notifies the collective owner.
+   * Vars: invitee_email, collective_name
+   */
+  invitation_declined: {
+    id: 'invitation_declined',
+    name: 'Invitation declined',
+    subject: '{{invitee_email}} declined your invitation to {{collective_name}}',
+    bodyHtml: `
+<p style="margin:0 0 16px;font-size:15px;color:#334155;line-height:1.6;">
+  <strong>{{invitee_email}}</strong> declined your invitation to join
+  <strong style="color:#1e293b;">{{collective_name}}</strong>.
+</p>
+<p style="margin:0;font-size:13px;color:#64748b;">No action is needed on your part.</p>
+`,
+  },
+
+  /**
    * Offer sent to client.
    * Vars: client_name, offer_title, offer_summary_html, offer_url, sender_name
    */
