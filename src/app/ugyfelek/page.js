@@ -22,13 +22,14 @@ import {
   Building2,
   Hash,
   ShieldCheck,
+  Share2,
+  Lock,
 } from 'lucide-react';
 import PageSpinner from '@/components/PageSpinner';
 import WorkspaceBadge from '@/components/WorkspaceBadge';
 
 export default function AdminClientsPage() {
-  const { isAdmin, loading, dataReady, effectiveEntityId, clients, quotes, projects, createClient, updateClient, deleteClient } = useApp();
-
+  const { isAdmin, loading, dataReady, effectiveEntityId, activeCollectiveId, clients, quotes, projects, collectives, createClient, updateClient, deleteClient } = useApp();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -48,19 +49,23 @@ export default function AdminClientsPage() {
   const [formNotes, setFormNotes] = useState('');
   const [formDiscount, setFormDiscount] = useState('0');
   const [formGdpr, setFormGdpr] = useState(false);
+  const [formShares, setFormShares] = useState([]);
+  const [formSharesInitial, setFormSharesInitial] = useState([]);
+  const [formSharesGdpr, setFormSharesGdpr] = useState(false);
 
   if (loading || !dataReady) return <PageSpinner />;
 
+  // Collectives where the current user is owner or admin — eligible for sharing
+  const ownedCollectives = collectives.filter(c => c.role === 'owner' || c.role === 'admin');
+
   const filteredClients = clients.filter(c => (
-      c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (c.email || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (c.phone || '').includes(searchQuery)
-    )
-  );
+    c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (c.email || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (c.phone || '').includes(searchQuery)
+  ));
 
   const getClientStats = (clientId) => {
     const clientQuotes = quotes.filter(q => q.client_id === clientId);
-    // Projects directly linked to the client, PLUS projects converted from a client quote
     const directIds  = projects.filter(p => p.client_id === clientId).map(p => p.id);
     const quoteIds   = clientQuotes.filter(q => q.project_id).map(q => q.project_id);
     const projectsCount = new Set([...directIds, ...quoteIds]).size;
@@ -71,12 +76,15 @@ export default function AdminClientsPage() {
     setFormName(''); setFormCompanyName(''); setFormTaxNumber('');
     setFormAddress(''); setFormPhone(''); setFormEmail('');
     setFormNotes(''); setFormDiscount('0'); setFormGdpr(false);
+    setFormShares(activeCollectiveId ? [activeCollectiveId] : []);
+    setFormSharesInitial([]); setFormSharesGdpr(false);
     setFormError('');
     setEditingClient(null);
     setShowCreateModal(true);
   };
 
   const openEditModal = (client) => {
+    const initialShares = client.client_collective_shares?.map(s => s.collective_id) || [];
     setFormName(client.name);
     setFormCompanyName(client.company_name || '');
     setFormTaxNumber(client.tax_number || '');
@@ -85,17 +93,30 @@ export default function AdminClientsPage() {
     setFormEmail(client.email || '');
     setFormNotes(client.notes || '');
     setFormDiscount((client.discount_percent || 0).toString());
+    setFormShares(initialShares);
+    setFormSharesInitial(initialShares);
+    setFormSharesGdpr(false);
     setFormError('');
     setEditingClient(client);
     setShowCreateModal(true);
+  };
+
+  const toggleShare = (collectiveId) => {
+    setFormShares(prev =>
+      prev.includes(collectiveId) ? prev.filter(id => id !== collectiveId) : [...prev, collectiveId]
+    );
+    setFormSharesGdpr(false);
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setFormError('');
 
-    if (!formName.trim()) {
-      setFormError('A név megadása kötelező!');
+    if (!formName.trim()) { setFormError('A név megadása kötelező!'); return; }
+
+    const hasNewShares = formShares.some(id => !formSharesInitial.includes(id));
+    if (hasNewShares && !formSharesGdpr) {
+      setFormError('Kérjük erősítse meg az ügyfél hozzájárulását az adatok megosztásához!');
       return;
     }
 
@@ -111,11 +132,23 @@ export default function AdminClientsPage() {
         notes:        formNotes.trim(),
       };
       if (editingClient) {
-        await updateClient(editingClient.id, { ...sharedFields, discount_percent: parseFloat(formDiscount) || 0 });
+        await updateClient(editingClient.id, {
+          ...sharedFields,
+          discount_percent:   parseFloat(formDiscount) || 0,
+          collectiveShares:   formShares,
+          sharesGdprConfirmed: !hasNewShares || formSharesGdpr,
+        });
         setSuccessMsg('Ügyfél sikeresen módosítva.');
       } else {
-        await createClient({ ...sharedFields, discountPercent: parseFloat(formDiscount) || 0, entityId: effectiveEntityId,
-          companyName: formCompanyName.trim() || null, taxNumber: formTaxNumber.trim() || null, gdprConsent: formGdpr });
+        await createClient({
+          ...sharedFields,
+          discountPercent:    parseFloat(formDiscount) || 0,
+          companyName:        formCompanyName.trim() || null,
+          taxNumber:          formTaxNumber.trim()   || null,
+          gdprConsent:        formGdpr,
+          collectiveShares:   formShares,
+          sharesGdprConfirmed: formShares.length === 0 || formSharesGdpr,
+        });
         setSuccessMsg('Ügyfél sikeresen létrehozva.');
       }
       setShowCreateModal(false);
@@ -139,6 +172,11 @@ export default function AdminClientsPage() {
       }
     });
   };
+
+  const hasNewShares = formShares.some(id => !formSharesInitial.includes(id));
+  const submitDisabled = isSubmitting
+    || (!editingClient && !formGdpr)
+    || (hasNewShares && !formSharesGdpr);
 
   return (
     <div className="container">
@@ -193,6 +231,7 @@ export default function AdminClientsPage() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(300px, 100%), 1fr))', gap: '0.65rem' }}>
           {filteredClients.map(client => {
             const stats = getClientStats(client.id);
+            const shareCount = client.client_collective_shares?.length || 0;
             return (
               <Link key={client.id} href={`/ugyfelek/${client.id}`} className="card card-interactive" style={{ padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem', textDecoration: 'none', color: 'inherit' }}>
                 {/* Top: name + actions */}
@@ -242,6 +281,16 @@ export default function AdminClientsPage() {
                   {client.gdpr_consented_at && (
                     <span title={`GDPR: ${new Date(client.gdpr_consented_at).toLocaleDateString('hu-HU')}`} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.72rem', fontWeight: 700, background: 'var(--accent-light)', color: 'var(--accent)', border: '1px solid var(--accent-border)', padding: '0.2rem 0.55rem', borderRadius: 'var(--radius-pill)' }}>
                       <ShieldCheck size={11} /> GDPR
+                    </span>
+                  )}
+                  {!activeCollectiveId && (
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.72rem', fontWeight: 700, background: 'var(--bg-subtle)', color: 'var(--text-muted)', border: '1px solid var(--border-subtle)', padding: '0.2rem 0.55rem', borderRadius: 'var(--radius-pill)' }}>
+                      <Lock size={11} /> Privát
+                    </span>
+                  )}
+                  {shareCount > 0 && (
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.72rem', fontWeight: 700, background: '#ede9fe', color: '#5b21b6', border: '1px solid #c4b5fd', padding: '0.2rem 0.55rem', borderRadius: 'var(--radius-pill)' }}>
+                      <Share2 size={11} /> {shareCount} kollektíva
                     </span>
                   )}
                 </div>
@@ -302,6 +351,7 @@ export default function AdminClientsPage() {
             <textarea id="c-notes" rows={2} className="form-control" value={formNotes} onChange={(e) => setFormNotes(e.target.value)} placeholder="Egyéb tudnivalók az ügyfélről..." />
           </div>
 
+          {/* Initial GDPR — create only */}
           {!editingClient && (
             <label style={{ display: 'flex', alignItems: 'flex-start', gap: '0.6rem', padding: '0.75rem', borderRadius: 'var(--radius-md)', background: 'var(--bg-subtle)', border: `1px solid ${formGdpr ? 'var(--success-border)' : 'var(--border-subtle)'}`, cursor: 'pointer', marginTop: '0.5rem', marginBottom: '0.75rem', transition: 'border-color 0.15s' }}>
               <input type="checkbox" checked={formGdpr} onChange={e => setFormGdpr(e.target.checked)} style={{ marginTop: '0.15rem', flexShrink: 0, accentColor: 'var(--accent)', width: 15, height: 15 }} />
@@ -312,10 +362,45 @@ export default function AdminClientsPage() {
             </label>
           )}
 
+          {/* Collective sharing */}
+          {ownedCollectives.length > 0 && (
+            <div style={{ marginTop: '0.5rem', marginBottom: '0.75rem', padding: '0.85rem', borderRadius: 'var(--radius-md)', background: 'var(--bg-subtle)', border: '1px solid var(--border-subtle)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.6rem', fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                <Share2 size={14} /> Megosztás Kollektívákkal
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                {ownedCollectives.map(col => (
+                  <label key={col.collective_id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.825rem', color: 'var(--text-secondary)' }}>
+                    <input
+                      type="checkbox"
+                      checked={formShares.includes(col.collective_id)}
+                      onChange={() => toggleShare(col.collective_id)}
+                      style={{ accentColor: 'var(--accent)', width: 14, height: 14, flexShrink: 0 }}
+                    />
+                    {col.name}
+                  </label>
+                ))}
+              </div>
+
+              {/* Sharing GDPR consent — required when new collectives are added */}
+              {hasNewShares && (
+                <label style={{ display: 'flex', alignItems: 'flex-start', gap: '0.6rem', padding: '0.65rem', borderRadius: 'var(--radius-md)', background: '#fff', border: `1px solid ${formSharesGdpr ? 'var(--success-border)' : 'var(--warning-border)'}`, cursor: 'pointer', marginTop: '0.65rem', transition: 'border-color 0.15s' }}>
+                  <input type="checkbox" checked={formSharesGdpr} onChange={e => setFormSharesGdpr(e.target.checked)} style={{ marginTop: '0.15rem', flexShrink: 0, accentColor: 'var(--accent)', width: 15, height: 15 }} />
+                  <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
+                    Megerősítem, hogy az ügyfél hozzájárult személyes adatainak megosztásához a Kollektíva vállalkozóival.{' '}
+                    <span style={{ color: 'var(--danger-text)', fontWeight: 700 }}>*</span>
+                  </span>
+                </label>
+              )}
+            </div>
+          )}
+
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '0.5rem' }}>
             <button type="button" className="btn btn-secondary btn-sm" onClick={() => setShowCreateModal(false)}>Mégse</button>
-            <button type="submit" className="btn btn-primary btn-sm" disabled={isSubmitting || (!editingClient && !formGdpr)}>
-              {isSubmitting ? <><Loader2 size={13} className="animate-spin" />{editingClient ? 'Módosítás' : 'Létrehozás'}</> : (editingClient ? 'Módosítás' : 'Létrehozás')}
+            <button type="submit" className="btn btn-primary btn-sm" disabled={submitDisabled}>
+              {isSubmitting
+                ? <><Loader2 size={13} className="animate-spin" />{editingClient ? 'Módosítás...' : 'Létrehozás...'}</>
+                : editingClient ? 'Módosítás' : 'Létrehozás'}
             </button>
           </div>
         </form>

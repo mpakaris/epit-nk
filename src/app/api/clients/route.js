@@ -15,18 +15,24 @@ export async function POST(request) {
     .single();
   if (!profile) return Response.json({ error: 'Forbidden' }, { status: 403 });
 
-  const { name, address, phone, email, notes, discountPercent = 0, companyName, taxNumber, gdprConsent } = await request.json();
+  const {
+    name, address, phone, email, notes,
+    discountPercent = 0, companyName, taxNumber,
+    gdprConsent,
+    collectiveShares = [], sharesGdprConfirmed = false,
+  } = await request.json();
+
   if (!gdprConsent) return Response.json({ error: 'GDPR hozzájárulás kötelező!' }, { status: 400 });
   if (!name?.trim())  return Response.json({ error: 'A név megadása kötelező!' }, { status: 400 });
   if (!email?.trim()) return Response.json({ error: 'Az e-mail megadása kötelező!' }, { status: 400 });
-
-  // Clients are always personal — owner_id = calling user
-  const ownerId = user.id;
+  if (collectiveShares.length > 0 && !sharesGdprConfirmed) {
+    return Response.json({ error: 'Kollektíva megosztáshoz GDPR megerősítés szükséges!' }, { status: 400 });
+  }
 
   const { data, error: insertErr } = await admin
     .from('clients')
     .insert([{
-      owner_id:         ownerId,
+      owner_id:         user.id,
       name:             name.trim(),
       address,
       phone,
@@ -43,8 +49,25 @@ export async function POST(request) {
 
   if (insertErr) return Response.json({ error: insertErr.message }, { status: 400 });
 
+  if (collectiveShares.length > 0) {
+    await admin.from('client_collective_shares').insert(
+      collectiveShares.map(cid => ({
+        client_id:         data.id,
+        collective_id:     cid,
+        shared_by:         user.id,
+        gdpr_confirmed_at: new Date().toISOString(),
+      }))
+    );
+  }
+
+  const { data: clientWithShares } = await admin
+    .from('clients')
+    .select('*, client_collective_shares(collective_id)')
+    .eq('id', data.id)
+    .single();
+
   logAudit({
-    entityId: ownerId,
+    entityId: user.id,
     userId:   user.id,
     userName: profile.display_name || user.email,
     action:   'Ügyfél létrehozva',
@@ -53,5 +76,5 @@ export async function POST(request) {
     targetName: data.name,
   });
 
-  return Response.json({ client: data });
+  return Response.json({ client: clientWithShares });
 }

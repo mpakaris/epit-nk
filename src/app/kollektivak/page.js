@@ -8,7 +8,7 @@ import PageSpinner from '@/components/PageSpinner';
 import { formatDate } from '@/lib/constants';
 import {
   Users, Plus, Crown, UserCheck, Trash2, UserMinus,
-  Mail, AlertCircle, CheckCircle2, Settings, Loader2, X, Ban, ShieldCheck, RefreshCw,
+  Mail, AlertCircle, CheckCircle2, Settings, Loader2, X, Ban, ShieldCheck, RefreshCw, AlertTriangle,
 } from 'lucide-react';
 
 const ROLE_LABEL = { owner: 'Tulajdonos', admin: 'Admin', contributor: 'Közreműködő' };
@@ -17,7 +17,7 @@ const ROLE_BG    = { owner: 'var(--accent-light)', admin: 'var(--warning-bg)', c
 
 export default function KollektivakPage() {
   const router = useRouter();
-  const { currentUser, loading, dataReady } = useApp();
+  const { currentUser, loading, dataReady, refreshCollectives } = useApp();
 
   const [collectives, setCollectives] = useState([]);
   const [fetching, setFetching] = useState(true);
@@ -88,6 +88,10 @@ export default function KollektivakPage() {
   const [alertModal, setAlertModal] = useState(null);
   const [successMsg, setSuccessMsg] = useState('');
 
+  const [deleteModal, setDeleteModal] = useState(null);
+  const [deleteInput, setDeleteInput] = useState('');
+  const [deleteConfirming, setDeleteConfirming] = useState(false);
+
   const fetchCollectives = async () => {
     const [colRes, invRes] = await Promise.all([
       fetch('/api/collectives'),
@@ -140,6 +144,7 @@ export default function KollektivakPage() {
     setCreateName('');
     toast('Kollektíva létrehozva.');
     fetchCollectives();
+    refreshCollectives();
   };
 
   const handleInvite = async (e) => {
@@ -173,6 +178,7 @@ export default function KollektivakPage() {
     setRenameCollective(null);
     toast('Kollektíva átnevezve.');
     fetchCollectives();
+    refreshCollectives();
   };
 
   const handleRemoveMember = (collective, member) => {
@@ -193,17 +199,21 @@ export default function KollektivakPage() {
   };
 
   const handleDeleteCollective = (collective) => {
-    setConfirmModal({
-      message: `Biztosan törli a(z) „${collective.name}" kollektívát? Ez a lépés nem vonható vissza.`,
-      onConfirm: async () => {
-        const res = await fetch(`/api/collectives/${collective.id}`, { method: 'DELETE' });
-        const data = await res.json();
-        setConfirmModal(null);
-        if (!res.ok) { setAlertModal({ message: data.error }); return; }
-        toast('Kollektíva törölve.');
-        fetchCollectives();
-      },
-    });
+    setDeleteInput('');
+    setDeleteModal(collective);
+  };
+
+  const executeDeleteCollective = async () => {
+    if (!deleteModal) return;
+    setDeleteConfirming(true);
+    const res = await fetch(`/api/collectives/${deleteModal.id}`, { method: 'DELETE' });
+    const data = await res.json();
+    setDeleteConfirming(false);
+    if (!res.ok) { setAlertModal({ message: data.error }); return; }
+    setDeleteModal(null);
+    toast('Kollektíva törölve.');
+    fetchCollectives();
+    refreshCollectives();
   };
 
   if (loading || !dataReady || fetching) return <PageSpinner />;
@@ -219,7 +229,7 @@ export default function KollektivakPage() {
     const isWorking      = blockingId === member.user_id;
 
     return (
-      <div key={member.user_id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.6rem 0', borderBottom: '1px solid var(--border-subtle)', gap: '0.75rem', opacity: isBlocked ? 0.55 : 1 }}>
+      <div key={member.user_id} style={{ display: 'flex', flexDirection: 'column', padding: '0.6rem 0', borderBottom: '1px solid var(--border-subtle)', gap: '0.5rem', opacity: isBlocked ? 0.55 : 1 }}>
         {/* Avatar + info */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', minWidth: 0 }}>
           <div style={{ width: 32, height: 32, borderRadius: '50%', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -246,7 +256,7 @@ export default function KollektivakPage() {
 
         {/* Buttons — owner sees controls for non-owner members; members see only Leave for themselves */}
         {isOwnerViewing && !isThisOwner && (
-          <div style={{ display: 'flex', gap: '0.35rem', flexShrink: 0 }}>
+          <div style={{ display: 'flex', gap: '0.35rem', justifyContent: 'flex-end' }}>
             {isBlocked ? (
               <button type="button" className="btn btn-secondary btn-sm" disabled={isWorking} onClick={() => handleBlockMember(collective, member, 'unblock')} style={{ gap: '0.3rem' }}>
                 {isWorking ? <Loader2 size={12} style={{ animation: 'spin 1s linear infinite' }} /> : <ShieldCheck size={12} />} Tiltás feloldása
@@ -262,9 +272,11 @@ export default function KollektivakPage() {
           </div>
         )}
         {!isOwnerViewing && isSelf && (
-          <button type="button" className="btn btn-secondary btn-sm" onClick={() => handleRemoveMember(collective, member)} style={{ gap: '0.3rem', flexShrink: 0 }}>
-            <UserMinus size={12} /> Kilépés
-          </button>
+          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+            <button type="button" className="btn btn-secondary btn-sm" onClick={() => handleRemoveMember(collective, member)} style={{ gap: '0.3rem' }}>
+              <UserMinus size={12} /> Kilépés
+            </button>
+          </div>
         )}
       </div>
     );
@@ -281,7 +293,7 @@ export default function KollektivakPage() {
       <div key={collective.id} className="card" style={{ marginBottom: '1rem' }}>
 
         {/* ── Header ── */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', marginBottom: '0.75rem' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', marginBottom: '0.75rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', minWidth: 0 }}>
             <div style={{ width: 38, height: 38, borderRadius: 'var(--radius-md)', background: 'var(--accent-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
               <Users size={19} color="var(--accent)" />
@@ -298,7 +310,7 @@ export default function KollektivakPage() {
             </div>
           </div>
           {isOwner && (
-            <div style={{ display: 'flex', gap: '0.35rem', flexShrink: 0 }}>
+            <div style={{ display: 'flex', gap: '0.35rem', justifyContent: 'flex-end' }}>
               <button type="button" className="btn btn-primary btn-sm" style={{ gap: '0.3rem' }} onClick={() => { setInviteCollectiveId(collective.id); setInviteEmail(''); setInviteError(''); }}>
                 <Mail size={13} /> Meghívás
               </button>
@@ -333,7 +345,7 @@ export default function KollektivakPage() {
           <div style={{ marginTop: '0.75rem', marginBottom: '0.5rem' }}>
             <div style={{ fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--warning-text)', marginBottom: '0.35rem' }}>Függőben lévő meghívók</div>
             {pendingInvs.map(inv => (
-              <div key={inv.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.5rem 0', borderBottom: '1px solid var(--border-subtle)', gap: '0.75rem' }}>
+              <div key={inv.id} style={{ display: 'flex', flexDirection: 'column', padding: '0.5rem 0', borderBottom: '1px solid var(--border-subtle)', gap: '0.5rem' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', minWidth: 0 }}>
                   <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'var(--warning-bg)', border: '1px solid var(--warning-border)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                     <Mail size={13} color="var(--warning-text)" />
@@ -343,7 +355,7 @@ export default function KollektivakPage() {
                     <div style={{ fontSize: '0.72rem', color: 'var(--warning-text)', fontWeight: 600 }}>Meghívó elküldve · {formatDate(inv.created_at)}</div>
                   </div>
                 </div>
-                <div style={{ display: 'flex', gap: '0.35rem', flexShrink: 0 }}>
+                <div style={{ display: 'flex', gap: '0.35rem', justifyContent: 'flex-end' }}>
                   <button type="button" className="btn btn-secondary btn-sm" disabled={reInvitingId === inv.id} onClick={() => handleReInvite(collective.id, inv)} style={{ gap: '0.3rem' }}>
                     {reInvitingId === inv.id ? <Loader2 size={12} style={{ animation: 'spin 1s linear infinite' }} /> : <Mail size={12} />} Újraküldés
                   </button>
@@ -361,7 +373,7 @@ export default function KollektivakPage() {
           <div style={{ marginTop: '0.75rem' }}>
             <div style={{ fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--danger)', marginBottom: '0.35rem' }}>Visszautasított meghívók</div>
             {declinedInvs.map(inv => (
-              <div key={inv.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.5rem 0', borderBottom: '1px solid var(--border-subtle)', gap: '0.75rem', opacity: 0.7 }}>
+              <div key={inv.id} style={{ display: 'flex', flexDirection: 'column', padding: '0.5rem 0', borderBottom: '1px solid var(--border-subtle)', gap: '0.5rem', opacity: 0.7 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', minWidth: 0 }}>
                   <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                     <X size={13} color="var(--danger)" />
@@ -371,9 +383,11 @@ export default function KollektivakPage() {
                     <div style={{ fontSize: '0.72rem', color: 'var(--danger)', fontWeight: 600 }}>Visszautasítva · {formatDate(inv.created_at)}</div>
                   </div>
                 </div>
-                <button type="button" className="btn btn-secondary btn-sm" disabled={reInvitingId === inv.id} onClick={() => handleReInvite(collective.id, inv)} style={{ gap: '0.3rem', flexShrink: 0 }}>
-                  {reInvitingId === inv.id ? <Loader2 size={12} style={{ animation: 'spin 1s linear infinite' }} /> : <Mail size={12} />} Újra meghívás
-                </button>
+                <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                  <button type="button" className="btn btn-secondary btn-sm" disabled={reInvitingId === inv.id} onClick={() => handleReInvite(collective.id, inv)} style={{ gap: '0.3rem' }}>
+                    {reInvitingId === inv.id ? <Loader2 size={12} style={{ animation: 'spin 1s linear infinite' }} /> : <Mail size={12} />} Újra meghívás
+                  </button>
+                </div>
               </div>
             ))}
           </div>
@@ -520,6 +534,50 @@ export default function KollektivakPage() {
 
       <ConfirmModal isOpen={!!confirmModal} onClose={() => setConfirmModal(null)} onConfirm={() => confirmModal?.onConfirm()} title="Megerősítés" message={confirmModal?.message} />
       <AlertModal isOpen={!!alertModal} onClose={() => setAlertModal(null)} message={alertModal?.message} />
+
+      {/* Collective delete — typed-name confirmation */}
+      <Modal isOpen={!!deleteModal} onClose={() => !deleteConfirming && setDeleteModal(null)} title="Kollektíva törlése">
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem', padding: '0.75rem', borderRadius: 'var(--radius-md)', background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', marginBottom: '1rem' }}>
+          <AlertTriangle size={18} color="var(--danger)" style={{ flexShrink: 0, marginTop: '0.1rem' }} />
+          <div style={{ fontSize: '0.825rem', color: 'var(--danger-text)', lineHeight: 1.5 }}>
+            <strong>Ez a művelet nem vonható vissza.</strong> A kollektíva törlésével az összes hozzá tartozó tartalom véglegesen törlődik:
+            <ul style={{ margin: '0.4rem 0 0 1rem', padding: 0 }}>
+              <li>Projektek és naplóbejegyzések</li>
+              <li>Számlák és munkabejegyzések</li>
+              <li>Felmérések és médiatartalmak</li>
+              <li>Ajánlatok</li>
+            </ul>
+          </div>
+        </div>
+
+        <p style={{ fontSize: '0.825rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>
+          A megerősítéshez írja be a kollektíva nevét: <strong>{deleteModal?.name}</strong>
+        </p>
+        <input
+          type="text"
+          className="form-control"
+          placeholder={deleteModal?.name}
+          value={deleteInput}
+          onChange={e => setDeleteInput(e.target.value)}
+          disabled={deleteConfirming}
+          autoFocus
+          style={{ marginBottom: '1rem' }}
+        />
+
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+          <button type="button" className="btn btn-secondary btn-sm" onClick={() => setDeleteModal(null)} disabled={deleteConfirming}>
+            Mégse
+          </button>
+          <button
+            type="button"
+            className="btn btn-danger btn-sm"
+            disabled={deleteInput !== deleteModal?.name || deleteConfirming}
+            onClick={executeDeleteCollective}
+          >
+            {deleteConfirming ? <><Loader2 size={13} className="animate-spin" /> Törlés...</> : <><Trash2 size={13} /> Kollektíva törlése</>}
+          </button>
+        </div>
+      </Modal>
     </div>
   );
 }

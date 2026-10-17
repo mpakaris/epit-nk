@@ -62,12 +62,54 @@ export async function GET(request) {
   const surveysRes = await surveysQuery;
   const realSurveys = surveysRes.data || [];
 
-  // ── Clients — always personal (owner_id = current user) ──────────────────
-  const clientsRes = await admin
-    .from('clients')
-    .select('*')
-    .eq('owner_id', userId)
-    .order('name');
+  // ── Clients ───────────────────────────────────────────────────────────────
+  let collectiveRole = null;
+  let clientsData = [];
+
+  if (isPersonal) {
+    const { data } = await admin
+      .from('clients')
+      .select('*, client_collective_shares(collective_id)')
+      .eq('owner_id', userId)
+      .order('name');
+    clientsData = data || [];
+  } else {
+    const { data: membership } = await admin
+      .from('collective_members')
+      .select('role')
+      .eq('collective_id', collectiveId)
+      .eq('user_id', userId)
+      .single();
+    collectiveRole = membership?.role || null;
+
+    const { data: shares } = await admin
+      .from('client_collective_shares')
+      .select('client_id')
+      .eq('collective_id', collectiveId);
+    const sharedIds = (shares || []).map(s => s.client_id);
+
+    if (collectiveRole === 'owner' || collectiveRole === 'admin') {
+      // Owner/admin: only explicitly shared clients, full data
+      if (sharedIds.length > 0) {
+        const { data } = await admin
+          .from('clients')
+          .select('*, client_collective_shares(collective_id)')
+          .in('id', sharedIds)
+          .order('name');
+        clientsData = data || [];
+      }
+    } else {
+      // Contributor: only explicitly shared clients, name-only (GDPR)
+      if (sharedIds.length > 0) {
+        const { data } = await admin
+          .from('clients')
+          .select('id, name')
+          .in('id', sharedIds)
+          .order('name');
+        clientsData = data || [];
+      }
+    }
+  }
 
   // ── Users ─────────────────────────────────────────────────────────────────
   let usersData = [];
@@ -149,7 +191,7 @@ export async function GET(request) {
     projects:      projectsWithMembers,
     invoices:      invoicesRes.data      || [],
     labourEntries: labourRes.data        || [],
-    clients:       clientsRes.data       || [],
+    clients:       clientsData,
     quotes,
     quoteEntries:  quoteEntriesRes.data  || [],
     quoteSections: quoteSectionsRes.data || [],

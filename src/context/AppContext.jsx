@@ -790,12 +790,12 @@ export function AppProvider({ children }) {
 
   // ---- Clients ----------------------------------------------------------------
 
-  const createClient = async ({ name, address, phone, email, notes, discountPercent = 0, companyName, taxNumber, gdprConsent }) => {
+  const createClient = async ({ name, address, phone, email, notes, discountPercent = 0, companyName, taxNumber, gdprConsent, collectiveShares = [], sharesGdprConfirmed = false }) => {
     if (!effectiveUser) throw new Error('Bejelentkezés szükséges!');
     const res = await fetch('/api/clients', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, address, phone, email, notes, discountPercent, companyName, taxNumber, gdprConsent }),
+      body: JSON.stringify({ name, address, phone, email, notes, discountPercent, companyName, taxNumber, gdprConsent, collectiveShares, sharesGdprConfirmed }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Hiba az ügyfél létrehozásakor');
@@ -1433,7 +1433,8 @@ export function AppProvider({ children }) {
         deleteDiaryPhoto,
         uploadDiaryPhotos,
         // Misc
-        refreshSupabaseData
+        refreshSupabaseData,
+        refreshCollectives: fetchProfile
       }}
     >
       {children}

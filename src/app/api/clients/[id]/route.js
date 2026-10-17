@@ -26,13 +26,41 @@ export async function PATCH(request, { params }) {
   const ctx = await getCallerAndClient(id);
   if (ctx.err) return Response.json({ error: ctx.err }, { status: ctx.status });
 
-  const fields = await request.json();
+  const body = await request.json();
+  const { collectiveShares, sharesGdprConfirmed, ...rest } = body;
+
   const allowed = ['name', 'address', 'phone', 'email', 'notes', 'discount_percent', 'company_name', 'tax_number'];
   const update = {};
-  for (const k of allowed) if (k in fields) update[k] = fields[k];
+  for (const k of allowed) if (k in rest) update[k] = rest[k];
 
-  const { data, error } = await ctx.admin.from('clients').update(update).eq('id', id).select().single();
-  if (error) return Response.json({ error: error.message }, { status: 400 });
+  if (Object.keys(update).length > 0) {
+    const { error } = await ctx.admin.from('clients').update(update).eq('id', id);
+    if (error) return Response.json({ error: error.message }, { status: 400 });
+  }
+
+  if (Array.isArray(collectiveShares)) {
+    if (collectiveShares.length > 0 && !sharesGdprConfirmed) {
+      return Response.json({ error: 'Kollektíva megosztáshoz GDPR megerősítés szükséges!' }, { status: 400 });
+    }
+    await ctx.admin.from('client_collective_shares').delete().eq('client_id', id);
+    if (collectiveShares.length > 0) {
+      await ctx.admin.from('client_collective_shares').insert(
+        collectiveShares.map(cid => ({
+          client_id:         id,
+          collective_id:     cid,
+          shared_by:         ctx.user.id,
+          gdpr_confirmed_at: new Date().toISOString(),
+        }))
+      );
+    }
+  }
+
+  const { data: clientWithShares, error: fetchErr } = await ctx.admin
+    .from('clients')
+    .select('*, client_collective_shares(collective_id)')
+    .eq('id', id)
+    .single();
+  if (fetchErr) return Response.json({ error: fetchErr.message }, { status: 400 });
 
   logAudit({
     entityId: ctx.user.id,
@@ -41,10 +69,10 @@ export async function PATCH(request, { params }) {
     action:   'Ügyfél módosítva',
     targetType: 'client',
     targetId:   id,
-    targetName: data.name,
+    targetName: clientWithShares.name,
   });
 
-  return Response.json({ client: data });
+  return Response.json({ client: clientWithShares });
 }
 
 export async function DELETE(request, { params }) {
