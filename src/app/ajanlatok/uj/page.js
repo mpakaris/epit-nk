@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
 import Modal from '@/components/Modal';
+import CollectiveBanner from '@/components/CollectiveBanner';
 import ClientSelect from '@/components/ClientSelect';
 import PageSpinner from '@/components/PageSpinner';
 import { formatDate } from '@/lib/constants';
@@ -169,6 +170,7 @@ function NewQuotePageInner() {
       )}
 
       <form onSubmit={handleSubmit}>
+        <CollectiveBanner />
 
         {/* Survey picker */}
         <div className="card mb-4" style={{ padding: '1.25rem' }}>

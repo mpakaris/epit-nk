@@ -6,6 +6,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
 import { formatDate } from '@/lib/constants';
 import { ConfirmModal, AlertModal } from '@/components/Modal';
+import CollectiveBanner from '@/components/CollectiveBanner';
 import DrawingsSection from '@/components/DrawingsSection';
 import {
   ArrowLeft, MapPin, Calendar, User, Edit3, Trash2,
@@ -560,6 +561,8 @@ export default function SurveyDetailPage() {
           <ArrowLeft size={15} /> Vissza a felmérésekhez
         </Link>
       </div>
+
+      <CollectiveBanner />
 
       {/* Header */}
       <div className="page-header" style={{ padding: '0.5rem 0 1rem' }}>

@@ -111,6 +111,8 @@ export async function PATCH(request, { params }) {
                    ...(isOwner || isSuperAdmin ? ['collective_id'] : [])];
   const update = {};
   for (const k of allowed) if (k in fields) update[k] = fields[k];
+  update.updated_at      = new Date().toISOString();
+  update.updated_by_name = ctx.profile.display_name || ctx.user.email;
 
   const { data, error } = await ctx.admin.from('projects').update(update).eq('id', id).select().single();
   if (error) {

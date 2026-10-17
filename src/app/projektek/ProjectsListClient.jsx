@@ -9,11 +9,13 @@ import { formatHUF, formatDate } from '@/lib/constants';
 import {
   FolderKanban, Users, TrendingUp, TrendingDown, CheckCircle2,
   Plus, AlertCircle, UserCheck, ChevronRight, Loader2, Search, X, FileText,
+  User, Clock, PencilLine,
 } from 'lucide-react';
 import Modal from '@/components/Modal';
 import EntitySelector from '@/components/EntitySelector';
 import ClientSelect from '@/components/ClientSelect';
 import WorkspaceBadge from '@/components/WorkspaceBadge';
+import CollectiveBanner from '@/components/CollectiveBanner';
 
 export default function ProjectsListClient({
   initialProjects,
@@ -38,6 +40,7 @@ export default function ProjectsListClient({
     clients: _ctxClients,
     users: _ctxUsers,
     effectiveMemberships,
+    activeCollectiveId,
     dataReady,
     refreshSupabaseData,
   } = useApp();
@@ -172,57 +175,92 @@ export default function ProjectsListClient({
     const fin = calculateProjectFinancials(project, invoices, labourEntries, memberUsers, currentUser?.id);
     const creator = showCreator ? users.find(u => u.id === project.created_by) : null;
 
+    const previews = project._preview_urls || [];
+
     return (
       <div
         key={project.id}
         className="card card-interactive"
         onClick={() => router.push(`/projektek/${project.id}`)}
-        style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: '1rem', cursor: 'pointer' }}
+        style={{ display: 'flex', flexDirection: 'column', cursor: 'pointer', padding: 0, overflow: 'hidden' }}
       >
-        <div>
-          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '0.5rem', marginBottom: '0.35rem' }}>
-            <h3 style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.015em' }}>{project.name}</h3>
-            {creator && (
-              <span style={{ fontSize: '0.68rem', fontWeight: 700, color: 'var(--accent)', background: 'var(--accent-light)', border: '1px solid var(--accent-border)', borderRadius: 'var(--radius-pill)', padding: '0.15rem 0.5rem', whiteSpace: 'nowrap', flexShrink: 0, display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                <UserCheck size={10} />{creator.display_name}
-              </span>
-            )}
+        {/* Photo strip */}
+        {previews.length > 0 && (
+          <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(previews.length, 4)}, 1fr)`, height: 90, overflow: 'hidden', borderBottom: '1px solid var(--border-subtle)' }}>
+            {previews.map((url, i) => (
+              <div key={i} style={{ position: 'relative', overflow: 'hidden', background: 'var(--bg-subtle)' }}>
+                <img src={url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} loading="lazy" />
+              </div>
+            ))}
           </div>
-          {project.description && (
-            <p style={{ fontSize: '0.825rem', color: 'var(--text-secondary)', marginBottom: '0.65rem', lineHeight: 1.4 }}>{project.description}</p>
-          )}
-          <div style={{ background: 'var(--bg-subtle)', borderRadius: 'var(--radius-md)', padding: '0.65rem 0.85rem', display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.4rem', border: '1px solid var(--border-subtle)' }}>
-            <div>
-              <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>Összköltség</div>
-              <div style={{ fontWeight: 800, fontSize: '0.85rem' }} className="text-mono">{formatHUF(fin.totalCost)}</div>
-            </div>
-            <div>
-              <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>Munkadíj</div>
-              <div style={{ fontWeight: 800, fontSize: '0.85rem', color: 'var(--success-text)' }} className="text-mono">{formatHUF(fin.totalLabourValue)}</div>
-            </div>
-            <div>
-              <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>Számlák</div>
-              <div style={{ fontWeight: 800, fontSize: '0.85rem', color: 'var(--text-secondary)' }} className="text-mono">{fin.projectInvoices.length} db</div>
-            </div>
-          </div>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: '0.6rem', borderTop: '1px solid var(--border-subtle)', gap: '0.5rem' }}>
+        )}
+
+        {/* Body */}
+        <div style={{ padding: '1rem', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: '1rem', flex: 1 }}>
           <div>
-            {fin.balance > 0
-              ? <span className="balance-pill positive"><TrendingUp size={12} /><span>+{formatHUF(fin.balance)}</span></span>
-              : fin.balance < 0
-                ? <span className="balance-pill negative"><TrendingDown size={12} /><span>{formatHUF(fin.balance)}</span></span>
-                : <span className="balance-pill neutral"><CheckCircle2 size={12} /><span>Rendezett</span></span>
-            }
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '0.5rem', marginBottom: '0.35rem' }}>
+              <h3 style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.015em' }}>{project.name}</h3>
+              {creator && (
+                <span style={{ fontSize: '0.68rem', fontWeight: 700, color: 'var(--accent)', background: 'var(--accent-light)', border: '1px solid var(--accent-border)', borderRadius: 'var(--radius-pill)', padding: '0.15rem 0.5rem', whiteSpace: 'nowrap', flexShrink: 0, display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                  <UserCheck size={10} />{creator.display_name}
+                </span>
+              )}
+            </div>
+            {project.description && (
+              <p style={{ fontSize: '0.825rem', color: 'var(--text-secondary)', marginBottom: '0.65rem', lineHeight: 1.4 }}>{project.description}</p>
+            )}
+            <div style={{ background: 'var(--bg-subtle)', borderRadius: 'var(--radius-md)', padding: '0.65rem 0.85rem', display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.4rem', border: '1px solid var(--border-subtle)' }}>
+              <div>
+                <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>Összköltség</div>
+                <div style={{ fontWeight: 800, fontSize: '0.85rem' }} className="text-mono">{formatHUF(fin.totalCost)}</div>
+              </div>
+              <div>
+                <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>Munkadíj</div>
+                <div style={{ fontWeight: 800, fontSize: '0.85rem', color: 'var(--success-text)' }} className="text-mono">{formatHUF(fin.totalLabourValue)}</div>
+              </div>
+              <div>
+                <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>Számlák</div>
+                <div style={{ fontWeight: 800, fontSize: '0.85rem', color: 'var(--text-secondary)' }} className="text-mono">{fin.projectInvoices.length} db</div>
+              </div>
+            </div>
           </div>
-          <Link
-            href={`/projektek/${project.id}/feltoltes`}
-            className="btn btn-primary btn-sm"
-            style={{ padding: '0.35rem 0.7rem', fontSize: '0.78rem', gap: '0.3rem' }}
-            onClick={e => e.stopPropagation()}
-          >
-            <Plus size={13} /> Hozzáadás
-          </Link>
+          {/* Collective audit row */}
+          {activeCollectiveId && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.6rem', fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+              {creator && (
+                <span style={{ display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
+                  <User size={11} /> {creator.display_name}
+                </span>
+              )}
+              <span style={{ display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
+                <Clock size={11} /> {formatDate(project.created_at)}
+              </span>
+              {project.updated_at && (
+                <span style={{ display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
+                  <PencilLine size={11} /> {project.updated_by_name ? `${project.updated_by_name} · ` : ''}{formatDate(project.updated_at)}
+                </span>
+              )}
+            </div>
+          )}
+
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: '0.6rem', borderTop: '1px solid var(--border-subtle)', gap: '0.5rem' }}>
+            <div>
+              {fin.balance > 0
+                ? <span className="balance-pill positive"><TrendingUp size={12} /><span>+{formatHUF(fin.balance)}</span></span>
+                : fin.balance < 0
+                  ? <span className="balance-pill negative"><TrendingDown size={12} /><span>{formatHUF(fin.balance)}</span></span>
+                  : <span className="balance-pill neutral"><CheckCircle2 size={12} /><span>Rendezett</span></span>
+              }
+            </div>
+            <Link
+              href={`/projektek/${project.id}/feltoltes`}
+              className="btn btn-primary btn-sm"
+              style={{ padding: '0.35rem 0.7rem', fontSize: '0.78rem', gap: '0.3rem' }}
+              onClick={e => e.stopPropagation()}
+            >
+              <Plus size={13} /> Hozzáadás
+            </Link>
+          </div>
         </div>
       </div>
     );
@@ -292,6 +330,7 @@ export default function ProjectsListClient({
           </div>
         )}
         <form onSubmit={handleCreate}>
+          <CollectiveBanner />
           <EntitySelector value={activeCreateEntityId} onChange={setProjEntityId} memberships={effectiveMemberships} />
           <div className="form-group">
             <label className="form-label">Kapcsolódó ajánlat <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>(opcionális)</span></label>
@@ -386,7 +425,7 @@ export default function ProjectsListClient({
               <input id="mp-end" type="date" className="form-control" min={projStart || undefined} value={projEnd} onChange={e => setProjEnd(e.target.value)} />
             </div>
           </div>
-          {activeCreateEntityId && (
+          {activeCreateEntityId && !activeCollectiveId && (
             <div className="form-group" style={{ marginTop: '0.75rem', marginBottom: '1.25rem' }}>
               <label className="form-label">Résztvevők</label>
               <div style={{ maxHeight: '150px', overflowY: 'auto', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: '0.4rem' }}>

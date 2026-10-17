@@ -12,6 +12,9 @@ import {
   Calendar,
   Coins,
   Trash2,
+  User,
+  Clock,
+  PencilLine,
 } from 'lucide-react';
 import PageSpinner from '@/components/PageSpinner';
 import WorkspaceBadge from '@/components/WorkspaceBadge';
@@ -24,7 +27,7 @@ const STATUS_COLORS = {
 };
 
 export default function QuotesListPage() {
-  const { currentUser, isAdmin, loading, dataReady, quotes, quoteEntries, clients, deleteQuote } = useApp();
+  const { currentUser, isAdmin, loading, dataReady, quotes, quoteEntries, clients, surveys, users, activeCollectiveId, deleteQuote } = useApp();
 
 
   const [statusFilter, setStatusFilter] = useState('all');
@@ -109,44 +112,83 @@ export default function QuotesListPage() {
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(320px, 100%), 1fr))', gap: '0.65rem' }}>
           {filteredQuotes.map(q => {
-            const total = getQuoteTotal(q.id);
-            const client = clients.find(c => c.id === q.client_id);
-            const sc = STATUS_COLORS[q.status] || STATUS_COLORS.draft;
+            const total     = getQuoteTotal(q.id);
+            const client    = clients.find(c => c.id === q.client_id);
+            const creator   = users.find(u => u.id === q.created_by);
+            const sc        = STATUS_COLORS[q.status] || STATUS_COLORS.draft;
             const canDelete = q.created_by === currentUser?.id || isAdmin;
+            const survey    = q.survey_id ? surveys.find(s => s.id === q.survey_id) : null;
+            const previews  = survey?._preview_urls || [];
             return (
-              <Link key={q.id} href={`/ajanlatok/${q.id}`} className="card card-interactive" style={{ padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.65rem', textDecoration: 'none', color: 'inherit' }}>
-                {/* Top */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.5rem' }}>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '0.3rem' }}>
-                      <h3 style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--text-primary)' }}>{q.title}</h3>
-                      <span style={{ fontSize: '0.725rem', fontWeight: 700, padding: '0.15rem 0.5rem', borderRadius: 'var(--radius-pill)', background: sc.bg, color: sc.color, border: `1px solid ${sc.border}`, whiteSpace: 'nowrap' }}>
-                        {QUOTE_STATUSES.find(s => s.id === q.status)?.label || q.status}
-                      </span>
-                    </div>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', fontSize: '0.775rem', color: 'var(--text-muted)' }}>
-                      {client && <span style={{ fontWeight: 600, color: 'var(--text-secondary)' }}>{client.name}</span>}
-                      {q.location && <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}><MapPin size={12} /> {q.location}</span>}
-                      {q.work_type && <span>{q.work_type}</span>}
-                    </div>
-                    {(q.start_date || q.end_date) && (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.775rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
-                        <Calendar size={12} />
-                        <span>{q.start_date ? formatDate(q.start_date) : '?'} – {q.end_date ? formatDate(q.end_date) : '?'}</span>
+              <Link key={q.id} href={`/ajanlatok/${q.id}`} className="card card-interactive" style={{ padding: 0, display: 'flex', flexDirection: 'column', textDecoration: 'none', color: 'inherit', overflow: 'hidden' }}>
+
+                {/* Photo strip from linked survey */}
+                {previews.length > 0 && (
+                  <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(previews.length, 4)}, 1fr)`, height: 90, overflow: 'hidden', borderBottom: '1px solid var(--border-subtle)' }}>
+                    {previews.map((url, i) => (
+                      <div key={i} style={{ overflow: 'hidden', background: 'var(--bg-subtle)' }}>
+                        <img src={url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} loading="lazy" />
                       </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Body */}
+                <div style={{ padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.65rem', flex: 1 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.5rem' }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '0.3rem' }}>
+                        <h3 style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--text-primary)' }}>{q.title}</h3>
+                        <span style={{ fontSize: '0.725rem', fontWeight: 700, padding: '0.15rem 0.5rem', borderRadius: 'var(--radius-pill)', background: sc.bg, color: sc.color, border: `1px solid ${sc.border}`, whiteSpace: 'nowrap' }}>
+                          {QUOTE_STATUSES.find(s => s.id === q.status)?.label || q.status}
+                        </span>
+                      </div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', fontSize: '0.775rem', color: 'var(--text-muted)' }}>
+                        {client && <span style={{ fontWeight: 600, color: 'var(--text-secondary)' }}>{client.name}</span>}
+                        {q.location && <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}><MapPin size={12} /> {q.location}</span>}
+                        {q.work_type && <span>{q.work_type}</span>}
+                      </div>
+                      {(q.start_date || q.end_date) && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.775rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
+                          <Calendar size={12} />
+                          <span>{q.start_date ? formatDate(q.start_date) : '?'} – {q.end_date ? formatDate(q.end_date) : '?'}</span>
+                        </div>
+                      )}
+                      {creator && creator.id !== currentUser?.id && (
+                        <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>{creator.display_name}</div>
+                      )}
+                    </div>
+                    {canDelete && (
+                      <button type="button" onClick={e => { e.preventDefault(); e.stopPropagation(); handleDelete(q); }} className="btn btn-danger btn-sm" style={{ flexShrink: 0 }}>
+                        <Trash2 size={13} />
+                      </button>
                     )}
                   </div>
-                  {canDelete && (
-                    <button type="button" onClick={e => { e.preventDefault(); e.stopPropagation(); handleDelete(q); }} className="btn btn-danger btn-sm" style={{ flexShrink: 0 }}>
-                      <Trash2 size={13} />
-                    </button>
-                  )}
-                </div>
 
-                {/* Bottom: total */}
-                <div style={{ marginTop: 'auto', paddingTop: '0.5rem', borderTop: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                  <Coins size={15} color="var(--accent)" />
-                  <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, fontSize: '1rem', color: 'var(--text-primary)' }}>{formatHUF(total)}</span>
+                  {/* Collective audit row */}
+                  {activeCollectiveId && (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.6rem', fontSize: '0.7rem', color: 'var(--text-muted)', paddingTop: '0.4rem' }}>
+                      {creator && (
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
+                          <User size={11} /> {creator.display_name}
+                        </span>
+                      )}
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
+                        <Clock size={11} /> {formatDate(q.created_at)}
+                      </span>
+                      {q.updated_at && (
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
+                          <PencilLine size={11} /> {q.updated_by_name ? `${q.updated_by_name} · ` : ''}{formatDate(q.updated_at)}
+                        </span>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Bottom: total */}
+                  <div style={{ marginTop: 'auto', paddingTop: '0.5rem', borderTop: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                    <Coins size={15} color="var(--accent)" />
+                    <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, fontSize: '1rem', color: 'var(--text-primary)' }}>{formatHUF(total)}</span>
+                  </div>
                 </div>
               </Link>
             );

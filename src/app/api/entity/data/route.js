@@ -152,38 +152,88 @@ export async function GET(request) {
   ]);
 
   const projectMembers = projectMembersRes.data || [];
+
+  // ── Diary photo previews (first 4 photos per project for card strip) ──────
+  let projectPreviewUrls = {};
+  if (projectIds.length > 0) {
+    const { data: diaryEntryRows } = await admin
+      .from('diary_entries')
+      .select('id, project_id')
+      .in('project_id', projectIds)
+      .order('entry_date', { ascending: false });
+    const diaryEntryIds = (diaryEntryRows || []).map(e => e.id);
+    const entryProjectMap = Object.fromEntries((diaryEntryRows || []).map(e => [e.id, e.project_id]));
+    if (diaryEntryIds.length > 0) {
+      const { data: photoRows } = await admin
+        .from('diary_photos')
+        .select('entry_id, mime_type, thumbnail_url, drive_view_url')
+        .in('entry_id', diaryEntryIds)
+        .not('drive_view_url', 'is', null)
+        .order('created_at', { ascending: false });
+      for (const ph of (photoRows || [])) {
+        const pid = entryProjectMap[ph.entry_id];
+        if (!pid) continue;
+        if (!(ph.mime_type || '').startsWith('image/')) continue;
+        if (!projectPreviewUrls[pid]) projectPreviewUrls[pid] = [];
+        if (projectPreviewUrls[pid].length < 4) {
+          projectPreviewUrls[pid].push(ph.thumbnail_url || ph.drive_view_url);
+        }
+      }
+    }
+  }
+
   const projectsWithMembers = projects.map(p => ({
     ...p,
-    members: projectMembers.filter(pm => pm.project_id === p.id).map(pm => pm.user_id),
+    members:       projectMembers.filter(pm => pm.project_id === p.id).map(pm => pm.user_id),
+    _preview_urls: projectPreviewUrls[p.id] || [],
   }));
 
-  // ── Survey counts (layouts, photos, drawings) ─────────────────────────────
+  // ── Survey counts (layouts, photos, drawings, sections) + preview thumbnails
   const surveyIds = realSurveys.map(s => s.id);
-  const [surveyMediaCountRes, surveyDrawingCountRes] = await Promise.all([
+  const [surveyMediaCountRes, surveyDrawingCountRes, surveyEntryCountRes] = await Promise.all([
     surveyIds.length > 0
-      ? admin.from('survey_media').select('survey_id, media_type, entry_id').in('survey_id', surveyIds)
+      ? admin.from('survey_media').select('survey_id, media_type, entry_id, mime_type, thumbnail_url, drive_view_url').in('survey_id', surveyIds)
       : Promise.resolve({ data: [] }),
     surveyIds.length > 0
       ? admin.from('survey_drawings').select('survey_id').in('survey_id', surveyIds)
       : Promise.resolve({ data: [] }),
+    surveyIds.length > 0
+      ? admin.from('survey_entries').select('survey_id').in('survey_id', surveyIds)
+      : Promise.resolve({ data: [] }),
   ]);
 
-  const mediaCounts = {};
+  const mediaCounts   = {};
+  const mediaPreviews = {};
   for (const m of (surveyMediaCountRes.data || [])) {
     if (!mediaCounts[m.survey_id]) mediaCounts[m.survey_id] = { layouts: 0, photos: 0 };
-    if (!m.entry_id && m.media_type === 'layout') mediaCounts[m.survey_id].layouts++;
-    else mediaCounts[m.survey_id].photos++;
+    if (!m.entry_id && m.media_type === 'layout') {
+      mediaCounts[m.survey_id].layouts++;
+    } else {
+      mediaCounts[m.survey_id].photos++;
+      const isImage = (m.mime_type || '').startsWith('image/');
+      const url = m.thumbnail_url || m.drive_view_url;
+      if (isImage && url) {
+        if (!mediaPreviews[m.survey_id]) mediaPreviews[m.survey_id] = [];
+        if (mediaPreviews[m.survey_id].length < 4) mediaPreviews[m.survey_id].push(url);
+      }
+    }
   }
   const drawingCounts = {};
   for (const d of (surveyDrawingCountRes.data || [])) {
     drawingCounts[d.survey_id] = (drawingCounts[d.survey_id] || 0) + 1;
   }
+  const entryCounts = {};
+  for (const e of (surveyEntryCountRes.data || [])) {
+    entryCounts[e.survey_id] = (entryCounts[e.survey_id] || 0) + 1;
+  }
 
   const surveysWithCounts = realSurveys.map(s => ({
     ...s,
-    _layout_count:  mediaCounts[s.id]?.layouts  || 0,
-    _photo_count:   mediaCounts[s.id]?.photos   || 0,
-    _drawing_count: drawingCounts[s.id]         || 0,
+    _layout_count:   mediaCounts[s.id]?.layouts  || 0,
+    _photo_count:    mediaCounts[s.id]?.photos    || 0,
+    _drawing_count:  drawingCounts[s.id]          || 0,
+    _section_count:  entryCounts[s.id]            || 0,
+    _preview_urls:   mediaPreviews[s.id]          || [],
   }));
 
   return Response.json({

@@ -6,7 +6,7 @@ async function getCtx(quoteId) {
   const { data: { user }, error } = await supabase.auth.getUser();
   if (error || !user) return { err: 'Unauthenticated', status: 401 };
   const admin = createAdminClient();
-  const { data: profile } = await admin.from('profiles').select('id, role').eq('id', user.id).single();
+  const { data: profile } = await admin.from('profiles').select('id, role, display_name').eq('id', user.id).single();
   if (!profile) return { err: 'Forbidden', status: 403 };
   const { data: quote } = await admin.from('quotes').select('id, owner_id, created_by, collective_id, survey_id').eq('id', quoteId).single();
   if (!quote) return { err: 'Quote not found', status: 404 };
@@ -23,7 +23,7 @@ async function getCtx(quoteId) {
   }
 
   if (!isSuperAdmin && !isOwner && !isShared && !isCollectiveMember) return { err: 'Forbidden', status: 403 };
-  return { profile, admin, quote };
+  return { user, profile, admin, quote, isOwner, isSuperAdmin };
 }
 
 export async function POST(request, { params }) {
@@ -38,19 +38,21 @@ export async function POST(request, { params }) {
   const lNum = length_m != null && length_m !== '' ? Number(length_m) : null;
 
   const { data: section, error } = await ctx.admin.from('quote_sections').insert([{
-    quote_id: quoteId,
-    name: name.trim(),
-    description: description?.trim() || null,
-    width_m:      wNum,
-    length_m:     lNum,
-    size_m2:      wNum > 0 && lNum > 0 ? wNum * lNum : null,
-    height_m:     height_m     != null && height_m     !== '' ? Number(height_m)     : null,
-    window_count: window_count != null                        ? Number(window_count) : 0,
-    door_count:   door_count   != null                        ? Number(door_count)   : 0,
-    sort_order: sort_order ?? 0,
+    quote_id:        quoteId,
+    name:            name.trim(),
+    description:     description?.trim() || null,
+    width_m:         wNum,
+    length_m:        lNum,
+    size_m2:         wNum > 0 && lNum > 0 ? wNum * lNum : null,
+    height_m:        height_m     != null && height_m     !== '' ? Number(height_m)     : null,
+    window_count:    window_count != null                        ? Number(window_count) : 0,
+    door_count:      door_count   != null                        ? Number(door_count)   : 0,
+    sort_order:      sort_order ?? 0,
     survey_entry_id: survey_entry_id || null,
-    start_date: start_date || null,
-    end_date: end_date || null,
+    start_date:      start_date || null,
+    end_date:        end_date   || null,
+    created_by:      ctx.user.id,
+    created_by_name: ctx.profile.display_name || null,
   }]).select().single();
 
   if (error) return Response.json({ error: error.message }, { status: 500 });

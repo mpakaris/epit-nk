@@ -8,6 +8,7 @@ import Modal, { AlertModal } from '@/components/Modal';
 import { ArrowLeft, AlertCircle, Check, Loader2, Plus, User } from 'lucide-react';
 import PageSpinner from '@/components/PageSpinner';
 import EntitySelector from '@/components/EntitySelector';
+import CollectiveBanner from '@/components/CollectiveBanner';
 import ClientSelect from '@/components/ClientSelect';
 
 // Isolated component — its own state doesn't re-render the parent on every keystroke
@@ -149,6 +150,7 @@ export default function NewSurveyPage() {
       )}
 
       <form onSubmit={handleSubmit}>
+        <CollectiveBanner />
         <EntitySelector value={activeEntityId} onChange={setSelectedEntityId} memberships={effectiveMemberships} />
 
         <div className="card mb-4" style={{ padding: '1.25rem' }}>

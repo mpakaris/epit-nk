@@ -8,6 +8,7 @@ import { processMediaFile } from '@/lib/mediaGate';
 import { calculateProjectFinancials } from '@/lib/calculations';
 import { formatHUF, formatDate, INVOICE_CATEGORIES } from '@/lib/constants';
 import InvoiceCard from '@/components/InvoiceCard';
+import CollectiveBanner from '@/components/CollectiveBanner';
 import StatCard from '@/components/StatCard';
 import Modal, { ConfirmModal, AlertModal } from '@/components/Modal';
 import { ResponsiveContainer, AreaChart, Area, ReferenceLine, XAxis, YAxis, Tooltip, BarChart, Bar, Cell, LabelList } from 'recharts';
@@ -1832,6 +1833,8 @@ export default function ProjectDetailClient({
           <ArrowLeft size={15} /> Vissza a projektekhez
         </Link>
       </div>
+
+      <CollectiveBanner />
 
       <div className="page-header" style={{ padding: '0.5rem 0 1rem' }}>
         <div className="page-header-row">

@@ -74,17 +74,19 @@ export function AppProvider({ children }) {
   // True if the *effective* user (real or impersonated) has admin-level access
   const effectiveIsAdmin = ['admin', 'superadmin'].includes(effectiveUser?.role);
 
-  // /api/entity/data already scopes data to the active context — minimal client-side filtering needed
+  // /api/entity/data already scopes data to the active context — minimal client-side filtering needed.
+  // In collective context the server already returns only collective-scoped records, so no extra
+  // ownership filter is applied — all collective members should see everything in the collective.
   const visibleProjects = (() => {
     if (isSuperAdmin && !impersonating) return projects;
-    if (!effectiveIsAdmin && uid)
+    if (!effectiveIsAdmin && uid && !activeCollectiveId)
       return projects.filter(p => (p.members || []).includes(uid) || p.owner_id === uid);
     return projects;
   })();
 
   const visibleQuotes = (() => {
     if (isSuperAdmin && !impersonating) return quotes;
-    if (!effectiveIsAdmin && uid)
+    if (!effectiveIsAdmin && uid && !activeCollectiveId)
       return quotes.filter(q => q.owner_id === uid || (q.shared_with || []).includes(uid));
     return quotes;
   })();
