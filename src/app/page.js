@@ -4,6 +4,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
 import AuthModal from '@/components/AuthModal';
+import CookieBanner from '@/components/CookieBanner';
 import {
   Check, ArrowRight, Hammer,
   ChevronDown, Menu, X, Users, Globe,
@@ -343,6 +344,7 @@ export default function HomePage() {
       </div>
 
       {authOpen && <AuthModal onClose={() => setAuthOpen(false)} initialView={authViewRef.current} />}
+      <CookieBanner />
     </>
   );
 }

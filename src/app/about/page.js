@@ -2,6 +2,7 @@
 
 import React from 'react';
 import LandingHeader from '@/components/LandingHeader';
+import CookieBanner from '@/components/CookieBanner';
 
 const PHOTO_URL = `${process.env.NEXT_PUBLIC_R2_PUBLIC_URL}/platform/about-me.webp`;
 
@@ -124,6 +125,8 @@ export default function AboutPage() {
         </p>
 
       </div>
+
+      <CookieBanner />
 
       {/* ── Footer ── */}
       <footer style={{ borderTop: '1px solid #e2e8f0', background: '#fff', padding: '1.25rem 1.5rem', marginTop: '3rem' }}>

@@ -64,10 +64,17 @@ export default function AdatkezelesPage() {
       </ul>
       <p style={S.p}>A kollektíva tulajdonosa az összes, a kollektív munkaterületen kezelt adat vonatkozásában adatkezelőként felel — beleértve a tagok által bevitt ügyféladatokat is.</p>
 
-      <h3 style={S.h3}>2.3 Technikai adatok</h3>
+      <h3 style={S.h3}>2.3 Sütik (cookie-k)</h3>
+      <p style={S.p}>Az Epitek kizárólag <strong>szigorúan szükséges sütiket</strong> alkalmaz, amelyek a szolgáltatás működéséhez elengedhetetlenek. Ezekhez az ePrivacy-irányelv alapján nem szükséges hozzájárulás.</p>
+      <ul style={S.ul}>
+        <li style={S.li}><strong>Munkamenet-süti (session token):</strong> a bejelentkezett felhasználó azonosításához; a Supabase hitelesítési rendszer állítja be. Lejárati idő: a munkamenet végéig vagy max. 7 nap.</li>
+        <li style={S.li}><strong>Sütitájékoztató-értesítő:</strong> a cookie-értesítő sáv elrejtéséhez szükséges állapot – localStorage-ban tárolódik, nem sütiként.</li>
+      </ul>
+      <p style={S.p}>Harmadik feles nyomkövető, hirdetési vagy analitikai sütiket nem alkalmazunk.</p>
+
+      <h3 style={S.h3}>2.4 Technikai adatok</h3>
       <ul style={S.ul}>
         <li style={S.li}>Naplófájlok (IP-cím, böngésző, időbélyeg) – automatikusan, a Vercel infrastrukturális szintjén</li>
-        <li style={S.li}>Munkamenet-azonosítók (session token, süti) az azonosításhoz</li>
       </ul>
 
       {/* 3 */}
