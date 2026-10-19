@@ -4,6 +4,6 @@ import { useRouter } from 'next/navigation';
 
 export default function DemoEntryPage() {
   const router = useRouter();
-  useEffect(() => { router.replace('/demo/projektek'); }, []);
+  useEffect(() => { router.replace('/demo/dashboard'); }, []);
   return null;
 }

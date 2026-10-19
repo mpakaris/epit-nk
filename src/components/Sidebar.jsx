@@ -49,6 +49,7 @@ function isActive(item, pathname) {
 
 export default function Sidebar() {
   const pathname = usePathname();
+  if (pathname.startsWith('/demo')) return null;
   const { currentUser, isSuperAdmin, isAdmin, impersonating, stopImpersonation, logout, collectives, setActiveContext, switchImpersonatingContext, activeCollectiveId, allMemberships, entities } = useApp();
 
   const [collapsed, setCollapsed] = useState(false);
