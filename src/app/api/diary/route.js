@@ -79,6 +79,7 @@ export async function POST(request) {
   const { data: entry, error: insertErr } = await admin.from('diary_entries').insert([{
     project_id,
     created_by:    user.id,
+    author_name:   ctx.profile.display_name || null,
     title:         title.trim(),
     body:          entryBody || null,
     entry_date:    entry_date || new Date().toISOString().split('T')[0],

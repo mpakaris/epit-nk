@@ -11,7 +11,7 @@ async function getCallerAndClient(id) {
   const { data: profile } = await admin.from('profiles').select('role, display_name').eq('id', user.id).single();
   if (!profile) return { err: 'Forbidden', status: 403 };
 
-  const { data: client } = await admin.from('clients').select('owner_id, name').eq('id', id).single();
+  const { data: client } = await admin.from('clients').select('owner_id, name').eq('id', id).is('deleted_at', null).single();
   if (!client) return { err: 'Not found', status: 404 };
 
   const isSuperAdmin = profile.role === 'superadmin';
@@ -80,7 +80,11 @@ export async function DELETE(request, { params }) {
   const ctx = await getCallerAndClient(id);
   if (ctx.err) return Response.json({ error: ctx.err }, { status: ctx.status });
 
-  const { error } = await ctx.admin.from('clients').delete().eq('id', id);
+  // Soft-delete: preserve the row so historical project/quote/survey references keep working
+  const { error } = await ctx.admin
+    .from('clients')
+    .update({ deleted_at: new Date().toISOString() })
+    .eq('id', id);
   if (error) return Response.json({ error: error.message }, { status: 400 });
 
   logAudit({

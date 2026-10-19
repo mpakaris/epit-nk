@@ -71,7 +71,7 @@ export async function GET(request) {
       : { data: [] },
     projectIds.length
       ? admin.from('diary_entries')
-          .select('id, project_id, title, body, client_note, work_type, entry_date, created_at, created_by')
+          .select('id, project_id, title, body, client_note, work_type, entry_date, created_at, created_by, author_name')
           .in('project_id', projectIds)
           .eq('is_public', true)
           .order('entry_date', { ascending: false })

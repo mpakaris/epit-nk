@@ -91,8 +91,9 @@ export default async function ClientPortalPage({ params }) {
 
   const photos = rawPhotos || [];
 
-  // Author names
-  const creatorIds = [...new Set(diaryEntries.map(e => e.created_by).filter(Boolean))];
+  // Author names — prefer stored author_name (survives user deletion),
+  // fall back to live profile lookup for older entries that predate migration 075.
+  const creatorIds = [...new Set(diaryEntries.filter(e => !e.author_name && e.created_by).map(e => e.created_by))];
   let authorMap = {};
   if (creatorIds.length > 0) {
     const { data: authors } = await admin.from('profiles').select('id, display_name').in('id', creatorIds);
@@ -101,7 +102,7 @@ export default async function ClientPortalPage({ params }) {
 
   const enrichedEntries = diaryEntries.map(e => ({
     ...e,
-    author_name: authorMap[e.created_by] || null,
+    author_name: e.author_name || authorMap[e.created_by] || null,
     photos: photos.filter(p => p.entry_id === e.id),
   }));
 

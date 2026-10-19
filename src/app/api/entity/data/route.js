@@ -71,6 +71,7 @@ export async function GET(request) {
       .from('clients')
       .select('*, client_collective_shares(collective_id)')
       .eq('owner_id', userId)
+      .is('deleted_at', null)
       .order('name');
     clientsData = data || [];
   } else {
@@ -95,6 +96,7 @@ export async function GET(request) {
           .from('clients')
           .select('*, client_collective_shares(collective_id)')
           .in('id', sharedIds)
+          .is('deleted_at', null)
           .order('name');
         clientsData = data || [];
       }
@@ -105,6 +107,7 @@ export async function GET(request) {
           .from('clients')
           .select('id, name')
           .in('id', sharedIds)
+          .is('deleted_at', null)
           .order('name');
         clientsData = data || [];
       }
