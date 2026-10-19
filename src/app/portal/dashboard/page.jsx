@@ -644,7 +644,7 @@ export default function PortalDashboardPage() {
         )}
 
         {!loading && contractors.map(c => (
-          <ContractorSection key={c.owner_id} contractor={c} onRespond={saMode ? null : handleRespond} />
+          <ContractorSection key={c.owner_id} contractor={c} onRespond={handleRespond} />
         ))}
       </div>
 
