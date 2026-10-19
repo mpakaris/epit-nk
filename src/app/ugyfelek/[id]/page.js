@@ -136,24 +136,55 @@ export default function ClientDetailPage() {
         </div>
       </div>
 
-      {/* Portal URL */}
+      {/* Portal URLs */}
       <div className="card mb-6" style={{ padding: '1rem 1.25rem', borderLeft: '3px solid var(--accent)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', flexWrap: 'wrap' }}>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', marginBottom: '0.2rem' }}>
-              Ügyfél portál URL
+        {/* Unified client portal (email OTP login) */}
+        <div style={{ marginBottom: client.email ? '0.85rem' : 0 }}>
+          <div style={{ fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', marginBottom: '0.35rem' }}>
+            Ügyfél portál
+          </div>
+          {client.email ? (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', flexWrap: 'wrap' }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: '0.825rem', color: 'var(--text-secondary)', marginBottom: '0.15rem' }}>
+                  Az ügyfél a saját email-címével tud belépni:{' '}
+                  <strong style={{ color: 'var(--accent)', fontFamily: 'var(--font-mono)' }}>{client.email}</strong>
+                </div>
+                <div style={{ fontSize: '0.775rem', color: 'var(--text-muted)' }}>
+                  epitunk.hu/portal — minden vállalkozó ajánlatait és projektjeit látja
+                </div>
+              </div>
+              <a href="/portal" target="_blank" rel="noopener noreferrer" className="btn btn-primary btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', flexShrink: 0 }}>
+                <ExternalLink size={13} /> Portál megnyitása
+              </a>
             </div>
-            <div style={{ fontSize: '0.825rem', color: 'var(--accent)', fontFamily: 'var(--font-mono)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          ) : (
+            <div style={{ fontSize: '0.825rem', color: 'var(--warning-text)', background: 'var(--warning-bg)', border: '1px solid var(--warning-border)', borderRadius: 'var(--radius-md)', padding: '0.5rem 0.75rem' }}>
+              Az ügyfélnek nincs email-címe — a portálhoz email szükséges.
+            </div>
+          )}
+        </div>
+
+        {/* Divider */}
+        <div style={{ height: 1, background: 'var(--border-subtle)', margin: '0.85rem 0' }} />
+
+        {/* Contractor-scoped legacy portal */}
+        <div>
+          <div style={{ fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', marginBottom: '0.35rem' }}>
+            Saját nézet (csak a te ajánlataid)
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', flexWrap: 'wrap' }}>
+            <div style={{ fontSize: '0.825rem', color: 'var(--accent)', fontFamily: 'var(--font-mono)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, minWidth: 0 }}>
               {portalUrl}
             </div>
-          </div>
-          <div style={{ display: 'flex', gap: '0.5rem', flexShrink: 0 }}>
-            <button type="button" onClick={copyPortalUrl} className="btn btn-secondary btn-sm">
-              {copied ? <><Check size={13} /> Másolva!</> : <><Copy size={13} /> Másolás</>}
-            </button>
-            <a href={`/clients/${id}`} target="_blank" rel="noopener noreferrer" className="btn btn-primary btn-sm">
-              <ExternalLink size={13} /> Előnézet
-            </a>
+            <div style={{ display: 'flex', gap: '0.5rem', flexShrink: 0 }}>
+              <button type="button" onClick={copyPortalUrl} className="btn btn-secondary btn-sm">
+                {copied ? <><Check size={13} /> Másolva!</> : <><Copy size={13} /> Másolás</>}
+              </button>
+              <a href={`/clients/${id}`} target="_blank" rel="noopener noreferrer" className="btn btn-secondary btn-sm">
+                <ExternalLink size={13} /> Előnézet
+              </a>
+            </div>
           </div>
         </div>
       </div>
