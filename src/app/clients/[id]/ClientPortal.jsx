@@ -164,14 +164,25 @@ function QuoteCard({ quote, clientId }) {
 
       {/* ── Header ── */}
       <div style={{ padding: '1.1rem 1.25rem 0.9rem' }}>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem', alignItems: 'center', marginBottom: '0.4rem' }}>
-          <span style={{ fontSize: '0.7rem', fontWeight: 700, padding: '0.15rem 0.6rem', borderRadius: 20, background: ss.bg, color: ss.color, border: `1px solid ${ss.border}` }}>
+
+        {/* Status + sent date */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem', marginBottom: '0.6rem', flexWrap: 'wrap' }}>
+          <span style={{ fontSize: '0.8rem', fontWeight: 700, padding: '0.25rem 0.75rem', borderRadius: 99, background: ss.bg, color: ss.color, border: `1px solid ${ss.border}`, display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+            {quote.status === 'sent'     && '⏳ '}
+            {quote.status === 'accepted' && '✅ '}
+            {quote.status === 'rejected' && '❌ '}
             {STATUS_LABELS[quote.status] || quote.status}
           </span>
-          {quote.work_type && <span style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: 600 }}>{quote.work_type}</span>}
+          {quote.created_at && (
+            <span style={{ fontSize: '0.775rem', color: '#94a3b8', whiteSpace: 'nowrap' }}>
+              Kiküldve: <strong style={{ color: '#64748b' }}>{fmt(quote.created_at)}</strong>
+            </span>
+          )}
         </div>
 
         <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#0f172a', margin: '0 0 0.3rem', lineHeight: 1.25 }}>{quote.title}</h3>
+
+        {quote.work_type && <p style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 600, margin: '0 0 0.3rem' }}>{quote.work_type}</p>}
 
         {quote.description && (
           <p style={{ fontSize: '0.855rem', color: '#475569', margin: '0 0 0.55rem', lineHeight: 1.6 }}>{quote.description}</p>
