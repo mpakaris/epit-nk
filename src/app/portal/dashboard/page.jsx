@@ -472,7 +472,7 @@ export default function PortalDashboardPage() {
       )}
 
       {/* Top bar */}
-      <div style={{ position: 'sticky', top: saMode ? 32 : 0, zIndex: 100, background: BRAND, boxShadow: '0 1px 8px rgba(0,0,0,0.15)' }}>
+      <div style={{ position: 'sticky', top: 0, zIndex: 100, background: BRAND, boxShadow: '0 1px 8px rgba(0,0,0,0.15)' }}>
         <div style={{ maxWidth: 680, margin: '0 auto', padding: '0 1rem', display: 'flex', alignItems: 'center', gap: '0.75rem', height: 52 }}>
           <div style={{ width: 28, height: 28, borderRadius: 7, background: 'rgba(255,255,255,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.9rem', flexShrink: 0 }}>🏗</div>
           <span style={{ fontWeight: 800, fontSize: '0.875rem', color: '#fff', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
