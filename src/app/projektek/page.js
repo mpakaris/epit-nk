@@ -53,19 +53,44 @@ async function ProjectsListContent() {
   // Projects: personal (owner_id = user, no collective) + collective if active
   const isPersonal = !collectiveId;
 
-  const [projectsRes, usersRes, clientsRes, quotesRes] = await Promise.all([
+  const [projectsRes, clientsRes, quotesRes] = await Promise.all([
     isPersonal
       ? admin.from('projects').select('*').eq('owner_id', effectiveUserId).is('collective_id', null).order('created_at', { ascending: false })
       : admin.from('projects').select('*').eq('collective_id', collectiveId).order('created_at', { ascending: false }),
-    collectiveId
-      ? admin.from('collective_members').select('user_id, role, profiles(id, display_name, email, role)').eq('collective_id', collectiveId).eq('status', 'active')
-      : admin.from('profiles').select('id, display_name, email, role').eq('id', effectiveUserId),
     // Clients are always personal — only the owner sees their own
     admin.from('clients').select('*').eq('owner_id', effectiveUserId).order('name'),
     isPersonal
       ? admin.from('quotes').select('*').eq('owner_id', effectiveUserId).is('collective_id', null).order('created_at', { ascending: false })
       : admin.from('quotes').select('*').eq('collective_id', collectiveId).order('created_at', { ascending: false }),
   ]);
+
+  // Two-step users fetch to avoid ambiguous FK join (collective_members has two FKs to profiles)
+  let usersData = [];
+  if (collectiveId) {
+    const { data: members } = await admin
+      .from('collective_members')
+      .select('user_id, role')
+      .eq('collective_id', collectiveId)
+      .eq('status', 'active');
+    const memberIds = (members || []).map(m => m.user_id);
+    if (memberIds.length > 0) {
+      const { data: memberProfiles } = await admin
+        .from('profiles')
+        .select('id, display_name, email, role')
+        .in('id', memberIds);
+      usersData = (members || []).map(m => {
+        const profile = (memberProfiles || []).find(p => p.id === m.user_id);
+        return profile ? { ...profile, collective_role: m.role } : null;
+      }).filter(Boolean);
+    }
+  } else {
+    const { data: me } = await admin
+      .from('profiles')
+      .select('id, display_name, email, role')
+      .eq('id', effectiveUserId)
+      .single();
+    usersData = me ? [me] : [];
+  }
 
   const projects = projectsRes.data || [];
   const projectIds = projects.map(p => p.id);
@@ -98,7 +123,7 @@ async function ProjectsListContent() {
       initialProjects={effectiveProjects}
       initialInvoices={invoicesRes.data || []}
       initialLabourEntries={labourRes.data || []}
-      initialUsers={usersRes.data || []}
+      initialUsers={usersData}
       initialClients={clientsRes.data || []}
       initialQuotes={quotesRes.data || []}
       currentUser={currentUser}

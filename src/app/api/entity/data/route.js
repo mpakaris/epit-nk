@@ -119,10 +119,17 @@ export async function GET(request) {
   } else {
     const { data: members } = await admin
       .from('collective_members')
-      .select('user_id, role, profiles(*)')
+      .select('user_id, role')
       .eq('collective_id', collectiveId)
       .eq('status', 'active');
-    usersData = (members || []).map(m => ({ ...m.profiles, collective_role: m.role }));
+    const memberIds = (members || []).map(m => m.user_id);
+    const { data: memberProfiles } = memberIds.length > 0
+      ? await admin.from('profiles').select('*').in('id', memberIds)
+      : { data: [] };
+    usersData = (members || []).map(m => {
+      const profile = (memberProfiles || []).find(p => p.id === m.user_id);
+      return profile ? { ...profile, collective_role: m.role } : null;
+    }).filter(Boolean);
   }
 
   const projects   = projectsRes.data || [];

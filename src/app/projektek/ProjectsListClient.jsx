@@ -8,7 +8,7 @@ import { calculateProjectFinancials } from '@/lib/calculations';
 import { formatHUF, formatDate } from '@/lib/constants';
 import {
   FolderKanban, Users, TrendingUp, TrendingDown, CheckCircle2,
-  Plus, AlertCircle, UserCheck, ChevronRight, Loader2, Search, X, FileText,
+  Plus, AlertCircle, ChevronRight, Loader2, Search, X, FileText,
   User, Clock, PencilLine,
 } from 'lucide-react';
 import Modal from '@/components/Modal';
@@ -173,10 +173,10 @@ export default function ProjectsListClient({
   const myProjects = projects.filter(p => p.created_by === currentUser?.id);
   const invitedProjects = projects.filter(p => p.created_by !== currentUser?.id);
 
-  const renderCard = (project, showCreator = false) => {
+  const renderCard = (project) => {
     const memberUsers = users.filter(u => (project.members || []).includes(u.id));
     const fin = calculateProjectFinancials(project, invoices, labourEntries, memberUsers, currentUser?.id);
-    const creator = (showCreator || !!activeCollectiveId) ? users.find(u => u.id === project.created_by) : null;
+    const creatorName = activeCollectiveId ? (project.created_by_name || null) : null;
 
     const previews = project._preview_urls || [];
 
@@ -201,13 +201,8 @@ export default function ProjectsListClient({
         {/* Body */}
         <div style={{ padding: '1rem', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: '1rem', flex: 1 }}>
           <div>
-            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '0.5rem', marginBottom: '0.35rem' }}>
+            <div style={{ marginBottom: '0.35rem' }}>
               <h3 style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.015em' }}>{project.name}</h3>
-              {creator && (
-                <span style={{ fontSize: '0.68rem', fontWeight: 700, color: 'var(--accent)', background: 'var(--accent-light)', border: '1px solid var(--accent-border)', borderRadius: 'var(--radius-pill)', padding: '0.15rem 0.5rem', whiteSpace: 'nowrap', flexShrink: 0, display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                  <UserCheck size={10} />{creator.display_name}
-                </span>
-              )}
             </div>
             {project.description && (
               <p style={{ fontSize: '0.825rem', color: 'var(--text-secondary)', marginBottom: '0.65rem', lineHeight: 1.4 }}>{project.description}</p>
@@ -227,15 +222,26 @@ export default function ProjectsListClient({
               </div>
             </div>
           </div>
-          {/* Collective audit row — dates only; creator is in header pill above */}
           {activeCollectiveId && (
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.6rem', fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-              <span style={{ display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
-                <Clock size={11} /> {formatDate(project.created_at)}
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', alignItems: 'center' }}>
+              {creatorName && (
+                <span style={{
+                  display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
+                  fontSize: '0.72rem', fontWeight: 700,
+                  padding: '0.18rem 0.55rem', borderRadius: 'var(--radius-pill)',
+                  background: project.created_by === currentUser?.id ? 'var(--primary-bg, #eff6ff)' : 'var(--bg-subtle)',
+                  color: project.created_by === currentUser?.id ? 'var(--primary)' : 'var(--text-secondary)',
+                  border: `1px solid ${project.created_by === currentUser?.id ? 'var(--primary)33' : 'var(--border-subtle)'}`,
+                }}>
+                  <User size={10} /> {creatorName}
+                </span>
+              )}
+              <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
+                <Clock size={10} /> {formatDate(project.created_at)}
               </span>
               {project.updated_at && (
-                <span style={{ display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
-                  <PencilLine size={11} /> {project.updated_by_name ? `${project.updated_by_name} · ` : ''}{formatDate(project.updated_at)}
+                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
+                  <PencilLine size={10} /> {project.updated_by_name ? `${project.updated_by_name} · ` : ''}{formatDate(project.updated_at)}
                 </span>
               )}
             </div>
@@ -303,7 +309,7 @@ export default function ProjectsListClient({
                 </div>
               )}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(320px, 100%), 1fr))', gap: '1rem' }}>
-                {myProjects.map(p => renderCard(p, false))}
+                {myProjects.map(p => renderCard(p))}
               </div>
             </div>
           )}
@@ -313,7 +319,7 @@ export default function ProjectsListClient({
                 Meghívottként
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(320px, 100%), 1fr))', gap: '1rem' }}>
-                {invitedProjects.map(p => renderCard(p, true))}
+                {invitedProjects.map(p => renderCard(p))}
               </div>
             </div>
           )}

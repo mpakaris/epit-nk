@@ -21,7 +21,7 @@ function getSurveyStatus(surveyId, quotes, projects) {
 }
 
 export default function SurveyListPage() {
-  const { loading, dataReady, surveys, quotes, projects, clients, users, isAdmin, currentUser, deleteSurvey, isDemoMode } = useApp();
+  const { loading, dataReady, surveys, quotes, projects, clients, users, isAdmin, currentUser, activeCollectiveId, deleteSurvey, isDemoMode } = useApp();
   const navPrefix = isDemoMode ? '/demo' : '';
 
   const [search, setSearch] = useState('');

@@ -35,17 +35,20 @@ export async function POST(request) {
     if (!mem) return Response.json({ error: 'Nincs hozzáférés ehhez a csoporthoz!' }, { status: 403 });
   }
 
+  const { data: creatorProfile } = await admin.from('profiles').select('display_name').eq('id', user.id).single();
+
   const { data: proj, error: projErr } = await admin
     .from('projects')
     .insert([{
-      owner_id:      user.id,
-      collective_id: collectiveId,
-      name:          name.trim(),
-      description:   description || null,
-      created_by:    user.id,
-      start_date:    startDate || null,
-      end_date:      endDate || null,
-      client_id:     clientId || null,
+      owner_id:         user.id,
+      collective_id:    collectiveId,
+      name:             name.trim(),
+      description:      description || null,
+      created_by:       user.id,
+      created_by_name:  creatorProfile?.display_name || null,
+      start_date:       startDate || null,
+      end_date:         endDate || null,
+      client_id:        clientId || null,
     }])
     .select()
     .single();
@@ -118,11 +121,10 @@ export async function POST(request) {
     }
   }
 
-  const { data: callerProfile } = await admin.from('profiles').select('display_name').eq('id', user.id).single();
   logAudit({
     entityId: collectiveId || user.id,
     userId: user.id,
-    userName: callerProfile?.display_name || user.email,
+    userName: creatorProfile?.display_name || user.email,
     action: 'Projekt létrehozva',
     targetType: 'project',
     targetId: proj.id,

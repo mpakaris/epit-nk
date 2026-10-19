@@ -171,7 +171,7 @@ export default function QuotesListPage() {
 
                   {/* Collective audit row — creator pill + dates */}
                   {activeCollectiveId && (
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', alignItems: 'center', paddingTop: '0.5rem', borderTop: '1px solid var(--border-subtle)' }}>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', alignItems: 'center' }}>
                       {creator && (
                         <span style={{
                           display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
