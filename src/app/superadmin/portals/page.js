@@ -101,11 +101,11 @@ export default function SuperadminPortalsPage() {
                 </div>
               </div>
               <Link
-                href={`/superadmin/portals/${encodeURIComponent(c.email)}`}
+                href={`/portal/dashboard?as=${encodeURIComponent(c.email)}`}
                 className="btn btn-primary btn-sm"
                 style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', flexShrink: 0 }}
               >
-                <ExternalLink size={13} /> Portál
+                <ExternalLink size={13} /> Portál megnyitása
               </Link>
             </div>
           ))}

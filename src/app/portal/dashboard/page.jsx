@@ -1,9 +1,9 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
-import { Loader2, LogOut, CheckCircle2, XCircle, ChevronDown, ChevronUp } from 'lucide-react';
+import { Loader2, LogOut, CheckCircle2, XCircle, ChevronDown, ChevronUp, ArrowLeft } from 'lucide-react';
 
 // ── constants ─────────────────────────────────────────────────────────────────
 const BRAND  = '#0f172a';
@@ -130,7 +130,7 @@ function QuoteCard({ quote, onRespond }) {
   const tax           = Math.round(net * taxRate / 100);
   const gross         = net + tax;
   const ss            = STATUS_STYLE[quote.status] || STATUS_STYLE.sent;
-  const canRespond    = quote.status === 'sent';
+  const canRespond    = quote.status === 'sent' && !!onRespond;
   const hasDetail     = sections.length > 0 || allEntries.length > 0;
 
   const respond = async (action) => {
@@ -373,25 +373,45 @@ function ContractorSection({ contractor, onRespond }) {
 // ── main page ─────────────────────────────────────────────────────────────────
 export default function PortalDashboardPage() {
   const router                        = useRouter();
+  const searchParams                  = useSearchParams();
+  const asEmail                       = searchParams.get('as'); // SA impersonation
   const [supabase]                    = useState(() => createClient());
   const [email, setEmail]             = useState('');
+  const [saMode, setSaMode]           = useState(false);
   const [contractors, setContractors] = useState([]);
   const [loading, setLoading]         = useState(true);
   const [error, setError]             = useState('');
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session) { router.replace('/portal'); return; }
-      setEmail(session.user.email || '');
-      fetchData();
-    });
-  }, []);
+    if (asEmail) {
+      // SA impersonation mode — verify SA via profile API, skip OTP check
+      fetch('/api/auth/profile')
+        .then(r => r.json())
+        .then(({ profile }) => {
+          if (profile?.role !== 'superadmin') { router.replace('/portal'); return; }
+          setSaMode(true);
+          setEmail(asEmail);
+          fetchData(asEmail);
+        })
+        .catch(() => router.replace('/portal'));
+    } else {
+      // Normal client OTP session
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (!session) { router.replace('/portal'); return; }
+        setEmail(session.user.email || '');
+        fetchData(null);
+      });
+    }
+  }, [asEmail]);
 
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async (overrideEmail) => {
     setLoading(true);
     setError('');
     try {
-      const res  = await fetch('/api/portal/data');
+      const url  = overrideEmail
+        ? `/api/portal/data?email=${encodeURIComponent(overrideEmail)}`
+        : '/api/portal/data';
+      const res  = await fetch(url);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Hiba');
       setContractors(data.contractors || []);
@@ -426,22 +446,38 @@ export default function PortalDashboardPage() {
   return (
     <div style={{ minHeight: '100vh', background: '#f1f5f9', fontFamily: FONT, WebkitFontSmoothing: 'antialiased' }}>
 
+      {/* SA impersonation banner */}
+      {saMode && (
+        <div style={{ background: '#854d0e', color: '#fef9c3', padding: '0.4rem 1rem', fontSize: '0.775rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.75rem', fontFamily: FONT }}>
+          <span style={{ flex: 1 }}>👁 Superadmin nézet: {email}</span>
+          <button
+            type="button"
+            onClick={() => router.push('/superadmin/portals')}
+            style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: 6, padding: '0.2rem 0.6rem', cursor: 'pointer', color: '#fef9c3', fontWeight: 700, fontSize: '0.75rem', fontFamily: FONT, display: 'flex', alignItems: 'center', gap: '0.3rem' }}
+          >
+            <ArrowLeft size={12} /> Vissza
+          </button>
+        </div>
+      )}
+
       {/* Top bar */}
-      <div style={{ position: 'sticky', top: 0, zIndex: 100, background: BRAND, boxShadow: '0 1px 8px rgba(0,0,0,0.15)' }}>
+      <div style={{ position: 'sticky', top: saMode ? 32 : 0, zIndex: 100, background: BRAND, boxShadow: '0 1px 8px rgba(0,0,0,0.15)' }}>
         <div style={{ maxWidth: 680, margin: '0 auto', padding: '0 1rem', display: 'flex', alignItems: 'center', gap: '0.75rem', height: 52 }}>
           <div style={{ width: 28, height: 28, borderRadius: 7, background: 'rgba(255,255,255,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.9rem', flexShrink: 0 }}>🏗</div>
           <span style={{ fontWeight: 800, fontSize: '0.875rem', color: '#fff', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             Ügyfél portál
           </span>
           {email && <span style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', flexShrink: 0, display: 'none', maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis' }} className="portal-email">{email}</span>}
-          <button
-            type="button"
-            onClick={handleLogout}
-            title="Kijelentkezés"
-            style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 8, padding: '0.3rem 0.6rem', cursor: 'pointer', color: 'rgba(255,255,255,0.7)', display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.775rem', fontWeight: 600, fontFamily: FONT, flexShrink: 0 }}
-          >
-            <LogOut size={13} /> Kilépés
-          </button>
+          {!saMode && (
+            <button
+              type="button"
+              onClick={handleLogout}
+              title="Kijelentkezés"
+              style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 8, padding: '0.3rem 0.6rem', cursor: 'pointer', color: 'rgba(255,255,255,0.7)', display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.775rem', fontWeight: 600, fontFamily: FONT, flexShrink: 0 }}
+            >
+              <LogOut size={13} /> Kilépés
+            </button>
+          )}
         </div>
       </div>
 
@@ -488,7 +524,7 @@ export default function PortalDashboardPage() {
         )}
 
         {!loading && contractors.map(c => (
-          <ContractorSection key={c.owner_id} contractor={c} onRespond={handleRespond} />
+          <ContractorSection key={c.owner_id} contractor={c} onRespond={saMode ? null : handleRespond} />
         ))}
       </div>
 
