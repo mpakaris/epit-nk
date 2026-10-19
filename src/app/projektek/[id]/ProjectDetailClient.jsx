@@ -18,7 +18,7 @@ import {
   Edit3, UserCheck, CalendarDays, BookUser, BarChart3, ShieldCheck,
   Phone, Mail, MapPin, ChevronUp, Link2, Copy, Check, AlertCircle, Lock, Eye,
   ChevronLeft, ChevronRight, X, Play, ZoomIn, FileText, Ruler, Home, Calendar, User,
-  Sparkles, Loader2, Settings, ChevronDown, Download
+  Sparkles, Loader2, Settings, ChevronDown, Download, PencilLine, Paperclip
 } from 'lucide-react';
 
 function MediaLightbox({ media, startIndex, onClose }) {
@@ -1625,10 +1625,12 @@ export default function ProjectDetailClient({
     }
   }, [activeTab, project?.id]);
 
-  const projectMemberUsers = React.useMemo(
-    () => initialUsers.filter(u => (project.members || []).includes(u.id)),
-    [initialUsers, project]
-  );
+  const projectMemberUsers = React.useMemo(() => {
+    // Collective projects: all active collective members are participants regardless of project_members rows
+    if (project.collective_id) return initialUsers;
+    // Personal projects: only those explicitly in project_members
+    return initialUsers.filter(u => (project.members || []).includes(u.id));
+  }, [initialUsers, project]);
   const fin = React.useMemo(
     () => calculateProjectFinancials(project, initialInvoices, initialLabourEntries, projectMemberUsers, currentUser?.id),
     [project, initialInvoices, initialLabourEntries, projectMemberUsers, currentUser]
@@ -1657,7 +1659,7 @@ export default function ProjectDetailClient({
     return true;
   });
 
-  const canManageProject = isAdmin || project.created_by === currentUser?.id;
+  const canManageProject = isAdmin || project.created_by === currentUser?.id || project.owner_id === currentUser?.id;
 
   const [showOptionsMenu, setShowOptionsMenu] = useState(false);
   const optionsRef = React.useRef(null);
@@ -2186,95 +2188,89 @@ export default function ProjectDetailClient({
         );
       })()}
 
-      {/* Member breakdown + Settlement — collective only */}
-      {activeCollectiveId && <div className="card mb-6">
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.85rem' }}>
-          <Users size={18} color="var(--accent)" />
-          <h3 style={{ fontSize: '1rem', fontWeight: 800 }}>Résztvevők elszámolása</h3>
-        </div>
-        <div className="table-container member-table-desktop">
-          <table className="custom-table">
-            <thead>
-              <tr><th>Résztvevő</th><th>Kifizetve</th><th>Munkadíj</th><th>Rá eső rész</th><th>Egyenleg</th></tr>
-            </thead>
-            <tbody>
-              {fin.memberBreakdown.map(member => (
-                <tr key={member.userId}>
-                  <td>
-                    <span style={{ fontWeight: 700 }}>{member.displayName}</span>
-                    {member.userId === currentUser?.id && <span style={{ marginLeft: '0.35rem', fontSize: '0.675rem', color: 'var(--accent)', background: 'var(--accent-light)', padding: '0.1rem 0.35rem', borderRadius: 'var(--radius-pill)', fontWeight: 700 }}>Ön</span>}
-                    {member.deletedAt && <span style={{ marginLeft: '0.35rem', fontSize: '0.675rem', color: '#fff', background: 'var(--danger)', padding: '0.1rem 0.4rem', borderRadius: 'var(--radius-pill)', fontWeight: 700 }}>Kilépett</span>}
-                  </td>
-                  <td className="text-mono" style={{ fontWeight: 700 }}>{formatHUF(member.paid)}</td>
-                  <td>
-                    <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: 'var(--success-text)' }}>+{formatHUF(member.labourValue)}</div>
-                    {member.labourHours > 0 && <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{member.labourHours} h</div>}
-                  </td>
-                  <td className="text-mono" style={{ color: 'var(--text-secondary)' }}>{formatHUF(fin.equalCostShare)}</td>
-                  <td>
-                    {member.balance > 0 ? <span className="balance-pill positive"><TrendingUp size={11} /> +{formatHUF(member.balance)}</span>
-                      : member.balance < 0 ? <span className="balance-pill negative"><TrendingDown size={11} /> {formatHUF(member.balance)}</span>
-                      : <span className="balance-pill neutral"><CheckCircle2 size={11} /> 0 Ft</span>}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        <div className="member-cards-mobile">
-          {fin.memberBreakdown.map(member => (
-            <div key={member.userId} className="member-card-row">
-              <div className="member-card-name">
-                {member.displayName}
-                {member.userId === currentUser?.id && <span style={{ marginLeft: '0.4rem', fontSize: '0.675rem', color: 'var(--accent)', background: 'var(--accent-light)', padding: '0.1rem 0.35rem', borderRadius: 'var(--radius-pill)', fontWeight: 700 }}>Ön</span>}
-                {member.deletedAt && <span style={{ marginLeft: '0.4rem', fontSize: '0.675rem', color: '#fff', background: 'var(--danger)', padding: '0.1rem 0.4rem', borderRadius: 'var(--radius-pill)', fontWeight: 700 }}>Kilépett</span>}
-              </div>
-              <div className="member-card-field"><span className="member-card-label">Kifizetve</span><span className="member-card-value">{formatHUF(member.paid)}</span></div>
-              <div className="member-card-field"><span className="member-card-label">Munkadíj</span><span className="member-card-value" style={{ color: 'var(--success-text)' }}>+{formatHUF(member.labourValue)}</span></div>
-              <div className="member-card-field"><span className="member-card-label">Rá eső rész</span><span className="member-card-value" style={{ color: 'var(--text-secondary)' }}>{formatHUF(fin.equalCostShare)}</span></div>
-              <div className="member-card-field"><span className="member-card-label">Egyenleg</span>
-                <span>{member.balance > 0 ? <span className="balance-pill positive"><TrendingUp size={11} /> +{formatHUF(member.balance)}</span>
-                  : member.balance < 0 ? <span className="balance-pill negative"><TrendingDown size={11} /> {formatHUF(member.balance)}</span>
-                  : <span className="balance-pill neutral"><CheckCircle2 size={11} /> 0 Ft</span>}</span>
-              </div>
-            </div>
-          ))}
-        </div>
-        {fin.totalLabourValue > 0 && (
-          <div style={{ marginTop: '0.75rem', padding: '0.65rem 0.85rem', borderRadius: 'var(--radius-md)', background: 'var(--bg-subtle)', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-            <strong>Egyenleg = </strong>(Kifizetve − Kiadásrész) + (Munkadíj − Munkadíjrész) &nbsp;·&nbsp; Kiadásrész: {formatHUF(fin.equalCostShare)}, Munkadíjrész: {formatHUF(fin.equalLabourShare)}
+      {/* Per-member contribution cards — collective or multi-member project */}
+      {(project.collective_id || activeCollectiveId) && fin.memberBreakdown.length > 0 && (
+        <div className="mb-6">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.75rem' }}>
+            <Users size={18} color="var(--accent)" />
+            <h3 style={{ fontSize: '1rem', fontWeight: 800, margin: 0 }}>Résztvevők hozzájárulása</h3>
           </div>
-        )}
-      </div>}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(320px, 100%), 1fr))', gap: '0.75rem' }}>
+            {fin.memberBreakdown.map(member => {
+              const memberInvoices = fin.projectInvoices.filter(inv => inv.uploaded_by === member.userId);
+              const memberLabour   = fin.projectLabour.filter(e => e.uploaded_by === member.userId);
+              const total = member.paid + member.labourValue;
+              const isSelf         = member.userId === currentUser?.id;
+              const memberUser     = projectMemberUsers.find(u => u.id === member.userId);
+              const isCollectiveOwner = memberUser?.collective_role === 'owner';
 
-      {activeCollectiveId && <div className="card mb-6">
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.85rem' }}>
-          <Wallet size={18} color="var(--accent)" />
-          <h3 style={{ fontSize: '1rem', fontWeight: 800 }}>Ki kinek tartozik?</h3>
+              const cardBorder = isCollectiveOwner
+                ? '2px solid #7c3aed'
+                : isSelf
+                  ? '2px solid var(--accent-border)'
+                  : undefined;
+
+              return (
+                <div key={member.userId} className="card" style={{ padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem', border: cardBorder }}>
+                  {/* Header */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
+                      <span style={{ fontWeight: 800, fontSize: '0.95rem' }}>{member.displayName}</span>
+                      {isCollectiveOwner && <span style={{ fontSize: '0.65rem', color: '#7c3aed', background: '#ede9fe', padding: '0.1rem 0.4rem', borderRadius: 'var(--radius-pill)', fontWeight: 700 }}>Tulajdonos</span>}
+                      {isSelf && <span style={{ fontSize: '0.65rem', color: 'var(--accent)', background: 'var(--accent-light)', padding: '0.1rem 0.35rem', borderRadius: 'var(--radius-pill)', fontWeight: 700 }}>Ön</span>}
+                      {member.deletedAt && <span style={{ fontSize: '0.65rem', color: '#fff', background: 'var(--danger)', padding: '0.1rem 0.4rem', borderRadius: 'var(--radius-pill)', fontWeight: 700 }}>Kilépett</span>}
+                    </div>
+                    <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, fontSize: '1rem', color: 'var(--text-primary)' }}>{formatHUF(total)}</span>
+                  </div>
+
+                  {/* Invoices */}
+                  {memberInvoices.length > 0 && (
+                    <div>
+                      <div style={{ fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-muted)', marginBottom: '0.35rem', display: 'flex', justifyContent: 'space-between' }}>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}><Receipt size={11} /> Számlák</span>
+                        <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)', fontWeight: 700 }}>{formatHUF(member.paid)}</span>
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                        {memberInvoices.map(inv => (
+                          <div key={inv.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.8rem', padding: '0.2rem 0' }}>
+                            <span style={{ color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, minWidth: 0 }}>{inv.description || inv.category}</span>
+                            <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, fontSize: '0.78rem', flexShrink: 0, marginLeft: '0.5rem' }}>{formatHUF(inv.value_huf)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Labour */}
+                  {memberLabour.length > 0 && (
+                    <div style={{ borderTop: memberInvoices.length > 0 ? '1px solid var(--border-subtle)' : 'none', paddingTop: memberInvoices.length > 0 ? '0.65rem' : 0 }}>
+                      <div style={{ fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-muted)', marginBottom: '0.35rem', display: 'flex', justifyContent: 'space-between' }}>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}><Hammer size={11} /> Munkadíj</span>
+                        <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--success-text)', fontWeight: 700 }}>+{formatHUF(member.labourValue)}</span>
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                        {memberLabour.map(e => (
+                          <div key={e.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.8rem', padding: '0.2rem 0' }}>
+                            <span style={{ color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, minWidth: 0 }}>
+                              {e.labour_type}{e.hours ? ` · ${e.hours} ${e.unit || 'h'}` : ''}
+                            </span>
+                            <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, fontSize: '0.78rem', flexShrink: 0, marginLeft: '0.5rem', color: 'var(--success-text)' }}>+{formatHUF(e.value_huf)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Empty state */}
+                  {memberInvoices.length === 0 && memberLabour.length === 0 && (
+                    <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontStyle: 'italic', margin: 0 }}>Még nincs rögzített tétel.</p>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </div>
-        {(fin.settlements ?? []).length === 0 ? (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--success-text)', background: 'var(--success-bg)', border: '1px solid var(--success-border)', borderRadius: 'var(--radius-md)', padding: '0.75rem 1rem', fontSize: '0.875rem', fontWeight: 600 }}>
-            <CheckCircle2 size={18} /><span>Minden egyenlően el van osztva, nincs egyenlítendő tartozás.</span>
-          </div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-            {fin.settlements.map((s, i) => (
-              <div key={i} className="settlement-row">
-                <span style={{ fontWeight: 700, color: 'var(--danger-text)', display: 'flex', alignItems: 'center', gap: '0.3rem', flexWrap: 'wrap' }}>
-                  {s.from}
-                  {fin.memberBreakdown.find(m => m.userId === s.fromId)?.deletedAt && <span style={{ fontSize: '0.65rem', color: '#fff', background: 'var(--danger)', padding: '0.1rem 0.35rem', borderRadius: 'var(--radius-pill)', fontWeight: 700 }}>Kilépett</span>}
-                </span>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--text-muted)', fontSize: '0.8rem' }}><span>fizet</span><ArrowRight size={14} /></div>
-                <span style={{ fontWeight: 700, color: 'var(--success-text)', display: 'flex', alignItems: 'center', gap: '0.3rem', flexWrap: 'wrap' }}>
-                  {s.to}
-                  {fin.memberBreakdown.find(m => m.userId === s.toId)?.deletedAt && <span style={{ fontSize: '0.65rem', color: '#fff', background: 'var(--danger)', padding: '0.1rem 0.35rem', borderRadius: 'var(--radius-pill)', fontWeight: 700 }}>Kilépett</span>}
-                </span>
-                <span className="settlement-amount" style={{ marginLeft: 'auto', fontWeight: 800, fontSize: '1rem', fontFamily: 'var(--font-mono)' }}>{formatHUF(s.amount)}</span>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>}
+      )}
 
       {/* Tabs */}
       <div style={{ display: 'flex', gap: 0, marginBottom: '1rem', borderBottom: '2px solid var(--border-subtle)', paddingBottom: 0, overflowX: 'auto', WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
@@ -2363,7 +2359,7 @@ export default function ProjectDetailClient({
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(300px, 100%), 1fr))', gap: '0.85rem' }}>
               {filteredLabour.map((entry) => {
                 const uploader = initialUsers.find(u => u.id === entry.uploaded_by);
-                const canDelete = entry.uploaded_by === currentUser?.id || isAdmin;
+                const canManageEntry = isAdmin || canManageProject || entry.uploaded_by === currentUser?.id;
                 const entryRoom = projectRooms.find(r => r.id === entry.room_id) || null;
                 return (
                   <div key={entry.id} className="card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: '0.85rem' }}>
@@ -2411,16 +2407,24 @@ export default function ProjectDetailClient({
                       {entry.description && (
                         <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.4rem' }}>{entry.description}</div>
                       )}
+
+                      {/* Last-edit audit */}
+                      {entry.updated_at && (
+                        <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.35rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                          <PencilLine size={10} />
+                          {entry.updated_by_name ? `${entry.updated_by_name} · ` : ''}{formatDate(entry.updated_at)}
+                        </div>
+                      )}
                     </div>
 
-                    {/* Actions — mirrors InvoiceCard bottom row */}
+                    {/* Actions */}
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', paddingTop: '0.65rem', borderTop: '1px solid var(--border-subtle)', gap: '0.35rem' }}>
-                      {isAdmin && (
+                      {canManageEntry && (
                         <button type="button" onClick={() => setEditingLabour(entry)} className="btn btn-secondary btn-sm" title="Szerkesztés">
                           <Edit3 size={13} />
                         </button>
                       )}
-                      {canDelete && (
+                      {canManageEntry && (
                         <button type="button" onClick={() => handleDeleteLabour(entry.id)} className="btn btn-danger btn-sm" title="Törlés">
                           <Trash2 size={13} />
                         </button>
@@ -2853,7 +2857,7 @@ export default function ProjectDetailClient({
         </>
       )}
 
-      {isAdmin && editingLabour && (
+      {editingLabour && (
         <LabourEditModal
           entry={editingLabour}
           rooms={projectRooms}
@@ -2908,7 +2912,7 @@ export default function ProjectDetailClient({
       {detailInvoice && (
         <InvoiceDetailDrawer
           invoice={detailInvoice}
-          isAdmin={isAdmin}
+          isAdmin={isAdmin || canManageProject || detailInvoice?.uploaded_by === currentUser?.id}
           rooms={projectRooms}
           splits={invoiceSplits.filter(s => s.invoice_id === detailInvoice.id)}
           onClose={() => setDetailInvoice(null)}

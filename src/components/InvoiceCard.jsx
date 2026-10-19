@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { formatHUF, formatDate, INVOICE_CATEGORIES } from '@/lib/constants';
-import { User, Calendar, Receipt, Home, Sparkles } from 'lucide-react';
+import { User, Calendar, Receipt, Home, Sparkles, PencilLine, Paperclip } from 'lucide-react';
 
 export default function InvoiceCard({ invoice, room, onClick }) {
   const catObj = INVOICE_CATEGORIES.find(c => c.id === invoice.category) || { color: 'egyeb' };
@@ -65,7 +65,19 @@ export default function InvoiceCard({ invoice, room, onClick }) {
             <Sparkles size={10} />{invoice.ai_line_items.length} tétel
           </span>
         )}
+        {invoice.image_url && (
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', padding: '0.15rem 0.5rem', borderRadius: 'var(--radius-pill)', background: 'var(--bg-subtle)', border: '1px solid var(--border-subtle)', color: 'var(--text-muted)', fontWeight: 600, fontSize: '0.72rem' }}>
+            <Paperclip size={10} />Bizonylat
+          </span>
+        )}
       </div>
+
+      {invoice.updated_at && (
+        <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+          <PencilLine size={10} />
+          {invoice.updated_by_name ? `${invoice.updated_by_name} · ` : ''}{formatDate(invoice.updated_at)}
+        </div>
+      )}
     </button>
   );
 }

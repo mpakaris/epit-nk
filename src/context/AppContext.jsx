@@ -590,32 +590,25 @@ export function AppProvider({ children }) {
   };
 
   const updateInvoice = async (invoiceId, fields) => {
-    if (!isAdmin) throw new Error('Csak adminisztrátor módosíthat számlát!');
-
-    const { data, error } = await supabase.from('invoices').update(fields).eq('id', invoiceId).select().single();
-    if (error) throw error;
-    setInvoices(prev => prev.map(inv => inv.id === invoiceId ? data : inv));
-    auditLog('Számla módosítva', { entityId: effectiveEntityId, targetType: 'invoice', targetId: invoiceId });
-    return data;
+    const res = await fetch(`/api/invoices/${invoiceId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(fields),
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.error || 'Hiba a módosításkor');
+    setInvoices(prev => prev.map(inv => inv.id === invoiceId ? json.invoice : inv));
+    return json.invoice;
   };
 
   const deleteInvoice = async (invoiceId) => {
-    if (!isAdmin) throw new Error('Csak adminisztrátor törölhet számlát!');
-
+    const res = await fetch(`/api/invoices/${invoiceId}`, { method: 'DELETE' });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.error || 'Hiba a törléskor');
     const now = new Date().toISOString();
-    const deletedByName = effectiveUser?.display_name || 'Ismeretlen';
-
-    const { error } = await supabase
-      .from('invoices')
-      .update({ deleted_at: now, deleted_by_name: deletedByName })
-      .eq('id', invoiceId);
-    if (error) throw error;
-
-    // Keep in state so admin views can show deletion history; mark as deleted
     setInvoices(prev => prev.map(inv =>
-      inv.id === invoiceId ? { ...inv, deleted_at: now, deleted_by_name: deletedByName } : inv
+      inv.id === invoiceId ? { ...inv, deleted_at: now } : inv
     ));
-    auditLog('Számla törölve', { entityId: effectiveEntityId, targetType: 'invoice', targetId: invoiceId });
   };
 
   // ---- Labour -----------------------------------------------------------------
@@ -634,35 +627,22 @@ export function AppProvider({ children }) {
   };
 
   const updateLabourEntry = async (entryId, fields) => {
-    if (!isAdmin) throw new Error('Csak adminisztrátor módosíthat munkabejegyzést!');
-    const allowed = ['labour_type', 'hours', 'hourly_rate', 'unit', 'date', 'description', 'value_huf'];
-    const update = {};
-    for (const k of allowed) if (k in fields) update[k] = fields[k];
-    if ('hours' in update || 'hourly_rate' in update) {
-      const entry = labourEntries.find(e => e.id === entryId);
-      const h = update.hours ?? entry?.hours ?? 0;
-      const r = update.hourly_rate ?? entry?.hourly_rate ?? 0;
-      update.value_huf = Math.round(Number(h) * Number(r));
-    }
-    const { data, error } = await supabase.from('labour_entries').update(update).eq('id', entryId).select().single();
-    if (error) throw error;
-    setLabourEntries(prev => prev.map(e => e.id === entryId ? data : e));
-    auditLog('Munkabejegyzés módosítva', { entityId: effectiveEntityId, targetType: 'labour_entry', targetId: entryId });
-    return data;
+    const res = await fetch(`/api/labour-entries/${entryId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(fields),
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.error || 'Hiba a módosításkor');
+    setLabourEntries(prev => prev.map(e => e.id === entryId ? json.labourEntry : e));
+    return json.labourEntry;
   };
 
   const deleteLabourEntry = async (entryId) => {
-    const entry = labourEntries.find(e => e.id === entryId);
-    if (!entry) return;
-
-    if (entry.uploaded_by !== effectiveUser?.id && !isAdmin) {
-      throw new Error('Csak saját munkabejegyzést törölhet!');
-    }
-
-    const { error } = await supabase.from('labour_entries').delete().eq('id', entryId);
-    if (error) throw error;
+    const res = await fetch(`/api/labour-entries/${entryId}`, { method: 'DELETE' });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.error || 'Hiba a törléskor');
     setLabourEntries(prev => prev.filter(e => e.id !== entryId));
-    auditLog('Munkabejegyzés törölve', { entityId: effectiveEntityId, targetType: 'labour_entry', targetId: entryId });
   };
 
   // ---- Projects ---------------------------------------------------------------

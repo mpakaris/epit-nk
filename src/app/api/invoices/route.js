@@ -30,6 +30,16 @@ export async function POST(request) {
   if (!isSuperAdmin && !isOwner) {
     const { data: membership } = await admin.from('project_members').select('user_id').eq('project_id', projectId).eq('user_id', user.id).maybeSingle();
     isMember = !!membership;
+
+    if (!isMember && project.collective_id) {
+      const { data: collectiveMembership } = await admin.from('collective_members')
+        .select('user_id')
+        .eq('collective_id', project.collective_id)
+        .eq('user_id', user.id)
+        .eq('status', 'active')
+        .maybeSingle();
+      isMember = !!collectiveMembership;
+    }
   }
   if (!isSuperAdmin && !isOwner && !isMember)
     return Response.json({ error: 'Nincs hozzáférés' }, { status: 403 });

@@ -292,6 +292,7 @@ export default function MobileUploadPage() {
         <p className="page-subtitle">Válasszon típust, majd töltse ki az adatokat</p>
       </div>
 
+      <fieldset disabled={isSubmitting} style={{ border: 'none', padding: 0, margin: 0 }}>
       {/* Mode Toggle */}
       <div
         style={{
@@ -748,6 +749,7 @@ export default function MobileUploadPage() {
           </div>
         </>
       )}
+      </fieldset>
     </div>
   );
 }

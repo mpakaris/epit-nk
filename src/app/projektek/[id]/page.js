@@ -59,10 +59,10 @@ async function ProjectDetailContent({ params }) {
     redirect('/projektek');
   }
 
-  const [usersRes, invoicesRes, labourRes, allClientsRes, diaryCountRes, roomsRes, paymentPlanRes, splitsRes] = await Promise.all([
+  const [collectiveMembersRes, invoicesRes, labourRes, allClientsRes, diaryCountRes, roomsRes, paymentPlanRes, splitsRes] = await Promise.all([
     project.collective_id
-      ? admin.from('collective_members').select('user_id, role, profiles(id, display_name, email, role)').eq('collective_id', project.collective_id).eq('status', 'active')
-      : admin.from('profiles').select('id, display_name, email, role').eq('id', effectiveUserId),
+      ? admin.from('collective_members').select('user_id, role').eq('collective_id', project.collective_id).eq('status', 'active')
+      : Promise.resolve({ data: null }),
     admin.from('invoices')
       .select('*')
       .eq('project_id', id)
@@ -82,10 +82,23 @@ async function ProjectDetailContent({ params }) {
   const client = allClients.find(c => c.id === project.client_id) || null;
   const projectWithMembers = { ...project, members: memberIds };
 
+  // Build initialUsers: two-step fetch to avoid relying on implicit FK joins
+  let initialUsers = [];
+  if (project.collective_id && collectiveMembersRes.data?.length > 0) {
+    const collectiveMemberRows = collectiveMembersRes.data;
+    const userIds = collectiveMemberRows.map(m => m.user_id);
+    const { data: profileRows } = await admin.from('profiles').select('id, display_name, email, role').in('id', userIds);
+    const roleByUserId = Object.fromEntries(collectiveMemberRows.map(m => [m.user_id, m.role]));
+    initialUsers = (profileRows || []).map(p => ({ ...p, collective_role: roleByUserId[p.id] || 'contributor' }));
+  } else if (!project.collective_id) {
+    const { data: profileRow } = await admin.from('profiles').select('id, display_name, email, role').eq('id', effectiveUserId).single();
+    if (profileRow) initialUsers = [profileRow];
+  }
+
   return (
     <ProjectDetailClient
       project={projectWithMembers}
-      initialUsers={usersRes.data || []}
+      initialUsers={initialUsers}
       initialInvoices={invoicesRes.data || []}
       initialLabourEntries={labourRes.data || []}
       client={client}
