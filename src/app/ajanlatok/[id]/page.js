@@ -567,7 +567,10 @@ export default function QuoteDetailPage() {
     createQuoteSection, updateQuoteSection, deleteQuoteSection,
     createQuoteEntry, updateQuoteEntry, deleteQuoteEntry,
     fetchSurveyMedia, surveyEntriesBySurvey,
+    isDemoMode,
   } = useApp();
+
+  const navPrefix = isDemoMode ? '/demo' : '';
 
   // Inline meta state
   const [metaTitle, setMetaTitle]           = useState('');
@@ -672,7 +675,7 @@ export default function QuoteDetailPage() {
   if (!quote) return (
     <div className="container" style={{ paddingTop: '2.5rem', textAlign: 'center' }}>
       <h2>Az ajánlat nem található</h2>
-      <Link href="/ajanlatok" className="btn btn-secondary mt-4"><ArrowLeft size={16} /> Vissza</Link>
+      <Link href={`${navPrefix}/ajanlatok`} className="btn btn-secondary mt-4"><ArrowLeft size={16} /> Vissza</Link>
     </div>
   );
 
@@ -743,7 +746,7 @@ export default function QuoteDetailPage() {
 
   const handleConvert = async () => {
     setIsConverting(true);
-    try { const proj = await convertQuoteToProject(id, convertMembers); setShowConvertModal(false); router.push(`/projektek/${proj.id}`); }
+    try { const proj = await convertQuoteToProject(id, convertMembers); setShowConvertModal(false); router.push(`${navPrefix}/projektek/${proj.id}`); }
     catch (err) { setAlertModal({ message: err.message }); }
     finally { setIsConverting(false); }
   };
@@ -752,7 +755,7 @@ export default function QuoteDetailPage() {
     setConfirmModal({
       message: `Biztosan törölni kívánja „${quote.title}" ajánlatot?`,
       onConfirm: async () => {
-        try { await deleteQuote(id); router.push('/ajanlatok'); }
+        try { await deleteQuote(id); router.push(`${navPrefix}/ajanlatok`); }
         catch (err) { setAlertModal({ message: err.message }); }
       },
     });
@@ -954,7 +957,7 @@ export default function QuoteDetailPage() {
   return (
     <div className="container" style={{ maxWidth: '800px' }}>
       <div style={{ padding: '0.85rem 0 0.25rem' }}>
-        <Link href="/ajanlatok" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', color: 'var(--text-secondary)', fontSize: '0.825rem', fontWeight: 600 }}>
+        <Link href={`${navPrefix}/ajanlatok`} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', color: 'var(--text-secondary)', fontSize: '0.825rem', fontWeight: 600 }}>
           <ArrowLeft size={15} /> Vissza az ajánlatokhoz
         </Link>
       </div>
@@ -1110,7 +1113,7 @@ export default function QuoteDetailPage() {
           <div style={{ display: 'grid', gridTemplateColumns: '18px 1fr', gap: '0.6rem 0.85rem', alignItems: 'center' }}>
             {client && (<><User size={15} color="var(--accent)" />
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-                <Link href={`/ugyfelek/${client.id}`} style={{ fontWeight: 700, color: 'var(--accent)', fontSize: '0.9rem' }}>{client.name}</Link>
+                <Link href={`${navPrefix}/ugyfelek/${client.id}`} style={{ fontWeight: 700, color: 'var(--accent)', fontSize: '0.9rem' }}>{client.name}</Link>
                 {client.discount_percent > 0 && <span style={{ fontSize: '0.72rem', color: 'var(--warning-text)', fontWeight: 700, padding: '0.1rem 0.4rem', borderRadius: 'var(--radius-pill)', background: 'var(--warning-bg)', border: '1px solid var(--warning-border)' }}>{client.discount_percent}% kedv.</span>}
               </div>
             </>)}
@@ -1123,8 +1126,8 @@ export default function QuoteDetailPage() {
         )}
         {(linkedSurvey || linkedProject) && (
           <div style={{ borderTop: '1px solid var(--border-subtle)', marginTop: '0.85rem', paddingTop: '0.85rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-            {linkedSurvey && <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}><Ruler size={15} color="var(--accent)" /><Link href={`/felmeres/${linkedSurvey.id}`} style={{ fontWeight: 700, color: 'var(--accent)', fontSize: '0.875rem' }}>{linkedSurvey.title}</Link>{linkedSurvey.date && <span style={{ color: 'var(--text-muted)', fontSize: '0.82rem' }}>{formatDate(linkedSurvey.date)}</span>}</div>}
-            {linkedProject && <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}><FolderKanban size={15} color="var(--success)" /><Link href={`/projektek/${linkedProject.id}`} style={{ fontWeight: 700, color: 'var(--success-text)', fontSize: '0.875rem' }}>{linkedProject.name}</Link></div>}
+            {linkedSurvey && <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}><Ruler size={15} color="var(--accent)" /><Link href={`${navPrefix}/felmeres/${linkedSurvey.id}`} style={{ fontWeight: 700, color: 'var(--accent)', fontSize: '0.875rem' }}>{linkedSurvey.title}</Link>{linkedSurvey.date && <span style={{ color: 'var(--text-muted)', fontSize: '0.82rem' }}>{formatDate(linkedSurvey.date)}</span>}</div>}
+            {linkedProject && <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}><FolderKanban size={15} color="var(--success)" /><Link href={`${navPrefix}/projektek/${linkedProject.id}`} style={{ fontWeight: 700, color: 'var(--success-text)', fontSize: '0.875rem' }}>{linkedProject.name}</Link></div>}
           </div>
         )}
       </div>

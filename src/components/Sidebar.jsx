@@ -11,7 +11,7 @@ import {
   ChevronDown, Globe, ImageIcon, UsersRound,
 } from 'lucide-react';
 
-function buildNavItems(isSuperAdmin, isAdmin, impersonating, websiteUnread = 0) {
+function buildNavItems(isSuperAdmin, isAdmin, impersonating, websiteUnread = 0, prefix = '') {
   if (isSuperAdmin && !impersonating) {
     return [
       { key: 'sa-entitasok',  href: '/superadmin',              label: 'Entities',  icon: Building2,    exact: true },
@@ -22,16 +22,16 @@ function buildNavItems(isSuperAdmin, isAdmin, impersonating, websiteUnread = 0) 
     ];
   }
   const commonNav = [
-    { href: '/dashboard',    label: 'Dashboard',    icon: LayoutDashboard, exact: true },
-    { href: '/felmeres',     label: 'Felmérések',   icon: Ruler },
-    { href: '/ajanlatok',    label: 'Ajánlatok',    icon: FileText },
-    { href: '/projektek',    label: 'Projektek',    icon: FolderKanban },
-    { href: '/kollektivak',  label: 'Kollektívák',  icon: UsersRound },
-    { href: '/naptar',       label: 'Naptár',       icon: Calendar },
-    { href: '/ugyfelek',     label: 'Ügyfelek',     icon: BookUser },
-    { href: '/otletek',      label: 'Ötletek',      icon: Lightbulb },
+    { href: prefix + '/dashboard',    label: 'Dashboard',    icon: LayoutDashboard, exact: true },
+    { href: prefix + '/felmeres',     label: 'Felmérések',   icon: Ruler },
+    { href: prefix + '/ajanlatok',    label: 'Ajánlatok',    icon: FileText },
+    { href: prefix + '/projektek',    label: 'Projektek',    icon: FolderKanban },
+    { href: prefix + '/kollektivak',  label: 'Kollektívák',  icon: UsersRound },
+    { href: prefix + '/naptar',       label: 'Naptár',       icon: Calendar },
+    { href: prefix + '/ugyfelek',     label: 'Ügyfelek',     icon: BookUser },
+    { href: prefix + '/otletek',      label: 'Ötletek',      icon: Lightbulb },
     { divider: true, key: 'd1' },
-    { href: '/weboldalam',   label: 'Weboldalom',   icon: Globe, badge: websiteUnread },
+    { href: prefix + '/weboldalam',   label: 'Weboldalom',   icon: Globe, badge: websiteUnread },
   ];
   if (isAdmin) {
     return [
@@ -49,8 +49,8 @@ function isActive(item, pathname) {
 
 export default function Sidebar() {
   const pathname = usePathname();
-  if (pathname.startsWith('/demo')) return null;
-  const { currentUser, isSuperAdmin, isAdmin, impersonating, stopImpersonation, logout, collectives, setActiveContext, switchImpersonatingContext, activeCollectiveId, allMemberships, entities } = useApp();
+  const { currentUser, isSuperAdmin, isAdmin, impersonating, stopImpersonation, logout, collectives, setActiveContext, switchImpersonatingContext, activeCollectiveId, allMemberships, entities, isDemoMode } = useApp();
+  const navPrefix = isDemoMode ? '/demo' : '';
 
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -192,10 +192,10 @@ export default function Sidebar() {
 
   if (!currentUser && pathname === '/login') return null;
   if (!currentUser) return null;
-  if (pathname.startsWith('/naplo/') || pathname.startsWith('/clients/') || pathname.startsWith('/szakemberek/') || pathname.startsWith('/invitations/') || pathname.endsWith('/nyomtatas')) return null;
+  if (pathname.startsWith('/naplo/') || pathname.startsWith('/clients/') || pathname.startsWith('/szakemberek/') || pathname.startsWith('/demo/szakemberek/') || pathname.startsWith('/invitations/') || pathname.endsWith('/nyomtatas')) return null;
 
-  const navItems = buildNavItems(isSuperAdmin, isAdmin, impersonating, websiteUnread);
-  const homeHref = isSuperAdmin && !impersonating ? '/superadmin' : isAdmin ? '/admin' : '/projektek';
+  const navItems = buildNavItems(isSuperAdmin, isAdmin, impersonating, websiteUnread, navPrefix);
+  const homeHref = isSuperAdmin && !impersonating ? '/superadmin' : isAdmin ? '/admin' : (navPrefix + '/projektek');
 
   const UserActions = ({ showLabel = false }) => (
     <div style={{ display: 'flex', gap: '0.35rem' }}>

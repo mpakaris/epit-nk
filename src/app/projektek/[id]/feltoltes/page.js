@@ -38,7 +38,8 @@ const CATEGORY_ICONS = {
 export default function MobileUploadPage() {
   const { id } = useParams();
   const router = useRouter();
-  const { createInvoice, uploadInvoiceImage, createLabourEntry, projectRooms } = useApp();
+  const { createInvoice, uploadInvoiceImage, createLabourEntry, projectRooms, isDemoMode } = useApp();
+  const navPrefix = isDemoMode ? '/demo' : '';
 
   const rooms = (projectRooms || []).filter(r => r.project_id === id);
 
@@ -227,7 +228,7 @@ export default function MobileUploadPage() {
         aiTotal: aiTotal || null,
       });
 
-      router.push(`/projektek/${id}`);
+      router.push(`${navPrefix}/projektek/${id}`);
     } catch (err) {
       setError(err.message || 'Hiba történt a számla mentése során.');
       setIsSubmitting(false);
@@ -267,7 +268,7 @@ export default function MobileUploadPage() {
         roomId: labourRoomId || null,
         unit: labourUnit,
       });
-      router.push(`/projektek/${id}`);
+      router.push(`${navPrefix}/projektek/${id}`);
     } catch (err) {
       setError(err.message || 'Hiba történt a munkabejegyzés mentése során.');
       setIsSubmitting(false);
@@ -280,7 +281,7 @@ export default function MobileUploadPage() {
     <div className="container" style={{ maxWidth: '580px', paddingBottom: '90px' }}>
       <div style={{ padding: '0.85rem 0 0.25rem' }}>
         <Link
-          href={`/projektek/${id}`}
+          href={`${navPrefix}/projektek/${id}`}
           style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', color: 'var(--text-secondary)', fontSize: '0.85rem', fontWeight: 600 }}
         >
           <ArrowLeft size={16} /> Vissza

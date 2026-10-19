@@ -1563,7 +1563,10 @@ export default function ProjectDetailClient({
     createClient,
     clients: ctxClients,
     collectives,
+    isDemoMode,
   } = useApp();
+
+  const navPrefix = isDemoMode ? '/demo' : '';
 
   const projectRooms = React.useMemo(() => {
     const sort = arr => [...arr].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0) || (a.created_at || '').localeCompare(b.created_at || ''));
@@ -1676,7 +1679,7 @@ export default function ProjectDetailClient({
       onConfirm: async () => {
         try {
           await ctxDeleteProject(project.id);
-          router.push('/projektek');
+          router.push(`${navPrefix}/projektek`);
         } catch (err) {
           setAlertModal({ message: err.message || 'Hiba a törléskor' });
         }
@@ -1829,7 +1832,7 @@ export default function ProjectDetailClient({
     <div className="container">
       <div style={{ padding: '0.85rem 0 0.25rem' }}>
         <Link
-          href={currentUser?.role === 'superadmin' ? '/superadmin/projektek' : '/projektek'}
+          href={currentUser?.role === 'superadmin' ? '/superadmin/projektek' : `${navPrefix}/projektek`}
           style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', color: 'var(--text-secondary)', fontSize: '0.825rem', fontWeight: 600 }}
         >
           <ArrowLeft size={15} /> Vissza a projektekhez
@@ -1857,7 +1860,7 @@ export default function ProjectDetailClient({
             <p className="page-subtitle">{project.description || 'Nincs megadott leírás'}</p>
           </div>
           <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexShrink: 0 }}>
-            <Link href={`/projektek/${project.id}/feltoltes`} className="btn btn-primary btn-sm">
+            <Link href={`${navPrefix}/projektek/${project.id}/feltoltes`} className="btn btn-primary btn-sm">
               <Camera size={15} /> <span>Bejegyzés</span>
             </Link>
 
@@ -2147,7 +2150,7 @@ export default function ProjectDetailClient({
                 <div style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-primary)' }}>{linkedSurvey.title}</div>
               </div>
             </div>
-            <Link href={`/felmeres/${linkedSurvey.id}`} className="btn btn-secondary btn-sm"><Ruler size={13} /> Megtekint</Link>
+            <Link href={`${navPrefix}/felmeres/${linkedSurvey.id}`} className="btn btn-secondary btn-sm"><Ruler size={13} /> Megtekint</Link>
           </div>
         );
       })()}
@@ -2180,7 +2183,7 @@ export default function ProjectDetailClient({
                   </div>
                 </div>
               </div>
-              <Link href={`/ajanlatok/${linkedQuote.id}`} className="btn btn-secondary btn-sm" style={{ flexShrink: 0 }}>
+              <Link href={`${navPrefix}/ajanlatok/${linkedQuote.id}`} className="btn btn-secondary btn-sm" style={{ flexShrink: 0 }}>
                 <FileText size={13} /> Megtekint
               </Link>
             </div>
@@ -2304,14 +2307,14 @@ export default function ProjectDetailClient({
                 {projectRooms.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
               </select>
             )}
-            <Link href={`/projektek/${project.id}/feltoltes`} className="btn btn-primary btn-sm" style={{ marginLeft: 'auto', whiteSpace: 'nowrap' }}><Plus size={15} /> Új bejegyzés</Link>
+            <Link href={`${navPrefix}/projektek/${project.id}/feltoltes`} className="btn btn-primary btn-sm" style={{ marginLeft: 'auto', whiteSpace: 'nowrap' }}><Plus size={15} /> Új bejegyzés</Link>
           </div>
           {filteredInvoices.length === 0 ? (
             <div className="card" style={{ textAlign: 'center', padding: '2.5rem 1.5rem' }}>
               <Receipt size={36} color="var(--text-muted)" style={{ margin: '0 auto 0.5rem' }} />
               <h4 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '0.25rem' }}>Nincs megjeleníthető számla</h4>
               <p style={{ color: 'var(--text-secondary)', fontSize: '0.825rem', marginBottom: '1rem' }}>Ehhez a szűréshez még nem rögzítettek számlát.</p>
-              <Link href={`/projektek/${project.id}/feltoltes`} className="btn btn-primary btn-sm"><Plus size={15} /> Számla hozzáadása</Link>
+              <Link href={`${navPrefix}/projektek/${project.id}/feltoltes`} className="btn btn-primary btn-sm"><Plus size={15} /> Számla hozzáadása</Link>
             </div>
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(300px, 100%), 1fr))', gap: '0.85rem' }}>
@@ -2345,7 +2348,7 @@ export default function ProjectDetailClient({
                 {projectRooms.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
               </select>
             )}
-            <Link href={`/projektek/${project.id}/feltoltes`} className="btn btn-primary btn-sm" style={{ marginLeft: 'auto', whiteSpace: 'nowrap' }}><Plus size={15} /> Új bejegyzés</Link>
+            <Link href={`${navPrefix}/projektek/${project.id}/feltoltes`} className="btn btn-primary btn-sm" style={{ marginLeft: 'auto', whiteSpace: 'nowrap' }}><Plus size={15} /> Új bejegyzés</Link>
           </div>
 
           {filteredLabour.length === 0 ? (
@@ -2353,7 +2356,7 @@ export default function ProjectDetailClient({
               <Hammer size={36} color="var(--text-muted)" style={{ margin: '0 auto 0.5rem' }} />
               <h4 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '0.25rem' }}>Nincs rögzített munka</h4>
               <p style={{ color: 'var(--text-secondary)', fontSize: '0.825rem', marginBottom: '1rem' }}>A saját elvégzett munkák itt jelennek meg.</p>
-              <Link href={`/projektek/${project.id}/feltoltes`} className="btn btn-primary btn-sm"><Plus size={15} /> Munkabejegyzés hozzáadása</Link>
+              <Link href={`${navPrefix}/projektek/${project.id}/feltoltes`} className="btn btn-primary btn-sm"><Plus size={15} /> Munkabejegyzés hozzáadása</Link>
             </div>
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(300px, 100%), 1fr))', gap: '0.85rem' }}>
@@ -2759,7 +2762,7 @@ export default function ProjectDetailClient({
             >
               <Copy size={14} /> Ügyfél link
             </button>
-            <Link href={`/projektek/${project.id}/naplo/uj`} className="btn btn-primary btn-sm"><Plus size={15} /> Új bejegyzés</Link>
+            <Link href={`${navPrefix}/projektek/${project.id}/naplo/uj`} className="btn btn-primary btn-sm"><Plus size={15} /> Új bejegyzés</Link>
           </div>
           {diaryLoading ? (
             <div className="card" style={{ textAlign: 'center', padding: '2.5rem 1.5rem', color: 'var(--text-muted)' }}>Betöltés...</div>
@@ -2768,7 +2771,7 @@ export default function ProjectDetailClient({
               <BookOpen size={36} color="var(--text-muted)" style={{ margin: '0 auto 0.5rem' }} />
               <h4 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '0.25rem' }}>Még nincs bejegyzés ebben a naplóban</h4>
               <p style={{ color: 'var(--text-secondary)', fontSize: '0.825rem', marginBottom: '1rem' }}>Az első fotós bejegyzéssel kezd el dokumentálni a munkát.</p>
-              <Link href={`/projektek/${project.id}/naplo/uj`} className="btn btn-primary btn-sm"><Plus size={15} /> Első bejegyzés</Link>
+              <Link href={`${navPrefix}/projektek/${project.id}/naplo/uj`} className="btn btn-primary btn-sm"><Plus size={15} /> Első bejegyzés</Link>
             </div>
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(320px, 100%), 1fr))', gap: '0.85rem' }}>
@@ -2804,7 +2807,7 @@ export default function ProjectDetailClient({
                       </div>
                       <div style={{ display: 'flex', gap: '0.35rem', flexShrink: 0 }}>
                         {(isAdmin || entry.created_by === currentUser?.id) && (
-                          <Link href={`/projektek/${project.id}/naplo/${entry.id}`} className="btn btn-secondary btn-sm" style={{ padding: '0.25rem 0.5rem' }}>
+                          <Link href={`${navPrefix}/projektek/${project.id}/naplo/${entry.id}`} className="btn btn-secondary btn-sm" style={{ padding: '0.25rem 0.5rem' }}>
                             <Edit3 size={13} />
                           </Link>
                         )}

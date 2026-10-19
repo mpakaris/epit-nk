@@ -458,7 +458,10 @@ export default function SurveyDetailPage() {
     fetchSurveyMedia,
     createSurveyEntry, updateSurveyEntry, deleteSurveyEntry,
     createSurveyDrawing, deleteSurveyDrawing,
+    isDemoMode,
   } = useApp();
+
+  const navPrefix = isDemoMode ? '/demo' : '';
 
   const [detailLoading, setDetailLoading] = useState(true);
   const [confirmModal, setConfirmModal]   = useState(null);
@@ -478,7 +481,7 @@ export default function SurveyDetailPage() {
   if (!survey) return (
     <div className="container" style={{ paddingTop: '2.5rem', textAlign: 'center' }}>
       <h2>A felmérés nem található</h2>
-      <Link href="/felmeres" className="btn btn-secondary mt-4"><ArrowLeft size={16} /> Vissza</Link>
+      <Link href={`${navPrefix}/felmeres`} className="btn btn-secondary mt-4"><ArrowLeft size={16} /> Vissza</Link>
     </div>
   );
 
@@ -520,7 +523,7 @@ export default function SurveyDetailPage() {
     setConfirmModal({
       message: `Biztosan törölni kívánja „${survey.title}" felmérést?${detail}`,
       onConfirm: async () => {
-        try { await deleteSurvey(id); router.push('/felmeres'); }
+        try { await deleteSurvey(id); router.push(`${navPrefix}/felmeres`); }
         catch (err) { setAlertModal({ message: err.message }); }
       },
     });
@@ -557,7 +560,7 @@ export default function SurveyDetailPage() {
   return (
     <div className="container" style={{ maxWidth: '800px', paddingBottom: '3rem' }}>
       <div style={{ padding: '0.85rem 0 0.25rem' }}>
-        <Link href="/felmeres" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', color: 'var(--text-secondary)', fontSize: '0.825rem', fontWeight: 600 }}>
+        <Link href={`${navPrefix}/felmeres`} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', color: 'var(--text-secondary)', fontSize: '0.825rem', fontWeight: 600 }}>
           <ArrowLeft size={15} /> Vissza a felmérésekhez
         </Link>
       </div>
@@ -583,7 +586,7 @@ export default function SurveyDetailPage() {
             {client && (
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                 <User size={15} color="var(--accent)" />
-                <Link href={`/ugyfelek/${client.id}`} style={{ fontWeight: 700, color: 'var(--accent)' }}>{client.name}</Link>
+                <Link href={`${navPrefix}/ugyfelek/${client.id}`} style={{ fontWeight: 700, color: 'var(--accent)' }}>{client.name}</Link>
               </div>
             )}
             {survey.location && <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}><MapPin size={14} color="var(--accent)" />{survey.location}</span>}
@@ -769,7 +772,7 @@ export default function SurveyDetailPage() {
             <div style={{ padding: '0.75rem 1rem', borderRadius: 'var(--radius-md)', background: 'var(--success-bg)', border: '1px solid var(--success-border)', display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: linkedQuote ? '0.5rem' : 0 }}>
               <FolderKanban size={15} color="var(--success)" />
               <span style={{ fontSize: '0.875rem', color: 'var(--success-text)' }}>
-                Projekt: <Link href={`/projektek/${linkedProject.id}`} style={{ fontWeight: 700, color: 'var(--success-text)' }}>{linkedProject.name}</Link>
+                Projekt: <Link href={`${navPrefix}/projektek/${linkedProject.id}`} style={{ fontWeight: 700, color: 'var(--success-text)' }}>{linkedProject.name}</Link>
               </span>
             </div>
           )}
@@ -777,7 +780,7 @@ export default function SurveyDetailPage() {
             <div style={{ padding: '0.75rem 1rem', borderRadius: 'var(--radius-md)', background: 'var(--warning-bg)', border: '1px solid var(--warning-border)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <FileText size={15} color="var(--warning-text)" />
               <span style={{ fontSize: '0.875rem', color: 'var(--warning-text)' }}>
-                Ajánlat: <Link href={`/ajanlatok/${linkedQuote.id}`} style={{ fontWeight: 700, color: 'var(--warning-text)' }}>{linkedQuote.title}</Link>
+                Ajánlat: <Link href={`${navPrefix}/ajanlatok/${linkedQuote.id}`} style={{ fontWeight: 700, color: 'var(--warning-text)' }}>{linkedQuote.title}</Link>
               </span>
             </div>
           )}

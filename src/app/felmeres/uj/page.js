@@ -83,7 +83,8 @@ function NewClientModal({ isOpen, onClose, onCreate }) {
 
 export default function NewSurveyPage() {
   const router = useRouter();
-  const { clients, users, loading, createSurvey, createClient, isAdmin, effectiveEntityId, currentUser, effectiveMemberships } = useApp();
+  const { clients, users, loading, createSurvey, createClient, isAdmin, effectiveEntityId, currentUser, effectiveMemberships, isDemoMode } = useApp();
+  const navPrefix = isDemoMode ? '/demo' : '';
   const [selectedEntityId, setSelectedEntityId] = useState(null); // null = use effectiveEntityId
 
   const [title, setTitle] = useState('');
@@ -121,7 +122,7 @@ export default function NewSurveyPage() {
     setIsSubmitting(true);
     try {
       const survey = await createSurvey({ title: title.trim(), notes: notes.trim(), date: date || null, location: location.trim(), clientId, sharedWith, entityId: activeEntityId });
-      router.push(`/felmeres/${survey.id}`);
+      router.push(`${navPrefix}/felmeres/${survey.id}`);
     } catch (err) {
       setError(err.message || 'Hiba a felmérés mentésekor');
       setIsSubmitting(false);
@@ -133,7 +134,7 @@ export default function NewSurveyPage() {
   return (
     <div className="container" style={{ maxWidth: '600px', paddingBottom: '3rem' }}>
       <div style={{ padding: '0.85rem 0 0.25rem' }}>
-        <Link href="/felmeres" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', color: 'var(--text-secondary)', fontSize: '0.825rem', fontWeight: 600 }}>
+        <Link href={`${navPrefix}/felmeres`} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', color: 'var(--text-secondary)', fontSize: '0.825rem', fontWeight: 600 }}>
           <ArrowLeft size={15} /> Vissza a felmérésekhez
         </Link>
       </div>

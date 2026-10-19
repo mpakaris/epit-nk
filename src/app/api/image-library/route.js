@@ -1,12 +1,7 @@
-import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { r2PublicUrl } from '@/lib/r2';
 
 export async function GET(request) {
-  const supabase = await createClient();
-  const { data: { user }, error: authErr } = await supabase.auth.getUser();
-  if (authErr || !user) return Response.json({ error: 'Unauthenticated' }, { status: 401 });
-
   const { searchParams } = new URL(request.url);
   const tradeId     = searchParams.get('trade_id');
   const orientation = searchParams.get('orientation');

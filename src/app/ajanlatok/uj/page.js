@@ -61,7 +61,10 @@ function NewQuotePageInner() {
     clients, surveys, loading, dataReady,
     createQuote, createQuoteSection, createClient,
     fetchSurveyMedia, currentUser,
+    isDemoMode,
   } = useApp();
+
+  const navPrefix = isDemoMode ? '/demo' : '';
 
   const [surveyId, setSurveyId] = useState(searchParams.get('from_survey') || null);
   const [surveySearch, setSurveySearch] = useState('');
@@ -142,7 +145,7 @@ function NewQuotePageInner() {
         } catch {}
       }
 
-      router.push(`/ajanlatok/${quote.id}`);
+      router.push(`${navPrefix}/ajanlatok/${quote.id}`);
     } catch (err) {
       setError(err.message || 'Hiba az ajánlat mentésekor');
       setIsSubmitting(false);
@@ -154,7 +157,7 @@ function NewQuotePageInner() {
   return (
     <div className="container" style={{ maxWidth: '720px', paddingBottom: '3rem' }}>
       <div style={{ padding: '0.85rem 0 0.25rem' }}>
-        <Link href="/ajanlatok" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', color: 'var(--text-secondary)', fontSize: '0.825rem', fontWeight: 600 }}>
+        <Link href={`${navPrefix}/ajanlatok`} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', color: 'var(--text-secondary)', fontSize: '0.825rem', fontWeight: 600 }}>
           <ArrowLeft size={15} /> Vissza
         </Link>
       </div>
@@ -292,7 +295,7 @@ function NewQuotePageInner() {
         </div>
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem' }}>
-          <Link href="/ajanlatok" className="btn btn-secondary">Mégse</Link>
+          <Link href={`${navPrefix}/ajanlatok`} className="btn btn-secondary">Mégse</Link>
           <button type="submit" className="btn btn-primary" disabled={isSubmitting || !title.trim()}>
             {isSubmitting ? <><Loader2 size={16} className="animate-spin" />Létrehozás…</> : <><Check size={16} />Ajánlat létrehozása</>}
           </button>

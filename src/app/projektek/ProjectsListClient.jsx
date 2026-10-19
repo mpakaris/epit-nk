@@ -43,7 +43,10 @@ export default function ProjectsListClient({
     activeCollectiveId,
     dataReady,
     refreshSupabaseData,
+    isDemoMode,
   } = useApp();
+
+  const navPrefix = isDemoMode ? '/demo' : '';
 
   const projects      = dataReady ? _ctxProjects      : initialProjects;
   const quotes        = dataReady ? _ctxQuotes        : (initialQuotes || []);
@@ -154,7 +157,7 @@ export default function ProjectsListClient({
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Hiba a projekt létrehozásakor');
       await refreshSupabaseData();
-      router.push(`/projektek/${data.project.id}`);
+      router.push(`${navPrefix}/projektek/${data.project.id}`);
     } catch (err) {
       setError(err.message || 'Hiba a projekt létrehozásakor');
     } finally {
@@ -181,7 +184,7 @@ export default function ProjectsListClient({
       <div
         key={project.id}
         className="card card-interactive"
-        onClick={() => router.push(`/projektek/${project.id}`)}
+        onClick={() => router.push(`${navPrefix}/projektek/${project.id}`)}
         style={{ display: 'flex', flexDirection: 'column', cursor: 'pointer', padding: 0, overflow: 'hidden' }}
       >
         {/* Photo strip */}
@@ -253,7 +256,7 @@ export default function ProjectsListClient({
               }
             </div>
             <Link
-              href={`/projektek/${project.id}/feltoltes`}
+              href={`${navPrefix}/projektek/${project.id}/feltoltes`}
               className="btn btn-primary btn-sm"
               style={{ padding: '0.35rem 0.7rem', fontSize: '0.78rem', gap: '0.3rem' }}
               onClick={e => e.stopPropagation()}

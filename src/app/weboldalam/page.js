@@ -1499,9 +1499,10 @@ function QrModal({ url, onClose }) {
 
 // ---- builder editor ---------------------------------------------------------
 
-function BuilderEditor({ website: initialWebsite, sections: initialSections, userEmail }) {
+export function BuilderEditor({ website: initialWebsite, sections: initialSections, userEmail }) {
   const [website, setWebsite] = useState(initialWebsite);
   const [sections, setSections] = useState(initialSections);
+  const { isDemoMode } = useApp();
   const [showPublishWarning, setShowPublishWarning] = useState(false);
   const [expandedSection, setExpandedSection] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -1518,6 +1519,7 @@ function BuilderEditor({ website: initialWebsite, sections: initialSections, use
 
   const updateTheme = async (next) => {
     setTheme(next);
+    if (isDemoMode) { showToast('Demo módban a mentés nem elérhető'); return; }
     try {
       const r = await fetch('/api/website', {
         method: 'POST',
@@ -1548,7 +1550,9 @@ function BuilderEditor({ website: initialWebsite, sections: initialSections, use
   const dirty = useRef(false);
   const saveTimers = useRef({});
   const [toast, setToast] = useState(null);
-  const publicUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}/szakemberek/${website.slug}`;
+  const [origin, setOrigin] = useState('');
+  useEffect(() => { setOrigin(window.location.origin); }, []);
+  const publicUrl = `${origin}/szakemberek/${website.slug}`;
 
   const showToast = useCallback((message) => {
     const id = Date.now();
@@ -1560,8 +1564,7 @@ function BuilderEditor({ website: initialWebsite, sections: initialSections, use
 
   const updateSection = (updated) => {
     setSections(prev => prev.map(s => s.section_type === updated.section_type ? updated : s));
-
-    // Debounced auto-save — 700ms after last change to this section
+    if (isDemoMode) return;
     clearTimeout(saveTimers.current[updated.section_type]);
     saveTimers.current[updated.section_type] = setTimeout(async () => {
       try {
@@ -1576,6 +1579,7 @@ function BuilderEditor({ website: initialWebsite, sections: initialSections, use
   };
 
   const handleSave = async () => {
+    if (isDemoMode) { showToast('Demo módban a mentés nem elérhető'); return; }
     setSaving(true);
     setError('');
     try {
@@ -1604,6 +1608,7 @@ function BuilderEditor({ website: initialWebsite, sections: initialSections, use
   };
 
   const handlePublish = async () => {
+    if (isDemoMode) { showToast('Demo módban a közzététel nem elérhető'); return; }
     setShowPublishWarning(false);
     setPublishing(true);
     setError('');
@@ -1632,6 +1637,7 @@ function BuilderEditor({ website: initialWebsite, sections: initialSections, use
   };
 
   const handleUnpublish = async () => {
+    if (isDemoMode) { showToast('Demo módban a közzététel nem elérhető'); return; }
     setPublishing(true);
     try {
       const r = await fetch('/api/website', {

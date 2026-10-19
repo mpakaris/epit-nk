@@ -27,7 +27,8 @@ const STATUS_COLORS = {
 };
 
 export default function QuotesListPage() {
-  const { currentUser, isAdmin, loading, dataReady, quotes, quoteEntries, clients, surveys, users, activeCollectiveId, deleteQuote } = useApp();
+  const { currentUser, isAdmin, loading, dataReady, quotes, quoteEntries, clients, surveys, users, activeCollectiveId, deleteQuote, isDemoMode } = useApp();
+  const navPrefix = isDemoMode ? '/demo' : '';
 
 
   const [statusFilter, setStatusFilter] = useState('all');
@@ -65,7 +66,7 @@ export default function QuotesListPage() {
             <h1 className="page-title" style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>Ajánlatok <WorkspaceBadge /></h1>
             <p className="page-subtitle">Ügyfeleknek küldött árajánlatok és státuszaik</p>
           </div>
-          <Link href="/ajanlatok/uj" className="btn btn-primary btn-sm">
+          <Link href={`${navPrefix}/ajanlatok/uj`} className="btn btn-primary btn-sm">
             <Plus size={15} /> Új ajánlat
           </Link>
         </div>
@@ -106,7 +107,7 @@ export default function QuotesListPage() {
             {statusFilter !== 'all' ? 'Próbáljon más szűrőt.' : 'Hozza létre az első ajánlatot.'}
           </p>
           {statusFilter === 'all' && (
-            <Link href="/ajanlatok/uj" className="btn btn-primary btn-sm"><Plus size={15} /> Új ajánlat</Link>
+            <Link href={`${navPrefix}/ajanlatok/uj`} className="btn btn-primary btn-sm"><Plus size={15} /> Új ajánlat</Link>
           )}
         </div>
       ) : (
@@ -120,7 +121,7 @@ export default function QuotesListPage() {
             const survey    = q.survey_id ? surveys.find(s => s.id === q.survey_id) : null;
             const previews  = survey?._preview_urls || [];
             return (
-              <Link key={q.id} href={`/ajanlatok/${q.id}`} className="card card-interactive" style={{ padding: 0, display: 'flex', flexDirection: 'column', textDecoration: 'none', color: 'inherit', overflow: 'hidden' }}>
+              <Link key={q.id} href={`${navPrefix}/ajanlatok/${q.id}`} className="card card-interactive" style={{ padding: 0, display: 'flex', flexDirection: 'column', textDecoration: 'none', color: 'inherit', overflow: 'hidden' }}>
 
                 {/* Photo strip from linked survey */}
                 {previews.length > 0 && (

@@ -65,10 +65,14 @@ const demoId = (prefix = 'demo') =>
 
 // ─── DemoProvider ─────────────────────────────────────────────────────────────
 export function DemoProvider({ children }) {
-  const [state, _setState] = useState(() => {
-    if (typeof window === 'undefined') return buildSeed();
-    return loadState() ?? buildSeed();
-  });
+  // Always seed with the default state so SSR and first client render match,
+  // then hydrate from localStorage in an effect to avoid hydration mismatches.
+  const [state, _setState] = useState(buildSeed);
+
+  useEffect(() => {
+    const saved = loadState();
+    if (saved) _setState(saved);
+  }, []);
 
   // Persist on every change
   const setState = useCallback((updater) => {

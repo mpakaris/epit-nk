@@ -21,7 +21,8 @@ function getSurveyStatus(surveyId, quotes, projects) {
 }
 
 export default function SurveyListPage() {
-  const { loading, dataReady, surveys, quotes, projects, clients, users, isAdmin, currentUser, deleteSurvey } = useApp();
+  const { loading, dataReady, surveys, quotes, projects, clients, users, isAdmin, currentUser, deleteSurvey, isDemoMode } = useApp();
+  const navPrefix = isDemoMode ? '/demo' : '';
 
   const [search, setSearch] = useState('');
   const [confirmModal, setConfirmModal] = useState(null);
@@ -62,7 +63,7 @@ export default function SurveyListPage() {
             <p className="page-subtitle">Helyszíni felmérések és fotódokumentációk</p>
           </div>
           {currentUser && (
-            <Link href="/felmeres/uj" className="btn btn-primary btn-sm">
+            <Link href={`${navPrefix}/felmeres/uj`} className="btn btn-primary btn-sm">
               <Plus size={15} /> Új felmérés
             </Link>
           )}
@@ -90,7 +91,7 @@ export default function SurveyListPage() {
             {search ? 'Próbáljon más keresési feltételt.' : 'Hozza létre az első felmérést.'}
           </p>
           {!search && isAdmin && (
-            <Link href="/felmeres/uj" className="btn btn-primary btn-sm"><Plus size={15} /> Új felmérés</Link>
+            <Link href={`${navPrefix}/felmeres/uj`} className="btn btn-primary btn-sm"><Plus size={15} /> Új felmérés</Link>
           )}
         </div>
       ) : (
@@ -104,7 +105,7 @@ export default function SurveyListPage() {
             return (
               <Link
                 key={survey.id}
-                href={`/felmeres/${survey.id}`}
+                href={`${navPrefix}/felmeres/${survey.id}`}
                 className="card card-interactive"
                 style={{ padding: 0, display: 'flex', flexDirection: 'column', textDecoration: 'none', color: 'inherit', overflow: 'hidden' }}
               >
