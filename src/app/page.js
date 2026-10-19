@@ -5,27 +5,20 @@ import { useRouter } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
 import AuthModal from '@/components/AuthModal';
 import {
-  ClipboardList, FileText, TrendingUp, Users, Share2,
-  BookUser, Globe, Check, ArrowRight, Hammer,
+  Check, ArrowRight, Hammer,
+  ChevronDown, Menu, X, Users, Globe,
 } from 'lucide-react';
+import ProjectsListPreview from '@/components/preview/ProjectsListPreview';
+import FeatureShowcase from '@/components/preview/FeatureShowcase';
 
-const FEATURES = [
-  { icon: ClipboardList, title: 'Felmérés',         desc: 'Helyszíni méretek, vázlatok és fotók azonnal rögzítve — papír nélkül, bárhol. Minden szoba dokumentálva, még az ügyfél előtt.' },
-  { icon: FileText,      title: 'Árajánlat',        desc: 'Részletes, professzionális ajánlatok helyiségekre és munkafázisokra bontva. Az ügyfél egy kattintással elfogadhatja.' },
-  { icon: TrendingUp,    title: 'Projektköltségek', desc: 'Számlák, munkadíjak és fotók egy helyen. Látod pontosan, hová megy a pénz — szekciónként és munkafázisonként is.' },
-  { icon: Users,         title: 'Alvállalkozók',    desc: 'Koordinált munkavégzés és megosztott költségelszámolás a teljes csapatnak. Mindenki tudja, mit kell fizetni.' },
-  { icon: Share2,        title: 'Ügyfélportál',     desc: 'Az ügyfeled valós időben látja, hol tart a projekt — ajánlatok, naplóbejegyzések, fizetési terv, képek.' },
-  { icon: BookUser,      title: 'Ügyfélkezelés',    desc: 'Minden megrendelő, kapcsolat és előzmény egy áttekinthető adatbázisban. Soha többé elveszett telefonszám.' },
-  { icon: Globe,         title: 'Saját weboldal',   desc: 'Ingyenes, személyre szabott szakemberlap, amit azonnal megoszthatsz. Galéria, árak, vélemények — profi megjelenés percek alatt.' },
-];
+const FREE_ITEMS    = ['1 aktív projekt', '1 árajánlat', '1 felmérés', 'Korlátozott weboldal', '1 ügyfélportál', 'Limitált képfeltöltés'];
+const PREMIUM_ITEMS = ['Korlátlan projektek', 'Korlátlan árajánlatok', 'Korlátlan felmérések', 'Teljes weboldal', 'Korlátlan ügyfélportálok', 'Képek és videók feltöltése'];
 
-const FREE_ITEMS = [
-  '1 aktív projekt', '1 árajánlat', '1 felmérés',
-  'Korlátozott weboldal', '1 ügyfélportál', 'Limitált képfeltöltés',
-];
-const PREMIUM_ITEMS = [
-  'Korlátlan projektek', 'Korlátlan árajánlatok', 'Korlátlan felmérések',
-  'Teljes weboldal', 'Korlátlan ügyfélportálok', 'Képek és videók',
+const FAQS = [
+  { q: 'Kell-e technikai tudás a használathoz?',        a: 'Semmi. Ha tudsz SMS-t küldeni, az Epiteket is tudod használni. Egyszerű felület, nagy gombok, mobilra tervezve.' },
+  { q: 'A saját weboldal valóban ingyenes?',            a: 'Igen. Minden fiókhoz jár egy ingyenes szakemberlap, ahol az ügyfeleid megtekinthetik a munkáidat, képeidet, és ajánlatot kérhetnek.' },
+  { q: 'Meg tudom osztani a projektet alvállalkozóval?', a: 'Igen. Meghívhatsz más szakembereket egy közös munkaterületre, ahol látják a feladatokat és a helyszíni feljegyzéseket, de a saját áraidat és pénzügyeidet nem.' },
+  { q: 'Mikor éri meg a prémium csomagra váltani?',     a: 'Ha rendszeresen több projekten dolgozol egyszerre, vagy csapatban végezel munkát. A prémium csomaggal korlátlanul használhatsz minden funkciót.' },
 ];
 
 export default function HomePage() {
@@ -33,16 +26,12 @@ export default function HomePage() {
   const { currentUser, loading } = useApp();
   const [show, setShow] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [openFaq, setOpenFaq] = useState(null);
   const [heroImageUrl, setHeroImageUrl] = useState(null);
-  const [featureImages, setFeatureImages] = useState(Array(7).fill(null));
 
   useEffect(() => {
     fetch('/api/platform/hero').then(r => r.json()).then(d => { if (d.url) setHeroImageUrl(d.url); }).catch(() => {});
-    fetch('/api/platform/features').then(r => r.json()).then(d => {
-      const imgs = Array(7).fill(null);
-      (d.slots || []).forEach(s => { if (s.image_url) imgs[s.slot_index] = s.image_url; });
-      setFeatureImages(imgs);
-    }).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -60,209 +49,263 @@ export default function HomePage() {
 
   if (!show) return null;
 
+  const accent   = '#2563EB';
+  const accentHv = '#1D4ED8';
+  const accentLt = '#EFF6FF';
+  const accentSf = '#DBEAFE';
+  const navy900  = '#0F172A';
+  const navy800  = '#1E293B';
+  const navy700  = '#334155';
+  const navy600  = '#475569';
+  const slate200 = '#E2E8F0';
+  const slate100 = '#F1F5F9';
+  const slate50  = '#F8FAFC';
+
   return (
     <>
       <style>{`
-        .lp-wrap { position:fixed; inset:0; overflow-y:auto; background:#fff; z-index:9999; font-family:'Plus Jakarta Sans',sans-serif; color:#0f172a; }
-        .lp-inner { max-width:1280px; margin:0 auto; width:100%; }
-
-        .lp-nav { position:sticky; top:0; z-index:100; background:rgba(15,23,42,0.97); backdrop-filter:blur(12px); border-bottom:1px solid rgba(255,255,255,0.06); }
-        .lp-nav-inner { max-width:1280px; margin:0 auto; display:flex; align-items:center; justify-content:space-between; padding:0 clamp(1.25rem,5vw,4rem); height:64px; }
-        .lp-logo { display:flex; align-items:center; gap:0.6rem; color:#fff; font-size:1.15rem; font-weight:800; letter-spacing:-0.03em; }
-        .lp-logo-icon { width:30px; height:30px; background:#fff; border-radius:7px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
-        .lp-nav-btn { padding:0.45rem 1.1rem; border-radius:8px; background:rgba(255,255,255,0.1); color:#fff; font-weight:700; font-size:0.875rem; border:1px solid rgba(255,255,255,0.18); cursor:pointer; font-family:inherit; transition:background .15s; }
-        .lp-nav-btn:hover { background:rgba(255,255,255,0.18); }
-
-        .lp-hero { background:#0f172a; padding:clamp(5rem,12vw,9rem) clamp(1.25rem,5vw,4rem) clamp(4rem,10vw,7rem); text-align:left; background-size:cover; background-position:center; }
-        .lp-eyebrow { display:inline-flex; align-items:center; gap:0.4rem; background:rgba(255,255,255,0.07); color:#94a3b8; font-size:0.78rem; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; padding:0.3rem 0.85rem; border-radius:999px; border:1px solid rgba(255,255,255,0.1); margin-bottom:1.75rem; }
-        .lp-h1 { font-size:clamp(2.5rem,6vw,4.25rem); font-weight:800; color:#fff; letter-spacing:-0.04em; line-height:1.08; margin:0 0 1.25rem; max-width:820px; }
-        .lp-h1 em { font-style:normal; color:#e2e8f0; }
-        .lp-sub { font-size:clamp(0.95rem,2vw,1.15rem); color:#94a3b8; max-width:500px; margin:0 0 2.5rem; line-height:1.65; }
-        .lp-ctas { display:flex; gap:0.85rem; justify-content:flex-start; flex-wrap:wrap; }
-        .lp-cta-primary { display:inline-flex; align-items:center; gap:0.45rem; padding:0.8rem 1.6rem; background:#fff; color:#0f172a; font-weight:800; font-size:0.95rem; border-radius:10px; border:none; cursor:pointer; font-family:inherit; transition:all .15s; }
-        .lp-cta-primary:hover { background:#f1f5f9; transform:translateY(-1px); }
-        .lp-cta-secondary { display:inline-flex; align-items:center; gap:0.45rem; padding:0.8rem 1.6rem; background:transparent; color:#94a3b8; font-weight:600; font-size:0.95rem; border-radius:10px; border:1px solid rgba(255,255,255,0.12); cursor:pointer; font-family:inherit; transition:all .15s; text-decoration:none; }
-        .lp-cta-secondary:hover { color:#fff; border-color:rgba(255,255,255,0.25); }
-
-        .lp-demo-bar { background:#1e293b; padding:2.5rem clamp(1.25rem,5vw,4rem); display:flex; justify-content:center; }
-        .lp-demo-box { width:100%; max-width:900px; aspect-ratio:16/7; background:#0f172a; border-radius:12px; border:1px solid #1e293b; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:0.6rem; }
-        .lp-demo-box span { color:#334155; font-size:0.85rem; font-weight:600; }
-
-        .lp-features { padding:clamp(4rem,9vw,7rem) clamp(1.25rem,5vw,4rem); background:#f8fafc; }
-        .lp-section-label { text-align:left; margin-bottom:3rem; }
-        .lp-overline { display:inline-block; font-size:0.72rem; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; color:#94a3b8; margin-bottom:0.6rem; }
-        .lp-section-title { font-size:clamp(1.6rem,3.5vw,2.25rem); font-weight:800; color:#0f172a; letter-spacing:-0.03em; margin:0; }
-
-        .lp-feature-list { display:flex; flex-direction:column; gap:0; max-width:1100px; }
-        .lp-feature-row { display:flex; align-items:center; gap:clamp(2rem,5vw,5rem); padding:clamp(2.5rem,5vw,4rem) 0; border-bottom:1px solid #e2e8f0; }
-        .lp-feature-row:last-child { border-bottom:none; }
-        .lp-feature-img { flex:0 0 52%; min-width:0; }
-        .lp-feature-txt { flex:1; min-width:0; }
-        .lp-feature-num { font-size:0.72rem; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; color:#94a3b8; margin-bottom:0.75rem; }
-        .lp-feature-title { font-size:clamp(1.35rem,3vw,1.85rem); font-weight:800; color:#0f172a; letter-spacing:-0.03em; line-height:1.2; margin:0 0 0.85rem; }
-        .lp-feature-desc { font-size:clamp(0.9rem,1.5vw,1.05rem); color:#475569; line-height:1.75; margin:0; }
-        .lp-mock { background:#fff; border-radius:12px; border:1px solid #e2e8f0; overflow:hidden; box-shadow:0 4px 24px rgba(0,0,0,0.07); }
-        .lp-mock-bar { background:#f8fafc; border-bottom:1px solid #e8ecf0; padding:0.55rem 0.85rem; display:flex; align-items:center; gap:0.35rem; }
-        .lp-mock-dot { width:9px; height:9px; border-radius:50%; }
-        .lp-mock-body { aspect-ratio:16/10; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:0.75rem; background:linear-gradient(160deg,#f8fafc 0%,#f1f5f9 100%); }
-        @media (max-width:700px) {
-          .lp-feature-row { flex-direction:column !important; }
-          .lp-feature-img { flex:none; width:100%; }
-        }
-
-        .lp-pricing { padding:clamp(4rem,9vw,7rem) clamp(1.25rem,5vw,4rem); background:#fff; }
-        .lp-pricing-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr)); gap:1.25rem; max-width:700px; margin:0 auto; }
-        .lp-plan { border-radius:14px; padding:2rem 1.75rem; border:1.5px solid #e2e8f0; }
-        .lp-plan.premium { background:#0f172a; border-color:#0f172a; }
-        .lp-plan-badge { display:inline-block; background:#fff; color:#0f172a; font-size:0.7rem; font-weight:800; letter-spacing:0.06em; text-transform:uppercase; padding:0.2rem 0.75rem; border-radius:999px; margin-bottom:1rem; }
-        .lp-plan-tier { font-size:0.75rem; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; color:#94a3b8; margin-bottom:0.5rem; }
-        .lp-plan.premium .lp-plan-tier { color:#475569; }
-        .lp-plan-price { font-size:2.4rem; font-weight:800; color:#0f172a; letter-spacing:-0.04em; line-height:1; margin-bottom:0.2rem; }
-        .lp-plan.premium .lp-plan-price { color:#fff; }
-        .lp-plan-price span { font-size:0.95rem; font-weight:600; color:#94a3b8; }
-        .lp-plan-sub { font-size:0.8rem; color:#94a3b8; margin-bottom:1.5rem; }
-        .lp-plan-list { list-style:none; padding:0; margin:0 0 1.75rem; display:flex; flex-direction:column; gap:0.55rem; }
-        .lp-plan-list li { display:flex; align-items:center; gap:0.55rem; font-size:0.855rem; color:#374151; }
-        .lp-plan.premium .lp-plan-list li { color:#94a3b8; }
-        .lp-plan-btn { display:block; width:100%; text-align:center; padding:0.75rem 1rem; border-radius:10px; font-weight:700; font-size:0.875rem; border:none; cursor:pointer; font-family:inherit; transition:all .15s; box-sizing:border-box; }
-        .lp-plan-btn.free { background:#0f172a; color:#fff; }
-        .lp-plan-btn.free:hover { background:#1e293b; }
-        .lp-plan-btn.prem { background:#fff; color:#0f172a; }
-        .lp-plan-btn.prem:hover { background:#f1f5f9; }
-
-        .lp-footer-cta { background:#0f172a; padding:clamp(3.5rem,8vw,6rem) clamp(1.25rem,5vw,4rem); text-align:center; }
-        .lp-footer-h { font-size:clamp(1.6rem,3.5vw,2.5rem); font-weight:800; color:#fff; letter-spacing:-0.03em; margin:0 0 0.6rem; }
-        .lp-footer-sub { color:#64748b; font-size:0.95rem; margin:0 0 2rem; }
-        .lp-footer-copy { padding:1.25rem clamp(1.25rem,5vw,4rem); background:#080e1a; text-align:center; color:#334155; font-size:0.78rem; }
-
-        @media (max-width:600px) {
-          .lp-cta-primary,.lp-cta-secondary { width:100%; justify-content:center; }
-          .lp-ctas { flex-direction:column; align-items:stretch; max-width:300px; margin:0 auto; }
-        }
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+        .lp-root { position:fixed; inset:0; overflow-y:auto; background:${slate50}; z-index:9999; font-family:'Inter',system-ui,sans-serif; color:${navy800}; -webkit-font-smoothing:antialiased; }
+        .lp-container { max-width:1152px; margin:0 auto; padding:0 1.25rem; }
+        @media(min-width:640px){ .lp-container { padding:0 1.5rem; } }
+        .lp-pill { display:inline-flex; align-items:center; gap:0.35rem; padding:0.2rem 0.75rem; border-radius:999px; background:${accentLt}; border:1px solid ${accent}33; color:${accent}; font-size:0.72rem; font-weight:700; letter-spacing:0.05em; text-transform:uppercase; }
+        .lp-section-tag { text-align:center; margin-bottom:0.75rem; }
+        .feature-card:hover { border-color:${accent}55 !important; transform:translateY(-2px); box-shadow:0 8px 24px rgba(37,99,235,0.08) !important; }
+        .feature-card { transition:all 0.18s ease; }
+        .faq-chevron { transition:transform 0.2s ease; }
+        .nav-link { color:${navy700}; font-size:0.875rem; font-weight:600; text-decoration:none; transition:color 0.15s; }
+        .nav-link:hover { color:${accent}; }
       `}</style>
 
-      <div className="lp-wrap">
-        <nav className="lp-nav">
-          <div className="lp-nav-inner">
-            <div className="lp-logo">
-              <span className="lp-logo-icon"><Hammer size={16} color="#0f172a" /></span>
-              Epitek
-            </div>
-            <button className="lp-nav-btn" onClick={() => setAuthOpen(true)}>Bejelentkezés</button>
-          </div>
-        </nav>
+      <div className="lp-root">
 
-        <section className="lp-hero" style={heroImageUrl ? { backgroundImage: `linear-gradient(rgba(15,23,42,0.72) 0%, rgba(15,23,42,0.88) 100%), url(${heroImageUrl})` } : {}}>
-          <div className="lp-inner">
-            <div className="lp-eyebrow"><Hammer size={11} /> Szakembereknek</div>
-            <h1 className="lp-h1">Az építkezés <em>profi eszköze.</em></h1>
-            <p className="lp-sub">Felmérés, árajánlat, projektköltség, ügyfélportál — minden egy helyen.</p>
-            <div className="lp-ctas">
-              <button className="lp-cta-primary" onClick={() => setAuthOpen(true)}>
-                Kezdj el ingyen <ArrowRight size={15} />
+        {/* ── NAVBAR ── */}
+        <header style={{ position:'sticky', top:0, zIndex:100, background:'rgba(255,255,255,0.92)', backdropFilter:'blur(12px)', borderBottom:`1px solid ${slate200}` }}>
+          <div className="lp-container" style={{ height:64, display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+            {/* Logo */}
+            <div style={{ display:'flex', alignItems:'center', gap:'0.5rem' }}>
+              <div style={{ width:36, height:36, borderRadius:10, background:navy900, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+                <Hammer size={18} color={accentSf} />
+              </div>
+              <span style={{ fontWeight:800, fontSize:'1.15rem', letterSpacing:'-0.03em', color:navy900 }}>Epitek</span>
+            </div>
+
+            {/* Desktop Nav */}
+            <nav style={{ display:'flex', alignItems:'center', gap:'1.5rem' }} className="hidden-mobile">
+              <a href="#features" className="nav-link">Funkciók</a>
+              <a href="#pricing"  className="nav-link">Árazás</a>
+              <a href="#faq"      className="nav-link">GYIK</a>
+            </nav>
+
+            {/* Desktop Actions */}
+            <div style={{ display:'flex', alignItems:'center', gap:'0.75rem' }} className="hidden-mobile">
+              <button onClick={() => setAuthOpen(true)} style={{ background:'none', border:'none', cursor:'pointer', fontFamily:'inherit', fontWeight:700, fontSize:'0.875rem', color:navy700, padding:'0.4rem 0.75rem' }}>
+                Bejelentkezés
               </button>
-              <a href="#features" className="lp-cta-secondary">Megnézem a funkciókat</a>
+              <button onClick={() => setAuthOpen(true)} style={{ display:'flex', alignItems:'center', gap:'0.4rem', padding:'0.55rem 1.1rem', background:accent, color:'#fff', fontWeight:700, fontSize:'0.875rem', borderRadius:10, border:'none', cursor:'pointer', fontFamily:'inherit' }}>
+                Ingyenes regisztráció <ArrowRight size={14} />
+              </button>
             </div>
-          </div>
-        </section>
 
-        <div className="lp-demo-bar">
-          <div className="lp-demo-box">
-            <Globe size={24} color="#1e293b" />
-            <span>Videók és interaktív demo — hamarosan</span>
-          </div>
-        </div>
-
-        <section className="lp-features" id="features">
-          <div className="lp-inner">
-          <div className="lp-section-label">
-            <div className="lp-overline">Funkciók</div>
-            <h2 className="lp-section-title">Mindent megkap, ami számít</h2>
-          </div>
-          <div className="lp-feature-list">
-            {FEATURES.map(({ icon: Icon, title, desc }, i) => {
-              const reverse = i % 2 === 1;
-              const featureImg = featureImages[i];
-              const mockup = (
-                <div className="lp-feature-img">
-                  {featureImg ? (
-                    <img src={featureImg} alt={title} style={{ width: '100%', borderRadius: 12, display: 'block', boxShadow: '0 4px 24px rgba(0,0,0,0.07)', border: '1px solid #e2e8f0' }} />
-                  ) : (
-                    <div className="lp-mock">
-                      <div className="lp-mock-bar">
-                        <div className="lp-mock-dot" style={{ background: '#f87171' }} />
-                        <div className="lp-mock-dot" style={{ background: '#fbbf24' }} />
-                        <div className="lp-mock-dot" style={{ background: '#34d399' }} />
-                      </div>
-                      <div className="lp-mock-body">
-                        <Icon size={40} color="#cbd5e1" />
-                        <span style={{ fontSize: '0.72rem', color: '#cbd5e1', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
-                          Screenshot hamarosan
-                        </span>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              );
-              const text = (
-                <div className="lp-feature-txt">
-                  <div className="lp-feature-num">{String(i + 1).padStart(2, '0')} · {title}</div>
-                  <h3 className="lp-feature-title">{title}</h3>
-                  <p className="lp-feature-desc">{desc}</p>
-                </div>
-              );
-              return (
-                <div key={title} className="lp-feature-row" style={reverse ? { flexDirection: 'row-reverse' } : {}}>
-                  {mockup}
-                  {text}
-                </div>
-              );
-            })}
-          </div>
-          </div>
-        </section>
-
-        <section className="lp-pricing" id="pricing">
-          <div className="lp-inner">
-          <div className="lp-section-label">
-            <div className="lp-overline">Árazás</div>
-            <h2 className="lp-section-title">Egyszerű, átlátható</h2>
-          </div>
-          <div className="lp-pricing-grid">
-            <div className="lp-plan">
-              <div className="lp-plan-tier">Ingyenes</div>
-              <div className="lp-plan-price">0 <span>Ft</span></div>
-              <div className="lp-plan-sub">Örökre ingyenes — kártya nélkül</div>
-              <ul className="lp-plan-list">
-                {FREE_ITEMS.map(f => <li key={f}><Check size={13} color="#94a3b8" />{f}</li>)}
-              </ul>
-              <button className="lp-plan-btn free" onClick={() => setAuthOpen(true)}>Regisztráció</button>
-            </div>
-            <div className="lp-plan premium">
-              <div className="lp-plan-badge">Ajánlott</div>
-              <div className="lp-plan-tier">Prémium</div>
-              <div className="lp-plan-price">6 999 <span>Ft / hó</span></div>
-              <div className="lp-plan-sub">Minden funkció, korlátok nélkül</div>
-              <ul className="lp-plan-list">
-                {PREMIUM_ITEMS.map(f => <li key={f}><Check size={13} color="#475569" />{f}</li>)}
-              </ul>
-              <button className="lp-plan-btn prem" onClick={() => setAuthOpen(true)}>Váltás prémiumra</button>
-            </div>
-          </div>
-          </div>
-        </section>
-
-        <section className="lp-footer-cta">
-          <div className="lp-inner">
-            <h2 className="lp-footer-h">Készen állsz?</h2>
-            <p className="lp-footer-sub">Ingyenesen kezdhetsz, bármikor.</p>
-            <button className="lp-cta-primary" onClick={() => setAuthOpen(true)}>
-              Bejelentkezés <ArrowRight size={15} />
+            {/* Mobile hamburger */}
+            <button onClick={() => setMobileMenuOpen(v => !v)} style={{ display:'none', background:'none', border:'none', cursor:'pointer', padding:'0.4rem', borderRadius:8, color:navy700 }} className="show-mobile">
+              {mobileMenuOpen ? <X size={22} /> : <Menu size={22} />}
             </button>
           </div>
+
+          {/* Mobile drawer */}
+          {mobileMenuOpen && (
+            <div style={{ background:'#fff', borderTop:`1px solid ${slate200}`, padding:'1rem 1.25rem', display:'flex', flexDirection:'column', gap:'0.75rem' }}>
+              <a href="#features" className="nav-link" onClick={() => setMobileMenuOpen(false)}>Funkciók</a>
+              <a href="#pricing"  className="nav-link" onClick={() => setMobileMenuOpen(false)}>Árazás</a>
+              <a href="#faq"      className="nav-link" onClick={() => setMobileMenuOpen(false)}>GYIK</a>
+              <div style={{ borderTop:`1px solid ${slate200}`, paddingTop:'0.75rem', display:'flex', flexDirection:'column', gap:'0.5rem' }}>
+                <button onClick={() => { setAuthOpen(true); setMobileMenuOpen(false); }} style={{ padding:'0.65rem', borderRadius:10, background:slate100, border:'none', cursor:'pointer', fontFamily:'inherit', fontWeight:700, color:navy900 }}>Bejelentkezés</button>
+                <button onClick={() => { setAuthOpen(true); setMobileMenuOpen(false); }} style={{ padding:'0.65rem', borderRadius:10, background:accent, border:'none', cursor:'pointer', fontFamily:'inherit', fontWeight:700, color:'#fff' }}>Ingyenes regisztráció</button>
+              </div>
+            </div>
+          )}
+        </header>
+
+        {/* ── HERO ── */}
+        <section style={{ background:'#fff', padding:'3.5rem 0 4rem', borderBottom:`1px solid ${slate200}` }}>
+          <div className="lp-container">
+            <div style={{ display:'grid', gridTemplateColumns:'1fr', gap:'2.5rem', alignItems:'center' }} className="hero-grid">
+
+              {/* Left copy */}
+              <div style={{ display:'flex', flexDirection:'column', gap:'1.25rem' }}>
+                <span className="lp-pill"><Hammer size={12} /> Szakembereknek &amp; kivitelezőknek</span>
+
+                <h1 style={{ fontSize:'clamp(2rem,5vw,3.25rem)', fontWeight:800, color:navy900, letterSpacing:'-0.04em', lineHeight:1.1, margin:0 }}>
+                  Az építkezés profi eszköze — kézben tartva.
+                </h1>
+
+                <p style={{ fontSize:'clamp(0.95rem,1.8vw,1.1rem)', color:navy600, lineHeight:1.7, margin:0, maxWidth:520 }}>
+                  Felmérés, árajánlat, projektköltség, ügyfélportál — minden egy helyen. Nincs bonyolult beállítás, nincs felesleges funkció.
+                </p>
+
+                {/* Trust checklist */}
+                <div style={{ display:'flex', flexWrap:'wrap', gap:'0.75rem 1.5rem' }}>
+                  {['2 perces beállítás', 'Ingyenes weboldal', 'Mobilon is tökéletes'].map(t => (
+                    <span key={t} style={{ display:'flex', alignItems:'center', gap:'0.35rem', fontSize:'0.85rem', fontWeight:600, color:navy700 }}>
+                      <Check size={15} color={accent} /> {t}
+                    </span>
+                  ))}
+                </div>
+
+                {/* CTAs */}
+                <div style={{ display:'flex', flexWrap:'wrap', gap:'0.75rem', marginTop:'0.25rem' }}>
+                  <button onClick={() => setAuthOpen(true)} style={{ display:'flex', alignItems:'center', gap:'0.5rem', padding:'0.85rem 1.6rem', background:accent, color:'#fff', fontWeight:800, fontSize:'0.95rem', borderRadius:12, border:'none', cursor:'pointer', fontFamily:'inherit', boxShadow:`0 4px 14px ${accent}44` }}>
+                    Kezdj el ingyen <ArrowRight size={16} />
+                  </button>
+                  <a href="#features" style={{ display:'flex', alignItems:'center', gap:'0.5rem', padding:'0.85rem 1.6rem', background:slate100, color:navy800, fontWeight:700, fontSize:'0.95rem', borderRadius:12, textDecoration:'none' }}>
+                    Megnézem a funkciókat
+                  </a>
+                </div>
+              </div>
+
+              {/* Right: app preview */}
+              <div style={{ display:'flex', justifyContent:'center' }}>
+                <ProjectsListPreview />
+              </div>
+
+            </div>
+          </div>
         </section>
 
-        <div className="lp-footer-copy">© {new Date().getFullYear()} Epitek · Minden jog fenntartva</div>
+        {/* ── FEATURE SHOWCASE ── */}
+        <FeatureShowcase onRegister={() => setAuthOpen(true)} />
+
+        {/* ── PRICING ── */}
+        <section id="pricing" style={{ padding:'4rem 0', background:slate50, borderBottom:`1px solid ${slate200}` }}>
+          <div className="lp-container">
+            <div style={{ textAlign:'center', marginBottom:'3rem' }}>
+              <div className="lp-section-tag"><span className="lp-pill">Átlátható árazás</span></div>
+              <h2 style={{ fontSize:'clamp(1.5rem,3vw,2rem)', fontWeight:800, color:navy900, margin:'0.5rem 0 0.5rem', letterSpacing:'-0.03em' }}>Egyszerű, becsületes árak</h2>
+              <p style={{ color:navy600, fontSize:'0.9rem', margin:0 }}>Kezdj ingyenesen — váltj prémiumra, ha a vállalkozásod nő.</p>
+            </div>
+
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(min(100%,300px),1fr))', gap:'1.5rem', maxWidth:680, margin:'0 auto' }}>
+              {/* Free */}
+              <div style={{ background:'#fff', borderRadius:20, padding:'2rem', border:`1px solid ${slate200}`, boxShadow:'0 2px 8px rgba(0,0,0,0.04)', display:'flex', flexDirection:'column', justifyContent:'space-between', gap:'1.5rem' }}>
+                <div>
+                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'0.75rem' }}>
+                    <h3 style={{ fontSize:'1.05rem', fontWeight:800, color:navy900, margin:0 }}>Ingyenes</h3>
+                    <span style={{ fontSize:'0.7rem', fontWeight:700, background:slate100, color:navy700, padding:'0.2rem 0.65rem', borderRadius:999 }}>Örökre ingyenes</span>
+                  </div>
+                  <p style={{ fontSize:'0.8rem', color:navy600, margin:'0 0 1rem' }}>Tökéletes kezdéshez, néhány megbízás kezeléséhez.</p>
+                  <div style={{ fontSize:'2.25rem', fontWeight:800, color:navy900, letterSpacing:'-0.04em', marginBottom:'1.25rem' }}>0 Ft <span style={{ fontSize:'0.875rem', fontWeight:500, color:'#94a3b8' }}> / hó</span></div>
+                  <ul style={{ listStyle:'none', padding:0, margin:0, display:'flex', flexDirection:'column', gap:'0.6rem' }}>
+                    {FREE_ITEMS.map(f => (
+                      <li key={f} style={{ display:'flex', alignItems:'center', gap:'0.5rem', fontSize:'0.825rem', color:navy700 }}>
+                        <Check size={14} color={accent} /> {f}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                <button onClick={() => setAuthOpen(true)} style={{ padding:'0.75rem', borderRadius:12, background:slate100, color:navy900, fontWeight:700, fontSize:'0.875rem', border:'none', cursor:'pointer', fontFamily:'inherit', transition:'background .15s' }}
+                  onMouseOver={e => e.currentTarget.style.background=slate200} onMouseOut={e => e.currentTarget.style.background=slate100}>
+                  Regisztráció ingyen
+                </button>
+              </div>
+
+              {/* Premium */}
+              <div style={{ background:'#fff', borderRadius:20, padding:'2rem', border:`2px solid ${accent}`, boxShadow:`0 4px 20px ${accent}22`, display:'flex', flexDirection:'column', justifyContent:'space-between', gap:'1.5rem', position:'relative' }}>
+                <div style={{ position:'absolute', top:-13, right:'1.5rem', background:accent, color:'#fff', fontSize:'0.65rem', fontWeight:800, letterSpacing:'0.06em', textTransform:'uppercase', padding:'0.2rem 0.75rem', borderRadius:999 }}>Ajánlott</div>
+                <div>
+                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'0.75rem' }}>
+                    <h3 style={{ fontSize:'1.05rem', fontWeight:800, color:navy900, margin:0 }}>Prémium</h3>
+                    <span style={{ fontSize:'0.7rem', fontWeight:700, background:accentLt, color:accent, padding:'0.2rem 0.65rem', borderRadius:999 }}>Teljes csomag</span>
+                  </div>
+                  <p style={{ fontSize:'0.8rem', color:navy600, margin:'0 0 1rem' }}>Korlátlan projektek, csapatmunka, teljes weboldal.</p>
+                  <div style={{ fontSize:'2.25rem', fontWeight:800, color:navy900, letterSpacing:'-0.04em', marginBottom:'1.25rem' }}>6 999 Ft <span style={{ fontSize:'0.875rem', fontWeight:500, color:'#94a3b8' }}> / hó</span></div>
+                  <ul style={{ listStyle:'none', padding:0, margin:0, display:'flex', flexDirection:'column', gap:'0.6rem' }}>
+                    {PREMIUM_ITEMS.map(f => (
+                      <li key={f} style={{ display:'flex', alignItems:'center', gap:'0.5rem', fontSize:'0.825rem', color:navy700 }}>
+                        <Check size={14} color={accent} /> {f}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                <button onClick={() => setAuthOpen(true)} style={{ padding:'0.75rem', borderRadius:12, background:accent, color:'#fff', fontWeight:700, fontSize:'0.875rem', border:'none', cursor:'pointer', fontFamily:'inherit', transition:'background .15s' }}
+                  onMouseOver={e => e.currentTarget.style.background=accentHv} onMouseOut={e => e.currentTarget.style.background=accent}>
+                  14 napos próba ingyen
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ── FAQ ── */}
+        <section id="faq" style={{ padding:'4rem 0', background:'#fff', borderBottom:`1px solid ${slate200}` }}>
+          <div className="lp-container" style={{ maxWidth:720, margin:'0 auto', padding:'0 1.25rem' }}>
+            <div style={{ textAlign:'center', marginBottom:'2.5rem' }}>
+              <div className="lp-section-tag"><span className="lp-pill">Kérdések</span></div>
+              <h2 style={{ fontSize:'clamp(1.5rem,3vw,2rem)', fontWeight:800, color:navy900, margin:'0.5rem 0 0', letterSpacing:'-0.03em' }}>Gyakran ismételt kérdések</h2>
+            </div>
+
+            <div style={{ display:'flex', flexDirection:'column', gap:'0.75rem' }}>
+              {FAQS.map(({ q, a }, i) => {
+                const isOpen = openFaq === i;
+                return (
+                  <div key={i} style={{ background:'#fff', borderRadius:14, border:`1px solid ${isOpen ? accent + '55' : slate200}`, overflow:'hidden', transition:'border-color 0.2s' }}>
+                    <button onClick={() => setOpenFaq(isOpen ? null : i)} style={{ width:'100%', padding:'1rem 1.25rem', textAlign:'left', display:'flex', justifyContent:'space-between', alignItems:'center', background:'none', border:'none', cursor:'pointer', fontFamily:'inherit', fontWeight:700, fontSize:'0.9rem', color:navy900, gap:'0.75rem' }}>
+                      <span>{q}</span>
+                      <ChevronDown size={16} color={navy600} className="faq-chevron" style={{ flexShrink:0, transform: isOpen ? 'rotate(180deg)' : 'none' }} />
+                    </button>
+                    {isOpen && (
+                      <div style={{ padding:'0 1.25rem 1rem', fontSize:'0.85rem', color:navy600, lineHeight:1.7, borderTop:`1px solid ${slate100}` }}>
+                        {a}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+
+        {/* ── BOTTOM CTA ── */}
+        <section style={{ background:navy900, padding:'4rem 0', color:'#fff' }}>
+          <div className="lp-container" style={{ textAlign:'center', display:'flex', flexDirection:'column', alignItems:'center', gap:'1.25rem' }}>
+            <h2 style={{ fontSize:'clamp(1.6rem,3.5vw,2.5rem)', fontWeight:800, letterSpacing:'-0.03em', margin:0 }}>
+              Készen állsz egyszerűbbé tenni a munkádat?
+            </h2>
+            <p style={{ fontSize:'0.95rem', color:'#94a3b8', maxWidth:480, margin:0, lineHeight:1.65 }}>
+              Csatlakozz azokhoz a szakemberekhez, akik hetente órákat spórolnak az Epitekkel.
+            </p>
+            <button onClick={() => setAuthOpen(true)} style={{ display:'flex', alignItems:'center', gap:'0.5rem', padding:'0.95rem 2rem', background:accent, color:'#fff', fontWeight:800, fontSize:'0.95rem', borderRadius:12, border:'none', cursor:'pointer', fontFamily:'inherit', boxShadow:`0 4px 20px ${accent}66`, marginTop:'0.5rem' }}>
+              Ingyenes próba most <ArrowRight size={16} />
+            </button>
+            <p style={{ fontSize:'0.75rem', color:'#475569', margin:0 }}>Bankkártya nem szükséges · Beállítás 2 perc alatt</p>
+          </div>
+        </section>
+
+        {/* ── FOOTER ── */}
+        <footer style={{ background:'#080e1a', padding:'1.5rem 1.25rem', display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:'0.75rem' }}>
+          <div style={{ display:'flex', alignItems:'center', gap:'0.5rem' }}>
+            <div style={{ width:28, height:28, borderRadius:8, background:accent, display:'flex', alignItems:'center', justifyContent:'center' }}>
+              <Hammer size={14} color="#fff" />
+            </div>
+            <span style={{ fontWeight:800, fontSize:'0.9rem', color:'#fff' }}>Epitek</span>
+          </div>
+          <p style={{ fontSize:'0.75rem', color:'#334155', margin:0 }}>© {new Date().getFullYear()} Epitek · Minden jog fenntartva</p>
+        </footer>
+
+        {/* Responsive helpers */}
+        <style>{`
+          @media (min-width: 1024px) {
+            .hero-grid { grid-template-columns: 7fr 5fr !important; }
+          }
+          @media (min-width: 768px) {
+            .hidden-mobile { display: flex !important; }
+            .show-mobile { display: none !important; }
+          }
+          @media (max-width: 767px) {
+            .hidden-mobile { display: none !important; }
+            .show-mobile { display: block !important; }
+          }
+        `}</style>
       </div>
 
       {authOpen && <AuthModal onClose={() => setAuthOpen(false)} />}
