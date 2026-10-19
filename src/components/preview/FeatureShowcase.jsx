@@ -479,7 +479,7 @@ function FeatureRow({ feature, isCollective, onRegister }) {
   const { Preview, imageFirst, overline, title, desc, bullets, collectiveBullet, comingSoon } = feature;
 
   const previewCol = (
-    <div style={{ position: 'relative', display: 'flex', justifyContent: imageFirst ? 'flex-start' : 'flex-end' }}>
+    <div className="feature-preview-col" style={{ position: 'relative', display: 'flex', justifyContent: imageFirst ? 'flex-start' : 'flex-end' }}>
       <Preview />
       <CollectiveHeads show={isCollective} />
     </div>
@@ -512,7 +512,7 @@ function FeatureRow({ feature, isCollective, onRegister }) {
         )}
       </ul>
 
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.65rem' }}>
+      <div className="feature-row-btns" style={{ display: 'flex', flexWrap: 'wrap', gap: '0.65rem' }}>
         <button
           onClick={onRegister}
           style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', padding: '0.65rem 1.25rem', background: T.accent, color: '#fff', fontWeight: 700, fontSize: '0.875rem', borderRadius: 10, border: 'none', cursor: 'pointer', fontFamily: T.font }}
@@ -594,13 +594,21 @@ export default function FeatureShowcase({ onRegister }) {
   const [isCollective, setIsCollective] = useState(false);
 
   return (
-    <section style={{ padding: '4rem 0', borderBottom: `1px solid ${T.border}` }}>
+    <section className="feature-section" style={{ padding: '4rem 0', borderBottom: `1px solid ${T.border}` }}>
       <style>{`
         .feature-showcase-row { grid-template-columns: 1fr 1fr; }
         @media (max-width: 900px) {
           .feature-showcase-row { grid-template-columns: 1fr !important; }
           .feature-showcase-row > *:first-child { order: 1; }
           .feature-showcase-row > *:last-child  { order: 2; }
+        }
+        @media (max-width: 639px) {
+          .feature-section       { padding: 2.5rem 0 !important; }
+          .feature-showcase-row  { padding: 2rem 0 !important; gap: 0 !important; }
+          .feature-preview-col   { display: none !important; }
+          .feature-row-btns a,
+          .feature-row-btns button { width: 100% !important; justify-content: center; box-sizing: border-box; }
+          .feature-row-btns       { flex-direction: column !important; }
         }
       `}</style>
 

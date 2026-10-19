@@ -75,6 +75,17 @@ export default function HomePage() {
         .faq-chevron { transition:transform 0.2s ease; }
         .nav-link { color:${navy700}; font-size:0.875rem; font-weight:600; text-decoration:none; transition:color 0.15s; }
         .nav-link:hover { color:${accent}; }
+        .lp-section { padding:4rem 0; }
+        @media(max-width:639px){
+          .lp-section { padding:2.5rem 0; }
+          .lp-hero { padding:2.25rem 0 2.75rem !important; }
+          .lp-cta-row { flex-direction:column !important; }
+          .lp-cta-row a, .lp-cta-row button { width:100% !important; justify-content:center; box-sizing:border-box; }
+          .lp-hero-preview { display:none !important; }
+          .lp-h2 { font-size:1.45rem !important; }
+          .lp-pricing-grid { gap:1rem !important; }
+          .lp-bottom-cta { padding:2.5rem 0 !important; }
+        }
       `}</style>
 
       <div className="lp-root">
@@ -128,7 +139,7 @@ export default function HomePage() {
         </header>
 
         {/* ── HERO ── */}
-        <section style={{ background:'#fff', padding:'3.5rem 0 4rem', borderBottom:`1px solid ${slate200}` }}>
+        <section className="lp-hero" style={{ background:'#fff', padding:'3.5rem 0 4rem', borderBottom:`1px solid ${slate200}` }}>
           <div className="lp-container">
             <div style={{ display:'grid', gridTemplateColumns:'1fr', gap:'2.5rem', alignItems:'center' }} className="hero-grid">
 
@@ -154,7 +165,7 @@ export default function HomePage() {
                 </div>
 
                 {/* CTAs */}
-                <div style={{ display:'flex', flexWrap:'wrap', gap:'0.75rem', marginTop:'0.25rem' }}>
+                <div className="lp-cta-row" style={{ display:'flex', flexWrap:'wrap', gap:'0.75rem', marginTop:'0.25rem' }}>
                   <button onClick={() => setAuthOpen(true)} style={{ display:'flex', alignItems:'center', gap:'0.5rem', padding:'0.85rem 1.6rem', background:accent, color:'#fff', fontWeight:800, fontSize:'0.95rem', borderRadius:12, border:'none', cursor:'pointer', fontFamily:'inherit', boxShadow:`0 4px 14px ${accent}44` }}>
                     Kezdj el ingyen <ArrowRight size={16} />
                   </button>
@@ -174,8 +185,8 @@ export default function HomePage() {
                 </a>
               </div>
 
-              {/* Right: app preview */}
-              <div style={{ display:'flex', justifyContent:'center' }}>
+              {/* Right: app preview — hidden on mobile */}
+              <div className="lp-hero-preview" style={{ display:'flex', justifyContent:'center' }}>
                 <ProjectsListPreview />
               </div>
 
@@ -187,7 +198,7 @@ export default function HomePage() {
         <FeatureShowcase onRegister={() => setAuthOpen(true)} />
 
         {/* ── PRICING ── */}
-        <section id="pricing" style={{ padding:'4rem 0', background:slate50, borderBottom:`1px solid ${slate200}` }}>
+        <section id="pricing" className="lp-section" style={{ padding:'4rem 0', background:slate50, borderBottom:`1px solid ${slate200}` }}>
           <div className="lp-container">
             <div style={{ textAlign:'center', marginBottom:'3rem' }}>
               <div className="lp-section-tag"><span className="lp-pill">Átlátható árazás</span></div>
@@ -195,7 +206,7 @@ export default function HomePage() {
               <p style={{ color:navy600, fontSize:'0.9rem', margin:0 }}>Kezdj ingyenesen — váltj prémiumra, ha a vállalkozásod nő.</p>
             </div>
 
-            <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(min(100%,300px),1fr))', gap:'1.5rem', maxWidth:680, margin:'0 auto' }}>
+            <div className="lp-pricing-grid" style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(min(100%,300px),1fr))', gap:'1.5rem', maxWidth:680, margin:'0 auto' }}>
               {/* Free */}
               <div style={{ background:'#fff', borderRadius:20, padding:'2rem', border:`1px solid ${slate200}`, boxShadow:'0 2px 8px rgba(0,0,0,0.04)', display:'flex', flexDirection:'column', justifyContent:'space-between', gap:'1.5rem' }}>
                 <div>
@@ -247,7 +258,7 @@ export default function HomePage() {
         </section>
 
         {/* ── FAQ ── */}
-        <section id="faq" style={{ padding:'4rem 0', background:'#fff', borderBottom:`1px solid ${slate200}` }}>
+        <section id="faq" className="lp-section" style={{ padding:'4rem 0', background:'#fff', borderBottom:`1px solid ${slate200}` }}>
           <div className="lp-container" style={{ maxWidth:720, margin:'0 auto', padding:'0 1.25rem' }}>
             <div style={{ textAlign:'center', marginBottom:'2.5rem' }}>
               <div className="lp-section-tag"><span className="lp-pill">Kérdések</span></div>
@@ -276,7 +287,7 @@ export default function HomePage() {
         </section>
 
         {/* ── BOTTOM CTA ── */}
-        <section style={{ background:navy900, padding:'4rem 0', color:'#fff' }}>
+        <section className="lp-bottom-cta" style={{ background:navy900, padding:'4rem 0', color:'#fff' }}>
           <div className="lp-container" style={{ textAlign:'center', display:'flex', flexDirection:'column', alignItems:'center', gap:'1.25rem' }}>
             <h2 style={{ fontSize:'clamp(1.6rem,3.5vw,2.5rem)', fontWeight:800, letterSpacing:'-0.03em', margin:0 }}>
               Készen állsz egyszerűbbé tenni a munkádat?
@@ -309,11 +320,14 @@ export default function HomePage() {
           }
           @media (min-width: 768px) {
             .hidden-mobile { display: flex !important; }
-            .show-mobile { display: none !important; }
+            .show-mobile    { display: none !important; }
           }
           @media (max-width: 767px) {
-            .hidden-mobile { display: none !important; }
-            .show-mobile { display: block !important; }
+            .hidden-mobile  { display: none !important; }
+            .show-mobile    { display: block !important; }
+          }
+          @media (max-width: 639px) {
+            .hero-grid      { gap: 1.5rem !important; }
           }
         `}</style>
       </div>
