@@ -106,32 +106,5 @@ export async function POST(request, { params }) {
     } catch { /* email failure is non-fatal */ }
   }
 
-  // Confirmation email to client
-  try {
-    const confirmMap = {
-      accepted: `✅ Elfogadtad az ajánlatot: ${quote.title}`,
-      rejected: `❌ Elutasítottad az ajánlatot: ${quote.title}`,
-      question: `💬 Üzeneted elküldve: ${quote.title}`,
-    };
-    const confirmBody = `
-      <p>Kedves ${client.name}!</p>
-      <p>Visszajelzésed rögzítettük és értesítettük a vállalkozót.</p>
-      <table style="width:100%;border-collapse:collapse;margin:16px 0;">
-        <tr><td style="padding:8px 12px;background:#f8fafc;border:1px solid #e2e8f0;font-weight:700;width:120px;">Ajánlat</td>
-            <td style="padding:8px 12px;border:1px solid #e2e8f0;">${quote.title}</td></tr>
-        <tr><td style="padding:8px 12px;background:#f8fafc;border:1px solid #e2e8f0;font-weight:700;">Vállalkozó</td>
-            <td style="padding:8px 12px;border:1px solid #e2e8f0;">${contractorName}</td></tr>
-      </table>
-      ${comment.trim() ? `<div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:16px;margin:16px 0;"><p style="margin:0 0 8px;font-size:12px;font-weight:700;color:#0369a1;text-transform:uppercase;">Az üzeneted</p><p style="margin:0;color:#0c4a6e;white-space:pre-wrap;">${comment.trim()}</p></div>` : ''}
-      <p style="color:#64748b;font-size:14px;">Ha kérdésed van, válaszolj közvetlenül erre az emailre.</p>
-    `;
-    await sendEmail({
-      to: user.email,
-      replyTo: contractorEmail || undefined,
-      subject: confirmMap[action],
-      html: wrapEmail(confirmBody, confirmMap[action]),
-    });
-  } catch { /* non-fatal */ }
-
   return Response.json({ ok: true, status: action !== 'question' ? action : 'sent' });
 }
