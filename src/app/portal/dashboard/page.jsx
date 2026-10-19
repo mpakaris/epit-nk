@@ -118,37 +118,66 @@ function RoomSection({ section }) {
   );
 }
 
-// ── quote card ────────────────────────────────────────────────────────────────
-function QuoteCard({ quote, onRespond }) {
-  const [expanded, setExpanded] = useState(false);
-  const [responding, setResponding] = useState(false);
-  const allEntries    = quote.entries || [];
-  const sections      = quote.sections || [];
-  const generalEntries = allEntries.filter(e => !e.section_id);
-  const net           = allEntries.reduce((s, e) => s + Number(e.amount_huf || 0), 0);
-  const taxRate       = Number(quote.tax_percent ?? 27);
-  const tax           = Math.round(net * taxRate / 100);
-  const gross         = net + tax;
-  const ss            = STATUS_STYLE[quote.status] || STATUS_STYLE.sent;
-  const canRespond    = quote.status === 'sent' && !!onRespond;
-  const hasDetail     = sections.length > 0 || allEntries.length > 0;
+// ── action modal ─────────────────────────────────────────────────────────────
+function ActionModal({ title, children, onClose }) {
+  return (
+    <>
+      <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 600 }} />
+      <div style={{
+        position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%,-50%)',
+        zIndex: 601, width: 'min(440px, 92vw)',
+        background: '#fff', borderRadius: 18, boxShadow: '0 24px 60px rgba(0,0,0,0.2)',
+        padding: '1.6rem', fontFamily: FONT,
+      }}>
+        <h3 style={{ margin: '0 0 1rem', fontSize: '1rem', fontWeight: 800, color: BRAND }}>{title}</h3>
+        {children}
+      </div>
+    </>
+  );
+}
 
-  const respond = async (action) => {
+// ── quote card ────────────────────────────────────────────────────────────────
+function QuoteCard({ quote, onRespond, termsPdfUrl, termsPdfName }) {
+  const [expanded, setExpanded]   = useState(false);
+  const [modal, setModal]         = useState(null); // null | 'accept' | 'reject' | 'question'
+  const [comment, setComment]     = useState('');
+  const [responding, setResponding] = useState(false);
+
+  const allEntries     = quote.entries || [];
+  const sections       = quote.sections || [];
+  const generalEntries = allEntries.filter(e => !e.section_id);
+  const net            = allEntries.reduce((s, e) => s + Number(e.amount_huf || 0), 0);
+  const taxRate        = Number(quote.tax_percent ?? 27);
+  const tax            = Math.round(net * taxRate / 100);
+  const gross          = net + tax;
+  const ss             = STATUS_STYLE[quote.status] || STATUS_STYLE.sent;
+  const canRespond     = quote.status === 'sent' && !!onRespond;
+  const hasDetail      = sections.length > 0 || allEntries.length > 0;
+  const pdfHref        = `/clients/${quote.client_id}/ajanlat/${quote.id}`;
+
+  const openModal = (type) => { setComment(''); setModal(type); };
+  const closeModal = () => { setModal(null); setComment(''); };
+
+  const doRespond = async (action) => {
     setResponding(true);
     try {
-      await onRespond(quote.id, action);
+      await onRespond(quote.id, action, comment);
+      closeModal();
     } finally {
       setResponding(false);
     }
   };
 
+  const btnBase = { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', padding: '0.6rem 0.9rem', borderRadius: 10, fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer', fontFamily: FONT, border: '1.5px solid', transition: 'opacity 0.15s' };
+
   return (
+    <>
     <div style={{ background: '#fff', borderRadius: 14, border: '1px solid #e2e8f0', overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
 
       {/* Header */}
       <div style={{ padding: '1.1rem 1.25rem 0.9rem' }}>
 
-        {/* Status + sent date row */}
+        {/* Status + sent date */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem', marginBottom: '0.6rem', flexWrap: 'wrap' }}>
           <span style={{ fontSize: '0.8rem', fontWeight: 700, padding: '0.25rem 0.75rem', borderRadius: 99, background: ss.bg, color: ss.color, border: `1px solid ${ss.border}`, display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
             {quote.status === 'sent'     && '⏳ '}
@@ -164,9 +193,7 @@ function QuoteCard({ quote, onRespond }) {
         </div>
 
         <h3 style={{ fontSize: '1.05rem', fontWeight: 800, color: BRAND, margin: '0 0 0.3rem', lineHeight: 1.25 }}>{quote.title}</h3>
-
         {quote.work_type && <p style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 600, margin: '0 0 0.3rem' }}>{quote.work_type}</p>}
-
         {quote.description && <p style={{ fontSize: '0.855rem', color: '#475569', margin: '0 0 0.5rem', lineHeight: 1.6 }}>{quote.description}</p>}
 
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.3rem 1rem', fontSize: '0.83rem', color: '#64748b', marginBottom: '0.85rem' }}>
@@ -175,7 +202,7 @@ function QuoteCard({ quote, onRespond }) {
         </div>
 
         {/* Financial summary */}
-        <div style={{ background: '#f8fafc', borderRadius: 10, padding: '0.75rem 1rem', marginBottom: canRespond ? '0.85rem' : 0 }}>
+        <div style={{ background: '#f8fafc', borderRadius: 10, padding: '0.75rem 1rem', marginBottom: '0.85rem' }}>
           {taxRate > 0 && (
             <div style={{ fontSize: '0.775rem', color: '#94a3b8', marginBottom: '0.2rem' }}>
               Nettó: <strong style={{ color: '#475569' }}>{fmtHUF(net)}</strong>
@@ -188,37 +215,42 @@ function QuoteCard({ quote, onRespond }) {
               <div style={{ fontFamily: 'monospace', fontWeight: 900, fontSize: '1.2rem', color: BRAND }}>{fmtHUF(gross)}</div>
             </div>
             {hasDetail && (
-              <button
-                type="button"
-                onClick={() => setExpanded(v => !v)}
-                style={{ background: 'none', border: '1px solid #e2e8f0', borderRadius: 8, padding: '0.4rem 0.75rem', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600, color: '#475569', display: 'flex', alignItems: 'center', gap: '0.3rem', fontFamily: FONT }}
-              >
+              <button type="button" onClick={() => setExpanded(v => !v)}
+                style={{ background: 'none', border: '1px solid #e2e8f0', borderRadius: 8, padding: '0.4rem 0.75rem', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600, color: '#475569', display: 'flex', alignItems: 'center', gap: '0.3rem', fontFamily: FONT }}>
                 {expanded ? <><ChevronUp size={14} /> Elrejt</> : <><ChevronDown size={14} /> Részletek</>}
               </button>
             )}
           </div>
         </div>
 
-        {/* Accept / decline */}
+        {/* Downloads */}
+        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: canRespond ? '0.85rem' : 0 }}>
+          <a href={pdfHref} target="_blank" rel="noopener noreferrer"
+            style={{ ...btnBase, background: '#f8fafc', borderColor: '#e2e8f0', color: '#475569', textDecoration: 'none', fontSize: '0.8rem', padding: '0.45rem 0.85rem' }}>
+            📄 Ajánlat letöltése (PDF)
+          </a>
+          {termsPdfUrl && (
+            <a href={termsPdfUrl} target="_blank" rel="noopener noreferrer"
+              style={{ ...btnBase, background: '#f8fafc', borderColor: '#e2e8f0', color: '#475569', textDecoration: 'none', fontSize: '0.8rem', padding: '0.45rem 0.85rem' }}>
+              📋 {termsPdfName || 'ÁSZF letöltése'}
+            </a>
+          )}
+        </div>
+
+        {/* 3-button action row */}
         {canRespond && (
-          <div style={{ display: 'flex', gap: '0.6rem' }}>
-            <button
-              type="button"
-              onClick={() => respond('accepted')}
-              disabled={responding}
-              style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', padding: '0.65rem', background: '#f0fdf4', border: '1.5px solid #bbf7d0', borderRadius: 10, color: '#15803d', fontWeight: 700, fontSize: '0.875rem', cursor: responding ? 'not-allowed' : 'pointer', fontFamily: FONT, opacity: responding ? 0.6 : 1 }}
-            >
-              {responding ? <Loader2 size={15} style={{ animation: 'spin 1s linear infinite' }} /> : <CheckCircle2 size={15} />}
-              Elfogadom
+          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+            <button type="button" onClick={() => openModal('question')}
+              style={{ ...btnBase, flex: '1 1 auto', background: '#eff6ff', borderColor: '#bfdbfe', color: '#1d4ed8' }}>
+              💬 Kérdés / Módosítás
             </button>
-            <button
-              type="button"
-              onClick={() => respond('rejected')}
-              disabled={responding}
-              style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', padding: '0.65rem', background: '#fef2f2', border: '1.5px solid #fecaca', borderRadius: 10, color: '#b91c1c', fontWeight: 700, fontSize: '0.875rem', cursor: responding ? 'not-allowed' : 'pointer', fontFamily: FONT, opacity: responding ? 0.6 : 1 }}
-            >
-              {responding ? <Loader2 size={15} style={{ animation: 'spin 1s linear infinite' }} /> : <XCircle size={15} />}
-              Elutasítom
+            <button type="button" onClick={() => openModal('reject')}
+              style={{ ...btnBase, flex: '1 1 auto', background: '#fef2f2', borderColor: '#fecaca', color: '#b91c1c' }}>
+              <XCircle size={15} /> Elutasítom
+            </button>
+            <button type="button" onClick={() => openModal('accept')}
+              style={{ ...btnBase, flex: '1 1 auto', background: '#f0fdf4', borderColor: '#bbf7d0', color: '#15803d' }}>
+              <CheckCircle2 size={15} /> Elfogadom
             </button>
           </div>
         )}
@@ -251,6 +283,79 @@ function QuoteCard({ quote, onRespond }) {
         </>
       )}
     </div>
+
+    {/* ── Modals ── */}
+    {modal === 'accept' && (
+      <ActionModal title="✅ Ajánlat elfogadása" onClose={closeModal}>
+        <p style={{ fontSize: '0.9rem', color: '#475569', lineHeight: 1.65, margin: '0 0 1.25rem' }}>
+          Biztosan elfogadod az ajánlatot?<br />
+          <strong style={{ color: BRAND }}>{quote.title}</strong><br />
+          <span style={{ fontFamily: 'monospace', fontWeight: 800 }}>{fmtHUF(gross)}</span>
+        </p>
+        <p style={{ fontSize: '0.8rem', color: '#94a3b8', margin: '0 0 1.5rem' }}>
+          Az elfogadásról a vállalkozó értesítést kap. A szerződéses feltételek az ajánlatban és az ÁSZF-ben találhatóak.
+        </p>
+        <div style={{ display: 'flex', gap: '0.6rem', justifyContent: 'flex-end' }}>
+          <button type="button" onClick={closeModal} style={{ ...btnBase, background: '#f1f5f9', borderColor: '#e2e8f0', color: '#475569' }}>Mégse</button>
+          <button type="button" onClick={() => doRespond('accepted')} disabled={responding}
+            style={{ ...btnBase, background: '#16a34a', borderColor: '#16a34a', color: '#fff', opacity: responding ? 0.7 : 1 }}>
+            {responding ? <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> : <CheckCircle2 size={14} />}
+            Igen, elfogadom
+          </button>
+        </div>
+      </ActionModal>
+    )}
+
+    {modal === 'reject' && (
+      <ActionModal title="❌ Ajánlat elutasítása" onClose={closeModal}>
+        <p style={{ fontSize: '0.875rem', color: '#475569', margin: '0 0 0.75rem' }}>
+          Szeretnéd elutasítani: <strong style={{ color: BRAND }}>{quote.title}</strong>
+        </p>
+        <label style={{ fontSize: '0.8rem', fontWeight: 700, color: BRAND, display: 'block', marginBottom: '0.4rem' }}>
+          Indoklás (opcionális)
+        </label>
+        <textarea
+          value={comment}
+          onChange={e => setComment(e.target.value)}
+          placeholder="Pl. az ár meghaladja a keretemet, más vállalkozót választottam…"
+          rows={3}
+          style={{ width: '100%', boxSizing: 'border-box', border: '1.5px solid #e2e8f0', borderRadius: 10, padding: '0.65rem 0.85rem', fontSize: '0.875rem', fontFamily: FONT, resize: 'vertical', outline: 'none', marginBottom: '1.25rem' }}
+        />
+        <div style={{ display: 'flex', gap: '0.6rem', justifyContent: 'flex-end' }}>
+          <button type="button" onClick={closeModal} style={{ ...btnBase, background: '#f1f5f9', borderColor: '#e2e8f0', color: '#475569' }}>Mégse</button>
+          <button type="button" onClick={() => doRespond('rejected')} disabled={responding}
+            style={{ ...btnBase, background: '#dc2626', borderColor: '#dc2626', color: '#fff', opacity: responding ? 0.7 : 1 }}>
+            {responding ? <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> : <XCircle size={14} />}
+            Elutasítom
+          </button>
+        </div>
+      </ActionModal>
+    )}
+
+    {modal === 'question' && (
+      <ActionModal title="💬 Kérdés / Módosítási kérelem" onClose={closeModal}>
+        <p style={{ fontSize: '0.875rem', color: '#475569', margin: '0 0 0.75rem' }}>
+          Üzeneted a vállalkozónak az ajánlattal kapcsolatban:
+        </p>
+        <textarea
+          autoFocus
+          value={comment}
+          onChange={e => setComment(e.target.value)}
+          placeholder="Pl. módosítanám a burkolat típusát, pontosítani kellene az időpontot…"
+          rows={4}
+          style={{ width: '100%', boxSizing: 'border-box', border: '1.5px solid #e2e8f0', borderRadius: 10, padding: '0.65rem 0.85rem', fontSize: '0.875rem', fontFamily: FONT, resize: 'vertical', outline: 'none', marginBottom: '1.25rem' }}
+        />
+        <div style={{ display: 'flex', gap: '0.6rem', justifyContent: 'flex-end' }}>
+          <button type="button" onClick={closeModal} style={{ ...btnBase, background: '#f1f5f9', borderColor: '#e2e8f0', color: '#475569' }}>Mégse</button>
+          <button type="button" onClick={() => doRespond('question')} disabled={responding || !comment.trim()}
+            style={{ ...btnBase, background: ACCENT, borderColor: ACCENT, color: '#fff', opacity: responding || !comment.trim() ? 0.6 : 1, cursor: !comment.trim() ? 'not-allowed' : 'pointer' }}>
+            {responding ? <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> : '📨'}
+            Üzenet küldése
+          </button>
+        </div>
+      </ActionModal>
+    )}
+    </>
   );
 }
 
@@ -326,7 +431,9 @@ function ProjectCard({ project }) {
 
 // ── contractor section ────────────────────────────────────────────────────────
 function ContractorSection({ contractor, onRespond }) {
-  const pendingCount = contractor.quotes.filter(q => q.status === 'sent').length;
+  const pendingCount  = contractor.quotes.filter(q => q.status === 'sent').length;
+  const termsPdfUrl   = contractor.terms_pdf_url || null;
+  const termsPdfName  = contractor.terms_pdf_name || null;
 
   return (
     <div style={{ marginBottom: '2.5rem' }}>
@@ -352,7 +459,7 @@ function ContractorSection({ contractor, onRespond }) {
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             {contractor.quotes.map(q => (
-              <QuoteCard key={q.id} quote={q} onRespond={onRespond} />
+              <QuoteCard key={q.id} quote={q} onRespond={onRespond} termsPdfUrl={termsPdfUrl} termsPdfName={termsPdfName} />
             ))}
           </div>
         </div>
@@ -433,18 +540,20 @@ export default function PortalDashboardPage() {
     }
   }, []);
 
-  const handleRespond = async (quoteId, action) => {
+  const handleRespond = async (quoteId, action, comment = '') => {
     const res  = await fetch(`/api/portal/quotes/${quoteId}/respond`, {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ action }),
+      body:    JSON.stringify({ action, comment }),
     });
     if (!res.ok) return;
-    // Update local state
-    setContractors(prev => prev.map(c => ({
-      ...c,
-      quotes: c.quotes.map(q => q.id === quoteId ? { ...q, status: action } : q),
-    })));
+    // 'question' keeps status as 'sent'; others update it
+    if (action !== 'question') {
+      setContractors(prev => prev.map(c => ({
+        ...c,
+        quotes: c.quotes.map(q => q.id === quoteId ? { ...q, status: action } : q),
+      })));
+    }
   };
 
   const handleLogout = async () => {

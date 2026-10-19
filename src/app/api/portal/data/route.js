@@ -29,10 +29,10 @@ export async function GET(request) {
   const ownerIds  = [...new Set(clientRecords.map(c => c.owner_id))];
   const clientIds = clientRecords.map(c => c.id);
 
-  // Contractor profiles
+  // Contractor profiles (including T&C info)
   const { data: profiles } = await admin
     .from('profiles')
-    .select('id, display_name, company_name, email')
+    .select('id, display_name, company_name, email, terms_pdf_url, terms_pdf_name')
     .in('id', ownerIds);
 
   // Non-draft quotes for these clients
@@ -125,11 +125,13 @@ export async function GET(request) {
       }));
 
     return {
-      owner_id:        ownerId,
-      contractor_name: profile?.company_name || profile?.display_name || 'Ismeretlen vállalkozó',
+      owner_id:         ownerId,
+      contractor_name:  profile?.company_name || profile?.display_name || 'Ismeretlen vállalkozó',
       contractor_email: profile?.email || null,
-      quotes:          ownerQuotes,
-      projects:        ownerProjects,
+      terms_pdf_url:    profile?.terms_pdf_url || null,
+      terms_pdf_name:   profile?.terms_pdf_name || null,
+      quotes:           ownerQuotes,
+      projects:         ownerProjects,
     };
   });
 
