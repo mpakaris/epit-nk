@@ -1,3 +1,4 @@
+import { createHash } from 'crypto';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { uploadToR2, deleteFromR2, r2PublicUrl, toWebp } from '@/lib/r2';
@@ -59,6 +60,8 @@ export async function POST(request) {
   if (!files?.length) return Response.json({ error: 'Nincs fájl' }, { status: 400 });
 
   const results = [];
+  let skipped = 0;
+
   for (const file of files) {
     if (!(file instanceof File)) continue;
     if (file.size > MAX_SIZE_BYTES) return Response.json({ error: `"${file.name}" túl nagy (max 30 MB)` }, { status: 400 });
@@ -67,26 +70,37 @@ export async function POST(request) {
     }
 
     const inputBuffer = Buffer.from(await file.arrayBuffer());
+
+    // Duplicate detection via SHA-256 of original bytes
+    const fileHash = createHash('sha256').update(inputBuffer).digest('hex');
+    const { data: existing } = await auth.admin
+      .from('image_library')
+      .select('id')
+      .eq('file_hash', fileHash)
+      .maybeSingle();
+    if (existing) { skipped++; continue; }
+
     const maxDimension = orientation === 'horizontal' ? 2400 : 1600;
     const { buffer: webpBuffer } = await toWebp(inputBuffer, { quality: 85, maxDimension });
 
-    const key = libraryKey(tradeId, file.name);
+    const key = libraryKey(null, file.name);
     await uploadToR2(key, webpBuffer, 'image/webp');
 
     const { data: img, error: dbErr } = await auth.admin.from('image_library').insert({
-      trade_id: tradeId || null,
+      trade_id: null,
       r2_key: key,
       orientation,
       alt_text: altText,
       created_by: auth.user.id,
       is_platform_only: isPlatformOnly,
+      file_hash: fileHash,
     }).select().single();
 
     if (dbErr) return Response.json({ error: dbErr.message }, { status: 500 });
     results.push({ ...img, url: r2PublicUrl(key) });
   }
 
-  return Response.json({ images: results }, { status: 201 });
+  return Response.json({ images: results, skipped }, { status: 201 });
 }
 
 export async function PATCH(request) {

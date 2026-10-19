@@ -91,7 +91,7 @@ async function DashboardContent() {
 
   const effectiveProjects = isAdmin
     ? projectsWithMembers
-    : projectsWithMembers.filter(p => p.members.includes(user.id));
+    : projectsWithMembers.filter(p => p.owner_id === effectiveUserId || p.members.includes(effectiveUserId));
 
   return (
     <DashboardClient
