@@ -103,7 +103,7 @@ export function AppProvider({ children }) {
   })();
 
   // ---- Route guard ------------------------------------------------------------
-  const PUBLIC_ROUTE_PREFIXES = ['/login', '/change-password', '/szakemberek/', '/p/', '/clients/', '/naplo/', '/auth/', '/invitations/', '/demo', '/portal', '/impressum', '/adatkezeles', '/aszf'];
+  const PUBLIC_ROUTE_PREFIXES = ['/login', '/change-password', '/szakemberek/', '/p/', '/clients/', '/naplo/', '/auth/', '/invitations/', '/demo', '/portal', '/impressum', '/adatkezeles', '/aszf', '/about'];
   const PUBLIC_ROUTE_EXACT = ['/'];
   useEffect(() => {
     if (loading) return;

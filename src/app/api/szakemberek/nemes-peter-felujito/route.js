@@ -34,6 +34,7 @@ const DEMO_SECTIONS = [
     section_type: 'about', enabled: true, order_index: 1,
     content: {
       text: 'Nemes Péter vagyok, 2009 óta dolgozom az építőiparban. Pályámat kőművesként kezdtem, majd fokozatosan bővítettem szaktudásomat: burkolás, gipszkarton, villanyszerelés-segédmunkák, festés-mázolás – ma már komplett lakásfelújításokat is vállalok egyetlen csapattal.\n\nFontosnak tartom az átlátható kommunikációt: pontos árajánlatot adok, tartom a határidőket, és csak annyi munkát vállalok egyszerre, amennyit képes vagyok precízen elvégezni. Minden munkámra garanciát adok.',
+      photo_url: `${process.env.NEXT_PUBLIC_R2_PUBLIC_URL}/platform/about-me.webp`,
     },
   },
   {

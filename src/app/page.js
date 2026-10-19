@@ -109,6 +109,7 @@ export default function HomePage() {
               <a href="#features" className="nav-link">Funkciók</a>
               <a href="#pricing"  className="nav-link">Árazás</a>
               <a href="#faq"      className="nav-link">GYIK</a>
+              <a href="/about"    className="nav-link" target="_blank" rel="noopener noreferrer">Rólunk</a>
             </nav>
 
             {/* Desktop Actions */}
@@ -314,6 +315,7 @@ export default function HomePage() {
             <span style={{ fontWeight:800, fontSize:'0.9rem', color:'#fff' }}>Epitek</span>
           </div>
           <div style={{ display:'flex', alignItems:'center', gap:'1.25rem', flexWrap:'wrap' }}>
+            <a href="/about"       target="_blank" rel="noopener noreferrer" style={{ fontSize:'0.75rem', color:'#475569', textDecoration:'none' }}>Rólunk</a>
             <a href="/impressum"   target="_blank" rel="noopener noreferrer" style={{ fontSize:'0.75rem', color:'#475569', textDecoration:'none' }}>Impresszum</a>
             <a href="/adatkezeles" target="_blank" rel="noopener noreferrer" style={{ fontSize:'0.75rem', color:'#475569', textDecoration:'none' }}>Adatkezelés</a>
             <a href="/aszf"        target="_blank" rel="noopener noreferrer" style={{ fontSize:'0.75rem', color:'#475569', textDecoration:'none' }}>ÁSZF</a>

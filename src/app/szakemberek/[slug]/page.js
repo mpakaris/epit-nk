@@ -916,7 +916,16 @@ export default function SzakemberPage() {
             const raw = localStorage.getItem('epitek_demo_website_builder');
             if (raw) {
               const saved = JSON.parse(raw);
-              if (saved.sections) apiData.sections = saved.sections;
+              if (saved.sections) {
+                // Merge: keep API photo_url if localStorage section doesn't have one
+                apiData.sections = saved.sections.map(lsSection => {
+                  const apiSection = apiData.sections?.find(s => s.section_type === lsSection.section_type);
+                  if (apiSection?.content?.photo_url && !lsSection.content?.photo_url) {
+                    return { ...lsSection, content: { ...lsSection.content, photo_url: apiSection.content.photo_url } };
+                  }
+                  return lsSection;
+                });
+              }
               if (saved.theme) apiData.website = { ...apiData.website, theme: saved.theme };
             }
           } catch {}

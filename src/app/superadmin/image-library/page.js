@@ -20,6 +20,11 @@ export default function SuperadminImageLibraryPage() {
   const [successMsg, setSuccessMsg] = useState('');
   const fileRef = useRef(null);
 
+  // About Me photo
+  const [aboutPhotoUrl, setAboutPhotoUrl] = useState('');
+  const [aboutUploading, setAboutUploading] = useState(false);
+  const aboutFileRef = useRef(null);
+
   const fetchImages = useCallback(async () => {
     setLoading(true);
     try {
@@ -40,8 +45,30 @@ export default function SuperadminImageLibraryPage() {
     if (!appLoading && isSuperAdmin) {
       fetchImages();
       fetch('/api/trades').then(r => r.json()).then(d => setTrades(d.trades || []));
+      fetch('/api/superadmin/about-photo').then(r => r.json()).then(d => { if (d.url) setAboutPhotoUrl(d.url); });
     }
   }, [appLoading, isSuperAdmin, fetchImages]);
+
+  const handleAboutUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setAboutUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const res = await fetch('/api/superadmin/about-photo', { method: 'POST', body: fd });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setAboutPhotoUrl(data.url + '?t=' + Date.now());
+      setSuccessMsg('About Me kép frissítve.');
+      setTimeout(() => setSuccessMsg(''), 3000);
+    } catch (err) {
+      setAlertModal({ message: err.message });
+    } finally {
+      setAboutUploading(false);
+      if (aboutFileRef.current) aboutFileRef.current.value = '';
+    }
+  };
 
   const handleUpload = async (e) => {
     const files = Array.from(e.target.files || []);
@@ -148,6 +175,37 @@ export default function SuperadminImageLibraryPage() {
           </div>
         </div>
       )}
+
+      {/* ── About Me Photo ── */}
+      <div className="card" style={{ marginBottom: '1.5rem', padding: '1.1rem 1.25rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
+          <div>
+            <div style={{ fontWeight: 800, fontSize: '0.9rem', color: 'var(--text-primary)', marginBottom: '0.2rem' }}>About Me – portréfotó</div>
+            <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+              Feltöltés után WebP-vé alakul és a <code style={{ background: 'var(--bg-subtle)', padding: '0.05rem 0.3rem', borderRadius: 4 }}>/about</code> oldalon jelenik meg.
+            </div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            {aboutPhotoUrl && (
+              <img src={aboutPhotoUrl} alt="About Me" style={{ width: 56, height: 56, borderRadius: 8, objectFit: 'cover', border: '1px solid var(--border-subtle)' }} />
+            )}
+            <input ref={aboutFileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleAboutUpload} />
+            <button type="button" className="btn btn-secondary btn-sm" onClick={() => aboutFileRef.current?.click()} disabled={aboutUploading}>
+              {aboutUploading ? <><Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> Feltöltés…</> : <><Upload size={14} /> Kép csere</>}
+            </button>
+            {aboutPhotoUrl && (
+              <button type="button" className="btn btn-sm" onClick={() => navigator.clipboard.writeText(aboutPhotoUrl.split('?')[0]).then(() => { setSuccessMsg('URL másolva!'); setTimeout(() => setSuccessMsg(''), 2000); })} title="URL másolása">
+                URL másolása
+              </button>
+            )}
+          </div>
+        </div>
+        {aboutPhotoUrl && (
+          <div style={{ marginTop: '0.65rem', fontSize: '0.72rem', color: 'var(--text-muted)', background: 'var(--bg-subtle)', borderRadius: 6, padding: '0.35rem 0.6rem', wordBreak: 'break-all', fontFamily: 'monospace' }}>
+            {aboutPhotoUrl.split('?')[0]}
+          </div>
+        )}
+      </div>
 
       {/* Trade filter */}
       <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
