@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { Loader2, LogOut, CheckCircle2, XCircle, ChevronDown, ChevronUp, ArrowLeft } from 'lucide-react';
@@ -502,7 +502,7 @@ function ContractorSection({ contractor, onRespond }) {
 }
 
 // ── main page ─────────────────────────────────────────────────────────────────
-export default function PortalDashboardPage() {
+function PortalDashboard() {
   const router                        = useRouter();
   const searchParams                  = useSearchParams();
   const asEmail                       = searchParams.get('as'); // SA impersonation
@@ -666,5 +666,13 @@ export default function PortalDashboardPage() {
         @media (min-width: 480px) { .portal-email { display: block !important; } }
       `}</style>
     </div>
+  );
+}
+
+export default function PortalDashboardPage() {
+  return (
+    <Suspense>
+      <PortalDashboard />
+    </Suspense>
   );
 }
