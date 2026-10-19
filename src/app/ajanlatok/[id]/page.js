@@ -702,18 +702,23 @@ export default function QuoteDetailPage() {
   const [convertMembers, setConvertMembers]     = useState([]);
   const [isConverting, setIsConverting]         = useState(false);
 
-  const [showSendConfirm, setShowSendConfirm] = useState(false);
-  const [attachTerms, setAttachTerms] = useState(true);
-  const [termsPdfName, setTermsPdfName] = useState(null);
+  const [showSendConfirm, setShowSendConfirm]       = useState(false);
+  const [attachTerms, setAttachTerms]               = useState(true);
+  const [termsPdfName, setTermsPdfName]             = useState(null);
+  const [profileIncomplete, setProfileIncomplete]   = useState(false);
 
   const openSendConfirm = async () => {
     if (!client?.email) { setAlertModal({ message: 'Az ügyfélnek nincs megadva email cím.' }); return; }
     try {
-      const res = await fetch('/api/auth/profile');
+      const res  = await fetch('/api/auth/profile');
       const data = await res.json();
-      setTermsPdfName(data.profile?.terms_pdf_name || null);
-      setAttachTerms(!!data.profile?.terms_pdf_url);
-    } catch { setTermsPdfName(null); setAttachTerms(false); }
+      const p    = data.profile || {};
+      setTermsPdfName(p.terms_pdf_name || null);
+      setAttachTerms(!!p.terms_pdf_url);
+      // Warn if key contractor fields are missing (used on the PDF)
+      const missing = !((p.company_name || p.display_name) && p.city && p.tax_number);
+      setProfileIncomplete(missing);
+    } catch { setTermsPdfName(null); setAttachTerms(false); setProfileIncomplete(false); }
     setShowSendConfirm(true);
   };
   const [sendProgress, setSendProgress] = useState(null); // null | { step, done, error }
@@ -1471,6 +1476,21 @@ export default function QuoteDetailPage() {
       {/* Email send confirmation */}
       {showSendConfirm && (
         <Modal isOpen={true} onClose={() => setShowSendConfirm(false)} title="Ajánlat kiküldése emailben">
+
+          {profileIncomplete && (
+            <div style={{ background: 'var(--warning-bg)', border: '1px solid var(--warning-border)', borderRadius: 'var(--radius-md)', padding: '0.75rem 1rem', marginBottom: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700, fontSize: '0.875rem', color: 'var(--warning-text)' }}>
+                <AlertCircle size={15} /> Hiányos vállalkozói adatok
+              </div>
+              <p style={{ margin: 0, fontSize: '0.825rem', color: 'var(--warning-text)', lineHeight: 1.55 }}>
+                A profilodban hiányoznak az ajánlaton megjelenő adatok (cégnév, város, adószám). Az ügyfél hiányos fejléccel kapja meg az ajánlatot.
+              </p>
+              <Link href={`${navPrefix}/profil`} className="btn btn-secondary btn-sm" style={{ alignSelf: 'flex-start', marginTop: '0.15rem', fontSize: '0.8rem' }}>
+                Profil kitöltése →
+              </Link>
+            </div>
+          )}
+
           <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', lineHeight: 1.6, margin: '0 0 1.25rem' }}>
             Biztosan elküldi az ajánlatot{' '}
             <strong style={{ color: 'var(--text-primary)' }}>{client?.name}</strong>{' '}
