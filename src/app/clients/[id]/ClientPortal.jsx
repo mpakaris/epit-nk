@@ -91,14 +91,27 @@ function PhotoGrid({ photos }) {
   );
 }
 
+const TYPE_BADGE = {
+  material:  { bg: '#eff6ff', color: '#1d4ed8' },
+  labour:    { bg: '#f0fdf4', color: '#15803d' },
+  equipment: { bg: '#fffbeb', color: '#b45309' },
+  transport: { bg: '#faf5ff', color: '#7e22ce' },
+  other:     { bg: '#f1f5f9', color: '#475569' },
+};
+
 // ── single entry row ──────────────────────────────────────────────────────────
 function EntryRow({ entry, isLast }) {
+  const tb = TYPE_BADGE[entry.entry_type] || TYPE_BADGE.other;
   return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.75rem', padding: '0.45rem 0', borderBottom: isLast ? 'none' : '1px solid #f1f5f9' }}>
+    <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.75rem', padding: '0.5rem 0', borderBottom: isLast ? 'none' : '1px solid #f1f5f9' }}>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: '0.875rem', fontWeight: 600, color: '#0f172a' }}>{entry.work_description}</div>
-        <div style={{ fontSize: '0.73rem', color: '#94a3b8', marginTop: '0.1rem' }}>
-          <span style={{ marginRight: '0.35rem', color: '#64748b' }}>{TYPE_LABELS[entry.entry_type] || entry.entry_type}</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap', marginBottom: '0.15rem' }}>
+          <span style={{ fontSize: '0.65rem', fontWeight: 700, padding: '0.1rem 0.45rem', borderRadius: 99, background: tb.bg, color: tb.color, whiteSpace: 'nowrap' }}>
+            {TYPE_LABELS[entry.entry_type] || entry.entry_type}
+          </span>
+          <span style={{ fontSize: '0.875rem', fontWeight: 600, color: '#0f172a' }}>{entry.work_description}</span>
+        </div>
+        <div style={{ fontSize: '0.73rem', color: '#94a3b8' }}>
           {entry.quantity != null && entry.unit ? `${entry.quantity} ${entry.unit}` : ''}
           {entry.unit_price ? ` × ${Number(entry.unit_price).toLocaleString('hu-HU')} Ft` : ''}
           {entry.notes ? <span style={{ fontStyle: 'italic', marginLeft: '0.35rem' }}>{entry.notes}</span> : null}
