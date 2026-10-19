@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useLayoutEffect } from 'react';
 import {
   TrendingUp, TrendingDown, CheckCircle2, Plus,
   FolderKanban, FileText, BookUser, Globe, Users,
@@ -142,11 +142,11 @@ const DEFAULT_SCALE = 0.72;
 export default function ProjectsListPreview() {
   const [scale, setScale] = useState(DEFAULT_SCALE);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const update = () => {
-      const available = window.innerWidth - 40; // 2 × 1.25rem padding
+      const available = window.innerWidth - 40;
       setScale(available < INNER_W * DEFAULT_SCALE
-        ? Math.max(0.3, available / INNER_W)
+        ? Math.max(0.35, available / INNER_W)
         : DEFAULT_SCALE);
     };
     update();

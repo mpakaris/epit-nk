@@ -1,14 +1,14 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useLayoutEffect } from 'react';
 
 function usePreviewScale(innerWidth, defaultScale) {
   const [scale, setScale] = useState(defaultScale);
-  useEffect(() => {
+  useLayoutEffect(() => {
     const update = () => {
-      const available = window.innerWidth - 40; // 2 × 1.25rem padding
+      const available = window.innerWidth - 40;
       setScale(available < innerWidth * defaultScale
-        ? Math.max(0.3, available / innerWidth)
+        ? Math.max(0.35, available / innerWidth)
         : defaultScale);
     };
     update();
@@ -625,8 +625,8 @@ export default function FeatureShowcase({ onRegister }) {
         }
         @media (max-width: 639px) {
           .feature-section       { padding: 2.5rem 0 !important; }
-          .feature-showcase-row  { padding: 2rem 0 !important; gap: 0 !important; }
-          .feature-preview-col   { display: none !important; }
+          .feature-showcase-row  { padding: 2rem 0 !important; gap: 1.5rem !important; }
+          .feature-preview-col   { display: flex !important; justify-content: flex-start !important; }
           .feature-row-btns a,
           .feature-row-btns button { width: 100% !important; justify-content: center; box-sizing: border-box; }
           .feature-row-btns       { flex-direction: column !important; }
