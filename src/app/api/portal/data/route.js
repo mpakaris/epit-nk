@@ -1,13 +1,22 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 
-export async function GET() {
+export async function GET(request) {
   const supabase = await createClient();
   const { data: { user }, error: authErr } = await supabase.auth.getUser();
   if (authErr || !user) return Response.json({ error: 'Unauthenticated' }, { status: 401 });
 
   const admin = createAdminClient();
-  const email = user.email.toLowerCase();
+
+  // Superadmin can query any email via ?email=X
+  const { searchParams } = new URL(request.url);
+  const asEmail = searchParams.get('email');
+  if (asEmail) {
+    const { data: profile } = await admin.from('profiles').select('role').eq('id', user.id).single();
+    if (profile?.role !== 'superadmin') return Response.json({ error: 'Forbidden' }, { status: 403 });
+  }
+
+  const email = (asEmail || user.email).toLowerCase();
 
   // All client records with this email across all contractors
   const { data: clientRecords } = await admin

@@ -165,6 +165,7 @@ export default function SuperAdminPage() {
         <StatCard label="Websites"        value="→"              sub="Partner pages"          icon={Globe}       href="/superadmin/websites" />
         <StatCard label="Subscriptions"  value="→"              sub="Premium management"     icon={CreditCard}  href="/superadmin/subscriptions" />
         <StatCard label="Képkönyvtár"    value="→"              sub="Hero & library images"  icon={Image}       href="/superadmin/image-library" />
+        <StatCard label="Ügyfél portálok" value="→"             sub="Minden ügyfél portálja" icon={Users}       href="/superadmin/portals" />
       </div>
 
       {/* Entity list */}
