@@ -313,7 +313,12 @@ export default function HomePage() {
             </div>
             <span style={{ fontWeight:800, fontSize:'0.9rem', color:'#fff' }}>Epitek</span>
           </div>
-          <p style={{ fontSize:'0.75rem', color:'#334155', margin:0 }}>© {new Date().getFullYear()} Epitek · Minden jog fenntartva</p>
+          <div style={{ display:'flex', alignItems:'center', gap:'1.25rem', flexWrap:'wrap' }}>
+            <a href="/impressum"   target="_blank" rel="noopener noreferrer" style={{ fontSize:'0.75rem', color:'#475569', textDecoration:'none' }}>Impresszum</a>
+            <a href="/adatkezeles" target="_blank" rel="noopener noreferrer" style={{ fontSize:'0.75rem', color:'#475569', textDecoration:'none' }}>Adatkezelés</a>
+            <a href="/aszf"        target="_blank" rel="noopener noreferrer" style={{ fontSize:'0.75rem', color:'#475569', textDecoration:'none' }}>ÁSZF</a>
+            <p style={{ fontSize:'0.75rem', color:'#334155', margin:0 }}>© {new Date().getFullYear()} MPPM Consulting Kft.</p>
+          </div>
         </footer>
 
         {/* Responsive helpers */}
