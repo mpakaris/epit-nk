@@ -176,10 +176,19 @@ export default function SurveyListPage() {
                     )}
                   </div>
 
-                  {/* Creator */}
-                  {creator && creator.id !== currentUser?.id && (
-                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                      <User size={11} /> {creator.display_name}
+                  {/* Creator pill — always in collective, only others in personal */}
+                  {creator && (activeCollectiveId || creator.id !== currentUser?.id) && (
+                    <div>
+                      <span style={{
+                        display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
+                        fontSize: '0.72rem', fontWeight: 700,
+                        padding: '0.18rem 0.55rem', borderRadius: 'var(--radius-pill)',
+                        background: creator.id === currentUser?.id ? 'var(--primary-bg, #eff6ff)' : 'var(--bg-subtle)',
+                        color: creator.id === currentUser?.id ? 'var(--primary)' : 'var(--text-secondary)',
+                        border: `1px solid ${creator.id === currentUser?.id ? 'var(--primary)33' : 'var(--border-subtle)'}`,
+                      }}>
+                        <User size={10} /> {creator.display_name}
+                      </span>
                     </div>
                   )}
 

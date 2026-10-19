@@ -197,28 +197,41 @@ export function AppProvider({ children }) {
 
     try {
       if (user.role === 'superadmin') {
-        const res = await fetch('/api/superadmin/data');
-        if (res.ok) {
-          const d = await res.json();
-          setEntities(d.entities);
-          setUsers(d.users);
-          setProjects(d.projects);
-          setInvoices(d.invoices);
-          setLabourEntries(d.labourEntries);
-          setClients(d.clients);
-          setQuotes(d.quotes);
-          setQuoteEntries(d.quoteEntries);
-          setQuoteSections(d.quoteSections || []);
-          setAllMemberships(d.allMemberships || []);
-          setDataReady(true);
-        }
-        // Only replace SA's global data with entity-scoped data when actively impersonating.
-        // Check sessionStorage (kept in sync with impersonating state) to avoid stale cookies.
+        // Check impersonation state BEFORE fetching so we know whether to hold dataReady.
         const isActivelyImpersonating = typeof sessionStorage !== 'undefined'
           && !!sessionStorage.getItem('god_mode');
         const godModeUser = typeof document !== 'undefined'
           ? document.cookie.match(/god_mode_user=([a-f0-9-]+)/)?.[1]
           : null;
+
+        const res = await fetch('/api/superadmin/data');
+        if (res.ok) {
+          const d = await res.json();
+          setEntities(d.entities);
+          setAllMemberships(d.allMemberships || []);
+          if (!isActivelyImpersonating) {
+            // Not impersonating — use SA global data directly and mark ready.
+            setUsers(d.users);
+            setProjects(d.projects);
+            setInvoices(d.invoices);
+            setLabourEntries(d.labourEntries);
+            setClients(d.clients);
+            setQuotes(d.quotes);
+            setQuoteEntries(d.quoteEntries);
+            setQuoteSections(d.quoteSections || []);
+            setSurveys([]);
+            setProjectRooms([]);
+            // Clear any stale god mode cookies
+            if (typeof document !== 'undefined' && godModeUser) {
+              document.cookie = 'god_mode_user=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
+              document.cookie = 'god_mode_entity=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
+            }
+            setDataReady(true);
+          }
+          // When impersonating, do NOT set dataReady yet — wait for entity-scoped fetch below
+          // so pages never briefly flash the full SA dataset.
+        }
+
         if (godModeUser && isActivelyImpersonating) {
           const entityRes = await fetch('/api/entity/data', { cache: 'no-store' });
           if (entityRes.ok) {
@@ -235,14 +248,6 @@ export function AppProvider({ children }) {
             setProjectRooms(d.projectRooms || []);
             setDataReady(true);
           }
-        } else {
-          // Clear any stale god mode cookies
-          if (typeof document !== 'undefined' && godModeUser) {
-            document.cookie = 'god_mode_user=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
-            document.cookie = 'god_mode_entity=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
-          }
-          setSurveys([]);
-          setProjectRooms([]);
         }
         return;
       }
@@ -399,35 +404,56 @@ export function AppProvider({ children }) {
       const data = await res.json();
       profile = data.profile;
     }
-    // entityIdOverride lets the SA jump into a specific context (e.g. personal entity)
     const activeCollectiveId = entityIdOverride ?? profile?.active_collective_id ?? null;
     const impersonatingProfile = entityIdOverride
       ? { ...profile, active_collective_id: entityIdOverride }
       : profile;
+
+    // Clear stale SA data immediately so pages don't briefly flash all-SA content
+    setDataReady(false);
+    setProjects([]); setClients([]); setQuotes([]); setInvoices([]);
+    setLabourEntries([]); setSurveys([]); setProjectRooms([]);
+    setQuoteEntries([]); setQuoteSections([]);
+
     setImpersonating(impersonatingProfile);
-    // Always set god_mode_user so entity/data knows whose personal data to show
     document.cookie = `god_mode_user=${userId}; path=/; SameSite=Lax`;
     if (activeCollectiveId) {
       document.cookie = `god_mode_entity=${activeCollectiveId}; path=/; SameSite=Lax`;
     } else {
       document.cookie = 'god_mode_entity=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
     }
-    // Always fetch entity-scoped data (personal or collective)
-    fetch('/api/entity/data', { cache: 'no-store' }).then(r => r.ok ? r.json() : null).then(d => {
-      if (!d) return;
-      setSurveys(d.surveys || []);
-      setProjectRooms(d.projectRooms || []);
-    }).catch(() => {});
+
+    // Full entity-scoped fetch so context has the right data before any page renders it
+    try {
+      const res = await fetch('/api/entity/data', { cache: 'no-store' });
+      if (res.ok) {
+        const d = await res.json();
+        setUsers(d.users || []);
+        setProjects(d.projects || []);
+        setClients(d.clients || []);
+        setQuotes(d.quotes || []);
+        setQuoteEntries(d.quoteEntries || []);
+        setQuoteSections(d.quoteSections || []);
+        setInvoices(d.invoices || []);
+        setLabourEntries(d.labourEntries || []);
+        setSurveys(d.surveys || []);
+        setProjectRooms(d.projectRooms || []);
+      }
+    } catch { /* non-fatal */ }
+
+    setDataReady(true);
     if (profile?.role === 'admin') router.push('/admin');
     else router.push('/dashboard');
   };
 
-  const stopImpersonation = () => {
+  const stopImpersonation = async () => {
     setImpersonating(null);
     document.cookie = 'god_mode_entity=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
     document.cookie = 'god_mode_user=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
-    setSurveys([]);
-    setProjectRooms([]);
+    // Clear sessionStorage NOW so refreshSupabaseData doesn't think we're still impersonating
+    try { sessionStorage.removeItem('god_mode'); } catch {}
+    // Reload SA global data so the superadmin page has fresh data and dataReady = true
+    await refreshSupabaseData(currentUser);
     router.push('/superadmin');
   };
 
@@ -448,15 +474,18 @@ export function AppProvider({ children }) {
     await refreshSupabaseData();
   };
 
-  const switchImpersonatingContext = (collectiveId) => {
+  const switchImpersonatingContext = async (collectiveId) => {
     setImpersonating(prev => prev ? { ...prev, active_collective_id: collectiveId } : prev);
     if (collectiveId) {
       document.cookie = `god_mode_entity=${collectiveId}; path=/; SameSite=Lax`;
     } else {
       document.cookie = 'god_mode_entity=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
     }
-    fetch('/api/entity/data', { cache: 'no-store' }).then(r => r.ok ? r.json() : null).then(d => {
-      if (!d) return;
+    setDataReady(false);
+    try {
+      const res = await fetch('/api/entity/data', { cache: 'no-store' });
+      if (!res.ok) return;
+      const d = await res.json();
       setUsers(d.users || []);
       setProjects(d.projects || []);
       setInvoices(d.invoices || []);
@@ -467,7 +496,8 @@ export function AppProvider({ children }) {
       setQuoteSections(d.quoteSections || []);
       setSurveys(d.surveys || []);
       setProjectRooms(d.projectRooms || []);
-    }).catch(() => {});
+    } catch { /* non-fatal */ }
+    setDataReady(true);
   };
 
   // ---- Entities (superadmin only) --------------------------------------------

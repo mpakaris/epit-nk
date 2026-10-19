@@ -176,7 +176,7 @@ export default function ProjectsListClient({
   const renderCard = (project, showCreator = false) => {
     const memberUsers = users.filter(u => (project.members || []).includes(u.id));
     const fin = calculateProjectFinancials(project, invoices, labourEntries, memberUsers, currentUser?.id);
-    const creator = showCreator ? users.find(u => u.id === project.created_by) : null;
+    const creator = (showCreator || !!activeCollectiveId) ? users.find(u => u.id === project.created_by) : null;
 
     const previews = project._preview_urls || [];
 
@@ -227,14 +227,9 @@ export default function ProjectsListClient({
               </div>
             </div>
           </div>
-          {/* Collective audit row */}
+          {/* Collective audit row — dates only; creator is in header pill above */}
           {activeCollectiveId && (
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.6rem', fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-              {creator && (
-                <span style={{ display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
-                  <User size={11} /> {creator.display_name}
-                </span>
-              )}
               <span style={{ display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
                 <Clock size={11} /> {formatDate(project.created_at)}
               </span>

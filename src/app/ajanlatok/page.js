@@ -155,8 +155,11 @@ export default function QuotesListPage() {
                           <span>{q.start_date ? formatDate(q.start_date) : '?'} – {q.end_date ? formatDate(q.end_date) : '?'}</span>
                         </div>
                       )}
-                      {creator && creator.id !== currentUser?.id && (
-                        <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>{creator.display_name}</div>
+                      {/* In personal context show other members' names inline */}
+                      {!activeCollectiveId && creator && creator.id !== currentUser?.id && (
+                        <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.2rem', display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
+                          <User size={11} /> {creator.display_name}
+                        </div>
                       )}
                     </div>
                     {canDelete && (
@@ -166,20 +169,27 @@ export default function QuotesListPage() {
                     )}
                   </div>
 
-                  {/* Collective audit row */}
+                  {/* Collective audit row — creator pill + dates */}
                   {activeCollectiveId && (
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.6rem', fontSize: '0.7rem', color: 'var(--text-muted)', paddingTop: '0.4rem' }}>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', alignItems: 'center', paddingTop: '0.5rem', borderTop: '1px solid var(--border-subtle)' }}>
                       {creator && (
-                        <span style={{ display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
-                          <User size={11} /> {creator.display_name}
+                        <span style={{
+                          display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
+                          fontSize: '0.72rem', fontWeight: 700,
+                          padding: '0.18rem 0.55rem', borderRadius: 'var(--radius-pill)',
+                          background: creator.id === currentUser?.id ? 'var(--primary-bg, #eff6ff)' : 'var(--bg-subtle)',
+                          color: creator.id === currentUser?.id ? 'var(--primary)' : 'var(--text-secondary)',
+                          border: `1px solid ${creator.id === currentUser?.id ? 'var(--primary)33' : 'var(--border-subtle)'}`,
+                        }}>
+                          <User size={10} /> {creator.display_name}
                         </span>
                       )}
-                      <span style={{ display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
-                        <Clock size={11} /> {formatDate(q.created_at)}
+                      <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
+                        <Clock size={10} /> {formatDate(q.created_at)}
                       </span>
                       {q.updated_at && (
-                        <span style={{ display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
-                          <PencilLine size={11} /> {q.updated_by_name ? `${q.updated_by_name} · ` : ''}{formatDate(q.updated_at)}
+                        <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
+                          <PencilLine size={10} /> {q.updated_by_name ? `${q.updated_by_name} · ` : ''}{formatDate(q.updated_at)}
                         </span>
                       )}
                     </div>
