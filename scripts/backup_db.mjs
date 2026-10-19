@@ -1,10 +1,16 @@
+// Usage: node --env-file=.env.local scripts/backup_db.mjs
 import { createClient } from '@supabase/supabase-js';
 import { writeFileSync } from 'fs';
 
-const supabase = createClient(
-  'process.env.NEXT_PUBLIC_SUPABASE_URL',
-  'process.env.SUPABASE_SERVICE_ROLE_KEY'
-);
+const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+if (!url || !key) {
+  console.error('Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY — run with: node --env-file=.env.local scripts/backup_db.mjs');
+  process.exit(1);
+}
+
+const supabase = createClient(url, key);
 
 const TABLES = [
   'profiles', 'entities', 'memberships',
@@ -26,6 +32,6 @@ for (const table of TABLES) {
   }
 }
 
-const filename = `backup_before_refactor_${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
+const filename = `backup_${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
 writeFileSync(`/Users/niko/Desktop/CODING/Epitek/${filename}`, JSON.stringify(backup, null, 2));
 console.log(`\nBackup saved to ${filename}`);
