@@ -1,6 +1,22 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+
+function usePreviewScale(innerWidth, defaultScale) {
+  const [scale, setScale] = useState(defaultScale);
+  useEffect(() => {
+    const update = () => {
+      const available = window.innerWidth - 40; // 2 × 1.25rem padding
+      setScale(available < innerWidth * defaultScale
+        ? Math.max(0.3, available / innerWidth)
+        : defaultScale);
+    };
+    update();
+    window.addEventListener('resize', update);
+    return () => window.removeEventListener('resize', update);
+  }, [innerWidth, defaultScale]);
+  return scale;
+}
 import {
   Check, ArrowRight, Users, User,
   Ruler, Camera, Home, Plus, FileText,
@@ -78,12 +94,13 @@ function CollectiveHeads({ show }) {
 }
 
 // ─── Reusable browser frame wrapper ─────────────────────────────────────────
-const INNER_W = 600;
-const SCALE   = 0.72;
+const INNER_W        = 600;
+const DEFAULT_SCALE  = 0.72;
 
 function BrowserFrame({ url, children, innerHeight = 520 }) {
-  const outerW = Math.round(INNER_W * SCALE);
-  const outerH = Math.round(innerHeight * SCALE);
+  const scale  = usePreviewScale(INNER_W, DEFAULT_SCALE);
+  const outerW = Math.round(INNER_W * scale);
+  const outerH = Math.round(innerHeight * scale);
 
   return (
     <div style={{
@@ -92,7 +109,7 @@ function BrowserFrame({ url, children, innerHeight = 520 }) {
       boxShadow: '0 20px 56px rgba(15,23,42,0.18), 0 4px 12px rgba(15,23,42,0.08)',
       border: `1px solid ${T.border}`,
     }}>
-      <div style={{ width: INNER_W, height: innerHeight, transform: `scale(${SCALE})`, transformOrigin: 'top left' }}>
+      <div style={{ width: INNER_W, height: innerHeight, transform: `scale(${scale})`, transformOrigin: 'top left' }}>
 
         {/* Chrome */}
         <div style={{ background: T.navy, height: 38, display: 'flex', alignItems: 'center', padding: '0 14px', gap: 12 }}>
@@ -262,20 +279,23 @@ function OfferPreview() {
 
 // ─── Website preview (phone frame) ───────────────────────────────────────────
 function WebsitePreview() {
-  const PHONE_W = 280;
-  const PHONE_H = 520;
+  const PHONE_W     = 280;
+  const PHONE_H     = 520;
+  const phoneScale  = usePreviewScale(PHONE_W, 1);
   const services = ['Kőművesmunka', 'Burkolás', 'Gipszkarton', 'Festés', 'Vízszerelés', 'Tetőfedés'];
 
   return (
     <div style={{
-      width: PHONE_W, height: PHONE_H, flexShrink: 0,
+      width: Math.round(PHONE_W * phoneScale),
+      height: Math.round(PHONE_H * phoneScale),
+      flexShrink: 0,
       borderRadius: 28, overflow: 'hidden',
       background: '#fff',
       boxShadow: '0 20px 56px rgba(15,23,42,0.18), 0 4px 12px rgba(15,23,42,0.08)',
       border: `6px solid ${T.navy}`,
       fontFamily: T.font,
-      display: 'flex', flexDirection: 'column',
     }}>
+      <div style={{ width: PHONE_W, height: PHONE_H, transform: `scale(${phoneScale})`, transformOrigin: 'top left', display: 'flex', flexDirection: 'column' }}>
       {/* Status bar */}
       <div style={{ background: T.navy, height: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
         <div style={{ width: 60, height: 8, borderRadius: 4, background: 'rgba(255,255,255,0.12)' }} />
@@ -334,6 +354,7 @@ function WebsitePreview() {
           </div>
         </div>
       </div>
+      </div>{/* end scale wrapper */}
     </div>
   );
 }

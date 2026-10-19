@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   TrendingUp, TrendingDown, CheckCircle2, Plus,
   FolderKanban, FileText, BookUser, Globe, Users,
@@ -135,22 +135,36 @@ function ProjectCard({ project }) {
 // ─── Outer wrapper: clips the scaled-down 600px inner frame ─────────────────
 // Inner frame: 600px wide, ~640px tall
 // Scale: 0.72  →  visible size ≈ 432px × 460px
-const INNER_W = 600;
-const INNER_H = 640;
-const SCALE   = 0.72;
+const INNER_W       = 600;
+const INNER_H       = 640;
+const DEFAULT_SCALE = 0.72;
 
 export default function ProjectsListPreview() {
+  const [scale, setScale] = useState(DEFAULT_SCALE);
+
+  useEffect(() => {
+    const update = () => {
+      const available = window.innerWidth - 40; // 2 × 1.25rem padding
+      setScale(available < INNER_W * DEFAULT_SCALE
+        ? Math.max(0.3, available / INNER_W)
+        : DEFAULT_SCALE);
+    };
+    update();
+    window.addEventListener('resize', update);
+    return () => window.removeEventListener('resize', update);
+  }, []);
+
   return (
     <div style={{
-      width:  INNER_W * SCALE,
-      height: INNER_H * SCALE,
+      width:  Math.round(INNER_W * scale),
+      height: Math.round(INNER_H * scale),
       overflow: 'hidden',
       borderRadius: 14,
       boxShadow: '0 24px 64px rgba(15,23,42,0.22), 0 4px 16px rgba(15,23,42,0.1)',
       border: `1px solid ${T.border}`,
       flexShrink: 0,
     }}>
-      <div style={{ width: INNER_W, height: INNER_H, transform: `scale(${SCALE})`, transformOrigin: 'top left' }}>
+      <div style={{ width: INNER_W, height: INNER_H, transform: `scale(${scale})`, transformOrigin: 'top left' }}>
 
         {/* ── Browser chrome ── */}
         <div style={{ background:T.navy, height:38, display:'flex', alignItems:'center', justifyContent:'space-between', padding:'0 14px', gap:'0.75rem' }}>
