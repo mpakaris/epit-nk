@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
 import AuthModal from '@/components/AuthModal';
@@ -26,6 +26,9 @@ export default function HomePage() {
   const { currentUser, loading } = useApp();
   const [show, setShow] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
+  const authViewRef = useRef('login');
+  const openLogin    = () => { authViewRef.current = 'login';    setAuthOpen(true); };
+  const openRegister = () => { authViewRef.current = 'register'; setAuthOpen(true); };
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [openFaq, setOpenFaq] = useState(null);
   const [heroImageUrl, setHeroImageUrl] = useState(null);
@@ -110,10 +113,10 @@ export default function HomePage() {
 
             {/* Desktop Actions */}
             <div style={{ display:'flex', alignItems:'center', gap:'0.75rem' }} className="hidden-mobile">
-              <button onClick={() => setAuthOpen(true)} style={{ background:'none', border:'none', cursor:'pointer', fontFamily:'inherit', fontWeight:700, fontSize:'0.875rem', color:navy700, padding:'0.4rem 0.75rem' }}>
+              <button onClick={openLogin} style={{ background:'none', border:'none', cursor:'pointer', fontFamily:'inherit', fontWeight:700, fontSize:'0.875rem', color:navy700, padding:'0.4rem 0.75rem' }}>
                 Bejelentkezés
               </button>
-              <button onClick={() => setAuthOpen(true)} style={{ display:'flex', alignItems:'center', gap:'0.4rem', padding:'0.55rem 1.1rem', background:accent, color:'#fff', fontWeight:700, fontSize:'0.875rem', borderRadius:10, border:'none', cursor:'pointer', fontFamily:'inherit' }}>
+              <button onClick={openRegister} style={{ display:'flex', alignItems:'center', gap:'0.4rem', padding:'0.55rem 1.1rem', background:accent, color:'#fff', fontWeight:700, fontSize:'0.875rem', borderRadius:10, border:'none', cursor:'pointer', fontFamily:'inherit' }}>
                 Ingyenes regisztráció <ArrowRight size={14} />
               </button>
             </div>
@@ -131,8 +134,8 @@ export default function HomePage() {
               <a href="#pricing"  className="nav-link" onClick={() => setMobileMenuOpen(false)}>Árazás</a>
               <a href="#faq"      className="nav-link" onClick={() => setMobileMenuOpen(false)}>GYIK</a>
               <div style={{ borderTop:`1px solid ${slate200}`, paddingTop:'0.75rem', display:'flex', flexDirection:'column', gap:'0.5rem' }}>
-                <button onClick={() => { setAuthOpen(true); setMobileMenuOpen(false); }} style={{ padding:'0.65rem', borderRadius:10, background:slate100, border:'none', cursor:'pointer', fontFamily:'inherit', fontWeight:700, color:navy900 }}>Bejelentkezés</button>
-                <button onClick={() => { setAuthOpen(true); setMobileMenuOpen(false); }} style={{ padding:'0.65rem', borderRadius:10, background:accent, border:'none', cursor:'pointer', fontFamily:'inherit', fontWeight:700, color:'#fff' }}>Ingyenes regisztráció</button>
+                <button onClick={() => { openLogin();    setMobileMenuOpen(false); }} style={{ padding:'0.65rem', borderRadius:10, background:slate100, border:'none', cursor:'pointer', fontFamily:'inherit', fontWeight:700, color:navy900 }}>Bejelentkezés</button>
+                <button onClick={() => { openRegister(); setMobileMenuOpen(false); }} style={{ padding:'0.65rem', borderRadius:10, background:accent, border:'none', cursor:'pointer', fontFamily:'inherit', fontWeight:700, color:'#fff' }}>Ingyenes regisztráció</button>
               </div>
             </div>
           )}
@@ -166,7 +169,7 @@ export default function HomePage() {
 
                 {/* CTAs */}
                 <div className="lp-cta-row" style={{ display:'flex', flexWrap:'wrap', gap:'0.75rem', marginTop:'0.25rem' }}>
-                  <button onClick={() => setAuthOpen(true)} style={{ display:'flex', alignItems:'center', gap:'0.5rem', padding:'0.85rem 1.6rem', background:accent, color:'#fff', fontWeight:800, fontSize:'0.95rem', borderRadius:12, border:'none', cursor:'pointer', fontFamily:'inherit', boxShadow:`0 4px 14px ${accent}44` }}>
+                  <button onClick={openRegister} style={{ display:'flex', alignItems:'center', gap:'0.5rem', padding:'0.85rem 1.6rem', background:accent, color:'#fff', fontWeight:800, fontSize:'0.95rem', borderRadius:12, border:'none', cursor:'pointer', fontFamily:'inherit', boxShadow:`0 4px 14px ${accent}44` }}>
                     Kezdj el ingyen <ArrowRight size={16} />
                   </button>
                   <a href="/demo" target="_blank" rel="noopener noreferrer" style={{ display:'flex', alignItems:'center', gap:'0.5rem', padding:'0.85rem 1.6rem', background:slate100, color:navy800, fontWeight:700, fontSize:'0.95rem', borderRadius:12, textDecoration:'none' }}>
@@ -195,7 +198,7 @@ export default function HomePage() {
         </section>
 
         {/* ── FEATURE SHOWCASE ── */}
-        <FeatureShowcase onRegister={() => setAuthOpen(true)} />
+        <FeatureShowcase onRegister={openRegister} />
 
         {/* ── PRICING ── */}
         <section id="pricing" className="lp-section" style={{ padding:'4rem 0', background:slate50, borderBottom:`1px solid ${slate200}` }}>
@@ -224,7 +227,7 @@ export default function HomePage() {
                     ))}
                   </ul>
                 </div>
-                <button onClick={() => setAuthOpen(true)} style={{ padding:'0.75rem', borderRadius:12, background:slate100, color:navy900, fontWeight:700, fontSize:'0.875rem', border:'none', cursor:'pointer', fontFamily:'inherit', transition:'background .15s' }}
+                <button onClick={openRegister} style={{ padding:'0.75rem', borderRadius:12, background:slate100, color:navy900, fontWeight:700, fontSize:'0.875rem', border:'none', cursor:'pointer', fontFamily:'inherit', transition:'background .15s' }}
                   onMouseOver={e => e.currentTarget.style.background=slate200} onMouseOut={e => e.currentTarget.style.background=slate100}>
                   Regisztráció ingyen
                 </button>
@@ -248,7 +251,7 @@ export default function HomePage() {
                     ))}
                   </ul>
                 </div>
-                <button onClick={() => setAuthOpen(true)} style={{ padding:'0.75rem', borderRadius:12, background:accent, color:'#fff', fontWeight:700, fontSize:'0.875rem', border:'none', cursor:'pointer', fontFamily:'inherit', transition:'background .15s' }}
+                <button onClick={openRegister} style={{ padding:'0.75rem', borderRadius:12, background:accent, color:'#fff', fontWeight:700, fontSize:'0.875rem', border:'none', cursor:'pointer', fontFamily:'inherit', transition:'background .15s' }}
                   onMouseOver={e => e.currentTarget.style.background=accentHv} onMouseOut={e => e.currentTarget.style.background=accent}>
                   14 napos próba ingyen
                 </button>
@@ -295,7 +298,7 @@ export default function HomePage() {
             <p style={{ fontSize:'0.95rem', color:'#94a3b8', maxWidth:480, margin:0, lineHeight:1.65 }}>
               Csatlakozz azokhoz a szakemberekhez, akik hetente órákat spórolnak az Epitekkel.
             </p>
-            <button onClick={() => setAuthOpen(true)} style={{ display:'flex', alignItems:'center', gap:'0.5rem', padding:'0.95rem 2rem', background:accent, color:'#fff', fontWeight:800, fontSize:'0.95rem', borderRadius:12, border:'none', cursor:'pointer', fontFamily:'inherit', boxShadow:`0 4px 20px ${accent}66`, marginTop:'0.5rem' }}>
+            <button onClick={openRegister} style={{ display:'flex', alignItems:'center', gap:'0.5rem', padding:'0.95rem 2rem', background:accent, color:'#fff', fontWeight:800, fontSize:'0.95rem', borderRadius:12, border:'none', cursor:'pointer', fontFamily:'inherit', boxShadow:`0 4px 20px ${accent}66`, marginTop:'0.5rem' }}>
               Ingyenes próba most <ArrowRight size={16} />
             </button>
             <p style={{ fontSize:'0.75rem', color:'#475569', margin:0 }}>Bankkártya nem szükséges · Beállítás 2 perc alatt</p>
@@ -332,7 +335,7 @@ export default function HomePage() {
         `}</style>
       </div>
 
-      {authOpen && <AuthModal onClose={() => setAuthOpen(false)} />}
+      {authOpen && <AuthModal onClose={() => setAuthOpen(false)} initialView={authViewRef.current} />}
     </>
   );
 }

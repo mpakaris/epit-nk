@@ -18,7 +18,7 @@ function usePreviewScale(innerWidth, defaultScale) {
   return scale;
 }
 import {
-  Check, ArrowRight, Users, User,
+  Check, ArrowRight, Users,
   Ruler, Camera, Home, Plus, FileText,
   Globe, Share2, Clock, CheckCircle2,
   ClipboardList, FolderKanban, TrendingUp,
@@ -52,46 +52,7 @@ const T = {
 
 const fmt = (n) => new Intl.NumberFormat('hu-HU').format(n) + ' Ft';
 
-// ─── Collective avatars (CSS-only, no external deps) ────────────────────────
-const AVATARS = [
-  { initials: 'KA', bg: T.accent,  name: 'Kovács Attila' },
-  { initials: 'BÉ', bg: T.purple,  name: 'Balogh Éva' },
-  { initials: 'TM', bg: '#059669', name: 'Tóth Márton' },
-];
 
-function CollectiveHeads({ show }) {
-  if (!show) return null;
-  return (
-    <div style={{
-      position: 'absolute', top: -18, right: 12,
-      display: 'flex', alignItems: 'center', zIndex: 20,
-      filter: 'drop-shadow(0 2px 8px rgba(0,0,0,0.18))',
-    }}>
-      {AVATARS.map((a, i) => (
-        <div key={i} title={a.name} style={{
-          width: 34, height: 34, borderRadius: '50%',
-          background: a.bg, color: '#fff',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: '0.65rem', fontWeight: 800,
-          border: '2.5px solid #fff',
-          marginLeft: i === 0 ? 0 : -10,
-          fontFamily: T.font,
-        }}>
-          {a.initials}
-        </div>
-      ))}
-      <div title="és mások" style={{
-        width: 34, height: 34, borderRadius: '50%',
-        background: T.textLight, color: '#fff',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        fontSize: '0.62rem', fontWeight: 800,
-        border: '2.5px solid #fff',
-        marginLeft: -10,
-        fontFamily: T.font,
-      }}>+2</div>
-    </div>
-  );
-}
 
 // ─── Reusable browser frame wrapper ─────────────────────────────────────────
 const INNER_W        = 600;
@@ -435,6 +396,7 @@ const FEATURES = [
     collectiveBullet: 'Csapatban végzett felmérés: minden tag látja a szobákat és a fotókat',
     Preview: SurveyPreview,
     imageFirst: true,
+    demoHref: '/demo/felmeresek',
   },
   {
     id: 'offer',
@@ -449,6 +411,7 @@ const FEATURES = [
     collectiveBullet: 'Közös ajánlat: minden alvállalkozó hozzáadja a saját tételeit',
     Preview: OfferPreview,
     imageFirst: false,
+    demoHref: '/demo/ajanlatok',
   },
   {
     id: 'projects',
@@ -463,6 +426,7 @@ const FEATURES = [
     collectiveBullet: 'Résztvevők hozzájárulása: ki mennyit fizetett és végzett el',
     Preview: () => <ProjectsListPreview />,
     imageFirst: true,
+    demoHref: '/demo/projektek',
   },
   {
     id: 'website',
@@ -477,6 +441,7 @@ const FEATURES = [
     collectiveBullet: 'Közös csapatoldal: a cégetek egységes arculattal jelenik meg',
     Preview: WebsitePreview,
     imageFirst: false,
+    demoHref: '/demo/weboldalam',
   },
   {
     id: 'portal',
@@ -492,17 +457,17 @@ const FEATURES = [
     Preview: ClientPortalPreview,
     imageFirst: true,
     comingSoon: true,
+    demoHref: '/clients/demo',
   },
 ];
 
 // ─── Single feature row ───────────────────────────────────────────────────────
-function FeatureRow({ feature, isCollective, onRegister }) {
-  const { Preview, imageFirst, overline, title, desc, bullets, collectiveBullet, comingSoon } = feature;
+function FeatureRow({ feature, onRegister }) {
+  const { Preview, imageFirst, overline, title, desc, bullets, collectiveBullet, comingSoon, demoHref } = feature;
 
   const previewCol = (
-    <div className="feature-preview-col" style={{ position: 'relative', display: 'flex', justifyContent: imageFirst ? 'flex-start' : 'flex-end' }}>
+    <div className="feature-preview-col" style={{ display: 'flex', justifyContent: imageFirst ? 'flex-start' : 'flex-end' }}>
       <Preview />
-      <CollectiveHeads show={isCollective} />
     </div>
   );
 
@@ -526,8 +491,8 @@ function FeatureRow({ feature, isCollective, onRegister }) {
             <Check size={15} color={T.accent} style={{ flexShrink: 0, marginTop: 2 }} /> {b}
           </li>
         ))}
-        {isCollective && collectiveBullet && (
-          <li style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', fontSize: '0.875rem', color: T.purple, fontWeight: 600, padding: '0.5rem 0.75rem', background: T.purpleLight, borderRadius: 8, border: '1px solid #ddd6fe' }}>
+        {collectiveBullet && (
+          <li style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', fontSize: '0.875rem', color: T.purple, fontWeight: 600, padding: '0.5rem 0.75rem', background: T.purpleLight, borderRadius: 8, border: '1px solid #ddd6fe', marginTop: '0.25rem' }}>
             <Users size={15} color={T.purple} style={{ flexShrink: 0, marginTop: 2 }} /> {collectiveBullet}
           </li>
         )}
@@ -541,7 +506,9 @@ function FeatureRow({ feature, isCollective, onRegister }) {
           Regisztráció <ArrowRight size={15} />
         </button>
         <a
-          href="/demo"
+          href={demoHref}
+          target="_blank"
+          rel="noopener noreferrer"
           style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', padding: '0.65rem 1.25rem', background: T.bgSubtle, color: T.textSecondary, fontWeight: 700, fontSize: '0.875rem', borderRadius: 10, border: `1px solid ${T.border}`, textDecoration: 'none', fontFamily: T.font }}
         >
           Demo megtekintése
@@ -558,62 +525,8 @@ function FeatureRow({ feature, isCollective, onRegister }) {
   );
 }
 
-// ─── Workspace explainer cards ────────────────────────────────────────────────
-function WorkspaceCards({ isCollective, onToggle }) {
-  return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))', gap: '1rem', marginBottom: '2.5rem' }}>
-      {[
-        {
-          key: 'personal',
-          icon: User,
-          iconBg: T.accentLight,
-          iconColor: T.accent,
-          title: 'Személyes munkaterület',
-          desc: 'A saját projektjeid, ajánlataid és ügyfeleid. Teljesen privát, csak te látod. Ideális egyéni kivitelezőknek.',
-          active: !isCollective,
-        },
-        {
-          key: 'collective',
-          icon: Users,
-          iconBg: T.purpleLight,
-          iconColor: T.purple,
-          title: 'Kollektív munkaterület',
-          desc: 'Közös projektek alvállalkozókkal. Megosztott felmérések, ajánlatok, elszámolás. Ideális csapatoknak és több szakembert összefogó vállalkozásoknak.',
-          active: isCollective,
-        },
-      ].map(({ key, icon: Icon, iconBg, iconColor, title, desc, active }) => (
-        <div
-          key={key}
-          onClick={() => onToggle(key === 'collective')}
-          style={{
-            background: T.bgCard,
-            border: `2px solid ${active ? iconColor : T.border}`,
-            borderRadius: 16, padding: '1.25rem 1.5rem',
-            cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: '0.75rem',
-            boxShadow: active ? `0 4px 20px ${iconColor}22` : '0 1px 4px rgba(0,0,0,0.04)',
-            transition: 'all 0.18s ease',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <div style={{ width: 40, height: 40, borderRadius: 10, background: iconBg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-              <Icon size={20} color={iconColor} />
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <span style={{ fontWeight: 800, fontSize: '0.95rem', color: T.textPrimary, fontFamily: T.font }}>{title}</span>
-              {active && <span style={{ fontSize: '0.65rem', fontWeight: 700, background: iconColor, color: '#fff', padding: '1px 7px', borderRadius: 999 }}>Aktív</span>}
-            </div>
-          </div>
-          <p style={{ fontSize: '0.825rem', color: T.textSecondary, lineHeight: 1.6, margin: 0, fontFamily: T.font }}>{desc}</p>
-        </div>
-      ))}
-    </div>
-  );
-}
-
 // ─── Main export ──────────────────────────────────────────────────────────────
 export default function FeatureShowcase({ onRegister }) {
-  const [isCollective, setIsCollective] = useState(false);
-
   return (
     <section className="feature-section" style={{ padding: '4rem 0', borderBottom: `1px solid ${T.border}` }}>
       <style>{`
@@ -640,19 +553,16 @@ export default function FeatureShowcase({ onRegister }) {
             Hogyan működik?
           </span>
           <h2 style={{ fontSize: 'clamp(1.5rem,3vw,2rem)', fontWeight: 800, color: T.textPrimary, letterSpacing: '-0.03em', margin: '0 0 0.5rem', fontFamily: T.font }}>
-            Kétféle munkaterület, egy alkalmazás
+            Minden funkció, egy helyen
           </h2>
-          <p style={{ color: T.textSecondary, fontSize: '0.9rem', maxWidth: 520, margin: '0 auto', fontFamily: T.font }}>
-            Válaszd ki, melyik nézetet szeretnéd látni, és fedezd fel a funkciókat.
+          <p style={{ color: T.textSecondary, fontSize: '0.9rem', maxWidth: 540, margin: '0 auto', fontFamily: T.font }}>
+            Egyedül és csapatban is tökéletesen működik. A <span style={{ color: T.purple, fontWeight: 700 }}>lila kiemelések</span> a kollektív előnyöket jelzik.
           </p>
         </div>
 
-        {/* Workspace toggle cards */}
-        <WorkspaceCards isCollective={isCollective} onToggle={setIsCollective} />
-
         {/* Feature rows */}
         {FEATURES.map(f => (
-          <FeatureRow key={f.id} feature={f} isCollective={isCollective} onRegister={onRegister} />
+          <FeatureRow key={f.id} feature={f} onRegister={onRegister} />
         ))}
       </div>
     </section>

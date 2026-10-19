@@ -30,6 +30,9 @@ function DemoShell({ children }) {
           top: ${BANNER_H}px !important;
           height: calc(100vh - ${BANNER_H}px) !important;
         }
+        .demo-mode .mobile-header {
+          top: ${BANNER_H}px !important;
+        }
         .demo-mode .app-main {
           min-height: unset !important;
           height: 100%;
