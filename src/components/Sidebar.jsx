@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
 import {
   Building2, LayoutDashboard, FolderKanban, Users, BookUser,
-  FileText, Calendar, User, LogOut, KeyRound, ShieldAlert,
+  FileText, Calendar, User, LogOut, ShieldAlert,
   ChevronLeft, ChevronRight, Eye, X, Menu, ClipboardList, Ruler, Lightbulb,
   ChevronDown, Globe, ImageIcon, UsersRound,
 } from 'lucide-react';
@@ -197,38 +197,8 @@ export default function Sidebar() {
   const navItems = buildNavItems(isSuperAdmin, isAdmin, impersonating, websiteUnread, navPrefix);
   const homeHref = isSuperAdmin && !impersonating ? '/superadmin' : isAdmin ? '/admin' : (navPrefix + '/projektek');
 
-  const UserActions = ({ showLabel = false }) => (
-    <div style={{ display: 'flex', gap: '0.35rem' }}>
-      <Link
-        href="/profil"
-        className="btn btn-secondary btn-sm"
-        style={{ padding: '0.3rem 0.5rem' }}
-        title="Profil &amp; fejléc"
-      >
-        <User size={14} />
-        {showLabel && <span>Profil</span>}
-      </Link>
-      <Link
-        href="/change-password"
-        className="btn btn-secondary btn-sm"
-        style={{ padding: '0.3rem 0.5rem' }}
-        title="Jelszó módosítása"
-      >
-        <KeyRound size={14} />
-        {showLabel && <span>Jelszó</span>}
-      </Link>
-      <button
-        type="button"
-        onClick={logout}
-        className="btn btn-danger btn-sm"
-        style={{ padding: '0.3rem 0.5rem' }}
-        title="Kijelentkezés"
-      >
-        <LogOut size={14} />
-        {showLabel && <span>Kilépés</span>}
-      </button>
-    </div>
-  );
+  const initials = (currentUser?.display_name || '?')
+    .split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase();
 
   return (
     <>
@@ -336,36 +306,65 @@ export default function Sidebar() {
           )}
         </nav>
 
-        {/* User section */}
-        <div className="sidebar-user">
-          {!collapsed && (
-            <div className="sidebar-user-info">
-              <span className="sidebar-user-name">{currentUser.display_name}</span>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginTop: '0.15rem' }}>
-                <span className="sidebar-user-role">
+        {/* User section — avatar + name links to /profil, logout icon stays */}
+        <div className="sidebar-user" style={{ padding: '0.6rem 0.5rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+          <Link
+            href="/profil"
+            style={{
+              flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: '0.6rem',
+              textDecoration: 'none', borderRadius: 'var(--radius-md)',
+              padding: collapsed ? '0.35rem' : '0.4rem 0.5rem',
+              transition: 'background 0.15s',
+              justifyContent: collapsed ? 'center' : 'flex-start',
+            }}
+            onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-subtle)'}
+            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+            title={collapsed ? currentUser.display_name : ''}
+          >
+            {/* Avatar */}
+            <div style={{
+              width: 30, height: 30, borderRadius: '50%', flexShrink: 0,
+              background: 'linear-gradient(135deg, var(--primary), #6366f1)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: '0.65rem', fontWeight: 800, color: '#fff', letterSpacing: '-0.02em',
+            }}>
+              {initials}
+            </div>
+            {!collapsed && (
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {currentUser.display_name}
+                </div>
+                <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
                   {currentUser.role === 'superadmin' ? 'Superadmin' : currentUser.role === 'admin' ? 'Admin' : 'Tag'}
-                </span>
-                {!isSuperAdmin && (
-                  <Link
-                    href="/elofizetes"
-                    style={{
-                      fontSize: '0.62rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.04em',
-                      padding: '0.1rem 0.45rem', borderRadius: 'var(--radius-pill)', textDecoration: 'none',
+                  {!isSuperAdmin && (
+                    <span style={{
+                      fontWeight: 700, fontSize: '0.6rem', textTransform: 'uppercase', letterSpacing: '0.03em',
+                      padding: '0.05rem 0.35rem', borderRadius: 'var(--radius-pill)',
                       ...(currentUser.is_subscription_premium
                         ? { background: '#fef9c3', color: '#854d0e', border: '1px solid #fde047' }
                         : { background: 'var(--bg-subtle)', color: 'var(--text-muted)', border: '1px solid var(--border-subtle)' }
                       )
-                    }}
-                  >
-                    {currentUser.is_subscription_premium ? '⭐ Prémium' : 'Bázis'}
-                  </Link>
-                )}
+                    }}>
+                      {currentUser.is_subscription_premium ? '⭐ Prémium' : 'Bázis'}
+                    </span>
+                  )}
+                </div>
               </div>
-            </div>
+            )}
+          </Link>
+          {!collapsed && (
+            <button
+              type="button"
+              onClick={logout}
+              title="Kijelentkezés"
+              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0.35rem', borderRadius: 'var(--radius-sm)', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', flexShrink: 0, transition: 'color 0.15s' }}
+              onMouseEnter={e => e.currentTarget.style.color = 'var(--danger)'}
+              onMouseLeave={e => e.currentTarget.style.color = 'var(--text-muted)'}
+            >
+              <LogOut size={15} />
+            </button>
           )}
-          <div className="sidebar-user-actions">
-            <UserActions />
-          </div>
         </div>
       </aside>
 
@@ -464,14 +463,30 @@ export default function Sidebar() {
               )}
             </nav>
 
-            <div className="drawer-user">
-              <div>
-                <div style={{ fontWeight: 700, fontSize: '0.9rem' }}>{currentUser.display_name}</div>
-                <div style={{ fontSize: '0.775rem', color: 'var(--text-muted)' }}>
-                  {currentUser.role === 'superadmin' ? 'Superadmin' : currentUser.role === 'admin' ? 'Admin' : 'Member'}
+            <div className="drawer-user" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              {/* Avatar */}
+              <div style={{ width: 36, height: 36, borderRadius: '50%', flexShrink: 0, background: 'linear-gradient(135deg, var(--primary), #6366f1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 800, color: '#fff' }}>
+                {initials}
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontWeight: 700, fontSize: '0.9rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{currentUser.display_name}</div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                  {currentUser.role === 'superadmin' ? 'Superadmin' : currentUser.role === 'admin' ? 'Admin' : 'Tag'}
+                  {!isSuperAdmin && (
+                    <span style={{ marginLeft: '0.4rem', fontWeight: 700, ...(currentUser.is_subscription_premium ? { color: '#854d0e' } : {}) }}>
+                      · {currentUser.is_subscription_premium ? '⭐ Prémium' : 'Bázis'}
+                    </span>
+                  )}
                 </div>
               </div>
-              <UserActions showLabel />
+              <div style={{ display: 'flex', gap: '0.4rem', flexShrink: 0 }}>
+                <Link href="/profil" className="btn btn-secondary btn-sm" onClick={() => setMobileOpen(false)} style={{ padding: '0.35rem 0.6rem', display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.8rem' }}>
+                  <User size={14} /> Profil
+                </Link>
+                <button type="button" onClick={logout} className="btn btn-secondary btn-sm" style={{ padding: '0.35rem 0.5rem', color: 'var(--danger-text)', borderColor: 'var(--danger-border)' }} title="Kijelentkezés">
+                  <LogOut size={14} />
+                </button>
+              </div>
             </div>
           </div>
         </>
