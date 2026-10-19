@@ -5,7 +5,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import { createClient as createSupabaseClient } from '@/lib/supabase/client';
 import { processMediaFiles } from '@/lib/mediaGate';
 
-const AppContext = createContext(null);
+export const AppContext = createContext(null);
 
 export function AppProvider({ children }) {
   const router = useRouter();

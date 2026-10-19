@@ -158,8 +158,8 @@ export default function HomePage() {
                   <button onClick={() => setAuthOpen(true)} style={{ display:'flex', alignItems:'center', gap:'0.5rem', padding:'0.85rem 1.6rem', background:accent, color:'#fff', fontWeight:800, fontSize:'0.95rem', borderRadius:12, border:'none', cursor:'pointer', fontFamily:'inherit', boxShadow:`0 4px 14px ${accent}44` }}>
                     Kezdj el ingyen <ArrowRight size={16} />
                   </button>
-                  <a href="#features" style={{ display:'flex', alignItems:'center', gap:'0.5rem', padding:'0.85rem 1.6rem', background:slate100, color:navy800, fontWeight:700, fontSize:'0.95rem', borderRadius:12, textDecoration:'none' }}>
-                    Megnézem a funkciókat
+                  <a href="/demo" style={{ display:'flex', alignItems:'center', gap:'0.5rem', padding:'0.85rem 1.6rem', background:slate100, color:navy800, fontWeight:700, fontSize:'0.95rem', borderRadius:12, textDecoration:'none' }}>
+                    Demo megtekintése
                   </a>
                 </div>
               </div>

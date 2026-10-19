@@ -519,12 +519,12 @@ function FeatureRow({ feature, isCollective, onRegister }) {
         >
           Regisztráció <ArrowRight size={15} />
         </button>
-        <button
-          disabled
-          style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', padding: '0.65rem 1.25rem', background: T.bgSubtle, color: T.textLight, fontWeight: 700, fontSize: '0.875rem', borderRadius: 10, border: `1px solid ${T.border}`, cursor: 'not-allowed', fontFamily: T.font }}
+        <a
+          href="/demo"
+          style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', padding: '0.65rem 1.25rem', background: T.bgSubtle, color: T.textSecondary, fontWeight: 700, fontSize: '0.875rem', borderRadius: 10, border: `1px solid ${T.border}`, textDecoration: 'none', fontFamily: T.font }}
         >
-          Demo megtekintése <span style={{ fontSize: '0.68rem', background: '#fef3c7', color: '#92400e', padding: '1px 6px', borderRadius: 999 }}>Hamarosan</span>
-        </button>
+          Demo megtekintése
+        </a>
       </div>
     </div>
   );
