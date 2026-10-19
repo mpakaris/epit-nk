@@ -102,6 +102,8 @@ export default function SuperadminPortalsPage() {
               </div>
               <Link
                 href={`/portal/dashboard?as=${encodeURIComponent(c.email)}`}
+                target="_blank"
+                rel="noopener noreferrer"
                 className="btn btn-primary btn-sm"
                 style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', flexShrink: 0 }}
               >
