@@ -1499,6 +1499,8 @@ function QrModal({ url, onClose }) {
 
 // ---- builder editor ---------------------------------------------------------
 
+const DEMO_WB_LS_KEY = 'epitek_demo_website_builder';
+
 export function BuilderEditor({ website: initialWebsite, sections: initialSections, userEmail }) {
   const [website, setWebsite] = useState(initialWebsite);
   const [sections, setSections] = useState(initialSections);
@@ -1517,9 +1519,25 @@ export function BuilderEditor({ website: initialWebsite, sections: initialSectio
   const [bannerPickerOpen, setBannerPickerOpen]   = useState(false);
   const [bannerPickerIndex, setBannerPickerIndex] = useState(0);
 
+  // Load demo state from localStorage on mount
+  useEffect(() => {
+    if (!isDemoMode) return;
+    try {
+      const raw = localStorage.getItem(DEMO_WB_LS_KEY);
+      if (!raw) return;
+      const saved = JSON.parse(raw);
+      if (saved.sections) setSections(saved.sections);
+      if (saved.theme) setTheme(saved.theme);
+    } catch {}
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   const updateTheme = async (next) => {
     setTheme(next);
-    if (isDemoMode) { showToast('Demo módban a mentés nem elérhető'); return; }
+    if (isDemoMode) {
+      try { localStorage.setItem(DEMO_WB_LS_KEY, JSON.stringify({ sections, theme: next })); } catch {}
+      showToast('Design módosítva');
+      return;
+    }
     try {
       const r = await fetch('/api/website', {
         method: 'POST',
@@ -1563,7 +1581,13 @@ export function BuilderEditor({ website: initialWebsite, sections: initialSectio
   // Load leads on mount and when switching to leads tab
 
   const updateSection = (updated) => {
-    setSections(prev => prev.map(s => s.section_type === updated.section_type ? updated : s));
+    setSections(prev => {
+      const next = prev.map(s => s.section_type === updated.section_type ? updated : s);
+      if (isDemoMode) {
+        try { localStorage.setItem(DEMO_WB_LS_KEY, JSON.stringify({ sections: next, theme })); } catch {}
+      }
+      return next;
+    });
     if (isDemoMode) return;
     clearTimeout(saveTimers.current[updated.section_type]);
     saveTimers.current[updated.section_type] = setTimeout(async () => {

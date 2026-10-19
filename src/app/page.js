@@ -158,10 +158,20 @@ export default function HomePage() {
                   <button onClick={() => setAuthOpen(true)} style={{ display:'flex', alignItems:'center', gap:'0.5rem', padding:'0.85rem 1.6rem', background:accent, color:'#fff', fontWeight:800, fontSize:'0.95rem', borderRadius:12, border:'none', cursor:'pointer', fontFamily:'inherit', boxShadow:`0 4px 14px ${accent}44` }}>
                     Kezdj el ingyen <ArrowRight size={16} />
                   </button>
-                  <a href="/demo" style={{ display:'flex', alignItems:'center', gap:'0.5rem', padding:'0.85rem 1.6rem', background:slate100, color:navy800, fontWeight:700, fontSize:'0.95rem', borderRadius:12, textDecoration:'none' }}>
+                  <a href="/demo" target="_blank" rel="noopener noreferrer" style={{ display:'flex', alignItems:'center', gap:'0.5rem', padding:'0.85rem 1.6rem', background:slate100, color:navy800, fontWeight:700, fontSize:'0.95rem', borderRadius:12, textDecoration:'none' }}>
                     Demo megtekintése
                   </a>
                 </div>
+                <a
+                  href="/szakemberek/nemes-peter-felujito?preview=1"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ display:'inline-flex', alignItems:'center', gap:'0.4rem', marginTop:'0.75rem', fontSize:'0.825rem', color:navy600, textDecoration:'none', fontWeight:600 }}
+                  onMouseOver={e => e.currentTarget.style.color = accent}
+                  onMouseOut={e => e.currentTarget.style.color = navy600}
+                >
+                  <Globe size={13} /> Weboldal sablon megtekintése ↗
+                </a>
               </div>
 
               {/* Right: app preview */}

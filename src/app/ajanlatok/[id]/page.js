@@ -195,7 +195,7 @@ function SectionAddForm({ surveyId, onSave, onCancel }) {
 // ── Section card — felmeres-style read/edit toggle ────────────────────────────
 function SectionCard({ section, surveyEntry, surveyId, quoteId, canEdit, isQuoteOwner, currentUserId, onDelete, onAddEntry, onEditEntry, onDeleteEntry, sectionEntries, quote }) {
   const { updateQuoteSection, activeCollectiveId } = useApp();
-  const [collapsed, setCollapsed] = useState(true);
+  const [collapsed, setCollapsed] = useState(false);
   const canEditSection   = canEdit && (isQuoteOwner || section.created_by === currentUserId);
   const canEditEntry     = (entry) => canEdit && (isQuoteOwner || entry.user_id === currentUserId);
   const [isEditing, setIsEditing] = useState(false);
@@ -628,6 +628,18 @@ export default function QuoteDetailPage() {
     setShowSendConfirm(false);
     setSendProgress({ step: 0, done: false, error: null });
 
+    if (isDemoMode) {
+      // Simulate the send steps without hitting SMTP
+      const delays = [0, 600, 1100, 1600];
+      delays.forEach((ms, i) => {
+        setTimeout(() => setSendProgress(p => p && !p.done ? { ...p, step: i } : p), ms);
+      });
+      setTimeout(() => {
+        setSendProgress({ step: SEND_STEPS.length - 1, done: true, error: null, sentTo: client?.email || 'demo@epitek.hu' });
+      }, 2000);
+      return;
+    }
+
     // Advance steps on a timer while API runs
     const timers = [];
     SEND_STEPS.forEach((s, i) => {
@@ -974,7 +986,7 @@ export default function QuoteDetailPage() {
             </span>
           </div>
           <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
-            <Link href={`/ajanlatok/${id}/nyomtatas`} className="btn btn-secondary btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+            <Link href={`${navPrefix}/ajanlatok/${id}/nyomtatas`} className="btn btn-secondary btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
               <Printer size={14} /> Előnézet / PDF
             </Link>
             {canModify && (
@@ -1380,6 +1392,15 @@ export default function QuoteDetailPage() {
                 <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{termsPdfName}</div>
               </div>
             </button>
+          )}
+
+          {isDemoMode && (
+            <div style={{ background: 'var(--bg-subtle)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: '0.65rem 0.85rem', marginBottom: '1rem', fontSize: '0.8rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem' }}>
+              <span>Demo módban az email valójában nem kerül elküldésre.</span>
+              <Link href={`${navPrefix}/ajanlatok/${id}/nyomtatas`} target="_blank" rel="noopener noreferrer" className="btn btn-secondary btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', whiteSpace: 'nowrap', flexShrink: 0 }}>
+                <Printer size={13} /> PDF letöltés
+              </Link>
+            </div>
           )}
 
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>

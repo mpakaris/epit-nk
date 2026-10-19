@@ -1,6 +1,6 @@
 // ─── Demo seed data — all IDs use a recognisable dd-prefix UUID scheme ───────
 // Increment SEED_VERSION when any data changes to trigger a localStorage reset.
-export const SEED_VERSION = 1;
+export const SEED_VERSION = 3;
 
 // ── IDs ───────────────────────────────────────────────────────────────────────
 export const ID = {
@@ -24,6 +24,8 @@ export const ID = {
   qSectP1_1:     'dd000000-0000-0000-0000-000000000070', // quote sections
   qSectP1_2:     'dd000000-0000-0000-0000-000000000071',
   qSectC1_1:     'dd000000-0000-0000-0000-000000000072',
+  qSectC1_2:     'dd000000-0000-0000-0000-000000000073',
+  qSectC1_3:     'dd000000-0000-0000-0000-000000000074',
 };
 
 const now  = new Date().toISOString();
@@ -180,8 +182,8 @@ export const DEMO_QUOTES = [
     work_type: 'Burkolás, szaniter, gépészet',
     description: 'Komplett fürdőszoba felújítás burkolással, szaniter cserével és gépészeti munkákkal.',
     start_date: d(-30), end_date: d(10),
-    status: 'accepted', client_id: ID.client1,
-    tax_percent: 27, total_amount_huf: 418000,
+    status: 'sent', client_id: ID.client1,
+    tax_percent: 27, total_amount_huf: 590120,
     created_at: d(-35), created_by: ID.userOwner, shared_with: [],
   },
   {
@@ -192,29 +194,61 @@ export const DEMO_QUOTES = [
     description: 'Teljes körű belsőépítészeti felújítás csapataink közreműködésével.',
     start_date: d(-45), end_date: d(30),
     status: 'sent', client_id: ID.client1,
-    tax_percent: 27, total_amount_huf: 1850000,
+    tax_percent: 27, total_amount_huf: 1341100,
     created_at: d(-50), created_by: ID.userOwner, shared_with: [ID.userEva, ID.userMarton],
   },
 ];
 
 // ── Quote sections ────────────────────────────────────────────────────────────
 export const DEMO_QUOTE_SECTIONS = [
-  { id: ID.qSectP1_1, quote_id: ID.quoteP1, name: 'Fürdőszoba',  description: '', sort_order: 1 },
-  { id: ID.qSectP1_2, quote_id: ID.quoteP1, name: 'WC',           description: '', sort_order: 2 },
-  { id: ID.qSectC1_1, quote_id: ID.quoteC1, name: 'Nappali + étkező', description: 'Gipszkarton álmennyezet, festés, padló', sort_order: 1 },
+  { id: ID.qSectP1_1, quote_id: ID.quoteP1, name: 'Fürdőszoba',       description: 'Teljes burkolás, szaniter csere, villanyszerelés', sort_order: 1 },
+  { id: ID.qSectP1_2, quote_id: ID.quoteP1, name: 'WC',               description: 'Csempézés, WC szett csere',                       sort_order: 2 },
+  { id: ID.qSectC1_1, quote_id: ID.quoteC1, name: 'Nappali + étkező', description: 'Gipszkarton álmennyezet, festés, padló',           sort_order: 1 },
+  { id: ID.qSectC1_2, quote_id: ID.quoteC1, name: 'Háló 1',           description: 'Glettelés, festés, padlócsere',                   sort_order: 2 },
+  { id: ID.qSectC1_3, quote_id: ID.quoteC1, name: 'Fürdőszoba',       description: 'Teljes bontás, burkolás, szaniter',               sort_order: 3 },
 ];
 
 // ── Quote entries ─────────────────────────────────────────────────────────────
 export const DEMO_QUOTE_ENTRIES = [
-  // quoteP1 / fürdőszoba section
-  { id: 'dqe001', quote_id: ID.quoteP1, section_id: ID.qSectP1_1, user_id: ID.userOwner, work_description: 'Falicsempe burkolás', entry_type: 'per_unit', quantity: 24, unit: 'm²', unit_price: 4500, amount_huf: 108000, notes: '' },
-  { id: 'dqe002', quote_id: ID.quoteP1, section_id: ID.qSectP1_1, user_id: ID.userOwner, work_description: 'Padlólap burkolás',   entry_type: 'per_unit', quantity: 8.7, unit: 'm²', unit_price: 3800, amount_huf: 33060, notes: '' },
-  { id: 'dqe003', quote_id: ID.quoteP1, section_id: ID.qSectP1_1, user_id: ID.userOwner, work_description: 'Szaniter csomag beépítése', entry_type: 'fixed', quantity: 1, unit: 'db', unit_price: 85000, amount_huf: 85000, notes: 'WC, mosdó, zuhanykabin' },
-  // quoteP1 / WC section
-  { id: 'dqe004', quote_id: ID.quoteP1, section_id: ID.qSectP1_2, user_id: ID.userOwner, work_description: 'Csempézés', entry_type: 'per_unit', quantity: 9, unit: 'm²', unit_price: 4500, amount_huf: 40500, notes: '' },
-  { id: 'dqe005', quote_id: ID.quoteP1, section_id: ID.qSectP1_2, user_id: ID.userOwner, work_description: 'WC szett beépítés', entry_type: 'fixed', quantity: 1, unit: 'db', unit_price: 45000, amount_huf: 45000, notes: '' },
-  // quoteC1 / nappali section
-  { id: 'dqe006', quote_id: ID.quoteC1, section_id: ID.qSectC1_1, user_id: ID.userOwner, work_description: 'Gipszkarton álmennyezet', entry_type: 'per_unit', quantity: 33.5, unit: 'm²', unit_price: 4200, amount_huf: 140700, notes: '' },
-  { id: 'dqe007', quote_id: ID.quoteC1, section_id: ID.qSectC1_1, user_id: ID.userEva,   work_description: 'Villamos csatlakozók (10 db)', entry_type: 'per_unit', quantity: 10, unit: 'db', unit_price: 8500, amount_huf: 85000, notes: 'Gipszkarton mögötti kábelek is benne' },
-  { id: 'dqe008', quote_id: ID.quoteC1, section_id: ID.qSectC1_1, user_id: ID.userOwner, work_description: 'Festés (2 réteg)', entry_type: 'per_unit', quantity: 80, unit: 'm²', unit_price: 1200, amount_huf: 96000, notes: '' },
+  // ── quoteP1 / Fürdőszoba ─────────────────────────────────────────────────
+  { id: 'dqe001', quote_id: ID.quoteP1, section_id: ID.qSectP1_1, user_id: ID.userOwner, work_description: 'Bontás, burkolat eltávolítása',    entry_type: 'labour',    quantity: null, unit: null,  unit_price: null,  amount_huf: 45000,  notes: 'Falicsempe + padlólap bontás, törmelék elvitel' },
+  { id: 'dqe002', quote_id: ID.quoteP1, section_id: ID.qSectP1_1, user_id: ID.userOwner, work_description: 'Falicsempe burkolás (munkadíj)',    entry_type: 'labour',    quantity: 24,   unit: 'm²',  unit_price: 4500,  amount_huf: 108000, notes: '' },
+  { id: 'dqe003', quote_id: ID.quoteP1, section_id: ID.qSectP1_1, user_id: ID.userOwner, work_description: 'Falicsempe anyag (25×40 cm)',       entry_type: 'material',  quantity: 26,   unit: 'm²',  unit_price: 3200,  amount_huf: 83200,  notes: '10% vágási veszteséggel' },
+  { id: 'dqe004', quote_id: ID.quoteP1, section_id: ID.qSectP1_1, user_id: ID.userOwner, work_description: 'Padlólap burkolás (munkadíj)',      entry_type: 'labour',    quantity: 8.7,  unit: 'm²',  unit_price: 3800,  amount_huf: 33060,  notes: '' },
+  { id: 'dqe005', quote_id: ID.quoteP1, section_id: ID.qSectP1_1, user_id: ID.userOwner, work_description: 'Padlólap anyag (60×60 cm)',         entry_type: 'material',  quantity: 10,   unit: 'm²',  unit_price: 4200,  amount_huf: 42000,  notes: '' },
+  { id: 'dqe006', quote_id: ID.quoteP1, section_id: ID.qSectP1_1, user_id: ID.userOwner, work_description: 'Szaniter csomag beépítése',         entry_type: 'labour',    quantity: null, unit: null,  unit_price: null,  amount_huf: 85000,  notes: 'WC, mosdó, zuhanykabin' },
+  { id: 'dqe007', quote_id: ID.quoteP1, section_id: ID.qSectP1_1, user_id: ID.userOwner, work_description: 'Vízszigetelő anyag + felhordás',    entry_type: 'material',  quantity: 8.7,  unit: 'm²',  unit_price: 2800,  amount_huf: 24360,  notes: 'Mapei Mapelastic' },
+  { id: 'dqe008', quote_id: ID.quoteP1, section_id: ID.qSectP1_1, user_id: ID.userOwner, work_description: 'Villanyszerelési munkák',           entry_type: 'labour',    quantity: null, unit: null,  unit_price: null,  amount_huf: 38000,  notes: 'Lámpapontok, kapcsoló, konnektorok' },
+
+  // ── quoteP1 / WC ─────────────────────────────────────────────────────────
+  { id: 'dqe009', quote_id: ID.quoteP1, section_id: ID.qSectP1_2, user_id: ID.userOwner, work_description: 'Bontás és előkészítés',             entry_type: 'labour',    quantity: null, unit: null,  unit_price: null,  amount_huf: 22000,  notes: '' },
+  { id: 'dqe010', quote_id: ID.quoteP1, section_id: ID.qSectP1_2, user_id: ID.userOwner, work_description: 'Falicsempe burkolás (munkadíj)',    entry_type: 'labour',    quantity: 9,    unit: 'm²',  unit_price: 4500,  amount_huf: 40500,  notes: '' },
+  { id: 'dqe011', quote_id: ID.quoteP1, section_id: ID.qSectP1_2, user_id: ID.userOwner, work_description: 'Csempe anyag (25×40 cm)',           entry_type: 'material',  quantity: 10,   unit: 'm²',  unit_price: 2200,  amount_huf: 22000,  notes: '' },
+  { id: 'dqe012', quote_id: ID.quoteP1, section_id: ID.qSectP1_2, user_id: ID.userOwner, work_description: 'Padlólap burkolás (munkadíj)',      entry_type: 'labour',    quantity: 2.2,  unit: 'm²',  unit_price: 3800,  amount_huf: 8360,   notes: '' },
+  { id: 'dqe013', quote_id: ID.quoteP1, section_id: ID.qSectP1_2, user_id: ID.userOwner, work_description: 'WC szett beépítés (falra függesztett)', entry_type: 'labour', quantity: null, unit: null,  unit_price: null,  amount_huf: 45000,  notes: 'Geberit tartállyal' },
+
+  // ── quoteC1 / Nappali + étkező ───────────────────────────────────────────
+  { id: 'dqe014', quote_id: ID.quoteC1, section_id: ID.qSectC1_1, user_id: ID.userOwner, work_description: 'Gipszkarton álmennyezet szerelés',  entry_type: 'labour',    quantity: 33.5, unit: 'm²',  unit_price: 4200,  amount_huf: 140700, notes: '' },
+  { id: 'dqe015', quote_id: ID.quoteC1, section_id: ID.qSectC1_1, user_id: ID.userOwner, work_description: 'Gipszkarton lap + acélprofil',      entry_type: 'material',  quantity: 33.5, unit: 'm²',  unit_price: 2800,  amount_huf: 93800,  notes: 'Knauf rendszer' },
+  { id: 'dqe016', quote_id: ID.quoteC1, section_id: ID.qSectC1_1, user_id: ID.userEva,   work_description: 'Villamos csatlakozók (10 db)',      entry_type: 'labour',    quantity: 10,   unit: 'db',  unit_price: 8500,  amount_huf: 85000,  notes: 'Gipszkarton mögötti kábelek is benne' },
+  { id: 'dqe017', quote_id: ID.quoteC1, section_id: ID.qSectC1_1, user_id: ID.userOwner, work_description: 'Glettelés + alapozás',              entry_type: 'labour',    quantity: 80,   unit: 'm²',  unit_price: 1400,  amount_huf: 112000, notes: '' },
+  { id: 'dqe018', quote_id: ID.quoteC1, section_id: ID.qSectC1_1, user_id: ID.userOwner, work_description: 'Festés (2 réteg)',                  entry_type: 'labour',    quantity: 80,   unit: 'm²',  unit_price: 1200,  amount_huf: 96000,  notes: '' },
+  { id: 'dqe019', quote_id: ID.quoteC1, section_id: ID.qSectC1_1, user_id: ID.userOwner, work_description: 'Festék + alapozó anyag',            entry_type: 'material',  quantity: 80,   unit: 'm²',  unit_price: 650,   amount_huf: 52000,  notes: 'Baumit prémium beltéri' },
+  { id: 'dqe020', quote_id: ID.quoteC1, section_id: ID.qSectC1_1, user_id: ID.userOwner, work_description: 'Laminált padló fektetés',           entry_type: 'labour',    quantity: 33.5, unit: 'm²',  unit_price: 3200,  amount_huf: 107200, notes: '' },
+  { id: 'dqe021', quote_id: ID.quoteC1, section_id: ID.qSectC1_1, user_id: ID.userOwner, work_description: 'Laminált padló + lábléc anyag',     entry_type: 'material',  quantity: 36,   unit: 'm²',  unit_price: 3800,  amount_huf: 136800, notes: 'Quick-Step, 10% veszteséggel' },
+
+  // ── quoteC1 / Háló 1 ─────────────────────────────────────────────────────
+  { id: 'dqe022', quote_id: ID.quoteC1, section_id: ID.qSectC1_2, user_id: ID.userOwner, work_description: 'Glettelés + alapozás',              entry_type: 'labour',    quantity: 48,   unit: 'm²',  unit_price: 1400,  amount_huf: 67200,  notes: '' },
+  { id: 'dqe023', quote_id: ID.quoteC1, section_id: ID.qSectC1_2, user_id: ID.userOwner, work_description: 'Festés (2 réteg)',                  entry_type: 'labour',    quantity: 48,   unit: 'm²',  unit_price: 1200,  amount_huf: 57600,  notes: '' },
+  { id: 'dqe024', quote_id: ID.quoteC1, section_id: ID.qSectC1_2, user_id: ID.userOwner, work_description: 'Festék + alapozó anyag',            entry_type: 'material',  quantity: 50,   unit: 'm²',  unit_price: 650,   amount_huf: 32500,  notes: '' },
+  { id: 'dqe025', quote_id: ID.quoteC1, section_id: ID.qSectC1_2, user_id: ID.userOwner, work_description: 'Padlószőnyeg bontás + laminált padló fektetés', entry_type: 'labour', quantity: 14.7, unit: 'm²', unit_price: 4200, amount_huf: 61740, notes: '' },
+  { id: 'dqe026', quote_id: ID.quoteC1, section_id: ID.qSectC1_2, user_id: ID.userOwner, work_description: 'Laminált padló + lábléc anyag',     entry_type: 'material',  quantity: 16,   unit: 'm²',  unit_price: 3800,  amount_huf: 60800,  notes: '' },
+
+  // ── quoteC1 / Fürdőszoba ─────────────────────────────────────────────────
+  { id: 'dqe027', quote_id: ID.quoteC1, section_id: ID.qSectC1_3, user_id: ID.userOwner, work_description: 'Teljes bontás és előkészítés',      entry_type: 'labour',    quantity: null, unit: null,  unit_price: null,  amount_huf: 45000,  notes: '' },
+  { id: 'dqe028', quote_id: ID.quoteC1, section_id: ID.qSectC1_3, user_id: ID.userOwner, work_description: 'Falicsempe burkolás (munkadíj)',    entry_type: 'labour',    quantity: 28,   unit: 'm²',  unit_price: 4800,  amount_huf: 134400, notes: '' },
+  { id: 'dqe029', quote_id: ID.quoteC1, section_id: ID.qSectC1_3, user_id: ID.userOwner, work_description: 'Falicsempe anyag (30×60 cm)',       entry_type: 'material',  quantity: 30,   unit: 'm²',  unit_price: 3400,  amount_huf: 102000, notes: '' },
+  { id: 'dqe030', quote_id: ID.quoteC1, section_id: ID.qSectC1_3, user_id: ID.userOwner, work_description: 'Padlólap burkolás (munkadíj)',      entry_type: 'labour',    quantity: 8.7,  unit: 'm²',  unit_price: 4200,  amount_huf: 36540,  notes: '' },
+  { id: 'dqe031', quote_id: ID.quoteC1, section_id: ID.qSectC1_3, user_id: ID.userMarton,'work_description': 'Szaniter csomag beépítése',       entry_type: 'labour',    quantity: null, unit: null,  unit_price: null,  amount_huf: 95000,  notes: 'WC, mosdó, zuhanykabin, radiátor' },
+  { id: 'dqe032', quote_id: ID.quoteC1, section_id: ID.qSectC1_3, user_id: ID.userOwner, work_description: 'Vízszigetelő anyag + felhordás',    entry_type: 'material',  quantity: 8.7,  unit: 'm²',  unit_price: 2800,  amount_huf: 24360,  notes: '' },
 ];

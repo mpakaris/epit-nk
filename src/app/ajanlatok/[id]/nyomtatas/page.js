@@ -72,16 +72,29 @@ function SectionMeasurements({ section }) {
   );
 }
 
+const DEMO_PROFILE_PRINT = {
+  display_name: 'Nemes Péter',
+  first_name:   'Péter',
+  last_name:    'Nemes',
+  company_name: 'Nemes Renováló Kft.',
+  street:       'Alkotás utca',
+  street_number:'15',
+  zip:          '1124',
+  city:         'Budapest',
+  tax_number:   '99887766-2-43',
+};
+
 export default function OfferPrintPage() {
   const { id } = useParams();
   const router  = useRouter();
-  const { quotes, quoteSections, quoteEntries, clients, loading, dataReady } = useApp();
-  const [profile, setProfile] = useState(null);
+  const { quotes, quoteSections, quoteEntries, clients, loading, dataReady, isDemoMode } = useApp();
+  const [profile, setProfile] = useState(isDemoMode ? DEMO_PROFILE_PRINT : null);
   const [accent,  setAccent]  = useState(PALETTE[0]);
 
   useEffect(() => {
+    if (isDemoMode) return;
     fetch('/api/auth/profile').then(r => r.json()).then(d => setProfile(d.profile || null));
-  }, []);
+  }, [isDemoMode]);
 
   useEffect(() => {
     if (!quotes.length) return;

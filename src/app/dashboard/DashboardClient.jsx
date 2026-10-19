@@ -60,7 +60,10 @@ export default function DashboardClient({
     surveys: _ctxSurveys,
     diaryEntriesByProject,
     dataReady,
+    isDemoMode,
   } = useApp();
+
+  const p = (path) => isDemoMode ? `/demo${path}` : path;
 
   const projects      = dataReady ? _ctxProjects      : initialProjects;
   const quotes        = dataReady ? _ctxQuotes        : (initialQuotes || []);
@@ -95,13 +98,13 @@ export default function DashboardClient({
         </div>
       </div>
 
-      {/* Admin stat cards */}
-      {isAdmin && !(isSuperAdmin && !impersonating) && (
+      {/* Stat cards */}
+      {!(isSuperAdmin && !impersonating) && (
         <div className="stat-grid" style={{ marginBottom: '1.5rem' }}>
-          <StatCard label="Összesített kiadás" value={formatHUF(allActiveInvoices.reduce((s, i) => s + Number(i.value_huf || 0), 0))} sub="Összes projekt forgalma" icon={Coins} href="/admin/projektek" />
-          <StatCard label="Aktív projektek" value={projects.length} sub="Építkezések száma" icon={FolderKanban} href="/projektek" />
-          <StatCard label="Felhasználók" value={(users || []).filter(u => !u.deleted_at).length} sub="Aktív tagok" icon={Users} href="/admin/felhasznalok" />
-          <StatCard label="Rögzített számlák" value={allActiveInvoices.length} sub="Bizonylatok száma" icon={Receipt} href="/admin/projektek" />
+          <StatCard label="Összesített kiadás" value={formatHUF(allActiveInvoices.reduce((s, i) => s + Number(i.value_huf || 0), 0))} sub="Összes projekt forgalma" icon={Coins} href={p('/projektek')} />
+          <StatCard label="Aktív projektek" value={projects.length} sub="Építkezések száma" icon={FolderKanban} href={p('/projektek')} />
+          <StatCard label="Felhasználók" value={(users || []).filter(u => !u.deleted_at).length} sub="Aktív tagok" icon={Users} />
+          <StatCard label="Rögzített számlák" value={allActiveInvoices.length} sub="Bizonylatok száma" icon={Receipt} href={p('/projektek')} />
         </div>
       )}
 
@@ -170,15 +173,19 @@ export default function DashboardClient({
       </div>
 
       {/* Recent projects (preview, link to full list) */}
-      {recentProjects.length > 0 && (
-        <div style={{ marginBottom: '1.75rem' }}>
-          <SectionHeader icon={FolderKanban} title="Projektek" href="/projektek" count={projects.length} />
+      <div style={{ marginBottom: '1.75rem' }}>
+        <SectionHeader icon={FolderKanban} title="Projektek" href={p('/projektek')} count={projects.length} />
+        {recentProjects.length === 0 ? (
+          <div className="card" style={{ textAlign: 'center', padding: '1.5rem', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+            Még nincs projekt.
+          </div>
+        ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(300px, 100%), 1fr))', gap: '1rem' }}>
             {recentProjects.map(project => {
               const projectMemberUsers = users.filter(u => (project.members || []).includes(u.id));
               const fin = calculateProjectFinancials(project, invoices, labourEntries, projectMemberUsers, currentUser?.id);
               return (
-                <div key={project.id} className="card card-interactive" onClick={() => router.push(`/projektek/${project.id}`)} style={{ cursor: 'pointer' }}>
+                <div key={project.id} className="card card-interactive" onClick={() => router.push(p(`/projektek/${project.id}`))} style={{ cursor: 'pointer' }}>
                   <div style={{ fontWeight: 800, fontSize: '1rem', marginBottom: '0.35rem' }}>{project.name}</div>
                   {project.description && <p style={{ fontSize: '0.825rem', color: 'var(--text-secondary)', marginBottom: '0.5rem', lineHeight: 1.4 }}>{project.description}</p>}
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: 'var(--text-muted)', borderTop: '1px solid var(--border-subtle)', paddingTop: '0.5rem', marginTop: '0.5rem' }}>
@@ -189,19 +196,19 @@ export default function DashboardClient({
               );
             })}
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* Surveys + Quotes */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(320px, 100%), 1fr))', gap: '1rem', marginBottom: '1.75rem' }}>
         <div className="card">
-          <SectionHeader icon={Ruler} title="Legújabb felmérések" href="/felmeres" />
+          <SectionHeader icon={Ruler} title="Legújabb felmérések" href={p('/felmeres')} />
           {recentSurveys.length === 0 ? (
             <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem', padding: '0.5rem 0' }}>Még nincs felmérés.</div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column' }}>
               {recentSurveys.map((s, idx) => (
-                <Link key={s.id} href={`/felmeres/${s.id}`} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.6rem 0', borderBottom: idx < recentSurveys.length - 1 ? '1px solid var(--border-subtle)' : 'none', textDecoration: 'none', color: 'inherit' }}>
+                <Link key={s.id} href={p(`/felmeres/${s.id}`)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.6rem 0', borderBottom: idx < recentSurveys.length - 1 ? '1px solid var(--border-subtle)' : 'none', textDecoration: 'none', color: 'inherit' }}>
                   <div style={{ minWidth: 0 }}>
                     <div style={{ fontWeight: 700, fontSize: '0.85rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.title}</div>
                     <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{s.location || '–'} &bull; {formatDate(s.date || s.created_at)}</div>
@@ -214,7 +221,7 @@ export default function DashboardClient({
         </div>
 
         <div className="card">
-          <SectionHeader icon={FileText} title="Legújabb ajánlatok" href="/ajanlatok" />
+          <SectionHeader icon={FileText} title="Legújabb ajánlatok" href={p('/ajanlatok')} />
           {recentQuotes.length === 0 ? (
             <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem', padding: '0.5rem 0' }}>Még nincs ajánlat.</div>
           ) : (
@@ -222,7 +229,7 @@ export default function DashboardClient({
               {recentQuotes.map((q, idx) => {
                 const client = (clients || []).find(c => c.id === q.client_id);
                 return (
-                  <Link key={q.id} href={`/ajanlatok/${q.id}`} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.6rem 0', borderBottom: idx < recentQuotes.length - 1 ? '1px solid var(--border-subtle)' : 'none', textDecoration: 'none', color: 'inherit' }}>
+                  <Link key={q.id} href={p(`/ajanlatok/${q.id}`)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.6rem 0', borderBottom: idx < recentQuotes.length - 1 ? '1px solid var(--border-subtle)' : 'none', textDecoration: 'none', color: 'inherit' }}>
                     <div style={{ minWidth: 0, flex: 1 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
                         <span style={{ fontWeight: 700, fontSize: '0.85rem' }}>{q.title}</span>

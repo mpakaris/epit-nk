@@ -9,7 +9,14 @@ const DEMO_WEBSITE = {
   status:       'published',
   published_at: '2025-03-10T08:00:00Z',
   is_premium:   true,
-  theme:        { color_scheme: 'slate', typography: 'modern' },
+  theme: {
+    color_scheme: 'slate',
+    typography: 'modern',
+    banners: [
+      { image_id: 'bf083873-5550-4d31-a09e-53bce9d6095e', image_url: 'https://pub-2d791068241e4c61bad18331f484ab29.r2.dev/library/general/1792410398760-hhhf2u.webp' },
+      { image_id: '37d2396a-16f0-4fda-84b4-051b4ab85a12', image_url: 'https://pub-2d791068241e4c61bad18331f484ab29.r2.dev/library/general/1792410398070-iwln6n.webp' },
+    ],
+  },
 };
 
 const DEMO_SECTIONS = [
@@ -17,8 +24,10 @@ const DEMO_SECTIONS = [
     section_type: 'hero',
     enabled: true,
     content: {
-      tagline:  'Megbízható felújítások – garanciával, pontosan, Budapest egész területén',
-      subtitle: '15 éves tapasztalattal vállalok burkolást, festést, gipszkarton munkákat és komplett lakásfelújításokat. Ingyenes helyszíni felmérés!',
+      tagline:         'Megbízható felújítások – garanciával, pontosan, Budapest egész területén',
+      subtitle:        '15 éves tapasztalattal vállalok burkolást, festést, gipszkarton munkákat és komplett lakásfelújításokat. Ingyenes helyszíni felmérés!',
+      hero_image_id:   'a54807bf-fab3-418b-8dae-2003248c65b0',
+      hero_image_url:  'https://pub-2d791068241e4c61bad18331f484ab29.r2.dev/library/general/1792410371631-6qb776.webp',
     },
   },
   {

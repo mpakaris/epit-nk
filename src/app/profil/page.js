@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
 import {
   User, KeyRound, LogOut, CheckCircle2, AlertCircle, Loader2,
-  FileText, Upload, Trash2, Check, Zap, Star, Building2,
+  FileText, Upload, Trash2, Check, Zap, Star,
   ShieldCheck, Mail, ChevronRight,
 } from 'lucide-react';
 import Link from 'next/link';
@@ -44,23 +44,6 @@ const PLANS = [
     ],
     cta: 'Váltás Prémiumra',
   },
-  {
-    key: 'collective',
-    name: 'Kollektíva',
-    price: '8 000 Ft',
-    priceNote: '/ hó + 2 000 Ft/fő',
-    icon: Building2,
-    color: 'var(--accent)',
-    features: [
-      'Minden Prémium funkció',
-      'Megosztott munkaterület',
-      'Csapattagok meghívása (ingyenes nekik)',
-      'Közös projektek és ajánlatok',
-      'Szerepkör-alapú hozzáférés',
-    ],
-    cta: 'Kollektíva indítása',
-    note: 'Prémium előfizetés szükséges',
-  },
 ];
 
 function SectionHeader({ title, subtitle }) {
@@ -76,8 +59,21 @@ function getInitials(name) {
   return (name || '?').split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase();
 }
 
+const DEMO_PROFILE = {
+  display_name:        'Nemes Péter',
+  first_name:          'Péter',
+  last_name:           'Nemes',
+  company_name:        'Nemes Renováló Kft.',
+  street:              'Alkotás utca',
+  street_number:       '15',
+  zip:                 '1124',
+  city:                'Budapest',
+  tax_number:          '99887766-2-43',
+  default_tax_percent: 27,
+};
+
 export default function ProfilPage() {
-  const { currentUser, logout, changePassword } = useApp();
+  const { currentUser, logout, changePassword, isDemoMode } = useApp();
   const router = useRouter();
   const isPremium = currentUser?.is_subscription_premium ?? false;
 
@@ -120,6 +116,21 @@ export default function ProfilPage() {
   const [deleting,      setDeleting]      = useState(false);
 
   useEffect(() => {
+    if (isDemoMode) {
+      const p = DEMO_PROFILE;
+      setDisplayName(p.display_name);
+      setFirstName(p.first_name);
+      setLastName(p.last_name);
+      setCompanyName(p.company_name);
+      setStreet(p.street);
+      setStreetNumber(p.street_number);
+      setZip(p.zip);
+      setCity(p.city);
+      setTaxNumber(p.tax_number);
+      setDefaultTaxPct(String(p.default_tax_percent));
+      setLoadingProfile(false);
+      return;
+    }
     fetch('/api/auth/profile')
       .then(r => r.json())
       .then(({ profile }) => {
@@ -139,7 +150,7 @@ export default function ProfilPage() {
         setTermsPdfUploadedAt(profile.terms_pdf_uploaded_at || null);
       })
       .finally(() => setLoadingProfile(false));
-  }, []);
+  }, [isDemoMode]);
 
   const handleSaveProfile = async (e) => {
     e.preventDefault();

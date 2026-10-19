@@ -309,7 +309,7 @@ export default function Sidebar() {
         {/* User section — avatar + name links to /profil, logout icon stays */}
         <div className="sidebar-user" style={{ padding: '0.6rem 0.5rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
           <Link
-            href="/profil"
+            href={`${navPrefix}/profil`}
             style={{
               flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: '0.6rem',
               textDecoration: 'none', borderRadius: 'var(--radius-md)',
@@ -336,7 +336,7 @@ export default function Sidebar() {
                   {currentUser.display_name}
                 </div>
                 <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                  {currentUser.role === 'superadmin' ? 'Superadmin' : currentUser.role === 'admin' ? 'Admin' : 'Tag'}
+                  {currentUser.role === 'superadmin' ? 'Superadmin' : currentUser.role === 'admin' ? 'Admin' : null}
                   {!isSuperAdmin && (
                     <span style={{
                       fontWeight: 700, fontSize: '0.6rem', textTransform: 'uppercase', letterSpacing: '0.03em',
@@ -480,7 +480,7 @@ export default function Sidebar() {
                 </div>
               </div>
               <div style={{ display: 'flex', gap: '0.4rem', flexShrink: 0 }}>
-                <Link href="/profil" className="btn btn-secondary btn-sm" onClick={() => setMobileOpen(false)} style={{ padding: '0.35rem 0.6rem', display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.8rem' }}>
+                <Link href={`${navPrefix}/profil`} className="btn btn-secondary btn-sm" onClick={() => setMobileOpen(false)} style={{ padding: '0.35rem 0.6rem', display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.8rem' }}>
                   <User size={14} /> Profil
                 </Link>
                 <button type="button" onClick={logout} className="btn btn-secondary btn-sm" style={{ padding: '0.35rem 0.5rem', color: 'var(--danger-text)', borderColor: 'var(--danger-border)' }} title="Kijelentkezés">
