@@ -28,6 +28,22 @@ export async function POST(request) {
     if (member?.role !== 'owner') {
       return NextResponse.json({ error: 'Csak a tulajdonos állíthatja vissza az előfizetést.' }, { status: 403 });
     }
+
+    // Collective addons require an active premium subscription
+    const { data: activePremium } = await admin
+      .from('subscriptions')
+      .select('id')
+      .eq('user_id', user.id)
+      .in('product_family', ['premium', 'bundle'])
+      .in('status', ['active', 'trialing'])
+      .limit(1)
+      .maybeSingle();
+
+    if (!activePremium) {
+      return NextResponse.json({
+        error: 'A kollektíva visszaállításához aktív Prémium előfizetés szükséges. Először állítsd vissza a Prémium előfizetésedet.',
+      }, { status: 403 });
+    }
   }
 
   const res = await fetch(`${CREEM_BASE}/v1/subscriptions/${subscriptionId}/resume`, {

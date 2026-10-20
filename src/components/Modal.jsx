@@ -110,7 +110,7 @@ export function ConfirmModal({ isOpen, onClose, onConfirm, title = 'Megerősít�
   );
 }
 
-export function AlertModal({ isOpen, onClose, title, message, variant = 'error' }) {
+export function AlertModal({ isOpen, onClose, title, message, variant = 'error', action }) {
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
 
@@ -142,10 +142,15 @@ export function AlertModal({ isOpen, onClose, title, message, variant = 'error' 
           </p>
         </div>
       </div>
-      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
         <button className="btn btn-secondary btn-sm" onClick={onClose}>
           OK
         </button>
+        {action && (
+          <a href={action.href} className="btn btn-primary btn-sm" style={{ textDecoration: 'none' }}>
+            {action.label}
+          </a>
+        )}
       </div>
     </ModalBase>
   );

@@ -473,7 +473,11 @@ export default function KollektivakPage() {
         ));
         toast(`A(z) „${collective.name}" kollektíva előfizetése visszaállítva — ismét aktív.`);
       } else {
-        setAlertModal({ message: data.error || 'Visszaállítás sikertelen. Kérjük, próbáld újra.' });
+        const needsPremium = res.status === 403 && data.error?.includes('Prémium');
+        setAlertModal({
+          message: data.error || 'Visszaállítás sikertelen. Kérjük, próbáld újra.',
+          ...(needsPremium && { action: { label: 'Prémium visszaállítása →', href: '/profil' } }),
+        });
       }
     } catch {
       setAlertModal({ message: 'Hiba a kapcsolódás során. Kérjük, próbáld újra.' });
@@ -1167,7 +1171,7 @@ export default function KollektivakPage() {
 
 
       <ConfirmModal isOpen={!!confirmModal} onClose={() => setConfirmModal(null)} onConfirm={() => confirmModal?.onConfirm()} title="Megerősítés" message={confirmModal?.message} />
-      <AlertModal isOpen={!!alertModal} onClose={() => setAlertModal(null)} message={alertModal?.message} variant={alertModal?.variant ?? 'error'} title={alertModal?.title} />
+      <AlertModal isOpen={!!alertModal} onClose={() => setAlertModal(null)} message={alertModal?.message} variant={alertModal?.variant ?? 'error'} title={alertModal?.title} action={alertModal?.action} />
 
       {/* Cancel subscription confirm modal */}
       {/* ── Reactivate modal (canceled → new checkout) ── */}
