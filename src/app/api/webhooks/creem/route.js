@@ -74,10 +74,20 @@ async function revokePremium(admin, userId, subscriptionId) {
     .eq('id', userId);
 
   // Collective addons require premium as their basis — freeze them all
-  await admin.from('collectives')
-    .update({ subscription_status: 'canceled' })
-    .eq('owner_id', userId)
-    .in('subscription_status', ['active', 'trialing']);
+  const { data: ownedMemberships } = await admin
+    .from('collective_members')
+    .select('collective_id')
+    .eq('user_id', userId)
+    .eq('role', 'owner')
+    .eq('status', 'active');
+
+  const ownedIds = (ownedMemberships || []).map(m => m.collective_id);
+  if (ownedIds.length > 0) {
+    await admin.from('collectives')
+      .update({ subscription_status: 'canceled' })
+      .in('id', ownedIds)
+      .in('subscription_status', ['active', 'trialing']);
+  }
 }
 
 async function updateCollectiveStatus(admin, subscriptionId, status, periodEnd) {

@@ -226,6 +226,7 @@ export default function ProfilPage() {
   const [cancelingPremium, setCancelingPremium] = useState(false);
   const [resumingPremium, setResumingPremium] = useState(false);
   const [alertModal, setAlertModal] = useState(null); // { title, message, variant }
+  const [cancelSuccessModal, setCancelSuccessModal] = useState(null); // { premiumPeriodEnd, canceledCollectives }
 
   const [scheduledDeletionAt, setScheduledDeletionAt] = useState(null);
   const [cancelingDeletion, setCancelingDeletion] = useState(false);
@@ -265,15 +266,9 @@ export default function ProfilPage() {
         const periodEnd = data.subscription_period_end ?? null;
         setPremiumIsScheduledCancel(true);
         setPremiumCancelAt(periodEnd);
-        const dateStr = periodEnd
-          ? new Date(periodEnd).toLocaleDateString('hu-HU', { year: 'numeric', month: 'long', day: 'numeric' })
-          : null;
-        setAlertModal({
-          variant: 'success',
-          title: 'Prémium előfizetés lemondva',
-          message: dateStr
-            ? `Az előfizetésed aktív marad ${dateStr}-ig. Addig bármikor visszaállíthatod.`
-            : 'Az előfizetésed a jelenlegi számlázási időszak végéig aktív marad. Addig bármikor visszaállíthatod.',
+        setCancelSuccessModal({
+          premiumPeriodEnd: periodEnd,
+          canceledCollectives: data.canceled_collectives ?? [],
         });
       } else {
         setAlertModal({ variant: 'error', title: 'Hiba', message: data.error || 'Lemondás sikertelen.' });
@@ -1026,6 +1021,60 @@ export default function ProfilPage() {
         )}
       </div>
 
+      {/* ── Premium cancel success modal ── */}
+      <Modal isOpen={!!cancelSuccessModal} onClose={() => setCancelSuccessModal(null)} title="Előfizetés lemondva">
+        {cancelSuccessModal && (() => {
+          const fmt = (iso) => iso
+            ? new Date(iso).toLocaleDateString('hu-HU', { year: 'numeric', month: 'long', day: 'numeric' })
+            : null;
+          const premiumDate = fmt(cancelSuccessModal.premiumPeriodEnd);
+          const cols = cancelSuccessModal.canceledCollectives || [];
+          return (
+            <div>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem', marginBottom: '1rem' }}>
+                <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'var(--success-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <CheckCircle2 size={20} color="var(--success-text)" />
+                </div>
+                <div>
+                  <div style={{ fontWeight: 800, fontSize: '1rem', marginBottom: '0.25rem' }}>Prémium előfizetés lemondva</div>
+                  <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                    {premiumDate
+                      ? <>Prémium hozzáférésed <strong>{premiumDate}</strong>-ig aktív marad.</>
+                      : 'Prémium hozzáférésed a számlázási időszak végéig aktív marad.'}
+                  </div>
+                </div>
+              </div>
+
+              {cols.length > 0 && (
+                <div style={{ background: 'var(--bg-subtle)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: '0.75rem 1rem', marginBottom: '1rem' }}>
+                  <div style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
+                    Lemondott kollektívák
+                  </div>
+                  {cols.map((c, i) => (
+                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.85rem', padding: '0.3rem 0', borderBottom: i < cols.length - 1 ? '1px solid var(--border-subtle)' : 'none' }}>
+                      <span style={{ fontWeight: 600 }}>{c.name}</span>
+                      <span style={{ color: 'var(--text-muted)', fontSize: '0.78rem' }}>
+                        {fmt(c.period_end) ? `aktív ${fmt(c.period_end)}-ig` : 'időszak végéig aktív'}
+                      </span>
+                    </div>
+                  ))}
+                  <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '0.5rem' }}>
+                    A tagok e-mailben értesítést kaptak.
+                  </div>
+                </div>
+              )}
+
+              <p style={{ fontSize: '0.825rem', color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: '1.25rem' }}>
+                Addig bármikor visszaállíthatod az előfizetésedet.
+              </p>
+              <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                <button type="button" className="btn btn-primary btn-sm" onClick={() => setCancelSuccessModal(null)}>Rendben</button>
+              </div>
+            </div>
+          );
+        })()}
+      </Modal>
+
       {/* ── Premium cancel confirm modal ── */}
       <Modal isOpen={cancelPremiumModal} onClose={() => !cancelingPremium && setCancelPremiumModal(false)} title="Prémium lemondása">
         {(() => {
@@ -1045,7 +1094,7 @@ export default function ProfilPage() {
                 </div>
               )}
               <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: '1.25rem' }}>
-                Az előfizetés a jelenlegi számlázási időszak végéig aktív marad. Addig bármikor visszaállíthatod.
+                A Prémium és az összes kollektíva előfizetése a jelenlegi számlázási időszak végéig aktív marad. Addig bármikor visszaállíthatod.
               </p>
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
                 <button type="button" className="btn btn-secondary btn-sm" disabled={cancelingPremium} onClick={() => setCancelPremiumModal(false)}>Mégse</button>
