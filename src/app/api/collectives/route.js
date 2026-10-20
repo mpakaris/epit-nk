@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { logAudit } from '@/lib/audit';
 
 // GET  — list collectives the caller belongs to (with members)
 // POST — create a new collective (Premium required)
@@ -13,7 +14,7 @@ export async function GET() {
 
   const { data: memberships } = await admin
     .from('collective_members')
-    .select('collective_id, role, status, collectives(id, name, created_at)')
+    .select('collective_id, role, status, collectives(id, name, created_at, collective_tier, creem_subscription_id, subscription_status, subscription_period_end)')
     .eq('user_id', user.id)
     .eq('status', 'active');
 
@@ -38,10 +39,14 @@ export async function GET() {
   for (const p of (profileRows || [])) profileMap[p.id] = p;
 
   const collectives = (memberships || []).map(m => ({
-    id:       m.collective_id,
-    name:     m.collectives?.name,
-    created_at: m.collectives?.created_at,
-    my_role:  m.role,
+    id:                    m.collective_id,
+    name:                  m.collectives?.name,
+    created_at:            m.collectives?.created_at,
+    collective_tier:          m.collectives?.collective_tier ?? null,
+    creem_subscription_id:    m.collectives?.creem_subscription_id ?? null,
+    subscription_status:      m.collectives?.subscription_status ?? 'active',
+    subscription_period_end:  m.collectives?.subscription_period_end ?? null,
+    my_role:               m.role,
     members:  (allMembers || [])
       .filter(mb => mb.collective_id === m.collective_id)
       .map(mb => {
@@ -66,19 +71,23 @@ export async function POST(req) {
   if (authErr || !user) return Response.json({ error: 'Unauthenticated' }, { status: 401 });
 
   const admin = createAdminClient();
-  const { data: profile } = await admin.from('profiles').select('is_subscription_premium, role').eq('id', user.id).single();
+  const { data: profile } = await admin.from('profiles').select('is_subscription_premium, role, display_name').eq('id', user.id).single();
 
   const isSuperAdmin = profile?.role === 'superadmin';
   if (!isSuperAdmin && !profile?.is_subscription_premium) {
     return Response.json({ error: 'PREMIUM_REQUIRED' }, { status: 403 });
   }
 
-  const { name } = await req.json();
+  const { name, creem_subscription_id, collective_tier } = await req.json();
   if (!name?.trim()) return Response.json({ error: 'A kollektíva neve kötelező' }, { status: 400 });
+
+  const insertData = { id: crypto.randomUUID(), name: name.trim() };
+  if (creem_subscription_id) insertData.creem_subscription_id = creem_subscription_id;
+  if (collective_tier) insertData.collective_tier = collective_tier;
 
   const { data: collective, error: createErr } = await admin
     .from('collectives')
-    .insert({ id: crypto.randomUUID(), name: name.trim() })
+    .insert(insertData)
     .select()
     .single();
 
@@ -90,6 +99,16 @@ export async function POST(req) {
     user_id: user.id,
     role: 'owner',
     status: 'active',
+  });
+
+  logAudit({
+    entityId:   collective.id,
+    userId:     user.id,
+    userName:   profile.display_name || user.email,
+    action:     'Kollektíva létrehozva',
+    targetType: 'collective',
+    targetId:   collective.id,
+    targetName: collective.name,
   });
 
   return Response.json({ collective });

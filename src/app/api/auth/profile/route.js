@@ -28,7 +28,18 @@ export async function GET() {
     name:          m.collectives?.name || null,
   }));
 
-  return Response.json({ profile, collectives });
+  // Return the active premium subscription (for status display in /profil)
+  const { data: premiumSub } = await admin
+    .from('subscriptions')
+    .select('creem_subscription_id, product_family, status, period_end, created_at')
+    .eq('user_id', user.id)
+    .in('product_family', ['premium', 'bundle'])
+    .in('status', ['active', 'trialing', 'scheduled_cancel', 'paused', 'past_due'])
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  return Response.json({ profile, collectives, premiumSub: premiumSub ?? null });
 }
 
 export async function PATCH(request) {

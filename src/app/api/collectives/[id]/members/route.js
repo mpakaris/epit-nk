@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { logAudit } from '@/lib/audit';
 
 // POST — invite a member by email
 
@@ -56,6 +57,17 @@ export async function POST(req, { params }) {
     .single();
 
   if (insertErr) return Response.json({ error: insertErr.message }, { status: 500 });
+
+  const { data: callerProfile } = await admin.from('profiles').select('display_name').eq('id', user.id).single();
+  logAudit({
+    entityId:   id,
+    userId:     user.id,
+    userName:   callerProfile?.display_name || user.email,
+    action:     'Tag hozzáadva',
+    targetType: 'collective_member',
+    targetId:   invitee.id,
+    targetName: invitee.display_name || invitee.email,
+  });
 
   return Response.json({ member: { ...member, display_name: invitee.display_name, email: invitee.email } });
 }

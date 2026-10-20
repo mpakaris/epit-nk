@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { sendEmail } from '@/lib/email';
 import { fillTemplate, wrapEmail, EMAIL_TEMPLATES } from '@/lib/emailTemplates';
+import { logAudit } from '@/lib/audit';
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 
@@ -116,6 +117,16 @@ export async function POST(req, { params }) {
     // Don't fail the invite if email fails — invitation is already created
     console.error('Invitation email failed:', emailErr.message);
   }
+
+  logAudit({
+    entityId:   id,
+    userId:     user.id,
+    userName:   inviterName,
+    action:     'Tag meghívva',
+    targetType: 'collective_invitation',
+    targetId:   invitation.id,
+    targetName: normalizedEmail,
+  });
 
   return Response.json({ invitation: { id: invitation.id, email: normalizedEmail, status: 'pending' } });
 }

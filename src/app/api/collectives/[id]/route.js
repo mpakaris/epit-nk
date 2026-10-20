@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { logAudit } from '@/lib/audit';
 
 // PATCH — rename collective (owner only)
 // DELETE — delete collective (owner only)
@@ -31,6 +32,17 @@ export async function PATCH(req, { params }) {
   const { data, error } = await admin.from('collectives').update({ name: name.trim() }).eq('id', id).select().single();
   if (error) return Response.json({ error: error.message }, { status: 500 });
 
+  const { data: callerProfile } = await admin.from('profiles').select('display_name').eq('id', user.id).single();
+  logAudit({
+    entityId:   id,
+    userId:     user.id,
+    userName:   callerProfile?.display_name || user.email,
+    action:     'Kollektíva módosítva',
+    targetType: 'collective',
+    targetId:   id,
+    targetName: data.name,
+  });
+
   return Response.json({ collective: data });
 }
 
@@ -44,8 +56,23 @@ export async function DELETE(req, { params }) {
   const role = await getCallerRole(admin, id, user.id);
   if (role !== 'owner') return Response.json({ error: 'Csak a tulajdonos törölheti a kollektívát' }, { status: 403 });
 
+  const [{ data: collectiveData }, { data: callerProfile }] = await Promise.all([
+    admin.from('collectives').select('name').eq('id', id).single(),
+    admin.from('profiles').select('display_name').eq('id', user.id).single(),
+  ]);
+
   const { error } = await admin.from('collectives').delete().eq('id', id);
   if (error) return Response.json({ error: error.message }, { status: 500 });
+
+  logAudit({
+    entityId:   id,
+    userId:     user.id,
+    userName:   callerProfile?.display_name || user.email,
+    action:     'Kollektíva törölve',
+    targetType: 'collective',
+    targetId:   id,
+    targetName: collectiveData?.name,
+  });
 
   return Response.json({ ok: true });
 }

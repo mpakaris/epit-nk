@@ -5,10 +5,12 @@ import { useRouter } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
 import {
   User, KeyRound, LogOut, CheckCircle2, AlertCircle, Loader2,
-  FileText, Upload, Trash2, Check, Zap, Star,
-  ShieldCheck, Mail, ChevronRight,
+  FileText, Upload, Trash2, Check, Zap, Star, Clock, Building2, X,
+  ShieldCheck, Mail, ChevronRight, AlertTriangle, RefreshCw,
 } from 'lucide-react';
 import Link from 'next/link';
+import { isEffectivePremium } from '@/lib/subscriptionLimits';
+import Modal, { AlertModal } from '@/components/Modal';
 
 // ── Pricing plans ─────────────────────────────────────────────────────────────
 const PLANS = [
@@ -20,31 +22,116 @@ const PLANS = [
     icon: Zap,
     color: 'var(--text-muted)',
     features: [
-      'Maximum 1 projekt',
-      'Számla- és munkanapló feltöltés',
-      'Személyes munkaterület',
+      'Max. 1 projekt',
+      'Max. 5 felmérés',
+      'Max. 5 ajánlat',
+      'Személyes weboldal (szakember profil)',
       'Meghívható kollektívákba',
     ],
   },
   {
     key: 'premium',
     name: 'Prémium',
-    price: '5 000 Ft',
-    priceNote: '/ hó',
+    price: '€17.50',
+    priceHuf: '≈ 6 999 Ft',
+    priceNote: '/ hó + ÁFA',
     icon: Star,
     color: '#b45309',
     highlight: true,
+    productId: process.env.NEXT_PUBLIC_CREEM_PREMIUM_PRODUCT_ID,
     features: [
       'Korlátlan projektek',
-      'Korlátlan feltöltés',
-      'Ajánlatok és felmérések',
-      'Naptár és ügyféltár',
+      'Korlátlan felmérések és ajánlatok',
       'Kollektíva létrehozása',
-      'Személyes weboldal',
+      'Naptár és ügyféltár',
+      'Teljes weboldal funkciók',
+      'Korlátlan képfeltöltés',
     ],
     cta: 'Váltás Prémiumra',
   },
 ];
+
+const BUNDLE_PRODUCT_IDS = [
+  process.env.NEXT_PUBLIC_CREEM_BUNDLE_SMALL_PRODUCT_ID,
+  process.env.NEXT_PUBLIC_CREEM_BUNDLE_MEDIUM_PRODUCT_ID,
+  process.env.NEXT_PUBLIC_CREEM_BUNDLE_LARGE_PRODUCT_ID,
+];
+
+function UpgradeModal({ status, purchasedProductId, onClose }) {
+  const canvasRef = useRef(null);
+  const isBundle = BUNDLE_PRODUCT_IDS.includes(purchasedProductId);
+
+  useEffect(() => {
+    if (status !== 'success' || !canvasRef.current) return;
+    const colors = ['#2563eb', '#b45309', '#16a34a', '#9333ea'];
+    import('canvas-confetti').then(m => {
+      const fire = m.default.create(canvasRef.current, { resize: true });
+      // Three quick bursts, no animation loop
+      fire({ particleCount: 80, spread: 90, origin: { y: 0.55 }, colors });
+      setTimeout(() => {
+        fire({ particleCount: 50, angle: 60, spread: 60, origin: { x: 0, y: 0.6 }, colors });
+        fire({ particleCount: 50, angle: 120, spread: 60, origin: { x: 1, y: 0.6 }, colors });
+      }, 300);
+      setTimeout(() => {
+        fire({ particleCount: 30, spread: 100, origin: { y: 0.5 }, colors });
+      }, 700);
+    });
+  }, [status]);
+
+  if (!status) return null;
+  const isSuccess = status === 'success';
+
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 9999,
+      background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem',
+    }}>
+      {/* Confetti canvas lives inside the overlay so it's above the blur */}
+      {isSuccess && (
+        <canvas ref={canvasRef} style={{
+          position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none',
+        }} />
+      )}
+      <div style={{
+        position: 'relative', zIndex: 1,
+        background: 'var(--bg-card, #fff)', borderRadius: 'var(--radius-lg)', padding: '2.5rem 2rem',
+        maxWidth: 440, width: '100%', textAlign: 'center',
+        boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
+      }}>
+        <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>
+          {isSuccess ? '🎉' : '😔'}
+        </div>
+        <h2 style={{ margin: '0 0 0.6rem', fontSize: '1.25rem', fontWeight: 900, color: 'var(--text-primary)' }}>
+          {isSuccess ? 'Sikeres előfizetés!' : 'Valami nem sikerült'}
+        </h2>
+        <p style={{ margin: '0 0 1.75rem', fontSize: '0.9rem', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+          {isSuccess
+            ? isBundle
+              ? 'Gratulálunk! Prémium előfizetésed és az első Kollektívád is aktiválva lett. Hívd meg kollégáidat, és dolgozzatok együtt projekteken, ajánlatokon — korlátok nélkül.'
+              : 'Gratulálunk! Prémium csomagra váltottál. Korlátlan projektek, felmérések és ajánlatok állnak rendelkezésedre — és bármikor indíthatsz Kollektíva munkaterületet a csapatodnak.'
+            : 'Úgy tűnik, valami hiba történt — pl. a kártyát elutasítottak vagy megszakadt az internetkapcsolat. Kérjük, próbáld újra, vagy vedd fel a kapcsolatot az oldal üzemeltetőjével.'}
+        </p>
+        <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+          {isSuccess ? (
+            <button className="btn btn-primary" onClick={onClose}>
+              Tovább →
+            </button>
+          ) : (
+            <>
+              <button className="btn btn-secondary" onClick={onClose}>
+                Vissza
+              </button>
+              <a href="mailto:info@epitunk.hu" className="btn btn-primary">
+                Kapcsolat
+              </a>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function SectionHeader({ title, subtitle }) {
   return (
@@ -73,9 +160,229 @@ const DEMO_PROFILE = {
 };
 
 export default function ProfilPage() {
-  const { currentUser, logout, changePassword, isDemoMode } = useApp();
+  const { currentUser, logout, changePassword, isDemoMode, refreshSupabaseData, collectives } = useApp();
   const router = useRouter();
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    // Step 2: clean page after reload — read result but DON'T clear yet (StrictMode safe)
+    const stored = sessionStorage.getItem('creem_upgrade_result');
+    if (stored) {
+      try { setUpgradeModal(JSON.parse(stored)); } catch {}
+      return;
+    }
+
+    // Step 1: Creem redirected here with ?upgraded=1 params
+    const params = new URLSearchParams(window.location.search);
+    if (!params.has('upgraded')) return;
+
+    // Clean URL immediately so StrictMode's second run finds nothing and exits
+    window.history.replaceState({}, '', '/profil');
+
+    const subscriptionId = params.get('subscription_id');
+    const customerId = params.get('customer_id');
+    const productId = params.get('product_id');
+
+    const finish = (status) => {
+      sessionStorage.setItem('creem_upgrade_result', JSON.stringify({ status, productId: productId ?? null }));
+      window.location.replace('/profil');
+    };
+
+    if (subscriptionId) {
+      fetch('/api/checkout/activate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ subscriptionId, customerId }),
+      })
+        .then(res => finish(res.ok ? 'success' : 'error'))
+        .catch(() => finish('error'));
+    } else {
+      finish('error');
+    }
+  }, []);
+
+  const [upgradeModal, setUpgradeModal] = useState(null);
+  const [checkoutIframeUrl, setCheckoutIframeUrl] = useState(null);
+
   const isPremium = currentUser?.is_subscription_premium ?? false;
+  const isOnTrial = !isPremium
+    && currentUser?.subscription_tier === 'trial'
+    && currentUser?.trial_ends_at
+    && new Date(currentUser.trial_ends_at) > new Date();
+  const effectivePremium = isEffectivePremium(currentUser ?? {});
+  const trialDaysLeft = isOnTrial
+    ? Math.max(0, Math.ceil((new Date(currentUser.trial_ends_at) - new Date()) / 86400000))
+    : 0;
+
+  const [loadingPlan, setLoadingPlan] = useState(null);
+  const [checkoutError, setCheckoutError] = useState('');
+  const [portalLoading, setPortalLoading] = useState(false);
+  const [portalError, setPortalError] = useState('');
+  const [premiumSubId, setPremiumSubId] = useState(null);
+  const [premiumIsScheduledCancel, setPremiumIsScheduledCancel] = useState(false);
+  const [premiumCancelAt, setPremiumCancelAt] = useState(null); // ISO string — may be null even when scheduled
+  const [cancelPremiumModal, setCancelPremiumModal] = useState(false);
+  const [cancelingPremium, setCancelingPremium] = useState(false);
+  const [resumingPremium, setResumingPremium] = useState(false);
+  const [alertModal, setAlertModal] = useState(null); // { title, message, variant }
+
+  const [scheduledDeletionAt, setScheduledDeletionAt] = useState(null);
+  const [cancelingDeletion, setCancelingDeletion] = useState(false);
+
+  const doOpenPortal = async () => {
+    setPortalLoading(true);
+    setPortalError('');
+    try {
+      const res = await fetch('/api/billing/portal');
+      const data = await res.json();
+      if (data.portalUrl) {
+        window.open(data.portalUrl, '_blank', 'noopener,noreferrer');
+      } else {
+        setPortalError(data.error || 'Nem sikerült megnyitni az előfizetés-kezelő felületet.');
+      }
+    } catch {
+      setPortalError('Hiba a kapcsolódás során. Kérjük, próbáld újra.');
+    } finally {
+      setPortalLoading(false);
+    }
+  };
+
+  const handleOpenPortal = () => doOpenPortal();
+
+  const handleCancelPremium = async () => {
+    if (!premiumSubId) return;
+    setCancelingPremium(true);
+    try {
+      const res = await fetch('/api/subscriptions/cancel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ subscriptionId: premiumSubId }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setCancelPremiumModal(false);
+        const periodEnd = data.subscription_period_end ?? null;
+        setPremiumIsScheduledCancel(true);
+        setPremiumCancelAt(periodEnd);
+        const dateStr = periodEnd
+          ? new Date(periodEnd).toLocaleDateString('hu-HU', { year: 'numeric', month: 'long', day: 'numeric' })
+          : null;
+        setAlertModal({
+          variant: 'success',
+          title: 'Prémium előfizetés lemondva',
+          message: dateStr
+            ? `Az előfizetésed aktív marad ${dateStr}-ig. Addig bármikor visszaállíthatod.`
+            : 'Az előfizetésed a jelenlegi számlázási időszak végéig aktív marad. Addig bármikor visszaállíthatod.',
+        });
+      } else {
+        setAlertModal({ variant: 'error', title: 'Hiba', message: data.error || 'Lemondás sikertelen.' });
+      }
+    } catch {
+      alert('Hiba a kapcsolódás során.');
+    } finally {
+      setCancelingPremium(false);
+    }
+  };
+
+  const handleResumePremium = async () => {
+    if (!premiumSubId) return;
+    setResumingPremium(true);
+    try {
+      const res = await fetch('/api/subscriptions/resume', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ subscriptionId: premiumSubId }),
+      });
+      if (res.ok) {
+        setPremiumIsScheduledCancel(false);
+        setPremiumCancelAt(null);
+        setAlertModal({
+          variant: 'success',
+          title: 'Előfizetés visszaállítva',
+          message: 'Prémium előfizetésed ismét aktív — a számlázás a szokott ütemezés szerint folytatódik.',
+        });
+      } else {
+        const data = await res.json();
+        setAlertModal({ variant: 'error', title: 'Hiba', message: data.error || 'Visszaállítás sikertelen.' });
+      }
+    } catch {
+      alert('Hiba a kapcsolódás során.');
+    } finally {
+      setResumingPremium(false);
+    }
+  };
+
+  const handleCheckout = async (plan) => {
+    if (!plan.productId) return;
+    setLoadingPlan(plan.key);
+    setCheckoutError('');
+
+    let checkoutUrl;
+    try {
+      const res = await fetch('/api/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ productId: plan.productId, successUrl: window.innerWidth < 768 ? '/checkout-popup-success?checkout_type=premium' : '/profil' }),
+      });
+      const data = await res.json();
+      if (!data.checkoutUrl) {
+        setCheckoutError(data.error || 'Hiba történt a fizetési folyamat indításakor. Kérjük, próbáld újra.');
+        setLoadingPlan(null);
+        return;
+      }
+      checkoutUrl = data.checkoutUrl;
+    } catch {
+      setCheckoutError('Hiba történt a fizetési folyamat indításakor. Kérjük, próbáld újra.');
+      setLoadingPlan(null);
+      return;
+    }
+
+    const isMobile = window.innerWidth < 768;
+    const productId = plan.productId;
+
+    if (isMobile) {
+      // Mobile: bottom sheet drawer with iframe, result via storage event
+      const handleSuccess = async (data) => {
+        window.removeEventListener('storage', onStorage);
+        window.removeEventListener('message', onMessage);
+        setCheckoutIframeUrl(null);
+        localStorage.removeItem('creem_checkout_done');
+        try {
+          const res = await fetch('/api/checkout/activate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ subscriptionId: data.subscriptionId, customerId: data.customerId }),
+          });
+          setUpgradeModal({ status: res.ok ? 'success' : 'error', productId: data.productId ?? productId });
+          if (res.ok) refreshSupabaseData();
+        } catch {
+          setUpgradeModal({ status: 'error', productId });
+        }
+        setLoadingPlan(null);
+      };
+      const onStorage = (e) => {
+        if (e.key !== 'creem_checkout_done') return;
+        let data; try { data = JSON.parse(e.newValue); } catch { return; }
+        if (data?.checkoutType !== 'premium') return;
+        handleSuccess(data);
+      };
+      const onMessage = (e) => {
+        if (e.origin !== window.location.origin) return;
+        if (e.data?.type !== 'creem_checkout_success') return;
+        if (e.data?.checkoutType !== 'premium') return;
+        handleSuccess(e.data);
+      };
+      window.addEventListener('storage', onStorage);
+      window.addEventListener('message', onMessage);
+      setCheckoutIframeUrl(checkoutUrl);
+    } else {
+      // Desktop: open new tab, Creem redirects back to /profil?upgraded=1
+      // The existing useEffect handles activation automatically
+      window.open(checkoutUrl, '_blank', 'noopener,noreferrer');
+      setLoadingPlan(null);
+    }
+  };
 
   // ── Profile form ────────────────────────────────────────────────────────────
   const [displayName,   setDisplayName]   = useState('');
@@ -133,7 +440,7 @@ export default function ProfilPage() {
     }
     fetch('/api/auth/profile')
       .then(r => r.json())
-      .then(({ profile }) => {
+      .then(({ profile, premiumSub }) => {
         if (!profile) return;
         setDisplayName(profile.display_name       || '');
         setFirstName(profile.first_name           || '');
@@ -148,6 +455,10 @@ export default function ProfilPage() {
         setTermsPdfUrl(profile.terms_pdf_url               || null);
         setTermsPdfName(profile.terms_pdf_name             || null);
         setTermsPdfUploadedAt(profile.terms_pdf_uploaded_at || null);
+        setScheduledDeletionAt(profile.scheduled_deletion_at || null);
+        setPremiumSubId(premiumSub?.creem_subscription_id || null);
+        setPremiumIsScheduledCancel(premiumSub?.status === 'scheduled_cancel');
+        setPremiumCancelAt(premiumSub?.status === 'scheduled_cancel' ? (premiumSub.period_end || null) : null);
       })
       .finally(() => setLoadingProfile(false));
   }, [isDemoMode]);
@@ -228,9 +539,32 @@ export default function ProfilPage() {
       const res = await fetch('/api/auth/account', { method: 'DELETE' });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
-      await logout();
-      router.replace('/');
-    } catch (err) { setDeleteErr(err.message || 'Hiba történt.'); setDeleting(false); }
+      setScheduledDeletionAt(data.scheduled_deletion_at);
+      setDeleteOpen(false);
+      setDeleteText('');
+    } catch (err) { setDeleteErr(err.message || 'Hiba történt.'); }
+    finally { setDeleting(false); }
+  };
+
+  const handleCancelDeletion = async () => {
+    setCancelingDeletion(true);
+    try {
+      const res = await fetch('/api/auth/account', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cancel_deletion: true }),
+      });
+      if (res.ok) {
+        setScheduledDeletionAt(null);
+      } else {
+        const data = await res.json();
+        setDeleteErr(data.error || 'Hiba a visszavonáskor.');
+      }
+    } catch {
+      setDeleteErr('Hiba a kapcsolódás során.');
+    } finally {
+      setCancelingDeletion(false);
+    }
   };
 
   if (loadingProfile) return (
@@ -243,6 +577,23 @@ export default function ProfilPage() {
 
   return (
     <div className="container" style={{ maxWidth: 900, paddingBottom: '3rem' }}>
+
+      <UpgradeModal
+        status={upgradeModal?.status ?? null}
+        purchasedProductId={upgradeModal?.productId ?? null}
+        onClose={() => {
+          sessionStorage.removeItem('creem_upgrade_result');
+          setUpgradeModal(null);
+        }}
+      />
+
+      <AlertModal
+        isOpen={!!alertModal}
+        onClose={() => setAlertModal(null)}
+        variant={alertModal?.variant ?? 'success'}
+        title={alertModal?.title}
+        message={alertModal?.message}
+      />
 
       {/* ── ACCOUNT CARD ── */}
       <div style={{ padding: '1.5rem 0 1rem' }}>
@@ -356,12 +707,40 @@ export default function ProfilPage() {
       <div style={{ marginBottom: '1.25rem' }}>
         <SectionHeader
           title="Előfizetés"
-          subtitle="Válaszd ki a vállalkozásodhoz legjobban illő csomagot"
+          subtitle="Az első regisztrációkor 14 napos ingyenes Prémium próba jár — bankkártya nélkül."
         />
+
+        {/* Checkout error */}
+        {checkoutError && (
+          <div style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', color: 'var(--danger-text)', borderRadius: 'var(--radius-md)', padding: '0.7rem 1rem', marginBottom: '0.85rem', display: 'flex', alignItems: 'flex-start', gap: '0.5rem', fontSize: '0.825rem' }}>
+            <AlertCircle size={14} style={{ flexShrink: 0, marginTop: 1 }} />
+            {checkoutError}
+          </div>
+        )}
+
+        {/* Portal error */}
+        {portalError && (
+          <div style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', color: 'var(--danger-text)', borderRadius: 'var(--radius-md)', padding: '0.7rem 1rem', marginBottom: '0.85rem', display: 'flex', alignItems: 'flex-start', gap: '0.5rem', fontSize: '0.825rem' }}>
+            <AlertCircle size={14} style={{ flexShrink: 0, marginTop: 1 }} />
+            {portalError}
+          </div>
+        )}
+
+        {/* Trial banner */}
+        {isOnTrial && (
+          <div style={{ background: '#fef9c3', border: '1px solid #fde047', borderRadius: 'var(--radius-md)', padding: '0.75rem 1rem', marginBottom: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.825rem' }}>
+            <Clock size={14} color="#854d0e" style={{ flexShrink: 0 }} />
+            <span style={{ color: '#78350f' }}>
+              <strong>Ingyenes próba aktív</strong> — még <strong>{trialDaysLeft} nap</strong> van hátra. Utána a Bázis csomagra vált a fiókod.
+            </span>
+          </div>
+        )}
+
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(200px,100%), 1fr))', gap: '0.85rem' }}>
           {PLANS.map(plan => {
             const Icon = plan.icon;
-            const isCurrent = plan.key === (isPremium ? 'premium' : 'basic');
+            const isCurrent = (plan.key === 'basic' && !effectivePremium) || (plan.key === 'premium' && isPremium);
+            const isLoading = loadingPlan === plan.key;
             return (
               <div key={plan.key} className="card" style={{
                 padding: '1.1rem', display: 'flex', flexDirection: 'column', gap: '0.85rem',
@@ -372,16 +751,21 @@ export default function ProfilPage() {
                     Aktív csomag
                   </span>
                 )}
+                {plan.key === 'premium' && isOnTrial && (
+                  <span style={{ position: 'absolute', top: -11, left: '50%', transform: 'translateX(-50%)', background: '#b45309', color: 'white', fontSize: '0.6rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', padding: '0.18rem 0.65rem', borderRadius: 'var(--radius-pill)', whiteSpace: 'nowrap' }}>
+                    Próba aktív
+                  </span>
+                )}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                   <Icon size={16} color={plan.color} />
-                  <div>
-                    <div style={{ fontWeight: 800, fontSize: '0.9rem' }}>{plan.name}</div>
-                    {plan.note && <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', lineHeight: 1.3 }}>{plan.note}</div>}
-                  </div>
+                  <div style={{ fontWeight: 800, fontSize: '0.9rem' }}>{plan.name}</div>
                 </div>
                 <div>
                   <span style={{ fontSize: '1.35rem', fontWeight: 900, fontFamily: 'var(--font-mono, monospace)' }}>{plan.price}</span>
                   <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginLeft: '0.25rem' }}>{plan.priceNote}</span>
+                  {plan.priceHuf && (
+                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.1rem' }}>{plan.priceHuf}</div>
+                  )}
                 </div>
                 <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '0.4rem', flex: 1 }}>
                   {plan.features.map(f => (
@@ -390,21 +774,78 @@ export default function ProfilPage() {
                     </li>
                   ))}
                 </ul>
-                <button type="button" disabled={!plan.cta || isCurrent} style={{
-                  width: '100%', padding: '0.5rem', borderRadius: 'var(--radius-md)',
-                  fontWeight: 700, fontSize: '0.8rem',
-                  cursor: !plan.cta || isCurrent ? 'default' : 'pointer',
-                  border: 'none',
-                  background: isCurrent ? 'var(--bg-subtle)' : plan.highlight ? plan.color : 'var(--accent)',
-                  color: isCurrent ? 'var(--text-muted)' : 'white',
-                  opacity: isCurrent ? 0.6 : 1,
-                }}>
-                  {isCurrent ? 'Aktív' : plan.cta || 'Ingyenes'}
-                </button>
+                {plan.cta && (
+                  <button
+                    type="button"
+                    disabled={isCurrent || isLoading}
+                    onClick={() => !isCurrent && handleCheckout(plan)}
+                    style={{
+                      width: '100%', padding: '0.5rem', borderRadius: 'var(--radius-md)',
+                      fontWeight: 700, fontSize: '0.8rem',
+                      cursor: isCurrent || isLoading ? 'default' : 'pointer',
+                      border: 'none',
+                      background: isCurrent ? 'var(--bg-subtle)' : plan.highlight ? plan.color : 'var(--accent)',
+                      color: isCurrent ? 'var(--text-muted)' : 'white',
+                      opacity: isCurrent || isLoading ? 0.6 : 1,
+                    }}
+                  >
+                    {isCurrent ? 'Aktív' : isLoading ? 'Átirányítás...' : plan.cta}
+                  </button>
+                )}
+                {plan.key === 'premium' && isPremium && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                    {premiumIsScheduledCancel ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                        <div style={{ fontSize: '0.72rem', color: 'var(--warning-text)', background: 'var(--warning-bg)', border: '1px solid var(--warning-border)', borderRadius: 'var(--radius-md)', padding: '0.35rem 0.6rem', textAlign: 'center' }}>
+                          {premiumCancelAt
+                            ? `Lemondva — aktív ${new Date(premiumCancelAt).toLocaleDateString('hu-HU', { year: 'numeric', month: 'long', day: 'numeric' })}-ig`
+                            : 'Lemondva — aktív a számlázási időszak végéig'}
+                        </div>
+                        <button type="button" onClick={handleResumePremium} disabled={resumingPremium}
+                          style={{ width: '100%', padding: '0.4rem 0.5rem', borderRadius: 'var(--radius-md)', fontWeight: 600, fontSize: '0.75rem', border: '1px solid var(--success-border)', background: 'var(--success-bg)', color: 'var(--success-text)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.3rem', cursor: resumingPremium ? 'default' : 'pointer' }}>
+                          {resumingPremium ? <><Loader2 size={12} className="animate-spin" /> Visszaállítás…</> : <><RefreshCw size={12} /> Előfizetés visszaállítása</>}
+                        </button>
+                      </div>
+                    ) : (
+                      <button type="button" onClick={() => setCancelPremiumModal(true)}
+                        style={{ width: '100%', padding: '0.4rem 0.5rem', borderRadius: 'var(--radius-md)', fontWeight: 600, fontSize: '0.75rem', border: '1px solid var(--danger-border)', background: 'transparent', color: 'var(--danger-text)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.3rem', cursor: 'pointer' }}>
+                        Prémium lemondása
+                      </button>
+                    )}
+                    <button type="button" onClick={handleOpenPortal} disabled={portalLoading}
+                      style={{ width: '100%', padding: '0.4rem 0.5rem', borderRadius: 'var(--radius-md)', fontWeight: 600, fontSize: '0.75rem', border: '1px solid var(--border-subtle)', background: 'transparent', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.3rem', cursor: portalLoading ? 'default' : 'pointer', opacity: portalLoading ? 0.6 : 1 }}>
+                      {portalLoading ? <><Loader2 size={12} className="animate-spin" /> Megnyitás…</> : <>Fizetési adatok kezelése <ChevronRight size={12} /></>}
+                    </button>
+                  </div>
+                )}
               </div>
             );
           })}
         </div>
+        {/* ── Collective packages callout ── */}
+        <div style={{ marginTop: '1.75rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.35rem' }}>
+            <Building2 size={15} color="var(--accent)" />
+            <span style={{ fontSize: '0.9rem', fontWeight: 800 }}>Kollektíva munkaterületek</span>
+          </div>
+          <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: '0 0 0.85rem', lineHeight: 1.6 }}>
+            Minden Kollektíva egy önálló, megosztott munkaterület a csapatodnak — <strong>több is lehet egyszerre</strong>, mindegyik külön előfizetéssel. A tulajdonos fizet az összes tagért. Kollektíva létrehozásához Prémium előfizetés szükséges.
+          </p>
+          <div className="card" style={{ padding: '1rem', display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
+            <Building2 size={22} color="var(--accent)" style={{ flexShrink: 0 }} />
+            <div style={{ flex: 1, fontSize: '0.825rem', color: 'var(--text-secondary)' }}>
+              Kollektíva munkaterületeket a Kollektívák oldalon indíthatsz és kezelhetsz.
+            </div>
+            <Link
+              href="/kollektivak"
+              className="btn btn-primary btn-sm"
+              style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: '0.35rem', textDecoration: 'none' }}
+            >
+              Kollektívák kezelése <ChevronRight size={13} />
+            </Link>
+          </div>
+        </div>
+
         <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '0.75rem', textAlign: 'center' }}>
           Kérdésed van? <a href="mailto:info@epitunk.hu" style={{ color: 'var(--accent)' }}>info@epitunk.hu</a>
         </p>
@@ -531,36 +972,115 @@ export default function ProfilPage() {
       {/* ── DANGER ZONE ── */}
       <div className="card" style={{ border: '1px solid var(--danger-border)', padding: '1.25rem' }}>
         <h3 style={{ fontWeight: 800, fontSize: '0.95rem', color: 'var(--danger)', marginBottom: '0.25rem' }}>Veszélyes zóna</h3>
-        <p style={{ fontSize: '0.825rem', color: 'var(--text-secondary)', marginBottom: '1.25rem', lineHeight: 1.6 }}>
-          A fiók törlése végleges és nem visszavonható. Automatikusan ki leszel léptetve minden kollektívából.
-        </p>
-        {!deleteOpen ? (
-          <button type="button" className="btn btn-danger btn-sm" onClick={() => setDeleteOpen(true)}>
-            <Trash2 size={14} /> Fiók törlése
-          </button>
-        ) : (
+
+        {scheduledDeletionAt ? (
           <div>
-            <p style={{ fontSize: '0.825rem', color: 'var(--danger)', fontWeight: 700, marginBottom: '0.5rem' }}>
-              A megerősítéshez írd be: <strong>TÖRLÉS</strong>
-            </p>
-            <input type="text" className="form-control" placeholder="TÖRLÉS" value={deleteText} onChange={e => setDeleteText(e.target.value)} style={{ marginBottom: '0.75rem' }} />
+            <div style={{ background: '#fef9c3', border: '1px solid #fde047', borderRadius: 'var(--radius-md)', padding: '0.75rem 1rem', marginBottom: '1rem', display: 'flex', alignItems: 'flex-start', gap: '0.6rem' }}>
+              <AlertTriangle size={16} color="#854d0e" style={{ flexShrink: 0, marginTop: 1 }} />
+              <div style={{ fontSize: '0.825rem', color: '#78350f', lineHeight: 1.5 }}>
+                <strong>Fiókod törlése ütemezve:</strong>{' '}
+                {new Date(scheduledDeletionAt).toLocaleDateString('hu-HU', { year: 'numeric', month: 'long', day: 'numeric' })}.
+                Addig a fiókod normálisan működik, és az előfizetésedet bármikor újraindíthatod.
+              </div>
+            </div>
             {deleteErr && (
               <div style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', color: 'var(--danger)', padding: '0.5rem 0.75rem', borderRadius: 'var(--radius-md)', fontSize: '0.8rem', marginBottom: '0.75rem' }}>
                 {deleteErr}
               </div>
             )}
-            <div style={{ display: 'flex', gap: '0.5rem' }}>
-              <button type="button" className="btn btn-secondary btn-sm" onClick={() => { setDeleteOpen(false); setDeleteText(''); setDeleteErr(''); }}>
-                Mégse
+            <button type="button" className="btn btn-secondary btn-sm" disabled={cancelingDeletion} onClick={handleCancelDeletion} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+              {cancelingDeletion ? <><Loader2 size={13} className="animate-spin" /> Visszavonás…</> : <><RefreshCw size={13} /> Törlés visszavonása</>}
+            </button>
+          </div>
+        ) : (
+          <div>
+            <p style={{ fontSize: '0.825rem', color: 'var(--text-secondary)', marginBottom: '1.25rem', lineHeight: 1.6 }}>
+              A törlési kérelem benyújtása után fiókod még <strong>30 napig aktív marad</strong> — addig bármikor visszavonhatod, vagy újraindíthatod az előfizetésedet.
+            </p>
+            {!deleteOpen ? (
+              <button type="button" className="btn btn-danger btn-sm" onClick={() => setDeleteOpen(true)}>
+                <Trash2 size={14} /> Fiók törlése
               </button>
-              <button type="button" className="btn btn-danger btn-sm" disabled={deleteText !== 'TÖRLÉS' || deleting} onClick={handleDeleteAccount}>
-                {deleting ? <><Loader2 size={13} className="animate-spin" /> Törlés…</> : 'Fiók végleges törlése'}
-              </button>
-            </div>
+            ) : (
+              <div>
+                <p style={{ fontSize: '0.825rem', color: 'var(--danger)', fontWeight: 700, marginBottom: '0.5rem' }}>
+                  A megerősítéshez írd be: <strong>TÖRLÉS</strong>
+                </p>
+                <input type="text" className="form-control" placeholder="TÖRLÉS" value={deleteText} onChange={e => setDeleteText(e.target.value)} style={{ marginBottom: '0.75rem' }} />
+                {deleteErr && (
+                  <div style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', color: 'var(--danger)', padding: '0.5rem 0.75rem', borderRadius: 'var(--radius-md)', fontSize: '0.8rem', marginBottom: '0.75rem' }}>
+                    {deleteErr}
+                  </div>
+                )}
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <button type="button" className="btn btn-secondary btn-sm" onClick={() => { setDeleteOpen(false); setDeleteText(''); setDeleteErr(''); }}>
+                    Mégse
+                  </button>
+                  <button type="button" className="btn btn-danger btn-sm" disabled={deleteText !== 'TÖRLÉS' || deleting} onClick={handleDeleteAccount}>
+                    {deleting ? <><Loader2 size={13} className="animate-spin" /> Ütemezés…</> : 'Törlés ütemezése'}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
 
+      {/* ── Premium cancel confirm modal ── */}
+      <Modal isOpen={cancelPremiumModal} onClose={() => !cancelingPremium && setCancelPremiumModal(false)} title="Prémium lemondása">
+        {(() => {
+          const ownedNames = (collectives || []).filter(c => c.role === 'owner').map(c => c.name);
+          return (
+            <div>
+              {ownedNames.length > 0 && (
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem', background: 'var(--warning-bg)', border: '1px solid var(--warning-border)', borderRadius: 'var(--radius-md)', padding: '0.85rem 1rem', marginBottom: '1rem' }}>
+                  <AlertTriangle size={18} color="var(--warning-text)" style={{ flexShrink: 0, marginTop: 1 }} />
+                  <div style={{ fontSize: '0.825rem', color: 'var(--warning-text)', lineHeight: 1.5 }}>
+                    <strong>{ownedNames.length} kollektíva tulajdonosa vagy:</strong>
+                    <ul style={{ margin: '0.4rem 0 0 1rem', padding: 0 }}>
+                      {ownedNames.map(n => <li key={n}>{n}</li>)}
+                    </ul>
+                    <div style={{ marginTop: '0.4rem' }}>A Prémium lemondásával ezek a kollektívák a számlázási időszak végén befagynak.</div>
+                  </div>
+                </div>
+              )}
+              <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: '1.25rem' }}>
+                Az előfizetés a jelenlegi számlázási időszak végéig aktív marad. Addig bármikor visszaállíthatod.
+              </p>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+                <button type="button" className="btn btn-secondary btn-sm" disabled={cancelingPremium} onClick={() => setCancelPremiumModal(false)}>Mégse</button>
+                <button type="button" className="btn btn-danger btn-sm" disabled={cancelingPremium} onClick={handleCancelPremium}>
+                  {cancelingPremium ? <><Loader2 size={13} className="animate-spin" /> Lemondás…</> : 'Prémium lemondása'}
+                </button>
+              </div>
+            </div>
+          );
+        })()}
+      </Modal>
+
+      {/* ── Creem checkout — mobile bottom sheet ── */}
+      {checkoutIframeUrl && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(3px)' }}>
+          <div style={{ position: 'absolute', inset: 0 }} onClick={() => { setCheckoutIframeUrl(null); localStorage.removeItem('creem_checkout_done'); setLoadingPlan(null); }} />
+          <div style={{
+            position: 'absolute', bottom: 0, left: 0, right: 0,
+            height: '92vh',
+            borderRadius: '16px 16px 0 0',
+            overflow: 'hidden',
+            boxShadow: '0 -8px 40px rgba(0,0,0,0.25)',
+            background: '#fff',
+            display: 'flex', flexDirection: 'column',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.6rem 1rem 0.5rem', borderBottom: '1px solid var(--border-subtle)', background: 'var(--bg-subtle)', flexShrink: 0 }}>
+              <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)' }}>🔒 Biztonságos fizetés – Creem</span>
+              <button type="button" onClick={() => { setCheckoutIframeUrl(null); localStorage.removeItem('creem_checkout_done'); setLoadingPlan(null); }} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0.25rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center' }}>
+                <X size={18} />
+              </button>
+            </div>
+            <iframe src={checkoutIframeUrl} style={{ flex: 1, border: 'none', width: '100%' }} title="Creem fizetési felület" />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

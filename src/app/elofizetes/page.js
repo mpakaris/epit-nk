@@ -1,9 +1,12 @@
 'use client';
 
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
-import { Check, Zap, Building2, Star, ArrowLeft } from 'lucide-react';
+import { Check, Zap, Star, Building2, Clock, ArrowLeft, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
 import WorkspaceBadge from '@/components/WorkspaceBadge';
+import { isEffectivePremium } from '@/lib/subscriptionLimits';
 
 const PLANS = [
   {
@@ -14,60 +17,109 @@ const PLANS = [
     icon: Zap,
     color: 'var(--text-muted)',
     features: [
-      'Maximum 1 projekt',
-      'Alapvető projektkövetés',
-      'Számla- és munkanapló feltöltés',
-      'Személyes munkaterület',
+      'Max. 5 felmérés',
+      'Max. 5 ajánlat',
+      'Max. 1 projekt',
+      'Személyes weboldal (szakember profil)',
       'Meghívható kollektívákba',
     ],
-    cta: 'Jelenlegi csomag',
-    ctaDisabled: true,
   },
   {
     key: 'premium',
     name: 'Prémium',
-    price: '5 000 Ft',
-    priceNote: '/ hó',
+    price: '6 999 Ft',
+    priceNote: '/ hó + ÁFA',
     icon: Star,
     color: '#b45309',
     highlight: true,
+    productId: process.env.NEXT_PUBLIC_CREEM_PREMIUM_PRODUCT_ID,
     features: [
       'Korlátlan projektek',
-      'Korlátlan feltöltés',
+      'Korlátlan felmérések és ajánlatok',
       'Kollektíva létrehozása',
-      'Ajánlatok és felmérések',
       'Naptár és ügyféltár',
-      'Személyes weboldal (szakember profil)',
+      'Teljes weboldal funkciók',
+      'Korlátlan képfeltöltés',
     ],
     cta: 'Váltás Prémiumra',
-    ctaDisabled: false,
   },
   {
     key: 'collective',
     name: 'Kollektíva',
-    price: '8 000 Ft',
-    priceNote: '/ hó + 2 000 Ft/fő',
+    price: 'Prémium +',
+    priceNote: 'csomagonként',
     icon: Building2,
     color: 'var(--accent)',
     features: [
-      'Minden Prémium funkció',
-      'Megosztott munkaterület',
-      'Csapattagok meghívása (ingyenes nekik)',
-      'Közös projektek és ajánlatok',
-      'Szerepkör-alapú hozzáférés',
+      'Prémium előfizetés szükséges',
+      'Kis csapat: 3 extra szék',
+      'Közepes csapat: 6 extra szék',
+      'Nagy csapat: 9 extra szék',
+      'A tulajdonos fizet mindenki helyett',
     ],
+    note: 'A kollektíva indítási folyamatnál választhatsz csomagot.',
     cta: 'Kollektíva indítása',
-    ctaDisabled: false,
-    note: 'Prémium előfizetés szükséges',
+    href: '/kollektivak',
   },
 ];
 
+function TrialBanner({ trialEndsAt }) {
+  const daysLeft = Math.max(0, Math.ceil((new Date(trialEndsAt) - new Date()) / 86400000));
+  return (
+    <div style={{ background: '#fef9c3', border: '1px solid #fde047', borderRadius: 'var(--radius-md)', padding: '0.85rem 1.1rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.6rem', fontSize: '0.875rem' }}>
+      <Clock size={16} color="#854d0e" style={{ flexShrink: 0 }} />
+      <div>
+        <span style={{ fontWeight: 700, color: '#854d0e' }}>Ingyenes próba aktív</span>
+        <span style={{ color: '#78350f', marginLeft: '0.4rem' }}>
+          — még <strong>{daysLeft} nap</strong> van hátra. Utána a Bázis csomagra vált a fiókod.
+        </span>
+      </div>
+    </div>
+  );
+}
+
 export default function ElofizetesPage() {
-  const { currentUser, isSuperAdmin } = useApp();
+  const { currentUser } = useApp();
+  const router = useRouter();
+  const [loadingPlan, setLoadingPlan] = useState(null);
+  const [checkoutError, setCheckoutError] = useState('');
+
   const isPremium = currentUser?.is_subscription_premium ?? false;
+  const isOnTrial = !isPremium
+    && currentUser?.subscription_tier === 'trial'
+    && currentUser?.trial_ends_at
+    && new Date(currentUser.trial_ends_at) > new Date();
+  const effectivePremium = isEffectivePremium(currentUser ?? {});
+  const currentTierKey = isPremium ? 'premium' : isOnTrial ? 'trial' : 'basic';
+
+  async function handleCheckout(plan) {
+    if (!plan.productId) {
+      if (plan.href) router.push(plan.href);
+      return;
+    }
+    setLoadingPlan(plan.key);
+    setCheckoutError('');
+    try {
+      const res = await fetch('/api/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ productId: plan.productId, successUrl: '/elofizetes' }),
+      });
+      const data = await res.json();
+      if (data.checkoutUrl) {
+        window.open(data.checkoutUrl, '_blank', 'noopener,noreferrer');
+      } else {
+        setCheckoutError(data.error || 'Hiba történt a fizetési folyamat indításakor. Kérjük, próbáld újra.');
+      }
+    } catch {
+      setCheckoutError('Hiba történt a fizetési folyamat indításakor. Kérjük, próbáld újra.');
+    } finally {
+      setLoadingPlan(null);
+    }
+  }
 
   return (
-    <div className="container" style={{ maxWidth: 900 }}>
+    <div className="container" style={{ maxWidth: 960 }}>
       <div style={{ padding: '0.85rem 0 0.25rem' }}>
         <Link href="/dashboard" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', color: 'var(--text-secondary)', fontSize: '0.825rem', fontWeight: 600 }}>
           <ArrowLeft size={15} /> Vissza a dashboardra
@@ -84,26 +136,36 @@ export default function ElofizetesPage() {
         </div>
       </div>
 
-      {/* Current plan banner */}
-      <div style={{ background: 'var(--bg-subtle)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: '0.85rem 1.1rem', marginBottom: '2rem', display: 'flex', alignItems: 'center', gap: '0.6rem', fontSize: '0.875rem' }}>
-        <span style={{ color: 'var(--text-muted)' }}>Jelenlegi csomagod:</span>
-        <span style={{
-          fontWeight: 800, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.04em',
-          padding: '0.15rem 0.55rem', borderRadius: 'var(--radius-pill)',
-          ...(isPremium
-            ? { background: '#fef9c3', color: '#854d0e', border: '1px solid #fde047' }
-            : { background: 'var(--bg-base)', color: 'var(--text-muted)', border: '1px solid var(--border-subtle)' }
-          )
-        }}>
-          {isPremium ? '⭐ Prémium' : 'Bázis'}
-        </span>
-      </div>
+      {checkoutError && (
+        <div style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', color: 'var(--danger-text)', borderRadius: 'var(--radius-md)', padding: '0.7rem 1rem', marginBottom: '1rem', display: 'flex', alignItems: 'flex-start', gap: '0.5rem', fontSize: '0.825rem' }}>
+          <AlertCircle size={14} style={{ flexShrink: 0, marginTop: 1 }} />
+          {checkoutError}
+        </div>
+      )}
 
-      {/* Plan cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(260px,100%), 1fr))', gap: '1.25rem', marginBottom: '2.5rem' }}>
+      {isOnTrial && <TrialBanner trialEndsAt={currentUser.trial_ends_at} />}
+
+      {!isOnTrial && (
+        <div style={{ background: 'var(--bg-subtle)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: '0.85rem 1.1rem', marginBottom: '2rem', display: 'flex', alignItems: 'center', gap: '0.6rem', fontSize: '0.875rem' }}>
+          <span style={{ color: 'var(--text-muted)' }}>Jelenlegi csomagod:</span>
+          <span style={{
+            fontWeight: 800, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.04em',
+            padding: '0.15rem 0.55rem', borderRadius: 'var(--radius-pill)',
+            ...(isPremium
+              ? { background: '#fef9c3', color: '#854d0e', border: '1px solid #fde047' }
+              : { background: 'var(--bg-base)', color: 'var(--text-muted)', border: '1px solid var(--border-subtle)' }
+            )
+          }}>
+            {isPremium ? '⭐ Prémium' : 'Bázis'}
+          </span>
+        </div>
+      )}
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(280px,100%), 1fr))', gap: '1.25rem', marginBottom: '2.5rem' }}>
         {PLANS.map(plan => {
           const Icon = plan.icon;
-          const isCurrent = plan.key === (isPremium ? 'premium' : 'basic');
+          const isCurrent = (plan.key === 'basic' && !effectivePremium) || (plan.key === 'premium' && isPremium);
+          const isLoading = loadingPlan === plan.key;
           return (
             <div
               key={plan.key}
@@ -144,20 +206,24 @@ export default function ElofizetesPage() {
                 ))}
               </ul>
 
-              <button
-                type="button"
-                disabled={plan.ctaDisabled || isCurrent}
-                style={{
-                  width: '100%', padding: '0.6rem', borderRadius: 'var(--radius-md)',
-                  fontWeight: 700, fontSize: '0.875rem', cursor: plan.ctaDisabled || isCurrent ? 'default' : 'pointer',
-                  border: 'none',
-                  background: isCurrent ? 'var(--bg-subtle)' : plan.highlight ? plan.color : 'var(--accent)',
-                  color: isCurrent ? 'var(--text-muted)' : 'white',
-                  opacity: isCurrent ? 0.7 : 1,
-                }}
-              >
-                {isCurrent ? 'Jelenlegi csomag' : plan.cta}
-              </button>
+              {plan.cta && (
+                <button
+                  type="button"
+                  disabled={isCurrent || isLoading}
+                  onClick={() => !isCurrent && handleCheckout(plan)}
+                  style={{
+                    width: '100%', padding: '0.6rem', borderRadius: 'var(--radius-md)',
+                    fontWeight: 700, fontSize: '0.875rem',
+                    cursor: isCurrent || isLoading ? 'default' : 'pointer',
+                    border: 'none',
+                    background: isCurrent ? 'var(--bg-subtle)' : plan.highlight ? plan.color : 'var(--accent)',
+                    color: isCurrent ? 'var(--text-muted)' : 'white',
+                    opacity: isCurrent || isLoading ? 0.7 : 1,
+                  }}
+                >
+                  {isCurrent ? 'Jelenlegi csomag' : isLoading ? 'Átirányítás...' : plan.cta}
+                </button>
+              )}
             </div>
           );
         })}

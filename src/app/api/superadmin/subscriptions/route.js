@@ -65,7 +65,10 @@ export async function PATCH(request) {
     }
     const { error } = await admin
       .from('profiles')
-      .update({ is_subscription_premium })
+      .update({
+        is_subscription_premium,
+        subscription_tier: is_subscription_premium ? 'premium' : 'basic',
+      })
       .eq('id', userId);
     if (error) return Response.json({ error: error.message }, { status: 500 });
     return Response.json({ ok: true });

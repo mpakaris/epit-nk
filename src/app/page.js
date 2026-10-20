@@ -12,8 +12,8 @@ import {
 import ProjectsListPreview from '@/components/preview/ProjectsListPreview';
 import FeatureShowcase from '@/components/preview/FeatureShowcase';
 
-const FREE_ITEMS    = ['1 aktív projekt', '1 árajánlat', '1 felmérés', 'Korlátozott weboldal', '1 ügyfélportál', 'Limitált képfeltöltés'];
-const PREMIUM_ITEMS = ['Korlátlan projektek', 'Korlátlan árajánlatok', 'Korlátlan felmérések', 'Teljes weboldal', 'Korlátlan ügyfélportálok', 'Képek és videók feltöltése'];
+const FREE_ITEMS    = ['Max. 1 projekt', 'Max. 5 árajánlat', 'Max. 5 felmérés', 'Személyes weboldal (szakemberlap)', 'Meghívható kollektívákba'];
+const PREMIUM_ITEMS = ['Korlátlan projektek, ajánlatok, felmérések', 'Kollektíva létrehozása csapatnak', 'Teljes weboldal funkciók', 'Korlátlan képfeltöltés', 'Naptár és ügyféltár'];
 
 const FAQS = [
   { q: 'Kell-e technikai tudás a használathoz?',        a: 'Semmi. Ha tudsz SMS-t küldeni, az Epiteket is tudod használni. Egyszerű felület, nagy gombok, mobilra tervezve.' },

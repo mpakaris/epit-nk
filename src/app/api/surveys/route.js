@@ -1,12 +1,14 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { logAudit } from '@/lib/audit';
+import { isEffectivePremium, checkPersonalLimit } from '@/lib/subscriptionLimits';
 
 async function getCallerProfile(supabase, admin) {
   const { data: { user }, error } = await supabase.auth.getUser();
   if (error || !user) return { error: 'Unauthenticated', status: 401 };
   const { data: profile } = await admin
     .from('profiles')
-    .select('id, role, active_collective_id, display_name')
+    .select('id, role, active_collective_id, display_name, is_subscription_premium, subscription_tier, trial_ends_at')
     .eq('id', user.id)
     .single();
   if (!profile) return { error: 'Profile not found', status: 403 };
@@ -53,6 +55,17 @@ export async function POST(request) {
     ? (bodyCollectiveId || null)
     : (profile.active_collective_id || null);
 
+  // Enforce Basic plan limit in personal context
+  if (!collectiveId && profile.role !== 'superadmin' && !isEffectivePremium(profile)) {
+    const check = await checkPersonalLimit(admin, user.id, 'surveys', 'basic_max_surveys');
+    if (!check.allowed) {
+      return Response.json(
+        { error: `Bázis csomagban maximum ${check.limit} felmérés hozható létre. Váltj Prémiumra a korlátlan használathoz.` },
+        { status: 403 }
+      );
+    }
+  }
+
   if (collectiveId && profile.role !== 'superadmin') {
     const { data: mem } = await admin
       .from('collective_members')
@@ -80,6 +93,16 @@ export async function POST(request) {
   if (Array.isArray(shared_with) && shared_with.length > 0) {
     await admin.from('surveys').update({ shared_with }).eq('id', survey.id).catch(() => {});
   }
+
+  logAudit({
+    entityId:   collectiveId || user.id,
+    userId:     user.id,
+    userName:   profile.display_name || user.email,
+    action:     'Felmérés létrehozva',
+    targetType: 'survey',
+    targetId:   survey.id,
+    targetName: survey.title,
+  });
 
   return Response.json({ survey: { ...survey, shared_with: shared_with || [] } }, { status: 201 });
 }

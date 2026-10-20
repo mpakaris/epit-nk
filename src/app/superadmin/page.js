@@ -164,6 +164,7 @@ export default function SuperAdminPage() {
         <StatCard label="Total invoices" value={totalInvoices}   sub={formatHUF(totalHUF)}  icon={Coins} href="/superadmin/projektek" />
         <StatCard label="Websites"        value="→"              sub="Partner pages"          icon={Globe}       href="/superadmin/websites" />
         <StatCard label="Subscriptions"  value="→"              sub="Premium management"     icon={CreditCard}  href="/superadmin/subscriptions" />
+        <StatCard label="Árazás"         value="→"              sub="Díjak és limitek"        icon={CreditCard}  href="/superadmin/pricing" />
         <StatCard label="Képkönyvtár"    value="→"              sub="Hero & library images"  icon={Image}       href="/superadmin/image-library" />
         <StatCard label="About Us Image"  value="→"              sub="Portrait photo for /about page" icon={Image} href="/superadmin/about" />
         <StatCard label="Ügyfél portálok" value="→"             sub="Minden ügyfél portálja" icon={Users}       href="/superadmin/portals" />

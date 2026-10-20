@@ -1,6 +1,7 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import { sendEmail } from '@/lib/email';
 import { fillTemplate, wrapEmail, EMAIL_TEMPLATES } from '@/lib/emailTemplates';
+import { logAudit } from '@/lib/audit';
 
 // No auth required — token is the proof of identity for declining
 export async function POST(req, { params }) {
@@ -38,6 +39,16 @@ export async function POST(req, { params }) {
       });
     } catch { /* non-critical */ }
   }
+
+  logAudit({
+    entityId:   inv.collective_id,
+    userId:     null,
+    userName:   inv.email,
+    action:     'Meghívó elutasítva',
+    targetType: 'collective',
+    targetId:   inv.collective_id,
+    targetName: inv.collectives?.name,
+  });
 
   return Response.json({ ok: true });
 }

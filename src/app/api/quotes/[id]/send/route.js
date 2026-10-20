@@ -3,6 +3,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { sendEmail } from '@/lib/email';
 import { EMAIL_TEMPLATES, fillTemplate, wrapEmail, buildOfferDetailHtml } from '@/lib/emailTemplates';
 import { generateOfferPdf } from '@/lib/generateOfferPdf';
+import { logAudit } from '@/lib/audit';
 
 export async function POST(request, { params }) {
   const { id } = await params;
@@ -100,6 +101,17 @@ export async function POST(request, { params }) {
     .select()
     .single();
   if (updateErr) return Response.json({ error: updateErr.message }, { status: 500 });
+
+  logAudit({
+    entityId:   quote.collective_id || user.id,
+    userId:     user.id,
+    userName:   profile.display_name || user.email,
+    action:     'Ajánlat elküldve',
+    targetType: 'quote',
+    targetId:   id,
+    targetName: quote.title,
+    details:    { to: client.email },
+  });
 
   return Response.json({ ok: true, quote: updated, sentTo: client.email });
 }

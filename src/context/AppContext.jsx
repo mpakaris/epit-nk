@@ -103,7 +103,7 @@ export function AppProvider({ children }) {
   })();
 
   // ---- Route guard ------------------------------------------------------------
-  const PUBLIC_ROUTE_PREFIXES = ['/login', '/change-password', '/szakemberek/', '/p/', '/clients/', '/naplo/', '/auth/', '/invitations/', '/demo', '/portal', '/impressum', '/adatkezeles', '/aszf', '/about'];
+  const PUBLIC_ROUTE_PREFIXES = ['/login', '/change-password', '/szakemberek/', '/p/', '/clients/', '/naplo/', '/auth/', '/invitations/', '/demo', '/portal', '/impressum', '/adatkezeles', '/aszf', '/about', '/checkout-popup-success'];
   const PUBLIC_ROUTE_EXACT = ['/'];
   useEffect(() => {
     if (loading) return;
@@ -144,6 +144,9 @@ export function AppProvider({ children }) {
             active_collective_id: profile?.active_collective_id || null,
             must_change_password: profile?.must_change_password ?? false,
             is_subscription_premium: profile?.is_subscription_premium ?? false,
+            subscription_tier: profile?.subscription_tier ?? 'basic',
+            trial_started_at: profile?.trial_started_at ?? null,
+            trial_ends_at: profile?.trial_ends_at ?? null,
             default_tax_percent: profile?.default_tax_percent ?? 27,
           };
           setCurrentUser(user);

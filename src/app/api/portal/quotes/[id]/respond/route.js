@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { sendEmail } from '@/lib/email';
 import { wrapEmail } from '@/lib/emailTemplates';
+import { logAudit } from '@/lib/audit';
 
 export async function POST(request, { params }) {
   const { id } = await params;
@@ -105,6 +106,22 @@ export async function POST(request, { params }) {
       });
     } catch { /* email failure is non-fatal */ }
   }
+
+  const actionLabels = {
+    accepted: 'Ügyfél elfogadta az ajánlatot',
+    rejected: 'Ügyfél elutasította az ajánlatot',
+    question: 'Ügyfél kérdést küldött',
+  };
+  logAudit({
+    entityId:   quote.owner_id,
+    userId:     user.id,
+    userName:   client.name || user.email,
+    action:     actionLabels[action],
+    targetType: 'quote',
+    targetId:   id,
+    targetName: quote.title,
+    details:    comment.trim() ? { comment: comment.trim() } : null,
+  });
 
   return Response.json({ ok: true, status: action !== 'question' ? action : 'sent' });
 }

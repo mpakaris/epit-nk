@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { logAudit } from '@/lib/audit';
+import { isEffectivePremium, checkPersonalLimit } from '@/lib/subscriptionLimits';
 
 export async function POST(request) {
   const supabase = await createClient();
@@ -10,7 +11,7 @@ export async function POST(request) {
   const admin = createAdminClient();
   const { data: profile } = await admin
     .from('profiles')
-    .select('role, active_collective_id')
+    .select('role, active_collective_id, is_subscription_premium, subscription_tier, trial_ends_at')
     .eq('id', user.id)
     .single();
   if (!profile) return Response.json({ error: 'Profile not found' }, { status: 403 });
@@ -22,6 +23,17 @@ export async function POST(request) {
   const collectiveId = profile.role === 'superadmin'
     ? (bodyCollectiveId || null)
     : (profile.active_collective_id || null);
+
+  // Enforce Basic plan limit in personal context
+  if (!collectiveId && profile.role !== 'superadmin' && !isEffectivePremium(profile)) {
+    const check = await checkPersonalLimit(admin, user.id, 'projects', 'basic_max_projects');
+    if (!check.allowed) {
+      return Response.json(
+        { error: `Bázis csomagban maximum ${check.limit} projekt hozható létre. Váltj Prémiumra a korlátlan használathoz.` },
+        { status: 403 }
+      );
+    }
+  }
 
   // If targeting a collective, verify membership
   if (collectiveId && profile.role !== 'superadmin') {

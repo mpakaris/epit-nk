@@ -1,5 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { logAudit } from '@/lib/audit';
+import { isEffectivePremium, checkPersonalLimit } from '@/lib/subscriptionLimits';
 
 export async function POST(request) {
   const supabase = await createClient();
@@ -7,7 +9,7 @@ export async function POST(request) {
   if (authErr || !user) return Response.json({ error: 'Unauthenticated' }, { status: 401 });
 
   const admin = createAdminClient();
-  const { data: profile } = await admin.from('profiles').select('id, role, display_name, active_collective_id').eq('id', user.id).single();
+  const { data: profile } = await admin.from('profiles').select('id, role, display_name, active_collective_id, is_subscription_premium, subscription_tier, trial_ends_at').eq('id', user.id).single();
   if (!profile) return Response.json({ error: 'Forbidden' }, { status: 403 });
 
   const body = await request.json();
@@ -25,6 +27,17 @@ export async function POST(request) {
   const collectiveId = profile.role === 'superadmin'
     ? (bodyCollectiveId || null)
     : (profile.active_collective_id || null);
+
+  // Enforce Basic plan limit in personal context
+  if (!collectiveId && profile.role !== 'superadmin' && !isEffectivePremium(profile)) {
+    const check = await checkPersonalLimit(admin, user.id, 'quotes', 'basic_max_quotes');
+    if (!check.allowed) {
+      return Response.json(
+        { error: `Bázis csomagban maximum ${check.limit} ajánlat hozható létre. Váltj Prémiumra a korlátlan használathoz.` },
+        { status: 403 }
+      );
+    }
+  }
 
   if (collectiveId && profile.role !== 'superadmin') {
     const { data: mem } = await admin
@@ -55,5 +68,16 @@ export async function POST(request) {
   }]).select().single();
 
   if (error) return Response.json({ error: error.message }, { status: 400 });
+
+  logAudit({
+    entityId:   collectiveId || user.id,
+    userId:     user.id,
+    userName:   profile.display_name || user.email,
+    action:     'Ajánlat létrehozva',
+    targetType: 'quote',
+    targetId:   data.id,
+    targetName: data.title,
+  });
+
   return Response.json({ quote: data }, { status: 201 });
 }

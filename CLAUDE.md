@@ -111,11 +111,15 @@ SA impersonates any user:
 ## Subscription Tiers
 | Tier | Price | Notes |
 |---|---|---|
-| Free / Basic | free | max 1 project, limited uploads |
-| Premium | 5.000 Ft/month | unlimited, required to create collective |
-| Collective | Premium + 3.000 Ft + 2.000 Ft/seat | owner pays; contributors pay nothing |
+| Basic | free | max 5 surveys, max 5 quotes, max 1 project |
+| Trial | free 14 days | full Premium features; assigned on first registration; same email cannot re-trial |
+| Premium | 6.999 Ft/month + ÁFA | unlimited everything, required to create collectives |
+| Collective seat | 1.999 Ft/seat/month + ÁFA | owner pays for all seats; owner NOT counted as a seat; Basic users can be invited |
 
-Field: `profiles.is_subscription_premium` (boolean). Website builder sections are gated behind `isPremium` — free users only get hero/about/services/contact.
+Fields: `profiles.is_subscription_premium` (boolean, paid premium), `profiles.subscription_tier` ('basic'|'trial'|'premium'), `profiles.trial_started_at`, `profiles.trial_ends_at`.
+Helper: `isEffectivePremium(profile)` in `src/lib/subscriptionLimits.js` — returns true for paid premium OR active trial.
+Limits stored in `pricing_config` table (admin-editable via `/superadmin/pricing`).
+Trial abuse prevention: `trial_emails` table records email → first user_id; re-registration with same email gets 'basic' not 'trial'.
 
 ---
 

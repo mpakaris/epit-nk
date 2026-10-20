@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { sendEmail } from '@/lib/email';
 import { fillTemplate, wrapEmail, EMAIL_TEMPLATES } from '@/lib/emailTemplates';
+import { logAudit } from '@/lib/audit';
 
 export async function POST(req, { params }) {
   const { token } = await params;
@@ -80,6 +81,16 @@ export async function POST(req, { params }) {
       });
     } catch { /* non-critical */ }
   }
+
+  logAudit({
+    entityId:   inv.collective_id,
+    userId:     user.id,
+    userName:   callerProfile?.email || inv.email,
+    action:     'Meghívó elfogadva',
+    targetType: 'collective',
+    targetId:   inv.collective_id,
+    targetName: inv.collectives?.name,
+  });
 
   return Response.json({ ok: true, collective_id: inv.collective_id });
 }

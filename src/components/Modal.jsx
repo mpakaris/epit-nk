@@ -111,11 +111,21 @@ export function ConfirmModal({ isOpen, onClose, onConfirm, title = 'Megerősít�
 }
 
 export function AlertModal({ isOpen, onClose, title, message, variant = 'error' }) {
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const t = setTimeout(() => onCloseRef.current(), 5000);
+    return () => clearTimeout(t);
+  }, [isOpen]);
+
   const isSuccess = variant === 'success';
-  const Icon = isSuccess ? CheckCircle2 : AlertCircle;
-  const iconColor = isSuccess ? 'var(--success-text)' : 'var(--danger-text)';
-  const iconBg = isSuccess ? 'var(--success-bg)' : 'var(--danger-bg)';
-  const defaultTitle = isSuccess ? 'Sikeres művelet' : 'Hiba történt';
+  const isWarning = variant === 'warning';
+  const Icon = isSuccess ? CheckCircle2 : isWarning ? AlertTriangle : AlertCircle;
+  const iconColor = isSuccess ? 'var(--success-text)' : isWarning ? 'var(--warning-text)' : 'var(--danger-text)';
+  const iconBg   = isSuccess ? 'var(--success-bg)'   : isWarning ? 'var(--warning-bg)'   : 'var(--danger-bg)';
+  const defaultTitle = isSuccess ? 'Sikeres művelet' : isWarning ? 'Figyelem' : 'Hiba történt';
 
   return (
     <ModalBase isOpen={isOpen} onClose={onClose} style={{ maxWidth: '420px' }}>

@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { logAudit } from '@/lib/audit';
 
 async function getCallerAndSurvey(id) {
   const supabase = await createClient();
@@ -7,7 +8,7 @@ async function getCallerAndSurvey(id) {
   if (error || !user) return { err: 'Unauthenticated', status: 401 };
 
   const admin = createAdminClient();
-  const { data: profile } = await admin.from('profiles').select('id, role').eq('id', user.id).single();
+  const { data: profile } = await admin.from('profiles').select('id, role, display_name').eq('id', user.id).single();
   if (!profile) return { err: 'Forbidden', status: 403 };
 
   const { data: survey } = await admin.from('surveys').select('*').eq('id', id).single();
@@ -83,6 +84,17 @@ export async function PATCH(request, { params }) {
 
   const { data, error } = await ctx.admin.from('surveys').update(update).eq('id', id).select().single();
   if (error) return Response.json({ error: error.message }, { status: 400 });
+
+  logAudit({
+    entityId:   ctx.survey.collective_id || ctx.user.id,
+    userId:     ctx.user.id,
+    userName:   ctx.profile.display_name || ctx.user.email,
+    action:     'Felmérés módosítva',
+    targetType: 'survey',
+    targetId:   id,
+    targetName: ctx.survey.title,
+  });
+
   return Response.json({ survey: data });
 }
 
@@ -98,5 +110,16 @@ export async function DELETE(request, { params }) {
 
   const { error } = await ctx.admin.from('surveys').update({ deleted_at: new Date().toISOString(), deleted_by: ctx.user.id }).eq('id', id);
   if (error) return Response.json({ error: error.message }, { status: 400 });
+
+  logAudit({
+    entityId:   ctx.survey.collective_id || ctx.user.id,
+    userId:     ctx.user.id,
+    userName:   ctx.profile.display_name || ctx.user.email,
+    action:     'Felmérés törölve',
+    targetType: 'survey',
+    targetId:   id,
+    targetName: ctx.survey.title,
+  });
+
   return Response.json({ success: true });
 }

@@ -6,29 +6,58 @@ import { useApp } from '@/context/AppContext';
 import { ArrowLeft, ClipboardList, RefreshCw, ChevronLeft, ChevronRight, Building2, User, Calendar } from 'lucide-react';
 
 const ACTION_LABELS = {
-  'Bejelentkezés':              { label: 'Login',                color: 'var(--text-secondary)',  bg: 'var(--bg-subtle)' },
-  'Jelszó megváltoztatva':      { label: 'Password changed',     color: 'var(--accent)',          bg: 'var(--accent-light)' },
-  'Jelszó visszaállítva':       { label: 'Password reset',       color: 'var(--warning-text)',    bg: 'var(--warning-bg)' },
-  'Felhasználó létrehozva':     { label: 'User created',         color: 'var(--success-text)',    bg: 'var(--success-bg)' },
-  'Felhasználó törölve':        { label: 'User deleted',         color: 'var(--danger-text)',     bg: 'var(--danger-bg)' },
-  'Projekt létrehozva':         { label: 'Project created',      color: 'var(--success-text)',    bg: 'var(--success-bg)' },
-  'Projekt módosítva':          { label: 'Project updated',      color: 'var(--accent)',          bg: 'var(--accent-light)' },
-  'Projekt törölve':            { label: 'Project deleted',      color: 'var(--danger-text)',     bg: 'var(--danger-bg)' },
-  'Projekt tagok frissítve':    { label: 'Members updated',      color: 'var(--accent)',          bg: 'var(--accent-light)' },
-  'Számla feltöltve':           { label: 'Invoice uploaded',     color: 'var(--success-text)',    bg: 'var(--success-bg)' },
-  'Számla módosítva':           { label: 'Invoice updated',      color: 'var(--accent)',          bg: 'var(--accent-light)' },
-  'Számla törölve':             { label: 'Invoice deleted',      color: 'var(--danger-text)',     bg: 'var(--danger-bg)' },
-  'Munkabejegyzés rögzítve':    { label: 'Labour logged',        color: 'var(--success-text)',    bg: 'var(--success-bg)' },
-  'Munkabejegyzés törölve':     { label: 'Labour deleted',       color: 'var(--danger-text)',     bg: 'var(--danger-bg)' },
-  'Ajánlat létrehozva':         { label: 'Quote created',        color: 'var(--success-text)',    bg: 'var(--success-bg)' },
-  'Ügyfél létrehozva':          { label: 'Client created',       color: 'var(--success-text)',    bg: 'var(--success-bg)' },
-  'Ügyfél módosítva':           { label: 'Client updated',       color: 'var(--accent)',          bg: 'var(--accent-light)' },
-  'Ügyfél törölve':             { label: 'Client deleted',       color: 'var(--danger-text)',     bg: 'var(--danger-bg)' },
-  'diary_entry_created':        { label: 'Diary entry created',  color: 'var(--success-text)',    bg: 'var(--success-bg)' },
-  'diary_entry_deleted':        { label: 'Diary entry deleted',  color: 'var(--danger-text)',     bg: 'var(--danger-bg)' },
-  'diary_share_token_created':  { label: 'Share link created',   color: 'var(--success-text)',    bg: 'var(--success-bg)' },
-  'diary_share_token_deleted':  { label: 'Share link deleted',   color: 'var(--danger-text)',     bg: 'var(--danger-bg)' },
-  'entity_updated':             { label: 'Entity updated',       color: 'var(--accent)',          bg: 'var(--accent-light)' },
+  // Auth
+  'Bejelentkezés':                      { label: 'Login',                    color: 'var(--text-secondary)',  bg: 'var(--bg-subtle)' },
+  'Jelszó megváltoztatva':              { label: 'Password changed',         color: 'var(--accent)',          bg: 'var(--accent-light)' },
+  'Jelszó visszaállítva':               { label: 'Password reset',           color: 'var(--warning-text)',    bg: 'var(--warning-bg)' },
+  // Users
+  'Felhasználó létrehozva':             { label: 'User created',             color: 'var(--success-text)',    bg: 'var(--success-bg)' },
+  'Felhasználó törölve':                { label: 'User deleted',             color: 'var(--danger-text)',     bg: 'var(--danger-bg)' },
+  // Projects
+  'Projekt létrehozva':                 { label: 'Project created',          color: 'var(--success-text)',    bg: 'var(--success-bg)' },
+  'Projekt módosítva':                  { label: 'Project updated',          color: 'var(--accent)',          bg: 'var(--accent-light)' },
+  'Projekt törölve':                    { label: 'Project deleted',          color: 'var(--danger-text)',     bg: 'var(--danger-bg)' },
+  'Projekt tagok frissítve':            { label: 'Project members updated',  color: 'var(--accent)',          bg: 'var(--accent-light)' },
+  // Invoices
+  'Számla feltöltve':                   { label: 'Invoice uploaded',         color: 'var(--success-text)',    bg: 'var(--success-bg)' },
+  'Számla módosítva':                   { label: 'Invoice updated',          color: 'var(--accent)',          bg: 'var(--accent-light)' },
+  'Számla törölve':                     { label: 'Invoice deleted',          color: 'var(--danger-text)',     bg: 'var(--danger-bg)' },
+  // Labour
+  'Munkabejegyzés rögzítve':            { label: 'Labour logged',            color: 'var(--success-text)',    bg: 'var(--success-bg)' },
+  'Munkabejegyzés módosítva':           { label: 'Labour updated',           color: 'var(--accent)',          bg: 'var(--accent-light)' },
+  'Munkabejegyzés törölve':             { label: 'Labour deleted',           color: 'var(--danger-text)',     bg: 'var(--danger-bg)' },
+  // Quotes / Offers
+  'Ajánlat létrehozva':                 { label: 'Quote created',            color: 'var(--success-text)',    bg: 'var(--success-bg)' },
+  'Ajánlat módosítva':                  { label: 'Quote updated',            color: 'var(--accent)',          bg: 'var(--accent-light)' },
+  'Ajánlat törölve':                    { label: 'Quote deleted',            color: 'var(--danger-text)',     bg: 'var(--danger-bg)' },
+  'Ajánlat elküldve':                   { label: 'Quote sent',               color: 'var(--success-text)',    bg: 'var(--success-bg)' },
+  // Client portal responses
+  'Ügyfél elfogadta az ajánlatot':      { label: 'Client accepted offer',    color: 'var(--success-text)',    bg: 'var(--success-bg)' },
+  'Ügyfél elutasította az ajánlatot':   { label: 'Client declined offer',    color: 'var(--danger-text)',     bg: 'var(--danger-bg)' },
+  'Ügyfél kérdést küldött':             { label: 'Client sent question',     color: 'var(--accent)',          bg: 'var(--accent-light)' },
+  // Surveys
+  'Felmérés létrehozva':                { label: 'Survey created',           color: 'var(--success-text)',    bg: 'var(--success-bg)' },
+  'Felmérés módosítva':                 { label: 'Survey updated',           color: 'var(--accent)',          bg: 'var(--accent-light)' },
+  'Felmérés törölve':                   { label: 'Survey deleted',           color: 'var(--danger-text)',     bg: 'var(--danger-bg)' },
+  // Clients
+  'Ügyfél létrehozva':                  { label: 'Client created',           color: 'var(--success-text)',    bg: 'var(--success-bg)' },
+  'Ügyfél módosítva':                   { label: 'Client updated',           color: 'var(--accent)',          bg: 'var(--accent-light)' },
+  'Ügyfél törölve':                     { label: 'Client deleted',           color: 'var(--danger-text)',     bg: 'var(--danger-bg)' },
+  // Collectives
+  'Kollektíva létrehozva':              { label: 'Collective created',       color: 'var(--success-text)',    bg: 'var(--success-bg)' },
+  'Kollektíva módosítva':               { label: 'Collective renamed',       color: 'var(--accent)',          bg: 'var(--accent-light)' },
+  'Kollektíva törölve':                 { label: 'Collective deleted',       color: 'var(--danger-text)',     bg: 'var(--danger-bg)' },
+  'Tag hozzáadva':                      { label: 'Member added',             color: 'var(--success-text)',    bg: 'var(--success-bg)' },
+  'Tag meghívva':                       { label: 'Member invited',           color: 'var(--accent)',          bg: 'var(--accent-light)' },
+  'Meghívó elfogadva':                  { label: 'Invitation accepted',      color: 'var(--success-text)',    bg: 'var(--success-bg)' },
+  'Meghívó elutasítva':                 { label: 'Invitation declined',      color: 'var(--warning-text)',    bg: 'var(--warning-bg)' },
+  // Diary
+  'diary_entry_created':                { label: 'Diary entry created',      color: 'var(--success-text)',    bg: 'var(--success-bg)' },
+  'diary_entry_deleted':                { label: 'Diary entry deleted',      color: 'var(--danger-text)',     bg: 'var(--danger-bg)' },
+  'diary_share_token_created':          { label: 'Share link created',       color: 'var(--success-text)',    bg: 'var(--success-bg)' },
+  'diary_share_token_deleted':          { label: 'Share link deleted',       color: 'var(--danger-text)',     bg: 'var(--danger-bg)' },
+  // Legacy
+  'entity_updated':                     { label: 'Entity updated',           color: 'var(--accent)',          bg: 'var(--accent-light)' },
 };
 
 const PAGE_SIZE = 50;
