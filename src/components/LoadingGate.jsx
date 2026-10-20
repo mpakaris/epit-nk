@@ -2,6 +2,7 @@
 
 import { useApp } from '@/context/AppContext';
 import { usePathname } from 'next/navigation';
+import WelcomeModal from '@/components/WelcomeModal';
 
 // Routes that are public — gate is skipped so server-rendered content shows immediately
 // and unauthenticated users don't get stuck on an infinite spinner.
@@ -9,7 +10,7 @@ const PUBLIC_PREFIXES = ['/p/', '/clients/', '/naplo/', '/login', '/change-passw
 const PUBLIC_EXACT = ['/'];
 
 export default function LoadingGate({ children }) {
-  const { loading, dataReady } = useApp();
+  const { loading, dataReady, showWelcome } = useApp();
   const pathname = usePathname();
   const isPublic = PUBLIC_EXACT.includes(pathname) || PUBLIC_PREFIXES.some(prefix => pathname.startsWith(prefix));
 
@@ -32,5 +33,10 @@ export default function LoadingGate({ children }) {
     );
   }
 
-  return children;
+  return (
+    <>
+      {children}
+      {showWelcome && <WelcomeModal />}
+    </>
+  );
 }

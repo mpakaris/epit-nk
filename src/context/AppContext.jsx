@@ -16,6 +16,7 @@ export function AppProvider({ children }) {
   const [currentUser, setCurrentUser] = useState(null);   // real authenticated user
   const [impersonating, setImpersonating] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [showWelcome, setShowWelcome] = useState(false);
   const [collectives, setCollectives] = useState([]);       // current user's collective memberships (context switcher)
   const [allMemberships, setAllMemberships] = useState([]); // all collective memberships — superadmin only
 
@@ -122,7 +123,8 @@ export function AppProvider({ children }) {
 
   const fetchProfile = async () => {
     const res = await fetch('/api/auth/profile');
-    if (!res.ok) return null;
+    if (res.status === 401) return null;   // not authenticated — caller should sign out
+    if (!res.ok) throw new Error(`profile ${res.status}`); // server error — don't sign out
     const { profile, collectives: c } = await res.json();
     if (c) setCollectives(c);
     return profile || null;
@@ -135,6 +137,12 @@ export function AppProvider({ children }) {
         const { data: { session } } = await supabase.auth.getSession();
         if (session?.user) {
           const profile = await fetchProfile();
+          if (profile === null) {
+            // 401 — session exists but auth user is gone, sign out cleanly
+            await supabase.auth.signOut();
+            setLoading(false);
+            return;
+          }
 
           const user = {
             id: session.user.id,
@@ -151,6 +159,11 @@ export function AppProvider({ children }) {
           };
           setCurrentUser(user);
           await refreshSupabaseData(user);
+
+          // Show welcome modal for brand-new users (profile created in the last 2 minutes)
+          const isNew = profile?.created_at
+            && (Date.now() - new Date(profile.created_at).getTime()) < 2 * 60 * 1000;
+          if (isNew) setShowWelcome(true);
         }
       } catch (err) {
         console.error('Init error:', err);
@@ -1351,6 +1364,8 @@ export function AppProvider({ children }) {
         activeCollectiveId,
         loading,
         dataReady,
+        showWelcome,
+        dismissWelcome: () => setShowWelcome(false),
         // Collectives & context switcher
         collectives,
         effectiveCollectives,

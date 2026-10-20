@@ -7,13 +7,34 @@ export async function GET() {
   if (authErr || !user) return Response.json({ error: 'Unauthenticated' }, { status: 401 });
 
   const admin = createAdminClient();
-  const { data: profile, error } = await admin
+  let { data: profile, error } = await admin
     .from('profiles')
     .select('*')
     .eq('id', user.id)
-    .single();
+    .maybeSingle();
 
   if (error) return Response.json({ error: error.message }, { status: 500 });
+
+  // Trigger may have failed silently — auto-create a basic profile so the user isn't locked out
+  if (!profile) {
+    const displayName = user.user_metadata?.full_name || user.user_metadata?.name || user.email.split('@')[0];
+    const { data: created, error: createErr } = await admin
+      .from('profiles')
+      .insert({
+        id: user.id,
+        email: user.email,
+        display_name: displayName,
+        role: 'user',
+        must_change_password: false,
+        subscription_tier: 'trial',
+        trial_started_at: new Date().toISOString(),
+        trial_ends_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
+      })
+      .select('*')
+      .single();
+    if (createErr) return Response.json({ error: createErr.message }, { status: 500 });
+    profile = created;
+  }
 
   // Return collective memberships for the context switcher
   const { data: membershipsRaw } = await admin
