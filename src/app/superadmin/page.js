@@ -37,7 +37,10 @@ export default function SuperAdminPage() {
 
   const [repairEmail, setRepairEmail] = useState('');
   const [repairLoading, setRepairLoading] = useState(false);
-  const [repairResult, setRepairResult] = useState(null); // null | { ok, message } | { error }
+  const [repairResult, setRepairResult] = useState(null);
+
+  const [deletionRunning, setDeletionRunning] = useState(false);
+  const [deletionResult, setDeletionResult] = useState(null);
 
   const handleRepairAuth = async () => {
     if (!repairEmail.trim()) return;
@@ -55,6 +58,27 @@ export default function SuperAdminPage() {
       setRepairResult({ error: err.message });
     } finally {
       setRepairLoading(false);
+    }
+  };
+
+  const [deletionEmail, setDeletionEmail] = useState('');
+
+  const handleExecuteDeletions = async (email) => {
+    setDeletionRunning(true);
+    setDeletionResult(null);
+    try {
+      const res = await fetch('/api/superadmin/execute-deletions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(email ? { email } : {}),
+      });
+      const data = await res.json();
+      setDeletionResult(data);
+      if (email && data.ok) setDeletionEmail('');
+    } catch (err) {
+      setDeletionResult({ error: err.message });
+    } finally {
+      setDeletionRunning(false);
     }
   };
 
@@ -386,6 +410,44 @@ export default function SuperAdminPage() {
             {repairResult.ok
               ? <><CheckCircle2 size={15} /> {repairResult.message} <code style={{ fontSize: '0.75rem' }}>{repairResult.userId}</code></>
               : <><AlertCircle size={15} /> {repairResult.error}</>}
+          </div>
+        )}
+      </div>
+
+      {/* ── Pending Deletions ── */}
+      <div className="card" style={{ padding: '1.15rem', marginBottom: '1.5rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.85rem' }}>
+          <Trash2 size={16} color="var(--danger)" />
+          <h3 style={{ fontSize: '0.9rem', fontWeight: 800, margin: 0 }}>Delete Account</h3>
+        </div>
+        <p style={{ fontSize: '0.825rem', color: 'var(--text-muted)', margin: '0 0 0.75rem' }}>
+          Delete by email (e.g. from a user email request), or run all pending scheduled deletions.
+          Personal data is wiped, collective contributions stay as "Törölt felhasználó".
+        </p>
+        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '0.65rem' }}>
+          <input
+            type="email"
+            placeholder="user@example.com (optional)"
+            value={deletionEmail}
+            onChange={e => { setDeletionEmail(e.target.value); setDeletionResult(null); }}
+            style={{ flex: 1, minWidth: 220, padding: '0.5rem 0.75rem', border: '1.5px solid var(--border)', borderRadius: 'var(--radius-md)', fontSize: '0.85rem', fontFamily: 'inherit', outline: 'none' }}
+          />
+          <button type="button" className="btn btn-danger btn-sm" onClick={() => handleExecuteDeletions(deletionEmail.trim() || null)} disabled={deletionRunning}>
+            {deletionRunning ? <><Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> Deleting…</> : deletionEmail.trim() ? 'Delete User' : 'Run Pending'}
+          </button>
+        </div>
+        {deletionResult && (
+          <div style={{ padding: '0.65rem 0.85rem', borderRadius: 'var(--radius-md)', fontSize: '0.825rem',
+            background: deletionResult.ok ? 'var(--success-bg)' : 'var(--danger-bg)',
+            border: `1px solid ${deletionResult.ok ? 'var(--success-border)' : 'var(--danger-border)'}`,
+            color: deletionResult.ok ? 'var(--success-text)' : 'var(--danger-text)',
+          }}>
+            {deletionResult.ok
+              ? deletionResult.deleted === 0
+                ? <><CheckCircle2 size={14} /> No pending deletions found.</>
+                : <><CheckCircle2 size={14} /> Deleted {deletionResult.deleted} of {deletionResult.total} users. {deletionResult.users?.filter(u => !u.success).map(u => `${u.email}: ${u.error}`).join(', ')}</>
+              : <><AlertCircle size={14} /> {deletionResult.error}</>
+            }
           </div>
         )}
       </div>

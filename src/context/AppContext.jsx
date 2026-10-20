@@ -143,6 +143,12 @@ export function AppProvider({ children }) {
             setLoading(false);
             return;
           }
+          if (profile.deleted_at) {
+            // Account was soft-deleted — block login
+            await supabase.auth.signOut();
+            setLoading(false);
+            return;
+          }
 
           const user = {
             id: session.user.id,

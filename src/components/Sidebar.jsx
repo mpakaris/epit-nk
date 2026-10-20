@@ -337,18 +337,23 @@ export default function Sidebar() {
                 </div>
                 <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
                   {currentUser.role === 'superadmin' ? 'Superadmin' : currentUser.role === 'admin' ? 'Admin' : null}
-                  {!isSuperAdmin && (
-                    <span style={{
-                      fontWeight: 700, fontSize: '0.6rem', textTransform: 'uppercase', letterSpacing: '0.03em',
-                      padding: '0.05rem 0.35rem', borderRadius: 'var(--radius-pill)',
-                      ...(currentUser.is_subscription_premium
-                        ? { background: '#fef9c3', color: '#854d0e', border: '1px solid #fde047' }
-                        : { background: 'var(--bg-subtle)', color: 'var(--text-muted)', border: '1px solid var(--border-subtle)' }
-                      )
-                    }}>
-                      {currentUser.is_subscription_premium ? '⭐ Prémium' : 'Bázis'}
-                    </span>
-                  )}
+                  {!isSuperAdmin && (() => {
+                    const isOnTrial = currentUser.subscription_tier === 'trial'
+                      && currentUser.trial_ends_at
+                      && new Date(currentUser.trial_ends_at) > new Date();
+                    const isPremium = currentUser.is_subscription_premium;
+                    const styles = isPremium
+                      ? { background: '#fef9c3', color: '#854d0e', border: '1px solid #fde047' }
+                      : isOnTrial
+                      ? { background: '#fff7ed', color: '#c2410c', border: '1px solid #fed7aa' }
+                      : { background: 'var(--bg-subtle)', color: 'var(--text-muted)', border: '1px solid var(--border-subtle)' };
+                    const label = isPremium ? '⭐ Prémium' : isOnTrial ? '🎁 Próba' : 'Bázis';
+                    return (
+                      <span style={{ fontWeight: 700, fontSize: '0.6rem', textTransform: 'uppercase', letterSpacing: '0.03em', padding: '0.05rem 0.35rem', borderRadius: 'var(--radius-pill)', ...styles }}>
+                        {label}
+                      </span>
+                    );
+                  })()}
                 </div>
               </div>
             )}

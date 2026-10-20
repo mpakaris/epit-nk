@@ -619,10 +619,12 @@ export default function ProfilPage() {
                 padding: '0.15rem 0.55rem', borderRadius: 'var(--radius-pill)',
                 ...(isPremium
                   ? { background: '#fef9c3', color: '#854d0e', border: '1px solid #fde047' }
+                  : isOnTrial
+                  ? { background: '#fff7ed', color: '#c2410c', border: '1px solid #fed7aa' }
                   : { background: 'var(--bg-subtle)', color: 'var(--text-muted)', border: '1px solid var(--border-subtle)' }
                 ),
               }}>
-                {isPremium ? '⭐ Prémium' : 'Bázis'}
+                {isPremium ? '⭐ Prémium' : isOnTrial ? '🎁 Próba' : 'Bázis'}
               </span>
             </div>
           </div>
@@ -734,7 +736,7 @@ export default function ProfilPage() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(200px,100%), 1fr))', gap: '0.85rem' }}>
           {PLANS.map(plan => {
             const Icon = plan.icon;
-            const isCurrent = (plan.key === 'basic' && !effectivePremium) || (plan.key === 'premium' && isPremium);
+            const isCurrent = (plan.key === 'basic' && !effectivePremium) || (plan.key === 'premium' && (isPremium || isOnTrial));
             const isLoading = loadingPlan === plan.key;
             return (
               <div key={plan.key} className="card" style={{
@@ -742,13 +744,8 @@ export default function ProfilPage() {
                 border: isCurrent ? `2px solid ${plan.color}` : undefined, position: 'relative',
               }}>
                 {isCurrent && (
-                  <span style={{ position: 'absolute', top: -11, left: '50%', transform: 'translateX(-50%)', background: plan.color, color: 'white', fontSize: '0.6rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', padding: '0.18rem 0.65rem', borderRadius: 'var(--radius-pill)', whiteSpace: 'nowrap' }}>
-                    Aktív csomag
-                  </span>
-                )}
-                {plan.key === 'premium' && isOnTrial && (
-                  <span style={{ position: 'absolute', top: -11, left: '50%', transform: 'translateX(-50%)', background: '#b45309', color: 'white', fontSize: '0.6rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', padding: '0.18rem 0.65rem', borderRadius: 'var(--radius-pill)', whiteSpace: 'nowrap' }}>
-                    Próba aktív
+                  <span style={{ position: 'absolute', top: -11, left: '50%', transform: 'translateX(-50%)', background: isOnTrial && plan.key === 'premium' ? '#b45309' : plan.color, color: 'white', fontSize: '0.6rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', padding: '0.18rem 0.65rem', borderRadius: 'var(--radius-pill)', whiteSpace: 'nowrap' }}>
+                    {isOnTrial && plan.key === 'premium' ? '🎁 Próba aktív' : 'Aktív csomag'}
                   </span>
                 )}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -968,29 +965,14 @@ export default function ProfilPage() {
       <div className="card" style={{ border: '1px solid var(--danger-border)', padding: '1.25rem' }}>
         <h3 style={{ fontWeight: 800, fontSize: '0.95rem', color: 'var(--danger)', marginBottom: '0.25rem' }}>Veszélyes zóna</h3>
 
-        {scheduledDeletionAt ? (
-          <div>
-            <div style={{ background: '#fef9c3', border: '1px solid #fde047', borderRadius: 'var(--radius-md)', padding: '0.75rem 1rem', marginBottom: '1rem', display: 'flex', alignItems: 'flex-start', gap: '0.6rem' }}>
-              <AlertTriangle size={16} color="#854d0e" style={{ flexShrink: 0, marginTop: 1 }} />
-              <div style={{ fontSize: '0.825rem', color: '#78350f', lineHeight: 1.5 }}>
-                <strong>Fiókod törlése ütemezve:</strong>{' '}
-                {new Date(scheduledDeletionAt).toLocaleDateString('hu-HU', { year: 'numeric', month: 'long', day: 'numeric' })}.
-                Addig a fiókod normálisan működik, és az előfizetésedet bármikor újraindíthatod.
-              </div>
-            </div>
-            {deleteErr && (
-              <div style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', color: 'var(--danger)', padding: '0.5rem 0.75rem', borderRadius: 'var(--radius-md)', fontSize: '0.8rem', marginBottom: '0.75rem' }}>
-                {deleteErr}
-              </div>
-            )}
-            <button type="button" className="btn btn-secondary btn-sm" disabled={cancelingDeletion} onClick={handleCancelDeletion} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-              {cancelingDeletion ? <><Loader2 size={13} className="animate-spin" /> Visszavonás…</> : <><RefreshCw size={13} /> Törlés visszavonása</>}
-            </button>
-          </div>
-        ) : (
+        {(() => {
+          const warningText = isPremium
+            ? 'A fiók törlése végleges. Személyes adataid törlődnek, kollektívákban végzett munkáid megmaradnak. Prémium előfizetésed azonnal leáll.'
+            : 'A fiók törlése végleges és azonnali. Személyes adataid törlődnek, kollektívákban végzett munkáid megmaradnak. Nem kerül felszámításra semmilyen költség.';
+          return (
           <div>
             <p style={{ fontSize: '0.825rem', color: 'var(--text-secondary)', marginBottom: '1.25rem', lineHeight: 1.6 }}>
-              A törlési kérelem benyújtása után fiókod még <strong>30 napig aktív marad</strong> — addig bármikor visszavonhatod, vagy újraindíthatod az előfizetésedet.
+              {warningText}
             </p>
             {!deleteOpen ? (
               <button type="button" className="btn btn-danger btn-sm" onClick={() => setDeleteOpen(true)}>
@@ -1012,13 +994,14 @@ export default function ProfilPage() {
                     Mégse
                   </button>
                   <button type="button" className="btn btn-danger btn-sm" disabled={deleteText !== 'TÖRLÉS' || deleting} onClick={handleDeleteAccount}>
-                    {deleting ? <><Loader2 size={13} className="animate-spin" /> Ütemezés…</> : 'Törlés ütemezése'}
+                    {deleting ? <><Loader2 size={13} className="animate-spin" /> Törlés…</> : 'Fiók végleges törlése'}
                   </button>
                 </div>
               </div>
             )}
           </div>
-        )}
+          );
+        })()}
       </div>
 
       {/* ── Premium cancel success modal ── */}
