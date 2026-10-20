@@ -128,7 +128,7 @@ export default function AuthModal({ onClose, initialView = 'login', onSuccess, i
               )}
               <div>
                 <h2 style={{ fontSize:'1.2rem', fontWeight:800, color:'#0f172a', letterSpacing:'-0.03em', margin:0 }}>{titles[view]}</h2>
-                <p style={{ fontSize:'0.78rem', color:'#94a3b8', margin:'0.15rem 0 0' }}>TecTon fiók</p>
+                <p style={{ fontSize:'0.78rem', color:'#94a3b8', margin:'0.15rem 0 0' }}>Epiteq fiók</p>
               </div>
             </div>
             <button onClick={onClose} style={{ background:'#f1f5f9', border:'none', borderRadius:'8px', width:'32px', height:'32px', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer' }}>

@@ -46,8 +46,13 @@ export async function POST(request) {
 
   if (!upgradeRes.ok) {
     const err = await upgradeRes.json().catch(() => ({}));
-    const msg = Array.isArray(err.message) ? err.message.join(', ') : (err.message || 'Bővítés sikertelen');
-    console.error('[subscriptions/upgrade] Creem error', upgradeRes.status, msg);
+    const rawMsg = Array.isArray(err.message) ? err.message.join(', ') : (err.message || '');
+    console.error('[subscriptions/upgrade] Creem error', upgradeRes.status, rawMsg);
+
+    const msg = rawMsg.toLowerCase().includes('previous change')
+      ? 'Az előző csomagváltás még feldolgozás alatt van. Kérjük, várj néhány percet, majd próbáld újra.'
+      : rawMsg || 'Csomagváltás sikertelen. Kérjük, próbáld újra.';
+
     return NextResponse.json({ error: msg }, { status: upgradeRes.status });
   }
 

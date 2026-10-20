@@ -1,4 +1,4 @@
-const APP_NAME = process.env.GOOGLE_APP_NAME || 'TecTon';
+const APP_NAME = process.env.GOOGLE_APP_NAME || 'Epiteq';
 
 /**
  * Fill a template string, replacing {{placeholder}} tokens with vars.
@@ -126,7 +126,7 @@ export const EMAIL_TEMPLATES = {
     subject: '{{member_name}} törölte fiókját — {{collective_name}}',
     bodyHtml: `
 <p style="margin:0 0 16px;font-size:15px;color:#334155;line-height:1.6;">
-  <strong>{{member_name}}</strong> törölte TecTon fiókját, és ezzel automatikusan kilépett a(z)
+  <strong>{{member_name}}</strong> törölte Epiteq fiókját, és ezzel automatikusan kilépett a(z)
   <strong style="color:#1e293b;">{{collective_name}}</strong> kollektívából.
 </p>
 <p style="margin:0;font-size:13px;color:#64748b;line-height:1.6;">

@@ -64,10 +64,10 @@ export async function POST(request) {
       Ha nem te kérted a visszaállítást, ezt az e-mailt figyelmen kívül hagyhatod — a fiókod biztonságban van.<br>
       A link <strong>1 óráig</strong> érvényes.
     </p>
-  `, 'Jelszó visszaállítása – TecTon');
+  `, 'Jelszó visszaállítása – Epiteq');
 
   try {
-    await sendEmail({ to: email.trim(), subject: 'Jelszó visszaállítása – TecTon', html });
+    await sendEmail({ to: email.trim(), subject: 'Jelszó visszaállítása – Epiteq', html });
   } catch (mailErr) {
     console.error('[password-reset] sendEmail error:', mailErr.message);
   }
