@@ -65,7 +65,44 @@ export async function POST(req, { params }) {
     }
   }
 
-  // Create invitation (unique index prevents duplicate pending)
+  // Seat limit check — only for new invitations (not resends of existing pending ones)
+  const TIER_SEAT_LIMITS = { small: 3, medium: 6, large: 9 };
+  const { data: collective } = await admin.from('collectives').select('collective_tier').eq('id', id).single();
+  const seatLimit = TIER_SEAT_LIMITS[collective?.collective_tier];
+
+  if (seatLimit !== undefined) {
+    const { data: existingPending } = await admin
+      .from('collective_invitations')
+      .select('id')
+      .eq('collective_id', id)
+      .eq('email', normalizedEmail)
+      .eq('status', 'pending')
+      .maybeSingle();
+
+    if (!existingPending) {
+      const [{ count: activeCount }, { count: pendingCount }] = await Promise.all([
+        admin.from('collective_members').select('*', { count: 'exact', head: true })
+          .eq('collective_id', id).eq('status', 'active').neq('role', 'owner'),
+        admin.from('collective_invitations').select('*', { count: 'exact', head: true })
+          .eq('collective_id', id).eq('status', 'pending'),
+      ]);
+      const usedSeats = (activeCount ?? 0) + (pendingCount ?? 0);
+      if (usedSeats >= seatLimit) {
+        return Response.json({
+          error: `Elérted a(z) ${seatLimit} férőhelyes korlátot (${usedSeats} foglalt hely). Bővítsd a csomagot, vagy távolíts el egy tagot.`,
+          seat_limit_reached: true,
+        }, { status: 403 });
+      }
+    }
+  }
+
+  // Cancel any existing pending invite for this email so we can issue a fresh token
+  await admin.from('collective_invitations')
+    .delete()
+    .eq('collective_id', id)
+    .eq('email', normalizedEmail)
+    .eq('status', 'pending');
+
   const { data: invitation, error: insertErr } = await admin
     .from('collective_invitations')
     .insert({
@@ -77,12 +114,7 @@ export async function POST(req, { params }) {
     .select()
     .single();
 
-  if (insertErr) {
-    if (insertErr.code === '23505') {
-      return Response.json({ error: 'A pending invitation already exists for this email' }, { status: 409 });
-    }
-    return Response.json({ error: insertErr.message }, { status: 500 });
-  }
+  if (insertErr) return Response.json({ error: insertErr.message }, { status: 500 });
 
   // Build email
   const isNewUser  = !existingUser;

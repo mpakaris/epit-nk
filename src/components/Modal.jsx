@@ -115,10 +115,10 @@ export function AlertModal({ isOpen, onClose, title, message, variant = 'error',
   onCloseRef.current = onClose;
 
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen || action) return; // don't auto-dismiss if there's an action button
     const t = setTimeout(() => onCloseRef.current(), 5000);
     return () => clearTimeout(t);
-  }, [isOpen]);
+  }, [isOpen, action]);
 
   const isSuccess = variant === 'success';
   const isWarning = variant === 'warning';
@@ -147,9 +147,9 @@ export function AlertModal({ isOpen, onClose, title, message, variant = 'error',
           OK
         </button>
         {action && (
-          <a href={action.href} className="btn btn-primary btn-sm" style={{ textDecoration: 'none' }}>
-            {action.label}
-          </a>
+          action.onClick
+            ? <button className="btn btn-primary btn-sm" onClick={action.onClick}>{action.label}</button>
+            : <a href={action.href} className="btn btn-primary btn-sm" style={{ textDecoration: 'none' }}>{action.label}</a>
         )}
       </div>
     </ModalBase>

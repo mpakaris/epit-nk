@@ -82,6 +82,7 @@ export default function KollektivakPage() {
   // Upgrade modal
   const [upgradeModal, setUpgradeModal] = useState(null); // collective object
   const [upgradingTier, setUpgradingTier] = useState(null);
+  const [seatLimitModal, setSeatLimitModal] = useState(null); // collective object
 
   // Reactivation
   const [resumingId, setResumingId] = useState(null);
@@ -124,10 +125,10 @@ export default function KollektivakPage() {
     const data = await res.json();
     setBlockingId(null);
     if (!res.ok) { setAlertModal({ message: data.error }); return; }
-    toast(action === 'block'
-      ? `${member.display_name} kitiltva a kollektívából.`
-      : `${member.display_name} hozzáférése visszaállítva.`
-    );
+    setAlertModal({ variant: 'success', title: action === 'block' ? 'Tag kitiltva' : 'Tiltás feloldva',
+      message: action === 'block'
+        ? `${member.display_name} többé nem fér hozzá a kollektívához.`
+        : `${member.display_name} hozzáférése visszaállítva.` });
     fetchCollectives();
   };
 
@@ -141,7 +142,7 @@ export default function KollektivakPage() {
     const data = await res.json();
     setReInvitingId(null);
     if (!res.ok) { setAlertModal({ message: data.error }); return; }
-    toast(`Meghívó újraküldve: ${inv.email}`);
+    setAlertModal({ variant: 'success', title: 'Meghívó újraküldve', message: <><strong>{inv.email}</strong> részére új meghívót küldtünk ki.</> });
     fetchCollectives();
   };
 
@@ -151,13 +152,12 @@ export default function KollektivakPage() {
     const data = await res.json();
     setRetractingId(null);
     if (!res.ok) { setAlertModal({ message: data.error }); return; }
-    toast('Meghívó visszavonva.');
+    setAlertModal({ variant: 'success', title: 'Meghívó visszavonva', message: 'A meghívó érvénytelenítve. A link nem fogadható el többé.' });
     fetchCollectives();
   };
 
   const [confirmModal, setConfirmModal] = useState(null);
   const [alertModal, setAlertModal] = useState(null);
-  const [successMsg, setSuccessMsg] = useState('');
 
   const [deleteModal, setDeleteModal] = useState(null);
   const [deleteInput, setDeleteInput] = useState('');
@@ -245,7 +245,6 @@ export default function KollektivakPage() {
 
   useEffect(() => { if (dataReady) fetchCollectives(); }, [dataReady]);
 
-  const toast = (msg) => { setSuccessMsg(msg); setTimeout(() => setSuccessMsg(''), 3500); };
 
   useEffect(() => {
     if (!kollektivaResult) return;
@@ -404,7 +403,10 @@ export default function KollektivakPage() {
         const endStr = data.subscription_period_end
           ? new Date(data.subscription_period_end).toLocaleDateString('hu-HU', { year: 'numeric', month: 'long', day: 'numeric' })
           : null;
-        toast(`A(z) „${name}" kollektíva előfizetése lemondva.${endStr ? ` Elérhető marad: ${endStr}-ig.` : ' A jelenlegi számlázási időszak végéig elérhető marad.'}`);
+        setAlertModal({ variant: 'success', title: 'Előfizetés lemondva',
+          message: endStr
+            ? `A(z) „${name}" kollektíva előfizetése lemondva. Elérhető marad ${endStr}-ig.`
+            : `A(z) „${name}" kollektíva előfizetése lemondva. A jelenlegi számlázási időszak végéig elérhető marad.` });
       } else {
         setAlertModal({ message: data.error || 'Lemondás sikertelen. Kérjük, próbáld újra.' });
       }
@@ -447,7 +449,9 @@ export default function KollektivakPage() {
         ));
         setUpgradeModal(null);
         const newTierName = TIER_DISPLAY[targetTier]?.name ?? targetTier;
-        toast(`Csomag bővítve: ${newTierName}. Az arányos díjkülönbözet azonnal terhelésre kerül.`);
+        const isUpgrade = ['small','medium','large'].indexOf(targetTier) > ['small','medium','large'].indexOf(collective.collective_tier);
+        setAlertModal({ variant: 'success', title: isUpgrade ? 'Csomag bővítve' : 'Csomag csökkentve',
+          message: `Mostantól a(z) ${newTierName} csomagon vagy. Az arányos díjkülönbözet azonnal terhelésre / jóváírásra kerül.` });
       } else {
         setAlertModal({ message: data.error || 'Bővítés sikertelen. Kérjük, próbáld újra.' });
       }
@@ -471,7 +475,8 @@ export default function KollektivakPage() {
         setCollectives(prev => prev.map(c =>
           c.id === collective.id ? { ...c, subscription_status: 'active', subscription_period_end: null } : c
         ));
-        toast(`A(z) „${collective.name}" kollektíva előfizetése visszaállítva — ismét aktív.`);
+        setAlertModal({ variant: 'success', title: 'Előfizetés visszaállítva',
+          message: `A(z) „${collective.name}" kollektíva előfizetése aktív — a számlázás az eredeti ütemezés szerint folytatódik.` });
       } else {
         const needsPremium = res.status === 403 && data.error?.includes('Prémium');
         setAlertModal({
@@ -499,7 +504,7 @@ export default function KollektivakPage() {
     if (!res.ok) { setInviteError(data.error || 'Hiba a meghívásnál'); return; }
     setInviteCollectiveId(null);
     setInviteEmail('');
-    toast('Meghívó elküldve e-mailben.');
+    setAlertModal({ variant: 'success', title: 'Meghívó elküldve', message: <><strong>{inviteEmail.trim()}</strong> részére meghívót küldtünk. A meghívott a linkre kattintva csatlakozhat a kollektívához.</> });
     fetchCollectives();
   };
 
@@ -514,7 +519,7 @@ export default function KollektivakPage() {
     });
     setSavingNameId(null);
     setEditingNameId(null);
-    if (res.ok) { toast('Kollektíva átnevezve.'); fetchCollectives(); refreshCollectives(); }
+    if (res.ok) { setAlertModal({ variant: 'success', title: 'Kollektíva átnevezve', message: `A kollektíva neve sikeresen frissítve.` }); fetchCollectives(); refreshCollectives(); }
     else { const d = await res.json(); setAlertModal({ message: d.error || 'Hiba az átnevezésnél' }); }
   };
 
@@ -529,7 +534,8 @@ export default function KollektivakPage() {
         const data = await res.json();
         setConfirmModal(null);
         if (!res.ok) { setAlertModal({ message: data.error }); return; }
-        toast(isSelf ? 'Kilépett a kollektívából.' : 'Tag eltávolítva.');
+        setAlertModal({ variant: 'success', title: isSelf ? 'Kilépés sikeres' : 'Tag eltávolítva',
+          message: isSelf ? `Kilépett a(z) „${collective.name}" kollektívából.` : `${member.display_name} eltávolítva a kollektívából.` });
         fetchCollectives();
       },
     });
@@ -569,7 +575,7 @@ export default function KollektivakPage() {
     setDeleteConfirming(false);
     if (!res.ok) { setAlertModal({ message: data.error }); return; }
     setDeleteModal(null);
-    toast('Kollektíva törölve.');
+    setAlertModal({ variant: 'success', title: 'Kollektíva törölve', message: `A(z) „${deleteModal.name}" kollektíva és minden hozzá tartozó adat véglegesen törölve.` });
     fetchCollectives();
     refreshCollectives();
   };
@@ -587,56 +593,47 @@ export default function KollektivakPage() {
     const isThisOwner    = member.role === 'owner';
     const isWorking      = blockingId === member.user_id;
 
+    const actions = isOwnerViewing && !isThisOwner ? (
+      <div style={{ display: 'flex', gap: '0.4rem' }}>
+        {isBlocked ? (
+          <button type="button" className="btn btn-secondary btn-sm" disabled={isWorking} onClick={() => handleBlockMember(collective, member, 'unblock')} style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+            {isWorking ? <Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> : <ShieldCheck size={13} />} Feloldás
+          </button>
+        ) : (
+          <button type="button" className="btn btn-secondary btn-sm" disabled={isWorking} onClick={() => handleBlockMember(collective, member, 'block')} style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+            {isWorking ? <Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> : <Ban size={13} />} Tiltás
+          </button>
+        )}
+        <button type="button" className="btn btn-danger btn-sm" onClick={() => handleRemoveMember(collective, member)} style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+          <UserMinus size={13} /> Eltávolítás
+        </button>
+      </div>
+    ) : !isOwnerViewing && isSelf ? (
+      <button type="button" className="btn btn-secondary btn-sm" onClick={() => handleRemoveMember(collective, member)} style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+        <UserMinus size={13} /> Kilépés
+      </button>
+    ) : null;
+
     return (
-      <div key={member.user_id} style={{ display: 'flex', flexDirection: 'column', padding: '0.6rem 0', borderBottom: '1px solid var(--border-subtle)', gap: '0.5rem', opacity: isBlocked ? 0.55 : 1 }}>
+      <div key={member.user_id} style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.4rem 0.6rem', padding: '0.5rem 0.6rem', borderRadius: 'var(--radius-md)', background: isBlocked ? 'var(--danger-bg)' : 'transparent', opacity: isBlocked ? 0.7 : 1 }}>
         {/* Avatar + info */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', minWidth: 0 }}>
-          <div style={{ width: 32, height: 32, borderRadius: '50%', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
-            background: isBlocked ? 'var(--danger-bg)' : isThisOwner ? 'var(--accent-light)' : 'var(--bg-subtle)',
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flex: '1 1 180px', minWidth: 0 }}>
+          <div style={{ width: 30, height: 30, borderRadius: '50%', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            background: isBlocked ? 'var(--danger-border)' : isThisOwner ? 'var(--accent-light)' : 'var(--bg-card)',
             border: `1px solid ${isBlocked ? 'var(--danger-border)' : isThisOwner ? 'var(--accent-border)' : 'var(--border-subtle)'}`,
           }}>
-            {isBlocked    ? <Ban size={13} color="var(--danger)" />
-             : isThisOwner ? <Crown size={13} color="var(--accent)" />
-             : <UserCheck size={13} color="var(--text-muted)" />}
+            {isBlocked ? <Ban size={12} color="var(--danger)" /> : isThisOwner ? <Crown size={12} color="var(--accent)" /> : <UserCheck size={12} color="var(--text-muted)" />}
           </div>
-          <div style={{ minWidth: 0 }}>
-            <div style={{ fontWeight: 700, fontSize: '0.875rem', display: 'flex', alignItems: 'center', gap: '0.3rem', flexWrap: 'wrap' }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontWeight: 600, fontSize: '0.825rem', display: 'flex', alignItems: 'center', gap: '0.3rem', flexWrap: 'wrap', lineHeight: 1.3 }}>
               {member.display_name}
-              {isSelf      && <span style={{ fontSize: '0.6rem', background: 'var(--accent-light)', color: 'var(--accent)', fontWeight: 700, padding: '0.05rem 0.35rem', borderRadius: 'var(--radius-pill)' }}>én</span>}
-              {isBlocked   && <span style={{ fontSize: '0.6rem', background: 'var(--danger-bg)', color: 'var(--danger)', fontWeight: 700, padding: '0.05rem 0.35rem', borderRadius: 'var(--radius-pill)' }}>Tiltott</span>}
+              {isSelf && <span style={{ fontSize: '0.58rem', background: 'var(--accent-light)', color: 'var(--accent)', fontWeight: 700, padding: '0.05rem 0.35rem', borderRadius: 'var(--radius-pill)' }}>én</span>}
+              <span style={{ background: ROLE_BG[member.role], color: ROLE_COLOR[member.role], fontWeight: 700, padding: '0.05rem 0.35rem', borderRadius: 'var(--radius-pill)', fontSize: '0.58rem' }}>{ROLE_LABEL[member.role]}</span>
             </div>
-            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'flex', gap: '0.35rem', flexWrap: 'wrap', alignItems: 'center' }}>
-              <span>{member.email}</span>
-              <span style={{ background: ROLE_BG[member.role], color: ROLE_COLOR[member.role], fontWeight: 700, padding: '0.05rem 0.4rem', borderRadius: 'var(--radius-pill)', fontSize: '0.6rem' }}>{ROLE_LABEL[member.role]}</span>
-              {member.joined_at && <span>· Csatlakozott: {formatDate(member.joined_at)}</span>}
-            </div>
+            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.1rem' }}>{member.email}</div>
           </div>
         </div>
-
-        {/* Buttons */}
-        {isOwnerViewing && !isThisOwner && (
-          <div style={{ display: 'flex', gap: '0.35rem', justifyContent: 'flex-end' }}>
-            {isBlocked ? (
-              <button type="button" className="btn btn-secondary btn-sm" disabled={isWorking} onClick={() => handleBlockMember(collective, member, 'unblock')} style={{ gap: '0.3rem' }}>
-                {isWorking ? <Loader2 size={12} style={{ animation: 'spin 1s linear infinite' }} /> : <ShieldCheck size={12} />} Tiltás feloldása
-              </button>
-            ) : (
-              <button type="button" className="btn btn-secondary btn-sm" disabled={isWorking} onClick={() => handleBlockMember(collective, member, 'block')} style={{ gap: '0.3rem' }}>
-                {isWorking ? <Loader2 size={12} style={{ animation: 'spin 1s linear infinite' }} /> : <Ban size={12} />} Tiltás
-              </button>
-            )}
-            <button type="button" className="btn btn-danger btn-sm" onClick={() => handleRemoveMember(collective, member)} style={{ gap: '0.3rem' }}>
-              <UserMinus size={12} /> Eltávolítás
-            </button>
-          </div>
-        )}
-        {!isOwnerViewing && isSelf && (
-          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-            <button type="button" className="btn btn-secondary btn-sm" onClick={() => handleRemoveMember(collective, member)} style={{ gap: '0.3rem' }}>
-              <UserMinus size={12} /> Kilépés
-            </button>
-          </div>
-        )}
+        {actions && <div style={{ display: 'flex', marginLeft: 'auto' }}>{actions}</div>}
       </div>
     );
   };
@@ -654,6 +651,9 @@ export default function KollektivakPage() {
     const blockedMembers= (collective.members || []).filter(m => m.status === 'blocked');
     const pendingInvs   = collective.pending_invitations  || [];
     const declinedInvs  = collective.declined_invitations || [];
+
+    // Seats used = active non-owner members + pending invitations (owner doesn't count)
+    const usedSeats = activeMembers.filter(m => m.role !== 'owner').length + pendingInvs.length;
     const tier          = TIER_DISPLAY[collective.collective_tier] ?? null;
     const subStatus     = collective.subscription_status ?? 'active';
     const periodEnd     = collective.subscription_period_end
@@ -748,12 +748,22 @@ export default function KollektivakPage() {
                 return (
                   <div data-menu style={{ position: 'absolute', right: 0, top: 'calc(100% + 4px)', zIndex: 50, background: 'var(--bg-card, #fff)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', boxShadow: '0 4px 16px rgba(0,0,0,0.12)', minWidth: 200, overflow: 'hidden' }}>
                     {/* Invite — active only */}
-                    {isActive && menuItem(() => { setOpenMenuId(null); setInviteCollectiveId(collective.id); setInviteEmail(''); setInviteError(''); }, <Mail size={14} />, 'Meghívás')}
+                    {isActive && menuItem(() => {
+                      setOpenMenuId(null);
+                      const tierSeats = TIER_DISPLAY[collective.collective_tier]?.seats;
+                      const used = (collective.members || []).filter(m => m.status === 'active' && m.role !== 'owner').length
+                        + (collective.pending_invitations || []).length;
+                      if (tierSeats !== undefined && used >= tierSeats) {
+                        setSeatLimitModal(collective);
+                        return;
+                      }
+                      setInviteCollectiveId(collective.id); setInviteEmail(''); setInviteError('');
+                    }, <Mail size={14} />, 'Meghívás')}
                     {isActive && divider}
 
-                    {/* Upgrade — active + not largest tier */}
-                    {isActive && collective.collective_tier !== 'large' && hasSub && menuItem(() => { setOpenMenuId(null); setUpgradeModal(collective); }, <Users size={14} />, 'Csomag bővítése', 'var(--accent)')}
-                    {isActive && collective.collective_tier !== 'large' && hasSub && divider}
+                    {/* Tier change — active (not scheduled_cancel) + has a subscription with a known tier */}
+                    {isActive && s !== 'scheduled_cancel' && hasSub && collective.collective_tier && menuItem(() => { setOpenMenuId(null); setUpgradeModal(collective); }, <Users size={14} />, 'Csomag módosítása', 'var(--accent)')}
+                    {isActive && s !== 'scheduled_cancel' && hasSub && collective.collective_tier && divider}
 
                     {/* Cancel — active only */}
                     {isActive && hasSub && menuItem(() => { setOpenMenuId(null); setCancelModal(collective); }, <X size={14} />, 'Előfizetés lemondása', 'var(--warning-text)')}
@@ -784,114 +794,103 @@ export default function KollektivakPage() {
           )}
         </div>
 
-        {/* ── Subscription info (owner only) ── */}
+        {/* ── Subscription strip (owner only) ── */}
         {isOwner && (
-          <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: '0.65rem', marginBottom: '0.65rem', display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
-
-            {/* Status */}
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', padding: '0.2rem 0.6rem', borderRadius: 'var(--radius-pill)', fontSize: '0.7rem', fontWeight: 700, background: badge.bg, color: badge.color, border: `1px solid ${badge.border}` }}>
-              {badge.label}
-              {subStatus === 'scheduled_cancel' && periodEnd && (
-                <span style={{ fontWeight: 600 }}>— {periodEnd}-ig</span>
-              )}
+          <div style={{ background: 'var(--bg-subtle)', borderRadius: 'var(--radius-md)', padding: '0.5rem 0.75rem', marginTop: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.72rem', fontWeight: 700, color: badge.color }}>
+              {badge.label}{subStatus === 'scheduled_cancel' && periodEnd ? ` — ${periodEnd}-ig` : ''}
             </span>
-            {subStatus === 'scheduled_cancel' && !periodEnd && (
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', padding: '0.2rem 0.6rem', borderRadius: 'var(--radius-pill)', fontSize: '0.7rem', fontWeight: 600, background: '#fef9c3', color: '#854d0e', border: '1px solid #fde047' }}>
-                lejárat folyamatban
-              </span>
-            )}
-
-            {/* Tier + price */}
-            {tier ? (
+            {tier && (
               <>
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', padding: '0.2rem 0.6rem', borderRadius: 'var(--radius-pill)', fontSize: '0.7rem', fontWeight: 600, background: 'var(--accent-light, #eff6ff)', color: 'var(--accent)', border: '1px solid var(--accent-border, #bfdbfe)' }}>
-                  {tier.name}{tier.seats ? ` · ${tier.seats} tag` : ''}
-                </span>
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', padding: '0.2rem 0.6rem', borderRadius: 'var(--radius-pill)', fontSize: '0.7rem', fontWeight: 600, background: 'var(--bg-subtle)', color: 'var(--text-secondary)', border: '1px solid var(--border-subtle)' }}>
-                  {tier.price} / hó + ÁFA
+                <span style={{ color: 'var(--text-muted)', fontSize: '0.65rem' }}>·</span>
+                <span style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--accent)' }}>{tier.name}</span>
+                <span style={{ color: 'var(--text-muted)', fontSize: '0.65rem' }}>·</span>
+                <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
+                  <strong>{usedSeats}</strong>/{tier.seats} hely · {tier.price}/hó
                 </span>
               </>
-            ) : (
-              <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
-                Csomag adatok nem elérhetők (migráció szükséges)
-              </span>
+            )}
+            {/* Downgrade nudge */}
+            {tier?.seats && usedSeats < tier.seats && (() => {
+              const TIER_ORDER = ['small', 'medium', 'large'];
+              const currentIdx = TIER_ORDER.indexOf(collective.collective_tier);
+              const lowerTier = currentIdx > 0 ? TIER_DISPLAY[TIER_ORDER[currentIdx - 1]] : null;
+              if (!lowerTier || usedSeats > lowerTier.seats) return null;
+              return (
+                <span onClick={() => setUpgradeModal(collective)} style={{ marginLeft: 'auto', fontSize: '0.7rem', color: '#15803d', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.25rem' }} title="Csomag módosítása">
+                  💡 Kisebb csomag is elég
+                </span>
+              );
+            })()}
+          </div>
+        )}
+
+        {/* ── People ── */}
+        {(activeMembers.length > 0 || (isOwner && (blockedMembers.length > 0 || pendingInvs.length > 0 || declinedInvs.length > 0))) && (
+          <div style={{ marginTop: '0.75rem', background: 'var(--bg-subtle)', borderRadius: 'var(--radius-md)', padding: '0.35rem 0.25rem', display: 'flex', flexDirection: 'column', gap: '0.1rem' }}>
+
+            {/* Active members */}
+            {activeMembers.length > 0 && activeMembers.map(m => renderMemberRow(collective, m))}
+
+            {/* Pending invitations */}
+            {isOwner && pendingInvs.length > 0 && (
+              <>
+                {activeMembers.length > 0 && <div style={{ height: 1, background: 'var(--border-subtle)', margin: '0.25rem 0.35rem' }} />}
+                <div style={{ fontSize: '0.62rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--warning-text)', padding: '0.25rem 0.6rem 0.1rem' }}>Meghívók</div>
+                {pendingInvs.map(inv => (
+                  <div key={inv.id} style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.4rem 0.6rem', padding: '0.5rem 0.6rem', borderRadius: 'var(--radius-md)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flex: '1 1 180px', minWidth: 0 }}>
+                      <div style={{ width: 30, height: 30, borderRadius: '50%', background: 'var(--warning-bg)', border: '1px solid var(--warning-border)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        <Mail size={12} color="var(--warning-text)" />
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontWeight: 600, fontSize: '0.825rem', lineHeight: 1.3 }}>{inv.email}</div>
+                        <div style={{ fontSize: '0.7rem', color: 'var(--warning-text)' }}>Elküldve · {formatDate(inv.created_at)}</div>
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', gap: '0.4rem', marginLeft: 'auto' }}>
+                      <button type="button" className="btn btn-secondary btn-sm" disabled={reInvitingId === inv.id} onClick={() => handleReInvite(collective.id, inv)} style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                        {reInvitingId === inv.id ? <Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> : <Mail size={13} />} Újraküldés
+                      </button>
+                      <button type="button" className="btn btn-danger btn-sm" disabled={retractingId === inv.id} onClick={() => setConfirmModal({ message: <span>Biztosan visszavonod a <strong>{inv.email}</strong> címre küldött meghívót? A link érvénytelenné válik.</span>, onConfirm: () => handleRetractInvitation(inv) })} style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                        {retractingId === inv.id ? <Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> : <Trash2 size={13} />} Visszavonás
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </>
             )}
 
-            {/* Purchase date */}
-            {collective.created_at && (
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', padding: '0.2rem 0.6rem', borderRadius: 'var(--radius-pill)', fontSize: '0.7rem', fontWeight: 600, background: 'var(--bg-subtle)', color: 'var(--text-muted)', border: '1px solid var(--border-subtle)' }}>
-                📅 {new Date(collective.created_at).toLocaleDateString('hu-HU', { year: 'numeric', month: 'long', day: 'numeric' })}
-              </span>
+            {/* Blocked members */}
+            {isOwner && blockedMembers.length > 0 && (
+              <>
+                <div style={{ height: 1, background: 'var(--border-subtle)', margin: '0.25rem 0.35rem' }} />
+                <div style={{ fontSize: '0.62rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--danger)', padding: '0.25rem 0.6rem 0.1rem' }}>Tiltott tagok</div>
+                {blockedMembers.map(m => renderMemberRow(collective, m))}
+              </>
             )}
-          </div>
-        )}
 
-        {/* ── Active members ── */}
-        {activeMembers.length > 0 && (
-          <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: '0.75rem', marginBottom: '0.5rem' }}>
-            <div style={{ fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: '0.35rem' }}>Tagok</div>
-            {activeMembers.map(m => renderMemberRow(collective, m))}
-          </div>
-        )}
-
-        {/* ── Blocked members (owner only) ── */}
-        {isOwner && blockedMembers.length > 0 && (
-          <div style={{ marginTop: '0.75rem', marginBottom: '0.5rem' }}>
-            <div style={{ fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--danger)', marginBottom: '0.35rem' }}>Tiltott tagok</div>
-            {blockedMembers.map(m => renderMemberRow(collective, m))}
-          </div>
-        )}
-
-        {/* ── Pending invitations (owner only) ── */}
-        {isOwner && pendingInvs.length > 0 && (
-          <div style={{ marginTop: '0.75rem', marginBottom: '0.5rem' }}>
-            <div style={{ fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--warning-text)', marginBottom: '0.35rem' }}>Függőben lévő meghívók</div>
-            {pendingInvs.map(inv => (
-              <div key={inv.id} style={{ display: 'flex', flexDirection: 'column', padding: '0.5rem 0', borderBottom: '1px solid var(--border-subtle)', gap: '0.5rem' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', minWidth: 0 }}>
-                  <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'var(--warning-bg)', border: '1px solid var(--warning-border)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                    <Mail size={13} color="var(--warning-text)" />
+            {/* Declined invitations */}
+            {isOwner && declinedInvs.length > 0 && (
+              <>
+                <div style={{ height: 1, background: 'var(--border-subtle)', margin: '0.25rem 0.35rem' }} />
+                <div style={{ fontSize: '0.62rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', padding: '0.25rem 0.6rem 0.1rem' }}>Visszautasított meghívók</div>
+                {declinedInvs.map(inv => (
+                  <div key={inv.id} style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', padding: '0.45rem 0.6rem', borderRadius: 'var(--radius-md)', opacity: 0.65 }}>
+                    <div style={{ width: 30, height: 30, borderRadius: '50%', background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <X size={12} color="var(--danger)" />
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontWeight: 600, fontSize: '0.825rem', lineHeight: 1.3 }}>{inv.email}</div>
+                      <div style={{ fontSize: '0.7rem', color: 'var(--danger)' }}>Visszautasítva · {formatDate(inv.created_at)}</div>
+                    </div>
+                    <button type="button" className="btn btn-secondary btn-sm" disabled={reInvitingId === inv.id} onClick={() => handleReInvite(collective.id, inv)} style={{ padding: '0.25rem 0.5rem', flexShrink: 0 }} title="Újra meghívás">
+                      {reInvitingId === inv.id ? <Loader2 size={11} style={{ animation: 'spin 1s linear infinite' }} /> : <Mail size={11} />}
+                    </button>
                   </div>
-                  <div>
-                    <div style={{ fontWeight: 600, fontSize: '0.875rem' }}>{inv.email}</div>
-                    <div style={{ fontSize: '0.72rem', color: 'var(--warning-text)', fontWeight: 600 }}>Meghívó elküldve · {formatDate(inv.created_at)}</div>
-                  </div>
-                </div>
-                <div style={{ display: 'flex', gap: '0.35rem', justifyContent: 'flex-end' }}>
-                  <button type="button" className="btn btn-secondary btn-sm" disabled={reInvitingId === inv.id} onClick={() => handleReInvite(collective.id, inv)} style={{ gap: '0.3rem' }}>
-                    {reInvitingId === inv.id ? <Loader2 size={12} style={{ animation: 'spin 1s linear infinite' }} /> : <Mail size={12} />} Újraküldés
-                  </button>
-                  <button type="button" className="btn btn-danger btn-sm" disabled={retractingId === inv.id} onClick={() => handleRetractInvitation(inv)} style={{ gap: '0.3rem' }}>
-                    {retractingId === inv.id ? <Loader2 size={12} style={{ animation: 'spin 1s linear infinite' }} /> : <X size={12} />} Visszavonás
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* ── Declined invitations (owner only) ── */}
-        {isOwner && declinedInvs.length > 0 && (
-          <div style={{ marginTop: '0.75rem' }}>
-            <div style={{ fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--danger)', marginBottom: '0.35rem' }}>Visszautasított meghívók</div>
-            {declinedInvs.map(inv => (
-              <div key={inv.id} style={{ display: 'flex', flexDirection: 'column', padding: '0.5rem 0', borderBottom: '1px solid var(--border-subtle)', gap: '0.5rem', opacity: 0.7 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', minWidth: 0 }}>
-                  <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                    <X size={13} color="var(--danger)" />
-                  </div>
-                  <div>
-                    <div style={{ fontWeight: 600, fontSize: '0.875rem' }}>{inv.email}</div>
-                    <div style={{ fontSize: '0.72rem', color: 'var(--danger)', fontWeight: 600 }}>Visszautasítva · {formatDate(inv.created_at)}</div>
-                  </div>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                  <button type="button" className="btn btn-secondary btn-sm" disabled={reInvitingId === inv.id} onClick={() => handleReInvite(collective.id, inv)} style={{ gap: '0.3rem' }}>
-                    {reInvitingId === inv.id ? <Loader2 size={12} style={{ animation: 'spin 1s linear infinite' }} /> : <Mail size={12} />} Újra meghívás
-                  </button>
-                </div>
-              </div>
-            ))}
+                ))}
+              </>
+            )}
           </div>
         )}
 
@@ -938,12 +937,6 @@ export default function KollektivakPage() {
           <button type="button" onClick={() => { localStorage.removeItem('creem_kollektiva_result'); setKollektivaResult(null); }} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0.1rem', lineHeight: 1 }}>
             <X size={15} />
           </button>
-        </div>
-      )}
-
-      {successMsg && (
-        <div style={{ background: 'var(--success-bg)', border: '1px solid var(--success-border)', color: 'var(--success-text)', padding: '0.65rem 0.85rem', borderRadius: 'var(--radius-md)', fontSize: '0.825rem', display: 'flex', alignItems: 'center', gap: '0.45rem', marginBottom: '1rem' }}>
-          <CheckCircle2 size={16} />{successMsg}
         </div>
       )}
 
@@ -1149,6 +1142,34 @@ export default function KollektivakPage() {
         )}
       </Modal>
 
+      {/* ── Seat limit modal ── */}
+      <Modal isOpen={!!seatLimitModal} onClose={() => setSeatLimitModal(null)} title="Férőhely-korlát elérve">
+        {seatLimitModal && (() => {
+          const tier = TIER_DISPLAY[seatLimitModal.collective_tier];
+          const usedSeats = (seatLimitModal.members || []).filter(m => m.status === 'active' && m.role !== 'owner').length
+            + (seatLimitModal.pending_invitations || []).length;
+          return (
+            <div>
+              <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', lineHeight: 1.65, marginBottom: '1rem' }}>
+                A(z) <strong>„{seatLimitModal.name}"</strong> kollektíva jelenleg a{' '}
+                <strong>{tier?.name ?? seatLimitModal.collective_tier}</strong> csomagon van,
+                amely <strong>{tier?.seats} férőhelyet</strong> tartalmaz — és mind a(z) <strong>{usedSeats}</strong> már foglalt
+                (aktív tagok + függőben lévő meghívók).
+              </p>
+              <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', lineHeight: 1.65, marginBottom: '1.5rem' }}>
+                Ha több munkatárssal szeretnél együttdolgozni, válts egy nagyobb csomagra — vagy vonj vissza egy meglévő meghívót, hogy helyet szabadíts fel.
+              </p>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+                <button type="button" className="btn btn-secondary btn-sm" onClick={() => setSeatLimitModal(null)}>Bezárás</button>
+                <button type="button" className="btn btn-primary btn-sm" onClick={() => { setSeatLimitModal(null); setUpgradeModal(seatLimitModal); }}>
+                  Csomag bővítése →
+                </button>
+              </div>
+            </div>
+          );
+        })()}
+      </Modal>
+
       {/* Invite modal */}
       <Modal isOpen={!!inviteCollectiveId} onClose={() => setInviteCollectiveId(null)} title="Tag meghívása">
         {inviteError && (
@@ -1228,45 +1249,72 @@ export default function KollektivakPage() {
       </Modal>
 
       {/* ── Upgrade modal ── */}
-      <Modal isOpen={!!upgradeModal} onClose={() => !upgradingTier && setUpgradeModal(null)} title="Csomag bővítése">
+      <Modal isOpen={!!upgradeModal} onClose={() => !upgradingTier && setUpgradeModal(null)} title="Csomag módosítása">
         {upgradeModal && (() => {
           const currentTier = upgradeModal.collective_tier;
           const TIER_ORDER = ['small', 'medium', 'large'];
           const currentIdx = TIER_ORDER.indexOf(currentTier);
-          const available = CREEM_TIERS.filter((_, i) => i > currentIdx);
+          const currentUsedSeats = (() => {
+            const activeNonOwner = (upgradeModal.members || []).filter(m => m.status === 'active' && m.role !== 'owner').length;
+            const pending = (upgradeModal.pending_invitations || []).length;
+            return activeNonOwner + pending;
+          })();
+
           return (
             <div>
               <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '1rem', lineHeight: 1.6 }}>
-                Jelenlegi csomag: <strong>{TIER_DISPLAY[currentTier]?.name ?? 'Ismeretlen'}</strong>.
-                Az arányos díjkülönbözet azonnal terhelésre kerül, az új szék-kapacitás azonnal elérhetővé válik.
+                Jelenlegi csomag: <strong>{TIER_DISPLAY[currentTier]?.name ?? 'Ismeretlen'}</strong> · <strong>{currentUsedSeats}</strong> foglalt hely.
+                Az arányos különbözet azonnal kerül terhelésre / jóváírásra.
               </p>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', marginBottom: '1rem' }}>
-                {available.map(tier => (
+
+              {['small', 'medium', 'large'].filter(k => k !== currentTier).map(key => {
+                const tier = CREEM_TIERS.find(t => t.key === key);
+                if (!tier) return null;
+                const tierIdx = TIER_ORDER.indexOf(key);
+                const isUpgrade = tierIdx > currentIdx;
+                const seatLimit = TIER_DISPLAY[key]?.seats ?? 0;
+                const blocked = !isUpgrade && currentUsedSeats > seatLimit;
+
+                return (
                   <button
-                    key={tier.key}
+                    key={key}
                     type="button"
-                    disabled={!!upgradingTier}
-                    onClick={() => handleUpgrade(upgradeModal, tier.key)}
+                    disabled={!!upgradingTier || blocked}
+                    onClick={() => !blocked && handleUpgrade(upgradeModal, key)}
                     style={{
                       display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                      padding: '0.85rem 1rem', borderRadius: 'var(--radius-md)', cursor: upgradingTier ? 'default' : 'pointer',
-                      border: '1.5px solid var(--accent-border, #bfdbfe)', background: 'var(--bg-card, #fff)',
-                      textAlign: 'left', opacity: upgradingTier && upgradingTier !== tier.key ? 0.5 : 1,
+                      padding: '0.85rem 1rem', borderRadius: 'var(--radius-md)', marginBottom: '0.5rem',
+                      cursor: (upgradingTier || blocked) ? 'default' : 'pointer',
+                      border: `1.5px solid ${isUpgrade ? 'var(--accent-border, #bfdbfe)' : 'var(--border-subtle)'}`,
+                      background: blocked ? 'var(--bg-subtle)' : 'var(--bg-card, #fff)',
+                      textAlign: 'left',
+                      opacity: (upgradingTier && upgradingTier !== key) ? 0.4 : blocked ? 0.6 : 1,
                     }}
                   >
                     <div>
-                      <div style={{ fontWeight: 800, fontSize: '0.95rem', marginBottom: '0.2rem' }}>{tier.name}</div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.2rem' }}>
+                        <span style={{ fontWeight: 800, fontSize: '0.95rem' }}>{tier.name}</span>
+                        <span style={{ fontSize: '0.65rem', fontWeight: 700, padding: '0.1rem 0.4rem', borderRadius: 'var(--radius-pill)', background: isUpgrade ? 'var(--accent-light)' : 'var(--bg-subtle)', color: isUpgrade ? 'var(--accent)' : 'var(--text-muted)', border: `1px solid ${isUpgrade ? 'var(--accent-border)' : 'var(--border-subtle)'}` }}>
+                          {isUpgrade ? '▲ Bővítés' : '▼ Csökkentés'}
+                        </span>
+                      </div>
                       <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
                         {tier.seats} extra tag · {tier.addonPrice}/hó + ÁFA
                       </div>
+                      {blocked && (
+                        <div style={{ fontSize: '0.75rem', color: 'var(--danger-text)', marginTop: '0.2rem' }}>
+                          Nem lehetséges — {currentUsedSeats} foglalt hely van, ez a csomag csak {seatLimit}-et enged
+                        </div>
+                      )}
                     </div>
-                    {upgradingTier === tier.key
+                    {upgradingTier === key
                       ? <Loader2 size={16} className="animate-spin" color="var(--accent)" />
-                      : <ChevronRight size={16} color="var(--accent)" />}
+                      : <ChevronRight size={16} color={blocked ? 'var(--text-muted)' : isUpgrade ? 'var(--accent)' : 'var(--text-secondary)'} />}
                   </button>
-                ))}
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                );
+              })}
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '0.5rem' }}>
                 <button type="button" className="btn btn-secondary btn-sm" onClick={() => setUpgradeModal(null)} disabled={!!upgradingTier}>Mégse</button>
               </div>
             </div>
