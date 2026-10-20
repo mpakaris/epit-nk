@@ -596,11 +596,25 @@ export default function KollektivakPage() {
     const actions = isOwnerViewing && !isThisOwner ? (
       <div style={{ display: 'flex', gap: '0.4rem' }}>
         {isBlocked ? (
-          <button type="button" className="btn btn-secondary btn-sm" disabled={isWorking} onClick={() => handleBlockMember(collective, member, 'unblock')} style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+          <button type="button" className="btn btn-secondary btn-sm" disabled={isWorking}
+            onClick={() => setConfirmModal({
+              title: 'Tiltás feloldása',
+              message: <span><strong>{member.display_name}</strong> ismét hozzáférhet a kollektívához és annak összes tartalmához.</span>,
+              confirmLabel: 'Feloldás',
+              onConfirm: () => handleBlockMember(collective, member, 'unblock'),
+            })}
+            style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
             {isWorking ? <Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> : <ShieldCheck size={13} />} Feloldás
           </button>
         ) : (
-          <button type="button" className="btn btn-secondary btn-sm" disabled={isWorking} onClick={() => handleBlockMember(collective, member, 'block')} style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+          <button type="button" className="btn btn-secondary btn-sm" disabled={isWorking}
+            onClick={() => setConfirmModal({
+              title: 'Tag kitiltása',
+              message: <span><strong>{member.display_name}</strong> (<strong>{member.email}</strong>) elveszíti hozzáférését a kollektívához. A tiltás bármikor feloldható.</span>,
+              confirmLabel: 'Kitiltás',
+              onConfirm: () => handleBlockMember(collective, member, 'block'),
+            })}
+            style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
             {isWorking ? <Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> : <Ban size={13} />} Tiltás
           </button>
         )}
@@ -771,7 +785,15 @@ export default function KollektivakPage() {
 
                     {/* Resume — scheduled_cancel only */}
                     {isScheduledCancel && menuItem(
-                      () => { setOpenMenuId(null); handleResume(collective); },
+                      () => {
+                        setOpenMenuId(null);
+                        setConfirmModal({
+                          title: 'Előfizetés visszaállítása',
+                          message: <span>A(z) <strong>„{collective.name}"</strong> kollektíva előfizetése visszaáll — a számlázás az eredeti ütemezés szerint folytatódik, és a tagok ismét teljes hozzáférést kapnak.</span>,
+                          confirmLabel: 'Visszaállítás',
+                          onConfirm: () => handleResume(collective),
+                        });
+                      },
                       resumingId === collective.id ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />,
                       resumingId === collective.id ? 'Visszaállítás…' : 'Előfizetés visszaállítása',
                       'var(--success-text)'
@@ -849,7 +871,14 @@ export default function KollektivakPage() {
                       </div>
                     </div>
                     <div style={{ display: 'flex', gap: '0.4rem', marginLeft: 'auto' }}>
-                      <button type="button" className="btn btn-secondary btn-sm" disabled={reInvitingId === inv.id} onClick={() => handleReInvite(collective.id, inv)} style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                      <button type="button" className="btn btn-secondary btn-sm" disabled={reInvitingId === inv.id}
+                        onClick={() => setConfirmModal({
+                          title: 'Meghívó újraküldése',
+                          message: <span>A korábbi meghívó link érvénytelenné válik, és <strong>{inv.email}</strong> részére egy új meghívót küldünk ki.</span>,
+                          confirmLabel: 'Újraküldés',
+                          onConfirm: () => handleReInvite(collective.id, inv),
+                        })}
+                        style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
                         {reInvitingId === inv.id ? <Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> : <Mail size={13} />} Újraküldés
                       </button>
                       <button type="button" className="btn btn-danger btn-sm" disabled={retractingId === inv.id} onClick={() => setConfirmModal({ message: <span>Biztosan visszavonod a <strong>{inv.email}</strong> címre küldött meghívót? A link érvénytelenné válik.</span>, onConfirm: () => handleRetractInvitation(inv) })} style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
@@ -1191,7 +1220,7 @@ export default function KollektivakPage() {
       </Modal>
 
 
-      <ConfirmModal isOpen={!!confirmModal} onClose={() => setConfirmModal(null)} onConfirm={() => confirmModal?.onConfirm()} title="Megerősítés" message={confirmModal?.message} />
+      <ConfirmModal isOpen={!!confirmModal} onClose={() => setConfirmModal(null)} onConfirm={() => confirmModal?.onConfirm()} title={confirmModal?.title ?? 'Megerősítés'} message={confirmModal?.message} confirmLabel={confirmModal?.confirmLabel} cancelLabel={confirmModal?.cancelLabel} />
       <AlertModal isOpen={!!alertModal} onClose={() => setAlertModal(null)} message={alertModal?.message} variant={alertModal?.variant ?? 'error'} title={alertModal?.title} action={alertModal?.action} />
 
       {/* Cancel subscription confirm modal */}
@@ -1280,7 +1309,16 @@ export default function KollektivakPage() {
                     key={key}
                     type="button"
                     disabled={!!upgradingTier || blocked}
-                    onClick={() => !blocked && handleUpgrade(upgradeModal, key)}
+                    onClick={() => {
+                      if (blocked) return;
+                      setUpgradeModal(null);
+                      setConfirmModal({
+                        title: isUpgrade ? 'Csomag bővítése' : 'Csomag csökkentése',
+                        message: <span>Mostantól a(z) <strong>{tier.name}</strong> csomagra vált ({tier.seats} hely, {tier.addonPrice}/hó). Az arányos díjkülönbözet azonnal terhelésre / jóváírásra kerül.</span>,
+                        confirmLabel: isUpgrade ? 'Bővítés' : 'Csökkentés',
+                        onConfirm: () => handleUpgrade(upgradeModal, key),
+                      });
+                    }}
                     style={{
                       display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                       padding: '0.85rem 1rem', borderRadius: 'var(--radius-md)', marginBottom: '0.5rem',
