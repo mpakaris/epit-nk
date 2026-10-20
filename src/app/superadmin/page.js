@@ -35,6 +35,29 @@ export default function SuperAdminPage() {
   const [smtpPinging, setSmtpPinging] = useState(false);
   const [smtpStatus, setSmtpStatus] = useState(null); // null | { ok, from } | { ok: false, error }
 
+  const [repairEmail, setRepairEmail] = useState('');
+  const [repairLoading, setRepairLoading] = useState(false);
+  const [repairResult, setRepairResult] = useState(null); // null | { ok, message } | { error }
+
+  const handleRepairAuth = async () => {
+    if (!repairEmail.trim()) return;
+    setRepairLoading(true);
+    setRepairResult(null);
+    try {
+      const res = await fetch('/api/superadmin/repair-auth-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: repairEmail.trim() }),
+      });
+      const data = await res.json();
+      setRepairResult(data);
+    } catch (err) {
+      setRepairResult({ error: err.message });
+    } finally {
+      setRepairLoading(false);
+    }
+  };
+
   const handleSmtpPing = async () => {
     setSmtpPinging(true);
     setSmtpStatus(null);
@@ -326,6 +349,46 @@ export default function SuperAdminPage() {
           <button type="button" className="btn btn-secondary btn-sm" onClick={() => setPickerEntity(null)}>Cancel</button>
         </div>
       </Modal>
+
+      {/* ── Auth User Repair ── */}
+      <div className="card" style={{ padding: '1.15rem', marginBottom: '1.5rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.85rem' }}>
+          <ShieldAlert size={16} color="var(--warning)" />
+          <h3 style={{ fontSize: '0.9rem', fontWeight: 800, margin: 0 }}>Auth Repair — Missing Supabase User</h3>
+        </div>
+        <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '0 0 0.75rem', lineHeight: 1.5 }}>
+          If a profile exists in the database but has no corresponding entry in Supabase Authentication,
+          use this to recreate the auth user with the same UUID — all data references stay intact.
+        </p>
+        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+          <input
+            type="email"
+            placeholder="user@example.com"
+            value={repairEmail}
+            onChange={e => { setRepairEmail(e.target.value); setRepairResult(null); }}
+            style={{ flex: 1, minWidth: 220, padding: '0.5rem 0.75rem', border: '1.5px solid var(--border)', borderRadius: 'var(--radius-md)', fontSize: '0.85rem', fontFamily: 'inherit', outline: 'none' }}
+          />
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm"
+            onClick={handleRepairAuth}
+            disabled={repairLoading || !repairEmail.trim()}
+          >
+            {repairLoading ? <><Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> Repairing…</> : 'Repair Auth User'}
+          </button>
+        </div>
+        {repairResult && (
+          <div style={{ marginTop: '0.65rem', padding: '0.65rem 0.85rem', borderRadius: 'var(--radius-md)', fontSize: '0.825rem', display: 'flex', alignItems: 'center', gap: '0.5rem',
+            background: repairResult.ok ? 'var(--success-bg)' : 'var(--danger-bg)',
+            border: `1px solid ${repairResult.ok ? 'var(--success-border)' : 'var(--danger-border)'}`,
+            color: repairResult.ok ? 'var(--success-text)' : 'var(--danger-text)',
+          }}>
+            {repairResult.ok
+              ? <><CheckCircle2 size={15} /> {repairResult.message} <code style={{ fontSize: '0.75rem' }}>{repairResult.userId}</code></>
+              : <><AlertCircle size={15} /> {repairResult.error}</>}
+          </div>
+        )}
+      </div>
 
       {/* ── SMTP / Email ── */}
       <div className="card" style={{ padding: '1.15rem', marginBottom: '1.5rem' }}>

@@ -357,10 +357,15 @@ export function AppProvider({ children }) {
   };
 
   const resetPasswordEmail = async (email) => {
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/auth/callback`,
+    const res = await fetch('/api/auth/request-password-reset', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
     });
-    if (error) throw error;
+    if (!res.ok) {
+      const d = await res.json().catch(() => ({}));
+      throw new Error(d.error || 'Hiba történt.');
+    }
   };
 
   const logout = async () => {
