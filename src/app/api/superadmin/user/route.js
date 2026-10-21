@@ -17,5 +17,21 @@ export async function GET(request) {
   const { data: profile, error } = await admin.from('profiles').select('*').eq('id', userId).single();
   if (error || !profile) return Response.json({ error: 'Not found' }, { status: 404 });
 
-  return Response.json({ profile });
+  // Optionally return collective memberships for context switching
+  const include = searchParams.get('include');
+  let collectives = [];
+  if (include === 'collectives') {
+    const { data: memberships } = await admin
+      .from('collective_members')
+      .select('collective_id, role, collectives(id, name)')
+      .eq('user_id', userId)
+      .eq('status', 'active');
+    collectives = (memberships || []).map(m => ({
+      collective_id: m.collective_id,
+      name: m.collectives?.name || m.collective_id,
+      role: m.role,
+    }));
+  }
+
+  return Response.json({ profile, collectives });
 }

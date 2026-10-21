@@ -64,6 +64,31 @@ export default function SuperAdminPage() {
 
   const [deletionEmail, setDeletionEmail] = useState('');
 
+  // ── God Mode user picker ──
+  const [godSearch,          setGodSearch]          = useState('');
+  const [godPickUser,        setGodPickUser]        = useState(null);
+  const [godPickCollectives, setGodPickCollectives] = useState([]);
+  const [godPickLoading,     setGodPickLoading]     = useState(false);
+
+  const handleEnterAs = async (u) => {
+    setGodPickUser(u);
+    setGodPickCollectives([]);
+    setGodPickLoading(true);
+    try {
+      const res = await fetch(`/api/superadmin/user?id=${u.id}&include=collectives`);
+      const data = await res.json();
+      setGodPickCollectives(data.collectives || []);
+    } catch { /* non-fatal */ } finally {
+      setGodPickLoading(false);
+    }
+  };
+
+  const doImpersonate = (userId, collectiveId) => {
+    setGodPickUser(null);
+    setGodPickCollectives([]);
+    startImpersonation(userId, collectiveId || undefined).catch(err => setAlertModal({ message: err.message }));
+  };
+
   // ── Total Recall ──
   const [recallUsers,    setRecallUsers]    = useState([]);
   const [recallLoading,  setRecallLoading]  = useState(false);
@@ -258,6 +283,117 @@ export default function SuperAdminPage() {
         <StatCard label="About Us Image"  value="→"              sub="Portrait photo for /about page" icon={Image} href="/superadmin/about" />
         <StatCard label="Ügyfél portálok" value="→"             sub="Minden ügyfél portálja" icon={Users}       href="/superadmin/portals" />
       </div>
+
+      {/* ── God Mode — enter any user ── */}
+      <div style={{ marginBottom: '2.5rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', marginBottom: '0.85rem', flexWrap: 'wrap' }}>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', color: '#7c3aed', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', marginBottom: '0.15rem' }}>
+              <Eye size={13} /> God Mode
+            </div>
+            <h2 style={{ fontSize: '1.05rem', fontWeight: 800, margin: 0 }}>Enter any user's workspace</h2>
+          </div>
+          <div style={{ position: 'relative' }}>
+            <Search size={13} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', pointerEvents: 'none' }} />
+            <input
+              type="text"
+              placeholder="Search by name or email…"
+              value={godSearch}
+              onChange={e => setGodSearch(e.target.value)}
+              className="form-control"
+              style={{ paddingLeft: '2rem', width: 260 }}
+            />
+          </div>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '0.55rem' }}>
+          {recallUsers
+            .filter(u => {
+              if (!godSearch.trim()) return true;
+              const q = godSearch.toLowerCase();
+              return (u.display_name || '').toLowerCase().includes(q) || (u.email || '').toLowerCase().includes(q);
+            })
+            .map(u => {
+              const initial = (u.display_name || u.email || '?')[0].toUpperCase();
+              const tierColor = u.subscription_tier === 'premium' ? '#059669' : u.subscription_tier === 'trial' ? '#d97706' : 'var(--text-muted)';
+              return (
+                <div key={u.id} className="card" style={{ padding: '0.75rem 0.9rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                  <div style={{ width: 34, height: 34, borderRadius: '50%', background: 'linear-gradient(135deg, #7c3aed, #4f46e5)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: '#fff', fontWeight: 800, fontSize: '0.85rem' }}>
+                    {initial}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: 700, fontSize: '0.875rem', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {u.display_name || u.email}
+                    </div>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', gap: '0.4rem' }}>
+                      <span>{u.email}</span>
+                      <span style={{ color: tierColor, fontWeight: 700 }}>{u.subscription_tier}</span>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleEnterAs(u)}
+                    style={{ flexShrink: 0, padding: '0.35rem 0.7rem', background: 'linear-gradient(135deg, #7c3aed, #4f46e5)', color: '#fff', border: 'none', borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}
+                  >
+                    <Eye size={13} /> Enter
+                  </button>
+                </div>
+              );
+            })
+          }
+          {recallUsers.length === 0 && (
+            <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem', padding: '0.5rem' }}>Loading users…</div>
+          )}
+        </div>
+      </div>
+
+      {/* God Mode — context picker modal */}
+      <Modal
+        isOpen={!!godPickUser}
+        onClose={() => { setGodPickUser(null); setGodPickCollectives([]); }}
+        title={`Enter as: ${godPickUser?.display_name || godPickUser?.email}`}
+      >
+        {godPickLoading ? (
+          <div style={{ textAlign: 'center', padding: '1.5rem 0', color: 'var(--text-muted)' }}>
+            <Loader2 size={22} className="animate-spin" style={{ margin: '0 auto' }} />
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>
+              Choose the workspace context to enter:
+            </p>
+            <button
+              type="button"
+              onClick={() => doImpersonate(godPickUser.id, null)}
+              style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem 1rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)', background: 'var(--bg-subtle)', cursor: 'pointer', textAlign: 'left' }}
+            >
+              <div style={{ width: 36, height: 36, borderRadius: 'var(--radius-sm)', background: '#e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <Users size={16} color="#64748b" />
+              </div>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: '0.9rem' }}>Personal Workspace</div>
+                <div style={{ fontSize: '0.775rem', color: 'var(--text-muted)' }}>Private projects & data</div>
+              </div>
+            </button>
+            {godPickCollectives.map(c => (
+              <button
+                key={c.collective_id}
+                type="button"
+                onClick={() => doImpersonate(godPickUser.id, c.collective_id)}
+                style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem 1rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--accent-border)', background: 'var(--accent-light)', cursor: 'pointer', textAlign: 'left' }}
+              >
+                <div style={{ width: 36, height: 36, borderRadius: 'var(--radius-sm)', background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <Building2 size={16} color="#fff" />
+                </div>
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--accent)' }}>{c.name}</div>
+                  <div style={{ fontSize: '0.775rem', color: 'var(--text-muted)', textTransform: 'capitalize' }}>{c.role}</div>
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
+      </Modal>
 
       {/* Entity list */}
       {collectiveEntities.length === 0 ? (
