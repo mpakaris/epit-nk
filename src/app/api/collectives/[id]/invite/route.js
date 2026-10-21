@@ -128,11 +128,11 @@ export async function POST(req, { params }) {
   const ctaLabel  = isNewUser ? 'Fiók létrehozása és csatlakozás' : 'Bejelentkezés és csatlakozás';
   const noteBlock = isNewUser
     ? `<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:12px 16px;margin-bottom:20px;font-size:13px;color:#64748b;line-height:1.6;">
-        Még nincs Epiteq fiókod — az elfogadás egy gyors regisztrációval indul.
+        Még nincs OkosSzaki fiókod — az elfogadás egy gyors regisztrációval indul.
         <strong>Ingyenes, bankkártya nélkül.</strong>
        </div>`
     : `<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:12px 16px;margin-bottom:20px;font-size:13px;color:#166534;line-height:1.6;">
-        Epiteq fiókod van — egyszerűen jelentkezz be a meghívó elfogadásához.
+        OkosSzaki fiókod van — egyszerűen jelentkezz be a meghívó elfogadásához.
        </div>`;
 
   let bodyHtml = fillTemplate(tpl.bodyHtml, {

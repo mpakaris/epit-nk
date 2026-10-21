@@ -233,7 +233,7 @@ export async function POST(request) {
       if (userId) {
         const profile = await getProfile(admin, userId);
         await notifyAdmin({
-          subject: `🎉 Új előfizetés (${family}) — Epitek`,
+          subject: `🎉 Új előfizetés (${family}) — OkosSzaki`,
           bodyHtml: `
             <h2 style="margin:0 0 16px;font-size:18px;color:#1e293b;">Új előfizetés érkezett</h2>
             <table style="width:100%;border-collapse:collapse;font-size:14px;color:#334155;">
@@ -276,7 +276,7 @@ export async function POST(request) {
       if (userId) {
         const profile = await getProfile(admin, userId);
         await notifyAdmin({
-          subject: `⚠️ Lemondott előfizetés (${family}) — Epitek`,
+          subject: `⚠️ Lemondott előfizetés (${family}) — OkosSzaki`,
           bodyHtml: `
             <h2 style="margin:0 0 16px;font-size:18px;color:#1e293b;">Előfizetés lemondva</h2>
             <table style="width:100%;border-collapse:collapse;font-size:14px;color:#334155;">

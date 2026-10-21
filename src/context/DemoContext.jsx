@@ -12,8 +12,8 @@ import {
 } from '@/context/demo/seed';
 
 // ─── localStorage helpers ─────────────────────────────────────────────────────
-const LS_KEY = 'epitek_demo_state';
-const LS_VER = 'epitek_demo_version';
+const LS_KEY = 'okosszaki_demo_state';
+const LS_VER = 'okosszaki_demo_version';
 
 function loadState() {
   try {

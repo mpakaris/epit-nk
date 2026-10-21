@@ -177,7 +177,7 @@ export default function ProjectsListPreview() {
           {/* URL bar */}
           <div style={{ flex:1, maxWidth:320, background:'rgba(255,255,255,0.09)', borderRadius:6, padding:'0.25rem 0.75rem', display:'flex', alignItems:'center', gap:'0.45rem' }}>
             <div style={{ width:7, height:7, borderRadius:'50%', background:'#34d399', flexShrink:0 }} />
-            <span style={{ fontSize:11, color:'#94a3b8', fontFamily:T.mono, letterSpacing:'0.01em' }}>epitek.hu/projektek</span>
+            <span style={{ fontSize:11, color:'#94a3b8', fontFamily:T.mono, letterSpacing:'0.01em' }}>okosszaki.hu/projektek</span>
           </div>
           <div style={{ width:60 }} />
         </div>

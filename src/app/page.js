@@ -16,7 +16,7 @@ const FREE_ITEMS    = ['Max. 1 projekt', 'Max. 5 árajánlat', 'Max. 5 felméré
 const PREMIUM_ITEMS = ['Korlátlan projektek, ajánlatok, felmérések', 'Kollektíva létrehozása csapatnak', 'Teljes weboldal funkciók', 'Korlátlan képfeltöltés', 'Naptár és ügyféltár'];
 
 const FAQS = [
-  { q: 'Kell-e technikai tudás a használathoz?',        a: 'Semmi. Ha tudsz SMS-t küldeni, az Epiteket is tudod használni. Egyszerű felület, nagy gombok, mobilra tervezve.' },
+  { q: 'Kell-e technikai tudás a használathoz?',        a: 'Semmi. Ha tudsz SMS-t küldeni, az OkosSzakiet is tudod használni. Egyszerű felület, nagy gombok, mobilra tervezve.' },
   { q: 'A saját weboldal valóban ingyenes?',            a: 'Igen. Minden fiókhoz jár egy ingyenes szakemberlap, ahol az ügyfeleid megtekinthetik a munkáidat, képeidet, és ajánlatot kérhetnek.' },
   { q: 'Meg tudom osztani a projektet alvállalkozóval?', a: 'Igen. Meghívhatsz más szakembereket egy közös munkaterületre, ahol látják a feladatokat és a helyszíni feljegyzéseket, de a saját áraidat és pénzügyeidet nem.' },
   { q: 'Mikor éri meg a prémium csomagra váltani?',     a: 'Ha rendszeresen több projekten dolgozol egyszerre, vagy csapatban végezel munkát. A prémium csomaggal korlátlanul használhatsz minden funkciót.' },
@@ -102,7 +102,7 @@ export default function HomePage() {
               <div style={{ width:36, height:36, borderRadius:10, background:navy900, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
                 <Hammer size={18} color={accentSf} />
               </div>
-              <span style={{ fontWeight:800, fontSize:'1.15rem', letterSpacing:'-0.03em', color:navy900 }}>Epitek</span>
+              <span style={{ fontWeight:800, fontSize:'1.15rem', letterSpacing:'-0.03em', color:navy900 }}>OkosSzaki</span>
             </div>
 
             {/* Desktop Nav */}
@@ -298,7 +298,7 @@ export default function HomePage() {
               Készen állsz egyszerűbbé tenni a munkádat?
             </h2>
             <p style={{ fontSize:'0.95rem', color:'#94a3b8', maxWidth:480, margin:0, lineHeight:1.65 }}>
-              Csatlakozz azokhoz a szakemberekhez, akik hetente órákat spórolnak az Epitekkel.
+              Csatlakozz azokhoz a szakemberekhez, akik hetente órákat spórolnak az OkosSzakikel.
             </p>
             <button onClick={openRegister} style={{ display:'flex', alignItems:'center', gap:'0.5rem', padding:'0.95rem 2rem', background:accent, color:'#fff', fontWeight:800, fontSize:'0.95rem', borderRadius:12, border:'none', cursor:'pointer', fontFamily:'inherit', boxShadow:`0 4px 20px ${accent}66`, marginTop:'0.5rem' }}>
               Ingyenes próba most <ArrowRight size={16} />
@@ -313,7 +313,7 @@ export default function HomePage() {
             <div style={{ width:28, height:28, borderRadius:8, background:accent, display:'flex', alignItems:'center', justifyContent:'center' }}>
               <Hammer size={14} color="#fff" />
             </div>
-            <span style={{ fontWeight:800, fontSize:'0.9rem', color:'#fff' }}>Epitek</span>
+            <span style={{ fontWeight:800, fontSize:'0.9rem', color:'#fff' }}>OkosSzaki</span>
           </div>
           <div style={{ display:'flex', alignItems:'center', gap:'1.25rem', flexWrap:'wrap' }}>
             <a href="/about"       target="_blank" rel="noopener noreferrer" style={{ fontSize:'0.75rem', color:'#475569', textDecoration:'none' }}>Rólunk</a>

@@ -27,7 +27,7 @@ export default function AboutPage() {
             A Balaton partján sétálva jött az ötlet.
           </h1>
           <p style={{ fontSize: '1.05rem', color: 'rgba(255,255,255,0.65)', maxWidth: 520, lineHeight: 1.7, margin: 0 }}>
-            Niko Mpakaris – fejlesztő, vállalkozó és az Epitek alapítója.
+            Niko Mpakaris – fejlesztő, vállalkozó és az OkosSzaki alapítója.
           </p>
         </div>
       </div>
@@ -54,7 +54,7 @@ export default function AboutPage() {
             </p>
             <div style={{ marginTop: '0.5rem' }}>
               <div style={{ fontWeight: 800, color: '#0f172a', fontSize: '0.9rem' }}>Niko Mpakaris</div>
-              <div style={{ fontSize: '0.8rem', color: '#64748b' }}>Alapító, Epitek</div>
+              <div style={{ fontSize: '0.8rem', color: '#64748b' }}>Alapító, OkosSzaki</div>
             </div>
           </div>
         </div>
@@ -76,7 +76,7 @@ export default function AboutPage() {
           Leültem és elkezdtem valami egyszerűt összerakni. Két nap alatt volt egy projekt-nézet. Négy nap alatt számlafeltöltés képpel. Egy hét múlva Gábor már élesben próbálta. Második héten megkérdezte: „Be lehetne küldeni az ajánlatot az ügyfélnek e-mailben, PDF-ként?" — egy héttel később ez is megvolt.
         </p>
         <p>
-          <em>„Ez pontosan az, amit kerestem"</em> — ezzel a mondattal lett az Epitek.
+          <em>„Ez pontosan az, amit kerestem"</em> — ezzel a mondattal lett az OkosSzaki.
         </p>
 
         <h2 style={{ fontSize: '1.4rem', fontWeight: 900, color: '#0f172a', letterSpacing: '-0.03em', margin: '2.5rem 0 1rem' }}>
@@ -89,7 +89,7 @@ export default function AboutPage() {
           Az elveszett számlafotók, a „melyik Viber-csoportban volt az az összeg?", a kézzel írt nyomtatott árajánlatok, a telefonon diktált munkadíjak — ezek nem szakmai problémák, hanem szerszámhiány. Rossz szerszámmal lassabb és drágább minden.
         </p>
         <p>
-          Az Epitek az a hiányzó szerszám.
+          Az OkosSzaki az a hiányzó szerszám.
         </p>
 
         <h2 style={{ fontSize: '1.4rem', fontWeight: 900, color: '#0f172a', letterSpacing: '-0.03em', margin: '2.5rem 0 1rem' }}>
@@ -115,13 +115,13 @@ export default function AboutPage() {
           Hova tartunk
         </h2>
         <p>
-          Gábor ma is aktív felhasználó. Időnként ír, hogy kellene ez vagy az — legtöbbször benne is van a következő frissítésben. Ez az együttműködés az Epitek legjobb minőségbiztosítása.
+          Gábor ma is aktív felhasználó. Időnként ír, hogy kellene ez vagy az — legtöbbször benne is van a következő frissítésben. Ez az együttműködés az OkosSzaki legjobb minőségbiztosítása.
         </p>
         <p>
           A cél nem változott: segíteni azoknak, akik kézzel dolgoznak, hogy a fejük tele legyen a szakmájukkal — az adminisztráció meg menjen szinte magától.
         </p>
         <p style={{ marginTop: '1.5rem' }}>
-          Ha kérdésed van, vagy elmondanád, mire lenne szükséged, írj: <a href="mailto:hello@epitek.hu" style={{ color: '#2563eb', fontWeight: 700 }}>hello@epitek.hu</a>
+          Ha kérdésed van, vagy elmondanád, mire lenne szükséged, írj: <a href="mailto:hello@okosszaki.hu" style={{ color: '#2563eb', fontWeight: 700 }}>hello@okosszaki.hu</a>
         </p>
 
       </div>
@@ -131,7 +131,7 @@ export default function AboutPage() {
       {/* ── Footer ── */}
       <footer style={{ borderTop: '1px solid #e2e8f0', background: '#fff', padding: '1.25rem 1.5rem', marginTop: '3rem' }}>
         <div style={{ maxWidth: 900, margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
-          <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>© {new Date().getFullYear()} MPPM Consulting Kft. – Epitek</span>
+          <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>© {new Date().getFullYear()} MPPM Consulting Kft. – OkosSzaki</span>
           <div style={{ display: 'flex', gap: '1.25rem' }}>
             <a href="/impressum"   target="_blank" rel="noopener noreferrer" style={{ fontSize: '0.75rem', color: '#64748b', textDecoration: 'none' }}>Impresszum</a>
             <a href="/adatkezeles" target="_blank" rel="noopener noreferrer" style={{ fontSize: '0.75rem', color: '#64748b', textDecoration: 'none' }}>Adatkezelés</a>

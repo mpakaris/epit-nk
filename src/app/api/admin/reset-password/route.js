@@ -16,7 +16,7 @@ export async function POST(request) {
     if (!callerProfile || !['admin', 'superadmin'].includes(callerProfile.role))
       return NextResponse.json({ error: 'Nincs jogosultsága!' }, { status: 403 });
 
-    const { userId, temporaryPassword = 'Epitek2026!' } = await request.json();
+    const { userId, temporaryPassword = 'OkosSzaki2026!' } = await request.json();
     if (!userId) return NextResponse.json({ error: 'A felhasználó azonosító kötelező!' }, { status: 400 });
     if (!temporaryPassword || temporaryPassword.length < 6)
       return NextResponse.json({ error: 'A jelszónak legalább 6 karakter hosszúnak kell lennie!' }, { status: 400 });

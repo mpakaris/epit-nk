@@ -120,7 +120,7 @@ const ROOMS = [
 
 function SurveyPreview() {
   return (
-    <BrowserFrame url="epitek.hu/felmeresek/B-2024-12" innerHeight={520}>
+    <BrowserFrame url="okosszaki.hu/felmeresek/B-2024-12" innerHeight={520}>
       {/* Top bar */}
       <div style={{ background: T.bgCard, borderBottom: `1px solid ${T.border}`, padding: '10px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
         <div>
@@ -184,7 +184,7 @@ const OFFER_SECTIONS = [
 
 function OfferPreview() {
   return (
-    <BrowserFrame url="epitek.hu/ajanlatok/A-0047" innerHeight={560}>
+    <BrowserFrame url="okosszaki.hu/ajanlatok/A-0047" innerHeight={560}>
       {/* Top bar */}
       <div style={{ background: T.bgCard, borderBottom: `1px solid ${T.border}`, padding: '10px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
         <div>
@@ -266,7 +266,7 @@ function WebsitePreview() {
       <div style={{ background: T.bgSubtle, borderBottom: `1px solid ${T.border}`, padding: '6px 10px', display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
         <div style={{ flex: 1, background: '#fff', borderRadius: 6, padding: '3px 8px', display: 'flex', alignItems: 'center', gap: 5, border: `1px solid ${T.border}` }}>
           <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#34d399' }} />
-          <span style={{ fontSize: 9, color: T.textMuted, fontFamily: T.mono }}>nemes-renovalo.epitek.hu</span>
+          <span style={{ fontSize: 9, color: T.textMuted, fontFamily: T.mono }}>nemes-renovalo.okosszaki.hu</span>
         </div>
       </div>
 
@@ -331,7 +331,7 @@ const TIMELINE = [
 
 function ClientPortalPreview() {
   return (
-    <BrowserFrame url="epitek.hu/portal/bakos-villa" innerHeight={520}>
+    <BrowserFrame url="okosszaki.hu/portal/bakos-villa" innerHeight={520}>
       {/* Top bar */}
       <div style={{ background: T.bgCard, borderBottom: `1px solid ${T.border}`, padding: '10px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
         <div>
@@ -432,9 +432,9 @@ const FEATURES = [
     id: 'website',
     overline: '04 · Weboldal',
     title: 'Saját weboldal, minden fiókhoz ingyen',
-    desc: 'Nincs szükség webfejlesztőre vagy havi tárhelydíjra. Az Epitek automatikusan létrehoz egy letisztult weblapot a vállalkozásodnak. Az ügyfeleid megtalálnak és ajánlatot kérhetnek.',
+    desc: 'Nincs szükség webfejlesztőre vagy havi tárhelydíjra. Az OkosSzaki automatikusan létrehoz egy letisztult weblapot a vállalkozásodnak. Az ügyfeleid megtalálnak és ajánlatot kérhetnek.',
     bullets: [
-      'Saját alcím: neved.epitek.hu',
+      'Saját alcím: neved.okosszaki.hu',
       'Galéria, szolgáltatások, elérhetőség',
       'Beérkező ajánlatkérések közvetlenül a telefonodra',
     ],

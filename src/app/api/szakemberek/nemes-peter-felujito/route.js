@@ -121,7 +121,7 @@ const DEMO_SECTIONS = [
   },
   {
     section_type: 'contact', enabled: true, order_index: 8,
-    content: { phone: '+36301234567', email: 'nemes@demo.epitek.hu', city: 'Budapest' },
+    content: { phone: '+36301234567', email: 'nemes@demo.okosszaki.hu', city: 'Budapest' },
   },
 ];
 

@@ -160,7 +160,7 @@ export function AppProvider({ children }) {
 
           // Show welcome modal for brand-new users (profile created in the last 2 minutes,
           // and not already dismissed in this browser via localStorage)
-          const welcomeKey = `epitek_welcomed_${user.id}`;
+          const welcomeKey = `okosszaki_welcomed_${user.id}`;
           const alreadyWelcomed = typeof localStorage !== 'undefined' && localStorage.getItem(welcomeKey);
           const isNew = !alreadyWelcomed
             && profile?.created_at
@@ -632,7 +632,7 @@ export function AppProvider({ children }) {
     ));
   };
 
-  const resetUserPassword = async (userId, temporaryPassword = 'Epitek2026!') => {
+  const resetUserPassword = async (userId, temporaryPassword = 'OkosSzaki2026!') => {
     if (!isAdmin) throw new Error('Nincs jogosultsága!');
 
     const res = await fetch('/api/admin/reset-password', {
@@ -1414,7 +1414,7 @@ export function AppProvider({ children }) {
           setShowWelcome(false);
           const uid = currentUser?.id;
           if (uid && typeof localStorage !== 'undefined') {
-            localStorage.setItem(`epitek_welcomed_${uid}`, '1');
+            localStorage.setItem(`okosszaki_welcomed_${uid}`, '1');
           }
         },
         // Collectives & context switcher

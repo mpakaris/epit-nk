@@ -35,7 +35,7 @@ export default function LandingHeader({ activePage = '' }) {
             <div style={{ width:36, height:36, borderRadius:10, background:navy900, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
               <Hammer size={18} color="#DBEAFE" />
             </div>
-            <span style={{ fontWeight:800, fontSize:'1.15rem', letterSpacing:'-0.03em', color:navy900 }}>Epitek</span>
+            <span style={{ fontWeight:800, fontSize:'1.15rem', letterSpacing:'-0.03em', color:navy900 }}>OkosSzaki</span>
           </a>
 
           {/* Desktop Nav */}

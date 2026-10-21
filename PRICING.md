@@ -1,4 +1,4 @@
-# Epitek — Pricing Strategy & Implementation Spec
+# OkosSzaki — Pricing Strategy & Implementation Spec
 
 > **Status:** Design finalized. Creem.io integration wired for Premium checkout + webhooks. Collective tier enforcement and freeze logic pending.
 > **Last updated:** 2026-10-20
@@ -102,8 +102,8 @@ The owner manages **two independent subscriptions**:
 
 | Subscription | Creem product | What it covers |
 |---|---|---|
-| Premium personal | `epitek_premium` | Personal account unlimited access |
-| Kollektíva package | `epitek_kollektiv_kis` / `_kozepes` / `_nagy` | Collective workspace + seat slots |
+| Premium personal | `okosszaki_premium` | Personal account unlimited access |
+| Kollektíva package | `okosszaki_kollektiv_kis` / `_kozepes` / `_nagy` | Collective workspace + seat slots |
 
 **Why separate:** The owner may want to dissolve a Kollektíva (e.g. a project ends) while keeping their personal Premium account. Bundling would force them to cancel Premium too.
 
@@ -540,7 +540,7 @@ Acceptance criteria:
 
 #### Creem integration
 
-- [ ] Create Creem products: `epitek_premium`, `epitek_kollektiv_kis`, `_kozepes`, `_nagy`
+- [ ] Create Creem products: `okosszaki_premium`, `okosszaki_kollektiv_kis`, `_kozepes`, `_nagy`
 - [ ] Creem checkout buttons on `/elofizetes` and collective creation flow
 - [ ] Webhook handler: `POST /api/webhooks/paddle`
   - [ ] `subscription.created` → activate tier

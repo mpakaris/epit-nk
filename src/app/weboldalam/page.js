@@ -1499,7 +1499,7 @@ function QrModal({ url, onClose }) {
 
 // ---- builder editor ---------------------------------------------------------
 
-const DEMO_WB_LS_KEY = 'epitek_demo_website_builder';
+const DEMO_WB_LS_KEY = 'okosszaki_demo_website_builder';
 
 export function BuilderEditor({ website: initialWebsite, sections: initialSections, userEmail }) {
   const [website, setWebsite] = useState(initialWebsite);

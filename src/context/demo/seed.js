@@ -34,7 +34,7 @@ const d    = (offset) => { const dt = new Date(); dt.setDate(dt.getDate() + offs
 // ── Users ─────────────────────────────────────────────────────────────────────
 export const DEMO_USER = {
   id:                    ID.userOwner,
-  email:                 'nemes@demo.epitek.hu',
+  email:                 'nemes@demo.okosszaki.hu',
   display_name:          'Nemes Péter',
   role:                  'user',
   active_collective_id:  null,
@@ -44,9 +44,9 @@ export const DEMO_USER = {
 };
 
 export const DEMO_USERS = [
-  { id: ID.userOwner,  display_name: 'Nemes Péter',    email: 'nemes@demo.epitek.hu',  role: 'user', collective_role: 'owner'       },
-  { id: ID.userEva,    display_name: 'Balogh Éva',     email: 'balogh@demo.epitek.hu', role: 'user', collective_role: 'contributor' },
-  { id: ID.userMarton, display_name: 'Tóth Márton',    email: 'toth@demo.epitek.hu',   role: 'user', collective_role: 'contributor' },
+  { id: ID.userOwner,  display_name: 'Nemes Péter',    email: 'nemes@demo.okosszaki.hu',  role: 'user', collective_role: 'owner'       },
+  { id: ID.userEva,    display_name: 'Balogh Éva',     email: 'balogh@demo.okosszaki.hu', role: 'user', collective_role: 'contributor' },
+  { id: ID.userMarton, display_name: 'Tóth Márton',    email: 'toth@demo.okosszaki.hu',   role: 'user', collective_role: 'contributor' },
 ];
 
 // ── Collective ────────────────────────────────────────────────────────────────

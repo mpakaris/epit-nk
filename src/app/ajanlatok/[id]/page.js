@@ -735,7 +735,7 @@ export default function QuoteDetailPage() {
         setTimeout(() => setSendProgress(p => p && !p.done ? { ...p, step: i } : p), ms);
       });
       setTimeout(() => {
-        setSendProgress({ step: SEND_STEPS.length - 1, done: true, error: null, sentTo: client?.email || 'demo@epitek.hu' });
+        setSendProgress({ step: SEND_STEPS.length - 1, done: true, error: null, sentTo: client?.email || 'demo@okosszaki.hu' });
       }, 2000);
       return;
     }

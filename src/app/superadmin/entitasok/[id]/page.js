@@ -22,13 +22,13 @@ export default function EntityDetailPage() {
   const [showCreateUser, setShowCreateUser] = useState(false);
   const [newName, setNewName] = useState('');
   const [newEmail, setNewEmail] = useState('');
-  const [newPassword, setNewPassword] = useState('Epitek2026!');
+  const [newPassword, setNewPassword] = useState('OkosSzaki2026!');
   const [newRole, setNewRole] = useState('user');
   const [formError, setFormError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
   const [resetTarget, setResetTarget] = useState(null);
-  const [tempPass, setTempPass] = useState('Epitek2026!');
+  const [tempPass, setTempPass] = useState('OkosSzaki2026!');
   const [confirmModal, setConfirmModal] = useState(null);
   const [alertModal, setAlertModal] = useState(null);
 
@@ -91,7 +91,7 @@ export default function EntityDetailPage() {
     try {
       await createUser({ displayName: newName.trim(), email: newEmail.trim(), password: newPassword, role: newRole, entityId: id });
       setSuccessMsg(`"${newName.trim()}" created.`);
-      setNewName(''); setNewEmail(''); setNewPassword('Epitek2026!'); setNewRole('user');
+      setNewName(''); setNewEmail(''); setNewPassword('OkosSzaki2026!'); setNewRole('user');
       setShowCreateUser(false);
     } catch (err) {
       setFormError(err.message || 'Error creating user');
@@ -317,7 +317,7 @@ export default function EntityDetailPage() {
                       </button>
                     )}
 
-                    <button type="button" onClick={() => { setFormError(''); setResetTarget(u); setTempPass('Epitek2026!'); }} className="btn btn-secondary btn-sm" style={{ padding: '0.25rem 0.55rem' }}>
+                    <button type="button" onClick={() => { setFormError(''); setResetTarget(u); setTempPass('OkosSzaki2026!'); }} className="btn btn-secondary btn-sm" style={{ padding: '0.25rem 0.55rem' }}>
                       <RotateCcw size={12} />
                     </button>
                     <button type="button" onClick={() => handleDeleteUser(u)} className="btn btn-danger btn-sm" style={{ padding: '0.25rem 0.5rem' }}>

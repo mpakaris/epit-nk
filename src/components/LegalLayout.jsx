@@ -17,7 +17,7 @@ export default function LegalLayout({ title, lastUpdated, children }) {
             <div style={{ width: 32, height: 32, borderRadius: 8, background: '#0f172a', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
               <Hammer size={15} color="#93c5fd" />
             </div>
-            <span style={{ fontWeight: 800, fontSize: '1.05rem', color: '#0f172a', letterSpacing: '-0.02em' }}>Epitek</span>
+            <span style={{ fontWeight: 800, fontSize: '1.05rem', color: '#0f172a', letterSpacing: '-0.02em' }}>OkosSzaki</span>
           </a>
           <a href="/" style={{ fontSize: '0.82rem', fontWeight: 600, color: '#64748b', textDecoration: 'none', whiteSpace: 'nowrap' }}>← Főoldal</a>
         </div>
@@ -41,7 +41,7 @@ export default function LegalLayout({ title, lastUpdated, children }) {
       {/* Footer */}
       <footer style={{ borderTop: '1px solid #e2e8f0', background: '#fff', padding: '1.25rem 1.5rem' }}>
         <div style={{ maxWidth: 780, margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
-          <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>© {yr} MPPM Consulting Kft. – Epitek</span>
+          <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>© {yr} MPPM Consulting Kft. – OkosSzaki</span>
           <div style={{ display: 'flex', gap: '1.25rem' }}>
             <a href="/impressum"   target="_blank" rel="noopener noreferrer" style={{ fontSize: '0.75rem', color: '#64748b', textDecoration: 'none' }}>Impresszum</a>
             <a href="/adatkezeles" target="_blank" rel="noopener noreferrer" style={{ fontSize: '0.75rem', color: '#64748b', textDecoration: 'none' }}>Adatkezelés</a>

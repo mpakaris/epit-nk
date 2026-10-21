@@ -913,7 +913,7 @@ export default function SzakemberPage() {
         // For the demo slug, overlay any editor changes saved in localStorage
         if (slug === 'nemes-peter-felujito') {
           try {
-            const raw = localStorage.getItem('epitek_demo_website_builder');
+            const raw = localStorage.getItem('okosszaki_demo_website_builder');
             if (raw) {
               const saved = JSON.parse(raw);
               if (saved.sections) {

@@ -65,7 +65,7 @@ export async function POST(request) {
       Ha nem te kérted a visszaállítást, ezt az e-mailt figyelmen kívül hagyhatod — a fiókod biztonságban van.<br>
       A link <strong>1 óráig</strong> érvényes.
     </p>
-  `, 'Jelszó visszaállítása – Epiteq');
+  `, 'Jelszó visszaállítása – OkosSzaki');
 
   if (!process.env.SMTP_FROM_EMAIL || !process.env.GOOGLE_SMTP_APP_PASSWORD) {
     console.error('[password-reset] SMTP env vars missing: SMTP_FROM_EMAIL or GOOGLE_SMTP_APP_PASSWORD not set');
@@ -73,7 +73,7 @@ export async function POST(request) {
   }
 
   try {
-    await sendEmail({ to: email.trim(), subject: 'Jelszó visszaállítása – Epiteq', html });
+    await sendEmail({ to: email.trim(), subject: 'Jelszó visszaállítása – OkosSzaki', html });
   } catch (mailErr) {
     console.error('[password-reset] sendEmail error:', mailErr.message);
     logAudit({ userId: profile.id, userName: email.trim(), action: 'Password reset failed', details: { reason: 'Email send failed', error: mailErr.message } });

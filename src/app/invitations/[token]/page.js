@@ -178,7 +178,7 @@ export default function InvitationPage({ params }) {
         <div style={{ textAlign: 'center', marginBottom: '1.25rem' }}>
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: '#1e293b', borderRadius: 10, padding: '0.5rem 1rem' }}>
             <Users size={16} color="#94a3b8" />
-            <span style={{ color: '#fff', fontWeight: 800, fontSize: 15 }}>Epiteq</span>
+            <span style={{ color: '#fff', fontWeight: 800, fontSize: 15 }}>OkosSzaki</span>
           </div>
         </div>
         <div style={{ background: '#fff', borderRadius: 14, boxShadow: '0 4px 24px rgba(0,0,0,0.07)', overflow: 'hidden' }}>
@@ -315,7 +315,7 @@ export default function InvitationPage({ params }) {
       {invHeader}
       <div style={{ padding: '1.75rem 2rem' }}>
         <p style={{ margin: '0 0 1.25rem', fontSize: '0.875rem', color: '#475569', lineHeight: 1.7 }}>
-          Van már Epiteq fiókod. Jelentkezz be a meghívó elfogadásához.
+          Van már OkosSzaki fiókod. Jelentkezz be a meghívó elfogadásához.
         </p>
 
         {/* Google OAuth button */}
@@ -358,9 +358,9 @@ export default function InvitationPage({ params }) {
     <>
       {invHeader}
       <div style={{ padding: '1.75rem 2rem' }}>
-        {/* What is Epiteq */}
+        {/* What is OkosSzaki */}
         <p style={{ margin: '0 0 1.1rem', fontSize: '0.875rem', color: '#475569', lineHeight: 1.7 }}>
-          <strong style={{ color: '#1e293b' }}>Epiteq</strong> egy közös munkaterület projektek kezelésére és csapatmunkára — ajánlatoktól a naplóig. Meghívtak, hogy együttdolgozzatok a <strong style={{ color: '#1e293b' }}>{invitation?.collective_name}</strong> kollektívában.
+          <strong style={{ color: '#1e293b' }}>OkosSzaki</strong> egy közös munkaterület projektek kezelésére és csapatmunkára — ajánlatoktól a naplóig. Meghívtak, hogy együttdolgozzatok a <strong style={{ color: '#1e293b' }}>{invitation?.collective_name}</strong> kollektívában.
         </p>
 
         {freeNote}

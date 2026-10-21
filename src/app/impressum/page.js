@@ -1,6 +1,6 @@
 import LegalLayout from '@/components/LegalLayout';
 
-export const metadata = { title: 'Impresszum – Epitek' };
+export const metadata = { title: 'Impresszum – OkosSzaki' };
 
 const S = {
   h2: { fontSize: '1.05rem', fontWeight: 800, color: '#0f172a', margin: '2rem 0 0.6rem', letterSpacing: '-0.01em' },
@@ -15,7 +15,7 @@ export default function ImpressumPage() {
     <LegalLayout title="Impresszum" lastUpdated="2026. október 19.">
 
       <div style={S.box}>
-        Az Epitek egy felhőalapú projektmenedzsment és ajánlatkezelő platform, amelyet az MPPM Consulting Kft. fejleszt és üzemeltet magyarországi kivitelezők, iparosok és vállalkozók számára.
+        Az OkosSzaki egy felhőalapú projektmenedzsment és ajánlatkezelő platform, amelyet az MPPM Consulting Kft. fejleszt és üzemeltet magyarországi kivitelezők, iparosok és vállalkozók számára.
       </div>
 
       {/* ── Üzemeltető ── */}
@@ -26,8 +26,8 @@ export default function ImpressumPage() {
             ['Cégnév',          'MPPM Consulting Kft.'],
             ['Székhely',        '1082 Budapest, Kisfaludy utca 28/b'],
             ['Adószám',         'HU26289892'],
-            ['E-mail',          'hello@epitek.hu'],
-            ['Weboldal',        'epitek.hu'],
+            ['E-mail',          'hello@okosszaki.hu'],
+            ['Weboldal',        'okosszaki.hu'],
           ].map(([k, v]) => (
             <tr key={k}>
               <td style={S.tdL}>{k}</td>
@@ -93,7 +93,7 @@ export default function ImpressumPage() {
 
       {/* ── Szerzői jog ── */}
       <h2 style={S.h2}>5. Szerzői jog</h2>
-      <p>Az Epitek platform teljes tartalma — a forráskód, a grafikai elemek, a szövegek és a márkanév — az MPPM Consulting Kft. szellemi tulajdonát képezik. Engedély nélküli másolásuk, terjesztésük vagy felhasználásuk tilos.</p>
+      <p>Az OkosSzaki platform teljes tartalma — a forráskód, a grafikai elemek, a szövegek és a márkanév — az MPPM Consulting Kft. szellemi tulajdonát képezik. Engedély nélküli másolásuk, terjesztésük vagy felhasználásuk tilos.</p>
 
       {/* ── Képek ── */}
       <h2 style={S.h2}>6. Képek és illusztrációk</h2>
@@ -101,7 +101,7 @@ export default function ImpressumPage() {
 
       {/* ── Kapcsolat ── */}
       <h2 style={S.h2}>7. Kapcsolat</h2>
-      <p>Kérdésekkel, észrevételekkel az alábbi e-mail-címen kereshet minket: <a href="mailto:hello@epitek.hu" style={{ color: '#2563eb', fontWeight: 700 }}>hello@epitek.hu</a></p>
+      <p>Kérdésekkel, észrevételekkel az alábbi e-mail-címen kereshet minket: <a href="mailto:hello@okosszaki.hu" style={{ color: '#2563eb', fontWeight: 700 }}>hello@okosszaki.hu</a></p>
 
     </LegalLayout>
   );

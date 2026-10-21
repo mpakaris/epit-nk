@@ -1,6 +1,6 @@
 import LegalLayout from '@/components/LegalLayout';
 
-export const metadata = { title: 'Adatkezelési Tájékoztató – Epitek' };
+export const metadata = { title: 'Adatkezelési Tájékoztató – OkosSzaki' };
 
 const S = {
   h2:  { fontSize: '1.05rem', fontWeight: 800, color: '#0f172a', margin: '2.25rem 0 0.6rem', letterSpacing: '-0.01em' },
@@ -20,7 +20,7 @@ export default function AdatkezelesPage() {
     <LegalLayout title="Adatkezelési Tájékoztató" lastUpdated="2026. október 19.">
 
       <div style={S.box}>
-        Ez a tájékoztató az MPPM Consulting Kft. által üzemeltetett Epitek platform adatkezelési gyakorlatát ismerteti az Általános Adatvédelmi Rendelet (EU) 2016/679 (GDPR) előírásainak megfelelően.
+        Ez a tájékoztató az MPPM Consulting Kft. által üzemeltetett OkosSzaki platform adatkezelési gyakorlatát ismerteti az Általános Adatvédelmi Rendelet (EU) 2016/679 (GDPR) előírásainak megfelelően.
       </div>
 
       {/* 1 */}
@@ -28,7 +28,7 @@ export default function AdatkezelesPage() {
       <p style={S.p}><strong>Neve:</strong> MPPM Consulting Kft.<br />
       <strong>Székhely:</strong> 1082 Budapest, Kisfaludy utca 28/b<br />
       <strong>Adószám:</strong> HU26289892<br />
-      <strong>Adatvédelmi kapcsolattartó:</strong> <a href="mailto:hello@epitek.hu" style={{ color: '#2563eb' }}>hello@epitek.hu</a></p>
+      <strong>Adatvédelmi kapcsolattartó:</strong> <a href="mailto:hello@okosszaki.hu" style={{ color: '#2563eb' }}>hello@okosszaki.hu</a></p>
 
       {/* 2 */}
       <h2 style={S.h2}>2. A kezelt személyes adatok köre</h2>
@@ -52,7 +52,7 @@ export default function AdatkezelesPage() {
       </ul>
       <div style={S.warn}>
         <strong>Fontos — adatkezelői felelősség megosztása:</strong> Ezeket az adatokat a Felhasználó (vállalkozó) maga tölti fel. Az MPPM Consulting Kft. kizárólag <strong>adatfeldolgozóként</strong> jár el; az ügyféladatok tekintetében <strong>adatkezelőnek a Felhasználó minősül</strong>, és ő felelős azért, hogy jogszerű alapon (pl. az ügyfél beleegyezése vagy szerződéses jogos érdek alapján) rögzíti ezeket az adatokat.<br /><br />
-        Az Epitek az ügyfél adatainak felvitelekor egy jelölőnégyzettel kéri a Felhasználó kifejezett nyilatkozatát arról, hogy az érintett ügyfél tájékoztatása és – ahol szükséges – hozzájárulása rendelkezésre áll. Az MPPM Consulting Kft. e nyilatkozat valóságtartalmát nem vizsgálja és annak igazolását nem kéri; a felelősség teljes egészében a Felhasználót terheli.
+        Az OkosSzaki az ügyfél adatainak felvitelekor egy jelölőnégyzettel kéri a Felhasználó kifejezett nyilatkozatát arról, hogy az érintett ügyfél tájékoztatása és – ahol szükséges – hozzájárulása rendelkezésre áll. Az MPPM Consulting Kft. e nyilatkozat valóságtartalmát nem vizsgálja és annak igazolását nem kéri; a felelősség teljes egészében a Felhasználót terheli.
       </div>
 
       <h3 style={S.h3}>2.3 Adatmegosztás kollektív munkaterületen</h3>
@@ -65,7 +65,7 @@ export default function AdatkezelesPage() {
       <p style={S.p}>A kollektíva tulajdonosa az összes, a kollektív munkaterületen kezelt adat vonatkozásában adatkezelőként felel — beleértve a tagok által bevitt ügyféladatokat is.</p>
 
       <h3 style={S.h3}>2.3 Sütik (cookie-k)</h3>
-      <p style={S.p}>Az Epitek kizárólag <strong>szigorúan szükséges sütiket</strong> alkalmaz, amelyek a szolgáltatás működéséhez elengedhetetlenek. Ezekhez az ePrivacy-irányelv alapján nem szükséges hozzájárulás.</p>
+      <p style={S.p}>Az OkosSzaki kizárólag <strong>szigorúan szükséges sütiket</strong> alkalmaz, amelyek a szolgáltatás működéséhez elengedhetetlenek. Ezekhez az ePrivacy-irányelv alapján nem szükséges hozzájárulás.</p>
       <ul style={S.ul}>
         <li style={S.li}><strong>Munkamenet-süti (session token):</strong> a bejelentkezett felhasználó azonosításához; a Supabase hitelesítési rendszer állítja be. Lejárati idő: a munkamenet végéig vagy max. 7 nap.</li>
         <li style={S.li}><strong>Sütitájékoztató-értesítő:</strong> a cookie-értesítő sáv elrejtéséhez szükséges állapot – localStorage-ban tárolódik, nem sütiként.</li>
@@ -106,7 +106,7 @@ export default function AdatkezelesPage() {
 
       {/* 4 */}
       <h2 style={S.h2}>4. Adatfeldolgozók</h2>
-      <p style={S.p}>Az Epitek az alábbi harmadik feles szolgáltatókat veszi igénybe. Minden esetben írásbeli adatfeldolgozói megállapodás (DPA) áll fenn.</p>
+      <p style={S.p}>Az OkosSzaki az alábbi harmadik feles szolgáltatókat veszi igénybe. Minden esetben írásbeli adatfeldolgozói megállapodás (DPA) áll fenn.</p>
 
       <table style={S.table}>
         <thead>
@@ -160,7 +160,7 @@ export default function AdatkezelesPage() {
         <li style={S.li}><strong>Tiltakozás joga (21. cikk):</strong> jogos érdeken alapuló adatkezelés ellen tiltakozhat</li>
         <li style={S.li}><strong>Hozzájárulás visszavonása (7. cikk):</strong> a hozzájáruláson alapuló adatkezelést bármikor visszavonhatja</li>
       </ul>
-      <p style={S.p}>Kérelmét az <a href="mailto:hello@epitek.hu" style={{ color: '#2563eb' }}>hello@epitek.hu</a> e-mail-címre küldje. A kérelemre 30 napon belül válaszolunk.</p>
+      <p style={S.p}>Kérelmét az <a href="mailto:hello@okosszaki.hu" style={{ color: '#2563eb' }}>hello@okosszaki.hu</a> e-mail-címre küldje. A kérelemre 30 napon belül válaszolunk.</p>
 
       {/* 7 */}
       <h2 style={S.h2}>7. Panasz benyújtása</h2>

@@ -41,7 +41,7 @@ export async function pingSmtp() {
 export async function sendEmail({ to, cc, subject, html, text, replyTo, attachments }) {
   const transporter = createTransporter();
   const info = await transporter.sendMail({
-    from: `${process.env.GOOGLE_APP_NAME || 'Epitek'} <${FROM_EMAIL}>`,
+    from: `${process.env.GOOGLE_APP_NAME || 'OkosSzaki'} <${FROM_EMAIL}>`,
     to: Array.isArray(to) ? to.join(', ') : to,
     cc: cc ? (Array.isArray(cc) ? cc.join(', ') : cc) : undefined,
     replyTo: replyTo || FROM_EMAIL,

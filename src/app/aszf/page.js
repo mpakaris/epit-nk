@@ -1,6 +1,6 @@
 import LegalLayout from '@/components/LegalLayout';
 
-export const metadata = { title: 'Általános Szerződési Feltételek – Epitek' };
+export const metadata = { title: 'Általános Szerződési Feltételek – OkosSzaki' };
 
 const S = {
   h2: { fontSize: '1.05rem', fontWeight: 800, color: '#0f172a', margin: '2.25rem 0 0.6rem', letterSpacing: '-0.01em' },
@@ -15,14 +15,14 @@ export default function AszfPage() {
     <LegalLayout title="Általános Szerződési Feltételek" lastUpdated="2026. október 19.">
 
       <div style={S.box}>
-        Kérjük, olvassa el figyelmesen az alábbi Általános Szerződési Feltételeket (ÁSZF). Az Epitek platformra való regisztrációval a felhasználó elfogadja az ÁSZF rendelkezéseit.
+        Kérjük, olvassa el figyelmesen az alábbi Általános Szerződési Feltételeket (ÁSZF). Az OkosSzaki platformra való regisztrációval a felhasználó elfogadja az ÁSZF rendelkezéseit.
       </div>
 
       {/* 1 */}
       <h2 style={S.h2}>1. A szerződő felek és a szolgáltatás tárgya</h2>
-      <p style={S.p}><strong>Szolgáltató:</strong> MPPM Consulting Kft. (1082 Budapest, Kisfaludy utca 28/b · Adószám: HU26289892) – a továbbiakban „Epitek" vagy „Szolgáltató".</p>
-      <p style={S.p}><strong>Felhasználó:</strong> minden természetes vagy jogi személy, aki az Epitek platformon regisztrál – a továbbiakban „Felhasználó".</p>
-      <p style={S.p}>Az Epitek egy felhőalapú SaaS-platform, amely kivitelezők, iparosok és kisvállalkozók számára projektmenedzsment, árajánlat-kezelés, felmérési és naplózási funkciókat, valamint ügyfélportált biztosít.</p>
+      <p style={S.p}><strong>Szolgáltató:</strong> MPPM Consulting Kft. (1082 Budapest, Kisfaludy utca 28/b · Adószám: HU26289892) – a továbbiakban „OkosSzaki" vagy „Szolgáltató".</p>
+      <p style={S.p}><strong>Felhasználó:</strong> minden természetes vagy jogi személy, aki az OkosSzaki platformon regisztrál – a továbbiakban „Felhasználó".</p>
+      <p style={S.p}>Az OkosSzaki egy felhőalapú SaaS-platform, amely kivitelezők, iparosok és kisvállalkozók számára projektmenedzsment, árajánlat-kezelés, felmérési és naplózási funkciókat, valamint ügyfélportált biztosít.</p>
 
       {/* 2 */}
       <h2 style={S.h2}>2. Regisztráció és fiókkezelés</h2>
@@ -36,13 +36,13 @@ export default function AszfPage() {
 
       {/* 3 */}
       <h2 style={S.h2}>3. Előfizetési csomagok és díjak</h2>
-      <p style={S.p}>Az Epitek az alábbi előfizetési szinteket kínálja:</p>
+      <p style={S.p}>Az OkosSzaki az alábbi előfizetési szinteket kínálja:</p>
       <ul style={S.ul}>
         <li style={S.li}><strong>Ingyenes (Basic):</strong> korlátozott számú projekt, árajánlat és felmérés. Mindig ingyenes, bankkártya nem szükséges.</li>
         <li style={S.li}><strong>Prémium:</strong> korlátlan projektek, ajánlatok, felmérések, teljes weboldal-funkció. Havi előfizetéssel érhető el.</li>
         <li style={S.li}><strong>Kollektív:</strong> csapatmunka funkciók, megosztott munkaterület több résztvevővel. A Prémium csomag feletti kiegészítő díjjal érhető el, ülőhelyek szerint skálázható.</li>
       </ul>
-      <p style={S.p}>Az aktuális árak az <a href="/#pricing" style={{ color: '#2563eb' }}>epitek.hu/#pricing</a> oldalon találhatók. A Szolgáltató fenntartja az árváltoztatás jogát; a módosításról a Felhasználókat legalább 30 nappal előre e-mailben értesíti.</p>
+      <p style={S.p}>Az aktuális árak az <a href="/#pricing" style={{ color: '#2563eb' }}>okosszaki.hu/#pricing</a> oldalon találhatók. A Szolgáltató fenntartja az árváltoztatás jogát; a módosításról a Felhasználókat legalább 30 nappal előre e-mailben értesíti.</p>
 
       {/* 4 */}
       <h2 style={S.h2}>4. Fizetési feltételek</h2>
@@ -67,8 +67,8 @@ export default function AszfPage() {
 
       <div style={S.box}>
         <strong>Ügyféladatok feltöltése — a Felhasználó felelőssége</strong><br /><br />
-        Az Epitek platformra feltöltött ügyféladatok (név, cím, e-mail, telefonszám stb.) tekintetében a Felhasználó önálló <strong>adatkezelőnek</strong> minősül a GDPR értelmében; az MPPM Consulting Kft. csupán adatfeldolgozóként jár el.<br /><br />
-        A Felhasználó köteles az ügyfelei személyes adatait kizárólag akkor rögzíteni az Epitekben, ha erre jogszerű alapja van — például az ügyfél előzetes tájékoztatásán és beleegyezésén, vagy a köztük fennálló szerződéses kapcsolaton alapuló jogos érdeken. Az ügyfél adatainak rögzítésekor a platform egy jelölőnégyzettel kéri a Felhasználó nyilatkozatát arról, hogy ez a feltétel teljesül. Az MPPM Consulting Kft. e nyilatkozatot nem ellenőrzi és arról bizonyítékot nem kér; a valóságnak megfelelő kitöltés a Felhasználó kizárólagos felelőssége. Valótlan nyilatkozat esetén a Felhasználó teljes jogi felelősséggel tartozik az ebből eredő adatvédelmi jogsértésekért.
+        Az OkosSzaki platformra feltöltött ügyféladatok (név, cím, e-mail, telefonszám stb.) tekintetében a Felhasználó önálló <strong>adatkezelőnek</strong> minősül a GDPR értelmében; az MPPM Consulting Kft. csupán adatfeldolgozóként jár el.<br /><br />
+        A Felhasználó köteles az ügyfelei személyes adatait kizárólag akkor rögzíteni az OkosSzakiben, ha erre jogszerű alapja van — például az ügyfél előzetes tájékoztatásán és beleegyezésén, vagy a köztük fennálló szerződéses kapcsolaton alapuló jogos érdeken. Az ügyfél adatainak rögzítésekor a platform egy jelölőnégyzettel kéri a Felhasználó nyilatkozatát arról, hogy ez a feltétel teljesül. Az MPPM Consulting Kft. e nyilatkozatot nem ellenőrzi és arról bizonyítékot nem kér; a valóságnak megfelelő kitöltés a Felhasználó kizárólagos felelőssége. Valótlan nyilatkozat esetén a Felhasználó teljes jogi felelősséggel tartozik az ebből eredő adatvédelmi jogsértésekért.
       </div>
 
       <div style={S.box}>
@@ -86,15 +86,15 @@ export default function AszfPage() {
       {/* 6 */}
       <h2 style={S.h2}>6. A Szolgáltató kötelezettségei és rendelkezésre állás</h2>
       <ul style={S.ul}>
-        <li style={S.li}>Az Epitek igyekszik évi 99,5%-os rendelkezésre állást biztosítani; a karbantartási időablakok kivételével.</li>
+        <li style={S.li}>Az OkosSzaki igyekszik évi 99,5%-os rendelkezésre állást biztosítani; a karbantartási időablakok kivételével.</li>
         <li style={S.li}>Az adatok biztonsági mentése naponta automatikusan megtörténik.</li>
-        <li style={S.li}>A Szolgáltató e-mailes ügyfélszolgálatot biztosít (<a href="mailto:hello@epitek.hu" style={{ color: '#2563eb' }}>hello@epitek.hu</a>); a válaszidő jellemzően 2 munkanapon belül.</li>
+        <li style={S.li}>A Szolgáltató e-mailes ügyfélszolgálatot biztosít (<a href="mailto:hello@okosszaki.hu" style={{ color: '#2563eb' }}>hello@okosszaki.hu</a>); a válaszidő jellemzően 2 munkanapon belül.</li>
         <li style={S.li}>A Szolgáltató jogosult a platformot fejleszteni, funkciókat hozzáadni vagy módosítani, feltéve, hogy ez nem csökkenti lényegesen az előfizetett csomag értékét.</li>
       </ul>
 
       {/* 7 */}
       <h2 style={S.h2}>7. Szellemi tulajdon</h2>
-      <p style={S.p}>Az Epitek platform teljes forráskódja, dizájnja, márkaneve és logója az MPPM Consulting Kft. kizárólagos tulajdona. A felhasználók által a platformra feltöltött tartalmak (fotók, szövegek, adatok) a Felhasználó tulajdonát képezik; a Szolgáltató ezekre kizárólag a szolgáltatás nyújtásához szükséges mértékű, nem kizárólagos felhasználási jogot igényel.</p>
+      <p style={S.p}>Az OkosSzaki platform teljes forráskódja, dizájnja, márkaneve és logója az MPPM Consulting Kft. kizárólagos tulajdona. A felhasználók által a platformra feltöltött tartalmak (fotók, szövegek, adatok) a Felhasználó tulajdonát képezik; a Szolgáltató ezekre kizárólag a szolgáltatás nyújtásához szükséges mértékű, nem kizárólagos felhasználási jogot igényel.</p>
 
       {/* 8 */}
       <h2 style={S.h2}>8. Felelősség korlátozása</h2>
@@ -126,7 +126,7 @@ export default function AszfPage() {
       <p style={S.p}>Fogyasztói jogvita esetén lehetőség van az <a href="https://www.bekeltetes.hu" target="_blank" rel="noopener noreferrer" style={{ color: '#2563eb' }}>Online Vitarendezési Platformhoz</a> fordulni.</p>
 
       <div style={S.box}>
-        Kapcsolat: <a href="mailto:hello@epitek.hu" style={{ color: '#2563eb' }}>hello@epitek.hu</a> · MPPM Consulting Kft. · 1082 Budapest, Kisfaludy utca 28/b
+        Kapcsolat: <a href="mailto:hello@okosszaki.hu" style={{ color: '#2563eb' }}>hello@okosszaki.hu</a> · MPPM Consulting Kft. · 1082 Budapest, Kisfaludy utca 28/b
       </div>
 
     </LegalLayout>

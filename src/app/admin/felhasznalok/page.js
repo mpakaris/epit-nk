@@ -15,13 +15,13 @@ import WorkspaceBadge from '@/components/WorkspaceBadge';
 function CreateUserModal({ isOpen, onClose, createUser, onSuccess }) {
   const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('Epitek2026!');
+  const [password, setPassword] = useState('OkosSzaki2026!');
   const [role, setRole] = useState('user');
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   if (!isOpen) return null;
-  const reset = () => { setDisplayName(''); setEmail(''); setPassword('Epitek2026!'); setRole('user'); setError(''); };
+  const reset = () => { setDisplayName(''); setEmail(''); setPassword('OkosSzaki2026!'); setRole('user'); setError(''); };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -80,7 +80,7 @@ function CreateUserModal({ isOpen, onClose, createUser, onSuccess }) {
 }
 
 function ResetPasswordModal({ isOpen, onClose, targetUser, resetUserPassword, onSuccess }) {
-  const [password, setPassword] = useState('Epitek2026!');
+  const [password, setPassword] = useState('OkosSzaki2026!');
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
@@ -93,7 +93,7 @@ function ResetPasswordModal({ isOpen, onClose, targetUser, resetUserPassword, on
     try {
       await resetUserPassword(targetUser.id, password);
       onSuccess(`Jelszó visszaállítva: ${targetUser.display_name}`);
-      setPassword('Epitek2026!');
+      setPassword('OkosSzaki2026!');
       onClose();
     } catch (err) {
       setError(err.message || 'Hiba.');

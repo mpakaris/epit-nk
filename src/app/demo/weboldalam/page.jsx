@@ -131,7 +131,7 @@ const DEMO_SECTIONS = [
     enabled: true,
     content: {
       phone: '+36301234567',
-      email: 'nemes@demo.epitek.hu',
+      email: 'nemes@demo.okosszaki.hu',
       city:  'Budapest',
     },
   },
@@ -142,7 +142,7 @@ export default function DemoWeboldalamPage() {
     <BuilderEditor
       website={DEMO_WEBSITE}
       sections={DEMO_SECTIONS}
-      userEmail="nemes@demo.epitek.hu"
+      userEmail="nemes@demo.okosszaki.hu"
     />
   );
 }

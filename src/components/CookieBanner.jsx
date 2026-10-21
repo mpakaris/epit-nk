@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 
-const STORAGE_KEY = 'epitek_cookie_notice_dismissed';
+const STORAGE_KEY = 'okosszaki_cookie_notice_dismissed';
 
 export default function CookieBanner() {
   const [visible, setVisible] = useState(false);

@@ -49,7 +49,7 @@ export default function WelcomeModal() {
         </div>
 
         <h2 style={{ fontSize:'1.5rem', fontWeight:800, color:'#0f172a', marginBottom:'0.4rem', letterSpacing:'-0.03em' }}>
-          Üdvözlünk az Epiteq-ben!
+          Üdvözlünk az OkosSzaki-ben!
         </h2>
         <p style={{ color:'#64748b', fontSize:'0.9rem', lineHeight:1.6, marginBottom:'1.5rem' }}>
           Örülünk, hogy itt vagy,{currentUser?.display_name && currentUser.display_name !== currentUser.email ? ` ${currentUser.display_name.split(' ')[0]}` : ''}!
