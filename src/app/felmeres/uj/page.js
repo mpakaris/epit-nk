@@ -83,7 +83,7 @@ function NewClientModal({ isOpen, onClose, onCreate }) {
 
 export default function NewSurveyPage() {
   const router = useRouter();
-  const { clients, users, loading, createSurvey, createClient, isAdmin, effectiveEntityId, currentUser, effectiveMemberships, isDemoMode } = useApp();
+  const { clients, loading, createSurvey, createClient, isAdmin, effectiveEntityId, currentUser, effectiveMemberships, isDemoMode } = useApp();
   const navPrefix = isDemoMode ? '/demo' : '';
   const [selectedEntityId, setSelectedEntityId] = useState(null); // null = use effectiveEntityId
 
@@ -92,25 +92,17 @@ export default function NewSurveyPage() {
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [location, setLocation] = useState('');
   const [notes, setNotes] = useState('');
-  const [sharedWith, setSharedWith] = useState([]);
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showNewClientModal, setShowNewClientModal] = useState(false);
-
-  const toggleMember = (uid) => setSharedWith(prev =>
-    prev.includes(uid) ? prev.filter(id => id !== uid) : [...prev, uid]
-  );
-
-  // Members available to share with (entity members excluding current user and departed)
-  const shareableUsers = (users || []).filter(u => u.id !== currentUser?.id && !u.deleted_at);
 
   if (loading) return <PageSpinner />;
   if (!currentUser) return <div className="container" style={{ paddingTop: '3rem', textAlign: 'center', color: 'var(--danger-text)' }}>Nincs jogosultsága.</div>;
 
   const activeEntityId = selectedEntityId || effectiveEntityId;
 
-  const handleClientCreated = async ({ name, phone, email, address }) => {
-    const newClient = await createClient({ name, phone, email, address, entityId: activeEntityId });
+  const handleClientCreated = async ({ name, phone, email, address, gdprConsent }) => {
+    const newClient = await createClient({ name, phone, email, address, gdprConsent, entityId: activeEntityId });
     setClientId(newClient.id);
     setShowNewClientModal(false);
   };
@@ -121,7 +113,7 @@ export default function NewSurveyPage() {
     if (!title.trim()) { setError('A cím megadása kötelező!'); return; }
     setIsSubmitting(true);
     try {
-      const survey = await createSurvey({ title: title.trim(), notes: notes.trim(), date: date || null, location: location.trim(), clientId, sharedWith, entityId: activeEntityId });
+      const survey = await createSurvey({ title: title.trim(), notes: notes.trim(), date: date || null, location: location.trim(), clientId, entityId: activeEntityId });
       router.push(`${navPrefix}/felmeres/${survey.id}`);
     } catch (err) {
       setError(err.message || 'Hiba a felmérés mentésekor');
@@ -197,29 +189,6 @@ export default function NewSurveyPage() {
             </div>
           )}
         </div>
-
-        {shareableUsers.length > 0 && (
-          <div className="card mb-4" style={{ padding: '1.25rem' }}>
-            <div style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.05em', marginBottom: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-              <User size={13} /> Megosztás — Résztvevők
-            </div>
-            <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginBottom: '0.85rem' }}>
-              A kiválasztott tagok láthatják és szerkeszthetik a felmérést.
-            </p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-              {shareableUsers.map(u => (
-                <label key={u.id} style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', padding: '0.5rem 0.75rem', borderRadius: 'var(--radius-md)', border: `1px solid ${sharedWith.includes(u.id) ? 'var(--accent-border)' : 'var(--border-subtle)'}`, background: sharedWith.includes(u.id) ? 'var(--accent-light)' : '#fff', cursor: 'pointer' }}>
-                  <input type="checkbox" checked={sharedWith.includes(u.id)} onChange={() => toggleMember(u.id)} />
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: 700, fontSize: '0.875rem' }}>{u.display_name}</div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{u.role === 'admin' ? 'Admin' : 'Tag'}</div>
-                  </div>
-                  {sharedWith.includes(u.id) && <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--accent)' }}>✓ Megosztva</span>}
-                </label>
-              ))}
-            </div>
-          </div>
-        )}
 
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
           <button type="button" className="btn btn-secondary" onClick={() => router.back()}>Mégse</button>

@@ -100,15 +100,16 @@ export async function PATCH(request, { params }) {
   if (ctx.err) return Response.json({ error: ctx.err }, { status: ctx.status });
 
   const fields = await request.json();
-  const isOwner = ctx.project.owner_id === ctx.user.id || ctx.project.created_by === ctx.user.id;
-  const isSuperAdmin = ctx.profile.role === 'superadmin';
+  const isOwner          = ctx.project.owner_id === ctx.user.id || ctx.project.created_by === ctx.user.id;
+  const isSuperAdmin     = ctx.profile.role === 'superadmin';
+  const isKollektivOwner = ctx.memberRole === 'owner' || ctx.memberRole === 'admin';
 
   // collective_id (move to collective) only allowed by owner or superadmin
-  if ('collective_id' in fields && !isOwner && !isSuperAdmin)
+  if ('collective_id' in fields && !isOwner && !isSuperAdmin && !isKollektivOwner)
     return Response.json({ error: 'Csak a tulajdonos helyezhet át projektet.' }, { status: 403 });
 
   const allowed = ['name', 'description', 'start_date', 'end_date', 'client_id', 'closed_at',
-                   ...(isOwner || isSuperAdmin ? ['collective_id'] : [])];
+                   ...(isOwner || isSuperAdmin || isKollektivOwner ? ['collective_id'] : [])];
   const update = {};
   for (const k of allowed) if (k in fields) update[k] = fields[k];
   update.updated_at      = new Date().toISOString();
@@ -137,9 +138,10 @@ export async function DELETE(request, { params }) {
   const ctx = await getCallerAndProject(id);
   if (ctx.err) return Response.json({ error: ctx.err }, { status: ctx.status });
 
-  const isOwner      = ctx.project.owner_id === ctx.user.id || ctx.project.created_by === ctx.user.id;
-  const isSuperAdmin = ctx.profile.role === 'superadmin';
-  if (!isOwner && !isSuperAdmin)
+  const isOwner          = ctx.project.owner_id === ctx.user.id || ctx.project.created_by === ctx.user.id;
+  const isSuperAdmin     = ctx.profile.role === 'superadmin';
+  const isKollektivOwner = ctx.memberRole === 'owner' || ctx.memberRole === 'admin';
+  if (!isOwner && !isSuperAdmin && !isKollektivOwner)
     return Response.json({ error: 'Csak a tulajdonos törölheti a projektet.' }, { status: 403 });
 
   const { error } = await ctx.admin.from('projects').delete().eq('id', id);

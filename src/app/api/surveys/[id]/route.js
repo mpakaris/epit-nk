@@ -70,13 +70,14 @@ export async function PATCH(request, { params }) {
   if (ctx.err) return Response.json({ error: ctx.err }, { status: ctx.status });
 
   const fields = await request.json();
-  const isOwner      = ctx.isOwner || ctx.survey.created_by === ctx.user.id;
-  const isSuperAdmin = ctx.profile.role === 'superadmin';
+  const isOwner          = ctx.isOwner || ctx.survey.created_by === ctx.user.id;
+  const isSuperAdmin     = ctx.profile.role === 'superadmin';
+  const isKollektivOwner = ctx.memberRole === 'owner' || ctx.memberRole === 'admin';
 
-  if ('collective_id' in fields && !isOwner && !isSuperAdmin)
+  if ('collective_id' in fields && !isOwner && !isSuperAdmin && !isKollektivOwner)
     return Response.json({ error: 'Csak a tulajdonos helyezhet át felmérést.' }, { status: 403 });
 
-  const allowed = (isOwner || isSuperAdmin)
+  const allowed = (isOwner || isSuperAdmin || isKollektivOwner)
     ? ['title', 'notes', 'date', 'location', 'client_id', 'shared_with', 'collective_id']
     : ['shared_with'];
   const update = {};
@@ -103,9 +104,10 @@ export async function DELETE(request, { params }) {
   const ctx = await getCallerAndSurvey(id);
   if (ctx.err) return Response.json({ error: ctx.err }, { status: ctx.status });
 
-  const isOwner      = ctx.isOwner || ctx.survey.created_by === ctx.user.id;
-  const isSuperAdmin = ctx.profile.role === 'superadmin';
-  if (!isOwner && !isSuperAdmin)
+  const isOwner          = ctx.isOwner || ctx.survey.created_by === ctx.user.id;
+  const isSuperAdmin     = ctx.profile.role === 'superadmin';
+  const isKollektivOwner = ctx.memberRole === 'owner' || ctx.memberRole === 'admin';
+  if (!isOwner && !isSuperAdmin && !isKollektivOwner)
     return Response.json({ error: 'Csak a tulajdonos törölheti a felmérést.' }, { status: 403 });
 
   const { error } = await ctx.admin.from('surveys').update({ deleted_at: new Date().toISOString(), deleted_by: ctx.user.id }).eq('id', id);

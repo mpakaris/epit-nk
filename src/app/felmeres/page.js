@@ -109,8 +109,13 @@ export default function SurveyListPage() {
                 className="card card-interactive"
                 style={{ padding: 0, display: 'flex', flexDirection: 'column', textDecoration: 'none', color: 'inherit', overflow: 'hidden' }}
               >
-                {/* ── Photo strip ── */}
-                {previews.length > 0 && (
+                {/* ── Photo strip / colour header ── */}
+                {previews.length === 0 ? (
+                  <div style={{ height: 72, background: 'linear-gradient(135deg, #6d28d9 0%, #7c3aed 60%, #8b5cf6 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', position: 'relative' }}>
+                    <Ruler size={48} color="rgba(255,255,255,0.12)" style={{ position: 'absolute', right: 16, bottom: -8, transform: 'rotate(-15deg)' }} />
+                    <LayoutPanelLeft size={28} color="rgba(255,255,255,0.35)" />
+                  </div>
+                ) : (
                   <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(previews.length, 4)}, 1fr)`, height: 90, overflow: 'hidden', borderBottom: '1px solid var(--border-subtle)' }}>
                     {previews.map((url, i) => (
                       <div key={i} style={{ position: 'relative', overflow: 'hidden', background: 'var(--bg-subtle)' }}>

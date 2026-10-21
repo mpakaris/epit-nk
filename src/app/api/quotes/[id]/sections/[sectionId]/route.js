@@ -31,21 +31,23 @@ async function getCtx(quoteId, sectionId) {
   const isSectionOwner = section.created_by === user.id;
 
   let isCollectiveMember = false;
+  let isKollektivOwner   = false;
   if (!isSuperAdmin && !isQuoteOwner && !isShared && quote.collective_id) {
     const { data: mem } = await admin
       .from('collective_members')
-      .select('user_id')
+      .select('role')
       .eq('collective_id', quote.collective_id)
       .eq('user_id', user.id)
       .eq('status', 'active')
       .maybeSingle();
     isCollectiveMember = !!mem;
+    isKollektivOwner   = mem?.role === 'owner' || mem?.role === 'admin';
   }
 
   if (!isSuperAdmin && !isQuoteOwner && !isShared && !isCollectiveMember)
     return { err: 'Forbidden', status: 403 };
 
-  return { user, profile, admin, quote, section, isSuperAdmin, isQuoteOwner, isSectionOwner };
+  return { user, profile, admin, quote, section, isSuperAdmin, isQuoteOwner, isSectionOwner, isKollektivOwner };
 }
 
 export async function PATCH(request, { params }) {
@@ -53,8 +55,8 @@ export async function PATCH(request, { params }) {
   const ctx = await getCtx(quoteId, sectionId);
   if (ctx.err) return Response.json({ error: ctx.err }, { status: ctx.status });
 
-  // Members can only edit their own sections; owner/superadmin can edit all
-  if (!ctx.isSuperAdmin && !ctx.isQuoteOwner && !ctx.isSectionOwner)
+  // Members can only edit their own sections; quote owner/collective owner/superadmin can edit all
+  if (!ctx.isSuperAdmin && !ctx.isQuoteOwner && !ctx.isKollektivOwner && !ctx.isSectionOwner)
     return Response.json({ error: 'Csak a saját szekciót szerkesztheted.' }, { status: 403 });
 
   const body = await request.json();
@@ -84,8 +86,8 @@ export async function DELETE(request, { params }) {
   const ctx = await getCtx(quoteId, sectionId);
   if (ctx.err) return Response.json({ error: ctx.err }, { status: ctx.status });
 
-  // Members can only delete their own sections; owner/superadmin can delete all
-  if (!ctx.isSuperAdmin && !ctx.isQuoteOwner && !ctx.isSectionOwner)
+  // Members can only delete their own sections; quote owner/collective owner/superadmin can delete all
+  if (!ctx.isSuperAdmin && !ctx.isQuoteOwner && !ctx.isKollektivOwner && !ctx.isSectionOwner)
     return Response.json({ error: 'Csak a saját szekciót törölheted.' }, { status: 403 });
 
   await ctx.admin.from('quote_entries').update({ section_id: null }).eq('section_id', sectionId);

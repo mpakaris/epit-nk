@@ -16,15 +16,15 @@ async function resolveEntry(entryId, userId, profile, admin) {
     .eq('id', entryId)
     .single();
   if (!entry) return null;
-  if (profile.role === 'superadmin') return entry;
+  if (profile.role === 'superadmin') return { ...entry, isKollektivOwner: true };
   // Verify user can access the project
   const { data: project } = await admin.from('projects').select('owner_id, collective_id, created_by').eq('id', entry.project_id).single();
   if (!project) return null;
-  const isOwner = project.owner_id === userId || project.created_by === userId;
-  if (isOwner) return entry;
+  const isProjectOwner = project.owner_id === userId || project.created_by === userId;
+  if (isProjectOwner) return { ...entry, isKollektivOwner: true };
   if (project.collective_id) {
-    const { data: mem } = await admin.from('collective_members').select('collective_id').eq('collective_id', project.collective_id).eq('user_id', userId).eq('status', 'active').maybeSingle();
-    if (mem) return entry;
+    const { data: mem } = await admin.from('collective_members').select('role').eq('collective_id', project.collective_id).eq('user_id', userId).eq('status', 'active').maybeSingle();
+    if (mem) return { ...entry, isKollektivOwner: mem.role === 'owner' || mem.role === 'admin' };
   }
   return null;
 }
@@ -98,7 +98,7 @@ export async function DELETE(request, { params }) {
   if (!entry) return Response.json({ error: 'Entry not found or access denied' }, { status: 404 });
 
   const isCreator = entry.created_by === user.id;
-  if (!isSuperAdmin && !isCreator) {
+  if (!isSuperAdmin && !entry.isKollektivOwner && !isCreator) {
     return Response.json({ error: 'Nincs jogosultsága törölni ezt a bejegyzést' }, { status: 403 });
   }
 

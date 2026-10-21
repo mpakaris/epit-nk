@@ -39,16 +39,17 @@ export async function PATCH(request, { params }) {
   if (ctx.err) return Response.json({ error: ctx.err }, { status: ctx.status });
 
   const fields = await request.json();
-  const isOwner      = ctx.quote.owner_id === ctx.user.id || ctx.quote.created_by === ctx.user.id;
-  const isSuperAdmin = ctx.profile.role === 'superadmin';
+  const isOwner          = ctx.quote.owner_id === ctx.user.id || ctx.quote.created_by === ctx.user.id;
+  const isSuperAdmin     = ctx.profile.role === 'superadmin';
+  const isKollektivOwner = ctx.memberRole === 'owner' || ctx.memberRole === 'admin';
 
-  if ('collective_id' in fields && !isOwner && !isSuperAdmin)
+  if ('collective_id' in fields && !isOwner && !isSuperAdmin && !isKollektivOwner)
     return Response.json({ error: 'Csak a tulajdonos helyezhet át ajánlatot.' }, { status: 403 });
 
   const allowed = ['title', 'location', 'work_type', 'description', 'start_date', 'end_date',
                    'status', 'client_id', 'shared_with', 'tax_percent', 'survey_id',
                    'updated_at', 'updated_by_name',
-                   ...(isOwner || isSuperAdmin ? ['collective_id'] : [])];
+                   ...(isOwner || isSuperAdmin || isKollektivOwner ? ['collective_id'] : [])];
   const update = {};
   for (const k of allowed) if (k in fields) update[k] = fields[k];
 
@@ -86,9 +87,10 @@ export async function DELETE(request, { params }) {
   const ctx = await getCallerAndQuote(id);
   if (ctx.err) return Response.json({ error: ctx.err }, { status: ctx.status });
 
-  const isOwner      = ctx.quote.owner_id === ctx.user.id || ctx.quote.created_by === ctx.user.id;
-  const isSuperAdmin = ctx.profile.role === 'superadmin';
-  if (!isOwner && !isSuperAdmin)
+  const isOwner          = ctx.quote.owner_id === ctx.user.id || ctx.quote.created_by === ctx.user.id;
+  const isSuperAdmin     = ctx.profile.role === 'superadmin';
+  const isKollektivOwner = ctx.memberRole === 'owner' || ctx.memberRole === 'admin';
+  if (!isOwner && !isSuperAdmin && !isKollektivOwner)
     return Response.json({ error: 'Csak a tulajdonos törölheti az ajánlatot.' }, { status: 403 });
 
   const { error } = await ctx.admin.from('quotes').update({ deleted_at: new Date().toISOString(), deleted_by: ctx.user.id }).eq('id', id);

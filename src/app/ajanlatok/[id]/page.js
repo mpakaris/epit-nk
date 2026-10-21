@@ -66,18 +66,18 @@ function AreaSummary({ entry }) {
   const fmt = v => Number(v).toFixed(2).replace('.', ',') + ' m²';
   const Row = ({ label, value, sub, bold }) => (
     <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.5rem', padding: '0.2rem 0' }}>
-      <span style={{ fontSize: '0.78rem', color: sub ? 'var(--text-muted)' : 'var(--text-secondary)', fontWeight: sub ? 400 : 600, paddingLeft: sub ? '0.75rem' : 0 }}>{label}</span>
-      <span style={{ fontSize: '0.78rem', fontWeight: bold ? 800 : 600, color: bold ? 'var(--text-primary)' : 'var(--text-secondary)', fontFamily: 'var(--font-mono)' }}>{value}</span>
+      <span style={{ fontSize: '0.78rem', color: sub ? '#a78bfa' : '#7c3aed', fontWeight: sub ? 400 : 600, paddingLeft: sub ? '0.75rem' : 0 }}>{label}</span>
+      <span style={{ fontSize: '0.78rem', fontWeight: bold ? 800 : 600, color: bold ? '#4c1d95' : '#6d28d9', fontFamily: 'var(--font-mono)' }}>{value}</span>
     </div>
   );
   return (
-    <div style={{ background: 'var(--bg-subtle)', borderRadius: 'var(--radius-md)', padding: '0.5rem 0.75rem', marginTop: '0.5rem' }}>
-      <div style={{ fontSize: '0.62rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', marginBottom: '0.3rem' }}>Területek</div>
+    <div style={{ background: '#f5f3ff', borderRadius: 'var(--radius-md)', padding: '0.5rem 0.75rem', marginTop: '0.5rem', border: '1px solid #e9d5ff' }}>
+      <div style={{ fontSize: '0.62rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#7c3aed', marginBottom: '0.3rem' }}>Területek</div>
       {hasFloor && <Row label="Padló / Mennyezet" value={fmt(floorArea)} />}
       {grossWall != null && <Row label="Falfelület (bruttó)" value={fmt(grossWall)} />}
       {openings > 0 && <Row label={`Kivonások (${window_count||0} ablak + ${door_count||0} ajtó)`} value={`− ${fmt(openings)}`} sub />}
       {netWall != null && <Row label="Falfelület (nettó)" value={fmt(netWall)} bold />}
-      <div style={{ fontSize: '0.62rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>Ablak: ~1,5 m² · Ajtó: ~2,0 m²</div>
+      <div style={{ fontSize: '0.62rem', color: '#a78bfa', marginTop: '0.2rem' }}>Ablak: ~1,5 m² · Ajtó: ~2,0 m²</div>
     </div>
   );
 }
@@ -314,200 +314,194 @@ function SectionCard({ section, surveyEntry, surveyId, quoteId, canEdit, isQuote
   const sectionSubtotalForHeader = sectionEntries.reduce((s, e) => s + Number(e.amount_huf || 0), 0);
   const contributors = [...new Set(sectionEntries.map(e => e.created_by_name).filter(Boolean))];
 
-  const CONTRIBUTOR_PILL = { display: 'inline-flex', alignItems: 'center', gap: '0.2rem', fontSize: '0.68rem', fontWeight: 700, background: 'var(--accent-light)', color: 'var(--accent)', border: '1px solid var(--accent-border)', padding: '0.1rem 0.45rem', borderRadius: 'var(--radius-pill)' };
   const SUBTOTAL_PILL = { display: 'inline-flex', alignItems: 'center', fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: '0.8rem', background: 'var(--success-bg)', color: 'var(--success-text)', border: '1px solid var(--success-border)', padding: '0.15rem 0.6rem', borderRadius: 'var(--radius-pill)' };
   const SECTION_TOTAL_PILL = { ...SUBTOTAL_PILL, fontSize: '0.875rem', fontWeight: 800 };
 
+  // Dark-header pill variants
+  const PILL_DARK = { ...PILL_STYLE, background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.2)', color: 'rgba(255,255,255,0.9)' };
+  const TOTAL_PILL_DARK = { display: 'inline-flex', alignItems: 'center', fontFamily: 'var(--font-mono)', fontWeight: 800, fontSize: '0.875rem', background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.22)', color: '#fff', padding: '0.15rem 0.6rem', borderRadius: 'var(--radius-pill)' };
+
   const hasMeasurementPills = displaySize != null || displayEntry.height_m != null || displayEntry.window_count > 0 || displayEntry.door_count > 0 || section.start_date || section.end_date;
 
-  const editButtons = canEditSection && (
+  const measurementPillsDark = hasMeasurementPills && <>
+    {displaySize != null && <span style={PILL_DARK}><Ruler size={11}/>{Number(displaySize).toFixed(1).replace('.', ',')} m²</span>}
+    {displayEntry.height_m     != null && <span style={PILL_DARK}>{displayEntry.height_m} m mag.</span>}
+    {displayEntry.window_count  > 0    && <span style={PILL_DARK}>{displayEntry.window_count} ablak</span>}
+    {displayEntry.door_count    > 0    && <span style={PILL_DARK}>{displayEntry.door_count} ajtó</span>}
+    {(section.start_date || section.end_date) && <span style={PILL_DARK}><Calendar size={11}/>{section.start_date ? formatDate(section.start_date) : '?'} – {section.end_date ? formatDate(section.end_date) : '?'}</span>}
+  </>;
+
+  const headerEditButtons = canEditSection && (
     <div style={{ display: 'flex', gap: '0.3rem', flexShrink: 0 }} onClick={e => e.stopPropagation()}>
-      <button type="button" onClick={() => setIsEditing(true)} className="btn btn-secondary btn-sm" style={{ padding: '0.3rem 0.5rem' }}><Edit3 size={13} /></button>
-      <button type="button" onClick={() => onDelete(section)} className="btn btn-danger btn-sm" style={{ padding: '0.3rem 0.5rem' }}><Trash2 size={13} /></button>
+      <button type="button" onClick={() => setIsEditing(true)} style={{ padding: '0.3rem 0.5rem', background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.22)', color: 'rgba(255,255,255,0.9)', borderRadius: 'var(--radius-sm)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}><Edit3 size={13} /></button>
+      <button type="button" onClick={() => onDelete(section)} style={{ padding: '0.3rem 0.5rem', background: 'rgba(220,38,38,0.25)', border: '1px solid rgba(220,38,38,0.45)', color: '#fca5a5', borderRadius: 'var(--radius-sm)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}><Trash2 size={13} /></button>
     </div>
   );
 
-  const measurementPills = hasMeasurementPills && <>
-    {displaySize != null && <span style={PILL_STYLE}><Ruler size={11}/>{Number(displaySize).toFixed(1).replace('.', ',')} m²</span>}
-    {displayEntry.height_m     != null && <span style={PILL_STYLE}>{displayEntry.height_m} m mag.</span>}
-    {displayEntry.window_count  > 0    && <span style={PILL_STYLE}>{displayEntry.window_count} ablak</span>}
-    {displayEntry.door_count    > 0    && <span style={PILL_STYLE}>{displayEntry.door_count} ajtó</span>}
-    {(section.start_date || section.end_date) && <span style={PILL_STYLE}><Calendar size={11}/>{section.start_date ? formatDate(section.start_date) : '?'} – {section.end_date ? formatDate(section.end_date) : '?'}</span>}
-  </>;
-
-  const contributorPills = contributors.map(name => (
-    <span key={name} style={CONTRIBUTOR_PILL}><User size={10} />{name}</span>
-  ));
-
   return (
-    <div className="card" style={{ padding: '1rem', cursor: 'pointer' }} onClick={() => setCollapsed(c => !c)}>
+    <div className="card" style={{ padding: 0, overflow: 'hidden', border: '1.5px solid #cbd5e1' }}>
 
-      {/* ── DESKTOP header (hidden on mobile) ── */}
-      <div className="hide-mobile">
-        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem' }}>
-          <div style={{ color: 'var(--text-muted)', flexShrink: 0, marginTop: '0.15rem', pointerEvents: 'none' }}>
-            {collapsed ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
-          </div>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-              <span style={{ fontWeight: 800, fontSize: '1rem', color: 'var(--text-primary)' }}>{section.name}</span>
-              {measurementPills}
+      {/* ── Dark navy header ── */}
+      <div style={{ background: '#1e3a5f', padding: '0.85rem 1rem', cursor: 'pointer' }} onClick={() => setCollapsed(c => !c)}>
+
+        {/* DESKTOP (hidden on mobile) */}
+        <div className="hide-mobile">
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem' }}>
+            <div style={{ color: 'rgba(255,255,255,0.5)', flexShrink: 0, marginTop: '0.15rem', pointerEvents: 'none' }}>
+              {collapsed ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
             </div>
-            {!collapsed && section.description && <p style={{ marginTop: '0.3rem', marginBottom: 0, fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.55 }}>{section.description}</p>}
-            {!collapsed && activeCollectiveId && section.created_by_name && <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.2rem', opacity: 0.8 }}>{section.created_by_name}</div>}
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                <span style={{ fontWeight: 800, fontSize: '1rem', color: '#fff' }}>{section.name}</span>
+                {measurementPillsDark}
+              </div>
+            </div>
+            {headerEditButtons}
           </div>
-          {editButtons}
-        </div>
-        {collapsed && (
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem', marginTop: '0.4rem' }}>
             <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.35rem' }}>
-              <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{sectionEntries.length} tétel</span>
-              {contributorPills}
+              <span style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.5)' }}>{sectionEntries.length} tétel</span>
+              {contributors.map(name => <span key={name} style={{ ...PILL_DARK, fontSize: '0.68rem' }}><User size={10} />{name}</span>)}
             </div>
-            <span style={SECTION_TOTAL_PILL}>{formatHUF(sectionSubtotalForHeader)}</span>
+            <span style={TOTAL_PILL_DARK}>{formatHUF(sectionSubtotalForHeader)}</span>
           </div>
-        )}
-      </div>
-
-      {/* ── MOBILE header (hidden on desktop) ── */}
-      <div className="show-mobile">
-        {/* Row 1: Chevron + Title */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <div style={{ color: 'var(--text-muted)', flexShrink: 0, pointerEvents: 'none' }}>
-            {collapsed ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
-          </div>
-          <span style={{ fontWeight: 800, fontSize: '1rem', color: 'var(--text-primary)' }}>{section.name}</span>
         </div>
-        {/* Row 2: Measurement pills */}
-        {hasMeasurementPills && (
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.3rem', marginTop: '0.4rem', paddingLeft: '1.5rem' }}>
-            {measurementPills}
-          </div>
-        )}
-        {collapsed && <>
-          {/* Row 3: Count + contributor pills */}
-          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.35rem', marginTop: '0.4rem', paddingLeft: '1.5rem' }}>
-            <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{sectionEntries.length} tétel</span>
-            {contributorPills}
-          </div>
-          {/* Row 4: Subtotal + edit/delete */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem', marginTop: '0.6rem', paddingTop: '0.55rem', borderTop: '1px solid var(--border-subtle)' }}>
-            <span style={SECTION_TOTAL_PILL}>{formatHUF(sectionSubtotalForHeader)}</span>
-            {editButtons}
-          </div>
-        </>}
-        {!collapsed && <>
-          {section.description && <p style={{ marginTop: '0.4rem', marginBottom: 0, fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.55, paddingLeft: '1.5rem' }}>{section.description}</p>}
-          {activeCollectiveId && section.created_by_name && <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.2rem', paddingLeft: '1.5rem', opacity: 0.8 }}>{section.created_by_name}</div>}
-          {canEditSection && <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.3rem', marginTop: '0.5rem' }} onClick={e => e.stopPropagation()}>{editButtons}</div>}
-        </>}
-      </div>
 
-      {/* ── Expanded body (shared) ── */}
-      {!collapsed && <div onClick={e => e.stopPropagation()}>
-        {hasAnyMeasurement && <AreaSummary entry={displayEntry} />}
-
-        {/* Photos */}
-        <div style={{ marginTop: '0.75rem', borderTop: hasAnyMeasurement ? 'none' : '1px solid var(--border-subtle)', paddingTop: hasAnyMeasurement ? 0 : '0.75rem' }}>
-          {canEdit ? (
-            <SectionPhotoZone
-              quoteId={quoteId}
-              quoteSurveyId={quote?.survey_id}
-              quoteTitle={quote?.title}
-              quoteClientId={quote?.client_id}
-              section={{ ...section, survey_entry_id: section.survey_entry_id||null }}
-              onEntryCreated={(sId, svId, eId) => updateQuoteSection(quoteId, sId, { survey_entry_id: eId }).catch(()=>{})}
-            />
-          ) : hasMedia ? (
-            <SectionMediaGrid surveyId={quote.survey_id} surveyEntryId={section.survey_entry_id} isLocked={true} />
-          ) : (
-            <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>Nincs fotó.</div>
+        {/* MOBILE (hidden on desktop) */}
+        <div className="show-mobile">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <div style={{ color: 'rgba(255,255,255,0.5)', flexShrink: 0, pointerEvents: 'none' }}>
+              {collapsed ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
+            </div>
+            <span style={{ fontWeight: 800, fontSize: '1rem', color: '#fff', flex: 1, minWidth: 0 }}>{section.name}</span>
+            {headerEditButtons}
+          </div>
+          {hasMeasurementPills && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.3rem', marginTop: '0.4rem', paddingLeft: '1.5rem' }}>
+              {measurementPillsDark}
+            </div>
           )}
-        </div>
-      </div>}
-
-      {/* Tételek — expanded only */}
-      {!collapsed && (() => {
-        const TYPE_ORDER_LIST = ['material', 'labour', 'transport', 'equipment', 'other'];
-        const grouped = TYPE_ORDER_LIST
-          .map(type => ({ type, entries: sectionEntries.filter(e => e.entry_type === type) }))
-          .filter(g => g.entries.length > 0);
-        const sectionSubtotal = sectionEntries.reduce((s, e) => s + Number(e.amount_huf || 0), 0);
-
-        return (
-          <div style={{ marginTop: '0.75rem', borderTop: '1px solid var(--border-subtle)', paddingTop: '0.75rem' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: grouped.length ? '0.65rem' : 0 }}>
-              <span style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.04em' }}>
-                Tételek ({sectionEntries.length})
-              </span>
-              {canEdit && (
-                <button type="button" onClick={() => onAddEntry(section.id)} className="btn btn-primary btn-sm" style={{ fontSize: '0.75rem' }}>
-                  <Plus size={13} /> Tétel
-                </button>
-              )}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem', marginTop: '0.45rem', paddingLeft: '1.5rem' }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.35rem' }}>
+              <span style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.5)' }}>{sectionEntries.length} tétel</span>
+              {contributors.map(name => <span key={name} style={{ ...PILL_DARK, fontSize: '0.68rem' }}><User size={10} />{name}</span>)}
             </div>
+            <span style={TOTAL_PILL_DARK}>{formatHUF(sectionSubtotalForHeader)}</span>
+          </div>
+        </div>
+      </div>
 
-            {grouped.length === 0 ? (
-              <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>Nincs tétel.</p>
+      {/* ── Expanded body ── */}
+      {!collapsed && (
+        <div style={{ padding: '0.85rem 1rem 1rem' }} onClick={e => e.stopPropagation()}>
+
+          {/* Description + author */}
+          {(section.description || (activeCollectiveId && section.created_by_name)) && (
+            <div style={{ marginBottom: '0.75rem' }}>
+              {section.description && <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.55 }}>{section.description}</p>}
+              {activeCollectiveId && section.created_by_name && <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.2rem', opacity: 0.75 }}>{section.created_by_name}</div>}
+            </div>
+          )}
+
+          {hasAnyMeasurement && <AreaSummary entry={displayEntry} />}
+
+          {/* Photos */}
+          <div style={{ marginTop: hasAnyMeasurement ? '0.75rem' : 0 }}>
+            {canEditSection ? (
+              <SectionPhotoZone
+                quoteId={quoteId}
+                quoteSurveyId={quote?.survey_id}
+                quoteTitle={quote?.title}
+                quoteClientId={quote?.client_id}
+                section={{ ...section, survey_entry_id: section.survey_entry_id||null }}
+                onEntryCreated={(sId, svId, eId) => updateQuoteSection(quoteId, sId, { survey_entry_id: eId }).catch(()=>{})}
+              />
+            ) : hasMedia ? (
+              <SectionMediaGrid surveyId={quote.survey_id} surveyEntryId={section.survey_entry_id} isLocked={true} />
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                {grouped.map(({ type, entries: typeEntries }) => {
-                  const Icon     = TYPE_ICONS[type]  || MoreHorizontal;
-                  const tc       = TYPE_COLORS[type]  || TYPE_COLORS.other;
-                  const typeTotal = typeEntries.reduce((s, e) => s + Number(e.amount_huf || 0), 0);
-                  return (
-                    <div key={type}>
-                      {/* Type group header */}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', paddingBottom: '0.3rem', borderBottom: `1px solid ${tc.border}`, marginBottom: '0.1rem' }}>
-                        <div style={{ padding: '0.2rem', borderRadius: 'var(--radius-sm)', background: tc.bg, flexShrink: 0 }}><Icon size={11} color={tc.color} /></div>
-                        <span style={{ fontSize: '0.7rem', fontWeight: 700, color: tc.color, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{QUOTE_ENTRY_LABELS[type]}</span>
-                      </div>
+              <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>Nincs fotó.</div>
+            )}
+          </div>
 
-                      {/* Entries */}
-                      {typeEntries.map((entry, idx) => {
-                        const useQty = entry.entry_type === 'material' || entry.entry_type === 'labour';
-                        return (
-                          <div key={entry.id} style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', padding: '0.45rem 0', borderTop: idx > 0 ? '1px solid var(--border-subtle)' : 'none' }}>
-                            <div style={{ flex: 1, minWidth: 0 }}>
-                              <div style={{ fontWeight: 600, fontSize: '0.875rem', color: 'var(--text-primary)' }}>{entry.work_description}</div>
-                              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginTop: '0.1rem' }}>
-                                {useQty && entry.quantity != null && <span>{entry.quantity} {entry.unit||'db'}{entry.unit_price ? ` × ${formatHUF(entry.unit_price)}` : ''}</span>}
-                                {entry.notes && <span style={{ fontStyle: 'italic' }}>{entry.notes}</span>}
-                                {activeCollectiveId && entry.created_by_name && <span style={{ opacity: 0.7 }}>· {entry.created_by_name}</span>}
-                              </div>
-                            </div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', flexShrink: 0 }}>
-                              <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, fontSize: '0.875rem' }}>{formatHUF(entry.amount_huf)}</span>
-                              {canEditEntry(entry) && <>
-                                <button type="button" onClick={() => onEditEntry(section.id, entry.id)} className="btn btn-secondary btn-sm" style={{ padding: '0.2rem 0.4rem' }}><Edit3 size={11} /></button>
-                                <button type="button" onClick={() => onDeleteEntry(entry)} className="btn btn-danger btn-sm" style={{ padding: '0.2rem 0.4rem' }}><X size={11} /></button>
-                              </>}
-                            </div>
+          {/* Items */}
+          {(() => {
+            const TYPE_ORDER_LIST = ['material', 'labour', 'transport', 'equipment', 'other'];
+            const grouped = TYPE_ORDER_LIST
+              .map(type => ({ type, entries: sectionEntries.filter(e => e.entry_type === type) }))
+              .filter(g => g.entries.length > 0);
+            const sectionSubtotal = sectionEntries.reduce((s, e) => s + Number(e.amount_huf || 0), 0);
+
+            return (
+              <div style={{ marginTop: '1rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                  <span style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.04em' }}>
+                    Tételek ({sectionEntries.length})
+                  </span>
+                  {canEdit && (
+                    <button type="button" onClick={() => onAddEntry(section.id)} className="btn btn-primary btn-sm" style={{ fontSize: '0.75rem' }}>
+                      <Plus size={13} /> Tétel
+                    </button>
+                  )}
+                </div>
+
+                {grouped.length === 0 ? (
+                  <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>Nincs tétel.</p>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    {grouped.map(({ type, entries: typeEntries }) => {
+                      const Icon      = TYPE_ICONS[type]  || MoreHorizontal;
+                      const tc        = TYPE_COLORS[type]  || TYPE_COLORS.other;
+                      const typeTotal = typeEntries.reduce((s, e) => s + Number(e.amount_huf || 0), 0);
+                      return (
+                        <div key={type} style={{ background: 'var(--bg-subtle)', borderRadius: 'var(--radius-md)', padding: '0.5rem 0.65rem' }}>
+                          {/* Type label */}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', marginBottom: '0.35rem' }}>
+                            <div style={{ padding: '0.15rem', borderRadius: 'var(--radius-sm)', background: tc.bg, flexShrink: 0 }}><Icon size={10} color={tc.color} /></div>
+                            <span style={{ fontSize: '0.68rem', fontWeight: 700, color: tc.color, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{QUOTE_ENTRY_LABELS[type]}</span>
                           </div>
-                        );
-                      })}
-
-                      {/* Type subtotal */}
-                      <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '0.5rem', paddingTop: '0.35rem', marginTop: '0.1rem', borderTop: '1px solid var(--border-subtle)' }}>
-                        <span style={{ fontSize: '0.68rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>{QUOTE_ENTRY_LABELS[type]}:</span>
-                        <span style={SUBTOTAL_PILL}>{formatHUF(typeTotal)}</span>
+                          {/* Entries — no row borders, just spacing */}
+                          {typeEntries.map((entry) => {
+                            const useQty = entry.entry_type === 'material' || entry.entry_type === 'labour';
+                            return (
+                              <div key={entry.id} style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', padding: '0.3rem 0' }}>
+                                <div style={{ flex: 1, minWidth: 0 }}>
+                                  <div style={{ fontWeight: 600, fontSize: '0.875rem', color: 'var(--text-primary)' }}>{entry.work_description}</div>
+                                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginTop: '0.05rem' }}>
+                                    {useQty && entry.quantity != null && <span>{entry.quantity} {entry.unit||'db'}{entry.unit_price ? ` × ${formatHUF(entry.unit_price)}` : ''}</span>}
+                                    {entry.notes && <span style={{ fontStyle: 'italic' }}>{entry.notes}</span>}
+                                    {activeCollectiveId && entry.created_by_name && <span style={{ opacity: 0.7 }}>· {entry.created_by_name}</span>}
+                                  </div>
+                                </div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', flexShrink: 0 }}>
+                                  <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, fontSize: '0.875rem' }}>{formatHUF(entry.amount_huf)}</span>
+                                  {canEditEntry(entry) && <>
+                                    <button type="button" onClick={() => onEditEntry(section.id, entry.id)} className="btn btn-secondary btn-sm" style={{ padding: '0.2rem 0.4rem' }}><Edit3 size={11} /></button>
+                                    <button type="button" onClick={() => onDeleteEntry(entry)} className="btn btn-danger btn-sm" style={{ padding: '0.2rem 0.4rem' }}><X size={11} /></button>
+                                  </>}
+                                </div>
+                              </div>
+                            );
+                          })}
+                          {/* Type subtotal — no border, right-aligned */}
+                          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '0.25rem' }}>
+                            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)' }}>{formatHUF(typeTotal)}</span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                    {grouped.length > 1 && (
+                      <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '0.5rem', paddingTop: '0.25rem' }}>
+                        <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.03em' }}>Összesen:</span>
+                        <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, fontSize: '0.95rem', color: 'var(--text-primary)' }}>{formatHUF(sectionSubtotal)}</span>
                       </div>
-                    </div>
-                  );
-                })}
-
-                {/* Section subtotal — only when multiple types */}
-                {grouped.length > 1 && (
-                  <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '0.6rem', paddingTop: '0.55rem', borderTop: '2px solid var(--border-subtle)' }}>
-                    <span style={{ fontSize: '0.72rem', fontWeight: 800, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.03em' }}>Szekció összesen:</span>
-                    <span style={SECTION_TOTAL_PILL}>{formatHUF(sectionSubtotal)}</span>
+                    )}
                   </div>
                 )}
               </div>
-            )}
-          </div>
-        );
-      })()}
+            );
+          })()}
+        </div>
+      )}
     </div>
   );
 }
@@ -662,7 +656,7 @@ export default function QuoteDetailPage() {
   const { id } = useParams();
   const router = useRouter();
   const {
-    currentUser, isAdmin, loading, dataReady, activeCollectiveId,
+    currentUser, isAdmin, loading, dataReady, activeCollectiveId, collectives,
     quotes, quoteEntries, quoteSections, clients, users, projects, surveys,
     updateQuote, updateQuoteStatus, deleteQuote, convertQuoteToProject,
     createQuoteSection, updateQuoteSection, deleteQuoteSection,
@@ -804,9 +798,10 @@ export default function QuoteDetailPage() {
   const taxRate       = Number(quote.tax_percent ?? 27);
   const taxAmount     = Math.round(netTotal * taxRate / 100);
   const grossTotal    = netTotal + taxAmount;
-  const isQuoteOwner  = quote.created_by === currentUser?.id || quote.owner_id === currentUser?.id;
-  const isCollMember  = !!(activeCollectiveId && quote.collective_id === activeCollectiveId);
-  const canModify     = isQuoteOwner || isAdmin || (quote.shared_with || []).includes(currentUser?.id) || isCollMember;
+  const isQuoteOwner     = quote.created_by === currentUser?.id || quote.owner_id === currentUser?.id;
+  const isKollektivOwner = collectives?.some(c => c.collective_id === quote.collective_id && (c.role === 'owner' || c.role === 'admin'));
+  const isCollMember     = !!(activeCollectiveId && quote.collective_id === activeCollectiveId);
+  const canModify        = isQuoteOwner || isAdmin || isKollektivOwner || (quote.shared_with || []).includes(currentUser?.id) || isCollMember;
   const isLocked      = quote.status === 'accepted' || quote.status === 'rejected';
   const canEdit       = canModify && !isLocked;
   const sc            = STATUS_COLORS[quote.status] || STATUS_COLORS.draft;
@@ -884,8 +879,8 @@ export default function QuoteDetailPage() {
     try {
       await createQuoteSection(id, {
         name: fields.name, description: fields.description || null,
-        size_m2: fields.size_m2 ?? null, height_m: fields.height_m ?? null,
-        perimeter_m: fields.perimeter_m ?? null, window_count: fields.window_count || 0,
+        width_m: fields.width_m ?? null, length_m: fields.length_m ?? null,
+        height_m: fields.height_m ?? null, window_count: fields.window_count || 0,
         door_count: fields.door_count || 0,
         survey_entry_id: fields._surveyEntryId || null,
         start_date: fields.start_date || null, end_date: fields.end_date || null,
@@ -1009,7 +1004,7 @@ export default function QuoteDetailPage() {
         surveyId={quote.survey_id}
         quoteId={id}
         canEdit={canEdit}
-        isQuoteOwner={isQuoteOwner || isAdmin}
+        isQuoteOwner={isQuoteOwner || isAdmin || isKollektivOwner}
         currentUserId={currentUser?.id}
         onDelete={handleDeleteSection}
         onAddEntry={(sId) => openEntryModal(sId)}

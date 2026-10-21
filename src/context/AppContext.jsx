@@ -746,8 +746,9 @@ export function AppProvider({ children }) {
 
   const updateProject = async (projectId, fields) => {
     const proj = projects.find(p => p.id === projectId);
-    const isOwner = proj?.owner_id === uid || proj?.created_by === uid;
-    if (!isAdmin && !isOwner) throw new Error('Csak adminisztrátor vagy a projekt tulajdonosa módosíthat!');
+    const isOwner          = proj?.owner_id === uid || proj?.created_by === uid;
+    const isKollektivOwner = collectives.some(c => c.collective_id === proj?.collective_id && (c.role === 'owner' || c.role === 'admin'));
+    if (!isAdmin && !isOwner && !isKollektivOwner) throw new Error('Csak adminisztrátor vagy a projekt tulajdonosa módosíthat!');
     const res = await fetch(`/api/projects/${projectId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
@@ -783,8 +784,9 @@ export function AppProvider({ children }) {
 
   const deleteProject = async (projectId) => {
     const project = projects.find(p => p.id === projectId);
-    const isCreator = project?.created_by === effectiveUser?.id;
-    if (!isAdmin && !isCreator) throw new Error('Nincs jogosultsága törölni ezt a projektet!');
+    const isCreator        = project?.created_by === effectiveUser?.id || project?.owner_id === effectiveUser?.id;
+    const isKollektivOwner = collectives.some(c => c.collective_id === project?.collective_id && (c.role === 'owner' || c.role === 'admin'));
+    if (!isAdmin && !isCreator && !isKollektivOwner) throw new Error('Nincs jogosultsága törölni ezt a projektet!');
     const res = await fetch(`/api/projects/${projectId}`, { method: 'DELETE' });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Hiba a projekt törlésekor');
@@ -902,8 +904,9 @@ export function AppProvider({ children }) {
 
   const updateSurvey = async (surveyId, fields) => {
     const survey = surveys.find(s => s.id === surveyId);
-    const isSurveyOwner = survey?.owner_id === uid || survey?.created_by === uid;
-    if (!isAdmin && !isSurveyOwner) throw new Error('Csak adminisztrátor vagy a felmérés tulajdonosa módosíthat!');
+    const isSurveyOwner    = survey?.owner_id === uid || survey?.created_by === uid;
+    const isKollektivOwner = collectives.some(c => c.collective_id === survey?.collective_id && (c.role === 'owner' || c.role === 'admin'));
+    if (!isAdmin && !isSurveyOwner && !isKollektivOwner) throw new Error('Csak adminisztrátor vagy a felmérés tulajdonosa módosíthat!');
     const res = await fetch(`/api/surveys/${surveyId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
@@ -917,8 +920,9 @@ export function AppProvider({ children }) {
 
   const deleteSurvey = async (surveyId) => {
     const survey = surveys.find(s => s.id === surveyId);
-    const isSurveyOwner = survey?.owner_id === uid || survey?.created_by === uid;
-    if (!isAdmin && !isSurveyOwner) throw new Error('Csak adminisztrátor vagy a felmérés tulajdonosa törölhet!');
+    const isSurveyOwner    = survey?.owner_id === uid || survey?.created_by === uid;
+    const isKollektivOwner = collectives.some(c => c.collective_id === survey?.collective_id && (c.role === 'owner' || c.role === 'admin'));
+    if (!isAdmin && !isSurveyOwner && !isKollektivOwner) throw new Error('Csak adminisztrátor vagy a felmérés tulajdonosa törölhet!');
     const res = await fetch(`/api/surveys/${surveyId}`, { method: 'DELETE' });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Hiba a felmérés törlésekor');
@@ -942,9 +946,13 @@ export function AppProvider({ children }) {
 
   const uploadSurveyMedia = async (surveyId, files, { entryId = null, mediaType = 'photo' } = {}) => {
     const survey = surveys.find(s => s.id === surveyId);
-    const isOwner  = survey?.owner_id === uid || survey?.created_by === uid;
-    const isShared = (survey?.shared_with || []).includes(effectiveUser?.id);
-    if (!isAdmin && !isOwner && !isShared) throw new Error('Nincs jogosultsága!');
+    // Only run client-side guard when the survey is in local state; otherwise let the API enforce it
+    if (survey) {
+      const isOwner      = survey.owner_id === uid || survey.created_by === uid;
+      const isShared     = (survey.shared_with || []).includes(effectiveUser?.id);
+      const isCollMember = collectives.some(c => c.collective_id === survey.collective_id);
+      if (!isAdmin && !isOwner && !isShared && !isCollMember) throw new Error('Nincs jogosultsága!');
+    }
     const processed = await processMediaFiles(files);
     const formData = new FormData();
     for (const file of processed) formData.append('files', file);
@@ -977,9 +985,10 @@ export function AppProvider({ children }) {
 
   const deleteSurveyMedia = async (mediaId, surveyId, entryId = null, mediaType = 'photo') => {
     const survey = surveys.find(s => s.id === surveyId);
-    const isOwner  = survey?.owner_id === uid || survey?.created_by === uid;
-    const isShared = (survey?.shared_with || []).includes(effectiveUser?.id);
-    if (!isAdmin && !isOwner && !isShared) throw new Error('Nincs jogosultsága!');
+    const isOwner          = survey?.owner_id === uid || survey?.created_by === uid;
+    const isShared         = (survey?.shared_with || []).includes(effectiveUser?.id);
+    const isKollektivOwner = collectives.some(c => c.collective_id === survey?.collective_id && (c.role === 'owner' || c.role === 'admin'));
+    if (!isAdmin && !isOwner && !isShared && !isKollektivOwner) throw new Error('Nincs jogosultsága!');
     const res = await fetch(`/api/surveys/${surveyId}/media/${mediaId}`, { method: 'DELETE' });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Hiba a média törlésekor');

@@ -16,10 +16,16 @@ async function getCtx(quoteId, entryId) {
 
   if (isSuperAdmin || isOwn) return { user, admin, entry, isSuperAdmin };
 
-  // Collective members with edit access can also modify
+  // Quote owner or collective owner can also modify
   const { data: quote } = await admin.from('quotes').select('collective_id, owner_id, created_by').eq('id', quoteId).single();
   const isQuoteOwner = quote?.owner_id === user.id || quote?.created_by === user.id;
   if (isQuoteOwner) return { user, admin, entry, isSuperAdmin };
+
+  if (quote?.collective_id) {
+    const { data: mem } = await admin.from('collective_members')
+      .select('role').eq('collective_id', quote.collective_id).eq('user_id', user.id).eq('status', 'active').maybeSingle();
+    if (mem?.role === 'owner' || mem?.role === 'admin') return { user, admin, entry, isSuperAdmin };
+  }
 
   return { err: 'Forbidden', status: 403 };
 }

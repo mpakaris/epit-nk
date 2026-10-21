@@ -452,7 +452,7 @@ export default function SurveyDetailPage() {
   const router = useRouter();
   const {
     loading, dataReady, surveys, quotes, projects, clients, users,
-    isAdmin, currentUser,
+    isAdmin, currentUser, collectives,
     deleteSurvey, updateSurvey, deleteSurveyMedia,
     surveyMediaBySurvey, surveyEntriesBySurvey, surveyLayoutsBySurvey, surveyDrawingsBySurvey,
     fetchSurveyMedia,
@@ -491,11 +491,16 @@ export default function SurveyDetailPage() {
   const entries  = surveyEntriesBySurvey[id]  || [];
   const drawings = surveyDrawingsBySurvey[id] || [];
 
-  const isOwner        = survey.owner_id === currentUser?.id;
-  const isSharedMember = (survey.shared_with || []).includes(currentUser?.id);
-  const canEditMeta    = isAdmin || isOwner;
-  const canEdit        = isAdmin || isOwner || isSharedMember;
-  const canDrawings    = isAdmin || isOwner;
+  const isOwner          = survey.owner_id === currentUser?.id || survey.created_by === currentUser?.id;
+  const isSharedMember   = (survey.shared_with || []).includes(currentUser?.id);
+  const myCollectiveRole = collectives?.find(c => c.collective_id === survey.collective_id)?.role;
+  const isKollektivOwner = myCollectiveRole === 'owner' || myCollectiveRole === 'admin';
+  const isCollMember     = !!myCollectiveRole;
+  // Any member can add entries/upload; only creator or collective owner can edit/delete specific entries
+  const canAdd       = isAdmin || isOwner || isSharedMember || isCollMember;
+  const canEditMeta  = isAdmin || isKollektivOwner || isOwner;
+  const canDrawings  = isAdmin || isKollektivOwner || isOwner;
+  const canEditEntry = (entry) => isAdmin || isKollektivOwner || entry.created_by === currentUser?.id;
 
   const sharedMembers = (survey.shared_with || []).map(uid => users.find(u => u.id === uid)).filter(Boolean);
 
@@ -571,7 +576,7 @@ export default function SurveyDetailPage() {
       <div className="page-header" style={{ padding: '0.5rem 0 1rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '1rem', flexWrap: 'wrap' }}>
           <h1 className="page-title" style={{ marginBottom: 0 }}>{survey.title}</h1>
-          {(isAdmin || isOwner) && (
+          {canEditMeta && (
             <button type="button" onClick={handleDeleteSurvey} className="btn btn-danger btn-sm">
               <Trash2 size={14} /> Törlés
             </button>
@@ -626,7 +631,7 @@ export default function SurveyDetailPage() {
               Alaprajzok ({layouts.length})
             </span>
           </div>
-          {canEdit && !detailLoading && (
+          {canAdd && !detailLoading && (
             <InlineUpload surveyId={id} entryId={null} mediaType="layout" label="Alaprajz hozzáadása" />
           )}
         </div>
@@ -634,10 +639,10 @@ export default function SurveyDetailPage() {
           <div style={{ color: 'var(--text-muted)', fontSize: '0.8rem', padding: '0.5rem 0' }}>Betöltés...</div>
         ) : layouts.length === 0 ? (
           <div style={{ color: 'var(--text-muted)', fontSize: '0.82rem', padding: '0.75rem', border: '2px dashed var(--border-subtle)', borderRadius: 'var(--radius-md)', textAlign: 'center' }}>
-            {canEdit ? 'Nincs alaprajz feltöltve. (Opcionális)' : 'Nincs alaprajz feltöltve.'}
+            {canAdd ? 'Nincs alaprajz feltöltve. (Opcionális)' : 'Nincs alaprajz feltöltve.'}
           </div>
         ) : (
-          <MediaGrid media={layouts} onDelete={canEdit ? handleDeleteMedia : undefined} />
+          <MediaGrid media={layouts} onDelete={canEditMeta ? handleDeleteMedia : undefined} />
         )}
       </div>
 
@@ -658,17 +663,17 @@ export default function SurveyDetailPage() {
             <Home size={15} color="var(--accent)" />
             <h2 style={{ fontSize: '1rem', fontWeight: 800, margin: 0 }}>Helyiségek ({entries.length})</h2>
           </div>
-          {canEdit && entries.length < 30 && (
+          {canAdd && entries.length < 30 && (
             <button type="button" onClick={() => { setShowAddEntry(true); setEditingEntry(null); }} className="btn btn-primary btn-sm">
               <Plus size={14} /> Helyiség hozzáadása
             </button>
           )}
-          {canEdit && entries.length >= 30 && (
+          {canAdd && entries.length >= 30 && (
             <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>Maximum 30 helyiség</span>
           )}
         </div>
 
-        {canEdit && showAddEntry && !editingEntry && (
+        {canAdd && showAddEntry && !editingEntry && (
           <div className="card" style={{ padding: '1rem', border: '2px solid var(--accent-border)', background: 'var(--accent-light)', marginBottom: '0.75rem' }}>
             <div style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--accent)', letterSpacing: '0.05em', marginBottom: '0.75rem' }}>Új helyiség</div>
             <EntryForm
@@ -682,8 +687,8 @@ export default function SurveyDetailPage() {
         {!detailLoading && entries.length === 0 && !showAddEntry && (
           <div className="card" style={{ textAlign: 'center', padding: '2rem 1.5rem', color: 'var(--text-muted)', fontSize: '0.875rem' }}>
             <Home size={28} color="var(--text-muted)" style={{ margin: '0 auto 0.5rem' }} />
-            <p style={{ marginBottom: canEdit ? '1rem' : 0 }}>Még nincsenek helyiségek.</p>
-            {canEdit && entries.length < 30 && (
+            <p style={{ marginBottom: canAdd ? '1rem' : 0 }}>Még nincsenek helyiségek.</p>
+            {canAdd && entries.length < 30 && (
               <button type="button" onClick={() => setShowAddEntry(true)} className="btn btn-primary btn-sm">
                 <Plus size={14} /> Helyiség hozzáadása
               </button>
@@ -694,7 +699,7 @@ export default function SurveyDetailPage() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
           {entries.map(entry => (
             <div key={entry.id}>
-              {canEdit && editingEntry?.id === entry.id ? (
+              {canEditEntry(entry) && editingEntry?.id === entry.id ? (
                 <div className="card" style={{ padding: '1rem', border: '2px solid var(--accent-border)', background: 'var(--accent-light)' }}>
                   <div style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--accent)', letterSpacing: '0.05em', marginBottom: '0.75rem' }}>Szerkesztés: {entry.name}</div>
                   <EntryForm
@@ -724,7 +729,7 @@ export default function SurveyDetailPage() {
                         <p style={{ marginTop: '0.3rem', fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.55, whiteSpace: 'pre-wrap' }}>{entry.description}</p>
                       )}
                     </div>
-                    {canEdit && (
+                    {canEditEntry(entry) && (
                       <div style={{ display: 'flex', gap: '0.3rem', flexShrink: 0 }}>
                         <button type="button" onClick={() => { setEditingEntry(entry); setShowAddEntry(false); }} className="btn btn-secondary btn-sm" style={{ padding: '0.3rem 0.5rem' }}><Edit3 size={13} /></button>
                         <button type="button" onClick={() => handleDeleteEntry(entry)} className="btn btn-danger btn-sm" style={{ padding: '0.3rem 0.5rem' }}><Trash2 size={13} /></button>
@@ -738,11 +743,11 @@ export default function SurveyDetailPage() {
                       <>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
                           <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600 }}>{entry.media.length} fotó / videó</span>
-                          {canEdit && <InlineUpload surveyId={id} entryId={entry.id} mediaType="photo" label="Hozzáadás" />}
+                          {canAdd && <InlineUpload surveyId={id} entryId={entry.id} mediaType="photo" label="Hozzáadás" />}
                         </div>
-                        <MediaGrid media={entry.media} onDelete={canEdit ? handleDeleteMedia : undefined} />
+                        <MediaGrid media={entry.media} onDelete={canEditEntry(entry) ? handleDeleteMedia : undefined} />
                       </>
-                    ) : canEdit ? (
+                    ) : canAdd ? (
                       <InlineUploadZone surveyId={id} entryId={entry.id} />
                     ) : null}
                   </div>

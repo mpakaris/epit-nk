@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { deleteFromR2 } from '@/lib/r2';
 
-async function getCtx(surveyId, entryId) {
+async function getCtx(surveyId) {
   const supabase = await createClient();
   const { data: { user }, error } = await supabase.auth.getUser();
   if (error || !user) return { err: 'Unauthenticated', status: 401 };
@@ -11,22 +11,39 @@ async function getCtx(surveyId, entryId) {
   if (!profile) return { err: 'Forbidden', status: 403 };
   const { data: survey } = await admin.from('surveys').select('owner_id, collective_id, shared_with, created_by').eq('id', surveyId).single();
   if (!survey) return { err: 'Not found', status: 404 };
-  if (profile.role !== 'superadmin') {
-    const isOwner  = survey.owner_id === user.id || survey.created_by === user.id;
-    const isShared = (survey.shared_with || []).includes(user.id);
-    if (!isOwner && !isShared) {
+
+  const isSuperAdmin   = profile.role === 'superadmin';
+  const isSurveyOwner  = survey.owner_id === user.id || survey.created_by === user.id;
+  const isShared       = (survey.shared_with || []).includes(user.id);
+  let memberRole = null;
+
+  if (!isSuperAdmin) {
+    if (!isSurveyOwner && !isShared) {
       if (!survey.collective_id) return { err: 'Forbidden', status: 403 };
-      const { data: mem } = await admin.from('collective_members').select('collective_id').eq('collective_id', survey.collective_id).eq('user_id', user.id).eq('status', 'active').maybeSingle();
+      const { data: mem } = await admin.from('collective_members')
+        .select('role').eq('collective_id', survey.collective_id).eq('user_id', user.id).eq('status', 'active').maybeSingle();
       if (!mem) return { err: 'Forbidden', status: 403 };
+      memberRole = mem.role;
+    } else if (isSurveyOwner) {
+      memberRole = 'owner';
     }
   }
-  return { profile, admin, entityId: null };
+
+  const isKollektivOwner = memberRole === 'owner' || memberRole === 'admin';
+  return { user, profile, admin, isSurveyOwner, isKollektivOwner, isSuperAdmin };
 }
 
 export async function PATCH(request, { params }) {
   const { id: surveyId, entryId } = await params;
-  const ctx = await getCtx(surveyId, entryId);
+  const ctx = await getCtx(surveyId);
   if (ctx.err) return Response.json({ error: ctx.err }, { status: ctx.status });
+
+  // Load entry to check ownership
+  const { data: entry } = await ctx.admin.from('survey_entries').select('created_by').eq('id', entryId).eq('survey_id', surveyId).single();
+  if (!entry) return Response.json({ error: 'Not found' }, { status: 404 });
+
+  const canEdit = ctx.isSuperAdmin || ctx.isKollektivOwner || entry.created_by === ctx.user.id;
+  if (!canEdit) return Response.json({ error: 'Csak a bejegyzés létrehozója vagy a kollektíva tulajdonosa módosíthat.' }, { status: 403 });
 
   const fields = await request.json();
   const allowed = ['name', 'description', 'width_m', 'length_m', 'height_m', 'window_count', 'door_count', 'sort_order'];
@@ -37,7 +54,6 @@ export async function PATCH(request, { params }) {
   for (const f of ['width_m', 'length_m', 'height_m']) {
     if (f in update) update[f] = update[f] != null && update[f] !== '' ? Number(update[f]) : null;
   }
-  // Recompute size_m2 from stored dimensions
   if ('width_m' in update || 'length_m' in update) {
     const w = update.width_m  ?? null;
     const l = update.length_m ?? null;
@@ -51,8 +67,15 @@ export async function PATCH(request, { params }) {
 
 export async function DELETE(request, { params }) {
   const { id: surveyId, entryId } = await params;
-  const ctx = await getCtx(surveyId, entryId);
+  const ctx = await getCtx(surveyId);
   if (ctx.err) return Response.json({ error: ctx.err }, { status: ctx.status });
+
+  // Load entry to check ownership
+  const { data: entry } = await ctx.admin.from('survey_entries').select('created_by').eq('id', entryId).eq('survey_id', surveyId).single();
+  if (!entry) return Response.json({ error: 'Not found' }, { status: 404 });
+
+  const canDelete = ctx.isSuperAdmin || ctx.isKollektivOwner || entry.created_by === ctx.user.id;
+  if (!canDelete) return Response.json({ error: 'Csak a bejegyzés létrehozója vagy a kollektíva tulajdonosa törölhet.' }, { status: 403 });
 
   const { data: media } = await ctx.admin.from('survey_media').select('id, drive_file_id').eq('entry_id', entryId);
   if (media?.length) {

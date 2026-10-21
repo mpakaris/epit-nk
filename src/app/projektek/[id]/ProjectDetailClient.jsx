@@ -1662,7 +1662,8 @@ export default function ProjectDetailClient({
     return true;
   });
 
-  const canManageProject = isAdmin || project.created_by === currentUser?.id || project.owner_id === currentUser?.id;
+  const isKollektivOwner = collectives?.some(c => c.collective_id === project.collective_id && (c.role === 'owner' || c.role === 'admin'));
+  const canManageProject = isAdmin || isKollektivOwner || project.created_by === currentUser?.id || project.owner_id === currentUser?.id;
 
   const [showOptionsMenu, setShowOptionsMenu] = useState(false);
   const optionsRef = React.useRef(null);
@@ -2778,7 +2779,7 @@ export default function ProjectDetailClient({
               {(diaryEntriesByProject[project.id] || []).map(entry => {
                 const entryDateStr = entry.entry_date ? new Date(entry.entry_date).toLocaleDateString('hu-HU', { year: 'numeric', month: 'long', day: 'numeric' }) : null;
                 const author = initialUsers.find(u => u.id === entry.created_by);
-                const canDelete = entry.created_by === currentUser?.id || isAdmin;
+                const canDelete = entry.created_by === currentUser?.id || canManageProject;
                 return (
                   <div key={entry.id} className="card" style={{ padding: '1rem' }}>
                     {/* Header row: badges + actions */}
@@ -2788,7 +2789,7 @@ export default function ProjectDetailClient({
                         {entry.work_type && <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-secondary)', background: 'var(--bg-subtle)', border: '1px solid var(--border-subtle)', padding: '0.12rem 0.5rem', borderRadius: 'var(--radius-pill)' }}>{entry.work_type}</span>}
                         {(() => { const r = projectRooms.find(r => r.id === entry.room_id); return r ? <span style={{ fontSize: '0.68rem', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '0.25rem', padding: '0.12rem 0.5rem', borderRadius: 'var(--radius-pill)', background: 'var(--accent-light)', border: '1px solid var(--accent-border)', color: 'var(--accent)' }}><Home size={10} />{r.name}</span> : null; })()}
                         {/* Public/private pill */}
-                        {isAdmin || entry.created_by === currentUser?.id ? (
+                        {canManageProject || entry.created_by === currentUser?.id ? (
                           <button
                             type="button"
                             onClick={async () => {
@@ -2806,7 +2807,7 @@ export default function ProjectDetailClient({
                         )}
                       </div>
                       <div style={{ display: 'flex', gap: '0.35rem', flexShrink: 0 }}>
-                        {(isAdmin || entry.created_by === currentUser?.id) && (
+                        {(canManageProject || entry.created_by === currentUser?.id) && (
                           <Link href={`${navPrefix}/projektek/${project.id}/naplo/${entry.id}`} className="btn btn-secondary btn-sm" style={{ padding: '0.25rem 0.5rem' }}>
                             <Edit3 size={13} />
                           </Link>

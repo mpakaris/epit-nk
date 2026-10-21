@@ -187,8 +187,13 @@ export default function ProjectsListClient({
         onClick={() => router.push(`${navPrefix}/projektek/${project.id}`)}
         style={{ display: 'flex', flexDirection: 'column', cursor: 'pointer', padding: 0, overflow: 'hidden' }}
       >
-        {/* Photo strip */}
-        {previews.length > 0 && (
+        {/* Photo strip / colour header */}
+        {previews.length === 0 ? (
+          <div style={{ height: 72, background: 'linear-gradient(135deg, #0f766e 0%, #0d9488 60%, #14b8a6 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', position: 'relative' }}>
+            <TrendingUp size={48} color="rgba(255,255,255,0.1)" style={{ position: 'absolute', right: 16, bottom: -8, transform: 'rotate(-10deg)' }} />
+            <FolderKanban size={28} color="rgba(255,255,255,0.35)" />
+          </div>
+        ) : (
           <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(previews.length, 4)}, 1fr)`, height: 90, overflow: 'hidden', borderBottom: '1px solid var(--border-subtle)' }}>
             {previews.map((url, i) => (
               <div key={i} style={{ position: 'relative', overflow: 'hidden', background: 'var(--bg-subtle)' }}>
@@ -401,11 +406,11 @@ export default function ProjectsListClient({
             <div style={{ border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: '0.85rem', marginBottom: '0.75rem', background: 'var(--bg-subtle)' }}>
               <div style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '0.65rem' }}>Új ügyfél</div>
               {newClientError && <div style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', color: 'var(--danger-text)', padding: '0.45rem 0.65rem', borderRadius: 'var(--radius-md)', fontSize: '0.8rem', marginBottom: '0.55rem' }}>{newClientError}</div>}
-              <form onSubmit={handleCreateClient}>
+              <div>
                 <div className="form-group"><label className="form-label">Név *</label><input type="text" className="form-control" value={newClientName} onChange={e => setNewClientName(e.target.value)} placeholder="Pl. Horváth Béla" autoFocus /></div>
                 <div className="grid-2col">
                   <div className="form-group" style={{ margin: 0 }}><label className="form-label">Telefon</label><input type="tel" className="form-control" value={newClientPhone} onChange={e => setNewClientPhone(e.target.value)} /></div>
-                  <div className="form-group" style={{ margin: 0 }}><label className="form-label">E-mail *</label><input type="email" className="form-control" required value={newClientEmail} onChange={e => setNewClientEmail(e.target.value)} /></div>
+                  <div className="form-group" style={{ margin: 0 }}><label className="form-label">E-mail *</label><input type="email" className="form-control" value={newClientEmail} onChange={e => setNewClientEmail(e.target.value)} /></div>
                 </div>
                 <div className="form-group" style={{ marginTop: '0.65rem' }}><label className="form-label">Cím</label><input type="text" className="form-control" value={newClientAddr} onChange={e => setNewClientAddr(e.target.value)} /></div>
                 <label style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', padding: '0.6rem', borderRadius: 'var(--radius-md)', background: '#fff', border: `1px solid ${newClientGdpr ? 'var(--success-border)' : 'var(--border-subtle)'}`, cursor: 'pointer', marginBottom: '0.65rem' }}>
@@ -414,9 +419,9 @@ export default function ProjectsListClient({
                 </label>
                 <div style={{ display: 'flex', gap: '0.4rem', justifyContent: 'flex-end' }}>
                   <button type="button" className="btn btn-secondary btn-sm" onClick={() => { setShowNewClient(false); setNewClientError(''); }}>Mégse</button>
-                  <button type="submit" className="btn btn-primary btn-sm" disabled={creatingClient || !newClientGdpr}>{creatingClient ? <><Loader2 size={13} className="animate-spin" />Létrehozás</> : 'Ügyfél létrehozása'}</button>
+                  <button type="button" className="btn btn-primary btn-sm" disabled={creatingClient || !newClientGdpr} onClick={handleCreateClient}>{creatingClient ? <><Loader2 size={13} className="animate-spin" />Létrehozás</> : 'Ügyfél létrehozása'}</button>
                 </div>
-              </form>
+              </div>
             </div>
           )}
           <div className="grid-2col" style={{ marginBottom: '1.25rem' }}>

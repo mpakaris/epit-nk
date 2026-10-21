@@ -123,8 +123,13 @@ export default function QuotesListPage() {
             return (
               <Link key={q.id} href={`${navPrefix}/ajanlatok/${q.id}`} className="card card-interactive" style={{ padding: 0, display: 'flex', flexDirection: 'column', textDecoration: 'none', color: 'inherit', overflow: 'hidden' }}>
 
-                {/* Photo strip from linked survey */}
-                {previews.length > 0 && (
+                {/* Photo strip / colour header */}
+                {previews.length === 0 ? (
+                  <div style={{ height: 72, background: 'linear-gradient(135deg, #1e40af 0%, #2563eb 60%, #3b82f6 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', position: 'relative' }}>
+                    <Coins size={48} color="rgba(255,255,255,0.1)" style={{ position: 'absolute', right: 16, bottom: -8, transform: 'rotate(-10deg)' }} />
+                    <FileText size={28} color="rgba(255,255,255,0.35)" />
+                  </div>
+                ) : (
                   <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(previews.length, 4)}, 1fr)`, height: 90, overflow: 'hidden', borderBottom: '1px solid var(--border-subtle)' }}>
                     {previews.map((url, i) => (
                       <div key={i} style={{ overflow: 'hidden', background: 'var(--bg-subtle)' }}>
