@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { resolveEffectiveUserId } from '@/lib/godMode';
+import { logAudit } from '@/lib/audit';
 
 const SECTION_ORDER = [
   'hero', 'about', 'services', 'certifications', 'gallery',
@@ -57,7 +58,7 @@ export async function POST(request) {
 
   const { data: existing } = await admin
     .from('user_websites')
-    .select('id')
+    .select('id, slug')
     .eq('user_id', effectiveUserId)
     .maybeSingle();
 
@@ -65,17 +66,22 @@ export async function POST(request) {
     // Update flow
     const { action, sections, slug, ...websiteFields } = body;
 
+    const { data: profile } = await admin.from('profiles').select('display_name').eq('id', effectiveUserId).single();
+    const userName = profile?.display_name || user.email;
+
     if (action === 'publish') {
       await admin.from('user_websites').update({
         status: 'published',
         published_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       }).eq('id', existing.id);
+      logAudit({ entityId: effectiveUserId, userId: effectiveUserId, userName, action: 'Website published', targetType: 'website', targetId: existing.id, targetName: existing.slug || existing.id });
     } else if (action === 'unpublish') {
       await admin.from('user_websites').update({
         status: 'draft',
         updated_at: new Date().toISOString(),
       }).eq('id', existing.id);
+      logAudit({ entityId: effectiveUserId, userId: effectiveUserId, userName, action: 'Website unpublished', targetType: 'website', targetId: existing.id, targetName: existing.slug || existing.id });
     } else if (action === 'update_slug' && slug) {
       const cleanSlug = slug.toLowerCase().trim();
       if (cleanSlug.length < 3) {
@@ -92,6 +98,7 @@ export async function POST(request) {
         slug: cleanSlug,
         updated_at: new Date().toISOString(),
       }).eq('id', existing.id);
+      logAudit({ entityId: effectiveUserId, userId: effectiveUserId, userName, action: 'Website slug changed', targetType: 'website', targetId: existing.id, targetName: cleanSlug, details: { old_slug: existing.slug } });
     } else if (Object.keys(websiteFields).length > 0) {
       await admin.from('user_websites').update({
         ...websiteFields,

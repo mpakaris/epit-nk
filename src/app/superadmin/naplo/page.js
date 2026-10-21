@@ -92,6 +92,10 @@ const ACTION_LABELS = {
   // Ideas
   'Ötlet létrehozva':                   { label: 'Idea created',                color: 'var(--success-text)',    bg: 'var(--success-bg)' },
   'Ötlet törölve':                      { label: 'Idea deleted',                color: 'var(--danger-text)',     bg: 'var(--danger-bg)' },
+  // Website
+  'Website published':                  { label: 'Website published',           color: 'var(--success-text)',    bg: 'var(--success-bg)' },
+  'Website unpublished':                { label: 'Website unpublished',         color: 'var(--warning-text)',    bg: 'var(--warning-bg)' },
+  'Website slug changed':               { label: 'Website URL changed',         color: 'var(--accent)',          bg: 'var(--accent-light)' },
 };
 
 const PAGE_SIZE = 50;
