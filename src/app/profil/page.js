@@ -764,27 +764,38 @@ export default function ProfilPage() {
 
         {/* Trial banner */}
         {isOnTrial && (
-          <div style={{ background: '#fef9c3', border: '1px solid #fde047', borderRadius: 'var(--radius-md)', padding: '0.75rem 1rem', marginBottom: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.825rem' }}>
-            <Clock size={14} color="#854d0e" style={{ flexShrink: 0 }} />
-            <span style={{ color: '#78350f' }}>
-              <strong>Ingyenes próba aktív</strong> — még <strong>{trialDaysLeft} nap</strong> van hátra. Utána a Bázis csomagra vált a fiókod.
-            </span>
+          <div style={{ background: '#fef9c3', border: '1px solid #fde047', borderRadius: 'var(--radius-md)', padding: '0.75rem 1rem', marginBottom: '0.85rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', flexWrap: 'wrap', fontSize: '0.825rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <Clock size={14} color="#854d0e" style={{ flexShrink: 0 }} />
+              <span style={{ color: '#78350f' }}>
+                <strong>Ingyenes próba aktív</strong> — még <strong>{trialDaysLeft} nap</strong> van hátra.
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => handleCheckout(PLANS.find(p => p.key === 'premium'))}
+              style={{ background: '#b45309', color: '#fff', border: 'none', borderRadius: 'var(--radius-md)', padding: '0.35rem 0.8rem', fontWeight: 700, fontSize: '0.78rem', cursor: 'pointer', flexShrink: 0 }}
+            >
+              Váltás Prémiumra →
+            </button>
           </div>
         )}
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(200px,100%), 1fr))', gap: '0.85rem' }}>
           {PLANS.map(plan => {
             const Icon = plan.icon;
-            const isCurrent = (plan.key === 'basic' && !effectivePremium) || (plan.key === 'premium' && (isPremium || isOnTrial));
+            // isCurrent = truly subscribed to this tier (trial users can still upgrade to paid premium)
+            const isCurrent = (plan.key === 'basic' && !effectivePremium) || (plan.key === 'premium' && isPremium);
+            const isTrialOnPremium = plan.key === 'premium' && isOnTrial && !isPremium;
             const isLoading = loadingPlan === plan.key;
             return (
               <div key={plan.key} className="card" style={{
                 padding: '1.1rem', display: 'flex', flexDirection: 'column', gap: '0.85rem',
-                border: isCurrent ? `2px solid ${plan.color}` : undefined, position: 'relative',
+                border: (isCurrent || isTrialOnPremium) ? `2px solid ${plan.color}` : undefined, position: 'relative',
               }}>
-                {isCurrent && (
-                  <span style={{ position: 'absolute', top: -11, left: '50%', transform: 'translateX(-50%)', background: isOnTrial && plan.key === 'premium' ? '#b45309' : plan.color, color: 'white', fontSize: '0.6rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', padding: '0.18rem 0.65rem', borderRadius: 'var(--radius-pill)', whiteSpace: 'nowrap' }}>
-                    {isOnTrial && plan.key === 'premium' ? '🎁 Próba aktív' : 'Aktív csomag'}
+                {(isCurrent || isTrialOnPremium) && (
+                  <span style={{ position: 'absolute', top: -11, left: '50%', transform: 'translateX(-50%)', background: isTrialOnPremium ? '#b45309' : plan.color, color: 'white', fontSize: '0.6rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', padding: '0.18rem 0.65rem', borderRadius: 'var(--radius-pill)', whiteSpace: 'nowrap' }}>
+                    {isTrialOnPremium ? '🎁 Próba aktív' : 'Aktív csomag'}
                   </span>
                 )}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -820,7 +831,7 @@ export default function ProfilPage() {
                       opacity: isCurrent || isLoading ? 0.6 : 1,
                     }}
                   >
-                    {isCurrent ? 'Aktív' : isLoading ? 'Átirányítás...' : plan.cta}
+                    {isCurrent ? 'Aktív' : isLoading ? 'Átirányítás...' : isTrialOnPremium ? 'Váltás Prémiumra most →' : plan.cta}
                   </button>
                 )}
                 {plan.key === 'premium' && isPremium && (

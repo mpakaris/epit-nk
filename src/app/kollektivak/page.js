@@ -318,7 +318,7 @@ export default function KollektivakPage() {
       const data = await res.json();
       if (!res.ok) {
         if (data.error === 'TRIAL_COLLECTIVE_LIMIT') {
-          setCreateError('Próbaidőszak alatt csak 1 kollektívát hozhatsz létre.');
+          setCreateError('TRIAL_LIMIT');
         } else {
           setCreateError(data.error || 'Hiba a létrehozáskor.');
         }
@@ -1120,9 +1120,27 @@ export default function KollektivakPage() {
       {/* ── Create modal (3-step) ── */}
       <Modal isOpen={showCreate} onClose={closeCreateModal} title={createStep === 1 ? 'Új kollektíva — Név' : createStep === 2 ? 'Új kollektíva — Csomag' : createStep === 4 ? 'Ingyenes Próba Kollektíva' : 'Fizetés megerősítése'}>
         {createError && (
-          <div style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', color: 'var(--danger-text)', padding: '0.65rem', borderRadius: 'var(--radius-md)', fontSize: '0.825rem', display: 'flex', gap: '0.45rem', marginBottom: '0.85rem' }}>
-            <AlertCircle size={15} /><span>{createError}</span>
-          </div>
+          createError === 'TRIAL_LIMIT' ? (
+            <div style={{ background: '#fef9c3', border: '1px solid #fde047', borderRadius: 'var(--radius-md)', padding: '0.85rem 1rem', marginBottom: '0.85rem' }}>
+              <div style={{ display: 'flex', gap: '0.45rem', alignItems: 'flex-start', marginBottom: '0.65rem' }}>
+                <AlertCircle size={15} color="#854d0e" style={{ flexShrink: 0, marginTop: 1 }} />
+                <span style={{ fontSize: '0.825rem', color: '#78350f' }}>
+                  Próbaidőszak alatt csak <strong>1 kollektívát</strong> hozhatsz létre ingyen. Válts Prémiumra a korlátlanhoz.
+                </span>
+              </div>
+              <a
+                href="/profil"
+                onClick={closeCreateModal}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', padding: '0.4rem 0.85rem', background: '#b45309', color: '#fff', borderRadius: 'var(--radius-md)', fontWeight: 700, fontSize: '0.8rem', textDecoration: 'none' }}
+              >
+                Váltás Prémiumra a Profilban →
+              </a>
+            </div>
+          ) : (
+            <div style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', color: 'var(--danger-text)', padding: '0.65rem', borderRadius: 'var(--radius-md)', fontSize: '0.825rem', display: 'flex', gap: '0.45rem', marginBottom: '0.85rem' }}>
+              <AlertCircle size={15} /><span>{createError}</span>
+            </div>
+          )
         )}
 
         {/* Step 1: name */}
