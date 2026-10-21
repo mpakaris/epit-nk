@@ -1,23 +1,27 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { logAudit } from '@/lib/audit';
+import { resolveEffectiveUserId } from '@/lib/godMode';
 
-export async function GET() {
+export async function GET(request) {
   const supabase = await createClient();
   const { data: { user }, error: authErr } = await supabase.auth.getUser();
   if (authErr || !user) return Response.json({ error: 'Unauthenticated' }, { status: 401 });
 
   const admin = createAdminClient();
+  // When SA is in god mode, return the impersonated user's profile + subscription data
+  const effectiveUserId = await resolveEffectiveUserId(request, user, admin);
+
   let { data: profile, error } = await admin
     .from('profiles')
     .select('*')
-    .eq('id', user.id)
+    .eq('id', effectiveUserId)
     .maybeSingle();
 
   if (error) return Response.json({ error: error.message }, { status: 500 });
 
-  // Trigger may have failed silently — auto-create a basic profile so the user isn't locked out
-  if (!profile) {
+  // Trigger may have failed silently — auto-create a basic profile (only for the real user, not impersonation)
+  if (!profile && effectiveUserId === user.id) {
     const displayName = user.user_metadata?.full_name || user.user_metadata?.name || user.email.split('@')[0];
     const { data: created, error: createErr } = await admin
       .from('profiles')
@@ -37,11 +41,13 @@ export async function GET() {
     profile = created;
   }
 
+  if (!profile) return Response.json({ error: 'Profile not found' }, { status: 404 });
+
   // Return collective memberships for the context switcher
   const { data: membershipsRaw } = await admin
     .from('collective_members')
     .select('collective_id, role, status, collectives(id, name, collective_tier, creem_subscription_id, subscription_status, subscription_period_end, is_inclusive)')
-    .eq('user_id', user.id)
+    .eq('user_id', effectiveUserId)
     .eq('status', 'active');
 
   const collectives = (membershipsRaw || []).map(m => ({
@@ -66,7 +72,7 @@ export async function GET() {
   const { data: premiumSub } = await admin
     .from('subscriptions')
     .select('creem_subscription_id, product_family, status, period_end, created_at')
-    .eq('user_id', user.id)
+    .eq('user_id', effectiveUserId)
     .in('product_family', ['premium', 'bundle'])
     .in('status', ['active', 'trialing', 'scheduled_cancel', 'paused', 'past_due'])
     .order('created_at', { ascending: false })
@@ -80,7 +86,7 @@ export async function GET() {
     const { data: anySub } = await admin
       .from('subscriptions')
       .select('creem_subscription_id, product_family, status, period_end, created_at')
-      .eq('user_id', user.id)
+      .eq('user_id', effectiveUserId)
       .in('product_family', ['premium', 'bundle'])
       .order('created_at', { ascending: false })
       .limit(1)

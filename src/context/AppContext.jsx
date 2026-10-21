@@ -193,9 +193,14 @@ export function AppProvider({ children }) {
       if (saved) {
         const data = JSON.parse(saved);
         setImpersonating(data);
-        // Re-sync cookie so server components see it after a hard refresh
+        // Re-sync cookies so server components see them after a hard refresh
         if (data?.id) {
           document.cookie = `god_mode_user=${data.id}; path=/; SameSite=Lax`;
+          // Re-fetch collectives so effectiveCollectives is correct after page reload
+          fetch(`/api/superadmin/user?id=${data.id}&include=collectives`)
+            .then(r => r.ok ? r.json() : { collectives: [] })
+            .then(d => setImpersonatingCollectives(d.collectives || []))
+            .catch(() => {});
         }
         if (data?.active_collective_id) {
           document.cookie = `god_mode_entity=${data.active_collective_id}; path=/; SameSite=Lax`;
@@ -434,13 +439,12 @@ export function AppProvider({ children }) {
 
   const startImpersonation = async (userId, entityIdOverride) => {
     if (!isSuperAdmin) throw new Error('Csak Superadmin veheti át mások nézetét!');
-    let profile = users.find(u => u.id === userId);
-    if (!profile) {
-      const res = await fetch(`/api/superadmin/user?id=${userId}`);
-      if (!res.ok) throw new Error('Felhasználó nem található!');
-      const data = await res.json();
-      profile = data.profile;
-    }
+
+    // Always fetch fresh profile + collectives in one shot (include=collectives)
+    const res = await fetch(`/api/superadmin/user?id=${userId}&include=collectives`);
+    if (!res.ok) throw new Error('Felhasználó nem található!');
+    const { profile, collectives: fetchedCollectives } = await res.json();
+
     const activeCollectiveId = entityIdOverride ?? profile?.active_collective_id ?? null;
     const impersonatingProfile = entityIdOverride
       ? { ...profile, active_collective_id: entityIdOverride }
@@ -452,15 +456,8 @@ export function AppProvider({ children }) {
     setLabourEntries([]); setSurveys([]); setProjectRooms([]);
     setQuoteEntries([]); setQuoteSections([]);
 
-    // Fetch the impersonated user's collectives (new collective_members architecture)
-    try {
-      const colRes = await fetch(`/api/superadmin/user?id=${userId}&include=collectives`);
-      if (colRes.ok) {
-        const colData = await colRes.json();
-        setImpersonatingCollectives(colData.collectives || []);
-      }
-    } catch { /* non-fatal */ }
-
+    // Set both together so effectiveCollectives is correct on first render
+    setImpersonatingCollectives(fetchedCollectives || []);
     setImpersonating(impersonatingProfile);
     document.cookie = `god_mode_user=${userId}; path=/; SameSite=Lax`;
     if (activeCollectiveId) {
