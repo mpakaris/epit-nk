@@ -8,7 +8,7 @@ import {
   Building2, LayoutDashboard, FolderKanban, Users, BookUser,
   FileText, Calendar, User, LogOut, ShieldAlert,
   ChevronLeft, ChevronRight, Eye, X, Menu, ClipboardList, Ruler, Lightbulb,
-  ChevronDown, Globe, ImageIcon, UsersRound,
+  ChevronDown, Globe, ImageIcon, UsersRound, CreditCard,
 } from 'lucide-react';
 
 function buildNavItems(isSuperAdmin, isAdmin, impersonating, websiteUnread = 0, prefix = '', invitationCount = 0) {
@@ -32,6 +32,10 @@ function buildNavItems(isSuperAdmin, isAdmin, impersonating, websiteUnread = 0, 
     { href: prefix + '/otletek',      label: 'Ötletek',      icon: Lightbulb },
     { divider: true, key: 'd1' },
     { href: prefix + '/weboldalam',   label: 'Weboldalom',   icon: Globe, badge: websiteUnread },
+    { divider: true, key: 'd2' },
+    { href: prefix + '/profil',              label: 'Profilom',      icon: User },
+    { href: prefix + '/profil#elofizetes',   label: 'Előfizetés',    icon: CreditCard,  sub: true },
+    { href: prefix + '/profil#szamla',       label: 'Céges adatok',  icon: Building2,   sub: true },
   ];
   if (isAdmin) {
     return [
@@ -43,8 +47,9 @@ function buildNavItems(isSuperAdmin, isAdmin, impersonating, websiteUnread = 0, 
 }
 
 function isActive(item, pathname) {
-  if (item.exact) return pathname === item.href;
-  return pathname === item.href || pathname.startsWith(item.href + '/');
+  const hrefPath = item.href.split('#')[0]; // strip anchor for matching
+  if (item.exact) return pathname === hrefPath;
+  return pathname === hrefPath || pathname.startsWith(hrefPath + '/');
 }
 
 export default function Sidebar() {

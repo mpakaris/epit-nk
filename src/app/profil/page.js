@@ -740,7 +740,7 @@ export default function ProfilPage() {
       </div>
 
       {/* ── SUBSCRIPTION ── */}
-      <div style={{ marginBottom: '1.25rem' }}>
+      <div id="elofizetes" style={{ marginBottom: '1.25rem', scrollMarginTop: '5rem' }}>
         <SectionHeader
           title="Előfizetés"
           subtitle="Az első regisztrációkor 14 napos ingyenes Prémium próba jár — bankkártya nélkül."
@@ -894,7 +894,7 @@ export default function ProfilPage() {
       </div>
 
       {/* ── INVOICE HEADER ── */}
-      <form onSubmit={handleSaveProfile}>
+      <form id="szamla" onSubmit={handleSaveProfile} style={{ scrollMarginTop: '5rem' }}>
         <SectionHeader
           title="Számla fejléc"
           subtitle={'Ez az adat jelenik meg az ajánlatok fejlécében a „Tól:" mezőként.'}
@@ -969,7 +969,7 @@ export default function ProfilPage() {
       </form>
 
       {/* ── TERMS PDF ── */}
-      <div style={{ marginBottom: '1.25rem' }}>
+      <div id="aszf" style={{ marginBottom: '1.25rem', scrollMarginTop: '5rem' }}>
         <SectionHeader
           title="Általános Szerződési Feltételek (ÁSZF)"
           subtitle="Az itt feltöltött PDF automatikusan csatolódik az ajánlat e-mailekhez."
