@@ -64,22 +64,26 @@ export async function GET(request) {
   const { data: logs, count, error } = await q;
   if (error) return Response.json({ error: error.message }, { status: 500 });
 
-  // Resolve workspace context: entity_id is either a collective UUID or a user UUID (personal)
-  const entityIds = [...new Set((logs || []).map(l => l.entity_id).filter(Boolean))];
+  // Resolve workspace context from details.workspace_id
+  // (entity_id is always null now due to legacy FK constraint workaround)
+  const workspaceIds = [...new Set((logs || [])
+    .map(l => l.details?.workspace_id)
+    .filter(Boolean))];
   let collectiveMap = {};
-  if (entityIds.length > 0) {
+  if (workspaceIds.length > 0) {
     const { data: cols } = await admin
       .from('collectives')
       .select('id, name')
-      .in('id', entityIds);
+      .in('id', workspaceIds);
     for (const c of cols || []) collectiveMap[c.id] = c.name;
   }
 
   const enriched = (logs || []).map(log => {
-    const cName = log.entity_id ? collectiveMap[log.entity_id] : null;
+    const wsId  = log.details?.workspace_id || null;
+    const cName = wsId ? collectiveMap[wsId] : null;
     return {
       ...log,
-      workspace: log.entity_id === null
+      workspace: !wsId
         ? { type: 'unknown', name: null }
         : cName
           ? { type: 'collective', name: cName }
