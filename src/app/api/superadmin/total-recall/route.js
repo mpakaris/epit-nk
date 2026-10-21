@@ -11,18 +11,29 @@ async function assertSuperAdmin() {
   return profile?.role === 'superadmin' ? admin : null;
 }
 
-// GET — list all users (email, name, tier, created_at)
+// GET — list all users + aggregate stats
 export async function GET() {
   const admin = await assertSuperAdmin();
   if (!admin) return Response.json({ error: 'Unauthorized' }, { status: 403 });
 
-  const { data: profiles, error } = await admin
-    .from('profiles')
-    .select('id, email, display_name, subscription_tier, is_subscription_premium, created_at')
-    .order('created_at', { ascending: false });
+  const [
+    { data: profiles, error },
+    { count: collectivesCount },
+    { count: surveysCount },
+  ] = await Promise.all([
+    admin.from('profiles').select('id, email, display_name, subscription_tier, is_subscription_premium, created_at').order('created_at', { ascending: false }),
+    admin.from('collectives').select('id', { count: 'exact', head: true }),
+    admin.from('surveys').select('id', { count: 'exact', head: true }).is('deleted_at', null),
+  ]);
 
   if (error) return Response.json({ error: error.message }, { status: 500 });
-  return Response.json({ users: profiles ?? [] });
+  return Response.json({
+    users: profiles ?? [],
+    stats: {
+      collectives: collectivesCount ?? 0,
+      surveys:     surveysCount     ?? 0,
+    },
+  });
 }
 
 // DELETE — total recall: wipe every trace of a user including R2 media
