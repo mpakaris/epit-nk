@@ -54,7 +54,8 @@ function isActive(item, pathname) {
 
 export default function Sidebar() {
   const pathname = usePathname();
-  const { currentUser, isSuperAdmin, isAdmin, impersonating, stopImpersonation, logout, collectives, setActiveContext, switchImpersonatingContext, activeCollectiveId, allMemberships, entities, isDemoMode } = useApp();
+  const { currentUser, isSuperAdmin, isAdmin, impersonating, stopImpersonation, logout, collectives, effectiveCollectives, setActiveContext, switchImpersonatingContext, activeCollectiveId, allMemberships, entities, isDemoMode } = useApp();
+  const effectiveUser = impersonating || currentUser;
   const navPrefix = isDemoMode ? '/demo' : '';
 
   const [collapsed, setCollapsed] = useState(false);
@@ -144,21 +145,14 @@ export default function Sidebar() {
   }, [mobileOpen]);
 
   // Build context switcher list — personal workspace always first, then collectives
-  const activeMemberships = impersonating
-    ? [
-        { collective_id: null, name: `${impersonating.display_name} – Személyes`, role: 'owner' },
-        ...allMemberships
-          .filter(m => m.user_id === impersonating.id)
-          .map(m => ({
-            collective_id: m.entity_id,
-            name: entities.find(e => e.id === m.entity_id)?.name || '…',
-            role: m.role,
-          })),
-      ]
-    : [
-        { collective_id: null, name: 'Személyes', role: 'owner' },
-        ...(collectives || []),
-      ];
+  const activeMemberships = [
+    {
+      collective_id: null,
+      name: impersonating ? `${impersonating.display_name} – Személyes` : 'Személyes',
+      role: 'owner',
+    },
+    ...(effectiveCollectives || []),
+  ];
 
   const showContextSwitcher = activeMemberships.length > 1 && (impersonating || !isSuperAdmin);
 
@@ -212,7 +206,7 @@ export default function Sidebar() {
   const navItems = buildNavItems(isSuperAdmin, isAdmin, impersonating, websiteUnread, navPrefix, invitationCount);
   const homeHref = isSuperAdmin && !impersonating ? '/superadmin' : isAdmin ? '/admin' : (navPrefix + '/projektek');
 
-  const initials = (currentUser?.display_name || '?')
+  const initials = (effectiveUser?.display_name || '?')
     .split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase();
 
   return (
@@ -334,7 +328,7 @@ export default function Sidebar() {
             }}
             onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-subtle)'}
             onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-            title={collapsed ? currentUser.display_name : ''}
+            title={collapsed ? effectiveUser.display_name : ''}
           >
             {/* Avatar */}
             <div style={{
@@ -348,15 +342,15 @@ export default function Sidebar() {
             {!collapsed && (
               <div style={{ minWidth: 0, flex: 1 }}>
                 <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {currentUser.display_name}
+                  {effectiveUser.display_name}
                 </div>
                 <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                  {currentUser.role === 'superadmin' ? 'Superadmin' : currentUser.role === 'admin' ? 'Admin' : null}
-                  {!isSuperAdmin && (() => {
-                    const isOnTrial = currentUser.subscription_tier === 'trial'
-                      && currentUser.trial_ends_at
-                      && new Date(currentUser.trial_ends_at) > new Date();
-                    const isPremium = currentUser.is_subscription_premium;
+                  {effectiveUser.role === 'superadmin' ? 'Superadmin' : effectiveUser.role === 'admin' ? 'Admin' : null}
+                  {(!isSuperAdmin || impersonating) && (() => {
+                    const isOnTrial = effectiveUser.subscription_tier === 'trial'
+                      && effectiveUser.trial_ends_at
+                      && new Date(effectiveUser.trial_ends_at) > new Date();
+                    const isPremium = effectiveUser.is_subscription_premium;
                     const styles = isPremium
                       ? { background: '#fef9c3', color: '#854d0e', border: '1px solid #fde047' }
                       : isOnTrial
@@ -489,12 +483,12 @@ export default function Sidebar() {
                 {initials}
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontWeight: 700, fontSize: '0.9rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{currentUser.display_name}</div>
+                <div style={{ fontWeight: 700, fontSize: '0.9rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{effectiveUser.display_name}</div>
                 <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                  {currentUser.role === 'superadmin' ? 'Superadmin' : currentUser.role === 'admin' ? 'Admin' : 'Tag'}
-                  {!isSuperAdmin && (
-                    <span style={{ marginLeft: '0.4rem', fontWeight: 700, ...(currentUser.is_subscription_premium ? { color: '#854d0e' } : {}) }}>
-                      · {currentUser.is_subscription_premium ? '⭐ Prémium' : 'Bázis'}
+                  {effectiveUser.role === 'superadmin' ? 'Superadmin' : effectiveUser.role === 'admin' ? 'Admin' : 'Tag'}
+                  {(!isSuperAdmin || impersonating) && (
+                    <span style={{ marginLeft: '0.4rem', fontWeight: 700, ...(effectiveUser.is_subscription_premium ? { color: '#854d0e' } : {}) }}>
+                      · {effectiveUser.is_subscription_premium ? '⭐ Prémium' : 'Bázis'}
                     </span>
                   )}
                 </div>

@@ -15,6 +15,7 @@ export function AppProvider({ children }) {
   // Auth state
   const [currentUser, setCurrentUser] = useState(null);   // real authenticated user
   const [impersonating, setImpersonating] = useState(null);
+  const [impersonatingCollectives, setImpersonatingCollectives] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showWelcome, setShowWelcome] = useState(false);
   const [collectives, setCollectives] = useState([]);       // current user's collective memberships (context switcher)
@@ -62,16 +63,7 @@ export function AppProvider({ children }) {
   const uid = effectiveUser?.id;
 
   // Collectives for the effective user (context switcher list)
-  const effectiveCollectives = (() => {
-    if (!impersonating) return collectives;
-    return allMemberships
-      .filter(m => m.user_id === impersonating.id)
-      .map(m => ({
-        collective_id: m.entity_id,
-        name: entities.find(e => e.id === m.entity_id)?.name || '…',
-        role: m.role,
-      }));
-  })();
+  const effectiveCollectives = impersonating ? impersonatingCollectives : collectives;
   // True if the *effective* user (real or impersonated) has admin-level access
   const effectiveIsAdmin = ['admin', 'superadmin'].includes(effectiveUser?.role);
 
@@ -460,6 +452,15 @@ export function AppProvider({ children }) {
     setLabourEntries([]); setSurveys([]); setProjectRooms([]);
     setQuoteEntries([]); setQuoteSections([]);
 
+    // Fetch the impersonated user's collectives (new collective_members architecture)
+    try {
+      const colRes = await fetch(`/api/superadmin/user?id=${userId}&include=collectives`);
+      if (colRes.ok) {
+        const colData = await colRes.json();
+        setImpersonatingCollectives(colData.collectives || []);
+      }
+    } catch { /* non-fatal */ }
+
     setImpersonating(impersonatingProfile);
     document.cookie = `god_mode_user=${userId}; path=/; SameSite=Lax`;
     if (activeCollectiveId) {
@@ -493,6 +494,7 @@ export function AppProvider({ children }) {
 
   const stopImpersonation = async () => {
     setImpersonating(null);
+    setImpersonatingCollectives([]);
     document.cookie = 'god_mode_entity=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
     document.cookie = 'god_mode_user=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
     // Clear sessionStorage NOW so refreshSupabaseData doesn't think we're still impersonating
