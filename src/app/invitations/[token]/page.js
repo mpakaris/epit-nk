@@ -358,7 +358,28 @@ export default function InvitationPage({ params }) {
     <>
       {invHeader}
       <div style={{ padding: '1.75rem 2rem' }}>
+        {/* What is Epiteq */}
+        <p style={{ margin: '0 0 1.1rem', fontSize: '0.875rem', color: '#475569', lineHeight: 1.7 }}>
+          <strong style={{ color: '#1e293b' }}>Epiteq</strong> egy közös munkaterület projektek kezelésére és csapatmunkára — ajánlatoktól a naplóig. Meghívtak, hogy együttdolgozzatok a <strong style={{ color: '#1e293b' }}>{invitation?.collective_name}</strong> kollektívában.
+        </p>
+
         {freeNote}
+
+        {/* Google OAuth */}
+        <button
+          type="button"
+          onClick={handleGoogleLogin}
+          style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.6rem', padding: '0.72rem', border: '1.5px solid #e2e8f0', borderRadius: 9, background: '#fff', fontWeight: 700, fontSize: '0.9rem', color: '#1e293b', cursor: 'pointer', fontFamily: 'inherit', marginBottom: '1rem' }}
+        >
+          <GoogleIcon /> Google-lel regisztrálok
+        </button>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '1rem' }}>
+          <div style={{ flex: 1, height: 1, background: '#e2e8f0' }} />
+          <span style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: 600 }}>vagy e-mail és jelszó</span>
+          <div style={{ flex: 1, height: 1, background: '#e2e8f0' }} />
+        </div>
+
         {formErrorBlock}
         <form onSubmit={handleRegister}>
           {emailField}
