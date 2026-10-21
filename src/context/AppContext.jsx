@@ -415,6 +415,7 @@ export function AppProvider({ children }) {
   };
 
   const logout = async () => {
+    auditPublic('Logout', { userName: currentUser?.display_name || currentUser?.email || '', entityId: currentUser?.active_collective_id || currentUser?.id });
     await supabase.auth.signOut();
     setCurrentUser(null);
     setImpersonating(null);

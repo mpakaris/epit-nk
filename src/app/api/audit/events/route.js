@@ -4,6 +4,7 @@ import { logAudit } from '@/lib/audit';
 const PUBLIC_ACTIONS = new Set([
   'Login failed',
   'Login success',
+  'Logout',
   'Password reset requested',
   'Password reset completed',
   'Password reset failed',

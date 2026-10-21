@@ -10,6 +10,7 @@ const ACTION_LABELS = {
   // Auth
   'Bejelentkezés':                      { label: 'Login',                       color: 'var(--text-secondary)',  bg: 'var(--bg-subtle)' },
   'Login failed':                       { label: 'Login failed',                color: 'var(--danger-text)',     bg: 'var(--danger-bg)' },
+  'Logout':                             { label: 'Logout',                      color: 'var(--text-secondary)',  bg: 'var(--bg-subtle)' },
   'Login success':                      { label: 'Login',                       color: 'var(--text-secondary)',  bg: 'var(--bg-subtle)' },
   'Password reset requested':           { label: 'Password reset requested',    color: 'var(--warning-text)',    bg: 'var(--warning-bg)' },
   'Password reset completed':           { label: 'Password reset completed',    color: 'var(--success-text)',    bg: 'var(--success-bg)' },
