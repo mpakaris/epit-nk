@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useApp } from '@/context/AppContext';
 import Modal, { ConfirmModal, AlertModal } from '@/components/Modal';
@@ -9,7 +9,8 @@ import { formatDate, formatHUF } from '@/lib/constants';
 import {
   Building2, Plus, Users, FolderKanban, Eye, Trash2,
   ShieldAlert, AlertCircle, CheckCircle2, Edit3, ArrowUpRight,
-  FileText, Receipt, Coins, Globe, CreditCard, Image, Mail, Loader2
+  FileText, Receipt, Coins, Globe, CreditCard, Image, Mail, Loader2,
+  Skull, Search, X,
 } from 'lucide-react';
 
 export default function SuperAdminPage() {
@@ -62,6 +63,47 @@ export default function SuperAdminPage() {
   };
 
   const [deletionEmail, setDeletionEmail] = useState('');
+
+  // ── Total Recall ──
+  const [recallUsers,    setRecallUsers]    = useState([]);
+  const [recallLoading,  setRecallLoading]  = useState(false);
+  const [recallSearch,   setRecallSearch]   = useState('');
+  const [recallDeleting, setRecallDeleting] = useState(null);  // email being deleted
+  const [recallConfirm,  setRecallConfirm]  = useState(null);  // { user } awaiting typed confirmation
+  const [recallInput,    setRecallInput]    = useState('');
+  const [recallResult,   setRecallResult]   = useState(null);  // { ok, email } | { error }
+
+  useEffect(() => {
+    fetch('/api/superadmin/total-recall')
+      .then(r => r.json())
+      .then(d => setRecallUsers(d.users ?? []))
+      .catch(() => {});
+  }, []);
+
+  const handleTotalRecall = async (user) => {
+    setRecallDeleting(user.email);
+    setRecallResult(null);
+    try {
+      const res = await fetch('/api/superadmin/total-recall', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: user.email }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setRecallUsers(prev => prev.filter(u => u.email !== user.email));
+        setRecallResult({ ok: true, email: user.email });
+      } else {
+        setRecallResult({ error: data.error });
+      }
+    } catch (e) {
+      setRecallResult({ error: e.message });
+    } finally {
+      setRecallDeleting(null);
+      setRecallConfirm(null);
+      setRecallInput('');
+    }
+  };
 
   const handleExecuteDeletions = async (email) => {
     setDeletionRunning(true);
@@ -480,6 +522,127 @@ export default function SuperAdminPage() {
           </p>
         )}
       </div>
+
+      {/* ── Total Recall ── */}
+      <div className="card" style={{ padding: '1.15rem', marginBottom: '1.5rem', border: '1.5px solid var(--danger-border)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.5rem' }}>
+          <Skull size={16} color="var(--danger)" />
+          <h3 style={{ fontSize: '0.9rem', fontWeight: 800, margin: 0 }}>Total Recall</h3>
+        </div>
+        <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '0 0 0.85rem', lineHeight: 1.5 }}>
+          Permanently wipes every DB row and auth record for a user — projects, quotes, collectives, subscriptions, trial history, everything. Irreversible.
+        </p>
+
+        {/* Search */}
+        <div style={{ position: 'relative', marginBottom: '0.75rem' }}>
+          <Search size={14} color="var(--text-muted)" style={{ position: 'absolute', left: '0.65rem', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
+          <input
+            type="text"
+            placeholder="Filter by email or name…"
+            value={recallSearch}
+            onChange={e => setRecallSearch(e.target.value)}
+            style={{ width: '100%', padding: '0.45rem 0.65rem 0.45rem 2rem', border: '1.5px solid var(--border)', borderRadius: 'var(--radius-md)', fontSize: '0.825rem', fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }}
+          />
+        </div>
+
+        {/* Result banner */}
+        {recallResult && (
+          <div style={{ marginBottom: '0.75rem', padding: '0.6rem 0.85rem', borderRadius: 'var(--radius-md)', fontSize: '0.825rem', display: 'flex', alignItems: 'center', gap: '0.5rem',
+            background: recallResult.ok ? 'var(--success-bg)' : 'var(--danger-bg)',
+            border: `1px solid ${recallResult.ok ? 'var(--success-border)' : 'var(--danger-border)'}`,
+            color: recallResult.ok ? 'var(--success-text)' : 'var(--danger-text)',
+          }}>
+            {recallResult.ok
+              ? <><CheckCircle2 size={14} /> <strong>{recallResult.email}</strong> — fully wiped.</>
+              : <><AlertCircle size={14} /> {recallResult.error}</>}
+            <button type="button" onClick={() => setRecallResult(null)} style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', color: 'inherit', display: 'flex' }}><X size={13} /></button>
+          </div>
+        )}
+
+        {/* User list */}
+        <div style={{ maxHeight: 340, overflowY: 'auto', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)' }}>
+          {recallUsers
+            .filter(u => {
+              const q = recallSearch.toLowerCase();
+              return !q || u.email?.toLowerCase().includes(q) || u.display_name?.toLowerCase().includes(q);
+            })
+            .map(u => {
+              const tierColor = u.is_subscription_premium ? '#b45309' : u.subscription_tier === 'trial' ? '#1d4ed8' : 'var(--text-muted)';
+              const tierLabel = u.is_subscription_premium ? '⭐ Premium' : u.subscription_tier === 'trial' ? '⏳ Trial' : 'Basic';
+              const isDeleting = recallDeleting === u.email;
+              return (
+                <div key={u.id} style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', padding: '0.55rem 0.75rem', borderBottom: '1px solid var(--border-subtle)', background: isDeleting ? 'var(--danger-bg)' : 'transparent' }}>
+                  {/* Avatar */}
+                  <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'var(--bg-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)' }}>
+                    {(u.display_name || u.email || '?')[0].toUpperCase()}
+                  </div>
+                  {/* Info */}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: '0.825rem', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{u.display_name || '—'}</div>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{u.email}</div>
+                  </div>
+                  {/* Tier badge */}
+                  <span style={{ fontSize: '0.65rem', fontWeight: 700, padding: '0.1rem 0.45rem', borderRadius: 'var(--radius-pill)', background: 'var(--bg-subtle)', color: tierColor, border: '1px solid var(--border-subtle)', flexShrink: 0 }}>
+                    {tierLabel}
+                  </span>
+                  {/* Delete button */}
+                  <button
+                    type="button"
+                    disabled={!!recallDeleting}
+                    onClick={() => { setRecallConfirm(u); setRecallInput(''); setRecallResult(null); }}
+                    style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: '0.25rem', padding: '0.3rem 0.6rem', border: '1px solid var(--danger-border)', borderRadius: 'var(--radius-md)', background: 'var(--danger-bg)', color: 'var(--danger)', fontSize: '0.75rem', fontWeight: 700, cursor: recallDeleting ? 'default' : 'pointer', opacity: recallDeleting ? 0.5 : 1 }}
+                  >
+                    {isDeleting ? <Loader2 size={12} style={{ animation: 'spin 1s linear infinite' }} /> : <Skull size={12} />}
+                    {isDeleting ? 'Wiping…' : 'Recall'}
+                  </button>
+                </div>
+              );
+            })}
+          {recallUsers.filter(u => {
+            const q = recallSearch.toLowerCase();
+            return !q || u.email?.toLowerCase().includes(q) || u.display_name?.toLowerCase().includes(q);
+          }).length === 0 && (
+            <div style={{ padding: '1.5rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.825rem' }}>
+              {recallSearch ? 'No users match your search.' : 'No users found.'}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Total Recall confirmation modal */}
+      <Modal isOpen={!!recallConfirm} onClose={() => { setRecallConfirm(null); setRecallInput(''); }} title="⚠ Total Recall — Irreversible">
+        {recallConfirm && (
+          <div>
+            <div style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', borderRadius: 'var(--radius-md)', padding: '0.85rem 1rem', marginBottom: '1rem', fontSize: '0.825rem', color: 'var(--danger-text)', lineHeight: 1.6 }}>
+              This will permanently destroy <strong>every record</strong> for <strong>{recallConfirm.email}</strong> — projects, quotes, collectives, subscriptions, auth account, trial history. There is no undo.
+            </div>
+            <p style={{ fontSize: '0.825rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>
+              Type the email address to confirm:
+            </p>
+            <input
+              type="text"
+              autoFocus
+              className="form-control"
+              placeholder={recallConfirm.email}
+              value={recallInput}
+              onChange={e => setRecallInput(e.target.value)}
+              style={{ marginBottom: '1rem' }}
+            />
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+              <button type="button" className="btn btn-secondary btn-sm" onClick={() => { setRecallConfirm(null); setRecallInput(''); }}>Cancel</button>
+              <button
+                type="button"
+                className="btn btn-danger btn-sm"
+                disabled={recallInput !== recallConfirm.email || !!recallDeleting}
+                onClick={() => handleTotalRecall(recallConfirm)}
+                style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+              >
+                <Skull size={13} /> Total Recall
+              </button>
+            </div>
+          </div>
+        )}
+      </Modal>
 
       <ConfirmModal isOpen={!!confirmModal} onClose={() => setConfirmModal(null)} onConfirm={() => confirmModal?.onConfirm()} title="Delete Entity" message={confirmModal?.message} />
       <AlertModal isOpen={!!alertModal} onClose={() => setAlertModal(null)} message={alertModal?.message} />

@@ -57,9 +57,13 @@ export async function DELETE(req, { params }) {
   if (role !== 'owner') return Response.json({ error: 'Csak a tulajdonos törölheti a kollektívát' }, { status: 403 });
 
   const [{ data: collectiveData }, { data: callerProfile }] = await Promise.all([
-    admin.from('collectives').select('name').eq('id', id).single(),
+    admin.from('collectives').select('name, is_inclusive').eq('id', id).single(),
     admin.from('profiles').select('display_name').eq('id', user.id).single(),
   ]);
+
+  if (collectiveData?.is_inclusive) {
+    return Response.json({ error: 'Az inkluzív kollektíva nem törölhető' }, { status: 403 });
+  }
 
   const { error } = await admin.from('collectives').delete().eq('id', id);
   if (error) return Response.json({ error: error.message }, { status: 500 });

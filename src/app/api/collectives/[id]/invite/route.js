@@ -66,9 +66,10 @@ export async function POST(req, { params }) {
   }
 
   // Seat limit check — only for new invitations (not resends of existing pending ones)
+  // Inclusive collectives: max 2 non-owner seats (owner + 2 = 3 total)
   const TIER_SEAT_LIMITS = { small: 3, medium: 6, large: 9 };
-  const { data: collective } = await admin.from('collectives').select('collective_tier').eq('id', id).single();
-  const seatLimit = TIER_SEAT_LIMITS[collective?.collective_tier];
+  const { data: collective } = await admin.from('collectives').select('collective_tier, is_inclusive').eq('id', id).single();
+  const seatLimit = collective?.is_inclusive ? 2 : TIER_SEAT_LIMITS[collective?.collective_tier];
 
   if (seatLimit !== undefined) {
     const { data: existingPending } = await admin
@@ -88,10 +89,10 @@ export async function POST(req, { params }) {
       ]);
       const usedSeats = (activeCount ?? 0) + (pendingCount ?? 0);
       if (usedSeats >= seatLimit) {
-        return Response.json({
-          error: `Elérted a(z) ${seatLimit} férőhelyes korlátot (${usedSeats} foglalt hely). Bővítsd a csomagot, vagy távolíts el egy tagot.`,
-          seat_limit_reached: true,
-        }, { status: 403 });
+        const msg = collective?.is_inclusive
+          ? `Az inkluzív kollektíva maximum 3 tagot támogat (${usedSeats} hely foglalt). Távolíts el egy tagot, vagy hozz létre fizetős kollektívát.`
+          : `Elérted a(z) ${seatLimit} férőhelyes korlátot (${usedSeats} foglalt hely). Bővítsd a csomagot, vagy távolíts el egy tagot.`;
+        return Response.json({ error: msg, seat_limit_reached: true }, { status: 403 });
       }
     }
   }

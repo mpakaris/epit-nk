@@ -1,9 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
-import { Check, Zap, Star, Building2, Clock, ArrowLeft, AlertCircle } from 'lucide-react';
+import { Check, Zap, Star, Building2, Clock, ArrowLeft, AlertCircle, CheckCircle2, X } from 'lucide-react';
 import Link from 'next/link';
 import WorkspaceBadge from '@/components/WorkspaceBadge';
 import { isEffectivePremium } from '@/lib/subscriptionLimits';
@@ -36,7 +36,7 @@ const PLANS = [
     features: [
       'Korlátlan projektek',
       'Korlátlan felmérések és ajánlatok',
-      'Kollektíva létrehozása',
+      { text: '1 Inkluzív Kollektíva (max. 3 fő) — ingyen', highlight: true },
       'Naptár és ügyféltár',
       'Teljes weboldal funkciók',
       'Korlátlan képfeltöltés',
@@ -79,10 +79,51 @@ function TrialBanner({ trialEndsAt }) {
 }
 
 export default function ElofizetesPage() {
-  const { currentUser } = useApp();
+  const { currentUser, refreshSupabaseData } = useApp();
   const router = useRouter();
   const [loadingPlan, setLoadingPlan] = useState(null);
   const [checkoutError, setCheckoutError] = useState('');
+  const [activationBanner, setActivationBanner] = useState(null); // 'success' | 'error'
+
+  // Handle Creem redirect: ?upgraded=1&subscription_id=...
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    // Step 2: clean reload — read stored result
+    const stored = sessionStorage.getItem('creem_elofizetes_result');
+    if (stored) {
+      try { setActivationBanner(JSON.parse(stored).status); } catch {}
+      sessionStorage.removeItem('creem_elofizetes_result');
+      refreshSupabaseData?.();
+      return;
+    }
+
+    // Step 1: fresh Creem redirect
+    const params = new URLSearchParams(window.location.search);
+    if (!params.has('upgraded')) return;
+
+    window.history.replaceState({}, '', '/elofizetes');
+
+    const subscriptionId = params.get('subscription_id');
+    const customerId     = params.get('customer_id');
+
+    const finish = (status) => {
+      sessionStorage.setItem('creem_elofizetes_result', JSON.stringify({ status }));
+      window.location.replace('/elofizetes');
+    };
+
+    if (subscriptionId) {
+      fetch('/api/checkout/activate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ subscriptionId, customerId }),
+      })
+        .then(res => finish(res.ok ? 'success' : 'error'))
+        .catch(() => finish('error'));
+    } else {
+      finish('error');
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const isPremium = currentUser?.is_subscription_premium ?? false;
   const isOnTrial = !isPremium
@@ -135,6 +176,21 @@ export default function ElofizetesPage() {
           </div>
         </div>
       </div>
+
+      {activationBanner === 'success' && (
+        <div style={{ background: 'var(--success-bg)', border: '1px solid var(--success-border)', color: 'var(--success-text)', borderRadius: 'var(--radius-md)', padding: '0.7rem 1rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem', fontWeight: 600 }}>
+          <CheckCircle2 size={16} style={{ flexShrink: 0 }} />
+          Sikeres előfizetés! Prémium fiókod aktív.
+          <button type="button" onClick={() => setActivationBanner(null)} style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', color: 'inherit', display: 'flex' }}><X size={15} /></button>
+        </div>
+      )}
+      {activationBanner === 'error' && (
+        <div style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', color: 'var(--danger-text)', borderRadius: 'var(--radius-md)', padding: '0.7rem 1rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.825rem' }}>
+          <AlertCircle size={14} style={{ flexShrink: 0 }} />
+          Az aktiválás nem sikerült — ha a fizetés megtörtént, kérjük vedd fel a kapcsolatot az üzemeltetővel.
+          <button type="button" onClick={() => setActivationBanner(null)} style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', color: 'inherit', display: 'flex' }}><X size={15} /></button>
+        </div>
+      )}
 
       {checkoutError && (
         <div style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', color: 'var(--danger-text)', borderRadius: 'var(--radius-md)', padding: '0.7rem 1rem', marginBottom: '1rem', display: 'flex', alignItems: 'flex-start', gap: '0.5rem', fontSize: '0.825rem' }}>
@@ -198,12 +254,24 @@ export default function ElofizetesPage() {
               </div>
 
               <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '0.5rem', flex: 1 }}>
-                {plan.features.map(f => (
-                  <li key={f} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                    <Check size={14} color="var(--success-text)" style={{ flexShrink: 0, marginTop: 2 }} />
-                    {f}
-                  </li>
-                ))}
+                {plan.features.map(f => {
+                  const text = typeof f === 'string' ? f : f.text;
+                  const hi   = typeof f === 'object' && f.highlight;
+                  return (
+                    <li key={text} style={{
+                      display: 'flex', alignItems: 'flex-start', gap: '0.5rem',
+                      fontSize: '0.85rem',
+                      ...(hi ? {
+                        background: '#f0fdf4', border: '1px solid #bbf7d0',
+                        borderRadius: 'var(--radius-sm)', padding: '0.3rem 0.5rem',
+                        color: '#15803d', fontWeight: 600,
+                      } : { color: 'var(--text-secondary)' }),
+                    }}>
+                      <Check size={14} color={hi ? '#16a34a' : 'var(--success-text)'} style={{ flexShrink: 0, marginTop: 2 }} />
+                      {text}
+                    </li>
+                  );
+                })}
               </ul>
 
               {plan.cta && (

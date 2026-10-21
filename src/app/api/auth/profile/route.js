@@ -39,7 +39,7 @@ export async function GET() {
   // Return collective memberships for the context switcher
   const { data: membershipsRaw } = await admin
     .from('collective_members')
-    .select('collective_id, role, status, collectives(id, name)')
+    .select('collective_id, role, status, collectives(id, name, collective_tier, creem_subscription_id, subscription_status, subscription_period_end, is_inclusive)')
     .eq('user_id', user.id)
     .eq('status', 'active');
 
@@ -48,6 +48,18 @@ export async function GET() {
     role:          m.role,
     name:          m.collectives?.name || null,
   }));
+
+  // Return owned paid collective subscriptions for the subscription management panel
+  const ownedCollectiveSubs = (membershipsRaw || [])
+    .filter(m => m.role === 'owner' && m.collectives?.creem_subscription_id && !m.collectives?.is_inclusive)
+    .map(m => ({
+      collective_id:             m.collective_id,
+      name:                      m.collectives.name,
+      collective_tier:           m.collectives.collective_tier,
+      creem_subscription_id:     m.collectives.creem_subscription_id,
+      subscription_status:       m.collectives.subscription_status ?? 'active',
+      subscription_period_end:   m.collectives.subscription_period_end ?? null,
+    }));
 
   // Return the active premium subscription (for status display in /profil)
   const { data: premiumSub } = await admin
@@ -60,7 +72,22 @@ export async function GET() {
     .limit(1)
     .maybeSingle();
 
-  return Response.json({ profile, collectives, premiumSub: premiumSub ?? null });
+  // Fallback: subscriptions table may be out-of-sync (e.g. manually reset to 'canceled').
+  // If profile shows premium but no active sub row found, look for any sub row regardless of status.
+  let resolvedPremiumSub = premiumSub;
+  if (!resolvedPremiumSub && profile?.is_subscription_premium) {
+    const { data: anySub } = await admin
+      .from('subscriptions')
+      .select('creem_subscription_id, product_family, status, period_end, created_at')
+      .eq('user_id', user.id)
+      .in('product_family', ['premium', 'bundle'])
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (anySub) resolvedPremiumSub = { ...anySub, status: 'active' };
+  }
+
+  return Response.json({ profile, collectives, premiumSub: resolvedPremiumSub, ownedCollectiveSubs });
 }
 
 export async function PATCH(request) {

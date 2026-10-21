@@ -6,7 +6,7 @@ import { useApp } from '@/context/AppContext';
 import {
   User, KeyRound, LogOut, CheckCircle2, AlertCircle, Loader2,
   FileText, Upload, Trash2, Check, Zap, Star, Clock, Building2, X,
-  ShieldCheck, Mail, ChevronRight, AlertTriangle, RefreshCw,
+  ShieldCheck, Mail, ChevronRight, AlertTriangle, RefreshCw, CreditCard,
 } from 'lucide-react';
 import Link from 'next/link';
 import { isEffectivePremium } from '@/lib/subscriptionLimits';
@@ -51,15 +51,8 @@ const PLANS = [
   },
 ];
 
-const BUNDLE_PRODUCT_IDS = [
-  process.env.NEXT_PUBLIC_CREEM_BUNDLE_SMALL_PRODUCT_ID,
-  process.env.NEXT_PUBLIC_CREEM_BUNDLE_MEDIUM_PRODUCT_ID,
-  process.env.NEXT_PUBLIC_CREEM_BUNDLE_LARGE_PRODUCT_ID,
-];
-
-function UpgradeModal({ status, purchasedProductId, onClose }) {
+function UpgradeModal({ status, onClose }) {
   const canvasRef = useRef(null);
-  const isBundle = BUNDLE_PRODUCT_IDS.includes(purchasedProductId);
 
   useEffect(() => {
     if (status !== 'success' || !canvasRef.current) return;
@@ -107,9 +100,7 @@ function UpgradeModal({ status, purchasedProductId, onClose }) {
         </h2>
         <p style={{ margin: '0 0 1.75rem', fontSize: '0.9rem', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
           {isSuccess
-            ? isBundle
-              ? 'Gratulálunk! Prémium előfizetésed és az első Kollektívád is aktiválva lett. Hívd meg kollégáidat, és dolgozzatok együtt projekteken, ajánlatokon — korlátok nélkül.'
-              : 'Gratulálunk! Prémium csomagra váltottál. Korlátlan projektek, felmérések és ajánlatok állnak rendelkezésedre — és bármikor indíthatsz Kollektíva munkaterületet a csapatodnak.'
+            ? 'Gratulálunk! Prémium csomagra váltottál. Korlátlan projektek, felmérések és ajánlatok állnak rendelkezésedre — és bármikor indíthatsz Kollektíva munkaterületet a csapatodnak.'
             : 'Úgy tűnik, valami hiba történt — pl. a kártyát elutasítottak vagy megszakadt az internetkapcsolat. Kérjük, próbáld újra, vagy vedd fel a kapcsolatot az oldal üzemeltetőjével.'}
         </p>
         <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center', flexWrap: 'wrap' }}>
@@ -220,8 +211,12 @@ export default function ProfilPage() {
   const [portalLoading, setPortalLoading] = useState(false);
   const [portalError, setPortalError] = useState('');
   const [premiumSubId, setPremiumSubId] = useState(null);
+  const [collectiveSubs, setCollectiveSubs] = useState([]); // owned paid collective subs
+  const [cancelCollectiveModal, setCancelCollectiveModal] = useState(null); // { collective_id, name, creem_subscription_id, members_count }
+  const [cancelingCollective, setCancelingCollective] = useState(false);
   const [premiumIsScheduledCancel, setPremiumIsScheduledCancel] = useState(false);
-  const [premiumCancelAt, setPremiumCancelAt] = useState(null); // ISO string — may be null even when scheduled
+  const [premiumCancelAt,  setPremiumCancelAt]  = useState(null); // ISO — set when scheduled_cancel
+  const [premiumRenewalAt, setPremiumRenewalAt] = useState(null); // ISO — set when active
   const [cancelPremiumModal, setCancelPremiumModal] = useState(false);
   const [cancelingPremium, setCancelingPremium] = useState(false);
   const [resumingPremium, setResumingPremium] = useState(false);
@@ -252,7 +247,10 @@ export default function ProfilPage() {
   const handleOpenPortal = () => doOpenPortal();
 
   const handleCancelPremium = async () => {
-    if (!premiumSubId) return;
+    if (!premiumSubId) {
+      setAlertModal({ variant: 'error', title: 'Hiba', message: 'Nem található előfizetés-azonosító. Kérjük, vedd fel a kapcsolatot az üzemeltetővel.' });
+      return;
+    }
     setCancelingPremium(true);
     try {
       const res = await fetch('/api/subscriptions/cancel', {
@@ -281,7 +279,10 @@ export default function ProfilPage() {
   };
 
   const handleResumePremium = async () => {
-    if (!premiumSubId) return;
+    if (!premiumSubId) {
+      setAlertModal({ variant: 'error', title: 'Hiba', message: 'Nem található előfizetés-azonosító. Kérjük, vedd fel a kapcsolatot az üzemeltetővel.' });
+      return;
+    }
     setResumingPremium(true);
     try {
       const res = await fetch('/api/subscriptions/resume', {
@@ -305,6 +306,41 @@ export default function ProfilPage() {
       alert('Hiba a kapcsolódás során.');
     } finally {
       setResumingPremium(false);
+    }
+  };
+
+  const handleCancelCollective = async () => {
+    if (!cancelCollectiveModal) return;
+    setCancelingCollective(true);
+    try {
+      const res = await fetch('/api/subscriptions/cancel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          subscriptionId: cancelCollectiveModal.creem_subscription_id,
+          collectiveId:   cancelCollectiveModal.collective_id,
+        }),
+      });
+      const data = await res.json();
+      setCancelCollectiveModal(null);
+      if (res.ok) {
+        const periodEnd = data.subscription_period_end ?? null;
+        setCollectiveSubs(prev => prev.map(c =>
+          c.collective_id === cancelCollectiveModal.collective_id
+            ? { ...c, subscription_status: 'scheduled_cancel', subscription_period_end: periodEnd }
+            : c
+        ));
+        const endStr = periodEnd
+          ? new Date(periodEnd).toLocaleDateString('en-GB', { year: 'numeric', month: 'long', day: 'numeric' })
+          : null;
+        setAlertModal({ variant: 'success', title: 'Subscription canceled', message: endStr ? `"${cancelCollectiveModal.name}" remains active until ${endStr}.` : `"${cancelCollectiveModal.name}" subscription canceled.` });
+      } else {
+        setAlertModal({ variant: 'error', title: 'Error', message: data.error || 'Cancellation failed.' });
+      }
+    } catch {
+      setAlertModal({ variant: 'error', title: 'Error', message: 'Network error. Please try again.' });
+    } finally {
+      setCancelingCollective(false);
     }
   };
 
@@ -435,8 +471,9 @@ export default function ProfilPage() {
     }
     fetch('/api/auth/profile')
       .then(r => r.json())
-      .then(({ profile, premiumSub }) => {
+      .then(({ profile, premiumSub, ownedCollectiveSubs }) => {
         if (!profile) return;
+        setCollectiveSubs(ownedCollectiveSubs ?? []);
         setDisplayName(profile.display_name       || '');
         setFirstName(profile.first_name           || '');
         setLastName(profile.last_name             || '');
@@ -454,6 +491,7 @@ export default function ProfilPage() {
         setPremiumSubId(premiumSub?.creem_subscription_id || null);
         setPremiumIsScheduledCancel(premiumSub?.status === 'scheduled_cancel');
         setPremiumCancelAt(premiumSub?.status === 'scheduled_cancel' ? (premiumSub.period_end || null) : null);
+        setPremiumRenewalAt(premiumSub?.status !== 'scheduled_cancel' ? (premiumSub?.period_end || null) : null);
       })
       .finally(() => setLoadingProfile(false));
   }, [isDemoMode]);
@@ -600,7 +638,6 @@ export default function ProfilPage() {
 
       <UpgradeModal
         status={upgradeModal?.status ?? null}
-        purchasedProductId={upgradeModal?.productId ?? null}
         onClose={() => {
           sessionStorage.removeItem('creem_upgrade_result');
           setUpgradeModal(null);
@@ -864,6 +901,129 @@ export default function ProfilPage() {
             );
           })}
         </div>
+        {/* ── Active Subscriptions ── */}
+        {(() => {
+          const TIER_INFO = {
+            small:  { label: 'Small collective',  price: '€15',   priceHuf: '≈ 5 999 Ft' },
+            medium: { label: 'Medium collective', price: '€30',   priceHuf: '≈ 11 999 Ft' },
+            large:  { label: 'Large collective',  price: '€45',   priceHuf: '≈ 17 999 Ft' },
+          };
+
+          const fmtDate = iso => iso
+            ? new Date(iso).toLocaleDateString('en-GB', { year: 'numeric', month: 'long', day: 'numeric' })
+            : null;
+
+          const activeSubs = [];
+
+          // Premium row
+          if (isPremium && premiumSubId) {
+            const periodEnd = fmtDate(premiumIsScheduledCancel ? premiumCancelAt : premiumRenewalAt);
+            const isScheduled = premiumIsScheduledCancel;
+            activeSubs.push(
+              <div key="premium" className="card" style={{ padding: '1rem', display: 'flex', flexWrap: 'wrap', gap: '0.75rem', alignItems: 'center' }}>
+                <div style={{ flex: '1 1 200px', minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+                    <Star size={14} color="#b45309" />
+                    <span style={{ fontWeight: 800, fontSize: '0.9rem' }}>Premium</span>
+                    <span style={{ fontSize: '0.65rem', fontWeight: 700, padding: '0.1rem 0.45rem', borderRadius: 'var(--radius-pill)',
+                      background: isScheduled ? '#fef9c3' : 'var(--success-bg)',
+                      color: isScheduled ? '#854d0e' : 'var(--success-text)',
+                      border: `1px solid ${isScheduled ? '#fde047' : 'var(--success-border)'}` }}>
+                      {isScheduled ? '🕐 Cancels at end of period' : '● Active'}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: '0.825rem', color: 'var(--text-secondary)' }}>
+                    <strong style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-primary)' }}>€17.50</strong>
+                    {' '}/mo + VAT{' '}
+                    <span style={{ color: 'var(--text-muted)' }}>(≈ 6 999 Ft)</span>
+                  </div>
+                  <div style={{ fontSize: '0.775rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
+                    {isScheduled
+                      ? periodEnd
+                        ? <span style={{ color: '#854d0e' }}>Active until <strong>{periodEnd}</strong></span>
+                        : <span style={{ color: '#854d0e' }}>Active until end of billing period</span>
+                      : periodEnd
+                        ? <>Next renewal: <strong>{periodEnd}</strong></>
+                        : 'Renews monthly'}
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: '0.4rem', flexShrink: 0 }}>
+                  {isScheduled ? (
+                    <button type="button" onClick={handleResumePremium} disabled={resumingPremium}
+                      style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', padding: '0.4rem 0.85rem', border: '1px solid var(--success-border)', borderRadius: 'var(--radius-md)', background: 'var(--success-bg)', color: 'var(--success-text)', fontWeight: 700, fontSize: '0.78rem', cursor: resumingPremium ? 'default' : 'pointer' }}>
+                      {resumingPremium ? <><Loader2 size={12} className="animate-spin" /> Resuming…</> : <><RefreshCw size={12} /> Resume</>}
+                    </button>
+                  ) : (
+                    <button type="button" onClick={() => setCancelPremiumModal(true)}
+                      style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', padding: '0.4rem 0.85rem', border: '1px solid var(--danger-border)', borderRadius: 'var(--radius-md)', background: 'transparent', color: 'var(--danger-text)', fontWeight: 700, fontSize: '0.78rem', cursor: 'pointer' }}>
+                      Cancel Premium
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          }
+
+          // Collective addon rows
+          for (const col of collectiveSubs) {
+            const tier = TIER_INFO[col.collective_tier] ?? { label: col.collective_tier, price: '—', priceHuf: '' };
+            const isScheduled = col.subscription_status === 'scheduled_cancel';
+            const periodEnd = fmtDate(col.subscription_period_end);
+            activeSubs.push(
+              <div key={col.collective_id} className="card" style={{ padding: '1rem', display: 'flex', flexWrap: 'wrap', gap: '0.75rem', alignItems: 'center' }}>
+                <div style={{ flex: '1 1 200px', minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem', flexWrap: 'wrap' }}>
+                    <Building2 size={14} color="var(--accent)" />
+                    <span style={{ fontWeight: 800, fontSize: '0.9rem' }}>{col.name}</span>
+                    <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 600 }}>{tier.label}</span>
+                    <span style={{ fontSize: '0.65rem', fontWeight: 700, padding: '0.1rem 0.45rem', borderRadius: 'var(--radius-pill)',
+                      background: isScheduled ? '#fef9c3' : 'var(--success-bg)',
+                      color: isScheduled ? '#854d0e' : 'var(--success-text)',
+                      border: `1px solid ${isScheduled ? '#fde047' : 'var(--success-border)'}` }}>
+                      {isScheduled ? '🕐 Cancels at end of period' : '● Active'}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: '0.825rem', color: 'var(--text-secondary)' }}>
+                    <strong style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-primary)' }}>{tier.price}</strong>
+                    {' '}/mo + VAT{' '}
+                    <span style={{ color: 'var(--text-muted)' }}>({tier.priceHuf})</span>
+                  </div>
+                  <div style={{ fontSize: '0.775rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
+                    {isScheduled
+                      ? periodEnd
+                        ? <span style={{ color: '#854d0e' }}>Active until <strong>{periodEnd}</strong></span>
+                        : <span style={{ color: '#854d0e' }}>Active until end of billing period</span>
+                      : periodEnd
+                        ? <>Next renewal: <strong>{periodEnd}</strong></>
+                        : 'Renews monthly'}
+                  </div>
+                </div>
+                {!isScheduled && (
+                  <button type="button"
+                    onClick={() => setCancelCollectiveModal({ collective_id: col.collective_id, name: col.name, creem_subscription_id: col.creem_subscription_id })}
+                    style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', padding: '0.4rem 0.85rem', border: '1px solid var(--danger-border)', borderRadius: 'var(--radius-md)', background: 'transparent', color: 'var(--danger-text)', fontWeight: 700, fontSize: '0.78rem', cursor: 'pointer', flexShrink: 0 }}>
+                    Cancel
+                  </button>
+                )}
+              </div>
+            );
+          }
+
+          if (activeSubs.length === 0) return null;
+
+          return (
+            <div style={{ marginTop: '1.75rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
+                <CreditCard size={15} color="var(--accent)" />
+                <span style={{ fontSize: '0.9rem', fontWeight: 800 }}>Active Subscriptions</span>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+                {activeSubs}
+              </div>
+            </div>
+          );
+        })()}
+
         {/* ── Collective packages callout ── */}
         <div style={{ marginTop: '1.75rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.35rem' }}>
@@ -1138,6 +1298,33 @@ export default function ProfilPage() {
             </div>
           );
         })()}
+      </Modal>
+
+      {/* ── Collective cancel confirmation modal ── */}
+      <Modal isOpen={!!cancelCollectiveModal} onClose={() => !cancelingCollective && setCancelCollectiveModal(null)} title="Cancel Collective Subscription">
+        {cancelCollectiveModal && (
+          <div>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem', background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: 'var(--radius-md)', padding: '0.85rem 1rem', marginBottom: '1rem' }}>
+              <AlertTriangle size={18} color="#c2410c" style={{ flexShrink: 0, marginTop: 1 }} />
+              <div style={{ fontSize: '0.825rem', color: '#7c2d12', lineHeight: 1.55 }}>
+                <strong>All members lose access</strong> at the end of the current billing period.
+                The collective's data will remain — you can reactivate it with a new subscription.
+              </div>
+            </div>
+            <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: '1.25rem' }}>
+              Cancel subscription for <strong>"{cancelCollectiveModal.name}"</strong>?
+              Access stays active until the billing period ends.
+            </p>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+              <button type="button" className="btn btn-secondary btn-sm" onClick={() => setCancelCollectiveModal(null)} disabled={cancelingCollective}>
+                Keep subscription
+              </button>
+              <button type="button" className="btn btn-danger btn-sm" onClick={handleCancelCollective} disabled={cancelingCollective}>
+                {cancelingCollective ? <><Loader2 size={13} className="animate-spin" /> Canceling…</> : 'Cancel subscription'}
+              </button>
+            </div>
+          </div>
+        )}
       </Modal>
 
       {/* ── Creem checkout — mobile bottom sheet ── */}

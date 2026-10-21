@@ -17,17 +17,10 @@ const ADDON_PRODUCT_IDS = [
   process.env.NEXT_PUBLIC_CREEM_COLLECTIVE_LARGE_PRODUCT_ID,
 ].filter(Boolean);
 
-const BUNDLE_PRODUCT_IDS = [
-  process.env.NEXT_PUBLIC_CREEM_BUNDLE_SMALL_PRODUCT_ID,
-  process.env.NEXT_PUBLIC_CREEM_BUNDLE_MEDIUM_PRODUCT_ID,
-  process.env.NEXT_PUBLIC_CREEM_BUNDLE_LARGE_PRODUCT_ID,
-].filter(Boolean);
-
 function getProductFamily(productId) {
   if (!productId) return 'unknown';
   if (productId === process.env.NEXT_PUBLIC_CREEM_PREMIUM_PRODUCT_ID) return 'premium';
   if (ADDON_PRODUCT_IDS.includes(productId)) return 'addon';
-  if (BUNDLE_PRODUCT_IDS.includes(productId)) return 'bundle';
   return 'unknown';
 }
 
@@ -51,8 +44,71 @@ async function grantPremium(admin, userId, subscriptionId, family = 'premium') {
   const { error } = await admin.from('profiles')
     .update({ is_subscription_premium: true, subscription_tier: 'premium' })
     .eq('id', userId);
-  if (error) console.error('[creem webhook] grantPremium error:', error.message);
-  else console.log('[creem webhook] grantPremium OK for userId:', userId);
+  if (error) {
+    console.error('[creem webhook] grantPremium error:', error.message);
+    return;
+  }
+  console.log('[creem webhook] grantPremium OK for userId:', userId);
+
+  // Ensure inclusive collective is active (create it if missing, reactivate if frozen)
+  const { data: ownedMemberships } = await admin
+    .from('collective_members')
+    .select('collective_id')
+    .eq('user_id', userId)
+    .eq('role', 'owner')
+    .eq('status', 'active');
+
+  const ownedIds = (ownedMemberships || []).map(m => m.collective_id);
+  if (ownedIds.length > 0) {
+    const { data: inclusive } = await admin
+      .from('collectives')
+      .select('id, subscription_status')
+      .in('id', ownedIds)
+      .eq('is_inclusive', true)
+      .maybeSingle();
+
+    if (inclusive) {
+      if (inclusive.subscription_status !== 'active') {
+        await admin.from('collectives')
+          .update({ subscription_status: 'active' })
+          .eq('id', inclusive.id);
+      }
+    } else {
+      // No inclusive collective yet — create one
+      const profile = await getProfile(admin, userId);
+      const displayName = profile?.display_name || 'Felhasználó';
+      const newId = globalThis.crypto.randomUUID();
+      await admin.from('collectives').insert({
+        id:                  newId,
+        name:                `${displayName} Csapata`,
+        is_inclusive:        true,
+        subscription_status: 'active',
+      });
+      await admin.from('collective_members').insert({
+        collective_id: newId,
+        user_id:       userId,
+        role:          'owner',
+        status:        'active',
+      });
+    }
+  } else {
+    // User owns no collectives yet — create inclusive one
+    const profile = await getProfile(admin, userId);
+    const displayName = profile?.display_name || 'Felhasználó';
+    const newId = globalThis.crypto.randomUUID();
+    await admin.from('collectives').insert({
+      id:                  newId,
+      name:                `${displayName} Csapata`,
+      is_inclusive:        true,
+      subscription_status: 'active',
+    });
+    await admin.from('collective_members').insert({
+      collective_id: newId,
+      user_id:       userId,
+      role:          'owner',
+      status:        'active',
+    });
+  }
 }
 
 async function revokePremium(admin, userId, subscriptionId) {
@@ -65,7 +121,7 @@ async function revokePremium(admin, userId, subscriptionId) {
     await admin.from('subscriptions')
       .update({ status: 'canceled', updated_at: new Date().toISOString() })
       .eq('user_id', userId)
-      .in('product_family', ['premium', 'bundle'])
+      .in('product_family', ['premium'])
       .in('status', ['active', 'trialing', 'scheduled_cancel']);
   }
 
@@ -90,9 +146,17 @@ async function revokePremium(admin, userId, subscriptionId) {
   }
 }
 
+function parsePeriodEnd(raw) {
+  if (!raw) return null;
+  if (typeof raw === 'number') return new Date(raw * 1000).toISOString();
+  if (typeof raw === 'string' && /^\d+$/.test(raw)) return new Date(Number(raw) * 1000).toISOString();
+  return new Date(raw).toISOString(); // ISO string from Creem (e.g. currentPeriodEndDate)
+}
+
 async function updateCollectiveStatus(admin, subscriptionId, status, periodEnd) {
   const update = { subscription_status: status };
-  if (periodEnd) update.subscription_period_end = new Date(periodEnd * 1000).toISOString();
+  const iso = parsePeriodEnd(periodEnd);
+  if (iso) update.subscription_period_end = iso;
   const { error } = await admin.from('collectives').update(update).eq('creem_subscription_id', subscriptionId);
   if (error) console.error('[creem webhook] updateCollectiveStatus error:', error.message);
 }
@@ -147,9 +211,14 @@ export async function POST(request) {
     payload?.id ||
     payload?.subscription_id;
 
+  // Creem sends period end as ISO string (currentPeriodEndDate / nextTransactionDate)
+  // or as a Unix timestamp in seconds (current_period_end / period_end).
   const periodEnd =
-    payload?.current_period_end ||
-    payload?.period_end;
+    payload?.currentPeriodEndDate ||
+    payload?.nextTransactionDate  ||
+    payload?.current_period_end   ||
+    payload?.period_end           ||
+    null;
 
   const family = getProductFamily(productId);
 
@@ -158,7 +227,7 @@ export async function POST(request) {
   switch (eventType) {
 
     case 'checkout.completed': {
-      if ((family === 'premium' || family === 'bundle') && userId) {
+      if ((family === 'premium') && userId) {
         await grantPremium(admin, userId, subscriptionId, family);
       }
       if (userId) {
@@ -180,13 +249,20 @@ export async function POST(request) {
 
     case 'subscription.active':
     case 'subscription.paid': {
-      if ((family === 'premium' || family === 'bundle') && userId) {
+      if ((family === 'premium') && userId) {
         await grantPremium(admin, userId, subscriptionId, family);
         // Reactivation — clear any pending account deletion
         await admin.from('profiles').update({ scheduled_deletion_at: null }).eq('id', userId);
+        // Save renewal date to subscriptions table
+        const premiumPeriodIso = parsePeriodEnd(periodEnd);
+        if (subscriptionId && premiumPeriodIso) {
+          await admin.from('subscriptions')
+            .update({ period_end: premiumPeriodIso, status: 'active', updated_at: new Date().toISOString() })
+            .eq('creem_subscription_id', subscriptionId);
+        }
       }
-      if ((family === 'addon' || family === 'bundle') && subscriptionId) {
-        await updateCollectiveStatus(admin, subscriptionId, 'active', null);
+      if ((family === 'addon') && subscriptionId) {
+        await updateCollectiveStatus(admin, subscriptionId, 'active', periodEnd);
       }
       break;
     }

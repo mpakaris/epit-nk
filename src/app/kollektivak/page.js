@@ -10,7 +10,7 @@ import { isEffectivePremium } from '@/lib/subscriptionLimits';
 import {
   Users, Plus, Crown, UserCheck, Trash2, UserMinus,
   Mail, AlertCircle, CheckCircle2, Loader2, X, Ban, ShieldCheck, RefreshCw, AlertTriangle,
-  Building2, ChevronRight, MoreHorizontal, Pencil, Check,
+  Building2, ChevronRight, MoreHorizontal, Pencil, Check, Lock, Zap,
 } from 'lucide-react';
 
 const ROLE_LABEL = { owner: 'Tulajdonos', admin: 'Admin', contributor: 'Közreműködő' };
@@ -24,10 +24,7 @@ const CREEM_TIERS = [
     seats: 3,
     addonPrice: '€15',
     addonPriceHuf: '≈ 5 999 Ft',
-    bundlePrice: '€32.50',
-    bundlePriceHuf: '≈ 12 998 Ft',
     addonProductId: process.env.NEXT_PUBLIC_CREEM_COLLECTIVE_SMALL_PRODUCT_ID,
-    bundleProductId: process.env.NEXT_PUBLIC_CREEM_BUNDLE_SMALL_PRODUCT_ID,
   },
   {
     key: 'medium',
@@ -35,10 +32,7 @@ const CREEM_TIERS = [
     seats: 6,
     addonPrice: '€30',
     addonPriceHuf: '≈ 11 999 Ft',
-    bundlePrice: '€47.50',
-    bundlePriceHuf: '≈ 18 998 Ft',
     addonProductId: process.env.NEXT_PUBLIC_CREEM_COLLECTIVE_MEDIUM_PRODUCT_ID,
-    bundleProductId: process.env.NEXT_PUBLIC_CREEM_BUNDLE_MEDIUM_PRODUCT_ID,
   },
   {
     key: 'large',
@@ -46,10 +40,7 @@ const CREEM_TIERS = [
     seats: 9,
     addonPrice: '€45',
     addonPriceHuf: '≈ 17 999 Ft',
-    bundlePrice: '€62.50',
-    bundlePriceHuf: '≈ 24 998 Ft',
     addonProductId: process.env.NEXT_PUBLIC_CREEM_COLLECTIVE_LARGE_PRODUCT_ID,
-    bundleProductId: process.env.NEXT_PUBLIC_CREEM_BUNDLE_LARGE_PRODUCT_ID,
   },
 ];
 
@@ -282,8 +273,9 @@ export default function KollektivakPage() {
   const openCreateModal = () => {
     setCreateName('');
     setCreateError('');
-    setCreateStep(1);
     setCreateTier(null);
+    // Non-premium users see the upgrade gate (step 0) first
+    setCreateStep((isPaidPremium || isOnTrial) ? 1 : 0);
     setShowCreate(true);
   };
 
@@ -298,42 +290,7 @@ export default function KollektivakPage() {
   const handleCreate = async (e) => {
     e.preventDefault();
     if (!createName.trim()) { setCreateError('A kollektíva neve kötelező'); return; }
-    // Trial users get 1 free collective — skip payment flow
-    if (isOnTrial) {
-      setCreateStep(4);
-      return;
-    }
     setCreateStep(2);
-  };
-
-  const handleCreateFree = async () => {
-    setCreateError('');
-    setTierLoading(true);
-    try {
-      const res = await fetch('/api/collectives', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: createName.trim() }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        if (data.error === 'TRIAL_COLLECTIVE_LIMIT') {
-          setCreateError('TRIAL_LIMIT');
-        } else {
-          setCreateError(data.error || 'Hiba a létrehozáskor.');
-        }
-        setCreateStep(4);
-        return;
-      }
-      setShowCreate(false);
-      setKollektivaResult({ status: 'success', name: createName.trim() });
-      fetchCollectives();
-      refreshCollectives();
-    } catch {
-      setCreateError('Hálózati hiba. Kérjük, próbáld újra.');
-    } finally {
-      setTierLoading(false);
-    }
   };
 
   const handleTierSelect = (tier) => {
@@ -344,7 +301,7 @@ export default function KollektivakPage() {
 
   const handleConfirmCheckout = async () => {
     if (!createTier) return;
-    const productId = isPaidPremium ? createTier.addonProductId : createTier.bundleProductId;
+    const productId = createTier.addonProductId;
 
     if (!productId) {
       setCreateError('Hiányzó termék azonosító. Kérjük, vedd fel a kapcsolatot az üzemeltetővel.');
@@ -355,7 +312,6 @@ export default function KollektivakPage() {
     const pendingName = createName.trim();
     const pendingTier = createTier.key;
 
-    // Store name/tier before opening checkout (needed by the return handler)
     localStorage.setItem('creem_kollektiva_pending', JSON.stringify({ name: pendingName, tier: pendingTier }));
 
     setTierLoading(true);
@@ -602,6 +558,10 @@ export default function KollektivakPage() {
   };
 
   const handleDeleteCollective = async (collective) => {
+    if (collective.is_inclusive) {
+      setAlertModal({ variant: 'warning', title: 'Nem törölhető', message: 'Az inkluzív kollektíva nem törölhető — ez az előfizetésedhez tartozó ingyenes csapatmunkaterület.' });
+      return;
+    }
     if (!collective.creem_subscription_id) {
       setDeleteInput(''); setDeleteModal(collective); return;
     }
@@ -615,15 +575,23 @@ export default function KollektivakPage() {
       return;
     }
 
-    if (dbStatus === 'scheduled_cancel') {
-      if (!periodEnd || periodEnd > now) {
-        setAlertModal({ variant: 'warning', message: `A lemondás feldolgozás alatt van. A kollektíva a számlázási időszak lejárta után (${periodEnd ? periodEnd.toLocaleDateString('hu-HU') : '—'}) törölhető.` });
-        return;
-      }
-      // Period has ended — allow delete
+    if (dbStatus === 'scheduled_cancel' && periodEnd && periodEnd > now) {
+      // Subscription is canceled but paid period hasn't ended yet — warn, then allow
+      setConfirmModal({
+        title: 'Kollektíva törlése',
+        message: (
+          <span>
+            Az előfizetés lemondva, de a fizetett időszak <strong>{periodEnd.toLocaleDateString('hu-HU')}</strong>-ig tart.
+            Ha most törlöd, a fennmaradó időszak elvész. Biztosan törlöd?
+          </span>
+        ),
+        confirmLabel: 'Igen, törlöm',
+        onConfirm: () => { setDeleteInput(''); setDeleteModal(collective); },
+      });
+      return;
     }
 
-    // canceled / expired / scheduled_cancel past period end → allow
+    // canceled / expired / scheduled_cancel → allow
     setDeleteInput(''); setDeleteModal(collective);
   };
 
@@ -647,6 +615,7 @@ export default function KollektivakPage() {
     && currentUser?.subscription_tier === 'trial'
     && currentUser?.trial_ends_at
     && new Date(currentUser.trial_ends_at) > new Date();
+  const isBasic = !isPaidPremium && currentUser?.subscription_tier === 'basic';
   const isPremium = isPaidPremium; // keep for tier display (addon vs bundle pricing)
   const myCollectives       = collectives.filter(c => c.my_role === 'owner');
   const invitedCollectives  = collectives.filter(c => c.my_role !== 'owner');
@@ -725,17 +694,18 @@ export default function KollektivakPage() {
   };
 
   const renderCollective = (collective) => {
-    const isOwner       = collective.my_role === 'owner';
-    const activeMembers = (collective.members || []).filter(m => m.status === 'active');
-    const blockedMembers= (collective.members || []).filter(m => m.status === 'blocked');
-    const pendingInvs   = collective.pending_invitations  || [];
-    const declinedInvs  = collective.declined_invitations || [];
+    const isOwner        = collective.my_role === 'owner';
+    const isInclusive    = collective.is_inclusive ?? false;
+    const activeMembers  = (collective.members || []).filter(m => m.status === 'active');
+    const blockedMembers = (collective.members || []).filter(m => m.status === 'blocked');
+    const pendingInvs    = collective.pending_invitations  || [];
+    const declinedInvs   = collective.declined_invitations || [];
 
     // Seats used = active non-owner members + pending invitations (owner doesn't count)
     const usedSeats = activeMembers.filter(m => m.role !== 'owner').length + pendingInvs.length;
-    const tier          = TIER_DISPLAY[collective.collective_tier] ?? null;
-    const subStatus     = collective.subscription_status ?? 'active';
-    const periodEnd     = collective.subscription_period_end
+    const tier      = TIER_DISPLAY[collective.collective_tier] ?? null;
+    const subStatus = collective.subscription_status ?? 'active';
+    const periodEnd = collective.subscription_period_end
       ? new Date(collective.subscription_period_end).toLocaleDateString('hu-HU', { year: 'numeric', month: 'long', day: 'numeric' })
       : null;
 
@@ -749,14 +719,20 @@ export default function KollektivakPage() {
     };
     const badge = STATUS_BADGE[subStatus] ?? STATUS_BADGE.active;
 
+    // Trial end date for inclusive collective header
+    const trialEndStr = isOnTrial && currentUser?.trial_ends_at
+      ? new Date(currentUser.trial_ends_at).toLocaleDateString('hu-HU', { year: 'numeric', month: 'long', day: 'numeric' })
+      : null;
+    const isInclusiveFrozen = isInclusive && (subStatus === 'canceled' || subStatus === 'expired');
+
     return (
       <div key={collective.id} className="card" style={{ marginBottom: '1rem' }}>
 
         {/* ── Header ── */}
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.65rem', marginBottom: '0.75rem' }}>
           {/* Avatar */}
-          <div style={{ width: 38, height: 38, borderRadius: 'var(--radius-md)', background: 'var(--accent-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 2 }}>
-            <Users size={19} color="var(--accent)" />
+          <div style={{ width: 38, height: 38, borderRadius: 'var(--radius-md)', background: isInclusive ? '#f0fdf4' : 'var(--accent-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 2 }}>
+            <Users size={19} color={isInclusive ? '#16a34a' : 'var(--accent)'} />
           </div>
 
           {/* Name + meta — flex-grow */}
@@ -783,10 +759,15 @@ export default function KollektivakPage() {
             ) : (
               <div
                 onClick={() => isOwner && (setEditingNameId(collective.id), setEditingNameValue(collective.name))}
-                style={{ fontWeight: 800, fontSize: '1.05rem', display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: isOwner ? 'text' : 'default', marginBottom: '0.15rem' }}
+                style={{ fontWeight: 800, fontSize: '1.05rem', display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: isOwner ? 'text' : 'default', marginBottom: '0.15rem', flexWrap: 'wrap' }}
                 title={isOwner ? 'Kattints az átnevezéshez' : undefined}
               >
                 {collective.name}
+                {isInclusive && (
+                  <span style={{ fontSize: '0.6rem', fontWeight: 800, padding: '0.1rem 0.45rem', borderRadius: 'var(--radius-pill)', background: '#dcfce7', color: '#15803d', border: '1px solid #bbf7d0', letterSpacing: '0.04em' }}>
+                    INKLUZÍV
+                  </span>
+                )}
                 {isOwner && <Pencil size={12} color="var(--text-muted)" style={{ opacity: 0.5, flexShrink: 0 }} />}
               </div>
             )}
@@ -829,10 +810,10 @@ export default function KollektivakPage() {
                     {/* Invite — active only */}
                     {isActive && menuItem(() => {
                       setOpenMenuId(null);
-                      const tierSeats = TIER_DISPLAY[collective.collective_tier]?.seats;
+                      const seatCap = isInclusive ? 2 : TIER_DISPLAY[collective.collective_tier]?.seats;
                       const used = (collective.members || []).filter(m => m.status === 'active' && m.role !== 'owner').length
                         + (collective.pending_invitations || []).length;
-                      if (tierSeats !== undefined && used >= tierSeats) {
+                      if (seatCap !== undefined && used >= seatCap) {
                         setSeatLimitModal(collective);
                         return;
                       }
@@ -840,16 +821,16 @@ export default function KollektivakPage() {
                     }, <Mail size={14} />, 'Meghívás')}
                     {isActive && divider}
 
-                    {/* Tier change — active (not scheduled_cancel) + has a subscription with a known tier */}
-                    {isActive && s !== 'scheduled_cancel' && hasSub && collective.collective_tier && menuItem(() => { setOpenMenuId(null); setUpgradeModal(collective); }, <Users size={14} />, 'Csomag módosítása', 'var(--accent)')}
-                    {isActive && s !== 'scheduled_cancel' && hasSub && collective.collective_tier && divider}
+                    {/* Tier change — paid collectives only, active + has sub + known tier */}
+                    {!isInclusive && isActive && s !== 'scheduled_cancel' && hasSub && collective.collective_tier && menuItem(() => { setOpenMenuId(null); setUpgradeModal(collective); }, <Users size={14} />, 'Csomag módosítása', 'var(--accent)')}
+                    {!isInclusive && isActive && s !== 'scheduled_cancel' && hasSub && collective.collective_tier && divider}
 
-                    {/* Cancel — active only */}
-                    {isActive && hasSub && menuItem(() => { setOpenMenuId(null); setCancelModal(collective); }, <X size={14} />, 'Előfizetés lemondása', 'var(--warning-text)')}
-                    {isActive && hasSub && divider}
+                    {/* Cancel — paid collectives only, active + has sub */}
+                    {!isInclusive && isActive && hasSub && menuItem(() => { setOpenMenuId(null); setCancelModal(collective); }, <X size={14} />, 'Előfizetés lemondása', 'var(--warning-text)')}
+                    {!isInclusive && isActive && hasSub && divider}
 
-                    {/* Resume — scheduled_cancel only */}
-                    {isScheduledCancel && menuItem(
+                    {/* Resume — paid collectives only, scheduled_cancel */}
+                    {!isInclusive && isScheduledCancel && menuItem(
                       () => {
                         setOpenMenuId(null);
                         setConfirmModal({
@@ -863,14 +844,14 @@ export default function KollektivakPage() {
                       resumingId === collective.id ? 'Visszaállítás…' : 'Előfizetés visszaállítása',
                       'var(--success-text)'
                     )}
-                    {isScheduledCancel && divider}
+                    {!isInclusive && isScheduledCancel && divider}
 
-                    {/* New checkout — fully canceled */}
-                    {(isInactive || (!hasSub && !isActive)) && menuItem(() => { setOpenMenuId(null); setReactivateModal(collective); }, <RefreshCw size={14} />, 'Kollektíva újraindítása', 'var(--accent)')}
-                    {(isInactive || (!hasSub && !isActive)) && divider}
+                    {/* New checkout — paid collectives only, fully canceled */}
+                    {!isInclusive && (isInactive || (!hasSub && !isActive)) && menuItem(() => { setOpenMenuId(null); setReactivateModal(collective); }, <RefreshCw size={14} />, 'Kollektíva újraindítása', 'var(--accent)')}
+                    {!isInclusive && (isInactive || (!hasSub && !isActive)) && divider}
 
-                    {/* Delete — always shown, logic in handler */}
-                    {menuItem(() => { setOpenMenuId(null); handleDeleteCollective(collective); },
+                    {/* Delete — paid collectives only */}
+                    {!isInclusive && menuItem(() => { setOpenMenuId(null); handleDeleteCollective(collective); },
                       checkingDeleteId === collective.id ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />,
                       checkingDeleteId === collective.id ? 'Ellenőrzés…' : 'Kollektíva törlése',
                       'var(--danger)')}
@@ -883,32 +864,71 @@ export default function KollektivakPage() {
 
         {/* ── Subscription strip (owner only) ── */}
         {isOwner && (
-          <div style={{ background: 'var(--bg-subtle)', borderRadius: 'var(--radius-md)', padding: '0.5rem 0.75rem', marginTop: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.72rem', fontWeight: 700, color: badge.color }}>
-              {badge.label}{subStatus === 'scheduled_cancel' && periodEnd ? ` — ${periodEnd}-ig` : ''}
-            </span>
-            {tier && (
+          <div style={{ background: isInclusiveFrozen ? 'var(--danger-bg)' : 'var(--bg-subtle)', borderRadius: 'var(--radius-md)', padding: '0.5rem 0.75rem', marginTop: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+            {isInclusive ? (
               <>
-                <span style={{ color: 'var(--text-muted)', fontSize: '0.65rem' }}>·</span>
-                <span style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--accent)' }}>{tier.name}</span>
-                <span style={{ color: 'var(--text-muted)', fontSize: '0.65rem' }}>·</span>
-                <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
-                  <strong>{usedSeats}</strong>/{tier.seats} hely · {tier.price}/hó
+                {isInclusiveFrozen ? (
+                  <>
+                    <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--danger-text)', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                      ✕ Felfüggesztve
+                    </span>
+                    <span style={{ color: 'var(--text-muted)', fontSize: '0.65rem' }}>·</span>
+                    <span style={{ fontSize: '0.72rem', color: 'var(--danger-text)' }}>Prémium szükséges a folytatáshoz</span>
+                    <a href="/elofizetes" style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.72rem', fontWeight: 700, color: 'var(--accent)', textDecoration: 'none', background: 'var(--accent-light)', padding: '0.2rem 0.6rem', borderRadius: 'var(--radius-pill)', border: '1px solid var(--accent-border)' }}>
+                      <Zap size={11} /> Prémium visszaállítása →
+                    </a>
+                  </>
+                ) : (
+                  <>
+                    <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--success-text)', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                      ● Aktív
+                    </span>
+                    <span style={{ color: 'var(--text-muted)', fontSize: '0.65rem' }}>·</span>
+                    <span style={{ fontSize: '0.72rem', fontWeight: 600, color: '#16a34a' }}>Inkluzív</span>
+                    <span style={{ color: 'var(--text-muted)', fontSize: '0.65rem' }}>·</span>
+                    <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
+                      <strong>{activeMembers.length}</strong>/3 hely
+                    </span>
+                    {trialEndStr && (
+                      <>
+                        <span style={{ color: 'var(--text-muted)', fontSize: '0.65rem' }}>·</span>
+                        <span style={{ fontSize: '0.72rem', color: '#854d0e', fontWeight: 600 }}>
+                          Próba {trialEndStr}-ig
+                        </span>
+                      </>
+                    )}
+                  </>
+                )}
+              </>
+            ) : (
+              <>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.72rem', fontWeight: 700, color: badge.color }}>
+                  {badge.label}{subStatus === 'scheduled_cancel' && periodEnd ? ` — ${periodEnd}-ig` : ''}
                 </span>
+                {tier && (
+                  <>
+                    <span style={{ color: 'var(--text-muted)', fontSize: '0.65rem' }}>·</span>
+                    <span style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--accent)' }}>{tier.name}</span>
+                    <span style={{ color: 'var(--text-muted)', fontSize: '0.65rem' }}>·</span>
+                    <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
+                      <strong>{usedSeats}</strong>/{tier.seats} hely · {tier.price}/hó
+                    </span>
+                  </>
+                )}
+                {/* Downgrade nudge */}
+                {tier?.seats && usedSeats < tier.seats && (() => {
+                  const TIER_ORDER = ['small', 'medium', 'large'];
+                  const currentIdx = TIER_ORDER.indexOf(collective.collective_tier);
+                  const lowerTier = currentIdx > 0 ? TIER_DISPLAY[TIER_ORDER[currentIdx - 1]] : null;
+                  if (!lowerTier || usedSeats > lowerTier.seats) return null;
+                  return (
+                    <span onClick={() => setUpgradeModal(collective)} style={{ marginLeft: 'auto', fontSize: '0.7rem', color: '#15803d', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.25rem' }} title="Csomag módosítása">
+                      💡 Kisebb csomag is elég
+                    </span>
+                  );
+                })()}
               </>
             )}
-            {/* Downgrade nudge */}
-            {tier?.seats && usedSeats < tier.seats && (() => {
-              const TIER_ORDER = ['small', 'medium', 'large'];
-              const currentIdx = TIER_ORDER.indexOf(collective.collective_tier);
-              const lowerTier = currentIdx > 0 ? TIER_DISPLAY[TIER_ORDER[currentIdx - 1]] : null;
-              if (!lowerTier || usedSeats > lowerTier.seats) return null;
-              return (
-                <span onClick={() => setUpgradeModal(collective)} style={{ marginLeft: 'auto', fontSize: '0.7rem', color: '#15803d', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.25rem' }} title="Csomag módosítása">
-                  💡 Kisebb csomag is elég
-                </span>
-              );
-            })()}
           </div>
         )}
 
@@ -1034,6 +1054,39 @@ export default function KollektivakPage() {
         </div>
       )}
 
+      {/* Basic user — locked inclusive collective placeholder */}
+      {isBasic && (
+        <div style={{ marginBottom: '1.75rem' }}>
+          <div style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: '0.75rem' }}>
+            Inkluzív Kollektíva
+          </div>
+          <div className="card" style={{ opacity: 0.75, border: '2px dashed var(--border-subtle)', background: 'var(--bg-subtle)' }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.65rem' }}>
+              <div style={{ width: 38, height: 38, borderRadius: 'var(--radius-md)', background: 'var(--bg-card)', border: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <Lock size={18} color="var(--text-muted)" />
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontWeight: 800, fontSize: '1rem', color: 'var(--text-muted)', marginBottom: '0.2rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  Inkluzív Kollektíva
+                  <span style={{ fontSize: '0.6rem', fontWeight: 700, padding: '0.1rem 0.45rem', borderRadius: 'var(--radius-pill)', background: 'var(--bg-card)', color: 'var(--text-muted)', border: '1px solid var(--border-subtle)', letterSpacing: '0.04em' }}>
+                    ZÁROLT
+                  </span>
+                </div>
+                <div style={{ fontSize: '0.775rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
+                  Prémium előfizetéssel 1 ingyenes kollektívát kapsz — max. 3 taggal.
+                </div>
+              </div>
+            </div>
+            <div style={{ marginTop: '0.85rem', paddingTop: '0.75rem', borderTop: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <span style={{ fontSize: '0.775rem', color: 'var(--text-muted)' }}>Prémium szükséges a feloldáshoz</span>
+              <a href="/elofizetes" className="btn btn-primary btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', textDecoration: 'none' }}>
+                <Zap size={13} /> Prémium — Feloldás →
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* My collectives (owner) */}
       {myCollectives.length > 0 && (
         <div style={{ marginBottom: '1.75rem' }}>
@@ -1104,7 +1157,7 @@ export default function KollektivakPage() {
         </div>
       )}
 
-      {collectives.length === 0 && myInvitations.length === 0 && !kollektivaResult && (
+      {collectives.length === 0 && myInvitations.length === 0 && !kollektivaResult && !isBasic && (
         <div className="card" style={{ textAlign: 'center', padding: '3rem 1.5rem' }}>
           <Users size={44} color="var(--text-muted)" style={{ margin: '0 auto 0.75rem' }} />
           <h3 style={{ fontWeight: 800, marginBottom: '0.35rem' }}>Még nincsenek kollektívák</h3>
@@ -1117,30 +1170,39 @@ export default function KollektivakPage() {
         </div>
       )}
 
-      {/* ── Create modal (3-step) ── */}
-      <Modal isOpen={showCreate} onClose={closeCreateModal} title={createStep === 1 ? 'Új kollektíva — Név' : createStep === 2 ? 'Új kollektíva — Csomag' : createStep === 4 ? 'Ingyenes Próba Kollektíva' : 'Fizetés megerősítése'}>
+      {/* ── Create modal (3-step + premium gate) ── */}
+      <Modal isOpen={showCreate} onClose={closeCreateModal} title={
+        createStep === 0 ? 'Prémium szükséges' :
+        createStep === 1 ? 'Új kollektíva — Név' :
+        createStep === 2 ? 'Új kollektíva — Csomag' :
+        'Fizetés megerősítése'
+      }>
         {createError && (
-          createError === 'TRIAL_LIMIT' ? (
-            <div style={{ background: '#fef9c3', border: '1px solid #fde047', borderRadius: 'var(--radius-md)', padding: '0.85rem 1rem', marginBottom: '0.85rem' }}>
-              <div style={{ display: 'flex', gap: '0.45rem', alignItems: 'flex-start', marginBottom: '0.65rem' }}>
-                <AlertCircle size={15} color="#854d0e" style={{ flexShrink: 0, marginTop: 1 }} />
-                <span style={{ fontSize: '0.825rem', color: '#78350f' }}>
-                  Próbaidőszak alatt csak <strong>1 kollektívát</strong> hozhatsz létre ingyen. Válts Prémiumra a korlátlanhoz.
-                </span>
+          <div style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', color: 'var(--danger-text)', padding: '0.65rem', borderRadius: 'var(--radius-md)', fontSize: '0.825rem', display: 'flex', gap: '0.45rem', marginBottom: '0.85rem' }}>
+            <AlertCircle size={15} /><span>{createError}</span>
+          </div>
+        )}
+
+        {/* Step 0: premium gate — non-premium users see this first */}
+        {createStep === 0 && (
+          <div>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem', background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: 'var(--radius-md)', padding: '0.85rem 1rem', marginBottom: '1rem' }}>
+              <Crown size={18} color="#c2410c" style={{ flexShrink: 0, marginTop: 1 }} />
+              <div style={{ fontSize: '0.825rem', color: '#7c2d12', lineHeight: 1.55 }}>
+                <strong>Prémium előfizetés szükséges</strong>
+                <p style={{ margin: '0.35rem 0 0' }}>
+                  A kollektívák — közös projektek, meghívott csapattagok, megosztott ajánlatok — Prémium funkció.
+                  Először aktiváld a Prémiumot, majd térj vissza a kollektíva létrehozásához.
+                </p>
               </div>
-              <a
-                href="/profil"
-                onClick={closeCreateModal}
-                style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', padding: '0.4rem 0.85rem', background: '#b45309', color: '#fff', borderRadius: 'var(--radius-md)', fontWeight: 700, fontSize: '0.8rem', textDecoration: 'none' }}
-              >
-                Váltás Prémiumra a Profilban →
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+              <button type="button" className="btn btn-secondary btn-sm" onClick={closeCreateModal}>Bezárás</button>
+              <a href="/elofizetes" className="btn btn-primary btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', textDecoration: 'none' }} onClick={closeCreateModal}>
+                <Zap size={13} /> Prémium aktiválása →
               </a>
             </div>
-          ) : (
-            <div style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', color: 'var(--danger-text)', padding: '0.65rem', borderRadius: 'var(--radius-md)', fontSize: '0.825rem', display: 'flex', gap: '0.45rem', marginBottom: '0.85rem' }}>
-              <AlertCircle size={15} /><span>{createError}</span>
-            </div>
-          )
+          </div>
         )}
 
         {/* Step 1: name */}
@@ -1157,20 +1219,13 @@ export default function KollektivakPage() {
           </form>
         )}
 
-        {/* Step 2: tier selection */}
+        {/* Step 2: tier selection (only reachable by effective premium users) */}
         {createStep === 2 && (
           <div>
-            {isPremium ? (
-              <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                <CheckCircle2 size={14} color="var(--success-text)" style={{ flexShrink: 0 }} />
-                Prémium előfizetésed aktív — az alábbi árak kiegészítő díjak.
-              </div>
-            ) : (
-              <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 'var(--radius-md)', padding: '0.65rem 0.85rem', marginBottom: '0.75rem', fontSize: '0.8rem', color: '#1e3a8a', display: 'flex', gap: '0.4rem', alignItems: 'flex-start' }}>
-                <Crown size={14} color="#1d4ed8" style={{ flexShrink: 0, marginTop: 2 }} />
-                <span>Nincs aktív Prémium előfizetésed — az alábbi csomagok tartalmazzák azt is.</span>
-              </div>
-            )}
+            <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+              <CheckCircle2 size={14} color="var(--success-text)" style={{ flexShrink: 0 }} />
+              Prémium előfizetésed aktív — az alábbi árak kiegészítő díjak.
+            </div>
 
             {/* Subscription condition pills */}
             <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
@@ -1187,11 +1242,7 @@ export default function KollektivakPage() {
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '1rem' }}>
-              {CREEM_TIERS.map(tier => {
-                const isBundle = !isPremium;
-                const displayPrice = isBundle ? tier.bundlePrice : tier.addonPrice;
-                const displayPriceHuf = isBundle ? tier.bundlePriceHuf : tier.addonPriceHuf;
-                return (
+              {CREEM_TIERS.map(tier => (
                   <button
                     key={tier.key}
                     type="button"
@@ -1209,7 +1260,7 @@ export default function KollektivakPage() {
                       textAlign: 'left',
                     }}
                   >
-                    {/* Left: name + seats + badge */}
+                    {/* Left: name + seats + price */}
                     <div style={{ minWidth: 0 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.35rem', flexWrap: 'wrap' }}>
                         <span style={{ fontWeight: 800, fontSize: '0.95rem' }}>{tier.name}</span>
@@ -1224,39 +1275,27 @@ export default function KollektivakPage() {
                       </div>
                       <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.35rem', flexWrap: 'wrap' }}>
                         <span style={{ fontSize: '1.2rem', fontWeight: 900, fontFamily: 'var(--font-mono, monospace)', color: 'var(--text-primary)' }}>
-                          {displayPrice}
+                          {tier.addonPrice}
                         </span>
                         <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>/hó + ÁFA</span>
-                        <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>({displayPriceHuf})</span>
+                        <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>({tier.addonPriceHuf})</span>
                       </div>
-                      <div style={{ marginTop: '0.35rem' }}>
-                        {isBundle ? (
-                          <span style={{
-                            display: 'inline-flex', alignItems: 'center', gap: '0.25rem',
-                            fontSize: '0.68rem', fontWeight: 700,
-                            padding: '0.15rem 0.55rem', borderRadius: 'var(--radius-pill)',
-                            background: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe',
-                          }}>
-                            ⭐ Prémium is benne van
-                          </span>
-                        ) : (
-                          <span style={{
-                            display: 'inline-flex', alignItems: 'center', gap: '0.25rem',
-                            fontSize: '0.68rem', fontWeight: 600,
-                            padding: '0.15rem 0.55rem', borderRadius: 'var(--radius-pill)',
-                            background: 'var(--bg-subtle)', color: 'var(--text-muted)', border: '1px solid var(--border-subtle)',
-                          }}>
-                            Kiegészítő a Prémiumhoz
-                          </span>
-                        )}
+                      <div style={{ marginTop: '0.3rem' }}>
+                        <span style={{
+                          display: 'inline-flex', alignItems: 'center', gap: '0.25rem',
+                          fontSize: '0.68rem', fontWeight: 600,
+                          padding: '0.15rem 0.55rem', borderRadius: 'var(--radius-pill)',
+                          background: 'var(--bg-subtle)', color: 'var(--text-muted)', border: '1px solid var(--border-subtle)',
+                        }}>
+                          Kiegészítő a Prémiumhoz
+                        </span>
                       </div>
                     </div>
 
                     {/* Right: arrow */}
                     <ChevronRight size={18} color="var(--accent)" style={{ flexShrink: 0 }} />
                   </button>
-                );
-              })}
+              ))}
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
@@ -1269,13 +1308,14 @@ export default function KollektivakPage() {
         {createStep === 3 && createTier && (
           <div>
             <div style={{ background: 'var(--bg-subtle)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: '1rem', marginBottom: '1.1rem' }}>
-              <div style={{ fontWeight: 800, fontSize: '0.95rem', marginBottom: '0.3rem' }}>{createTier.name}</div>
-              <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>Kollektíva neve: <strong style={{ color: 'var(--text-primary)' }}>{createName}</strong></div>
-              <div style={{ fontSize: '1.1rem', fontWeight: 900, fontFamily: 'var(--font-mono, monospace)' }}>
-                {isPremium ? createTier.addonPrice : createTier.bundlePrice}
-                <span style={{ fontSize: '0.75rem', fontWeight: 400, color: 'var(--text-muted)', marginLeft: '0.3rem' }}>/ hó + ÁFA</span>
+              <div style={{ fontWeight: 800, fontSize: '0.95rem', marginBottom: '0.15rem' }}>{createTier.name}</div>
+              <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginBottom: '0.75rem' }}>Kollektíva neve: <strong style={{ color: 'var(--text-primary)' }}>{createName}</strong></div>
+
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.3rem' }}>
+                <span style={{ fontSize: '1.1rem', fontWeight: 900, fontFamily: 'var(--font-mono, monospace)' }}>{createTier.addonPrice}</span>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>/hó + ÁFA</span>
+                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>({createTier.addonPriceHuf})</span>
               </div>
-              {!isPremium && <div style={{ fontSize: '0.72rem', color: '#1d4ed8', marginTop: '0.2rem' }}>Prémium is benne van</div>}
             </div>
 
             <p style={{ fontSize: '0.825rem', color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: '1.25rem' }}>
@@ -1303,49 +1343,49 @@ export default function KollektivakPage() {
           </div>
         )}
 
-        {/* Step 4: free trial collective confirmation */}
-        {createStep === 4 && (
-          <div>
-            <div style={{ background: 'linear-gradient(135deg,#eff6ff,#f5f3ff)', border: '1px solid #c7d2fe', borderRadius: 'var(--radius-md)', padding: '1rem', marginBottom: '1.1rem' }}>
-              <div style={{ fontWeight: 800, fontSize: '0.95rem', marginBottom: '0.3rem', color: '#1e3a8a' }}>🎁 Ingyenes kollektíva a próbaidőszak alatt</div>
-              <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>Kollektíva neve: <strong style={{ color: 'var(--text-primary)' }}>{createName}</strong></div>
-              <div style={{ fontSize: '0.8rem', color: '#334155', lineHeight: 1.5 }}>
-                A próbaidőszak alatt 1 kollektívát hozhatsz létre ingyenesen. A 14 napos időszak lejárta után a kollektíva megmarad — kollektíva-előfizetéssel lehet aktívan tartani.
-              </div>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.5rem' }}>
-              <button type="button" className="btn btn-secondary btn-sm" disabled={tierLoading} onClick={() => { setCreateStep(1); setCreateError(''); }}>← Vissza</button>
-              <button type="button" className="btn btn-primary btn-sm" disabled={tierLoading} onClick={handleCreateFree}>
-                {tierLoading ? <><Loader2 size={13} className="animate-spin" /> Létrehozás…</> : 'Kollektíva létrehozása →'}
-              </button>
-            </div>
-          </div>
-        )}
       </Modal>
 
       {/* ── Seat limit modal ── */}
       <Modal isOpen={!!seatLimitModal} onClose={() => setSeatLimitModal(null)} title="Férőhely-korlát elérve">
         {seatLimitModal && (() => {
+          const isIncl = seatLimitModal.is_inclusive ?? false;
           const tier = TIER_DISPLAY[seatLimitModal.collective_tier];
           const usedSeats = (seatLimitModal.members || []).filter(m => m.status === 'active' && m.role !== 'owner').length
             + (seatLimitModal.pending_invitations || []).length;
           return (
             <div>
-              <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', lineHeight: 1.65, marginBottom: '1rem' }}>
-                A(z) <strong>„{seatLimitModal.name}"</strong> kollektíva jelenleg a{' '}
-                <strong>{tier?.name ?? seatLimitModal.collective_tier}</strong> csomagon van,
-                amely <strong>{tier?.seats} férőhelyet</strong> tartalmaz — és mind a(z) <strong>{usedSeats}</strong> már foglalt
-                (aktív tagok + függőben lévő meghívók).
-              </p>
-              <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', lineHeight: 1.65, marginBottom: '1.5rem' }}>
-                Ha több munkatárssal szeretnél együttdolgozni, válts egy nagyobb csomagra — vagy vonj vissza egy meglévő meghívót, hogy helyet szabadíts fel.
-              </p>
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
-                <button type="button" className="btn btn-secondary btn-sm" onClick={() => setSeatLimitModal(null)}>Bezárás</button>
-                <button type="button" className="btn btn-primary btn-sm" onClick={() => { setSeatLimitModal(null); setUpgradeModal(seatLimitModal); }}>
-                  Csomag bővítése →
-                </button>
-              </div>
+              {isIncl ? (
+                <>
+                  <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', lineHeight: 1.65, marginBottom: '1rem' }}>
+                    Az <strong>inkluzív kollektíva</strong> maximum <strong>3 tagot</strong> támogat (te + 2 közreműködő),
+                    és mind a(z) <strong>{usedSeats}</strong> hely foglalt (aktív tagok + függőben lévő meghívók).
+                  </p>
+                  <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', lineHeight: 1.65, marginBottom: '1.5rem' }}>
+                    Ha több munkatársat szeretnél bevonni, hozz létre fizetős kollektívát, vagy vonj vissza egy meglévő meghívót.
+                  </p>
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+                    <button type="button" className="btn btn-secondary btn-sm" onClick={() => setSeatLimitModal(null)}>Bezárás</button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', lineHeight: 1.65, marginBottom: '1rem' }}>
+                    A(z) <strong>„{seatLimitModal.name}"</strong> kollektíva jelenleg a{' '}
+                    <strong>{tier?.name ?? seatLimitModal.collective_tier}</strong> csomagon van,
+                    amely <strong>{tier?.seats} férőhelyet</strong> tartalmaz — és mind a(z) <strong>{usedSeats}</strong> már foglalt
+                    (aktív tagok + függőben lévő meghívók).
+                  </p>
+                  <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', lineHeight: 1.65, marginBottom: '1.5rem' }}>
+                    Ha több munkatárssal szeretnél együttdolgozni, válts egy nagyobb csomagra — vagy vonj vissza egy meglévő meghívót, hogy helyet szabadíts fel.
+                  </p>
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+                    <button type="button" className="btn btn-secondary btn-sm" onClick={() => setSeatLimitModal(null)}>Bezárás</button>
+                    <button type="button" className="btn btn-primary btn-sm" onClick={() => { setSeatLimitModal(null); setUpgradeModal(seatLimitModal); }}>
+                      Csomag bővítése →
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           );
         })()}
@@ -1403,7 +1443,7 @@ export default function KollektivakPage() {
                 <button type="button" className="btn btn-primary btn-sm" onClick={async () => {
                   const tier = reactivateModal.collective_tier ?? 'small';
                   const tierObj = CREEM_TIERS.find(t => t.key === tier);
-                  const productId = isPaidPremium ? tierObj?.addonProductId : tierObj?.bundleProductId;
+                  const productId = tierObj?.addonProductId;
                   if (!productId) return;
                   localStorage.setItem('creem_kollektiva_pending', JSON.stringify({ name: reactivateModal.name, tier, collectiveId: reactivateModal.id }));
                   setReactivateModal(null);
