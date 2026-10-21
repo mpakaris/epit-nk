@@ -343,7 +343,7 @@ export function AppProvider({ children }) {
       setCurrentUser(user);
       await refreshSupabaseData(user);
 
-      auditLog('Bejelentkezés', { entityId: user.active_collective_id || user.id });
+      auditPublic('Login success', { userName: user.display_name || user.email, entityId: user.active_collective_id || user.id });
 
       if (!noRedirect) {
         if (user.must_change_password) {
