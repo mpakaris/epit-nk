@@ -367,7 +367,7 @@ export default function SuperAdminPage() {
               const tierColor  = u.is_subscription_premium ? '#059669' : u.subscription_tier === 'trial' ? '#d97706' : 'var(--text-muted)';
               const tierLabel  = u.is_subscription_premium ? 'Premium' : u.subscription_tier === 'trial' ? 'Trial' : 'Basic';
               return (
-                <div key={u.id} className="card" style={{ padding: '0.7rem 0.9rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <div key={u.id} className="card" style={{ padding: '0.75rem 0.9rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                   <div style={{ width: 34, height: 34, borderRadius: '50%', background: 'linear-gradient(135deg, #7c3aed, #4f46e5)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: '#fff', fontWeight: 800, fontSize: '0.85rem' }}>
                     {initial}
                   </div>
@@ -375,9 +375,11 @@ export default function SuperAdminPage() {
                     <div style={{ fontWeight: 700, fontSize: '0.875rem', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {u.display_name || u.email}
                     </div>
-                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
-                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 160 }}>{u.email}</span>
-                      <span style={{ color: tierColor, fontWeight: 700, flexShrink: 0 }}>· {tierLabel}</span>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {u.email}
+                    </div>
+                    <div style={{ fontSize: '0.68rem', fontWeight: 700, color: tierColor, marginTop: '0.1rem' }}>
+                      {tierLabel}
                     </div>
                   </div>
                   <button
@@ -519,96 +521,8 @@ export default function SuperAdminPage() {
         </div>
       </div>
 
-      {/* ── Legacy Entities ── */}
-      <div style={{ marginBottom: '1.5rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.85rem' }}>
-          <div>
-            <h2 style={{ fontSize: '1.05rem', fontWeight: 800, margin: 0 }}>Legacy Entities</h2>
-            <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: 0 }}>Old entity/tenant model — use God Mode above for new users</p>
-          </div>
-          <button type="button" onClick={openCreate} className="btn btn-secondary btn-sm"><Plus size={14} /> New Entity</button>
-        </div>
-        {collectiveEntities.length === 0 ? (
-          <div className="card" style={{ textAlign: 'center', padding: '2rem 1.5rem', color: 'var(--text-muted)', fontSize: '0.85rem' }}>No legacy entities.</div>
-        ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(300px, 100%), 1fr))', gap: '0.85rem' }}>
-            {collectiveEntities.map(entity => {
-              const entityMemberships = allMemberships.filter(m => m.entity_id === entity.id);
-              const entityAdmins      = entityMemberships.filter(m => ['owner', 'admin'].includes(m.role));
-              const entityMembers     = entityMemberships.filter(m => !['owner', 'admin'].includes(m.role));
-              const entityProjects    = projects.filter(p => p.entity_id === entity.id || p.collective_id === entity.id);
-              return (
-                <div key={entity.id} className="card" style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                    <Link href={`/superadmin/entitasok/${entity.id}`} style={{ textDecoration: 'none', flex: 1 }}>
-                      <h3 style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '0.2rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                        {entity.name} <ArrowUpRight size={14} color="var(--text-muted)" />
-                      </h3>
-                      <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Created: {formatDate(entity.created_at)}</div>
-                    </Link>
-                    <div style={{ display: 'flex', gap: '0.3rem' }}>
-                      <button type="button" onClick={() => openEdit(entity)} className="btn btn-secondary btn-sm" style={{ padding: '0.3rem 0.5rem' }}><Edit3 size={13} /></button>
-                      <button type="button" onClick={() => handleDelete(entity)} className="btn btn-danger btn-sm" style={{ padding: '0.3rem 0.5rem' }}><Trash2 size={13} /></button>
-                    </div>
-                  </div>
-                  <div style={{ display: 'flex', gap: '1.25rem', padding: '0.6rem 0.85rem', background: 'var(--bg-subtle)', borderRadius: 'var(--radius-md)' }}>
-                    {[['Admins', entityAdmins.length], ['Members', entityMembers.length], ['Projects', entityProjects.length]].map(([lbl, val]) => (
-                      <div key={lbl} style={{ textAlign: 'center' }}>
-                        <div style={{ fontSize: '1.1rem', fontWeight: 800 }}>{val}</div>
-                        <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontWeight: 600 }}>{lbl}</div>
-                      </div>
-                    ))}
-                  </div>
-                  {entityAdmins.length > 0 && <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}><strong>Admins:</strong> {entityAdmins.map(a => a.display_name).join(', ')}</div>}
-                  <div style={{ display: 'flex', gap: '0.5rem', marginTop: 'auto' }}>
-                    <Link href={`/superadmin/projektek?entity=${entity.id}`} className="btn btn-secondary btn-sm" style={{ flex: 1, justifyContent: 'center', gap: '0.4rem' }}>
-                      <FolderKanban size={13} /> Projects
-                    </Link>
-                    <button type="button" onClick={() => handleJump(entity)} className="btn btn-sm" style={{ flex: 1, background: 'linear-gradient(135deg, #7c3aed, #4f46e5)', color: '#fff', border: 'none', gap: '0.4rem' }}>
-                      <Eye size={13} /> Enter
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
 
       {/* ── Modals ── */}
-      <Modal isOpen={showEntityModal} onClose={() => setShowEntityModal(false)} title={editingEntity ? 'Rename Entity' : 'New Entity'}>
-        {formError && <div style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', color: 'var(--danger-text)', padding: '0.65rem', borderRadius: 'var(--radius-md)', fontSize: '0.825rem', marginBottom: '0.85rem' }}>{formError}</div>}
-        <form onSubmit={handleEntitySubmit}>
-          <div className="form-group" style={{ marginBottom: '1.25rem' }}>
-            <label className="form-label">Entity name *</label>
-            <input type="text" className="form-control" autoFocus required value={entityName} onChange={e => setEntityName(e.target.value)} placeholder="e.g. Smith Construction Team" />
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
-            <button type="button" className="btn btn-secondary btn-sm" onClick={() => setShowEntityModal(false)}>Cancel</button>
-            <button type="submit" className="btn btn-primary btn-sm" disabled={isSubmitting}>{isSubmitting ? 'Saving…' : editingEntity ? 'Save' : 'Create'}</button>
-          </div>
-        </form>
-      </Modal>
-
-      <Modal isOpen={!!pickerEntity} onClose={() => setPickerEntity(null)} title={`Enter as: ${pickerEntity?.name}`}>
-        <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>Multiple admins found — choose who to enter as:</p>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '1rem' }}>
-          {pickerAdmins.map(admin => (
-            <button key={admin.id} type="button" onClick={() => { setPickerEntity(null); startImpersonation(admin.id).catch(err => setAlertModal({ message: err.message })); }}
-              style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem 1rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)', background: 'var(--bg-subtle)', cursor: 'pointer', textAlign: 'left' }}>
-              <Eye size={16} color="var(--warning)" />
-              <div>
-                <div style={{ fontWeight: 700 }}>{admin.display_name}</div>
-                <div style={{ fontSize: '0.775rem', color: 'var(--text-muted)' }}>{admin.email}</div>
-              </div>
-            </button>
-          ))}
-        </div>
-        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-          <button type="button" className="btn btn-secondary btn-sm" onClick={() => setPickerEntity(null)}>Cancel</button>
-        </div>
-      </Modal>
-
       <Modal isOpen={!!godPickUser} onClose={() => { setGodPickUser(null); setGodPickCollectives([]); }} title={`Enter as: ${godPickUser?.display_name || godPickUser?.email}`}>
         {godPickLoading ? (
           <div style={{ textAlign: 'center', padding: '1.5rem 0' }}><Loader2 size={22} className="animate-spin" style={{ margin: '0 auto', color: 'var(--text-muted)' }} /></div>
