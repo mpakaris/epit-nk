@@ -66,10 +66,16 @@ export async function POST(request) {
     </p>
   `, 'Jelszó visszaállítása – Epiteq');
 
+  if (!process.env.SMTP_FROM_EMAIL || !process.env.GOOGLE_SMTP_APP_PASSWORD) {
+    console.error('[password-reset] SMTP env vars missing: SMTP_FROM_EMAIL or GOOGLE_SMTP_APP_PASSWORD not set');
+    return Response.json({ error: 'Az e-mail küldés nincs beállítva (SMTP konfiguráció hiányzik). Kérjük, lépj kapcsolatba az üzemeltetővel.' }, { status: 503 });
+  }
+
   try {
     await sendEmail({ to: email.trim(), subject: 'Jelszó visszaállítása – Epiteq', html });
   } catch (mailErr) {
     console.error('[password-reset] sendEmail error:', mailErr.message);
+    return Response.json({ error: 'Az e-mail küldése sikertelen volt. Kérjük, próbáld újra később vagy lépj kapcsolatba az üzemeltetővel.' }, { status: 503 });
   }
 
   return Response.json({ ok: true });

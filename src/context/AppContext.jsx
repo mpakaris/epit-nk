@@ -166,8 +166,12 @@ export function AppProvider({ children }) {
           setCurrentUser(user);
           await refreshSupabaseData(user);
 
-          // Show welcome modal for brand-new users (profile created in the last 2 minutes)
-          const isNew = profile?.created_at
+          // Show welcome modal for brand-new users (profile created in the last 2 minutes,
+          // and not already dismissed in this browser via localStorage)
+          const welcomeKey = `epitek_welcomed_${user.id}`;
+          const alreadyWelcomed = typeof localStorage !== 'undefined' && localStorage.getItem(welcomeKey);
+          const isNew = !alreadyWelcomed
+            && profile?.created_at
             && (Date.now() - new Date(profile.created_at).getTime()) < 2 * 60 * 1000;
           if (isNew) setShowWelcome(true);
         }
@@ -353,7 +357,10 @@ export function AppProvider({ children }) {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { display_name: name, must_change_password: false, gdpr_consented_at: gdprConsentedAt } },
+      options: {
+        data: { display_name: name, must_change_password: false, gdpr_consented_at: gdprConsentedAt },
+        emailRedirectTo: `${window.location.origin}/auth/callback`,
+      },
     });
     if (error) throw error;
     if (data.session) {
@@ -366,6 +373,9 @@ export function AppProvider({ children }) {
         active_collective_id: profile?.active_collective_id || null,
         must_change_password: false,
         is_subscription_premium: profile?.is_subscription_premium ?? false,
+        subscription_tier: profile?.subscription_tier ?? 'basic',
+        trial_started_at: profile?.trial_started_at ?? null,
+        trial_ends_at: profile?.trial_ends_at ?? null,
         default_tax_percent: profile?.default_tax_percent ?? 27,
       };
       setCurrentUser(user);
@@ -1371,7 +1381,13 @@ export function AppProvider({ children }) {
         loading,
         dataReady,
         showWelcome,
-        dismissWelcome: () => setShowWelcome(false),
+        dismissWelcome: () => {
+          setShowWelcome(false);
+          const uid = currentUser?.id;
+          if (uid && typeof localStorage !== 'undefined') {
+            localStorage.setItem(`epitek_welcomed_${uid}`, '1');
+          }
+        },
         // Collectives & context switcher
         collectives,
         effectiveCollectives,
@@ -1475,7 +1491,8 @@ export function AppProvider({ children }) {
         uploadDiaryPhotos,
         // Misc
         refreshSupabaseData,
-        refreshCollectives: fetchProfile
+        refreshCollectives: fetchProfile,
+        updateDisplayName: (name) => setCurrentUser(prev => prev ? { ...prev, display_name: name } : prev),
       }}
     >
       {children}

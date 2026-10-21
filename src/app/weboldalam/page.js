@@ -1513,11 +1513,44 @@ export function BuilderEditor({ website: initialWebsite, sections: initialSectio
   const [error, setError] = useState('');
   const [copied, setCopied] = useState(false);
   const [showQr, setShowQr] = useState(false);
-  const [activeTab, setActiveTab] = useState('sections'); // 'sections' | 'design' | 'leads'
+  const [activeTab, setActiveTab] = useState('sections'); // 'sections' | 'design' | 'settings'
 
   const [theme, setTheme] = useState(website.theme || { color_scheme: 'classic', typography: 'modern' });
+
+  // Settings tab state
+  const [settingsSlug, setSettingsSlug] = useState(initialWebsite.slug || '');
+  const [slugChecking, setSlugChecking] = useState(false);
+  const [slugResult, setSlugResult] = useState(null); // { available: bool } | null
+  const slugCheckTimer = useRef(null);
+  const [slugSaving, setSlugSaving] = useState(false);
+  const [slugSaveErr, setSlugSaveErr] = useState('');
+  const [slugSaveOk, setSlugSaveOk] = useState(false);
+  const [trades, setTrades] = useState([]);
+  const [settingsTradeId, setSettingsTradeId] = useState(initialWebsite.trade_id || '');
+  const [tradeSaving, setTradeSaving] = useState(false);
+  const [tradeSaveOk, setTradeSaveOk] = useState(false);
   const [bannerPickerOpen, setBannerPickerOpen]   = useState(false);
   const [bannerPickerIndex, setBannerPickerIndex] = useState(0);
+
+  // Load trades for settings tab
+  useEffect(() => {
+    fetch('/api/trades').then(r => r.json()).then(d => setTrades(d.trades || []));
+  }, []);
+
+  // Slug uniqueness check (debounced)
+  const checkSettingsSlug = useCallback((slug) => {
+    clearTimeout(slugCheckTimer.current);
+    setSlugResult(null);
+    if (!slug || slug.length < 3 || slug === website.slug) return;
+    setSlugChecking(true);
+    slugCheckTimer.current = setTimeout(async () => {
+      try {
+        const r = await fetch(`/api/website/slug-check?slug=${encodeURIComponent(slug)}`);
+        const d = await r.json();
+        setSlugResult(d);
+      } finally { setSlugChecking(false); }
+    }, 500);
+  }, [website.slug]);
 
   // Load demo state from localStorage on mount
   useEffect(() => {
@@ -1563,6 +1596,48 @@ export function BuilderEditor({ website: initialWebsite, sections: initialSectio
         body: JSON.stringify({ is_premium: next }),
       });
     } catch { /* silent — migration may not be applied yet */ }
+  };
+
+  const handleSaveSlug = async () => {
+    if (isDemoMode) { showToast('Demo módban nem elérhető'); return; }
+    if (!settingsSlug || settingsSlug.length < 3) { setSlugSaveErr('A link legalább 3 karakter hosszú kell legyen.'); return; }
+    if (settingsSlug === website.slug) return;
+    if (slugResult && !slugResult.available) { setSlugSaveErr('Ez a link már foglalt.'); return; }
+    setSlugSaving(true); setSlugSaveErr(''); setSlugSaveOk(false);
+    try {
+      const r = await fetch('/api/website', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'update_slug', slug: settingsSlug }),
+      });
+      const d = await r.json();
+      if (!r.ok) { setSlugSaveErr(d.error || 'Hiba a mentéskor.'); return; }
+      setWebsite(d.website);
+      setSlugSaveOk(true);
+      setSlugResult(null);
+      setTimeout(() => setSlugSaveOk(false), 3000);
+    } catch { setSlugSaveErr('Hálózati hiba. Próbáld újra.'); }
+    finally { setSlugSaving(false); }
+  };
+
+  const handleSaveTrade = async (newTradeId) => {
+    if (isDemoMode) { showToast('Demo módban nem elérhető'); return; }
+    setSettingsTradeId(newTradeId);
+    setTradeSaving(true); setTradeSaveOk(false);
+    try {
+      const r = await fetch('/api/website', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ trade_id: newTradeId || null }),
+      });
+      const d = await r.json();
+      if (r.ok) {
+        setWebsite(d.website);
+        setTradeSaveOk(true);
+        setTimeout(() => setTradeSaveOk(false), 2000);
+      }
+    } catch { /* silent */ }
+    finally { setTradeSaving(false); }
   };
 
   const dirty = useRef(false);
@@ -1759,8 +1834,9 @@ export function BuilderEditor({ website: initialWebsite, sections: initialSectio
       {/* Tab navigation */}
       <div style={{ display: 'flex', gap: '0.25rem', background: 'var(--bg-subtle)', borderRadius: 'var(--radius-md)', padding: '0.25rem', marginBottom: '1.25rem' }}>
         {[
-          { key: 'sections', label: 'Szekciók' },
-          { key: 'design',   label: 'Design' },
+          { key: 'sections',  label: 'Szekciók' },
+          { key: 'design',    label: 'Design' },
+          { key: 'settings',  label: 'Beállítások' },
         ].map(tab => (
           <button
             key={tab.key} type="button"
@@ -1936,6 +2012,106 @@ export function BuilderEditor({ website: initialWebsite, sections: initialSectio
         </div>
       )}
 
+      {/* ---- Settings tab ---- */}
+      {activeTab === 'settings' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+
+          {/* Slug change */}
+          <div>
+            <p style={{ margin: '0 0 0.5rem', fontWeight: 700, fontSize: '0.875rem' }}>Nyilvános link (URL)</p>
+            <p style={{ margin: '0 0 0.75rem', fontSize: '0.775rem', color: 'var(--text-muted)' }}>
+              A profilod elérési útja: <strong>epitunk.hu/szakemberek/{settingsSlug || website.slug}</strong>
+            </p>
+            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-start', flexWrap: 'wrap' }}>
+              <div style={{ flex: 1, minWidth: 200 }}>
+                <div style={{ display: 'flex', alignItems: 'center', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', overflow: 'hidden', background: 'var(--bg-input, var(--bg-subtle))' }}>
+                  <span style={{ padding: '0.55rem 0.6rem', fontSize: '0.8rem', color: 'var(--text-muted)', borderRight: '1px solid var(--border-subtle)', whiteSpace: 'nowrap', flexShrink: 0 }}>/szakemberek/</span>
+                  <input
+                    type="text"
+                    value={settingsSlug}
+                    onChange={e => {
+                      const v = toSlug(e.target.value) || e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '');
+                      setSettingsSlug(v);
+                      setSlugSaveErr('');
+                      setSlugSaveOk(false);
+                      checkSettingsSlug(v);
+                    }}
+                    placeholder="pl. kovacs-janos-felujtio"
+                    style={{ border: 'none', background: 'transparent', outline: 'none', padding: '0.55rem 0.65rem', fontSize: '0.875rem', flex: 1, minWidth: 0 }}
+                  />
+                  {slugChecking && <Loader2 size={14} style={{ margin: '0 0.5rem', color: 'var(--text-muted)', animation: 'spin 1s linear infinite', flexShrink: 0 }} />}
+                  {!slugChecking && slugResult && settingsSlug !== website.slug && (
+                    slugResult.available
+                      ? <Check size={14} style={{ margin: '0 0.5rem', color: 'var(--success-text)', flexShrink: 0 }} />
+                      : <X size={14} style={{ margin: '0 0.5rem', color: 'var(--danger-text)', flexShrink: 0 }} />
+                  )}
+                </div>
+                {slugSaveErr && <div style={{ fontSize: '0.75rem', color: 'var(--danger-text)', marginTop: '0.3rem' }}>{slugSaveErr}</div>}
+                {!slugSaveErr && slugResult && !slugResult.available && settingsSlug !== website.slug && (
+                  <div style={{ fontSize: '0.75rem', color: 'var(--danger-text)', marginTop: '0.3rem' }}>Ez a link már foglalt.</div>
+                )}
+                {!slugSaveErr && slugResult?.available && settingsSlug !== website.slug && (
+                  <div style={{ fontSize: '0.75rem', color: 'var(--success-text)', marginTop: '0.3rem' }}>Ez a link elérhető!</div>
+                )}
+              </div>
+              <button
+                type="button"
+                className="btn btn-primary btn-sm"
+                disabled={slugSaving || settingsSlug === website.slug || settingsSlug.length < 3 || (slugResult !== null && !slugResult.available)}
+                onClick={handleSaveSlug}
+                style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: '0.3rem' }}
+              >
+                {slugSaving ? <><Loader2 size={13} className="animate-spin" /> Mentés…</> : slugSaveOk ? <><Check size={13} /> Mentve!</> : <><Check size={13} /> Mentés</>}
+              </button>
+            </div>
+          </div>
+
+          {/* Trade / profession change */}
+          <div>
+            <p style={{ margin: '0 0 0.5rem', fontWeight: 700, fontSize: '0.875rem' }}>Szakma / tevékenység</p>
+            <p style={{ margin: '0 0 0.75rem', fontSize: '0.775rem', color: 'var(--text-muted)' }}>
+              A kiválasztott szakma befolyásolja az alapértelmezett képeket és a keresési kategóriát.
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', maxWidth: 360 }}>
+              <button
+                type="button"
+                onClick={() => handleSaveTrade('')}
+                style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem',
+                  padding: '0.65rem 0.85rem', borderRadius: 'var(--radius-md)', cursor: 'pointer',
+                  border: `1.5px solid ${(!settingsTradeId) ? 'var(--primary)' : 'var(--border-subtle)'}`,
+                  background: (!settingsTradeId) ? 'var(--primary-bg, #eff6ff)' : 'var(--bg-card)',
+                  fontWeight: (!settingsTradeId) ? 700 : 400, fontSize: '0.875rem',
+                  color: (!settingsTradeId) ? 'var(--primary)' : 'var(--text)',
+                }}
+              >
+                <span>Általános szakember</span>
+                {(!settingsTradeId) && (tradeSaveOk ? <CheckCircle2 size={14} color="var(--success-text)" /> : <Check size={14} color="var(--primary)" />)}
+              </button>
+              {trades.map(trade => (
+                <button
+                  key={trade.id}
+                  type="button"
+                  onClick={() => handleSaveTrade(trade.id)}
+                  style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem',
+                    padding: '0.65rem 0.85rem', borderRadius: 'var(--radius-md)', cursor: 'pointer',
+                    border: `1.5px solid ${settingsTradeId === trade.id ? 'var(--primary)' : 'var(--border-subtle)'}`,
+                    background: settingsTradeId === trade.id ? 'var(--primary-bg, #eff6ff)' : 'var(--bg-card)',
+                    fontWeight: settingsTradeId === trade.id ? 700 : 400, fontSize: '0.875rem',
+                    color: settingsTradeId === trade.id ? 'var(--primary)' : 'var(--text)',
+                  }}
+                >
+                  <span>{trade.name_hu}</span>
+                  {settingsTradeId === trade.id && (tradeSaveOk ? <CheckCircle2 size={14} color="var(--success-text)" /> : <Check size={14} color="var(--primary)" />)}
+                </button>
+              ))}
+              {tradeSaving && <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.3rem' }}><Loader2 size={12} className="animate-spin" /> Mentés…</div>}
+            </div>
+          </div>
+
+        </div>
+      )}
 
       <p style={{ marginTop: '1.5rem', fontSize: '0.775rem', color: 'var(--text-muted)', textAlign: 'center' }}>
         <a href={publicUrl} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary)' }}>epitunk.hu/szakemberek/{website.slug}</a>

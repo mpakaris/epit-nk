@@ -63,7 +63,7 @@ export async function POST(request) {
 
   if (existing) {
     // Update flow
-    const { action, sections, slug: _slug, ...websiteFields } = body;
+    const { action, sections, slug, ...websiteFields } = body;
 
     if (action === 'publish') {
       await admin.from('user_websites').update({
@@ -74,6 +74,22 @@ export async function POST(request) {
     } else if (action === 'unpublish') {
       await admin.from('user_websites').update({
         status: 'draft',
+        updated_at: new Date().toISOString(),
+      }).eq('id', existing.id);
+    } else if (action === 'update_slug' && slug) {
+      const cleanSlug = slug.toLowerCase().trim();
+      if (cleanSlug.length < 3) {
+        return Response.json({ error: 'A link legalább 3 karakter hosszú kell legyen' }, { status: 400 });
+      }
+      const { data: taken } = await admin
+        .from('user_websites')
+        .select('id')
+        .eq('slug', cleanSlug)
+        .neq('id', existing.id)
+        .maybeSingle();
+      if (taken) return Response.json({ error: 'Ez a link már foglalt' }, { status: 409 });
+      await admin.from('user_websites').update({
+        slug: cleanSlug,
         updated_at: new Date().toISOString(),
       }).eq('id', existing.id);
     } else if (Object.keys(websiteFields).length > 0) {

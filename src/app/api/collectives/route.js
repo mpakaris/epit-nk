@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { logAudit } from '@/lib/audit';
+import { isEffectivePremium } from '@/lib/subscriptionLimits';
 
 // GET  — list collectives the caller belongs to (with members)
 // POST — create a new collective (Premium required)
@@ -71,11 +72,26 @@ export async function POST(req) {
   if (authErr || !user) return Response.json({ error: 'Unauthenticated' }, { status: 401 });
 
   const admin = createAdminClient();
-  const { data: profile } = await admin.from('profiles').select('is_subscription_premium, role, display_name').eq('id', user.id).single();
+  const { data: profile } = await admin.from('profiles').select('is_subscription_premium, subscription_tier, trial_ends_at, role, display_name').eq('id', user.id).single();
 
   const isSuperAdmin = profile?.role === 'superadmin';
-  if (!isSuperAdmin && !profile?.is_subscription_premium) {
+  const isTrialUser = !profile?.is_subscription_premium && profile?.subscription_tier === 'trial';
+
+  if (!isSuperAdmin && !isEffectivePremium(profile ?? {})) {
     return Response.json({ error: 'PREMIUM_REQUIRED' }, { status: 403 });
+  }
+
+  // Trial users may create at most 1 free collective
+  if (!isSuperAdmin && isTrialUser) {
+    const { count } = await admin
+      .from('collective_members')
+      .select('collective_id', { count: 'exact', head: true })
+      .eq('user_id', user.id)
+      .eq('role', 'owner')
+      .eq('status', 'active');
+    if ((count ?? 0) >= 1) {
+      return Response.json({ error: 'TRIAL_COLLECTIVE_LIMIT' }, { status: 403 });
+    }
   }
 
   const { name, creem_subscription_id, collective_tier } = await req.json();

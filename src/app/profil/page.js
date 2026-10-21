@@ -160,7 +160,7 @@ const DEMO_PROFILE = {
 };
 
 export default function ProfilPage() {
-  const { currentUser, logout, changePassword, isDemoMode, refreshSupabaseData, collectives } = useApp();
+  const { currentUser, logout, changePassword, isDemoMode, refreshSupabaseData, collectives, updateDisplayName } = useApp();
   const router = useRouter();
 
   useEffect(() => {
@@ -458,6 +458,28 @@ export default function ProfilPage() {
       .finally(() => setLoadingProfile(false));
   }, [isDemoMode]);
 
+  const [nameSaving, setNameSaving] = useState(false);
+  const [nameOk, setNameOk] = useState(false);
+  const [nameErr, setNameErr] = useState('');
+
+  const handleSaveName = async () => {
+    if (!displayName.trim()) { setNameErr('A megjelenítési név nem lehet üres.'); return; }
+    setNameSaving(true); setNameErr(''); setNameOk(false);
+    try {
+      const res = await fetch('/api/auth/profile', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ display_name: displayName.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Hiba a mentéskor');
+      updateDisplayName(displayName.trim());
+      setNameOk(true);
+      setTimeout(() => setNameOk(false), 3000);
+    } catch (err) { setNameErr(err.message); }
+    finally { setNameSaving(false); }
+  };
+
   const handleSaveProfile = async (e) => {
     e.preventDefault();
     setSaving(true); setSaveErr(''); setSaveOk(false);
@@ -489,7 +511,10 @@ export default function ProfilPage() {
   const handleChangePassword = async (e) => {
     e.preventDefault();
     setPwErr(''); setPwOk(false);
-    if (pw.length < 6) { setPwErr('A jelszónak legalább 6 karakterből kell állnia!'); return; }
+    if (pw.length < 8) { setPwErr('A jelszónak legalább 8 karakterből kell állnia!'); return; }
+    if (!/[A-Z]/.test(pw)) { setPwErr('A jelszónak tartalmaznia kell legalább 1 nagybetűt!'); return; }
+    if (!/[0-9]/.test(pw)) { setPwErr('A jelszónak tartalmaznia kell legalább 1 számot!'); return; }
+    if (!/[^A-Za-z0-9]/.test(pw)) { setPwErr('A jelszónak tartalmaznia kell legalább 1 speciális karaktert!'); return; }
     if (pw !== pwConfirm) { setPwErr('A jelszavak nem egyeznek!'); return; }
     setPwSaving(true);
     try {
@@ -534,9 +559,9 @@ export default function ProfilPage() {
       const res = await fetch('/api/auth/account', { method: 'DELETE' });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
-      setScheduledDeletionAt(data.scheduled_deletion_at);
       setDeleteOpen(false);
       setDeleteText('');
+      logout();
     } catch (err) { setDeleteErr(err.message || 'Hiba történt.'); }
     finally { setDeleting(false); }
   };
@@ -633,15 +658,29 @@ export default function ProfilPage() {
         {/* Display name field */}
         <div className="form-group" style={{ margin: 0 }}>
           <label className="form-label">Megjelenítési név</label>
-          <input
-            type="text" className="form-control"
-            value={displayName}
-            onChange={e => setDisplayName(e.target.value)}
-            placeholder={currentUser?.display_name || 'pl. Kovács János'}
-          />
-          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.3rem' }}>
-            Ez a név jelenik meg a felületen és a megosztott tartalmakban.
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+            <input
+              type="text" className="form-control"
+              value={displayName}
+              onChange={e => { setDisplayName(e.target.value); setNameErr(''); setNameOk(false); }}
+              placeholder={currentUser?.display_name || 'pl. Kovács János'}
+              onKeyDown={e => e.key === 'Enter' && handleSaveName()}
+            />
+            <button
+              type="button"
+              className="btn btn-primary btn-sm"
+              onClick={handleSaveName}
+              disabled={nameSaving}
+              style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: '0.3rem' }}
+            >
+              {nameSaving ? <Loader2 size={13} className="animate-spin" /> : nameOk ? <CheckCircle2 size={13} /> : <Check size={13} />}
+              {nameSaving ? 'Mentés…' : nameOk ? 'Mentve!' : 'Mentés'}
+            </button>
           </div>
+          {nameErr && <div style={{ fontSize: '0.75rem', color: 'var(--danger-text)', marginTop: '0.3rem' }}>{nameErr}</div>}
+          {!nameErr && <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.3rem' }}>
+            Ez a név jelenik meg a felületen és a megosztott tartalmakban.
+          </div>}
         </div>
       </div>
 
@@ -682,7 +721,7 @@ export default function ProfilPage() {
             )}
             <div className="form-group" style={{ margin: 0 }}>
               <label className="form-label">Új jelszó</label>
-              <input type="password" className="form-control" value={pw} onChange={e => setPw(e.target.value)} placeholder="Legalább 6 karakter" autoFocus />
+              <input type="password" className="form-control" value={pw} onChange={e => setPw(e.target.value)} placeholder="Min. 8 karakter, 1 nagybetű, 1 szám, 1 spec. karakter" autoFocus />
             </div>
             <div className="form-group" style={{ margin: 0 }}>
               <label className="form-label">Jelszó megerősítése</label>

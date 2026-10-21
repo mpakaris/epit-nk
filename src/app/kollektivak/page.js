@@ -6,6 +6,7 @@ import { useApp } from '@/context/AppContext';
 import Modal, { ConfirmModal, AlertModal } from '@/components/Modal';
 import PageSpinner from '@/components/PageSpinner';
 import { formatDate } from '@/lib/constants';
+import { isEffectivePremium } from '@/lib/subscriptionLimits';
 import {
   Users, Plus, Crown, UserCheck, Trash2, UserMinus,
   Mail, AlertCircle, CheckCircle2, Loader2, X, Ban, ShieldCheck, RefreshCw, AlertTriangle,
@@ -271,7 +272,42 @@ export default function KollektivakPage() {
   const handleCreate = async (e) => {
     e.preventDefault();
     if (!createName.trim()) { setCreateError('A kollektíva neve kötelező'); return; }
+    // Trial users get 1 free collective — skip payment flow
+    if (isOnTrial) {
+      setCreateStep(4);
+      return;
+    }
     setCreateStep(2);
+  };
+
+  const handleCreateFree = async () => {
+    setCreateError('');
+    setTierLoading(true);
+    try {
+      const res = await fetch('/api/collectives', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: createName.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        if (data.error === 'TRIAL_COLLECTIVE_LIMIT') {
+          setCreateError('Próbaidőszak alatt csak 1 kollektívát hozhatsz létre.');
+        } else {
+          setCreateError(data.error || 'Hiba a létrehozáskor.');
+        }
+        setCreateStep(4);
+        return;
+      }
+      setShowCreate(false);
+      setKollektivaResult({ status: 'success', name: createName.trim() });
+      fetchCollectives();
+      refreshCollectives();
+    } catch {
+      setCreateError('Hálózati hiba. Kérjük, próbáld újra.');
+    } finally {
+      setTierLoading(false);
+    }
   };
 
   const handleTierSelect = (tier) => {
@@ -282,8 +318,7 @@ export default function KollektivakPage() {
 
   const handleConfirmCheckout = async () => {
     if (!createTier) return;
-    const isPremiumUser = currentUser?.is_subscription_premium ?? false;
-    const productId = isPremiumUser ? createTier.addonProductId : createTier.bundleProductId;
+    const productId = isPaidPremium ? createTier.addonProductId : createTier.bundleProductId;
 
     if (!productId) {
       setCreateError('Hiányzó termék azonosító. Kérjük, vedd fel a kapcsolatot az üzemeltetővel.');
@@ -424,8 +459,7 @@ export default function KollektivakPage() {
       return;
     }
     const tierObj = CREEM_TIERS.find(t => t.key === targetTier);
-    const isPremiumUser = currentUser?.is_subscription_premium ?? false;
-    const targetProductId = isPremiumUser ? tierObj?.addonProductId : tierObj?.bundleProductId;
+    const targetProductId = isPaidPremium ? tierObj?.addonProductId : tierObj?.bundleProductId;
     if (!targetProductId) {
       setAlertModal({ message: 'Hiányzó termék azonosító. Kérjük, vedd fel a kapcsolatot az üzemeltetővel.' });
       return;
@@ -582,7 +616,12 @@ export default function KollektivakPage() {
 
   if (loading || !dataReady || fetching) return <PageSpinner />;
 
-  const isPremium = currentUser?.is_subscription_premium ?? false;
+  const isPaidPremium = currentUser?.is_subscription_premium ?? false;
+  const isOnTrial = !isPaidPremium
+    && currentUser?.subscription_tier === 'trial'
+    && currentUser?.trial_ends_at
+    && new Date(currentUser.trial_ends_at) > new Date();
+  const isPremium = isPaidPremium; // keep for tier display (addon vs bundle pricing)
   const myCollectives       = collectives.filter(c => c.my_role === 'owner');
   const invitedCollectives  = collectives.filter(c => c.my_role !== 'owner');
 
@@ -1003,7 +1042,7 @@ export default function KollektivakPage() {
       )}
 
       {/* ── Create modal (3-step) ── */}
-      <Modal isOpen={showCreate} onClose={closeCreateModal} title={createStep === 1 ? 'Új kollektíva — Név' : createStep === 2 ? 'Új kollektíva — Csomag' : 'Fizetés megerősítése'}>
+      <Modal isOpen={showCreate} onClose={closeCreateModal} title={createStep === 1 ? 'Új kollektíva — Név' : createStep === 2 ? 'Új kollektíva — Csomag' : createStep === 4 ? 'Ingyenes Próba Kollektíva' : 'Fizetés megerősítése'}>
         {createError && (
           <div style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', color: 'var(--danger-text)', padding: '0.65rem', borderRadius: 'var(--radius-md)', fontSize: '0.825rem', display: 'flex', gap: '0.45rem', marginBottom: '0.85rem' }}>
             <AlertCircle size={15} /><span>{createError}</span>
@@ -1169,6 +1208,25 @@ export default function KollektivakPage() {
             </div>
           </div>
         )}
+
+        {/* Step 4: free trial collective confirmation */}
+        {createStep === 4 && (
+          <div>
+            <div style={{ background: 'linear-gradient(135deg,#eff6ff,#f5f3ff)', border: '1px solid #c7d2fe', borderRadius: 'var(--radius-md)', padding: '1rem', marginBottom: '1.1rem' }}>
+              <div style={{ fontWeight: 800, fontSize: '0.95rem', marginBottom: '0.3rem', color: '#1e3a8a' }}>🎁 Ingyenes kollektíva a próbaidőszak alatt</div>
+              <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>Kollektíva neve: <strong style={{ color: 'var(--text-primary)' }}>{createName}</strong></div>
+              <div style={{ fontSize: '0.8rem', color: '#334155', lineHeight: 1.5 }}>
+                A próbaidőszak alatt 1 kollektívát hozhatsz létre ingyenesen. A 14 napos időszak lejárta után a kollektíva megmarad — kollektíva-előfizetéssel lehet aktívan tartani.
+              </div>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.5rem' }}>
+              <button type="button" className="btn btn-secondary btn-sm" disabled={tierLoading} onClick={() => { setCreateStep(1); setCreateError(''); }}>← Vissza</button>
+              <button type="button" className="btn btn-primary btn-sm" disabled={tierLoading} onClick={handleCreateFree}>
+                {tierLoading ? <><Loader2 size={13} className="animate-spin" /> Létrehozás…</> : 'Kollektíva létrehozása →'}
+              </button>
+            </div>
+          </div>
+        )}
       </Modal>
 
       {/* ── Seat limit modal ── */}
@@ -1250,9 +1308,8 @@ export default function KollektivakPage() {
                 <button type="button" className="btn btn-secondary btn-sm" onClick={() => setReactivateModal(null)}>Mégse</button>
                 <button type="button" className="btn btn-primary btn-sm" onClick={async () => {
                   const tier = reactivateModal.collective_tier ?? 'small';
-                  const isPremiumUser = currentUser?.is_subscription_premium ?? false;
                   const tierObj = CREEM_TIERS.find(t => t.key === tier);
-                  const productId = isPremiumUser ? tierObj?.addonProductId : tierObj?.bundleProductId;
+                  const productId = isPaidPremium ? tierObj?.addonProductId : tierObj?.bundleProductId;
                   if (!productId) return;
                   localStorage.setItem('creem_kollektiva_pending', JSON.stringify({ name: reactivateModal.name, tier, collectiveId: reactivateModal.id }));
                   setReactivateModal(null);
