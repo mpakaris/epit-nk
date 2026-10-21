@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { logAudit } from '@/lib/audit';
 
 const CREEM_BASE = process.env.CREEM_API_KEY?.startsWith('creem_test_')
   ? 'https://test-api.creem.io'
@@ -64,10 +65,29 @@ export async function POST(request) {
 
   if (collectiveId) {
     await admin.from('collectives').update({ subscription_status: 'active', subscription_period_end: null }).eq('id', collectiveId);
+    const { data: colInfo } = await admin.from('collectives').select('name').eq('id', collectiveId).single();
+    logAudit({
+      entityId: collectiveId,
+      userId: user.id,
+      userName: user.email,
+      action: 'Collective subscription resumed',
+      targetType: 'collective',
+      targetId: collectiveId,
+      targetName: colInfo?.name || collectiveId,
+    });
   } else {
     await admin.from('subscriptions')
       .update({ status: 'active', period_end: null, updated_at: new Date().toISOString() })
       .eq('creem_subscription_id', subscriptionId);
+    logAudit({
+      entityId: null,
+      userId: user.id,
+      userName: user.email,
+      action: 'Premium subscription resumed',
+      targetType: 'subscription',
+      targetId: subscriptionId,
+      targetName: user.email,
+    });
   }
 
   return NextResponse.json({ ok: true });

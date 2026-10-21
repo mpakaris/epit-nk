@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { logAudit } from '@/lib/audit';
 
 export async function DELETE(req, { params }) {
   const { id } = await params;
@@ -39,6 +40,23 @@ export async function DELETE(req, { params }) {
     .eq('id', id);
 
   if (updateErr) return Response.json({ error: updateErr.message }, { status: 500 });
+
+  const { data: invFull } = await admin
+    .from('collective_invitations')
+    .select('email, collectives(name)')
+    .eq('id', id)
+    .single();
+
+  logAudit({
+    entityId: inv.collective_id,
+    userId: user.id,
+    userName: user.email,
+    action: 'Invitation retracted',
+    targetType: 'invitation',
+    targetId: id,
+    targetName: invFull?.email || id,
+    details: { collective: invFull?.collectives?.name },
+  });
 
   return Response.json({ ok: true });
 }

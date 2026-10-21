@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { logAudit } from '@/lib/audit';
 
 const CREEM_BASE = process.env.CREEM_API_KEY?.startsWith('creem_test_')
   ? 'https://test-api.creem.io'
@@ -57,5 +58,16 @@ export async function POST(request) {
   }
 
   console.log('[activate] premium granted for user:', user.id);
+
+  logAudit({
+    entityId: null,
+    userId: user.id,
+    userName: user.email,
+    action: 'Premium subscription activated',
+    targetType: 'subscription',
+    targetId: subscriptionId || null,
+    targetName: user.email,
+  });
+
   return NextResponse.json({ ok: true });
 }

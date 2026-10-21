@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { logAudit } from '@/lib/audit';
 
 const CREEM_BASE = process.env.CREEM_API_KEY?.startsWith('creem_test_')
   ? 'https://test-api.creem.io'
@@ -63,6 +64,18 @@ export async function POST(request) {
     .eq('id', collectiveId);
 
   if (dbErr) console.warn('[subscriptions/upgrade] DB update skipped:', dbErr.message);
+
+  const { data: colInfo } = await admin.from('collectives').select('name').eq('id', collectiveId).single();
+  logAudit({
+    entityId: collectiveId,
+    userId: user.id,
+    userName: user.email,
+    action: `Collective tier upgraded to ${targetTier}`,
+    targetType: 'collective',
+    targetId: collectiveId,
+    targetName: colInfo?.name || collectiveId,
+    details: { target_tier: targetTier, subscription_id: subscriptionId },
+  });
 
   return NextResponse.json({ ok: true, collective_tier: targetTier });
 }

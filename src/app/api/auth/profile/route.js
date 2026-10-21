@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { logAudit } from '@/lib/audit';
 
 export async function GET() {
   const supabase = await createClient();
@@ -114,5 +115,17 @@ export async function PATCH(request) {
 
   const { data, error } = await admin.from('profiles').update(update).eq('id', user.id).select().single();
   if (error) return Response.json({ error: error.message }, { status: 500 });
+
+  logAudit({
+    entityId: user.id,
+    userId: user.id,
+    userName: data.display_name || user.email,
+    action: 'Profil módosítva',
+    targetType: 'user',
+    targetId: user.id,
+    targetName: data.display_name || user.email,
+    details: { fields: Object.keys(update) },
+  });
+
   return Response.json({ profile: data });
 }

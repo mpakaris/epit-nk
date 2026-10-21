@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { sendEmail } from '@/lib/email';
 import { wrapEmail } from '@/lib/emailTemplates';
+import { logAudit } from '@/lib/audit';
 
 const CREEM_BASE = process.env.CREEM_API_KEY?.startsWith('creem_test_')
   ? 'https://test-api.creem.io'
@@ -131,6 +132,18 @@ export async function POST(request) {
     if (periodEndIso) update.subscription_period_end = periodEndIso;
     const { error: dbErr } = await admin.from('collectives').update(update).eq('id', collectiveId);
     if (dbErr) console.warn('[subscriptions/cancel] collective DB update skipped:', dbErr.message);
+
+    const { data: colInfo } = await admin.from('collectives').select('name').eq('id', collectiveId).single();
+    logAudit({
+      entityId: collectiveId,
+      userId: user.id,
+      userName: user.email,
+      action: 'Collective subscription cancelled',
+      targetType: 'collective',
+      targetId: collectiveId,
+      targetName: colInfo?.name || collectiveId,
+      details: { period_end: periodEndIso },
+    });
   } else {
     // Premium subscription cancel — update subscriptions table
     const update = { status: 'scheduled_cancel', updated_at: new Date().toISOString() };
@@ -230,6 +243,17 @@ export async function POST(request) {
         console.error('[subscriptions/cancel] collective cascade error:', col.id, e.message);
       }
     }
+
+    logAudit({
+      entityId: null,
+      userId: user.id,
+      userName: user.email,
+      action: 'Premium subscription cancelled',
+      targetType: 'subscription',
+      targetId: subscriptionId,
+      targetName: user.email,
+      details: { period_end: periodEndIso, cascaded_collectives: canceledCollectives.length },
+    });
 
     return NextResponse.json({
       ok: true,

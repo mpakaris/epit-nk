@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { sendEmail } from '@/lib/email';
 import { fillTemplate, wrapEmail, EMAIL_TEMPLATES } from '@/lib/emailTemplates';
+import { logAudit } from '@/lib/audit';
 
 // PATCH  — block or unblock a member (owner only)
 // DELETE — remove a member (owner can remove anyone; member can remove themselves)
@@ -75,6 +76,17 @@ export async function PATCH(req, { params }) {
       });
     } catch { /* non-critical */ }
   }
+
+  logAudit({
+    entityId: id,
+    userId: user.id,
+    userName: ownerName,
+    action: action === 'block' ? 'Member blocked' : 'Member unblocked',
+    targetType: 'user',
+    targetId: memberId,
+    targetName: memberProfileRes.data?.email || memberId,
+    details: { collective: collectiveName },
+  });
 
   return Response.json({ ok: true, status: newStatus });
 }
@@ -161,6 +173,17 @@ export async function DELETE(req, { params }) {
       catch { /* non-critical */ }
     }
   }
+
+  logAudit({
+    entityId: id,
+    userId: user.id,
+    userName: ownerProfileRes.data?.display_name || user.email,
+    action: isSelf ? 'Member left collective' : 'Member removed from collective',
+    targetType: 'user',
+    targetId: memberId,
+    targetName: memberName,
+    details: { collective: collectiveName },
+  });
 
   return Response.json({ ok: true });
 }

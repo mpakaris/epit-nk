@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { logAudit } from '@/lib/audit';
 
 async function getCtx(projectId, userId) {
   const admin = createAdminClient();
@@ -65,5 +66,17 @@ export async function POST(request, { params }) {
   }]).select().single();
 
   if (insertErr) return Response.json({ error: insertErr.message }, { status: 500 });
+
+  logAudit({
+    entityId: ctx.project.collective_id || ctx.project.owner_id,
+    userId: user.id,
+    userName: ctx.profile.display_name || user.email,
+    action: 'Helyiség létrehozva',
+    targetType: 'project_room',
+    targetId: room.id,
+    targetName: room.name,
+    details: { project_id: projectId },
+  });
+
   return Response.json({ room }, { status: 201 });
 }

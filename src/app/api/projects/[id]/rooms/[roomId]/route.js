@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { logAudit } from '@/lib/audit';
 
 async function getCtx(projectId, userId) {
   const admin = createAdminClient();
@@ -47,6 +48,18 @@ export async function PATCH(request, { params }) {
     .from('project_rooms').update(update).eq('id', roomId).eq('project_id', projectId).select().single();
 
   if (updateErr) return Response.json({ error: updateErr.message }, { status: 400 });
+
+  logAudit({
+    entityId: ctx.project.collective_id || ctx.project.owner_id,
+    userId: user.id,
+    userName: ctx.profile.display_name || user.email,
+    action: 'Helyiség módosítva',
+    targetType: 'project_room',
+    targetId: roomId,
+    targetName: data.name,
+    details: { project_id: projectId },
+  });
+
   return Response.json({ room: data });
 }
 
@@ -70,5 +83,17 @@ export async function DELETE(request, { params }) {
     .from('project_rooms').delete().eq('id', roomId).eq('project_id', projectId);
 
   if (deleteErr) return Response.json({ error: deleteErr.message }, { status: 400 });
+
+  logAudit({
+    entityId: ctx.project.collective_id || ctx.project.owner_id,
+    userId: user.id,
+    userName: ctx.profile.display_name || user.email,
+    action: 'Helyiség törölve',
+    targetType: 'project_room',
+    targetId: roomId,
+    targetName: roomId,
+    details: { project_id: projectId },
+  });
+
   return Response.json({ success: true });
 }

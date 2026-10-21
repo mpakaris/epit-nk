@@ -1,4 +1,5 @@
 import { createAdminClient } from '@/lib/supabase/admin';
+import { logAudit } from '@/lib/audit';
 
 // Creates a confirmed user account for an invitation without requiring email confirmation.
 // Safe because the invitee arrived via a link sent to their own email address.
@@ -42,6 +43,17 @@ export async function POST(req, { params }) {
   });
 
   if (createErr) return Response.json({ error: createErr.message }, { status: 500 });
+
+  logAudit({
+    entityId: null,
+    userId: created.user.id,
+    userName: name.trim(),
+    action: 'Account registered via invitation',
+    targetType: 'user',
+    targetId: created.user.id,
+    targetName: inv.email,
+    details: { invitation_id: inv.id },
+  });
 
   return Response.json({ ok: true, userId: created.user.id });
 }
