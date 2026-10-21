@@ -62,29 +62,11 @@ export default function SuperAdminPage() {
   const [deletionRunning, setDeletionRunning] = useState(false);
   const [deletionResult, setDeletionResult]   = useState(null);
 
-  // ── God Mode user picker ──────────────────────────────────────────────────
-  const [godSearch,          setGodSearch]          = useState('');
-  const [godPickUser,        setGodPickUser]        = useState(null);
-  const [godPickCollectives, setGodPickCollectives] = useState([]);
-  const [godPickLoading,     setGodPickLoading]     = useState(false);
+  // ── God Mode ──────────────────────────────────────────────────────────────
+  const [godSearch, setGodSearch] = useState('');
 
-  const handleEnterAs = async (u) => {
-    setGodPickUser(u);
-    setGodPickCollectives([]);
-    setGodPickLoading(true);
-    try {
-      const res = await fetch(`/api/superadmin/user?id=${u.id}&include=collectives`);
-      const data = await res.json();
-      setGodPickCollectives(data.collectives || []);
-    } catch { /* non-fatal */ } finally {
-      setGodPickLoading(false);
-    }
-  };
-
-  const doImpersonate = (userId, collectiveId) => {
-    setGodPickUser(null);
-    setGodPickCollectives([]);
-    startImpersonation(userId, collectiveId || undefined).catch(err => setAlertModal({ message: err.message }));
+  const doImpersonate = (userId) => {
+    startImpersonation(userId).catch(err => setAlertModal({ message: err.message }));
   };
 
   // ── Total Recall + aggregate stats ───────────────────────────────────────
@@ -384,7 +366,7 @@ export default function SuperAdminPage() {
                   </div>
                   <button
                     type="button"
-                    onClick={() => handleEnterAs(u)}
+                    onClick={() => doImpersonate(u.id)}
                     style={{ flexShrink: 0, padding: '0.35rem 0.7rem', background: 'linear-gradient(135deg, #7c3aed, #4f46e5)', color: '#fff', border: 'none', borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}
                   >
                     <Eye size={13} /> Enter
@@ -523,27 +505,6 @@ export default function SuperAdminPage() {
 
 
       {/* ── Modals ── */}
-      <Modal isOpen={!!godPickUser} onClose={() => { setGodPickUser(null); setGodPickCollectives([]); }} title={`Enter as: ${godPickUser?.display_name || godPickUser?.email}`}>
-        {godPickLoading ? (
-          <div style={{ textAlign: 'center', padding: '1.5rem 0' }}><Loader2 size={22} className="animate-spin" style={{ margin: '0 auto', color: 'var(--text-muted)' }} /></div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-            <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>Choose workspace context:</p>
-            <button type="button" onClick={() => doImpersonate(godPickUser.id, null)}
-              style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem 1rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)', background: 'var(--bg-subtle)', cursor: 'pointer', textAlign: 'left' }}>
-              <div style={{ width: 36, height: 36, borderRadius: 'var(--radius-sm)', background: '#e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><Users size={16} color="#64748b" /></div>
-              <div><div style={{ fontWeight: 700 }}>Personal Workspace</div><div style={{ fontSize: '0.775rem', color: 'var(--text-muted)' }}>Private projects & data</div></div>
-            </button>
-            {godPickCollectives.map(c => (
-              <button key={c.collective_id} type="button" onClick={() => doImpersonate(godPickUser.id, c.collective_id)}
-                style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem 1rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--accent-border)', background: 'var(--accent-light)', cursor: 'pointer', textAlign: 'left' }}>
-                <div style={{ width: 36, height: 36, borderRadius: 'var(--radius-sm)', background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><Building2 size={16} color="#fff" /></div>
-                <div><div style={{ fontWeight: 700, color: 'var(--accent)' }}>{c.name}</div><div style={{ fontSize: '0.775rem', color: 'var(--text-muted)', textTransform: 'capitalize' }}>{c.role}</div></div>
-              </button>
-            ))}
-          </div>
-        )}
-      </Modal>
 
       <Modal isOpen={!!recallConfirm} onClose={() => { setRecallConfirm(null); setRecallInput(''); }} title="⚠ Total Recall — Irreversible">
         {recallConfirm && (
