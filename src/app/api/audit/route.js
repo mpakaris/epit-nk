@@ -42,6 +42,7 @@ export async function GET(request) {
 
   const { searchParams } = new URL(request.url);
   const entityId = searchParams.get('entityId') || null;
+  const userName = searchParams.get('userName') || null;
   const action   = searchParams.get('action')   || null;
   const from     = searchParams.get('from')     || null;
   const to       = searchParams.get('to')       || null;
@@ -50,11 +51,12 @@ export async function GET(request) {
 
   let q = admin
     .from('audit_logs')
-    .select('*, entity:entities(name)', { count: 'exact' })
+    .select('*', { count: 'exact' })
     .order('created_at', { ascending: false })
     .range(offset, offset + limit - 1);
 
   if (entityId) q = q.eq('entity_id', entityId);
+  if (userName) q = q.ilike('user_name', `%${userName}%`);
   if (action)   q = q.eq('action', action);
   if (from)     q = q.gte('created_at', from);
   if (to)       q = q.lte('created_at', to);
@@ -62,5 +64,28 @@ export async function GET(request) {
   const { data: logs, count, error } = await q;
   if (error) return Response.json({ error: error.message }, { status: 500 });
 
-  return Response.json({ logs: logs || [], total: count ?? 0 });
+  // Resolve workspace context: entity_id is either a collective UUID or a user UUID (personal)
+  const entityIds = [...new Set((logs || []).map(l => l.entity_id).filter(Boolean))];
+  let collectiveMap = {};
+  if (entityIds.length > 0) {
+    const { data: cols } = await admin
+      .from('collectives')
+      .select('id, name')
+      .in('id', entityIds);
+    for (const c of cols || []) collectiveMap[c.id] = c.name;
+  }
+
+  const enriched = (logs || []).map(log => {
+    const cName = log.entity_id ? collectiveMap[log.entity_id] : null;
+    return {
+      ...log,
+      workspace: log.entity_id === null
+        ? { type: 'unknown', name: null }
+        : cName
+          ? { type: 'collective', name: cName }
+          : { type: 'personal', name: null },
+    };
+  });
+
+  return Response.json({ logs: enriched, total: count ?? 0 });
 }
