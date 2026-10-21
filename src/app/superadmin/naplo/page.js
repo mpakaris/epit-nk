@@ -87,6 +87,10 @@ const ACTION_LABELS = {
   'Napló bejegyzés létrehozva':         { label: 'Diary entry created',         color: 'var(--success-text)',    bg: 'var(--success-bg)' },
   'Napló bejegyzés módosítva':          { label: 'Diary entry updated',         color: 'var(--accent)',          bg: 'var(--accent-light)' },
   'Napló bejegyzés törölve':            { label: 'Diary entry deleted',         color: 'var(--danger-text)',     bg: 'var(--danger-bg)' },
+  'Diary entry published to client':    { label: 'Diary → published to client', color: 'var(--success-text)',    bg: 'var(--success-bg)' },
+  'Diary entry hidden from client':     { label: 'Diary → hidden from client',  color: 'var(--warning-text)',    bg: 'var(--warning-bg)' },
+  'Diary share link created':           { label: 'Diary share link created',    color: 'var(--success-text)',    bg: 'var(--success-bg)' },
+  'Diary share link deleted':           { label: 'Diary share link deleted',    color: 'var(--danger-text)',     bg: 'var(--danger-bg)' },
   'Napló megosztva':                    { label: 'Diary shared',                color: 'var(--accent)',          bg: 'var(--accent-light)' },
   'Napló megosztás visszavonva':        { label: 'Diary share revoked',         color: 'var(--warning-text)',    bg: 'var(--warning-bg)' },
   // Ideas

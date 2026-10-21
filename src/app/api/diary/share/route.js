@@ -75,7 +75,7 @@ export async function POST(request) {
     entityId: project.id,
     userId: profile.id,
     userName: profile.display_name,
-    action: 'diary_share_token_created',
+    action: 'Diary share link created',
     targetType: 'diary_share_token',
     targetId: token.id,
     details: { project_id, label },

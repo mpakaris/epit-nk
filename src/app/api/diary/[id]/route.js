@@ -71,11 +71,17 @@ export async function PATCH(request, { params }) {
   const { data: photos } = await admin
     .from('diary_photos').select('*').eq('entry_id', id).order('created_at');
 
+  // Determine the most specific action — visibility change beats generic edit
+  const wasVisibilityChange = typeof is_public === 'boolean' && is_public !== entry.is_public;
+  const auditAction = wasVisibilityChange
+    ? (is_public ? 'Diary entry published to client' : 'Diary entry hidden from client')
+    : 'Napló bejegyzés módosítva';
+
   logAudit({
     entityId: entry.project_id,
     userId: profile.id,
     userName: profile.display_name,
-    action: 'Napló bejegyzés módosítva',
+    action: auditAction,
     targetType: 'diary_entry',
     targetId: id,
     targetName: title.trim(),

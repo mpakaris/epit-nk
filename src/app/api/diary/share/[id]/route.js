@@ -29,7 +29,7 @@ export async function DELETE(request, { params }) {
     entityId: token.entity_id,
     userId: profile.id,
     userName: profile.display_name,
-    action: 'diary_share_token_deleted',
+    action: 'Diary share link deleted',
     targetType: 'diary_share_token',
     targetId: id,
   });
