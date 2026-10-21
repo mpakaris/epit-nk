@@ -11,7 +11,7 @@ import {
   ChevronDown, Globe, ImageIcon, UsersRound,
 } from 'lucide-react';
 
-function buildNavItems(isSuperAdmin, isAdmin, impersonating, websiteUnread = 0, prefix = '') {
+function buildNavItems(isSuperAdmin, isAdmin, impersonating, websiteUnread = 0, prefix = '', invitationCount = 0) {
   if (isSuperAdmin && !impersonating) {
     return [
       { key: 'sa-entitasok',  href: '/superadmin',              label: 'Entities',  icon: Building2,    exact: true },
@@ -26,7 +26,7 @@ function buildNavItems(isSuperAdmin, isAdmin, impersonating, websiteUnread = 0, 
     { href: prefix + '/felmeres',     label: 'Felmérések',   icon: Ruler },
     { href: prefix + '/ajanlatok',    label: 'Ajánlatok',    icon: FileText },
     { href: prefix + '/projektek',    label: 'Projektek',    icon: FolderKanban },
-    { href: prefix + '/kollektivak',  label: 'Kollektívák',  icon: UsersRound },
+    { href: prefix + '/kollektivak',  label: 'Kollektívák',  icon: UsersRound, badge: invitationCount },
     { href: prefix + '/naptar',       label: 'Naptár',       icon: Calendar },
     { href: prefix + '/ugyfelek',     label: 'Ügyfelek',     icon: BookUser },
     { href: prefix + '/otletek',      label: 'Ötletek',      icon: Lightbulb },
@@ -56,6 +56,7 @@ export default function Sidebar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [headerVisible, setHeaderVisible] = useState(true);
   const [websiteUnread, setWebsiteUnread] = useState(0);
+  const [invitationCount, setInvitationCount] = useState(0);
   const [showWsTooltip, setShowWsTooltip] = useState(false);
   const lastScrollY = React.useRef(0);
 
@@ -64,7 +65,7 @@ export default function Sidebar() {
     if (saved === '1') setCollapsed(true);
   }, []);
 
-  // Fetch unread leads count for the Weboldalem badge (non-superadmin only)
+  // Fetch unread leads count for the Weboldalam badge (non-superadmin only)
   useEffect(() => {
     if (isSuperAdmin || impersonating) return;
     fetch('/api/website/leads/unread')
@@ -72,6 +73,15 @@ export default function Sidebar() {
       .then(d => setWebsiteUnread(d.count || 0))
       .catch(() => {});
   }, [isSuperAdmin, impersonating, pathname]);
+
+  // Fetch pending invitation count for the Kollektívák badge
+  useEffect(() => {
+    if (isSuperAdmin || impersonating || isDemoMode) return;
+    fetch('/api/collectives/my-invitations')
+      .then(r => r.ok ? r.json() : { invitations: [] })
+      .then(d => setInvitationCount((d.invitations || []).length))
+      .catch(() => {});
+  }, [isSuperAdmin, impersonating, isDemoMode, pathname]);
 
   useEffect(() => {
     document.documentElement.style.setProperty('--sidebar-w', collapsed ? '60px' : '240px');
@@ -194,7 +204,7 @@ export default function Sidebar() {
   if (!currentUser) return null;
   if (pathname.startsWith('/naplo/') || pathname.startsWith('/clients/') || pathname.startsWith('/szakemberek/') || pathname.startsWith('/demo/szakemberek/') || pathname.startsWith('/invitations/') || pathname.endsWith('/nyomtatas') || pathname.startsWith('/impressum') || pathname.startsWith('/adatkezeles') || pathname.startsWith('/aszf') || pathname.startsWith('/about')) return null;
 
-  const navItems = buildNavItems(isSuperAdmin, isAdmin, impersonating, websiteUnread, navPrefix);
+  const navItems = buildNavItems(isSuperAdmin, isAdmin, impersonating, websiteUnread, navPrefix, invitationCount);
   const homeHref = isSuperAdmin && !impersonating ? '/superadmin' : isAdmin ? '/admin' : (navPrefix + '/projektek');
 
   const initials = (currentUser?.display_name || '?')

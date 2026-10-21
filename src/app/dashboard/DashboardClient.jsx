@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
@@ -9,7 +9,7 @@ import { formatHUF, formatDate } from '@/lib/constants';
 import {
   FolderKanban, Users, TrendingUp, TrendingDown, CheckCircle2,
   Plus, Coins, Receipt, Hammer, BookOpen, Ruler, FileText,
-  UserCheck, Clock, ChevronRight,
+  UserCheck, Clock, ChevronRight, Mail, UsersRound,
 } from 'lucide-react';
 import StatCard from '@/components/StatCard';
 import CalendarWidget from '@/components/CalendarWidget';
@@ -87,6 +87,16 @@ export default function DashboardClient({
 
   const allActiveInvoices = activeInvoices;
 
+  const [pendingInvitations, setPendingInvitations] = useState([]);
+  useEffect(() => {
+    if (isDemoMode) return;
+    fetch('/api/collectives/my-invitations')
+      .then(r => r.ok ? r.json() : { invitations: [] })
+      .then(d => setPendingInvitations(d.invitations || []))
+      .catch(() => {});
+  }, [isDemoMode]);
+
+
   return (
     <div className="container">
       <div className="page-header">
@@ -98,12 +108,45 @@ export default function DashboardClient({
         </div>
       </div>
 
+      {/* Pending invitation nudge */}
+      {pendingInvitations.length > 0 && (
+        <div style={{
+          background: 'linear-gradient(135deg, #eff6ff, #f5f3ff)',
+          border: '1px solid #c7d2fe',
+          borderRadius: 'var(--radius-md)',
+          padding: '0.85rem 1rem',
+          marginBottom: '1.25rem',
+          display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap',
+        }}>
+          <div style={{ width: 36, height: 36, borderRadius: 'var(--radius-md)', background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <Mail size={17} color="#fff" />
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontWeight: 800, fontSize: '0.9rem', color: '#1e3a8a' }}>
+              {pendingInvitations.length === 1
+                ? `Meghívtak a(z) „${pendingInvitations[0].collective_name}" kollektívába`
+                : `${pendingInvitations.length} kollektíva meghívód van`}
+            </div>
+            <div style={{ fontSize: '0.775rem', color: '#3730a3', marginTop: '0.1rem' }}>
+              {pendingInvitations.length === 1
+                ? `Meghívó: ${pendingInvitations[0].inviter_name || 'Ismeretlen'}`
+                : pendingInvitations.map(i => i.collective_name).join(', ')}
+            </div>
+          </div>
+          <Link
+            href={p('/kollektivak')}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', padding: '0.5rem 0.9rem', background: 'var(--accent)', color: '#fff', borderRadius: 'var(--radius-md)', fontWeight: 700, fontSize: '0.8rem', textDecoration: 'none', flexShrink: 0 }}
+          >
+            <UsersRound size={13} /> Megtekintés
+          </Link>
+        </div>
+      )}
+
       {/* Stat cards */}
       {!(isSuperAdmin && !impersonating) && (
         <div className="stat-grid" style={{ marginBottom: '1.5rem' }}>
           <StatCard label="Összesített kiadás" value={formatHUF(allActiveInvoices.reduce((s, i) => s + Number(i.value_huf || 0), 0))} sub="Összes projekt forgalma" icon={Coins} href={p('/projektek')} />
           <StatCard label="Aktív projektek" value={projects.length} sub="Építkezések száma" icon={FolderKanban} href={p('/projektek')} />
-          <StatCard label="Felhasználók" value={(users || []).filter(u => !u.deleted_at).length} sub="Aktív tagok" icon={Users} />
           <StatCard label="Rögzített számlák" value={allActiveInvoices.length} sub="Bizonylatok száma" icon={Receipt} href={p('/projektek')} />
         </div>
       )}
