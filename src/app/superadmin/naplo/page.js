@@ -9,6 +9,13 @@ import { ArrowLeft, ClipboardList, RefreshCw, ChevronLeft, ChevronRight, User, C
 const ACTION_LABELS = {
   // Auth
   'Bejelentkezés':                      { label: 'Login',                       color: 'var(--text-secondary)',  bg: 'var(--bg-subtle)' },
+  'Login failed':                       { label: 'Login failed',                color: 'var(--danger-text)',     bg: 'var(--danger-bg)' },
+  'Login success':                      { label: 'Login',                       color: 'var(--text-secondary)',  bg: 'var(--bg-subtle)' },
+  'Password reset requested':           { label: 'Password reset requested',    color: 'var(--warning-text)',    bg: 'var(--warning-bg)' },
+  'Password reset completed':           { label: 'Password reset completed',    color: 'var(--success-text)',    bg: 'var(--success-bg)' },
+  'Password reset failed':              { label: 'Password reset failed',       color: 'var(--danger-text)',     bg: 'var(--danger-bg)' },
+  'Registration failed':                { label: 'Registration failed',         color: 'var(--danger-text)',     bg: 'var(--danger-bg)' },
+  'Server Error':                       { label: 'Server error',                color: '#fff',                   bg: 'var(--danger)' },
   'Jelszó megváltoztatva':              { label: 'Password changed',            color: 'var(--accent)',          bg: 'var(--accent-light)' },
   'Jelszó visszaállítva':               { label: 'Password reset',              color: 'var(--warning-text)',    bg: 'var(--warning-bg)' },
   // Profile

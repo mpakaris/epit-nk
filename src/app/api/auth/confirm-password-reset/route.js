@@ -1,5 +1,6 @@
 import crypto from 'crypto';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { logAudit } from '@/lib/audit';
 
 export async function POST(request) {
   const { token, password } = await request.json().catch(() => ({}));
@@ -37,6 +38,7 @@ export async function POST(request) {
 
   if (updateErr) {
     console.error('[confirm-reset] updateUser error:', updateErr.message);
+    logAudit({ userId: record.user_id, action: 'Password reset failed', details: { reason: updateErr.message } });
     return Response.json({ error: 'Hiba a jelszó frissítésekor. Próbáld újra.' }, { status: 500 });
   }
 
@@ -45,6 +47,10 @@ export async function POST(request) {
     .from('password_reset_tokens')
     .update({ used_at: new Date().toISOString() })
     .eq('id', record.id);
+
+  // Look up user name for the audit entry
+  const { data: prof } = await admin.from('profiles').select('display_name, email').eq('id', record.user_id).single();
+  logAudit({ userId: record.user_id, userName: prof?.display_name || prof?.email || '', action: 'Password reset completed' });
 
   return Response.json({ ok: true });
 }

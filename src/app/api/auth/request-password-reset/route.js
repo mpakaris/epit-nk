@@ -2,6 +2,7 @@ import crypto from 'crypto';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { sendEmail } from '@/lib/email';
 import { wrapEmail } from '@/lib/emailTemplates';
+import { logAudit } from '@/lib/audit';
 
 export async function POST(request) {
   const origin = new URL(request.url).origin;
@@ -75,8 +76,10 @@ export async function POST(request) {
     await sendEmail({ to: email.trim(), subject: 'Jelszó visszaállítása – Epiteq', html });
   } catch (mailErr) {
     console.error('[password-reset] sendEmail error:', mailErr.message);
+    logAudit({ userId: profile.id, userName: email.trim(), action: 'Password reset failed', details: { reason: 'Email send failed', error: mailErr.message } });
     return Response.json({ error: 'Az e-mail küldése sikertelen volt. Kérjük, próbáld újra később vagy lépj kapcsolatba az üzemeltetővel.' }, { status: 503 });
   }
 
+  logAudit({ userId: profile.id, userName: email.trim(), action: 'Password reset requested' });
   return Response.json({ ok: true });
 }

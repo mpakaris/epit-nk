@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { logAudit } from '@/lib/audit';
+import { logAudit, logError } from '@/lib/audit';
 import { isEffectivePremium, checkPersonalLimit } from '@/lib/subscriptionLimits';
 
 async function getCallerProfile(supabase, admin) {
@@ -88,7 +88,10 @@ export async function POST(request) {
     created_by:    user.id,
   }]).select().single();
 
-  if (insertErr) return Response.json({ error: insertErr.message }, { status: 500 });
+  if (insertErr) {
+    logError({ route: 'POST /api/surveys', userId: user.id, userName: profile.display_name || user.email, errorMessage: insertErr.message });
+    return Response.json({ error: insertErr.message }, { status: 500 });
+  }
 
   if (Array.isArray(shared_with) && shared_with.length > 0) {
     await admin.from('surveys').update({ shared_with }).eq('id', survey.id).catch(() => {});

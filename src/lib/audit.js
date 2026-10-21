@@ -1,5 +1,26 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 
+// Convenience wrapper for server-side error logging
+export async function logError({
+  route       = null,
+  userId      = null,
+  userName    = '',
+  errorMessage,
+  statusCode  = 500,
+  details     = null,
+}) {
+  return logAudit({
+    entityId:   userId,
+    userId,
+    userName,
+    action:     'Server Error',
+    targetType: 'error',
+    targetId:   route,
+    targetName: String(errorMessage || '').substring(0, 120),
+    details:    { route, status_code: statusCode, error: String(errorMessage || ''), ...(details || {}) },
+  });
+}
+
 export async function logAudit({
   entityId    = null,
   userId      = null,

@@ -304,13 +304,25 @@ export function AppProvider({ children }) {
     }).catch(() => {});
   };
 
+  // For events that happen without an authenticated session (login failures, etc.)
+  const auditPublic = (action, extras = {}) => {
+    fetch('/api/audit/events', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action, ...extras }),
+    }).catch(() => {});
+  };
+
   // ---- Auth -------------------------------------------------------------------
 
   const login = async (email, password, { noRedirect = false } = {}) => {
     setLoading(true);
     try {
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) throw error;
+      if (error) {
+        auditPublic('Login failed', { userName: email, details: { reason: error.message } });
+        throw error;
+      }
 
       const profile = await fetchProfile();
 
