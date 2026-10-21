@@ -2202,7 +2202,7 @@ export default function WeboldaPage() {
     );
   }
 
-  if (activeCollectiveId || (collectives && collectives.length > 0)) {
+  if (activeCollectiveId) {
     return (
       <div style={{ maxWidth: 560, margin: '4rem auto', textAlign: 'center', padding: '1rem' }}>
         <Globe size={48} style={{ color: 'var(--accent)', marginBottom: '1rem', opacity: 0.5 }} />
