@@ -310,39 +310,47 @@ export function AppProvider({ children }) {
   // ---- Auth -------------------------------------------------------------------
 
   const login = async (email, password, { noRedirect = false } = {}) => {
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) throw error;
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) throw error;
 
-    const profile = await fetchProfile();
+      const profile = await fetchProfile();
 
-    const user = {
-      id: data.user.id,
-      email: data.user.email,
-      display_name: profile?.display_name || data.user.email,
-      role: profile?.role || 'user',
-      active_collective_id: profile?.active_collective_id || null,
-      must_change_password: profile?.must_change_password ?? false,
-      is_subscription_premium: profile?.is_subscription_premium ?? false,
-      default_tax_percent: profile?.default_tax_percent ?? 27,
-    };
+      const user = {
+        id: data.user.id,
+        email: data.user.email,
+        display_name: profile?.display_name || data.user.email,
+        role: profile?.role || 'user',
+        active_collective_id: profile?.active_collective_id || null,
+        must_change_password: profile?.must_change_password ?? false,
+        is_subscription_premium: profile?.is_subscription_premium ?? false,
+        subscription_tier: profile?.subscription_tier ?? 'basic',
+        trial_started_at: profile?.trial_started_at ?? null,
+        trial_ends_at: profile?.trial_ends_at ?? null,
+        default_tax_percent: profile?.default_tax_percent ?? 27,
+      };
 
-    setCurrentUser(user);
-    await refreshSupabaseData(user);
+      setCurrentUser(user);
+      await refreshSupabaseData(user);
 
-    auditLog('Bejelentkezés', { entityId: user.active_collective_id || user.id });
+      auditLog('Bejelentkezés', { entityId: user.active_collective_id || user.id });
 
-    if (!noRedirect) {
-      if (user.must_change_password) {
-        router.push('/change-password');
-      } else if (user.role === 'superadmin') {
-        router.push('/superadmin');
-      } else if (user.role === 'admin') {
-        router.push('/admin');
-      } else {
-        router.push('/dashboard');
+      if (!noRedirect) {
+        if (user.must_change_password) {
+          router.push('/change-password');
+        } else if (user.role === 'superadmin') {
+          router.push('/superadmin');
+        } else if (user.role === 'admin') {
+          router.push('/admin');
+        } else {
+          router.push('/dashboard');
+        }
       }
+      return user;
+    } finally {
+      setLoading(false);
     }
-    return user;
   };
 
   const loginWithOAuth = async (provider) => {

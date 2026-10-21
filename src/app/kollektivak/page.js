@@ -59,6 +59,8 @@ export default function KollektivakPage() {
 
   const [collectives, setCollectives] = useState([]);
   const [fetching, setFetching] = useState(true);
+  const [myInvitations, setMyInvitations] = useState([]); // invitations received by this user
+  const [respondingInvId, setRespondingInvId] = useState(null);
 
   // Create modal — 3-step flow (name → tier → confirm)
   const [showCreate, setShowCreate] = useState(false);
@@ -164,13 +166,37 @@ export default function KollektivakPage() {
   const [deleteInput, setDeleteInput] = useState('');
   const [deleteConfirming, setDeleteConfirming] = useState(false);
 
+  const handleRespondToInvitation = async (inv, action) => {
+    setRespondingInvId(inv.id);
+    try {
+      const res = await fetch(`/api/invitations/${inv.token}/${action}`, { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) {
+        setAlertModal({ message: data.error || 'Hiba történt.' });
+      } else {
+        setMyInvitations(prev => prev.filter(i => i.id !== inv.id));
+        if (action === 'accept') {
+          setAlertModal({ variant: 'success', title: 'Csatlakozás sikeres', message: `Mostantól tagja vagy a(z) „${inv.collective_name}" kollektívának.` });
+          fetchCollectives();
+          refreshCollectives();
+        }
+      }
+    } catch {
+      setAlertModal({ message: 'Hálózati hiba. Próbáld újra.' });
+    } finally {
+      setRespondingInvId(null);
+    }
+  };
+
   const fetchCollectives = async () => {
-    const [colRes, invRes] = await Promise.all([
+    const [colRes, invRes, myInvRes] = await Promise.all([
       fetch('/api/collectives'),
       fetch('/api/collectives/invitations'),
+      fetch('/api/collectives/my-invitations'),
     ]);
     const colData = await colRes.json();
     const invData = invRes.ok ? await invRes.json() : { invitations: [] };
+    const myInvData = myInvRes.ok ? await myInvRes.json() : { invitations: [] };
 
     if (colRes.ok) {
       const pendingBy  = {};
@@ -189,9 +215,9 @@ export default function KollektivakPage() {
         pending_invitations:  pendingBy[c.id]  || [],
         declined_invitations: declinedBy[c.id] || [],
       })));
-
-      // Note: kollektivaResult banner is dismissed manually by the user (× button)
     }
+
+    setMyInvitations(myInvData.invitations || []);
     setFetching(false);
   };
 
@@ -1018,6 +1044,56 @@ export default function KollektivakPage() {
         </div>
       )}
 
+      {/* Pending invitations received by this user */}
+      {myInvitations.length > 0 && (
+        <div style={{ marginBottom: '1.75rem' }}>
+          <div style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <span>Beérkező meghívók</span>
+            <span style={{ background: 'var(--accent)', color: '#fff', borderRadius: 99, fontSize: '0.65rem', fontWeight: 800, minWidth: 18, height: 18, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '0 5px' }}>
+              {myInvitations.length}
+            </span>
+          </div>
+          {myInvitations.map(inv => (
+            <div key={inv.id} className="card" style={{ marginBottom: '0.75rem', border: '1px solid var(--accent-border, #bfdbfe)', background: 'var(--accent-light, #eff6ff)' }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem', flexWrap: 'wrap' }}>
+                <div style={{ width: 38, height: 38, borderRadius: 'var(--radius-md)', background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <Mail size={18} color="#fff" />
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 800, fontSize: '1rem', marginBottom: '0.15rem' }}>{inv.collective_name}</div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                    Meghívta: <strong>{inv.inviter_name || 'Ismeretlen'}</strong>
+                    {' · '}
+                    {new Date(inv.created_at).toLocaleDateString('hu-HU', { year: 'numeric', month: 'long', day: 'numeric' })}
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: '0.4rem', flexShrink: 0, marginLeft: 'auto' }}>
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    disabled={respondingInvId === inv.id}
+                    onClick={() => handleRespondToInvitation(inv, 'decline')}
+                    style={{ color: 'var(--danger-text)', borderColor: 'var(--danger-border)' }}
+                  >
+                    {respondingInvId === inv.id ? <Loader2 size={13} className="animate-spin" /> : <X size={13} />}
+                    Visszautasítás
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-primary btn-sm"
+                    disabled={respondingInvId === inv.id}
+                    onClick={() => handleRespondToInvitation(inv, 'accept')}
+                  >
+                    {respondingInvId === inv.id ? <Loader2 size={13} className="animate-spin" /> : <CheckCircle2 size={13} />}
+                    Elfogadás
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Invited collectives */}
       {invitedCollectives.length > 0 && (
         <div style={{ marginBottom: '1.75rem' }}>
@@ -1028,7 +1104,7 @@ export default function KollektivakPage() {
         </div>
       )}
 
-      {collectives.length === 0 && !kollektivaResult && (
+      {collectives.length === 0 && myInvitations.length === 0 && !kollektivaResult && (
         <div className="card" style={{ textAlign: 'center', padding: '3rem 1.5rem' }}>
           <Users size={44} color="var(--text-muted)" style={{ margin: '0 auto 0.75rem' }} />
           <h3 style={{ fontWeight: 800, marginBottom: '0.35rem' }}>Még nincsenek kollektívák</h3>
