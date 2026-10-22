@@ -240,7 +240,7 @@ async function dispatch(intent, extracted, account, conversation, phoneNumber, c
       return { reply: COMING_SOON, action: 'not_implemented' };
 
     default:
-      return { reply: 'Nem értettem. Írj pl. "projektek listája", "8 óra burkolás", vagy "felmérés".', action: 'unknown' };
+      return { reply: 'Miben segíthetek? Próbálj valami ilyesmit:\n– _új felmérés_\n– _projektek listája_\n– _8 óra burkolás_\n– _45000 Ft csempe_', action: 'unknown' };
   }
 }
 
@@ -318,19 +318,20 @@ async function processItem(item, admin, appUrl, secret) {
     }
 
     // Stop words — exit any active flow gracefully
-    const STOP_WORDS = ['ennyi', 'kész', 'elég', 'stop', 'vége', 'done', 'enough', 'befejeztem', 'befejezve', 'starosta', 'köszönöm', 'thats it', "that's it", 'no more', 'finish'];
-    if (content && STOP_WORDS.includes(content.trim().toLowerCase())) {
+    const STOP_WORDS = ['ennyi', 'kész', 'elég', 'stop', 'vége', 'done', 'enough', 'befejeztem',
+      'befejezve', 'köszönöm', 'thats it', "that's it", 'no more', 'finish', 'cancel', 'restart',
+      'újra', 'ok', 'oké', 'okay', 'rendben', 'jó', 'jo', 'fine', 'exit', 'quit', 'kilép'];
+    const normalizedContent = (content || '').trim().toLowerCase().replace(/[.,!?]+$/, '');
+    if (content && STOP_WORDS.includes(normalizedContent)) {
       const account  = await resolveAccount(phoneNumber);
       const conv     = await loadConversation(phoneNumber);
       // Clear any pending clarification so the bot isn't stuck
       if (conv.pending_clarification) {
         await saveConversation(phoneNumber, { pending_clarification: null });
       }
-      let reply = 'Rendben, megálltam! Folytasd bármikor.';
+      let reply = 'Rendben! Miben segíthetek?';
       if (conv.active_survey_id) {
-        reply = 'Rendben! A felmérés elmentve. Folytasd bármikor — írd "felmérések listája" a folytatáshoz.';
-      } else if (conv.active_project_id) {
-        reply = 'Rendben! Megálltam. Folytasd bármikor.';
+        reply = 'Rendben! A felmérés el van mentve. Miben segíthetek?';
       }
       log(phoneNumber, 'stop-word');
       await sendReply(appUrl, secret, phoneNumber, reply);
