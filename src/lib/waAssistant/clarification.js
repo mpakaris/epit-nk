@@ -36,8 +36,15 @@ export async function resolveClarification(phoneNumber, replyText, conversation)
     return { resolved: false, cancel: true };
   }
 
-  const choice = parseInt(normalised, 10);
   const options = pending.options || [];
+
+  // Free-text clarification (no numbered options) — resolve immediately with raw content
+  if (options.length === 0) {
+    await saveConversation(phoneNumber, { pending_clarification: null });
+    return { resolved: true, chosenOption: null, originalIntent: pending.original_intent, originalPayload: pending.original_payload };
+  }
+
+  const choice = parseInt(normalised, 10);
 
   if (isNaN(choice) || choice < 1 || choice > options.length) {
     const attempts = (pending.attempts || 0) + 1;
