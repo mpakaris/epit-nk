@@ -74,7 +74,7 @@ export async function addSurveyEntry({ waAccount, conversation, extracted, phone
   const confirmation = `✓ Rögzítve: *${name}* — ${parts.join(', ')}`;
 
   // Guided mode: ask for missing doors/windows
-  const mode = waAccount.permissions?.mode || 'free';
+  const mode = conversation.session_mode || 'free';
   const missingDetails = (windowCount == null || windowCount === 0) && (doorCount == null || doorCount === 0);
 
   if (mode === 'guided' && missingDetails && entry?.id) {

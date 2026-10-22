@@ -419,26 +419,42 @@ async function processItem(item, admin, appUrl, secret) {
         }
 
         if (type === 'mode_choice') {
-          const mode = clarResult.chosenOption.id; // 'guided' | 'free'
+          // Legacy global mode — keep for 'mód' command
+          const mode = clarResult.chosenOption.id;
           const currentPerms = account.permissions || {};
-          await admin.from('wa_accounts').update({
-            permissions: { ...currentPerms, mode },
-          }).eq('phone_number', phoneNumber);
+          await admin.from('wa_accounts').update({ permissions: { ...currentPerms, mode } }).eq('phone_number', phoneNumber);
           account.permissions = { ...currentPerms, mode };
+          await saveConversation(phoneNumber, { session_mode: mode });
           log(phoneNumber, 'mode-set', { mode });
-
           const originalContent = clarResult.originalPayload?.originalContent;
           if (originalContent) {
-            // Resume the original message — fall through to full pipeline
             content = originalContent;
-            // dispatchIntent stays null → goes through intent classification normally
           } else {
-            const label = mode === 'guided' ? 'Vezérelt' : 'Szabad';
-            await sendReply(appUrl, secret, phoneNumber,
-              `✓ ${label} mód beállítva. Mostantól így dolgozunk — bármikor változtathatsz: írd "mód".`);
+            await sendReply(appUrl, secret, phoneNumber, `✓ ${mode === 'guided' ? 'Vezérelt' : 'Szabad'} mód beállítva.`);
             await finalise(admin, item.id, waMsg?.id, startedAt, { action_taken: 'mode_set' });
             return;
           }
+        } else if (type === 'doc_mode_choice') {
+          // Per-document mode choice — stores in session_mode
+          const mode = clarResult.chosenOption.id; // 'guided' | 'free'
+          await saveConversation(phoneNumber, { session_mode: mode });
+          log(phoneNumber, 'doc-mode', { mode });
+
+          if (mode === 'guided') {
+            await saveClarification(phoneNumber, 'guided_next_step', [
+              { id: 'rooms',  name: 'Helyiségek és méretek' },
+              { id: 'media',  name: 'Fotó / alaprajz feltöltése' },
+              { id: 'client', name: 'Ügyfél hozzárendelése' },
+              { id: 'done',   name: 'Kész így' },
+            ], null, clarResult.originalPayload);
+            await sendReply(appUrl, secret, phoneNumber,
+              'Vezérelt módot választottál! Mivel kezdjük?\n\n1. Helyiségek és méretek\n2. Fotó / alaprajz feltöltése\n3. Ügyfél hozzárendelése\n4. Kész így');
+          } else {
+            await sendReply(appUrl, secret, phoneNumber,
+              'Rendben — szabad mód! Adj hozzá helyiségeket, fotókat, ügyfelet bármikor. Írd: _ennyi_ ha kész vagy.');
+          }
+          await finalise(admin, item.id, waMsg?.id, startedAt, { action_taken: 'doc_mode_set' });
+          return;
         } else if (type === 'guided_next_step') {
           const choice = clarResult.chosenOption.id;
           if (choice === 'rooms') {
@@ -535,20 +551,6 @@ async function processItem(item, admin, appUrl, secret) {
         await finalise(admin, item.id, waMsg?.id, startedAt, { action_taken: 'invalid_clarification' });
         return;
       }
-    }
-
-    // First-ever interaction — ask for mode preference, then resume original message
-    if (!account.permissions?.mode && !dispatchIntent) {
-      log(phoneNumber, 'first-interaction — asking mode');
-      const modeOptions = [
-        { id: 'guided', name: 'Vezérelt mód — lépésről lépésre segítelek' },
-        { id: 'free',   name: 'Szabad mód — csak megerősítlek, a többit te irányítod' },
-      ];
-      await saveClarification(phoneNumber, 'mode_choice', modeOptions, null, { originalContent: content });
-      await sendReply(appUrl, secret, phoneNumber,
-        `Szia ${account.displayName}! Mielőtt elkezdenénk — hogyan szeretnél dolgozni?\n\n1. Vezérelt mód — lépésről lépésre segítelek\n2. Szabad mód — csak megerősítlek, a többit te irányítod\n\nEz bármikor megváltoztatható: írd "mód".`);
-      await finalise(admin, item.id, waMsg?.id, startedAt, { action_taken: 'mode_prompt' });
-      return;
     }
 
     // Build user context package — used by intent classifier and workspace resolver

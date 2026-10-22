@@ -66,25 +66,18 @@ export async function createSurvey({ waAccount, conversation, extracted, phoneNu
     details:    { channel: 'whatsapp', project_id: projectId },
   });
 
-  const mode = waAccount.permissions?.mode || 'free';
+  const workspaceName = waAccount.collectiveId
+    ? (waAccount.waAccount?.collective?.name || 'Kollektíva')
+    : 'Személyes munkaterület';
 
-  if (mode === 'guided') {
-    await saveClarification(phoneNumber, 'guided_next_step', [
-      { id: 'rooms',  name: 'Helyiségek és méretek' },
-      { id: 'media',  name: 'Fotó / alaprajz feltöltése' },
-      { id: 'client', name: 'Ügyfél hozzárendelése' },
-      { id: 'done',   name: 'Kész így' },
-    ], null, null);
+  // Always ask guided vs free — per document, every time
+  await saveClarification(phoneNumber, 'doc_mode_choice', [
+    { id: 'guided', name: 'Vezérelt — lépésről lépésre segítelek' },
+    { id: 'free',   name: 'Szabad — te irányítasz' },
+  ], null, { surveyId: survey.id, surveyTitle: title, projectName, workspaceName });
 
-    return {
-      reply: `✓ Felmérés létrehozva: *${title}* — ${projectName}\n\nMit adunk hozzá most?\n\n1. Helyiségek és méretek\n2. Fotó / alaprajz\n3. Ügyfél hozzárendelése\n4. Kész\n\n_Visszavonáshoz: vissza_`,
-      needsClarification: false,
-    };
-  }
-
-  // Free mode — one soft line listing what's still missing
   return {
-    reply: `✓ Felmérés létrehozva: *${title}* — ${projectName}\n_Hiányzik még: helyiségek, ügyfél, fotók — add hozzá most vagy hagyd későbbre._\n\n_Visszavonáshoz: vissza_`,
+    reply: `✓ Felmérés létrehozva\n\nNév: *${title}*\nMunkaterület: *${workspaceName}*\nProjekt: *${projectName}*\n\nÉszrevettem, hogy néhány információ hiányzik (helyiségek, ügyfél, fotók).\nSzeretnéd, hogy végigvezesselek, vagy inkább szabad szöveggel folytatod?\n\n1. Vezérelt — lépésről lépésre segítelek\n2. Szabad — te irányítasz\n\n_Visszavonáshoz: vissza_`,
     needsClarification: false,
   };
 }
