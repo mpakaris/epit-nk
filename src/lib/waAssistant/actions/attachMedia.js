@@ -37,7 +37,7 @@ export async function attachMedia({ waAccount, conversation, mediaUrl, mimeType,
 
     const webpBuf   = await toWebp(imgBuf);
     const imageBase64 = imgBuf.toString('base64');
-    const imageType   = await classifyImage(imageBase64, mimeType || 'image/jpeg');
+    const imageType   = await classifyImage(imageBase64, mimeType || 'image/jpeg', { phoneNumber, userId: waAccount.userId });
 
     if (imageType === 'invoice') {
       return { handoffToInvoice: true, imgBuf, mimeType };

@@ -1,3 +1,5 @@
+import { logOpenAiUsage } from './logAiUsage';
+
 const INTENT_ENUM = [
   'create_survey', 'add_survey_entry', 'create_labour_entry', 'create_invoice',
   'attach_media', 'query_costs', 'query_survey', 'create_client',
@@ -7,7 +9,7 @@ const INTENT_ENUM = [
 
 const FALLBACK = { intent: 'unknown', confidence: 0, extracted: {}, requires_clarification: false, clarification_reason: null };
 
-export async function resolveIntent({ messageText, contentType, contextWindow, activeProjectName, activeSurveyName }) {
+export async function resolveIntent({ messageText, contentType, contextWindow, activeProjectName, activeSurveyName, phoneNumber, userId }) {
   const apiKey = process.env.OPEN_AI_OCR_KEY;
   if (!apiKey) return FALLBACK;
 
@@ -89,6 +91,12 @@ Magyar szám-szavak konvertálása: "három és fél" → 3.5, "négyezer" → 4
     const data = await res.json();
     const raw  = data.choices?.[0]?.message?.content;
     if (!raw) return FALLBACK;
+
+    // Fire-and-forget usage logging
+    if (data.usage && phoneNumber) {
+      logOpenAiUsage({ phoneNumber, userId, model: 'gpt-4o', callType: 'intent', usage: data.usage })
+        .catch(() => {});
+    }
 
     return JSON.parse(raw);
   } catch {

@@ -5,8 +5,9 @@ import { uploadToR2, r2PublicUrl, toWebp } from '@/lib/r2';
 import { saveClarification } from '../clarification';
 import { saveLastAction } from '../conversation';
 import { resolveProject } from '../resolveProject';
+import { logOpenAiUsage } from '../logAiUsage';
 
-async function extractInvoiceFromImage(imgBuffer, mimeType) {
+async function extractInvoiceFromImage(imgBuffer, mimeType, { phoneNumber, userId } = {}) {
   const apiKey     = process.env.OPEN_AI_OCR_KEY;
   const base64     = imgBuffer.toString('base64');
 
@@ -56,6 +57,10 @@ Ha nem olvasható el a végösszeg, add vissza null-t.`,
   const data = await res.json();
   const raw  = data.choices?.[0]?.message?.content;
   if (!raw) return null;
+  if (data.usage && phoneNumber) {
+    logOpenAiUsage({ phoneNumber, userId, model: 'gpt-4o', callType: 'invoice_ocr', usage: data.usage })
+      .catch(() => {});
+  }
   return JSON.parse(raw);
 }
 
@@ -93,7 +98,7 @@ export async function createInvoice({ waAccount, conversation, mediaUrl, mimeTyp
       r2Key = `wa/${phoneNumber.replace(/\+/g, '')}/${Date.now()}.webp`;
       await uploadToR2(r2Key, webp, 'image/webp');
 
-      const extracted = await extractInvoiceFromImage(buf, mimeType || 'image/jpeg');
+      const extracted = await extractInvoiceFromImage(buf, mimeType || 'image/jpeg', { phoneNumber, userId: waAccount.userId });
       if (extracted?.amountHuf) amountHuf   = extracted.amountHuf;
       if (extracted?.description) description = extracted.description;
       if (extracted?.category) category      = extracted.category;

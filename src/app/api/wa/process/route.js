@@ -416,7 +416,7 @@ async function processItem(item, admin, appUrl, secret) {
     let transcript = null;
     if (!dispatchIntent && (contentType === 'voice' || contentType === 'audio') && mediaUrl) {
       try {
-        const tx = await transcribeVoiceNote(mediaUrl, phoneNumber);
+        const tx = await transcribeVoiceNote(mediaUrl, phoneNumber, account.userId);
         transcript = tx.transcript;
         content    = transcript; // use transcript as the text for intent classification
         if (waMsg?.id) {
@@ -441,6 +441,8 @@ async function processItem(item, admin, appUrl, secret) {
         contextWindow:     conversation.context_window || [],
         activeProjectName: null,
         activeSurveyName:  null,
+        phoneNumber,
+        userId:            account.userId,
       });
     }
 

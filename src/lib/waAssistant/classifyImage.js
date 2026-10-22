@@ -1,4 +1,6 @@
-export async function classifyImage(imageBase64, mimeType) {
+import { logOpenAiUsage } from './logAiUsage';
+
+export async function classifyImage(imageBase64, mimeType, { phoneNumber, userId } = {}) {
   const apiKey = process.env.OPEN_AI_OCR_KEY;
   if (!apiKey) return 'unknown';
 
@@ -44,6 +46,10 @@ export async function classifyImage(imageBase64, mimeType) {
     if (!res.ok) return 'unknown';
     const data = await res.json();
     const raw  = data.choices?.[0]?.message?.content;
+    if (data.usage && phoneNumber) {
+      logOpenAiUsage({ phoneNumber, userId, model: 'gpt-4o', callType: 'classify_image', usage: data.usage })
+        .catch(() => {});
+    }
     return raw ? JSON.parse(raw).type : 'unknown';
   } catch {
     return 'unknown';

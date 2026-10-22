@@ -1,4 +1,5 @@
 import { uploadToR2 } from '@/lib/r2';
+import { logElevenLabsUsage } from './logAiUsage';
 
 // Construction-domain keyterms — Scribe v2 supports up to 1,000
 const KEYTERMS = [
@@ -13,7 +14,7 @@ const KEYTERMS = [
   'felújítás', 'átalakítás', 'bővítés', 'alapozás', 'esztrichöntés', 'vakolat',
 ];
 
-export async function transcribeVoiceNote(mediaUrl, phoneNumber) {
+export async function transcribeVoiceNote(mediaUrl, phoneNumber, userId = null) {
   const apiKey = process.env.ELEVEN_LABS_SPEECH_TO_TEXT_API_KEY;
   if (!apiKey) throw new Error('ELEVEN_LABS_SPEECH_TO_TEXT_API_KEY not configured');
 
@@ -50,9 +51,13 @@ export async function transcribeVoiceNote(mediaUrl, phoneNumber) {
   }
 
   const data       = await res.json();
-  const transcript = (data.text || '').trim();
+  const transcript   = (data.text || '').trim();
+  const audioSeconds = data.audio_duration_seconds ?? (audioBuffer.length / 16000); // fallback estimate
 
   if (!transcript) throw new Error('ElevenLabs returned empty transcript');
+
+  // Fire-and-forget usage logging
+  logElevenLabsUsage({ phoneNumber, userId, audioSeconds }).catch(() => {});
 
   return { transcript, r2Key };
 }
