@@ -2,31 +2,53 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { resolveAccount, UNREGISTERED_REPLY } from '@/lib/waAssistant/resolveAccount';
 import { toJid, jidToE164, isIndividualJid } from '@/lib/waAssistant/jid';
 
-// Map whingo type string → our content_type enum (mirrors webhook handler)
+// Map Whinself/Baileys type string → our content_type enum (mirrors webhook handler)
 function mapContentType(type) {
   if (!type) return 'text';
   const t = type.toLowerCase();
-  if (t === 'chat' || t === 'text') return 'text';
-  if (t === 'audio' || t === 'ptt' || t === 'voice') return 'voice';
-  if (t === 'image') return 'image';
-  if (t === 'video') return 'video';
-  if (t === 'document') return 'document';
+  if (t === 'conversation' || t === 'extendedtextmessage' || t === 'text' || t === 'chat') return 'text';
+  if (t === 'audiovoicemessage' || t === 'audiomessage' || t === 'pttmessage' || t === 'audio' || t === 'ptt' || t === 'voice') return 'voice';
+  if (t === 'imagemessage' || t === 'image') return 'image';
+  if (t === 'videomessage' || t === 'video') return 'video';
+  if (t === 'documentmessage' || t === 'document') return 'document';
   return 'text';
 }
 
-// Parse the raw webhook payload stored in the queue
-// TODO: update field names after WA-001 inspection
+// Parse the raw Whinself webhook payload stored in the queue
+// Whinself format: { event: { Info: { Chat, Sender, SenderAlt, ID, Type, IsFromMe, IsGroup }, Message: { ... } } }
 function parsePayload(raw) {
-  const p = JSON.parse(raw);
-  const waMessageId = p.key?.id || p.id?.id || p.id || null;
-  const rawJid      = p.key?.remoteJid || p.jid || p.from || '';
-  const phoneNumber = jidToE164(rawJid);
+  const p    = JSON.parse(raw);
+  const info = p.event?.Info;
+  const msg  = p.event?.Message;
+
+  if (!info) return { waMessageId: null, phoneNumber: null, contentType: 'text', content: null, mediaUrl: null };
+
+  const jid       = info.Chat || info.Sender || '';
+  const phoneJid  = (jid.endsWith('@lid') && info.SenderAlt) ? info.SenderAlt : jid;
+  const phoneNumber = jidToE164(phoneJid);
+  const waMessageId = info.ID || null;
+  const msgType     = info.Type || 'text';
+
+  const content =
+    msg?.conversation ||
+    msg?.extendedTextMessage?.text ||
+    msg?.imageMessage?.caption ||
+    msg?.videoMessage?.caption ||
+    null;
+
+  const mediaUrl =
+    msg?.imageMessage?.url ||
+    msg?.videoMessage?.url ||
+    msg?.audioMessage?.url ||
+    msg?.documentMessage?.url ||
+    null;
+
   return {
     waMessageId,
     phoneNumber,
-    contentType: mapContentType(p.type),
-    content:     p.body || p.caption || null,
-    mediaUrl:    p.mediaUrl || null,
+    contentType: mapContentType(msgType),
+    content,
+    mediaUrl,
   };
 }
 
@@ -138,11 +160,16 @@ export async function POST(request) {
   }
 
   const admin = createAdminClient();
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL;
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
   const secret = process.env.INTERNAL_CRON_SECRET;
 
   // Claim up to 3 pending items with a 60s processing lock
-  const { data: items } = await admin.rpc('claim_wa_queue_items', { batch_size: 3 });
+  const { data: items, error: rpcError } = await admin.rpc('claim_wa_queue_items', { batch_size: 3 });
+
+  if (rpcError) {
+    console.error('[wa/process] claim RPC error:', rpcError.message, rpcError.details);
+    return Response.json({ error: rpcError.message }, { status: 500 });
+  }
 
   if (!items || items.length === 0) {
     return Response.json({ processed: 0 });

@@ -134,6 +134,14 @@ export async function POST(request) {
       status:       'pending',
     });
 
+    // Fire-and-forget: kick the queue worker immediately so the item is processed
+    // without waiting for a DB webhook or external cron to fire.
+    const origin = new URL(request.url).origin;
+    fetch(`${origin}/api/wa/process`, {
+      method:  'POST',
+      headers: { Authorization: `Bearer ${process.env.INTERNAL_CRON_SECRET}` },
+    }).catch(err => console.error('[wa webhook] process trigger failed:', err.message));
+
     return Response.json({ received: true });
   } catch (err) {
     console.error('[wa webhook] error:', err.message);
