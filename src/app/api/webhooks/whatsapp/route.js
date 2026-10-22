@@ -108,7 +108,8 @@ export async function POST(request) {
       }
     }
 
-    // Rate limit: max 30 messages per phone per hour
+    // Rate limit: max 100 messages per phone per hour
+    const RATE_LIMIT = 100;
     const oneHourAgo = new Date(Date.now() - 3600 * 1000).toISOString();
     const { count } = await admin
       .from('wa_processing_queue')
@@ -116,7 +117,8 @@ export async function POST(request) {
       .eq('phone_number', phoneNumber)
       .gte('enqueued_at', oneHourAgo);
 
-    if (count >= 30) {
+    if (count >= RATE_LIMIT) {
+      console.log(`[wh] rate-limited ${phoneNumber} (${count}/${RATE_LIMIT} in last hour)`);
       await admin.from('wa_messages').insert({
         wa_message_id: waMessageId,
         phone_number:  phoneNumber,
@@ -127,6 +129,7 @@ export async function POST(request) {
       });
       return Response.json({ received: true, rate_limited: true });
     }
+    console.log(`[wh] rate check: ${count}/${RATE_LIMIT}`);
 
     const { error: qErr } = await admin.from('wa_processing_queue').insert({
       phone_number: phoneNumber,
