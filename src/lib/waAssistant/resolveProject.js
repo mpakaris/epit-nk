@@ -22,7 +22,6 @@ async function fetchAccessibleProjects(waAccount, admin) {
     .from('projects')
     .select('id, name, closed_at')
     .or(conditions.join(','))
-    .is('deleted_at', null)
     .order('created_at', { ascending: false });
 
   return data || [];
