@@ -726,12 +726,15 @@ export function buildToolExecutors({ account, conversation, phoneNumber, mediaUr
       const userPrompt = `Helyiség: ${fullEntry.name}${dimParts.length ? ` (${dimParts.join(', ')})` : ''}
 Megjegyzés: "${fullEntry.description || '(nincs)'}"
 
-1. Sorold fel az ÖSSZES EXPLICIT említett munkát (source: "user_note")
-2. Javasolj MAX 8 logikusan következő, szinte biztosan szükséges munkafázist (source: "ai_suggestion")
-3. Minden tételnél adj mennyiséget + mértékegységet.
+1. MINDEN munkafázist és anyagot sorold fel, amit explicit említett VAGY ami az említett munkából közvetlenül következik.
+   Pl. "burkolás" → csempe (m²) + ragasztó (zsák) + fugázóanyag (zsák) + csempézési munkadíj (m²).
+   Pl. "festés" → festék (l) + alapozó (l) + festési munkadíj (m²). (source: "user_note")
+2. Javasolj MAX 3 hiányzó tételt — előnyben MUNKADÍJ tételek. (source: "ai_suggestion")
+3. entry_type: "material"=anyag, "labour"=munkadíj, "equipment"=gépbérlés, "transport"=szállítás, "other"=egyéb
+   Labour unit: felületmunka→m², szerelés/összerakás→h, darabos→db
 
 JSON válasz (csak JSON, semmi más):
-{"from_notes":[{"description":"string","quantity":number|null,"unit":"string|null"}],"suggestions":[{"description":"string","quantity":number|null,"unit":"string|null"}]}`;
+{"from_notes":[{"description":"string","quantity":number|null,"unit":"string|null","entry_type":"material|labour|equipment|transport|other"}],"suggestions":[{"description":"string","quantity":number|null,"unit":"string|null","entry_type":"material|labour|equipment|transport|other"}]}`;
 
       let aiData;
       try {
@@ -757,7 +760,7 @@ JSON válasz (csak JSON, semmi más):
       }
 
       const fromNotes   = (aiData.from_notes  || []).map(i => ({ ...i, source: 'user_note',     is_confirmed: true  }));
-      const suggestions = (aiData.suggestions || []).slice(0, 1).map(i => ({ ...i, source: 'ai_suggestion', is_confirmed: false }));
+      const suggestions = (aiData.suggestions || []).slice(0, 3).map(i => ({ ...i, source: 'ai_suggestion', is_confirmed: false }));
       const toInsert    = [...fromNotes, ...suggestions].map((item, idx) => ({
         survey_id,
         entry_id:     fullEntry.id,

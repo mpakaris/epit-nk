@@ -56,16 +56,25 @@ export async function POST(request, { params }) {
 Megjegyzés a felhasználótól: "${entry.description || '(nincs)'}"
 
 Feladatod:
-1. Sorold fel az ÖSSZES munkát, amelyet a felhasználó EXPLICITLY említett a megjegyzésben. (source: "user_note")
-2. Javasolj PONTOSAN 1 (egy) munkafázist, amely a helyiség nevéből/típusából és a megjegyzésből logikusan következik, de nincs EXPLICITLY megnevezve. A LEGFONTOSABBAT add meg. (source: "ai_suggestion")
-3. Minden tételnél add meg a reális mennyiséget és mértékegységet a méretek alapján.
+1. MINDEN munkafázist és anyagot sorold fel, amit a felhasználó EXPLICIT említett VAGY ami az említett munkából KÖZVETLENÜL következik.
+   Példa: ha "burkolás" szerepel → add hozzá: csempe (m²), csempe ragasztó (zsák), fugázóanyag (zsák) ÉS csempézési munkadíj (m²).
+   Példa: ha "festés" szerepel → festék (l), alapozó (l) ÉS festési munkadíj (m²).
+   (source: "user_note")
 
-entry_type és unit szabályok (KÖTELEZŐ betartani):
-- "material" = anyag (csempe, ragasztó, festék, cement, gipszkarton stb.) → unit: "m²", "db", "zsák", "kg", "l"
-- "labour" = munkafázis (rakás, bontás, festés, szerelés, glettelés stb.) → unit MINDIG "m²" vagy "fm" vagy "db", SOHA NEM "h" kivéve explicit időalapú munkánál
-- "equipment" = gép/eszköz bérlés (állványzat, betonkeverő stb.) → unit: "nap" vagy "db"
-- "transport" = szállítás, fuvar → unit: "db" vagy "km"
-- "other" = egyéb (engedély, díj stb.)
+2. Javasolj MAX 3 hiányzó tételt — előnyben a MUNKADÍJ tételek, mert a magyar vállalkozók profitja a munkadíjból jön, az anyag 1:1 áthárítás.
+   (source: "ai_suggestion")
+
+3. Minden tételnél add meg a reális mennyiséget a méretek alapján.
+
+entry_type és unit szabályok (KÖTELEZŐ):
+- "material" = anyag → unit: "m²", "db", "zsák", "kg", "l"
+- "labour" = munkadíj:
+    · Felületalapú munka (csempézés, festés, vakolás, glettelés, burkolás) → unit: "m²"
+    · Szerelési / összerakási munka (bútor, csap, ajtó, ablak, lámpa, radiátor) → unit: "h"
+    · Darabszámos munka (pl. konnektorbővítés, csatlakozó) → unit: "db"
+- "equipment" = gép/eszközbérlés → unit: "nap" vagy "db"
+- "transport" = szállítás → unit: "db" vagy "km"
+- "other" = egyéb
 
 Válasz szigorúan ebben a JSON formátumban (egyéb szöveg nélkül):
 {
@@ -109,7 +118,7 @@ Válasz szigorúan ebben a JSON formátumban (egyéb szöveg nélkül):
   }
 
   const fromNotes   = (aiData.from_notes   || []).map(i => ({ ...i, source: 'user_note',      is_confirmed: true  }));
-  const suggestions = (aiData.suggestions  || []).slice(0, 1).map(i => ({ ...i, source: 'ai_suggestion',  is_confirmed: false }));
+  const suggestions = (aiData.suggestions  || []).slice(0, 3).map(i => ({ ...i, source: 'ai_suggestion',  is_confirmed: false }));
 
   // Persist all items to DB
   const validTypes = new Set(['material', 'labour', 'equipment', 'transport', 'other']);
