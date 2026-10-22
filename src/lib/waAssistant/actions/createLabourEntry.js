@@ -5,6 +5,11 @@ import { saveClarification } from '../clarification';
 import { resolveProject } from '../resolveProject';
 
 export async function createLabourEntry({ waAccount, conversation, extracted, phoneNumber }) {
+  // WA-061: Subbie permission check
+  if (waAccount.accountType === 'subbie' && !waAccount.permissions?.can_log_labour) {
+    return { reply: 'Nincs munkaidő rögzítési jogosultságod. Kérd meg a mestert a hozzáférés megadásához.' };
+  }
+
   const projectResult = await resolveProject(extracted?.project_hint || '', waAccount, conversation);
 
   if (projectResult.needsClarification) {

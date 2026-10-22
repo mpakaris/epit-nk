@@ -59,6 +59,11 @@ Ha nem olvasható el a végösszeg, add vissza null-t.`,
 }
 
 export async function createInvoice({ waAccount, conversation, mediaUrl, mimeType, extractedFromIntent, phoneNumber, imgBuf }) {
+  // WA-062: Subbie permission check
+  if (waAccount.accountType === 'subbie' && !waAccount.permissions?.can_upload_invoices) {
+    return { reply: 'Nincs számla feltöltési jogosultságod. Kérd meg a mestert a hozzáférés megadásához.' };
+  }
+
   const projectResult = await resolveProject(extractedFromIntent?.project_hint || '', waAccount, conversation);
 
   if (projectResult.needsClarification) {

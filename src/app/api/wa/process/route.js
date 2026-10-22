@@ -214,7 +214,25 @@ async function dispatch(intent, extracted, account, conversation, phoneNumber, c
       return { reply: result.reply, action: 'query_survey' };
     }
 
-    case 'create_client':
+    case 'create_client': {
+      // WA-051: only collective owners can create clients; members cannot
+      if (account.accountType === 'owner_member' && account.collectiveId) {
+        const { data: membership } = await admin
+          .from('collective_members')
+          .select('role')
+          .eq('collective_id', account.collectiveId)
+          .eq('user_id', account.userId)
+          .maybeSingle();
+        if (membership?.role !== 'owner') {
+          return { reply: 'Ügyfél létrehozáshoz kérjük használd az OkosSzaki alkalmazást.', action: 'permission_denied' };
+        }
+      }
+      if (account.accountType === 'subbie') {
+        return { reply: 'Ügyfél létrehozáshoz kérjük használd az OkosSzaki alkalmazást.', action: 'permission_denied' };
+      }
+      return { reply: COMING_SOON, action: 'not_implemented' };
+    }
+
     case 'set_active_survey':
       return { reply: COMING_SOON, action: 'not_implemented' };
 

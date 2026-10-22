@@ -1787,7 +1787,7 @@ In processItem, before calling resolveIntent, check for the VERIFY command:
 ---
 
 ## WA-051 — Member: Log labour, upload invoice, add survey entry
-**Status:** 🔲
+**Status:** ✅
 
 **Acceptance criteria:**
 - Member can use all Owner cost/survey features
@@ -1850,7 +1850,7 @@ Test: a Member sends "8 óra burkolás" → labour entry created correctly.
 ---
 
 ## WA-060 — Owner: Register a Subbie
-**Status:** 🔲
+**Status:** ✅
 
 **Acceptance criteria:**
 - Subbie registered with verification + GDPR consent message
@@ -1907,7 +1907,7 @@ Only anonymise 'uploader_name' if explicitly requested. Leave a TODO comment.
 ---
 
 ## WA-061 — Subbie: Log labour entry
-**Status:** 🔲
+**Status:** ✅
 
 **Acceptance criteria:**
 - Subbie with can_log_labour: true → entry created
@@ -1959,7 +1959,7 @@ Test: a Subbie with can_log_labour: true sends "4 óra burkolás" → entry crea
 ---
 
 ## WA-062 — Subbie: Upload invoice
-**Status:** 🔲
+**Status:** ✅
 
 **Acceptance criteria:**
 - Invoice with can_upload_invoices: true → created
@@ -1997,7 +1997,7 @@ Test: Subbie with can_upload_invoices: true sends a receipt photo → invoice cr
 ---
 
 ## WA-063 — Subbie: View own costs
-**Status:** 🔲
+**Status:** ✅
 
 **Acceptance criteria:**
 - Subbie sees only their own records (filtered by uploaded_by = wa_account.id)
@@ -2059,7 +2059,7 @@ Add a Subbie branch at the top:
 ---
 
 ## WA-064 — Owner: Remove Subbie / revoke permissions
-**Status:** 🔲
+**Status:** ✅
 
 **Acceptance criteria:**
 - Deactivated Subbie blocked immediately
