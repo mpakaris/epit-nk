@@ -49,7 +49,7 @@ export async function resolveWorkspace(waAccount, conversation, phoneNumber, mes
     ...collectives.map(c => ({ id: c.id, name: c.name })),
   ];
 
-  await saveClarification(phoneNumber, 'workspace_choice', options, null, null);
+  await saveClarification(phoneNumber, 'workspace_choice', options, null, { originalContent: messageText });
 
   return { needsClarification: true, clarificationOptions: options };
 }

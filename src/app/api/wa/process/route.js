@@ -399,10 +399,20 @@ async function processItem(item, admin, appUrl, secret) {
             active_project_id:    null,
             active_survey_id:     null,
           });
-          const label = isPersonal ? 'Személyes munkaterület' : `*${clarResult.chosenOption.name}*`;
-          await sendReply(appUrl, secret, phoneNumber, `✓ Aktív munkaterület: ${label}\n\nMost ismételd meg az előző üzeneted.`);
-          await finalise(admin, item.id, waMsg?.id, startedAt, { action_taken: 'workspace_chosen' });
-          return;
+          account.collectiveId = collectiveId;
+          log(phoneNumber, 'workspace-chosen', { collective: collectiveId ?? 'personal' });
+
+          const originalContent = clarResult.originalPayload?.originalContent;
+          if (originalContent) {
+            // Resume original message — fall through to full pipeline
+            content = originalContent;
+            // dispatchIntent stays null → goes through intent classification
+          } else {
+            const label = isPersonal ? 'Személyes munkaterület' : `*${clarResult.chosenOption.name}*`;
+            await sendReply(appUrl, secret, phoneNumber, `✓ Aktív munkaterület: ${label}`);
+            await finalise(admin, item.id, waMsg?.id, startedAt, { action_taken: 'workspace_chosen' });
+            return;
+          }
         }
 
         if (type === 'project_choice') {
