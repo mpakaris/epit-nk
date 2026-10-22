@@ -5,6 +5,7 @@ const BLANK_STATE = (phoneNumber) => ({
   active_project_id:     null,
   active_survey_id:      null,
   active_collective_id:  null,
+  workspace_chosen:      false,
   pending_clarification: null,
   last_action:           null,
   context_window:        [],
@@ -52,10 +53,11 @@ export async function expireConversation(phoneNumber) {
   await admin.from('wa_conversations').update({
     active_project_id:    null,
     active_survey_id:     null,
-    active_collective_id: null,
+    active_collective_id:  null,
+    workspace_chosen:      false,
     pending_clarification: null,
-    last_action:          null,
-    context_window:       [],
+    last_action:           null,
+    context_window:        [],
     updated_at:           new Date().toISOString(),
   }).eq('phone_number', phoneNumber);
 }

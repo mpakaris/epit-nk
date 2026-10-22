@@ -317,7 +317,7 @@ async function processItem(item, admin, appUrl, secret) {
           const collectiveId = isPersonal ? null : clarResult.chosenOption.id;
           await saveConversation(phoneNumber, {
             active_collective_id: collectiveId,
-            _workspace_chosen:    true,
+            workspace_chosen:     true,
             active_project_id:    null,
             active_survey_id:     null,
           });
@@ -407,7 +407,7 @@ async function processItem(item, admin, appUrl, secret) {
         return;
       }
       // Patch account's collectiveId for this turn if session overrides wa_account default
-      if (conversation._workspace_chosen) {
+      if (conversation.workspace_chosen) {
         account.collectiveId = conversation.active_collective_id;
       }
     }
