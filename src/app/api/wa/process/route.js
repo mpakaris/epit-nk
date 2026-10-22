@@ -295,6 +295,28 @@ async function processItem(item, admin, appUrl, secret) {
       return;
     }
 
+    // "reset" command — clear all stuck conversation state
+    if (content && ['reset', 'újra', 'restart', 'újraindítás', 'törlés'].includes(content.trim().toLowerCase())) {
+      const account = await resolveAccount(phoneNumber);
+      const admin2  = createAdminClient();
+      await admin2.from('wa_conversations').update({
+        pending_clarification: null,
+        active_project_id:     null,
+        active_survey_id:      null,
+        active_collective_id:  null,
+        workspace_chosen:      false,
+        last_action:           null,
+        context_window:        [],
+        updated_at:            new Date().toISOString(),
+      }).eq('phone_number', phoneNumber);
+      log(phoneNumber, 'reset');
+      const mode = account?.permissions?.mode;
+      await sendReply(appUrl, secret, phoneNumber,
+        `✓ Állapot törölve — friss lappal indulunk.\n${mode ? `_(${mode === 'guided' ? 'Vezérelt' : 'Szabad'} mód megmaradt)_` : ''}`);
+      await finalise(admin, item.id, waMsg?.id, startedAt, { action_taken: 'reset' });
+      return;
+    }
+
     // "mód" command — change interaction mode at any time
     if (content && ['mód', 'mod', 'mode', 'vezérelt', 'szabad'].includes(content.trim().toLowerCase())) {
       const account = await resolveAccount(phoneNumber);
