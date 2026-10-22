@@ -1,6 +1,22 @@
 import { uploadToR2 } from '@/lib/r2';
 
+// Construction-domain keyterms — Scribe v2 supports up to 1,000
+const KEYTERMS = [
+  'burkolás', 'csempe', 'vakolás', 'festés', 'cement', 'ragasztó', 'fugázás',
+  'konyha', 'fürdőszoba', 'nappali', 'hálószoba', 'előszoba', 'garázs', 'pince',
+  'mennyezet', 'alapterület', 'felmérés', 'szegőléc', 'szigetelés', 'homlokzat',
+  'ablak', 'ajtó', 'méter', 'négyzetméter', 'folyóméter', 'kilogramm', 'liter',
+  'villanyszerelés', 'vízvezeték', 'gázszerelés', 'fűtés', 'padló', 'parkett',
+  'laminált', 'gipszkarton', 'beton', 'tégla', 'ács', 'tetőfedés', 'cseréptető',
+  'hőszigetelés', 'párazáró', 'csatorna', 'szennyvíz', 'lefolyó', 'klíma',
+  'projekt', 'számla', 'ajánlat', 'anyagköltség', 'munkadíj', 'órabér',
+  'felújítás', 'átalakítás', 'bővítés', 'alapozás', 'esztrichöntés', 'vakolat',
+];
+
 export async function transcribeVoiceNote(mediaUrl, phoneNumber) {
+  const apiKey = process.env.ELEVEN_LABS_SPEECH_TO_TEXT_API_KEY;
+  if (!apiKey) throw new Error('ELEVEN_LABS_SPEECH_TO_TEXT_API_KEY not configured');
+
   const audioRes = await fetch(mediaUrl);
   if (!audioRes.ok) throw new Error(`Media fetch failed: ${audioRes.status}`);
 
@@ -16,19 +32,27 @@ export async function transcribeVoiceNote(mediaUrl, phoneNumber) {
 
   const formData = new FormData();
   formData.append('file', new Blob([audioBuffer], { type: mimeType }), `audio${ext}`);
-  formData.append('model', 'whisper-1');
-  formData.append('language', 'hu');
-  formData.append('response_format', 'text');
-  formData.append('prompt', 'Építési felmérés. Helyiség méretek, méteres értékek, burkolás, festés, csempe, vakolás.');
+  formData.append('model_id', 'scribe_v2');
+  formData.append('language_code', 'hu');
+  formData.append('tag_audio_events', 'false');
+  // Pass construction keyterms for better domain accuracy
+  formData.append('keyterms', JSON.stringify(KEYTERMS));
 
-  const res = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+  const res = await fetch('https://api.elevenlabs.io/v1/speech-to-text', {
     method:  'POST',
-    headers: { Authorization: `Bearer ${process.env.OPEN_AI_OCR_KEY}` },
+    headers: { 'xi-api-key': apiKey },
     body:    formData,
   });
 
-  if (!res.ok) throw new Error(`Whisper error: ${res.status}`);
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`ElevenLabs STT error: ${res.status} — ${err}`);
+  }
 
-  const transcript = (await res.text()).trim();
+  const data       = await res.json();
+  const transcript = (data.text || '').trim();
+
+  if (!transcript) throw new Error('ElevenLabs returned empty transcript');
+
   return { transcript, r2Key };
 }
