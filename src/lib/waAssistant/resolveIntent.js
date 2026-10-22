@@ -87,11 +87,18 @@ Magyar szám-szavak: "három és fél" → 3.5, "négyezer" → 4000, "negyvenö
       }),
     });
 
-    if (!res.ok) return FALLBACK;
+    if (!res.ok) {
+      const errBody = await res.text().catch(() => '');
+      console.error('[resolveIntent] OpenAI error:', res.status, errBody.slice(0, 200));
+      return FALLBACK;
+    }
 
     const data = await res.json();
     const raw  = data.choices?.[0]?.message?.content;
-    if (!raw) return FALLBACK;
+    if (!raw) {
+      console.error('[resolveIntent] empty content, data:', JSON.stringify(data).slice(0, 300));
+      return FALLBACK;
+    }
 
     // Fire-and-forget usage logging
     if (data.usage && phoneNumber) {
@@ -100,7 +107,8 @@ Magyar szám-szavak: "három és fél" → 3.5, "négyezer" → 4000, "negyvenö
     }
 
     return JSON.parse(raw);
-  } catch {
+  } catch (err) {
+    console.error('[resolveIntent] error:', err.message, err.stack?.split('\n')[1]?.trim());
     return FALLBACK;
   }
 }
