@@ -150,11 +150,6 @@ async function dispatch(intent, extracted, account, conversation, phoneNumber, c
 
     case 'create_survey': {
       const result = await createSurvey(ctx);
-      if (result.needsClarification) {
-        await saveClarification(phoneNumber, result.clarificationType, result.clarificationOptions, result.originalIntent, result.originalPayload);
-        const reply = formatClarificationMessage('Melyik projekthez szeretnéd a felmérést?', result.clarificationOptions);
-        return { reply, action: 'clarification_sent' };
-      }
       return { reply: result.reply, action: 'create_survey' };
     }
 

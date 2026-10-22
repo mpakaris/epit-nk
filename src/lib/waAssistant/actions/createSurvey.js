@@ -2,34 +2,14 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { logAudit } from '@/lib/audit';
 import { saveConversation, saveLastAction } from '../conversation';
 import { saveClarification } from '../clarification';
-import { resolveProject } from '../resolveProject';
 
+// Surveys are standalone — no project link. Flow: Survey → Quote → Project.
 export async function createSurvey({ waAccount, conversation, extracted, phoneNumber }) {
   const admin = createAdminClient();
 
-  // Resolve which project this survey belongs to
-  const projectResult = await resolveProject(
-    extracted?.project_hint || '',
-    waAccount,
-    conversation
-  );
-
-  if (projectResult.needsClarification) {
-    return {
-      reply: null,
-      needsClarification: true,
-      clarificationType: 'project_choice',
-      clarificationOptions: projectResult.clarificationOptions,
-      originalIntent: 'create_survey',
-      originalPayload: extracted,
-    };
-  }
-
-  const { projectId, projectName } = projectResult;
-
-  // If no survey title extracted, ask for one
+  // Ask for title if not in message
   if (!extracted?.surveyTitle) {
-    await saveClarification(phoneNumber, 'survey_title_needed', [], 'create_survey', { projectId });
+    await saveClarification(phoneNumber, 'survey_title_needed', [], 'create_survey', {});
     return {
       reply: `Milyen nevű legyen a felmérés? (pl. "Fürdőszoba felmérés")`,
       needsClarification: false,
@@ -50,10 +30,7 @@ export async function createSurvey({ waAccount, conversation, extracted, phoneNu
     return { reply: 'Sajnos nem sikerült létrehozni a felmérést. Kérlek próbáld újra.', needsClarification: false };
   }
 
-  await saveConversation(phoneNumber, {
-    active_survey_id:  survey.id,
-    active_project_id: projectId,
-  });
+  await saveConversation(phoneNumber, { active_survey_id: survey.id });
   await saveLastAction(phoneNumber, 'survey', 'surveys', survey.id);
 
   await logAudit({
@@ -63,21 +40,20 @@ export async function createSurvey({ waAccount, conversation, extracted, phoneNu
     targetType: 'survey',
     targetId:   survey.id,
     targetName: title,
-    details:    { channel: 'whatsapp', project_id: projectId },
+    details:    { channel: 'whatsapp' },
   });
 
   const workspaceName = waAccount.collectiveId
     ? (waAccount.waAccount?.collective?.name || 'Kollektíva')
     : 'Személyes munkaterület';
 
-  // Always ask guided vs free — per document, every time
   await saveClarification(phoneNumber, 'doc_mode_choice', [
     { id: 'guided', name: 'Vezérelt — lépésről lépésre segítelek' },
     { id: 'free',   name: 'Szabad — te irányítasz' },
-  ], null, { surveyId: survey.id, surveyTitle: title, projectName, workspaceName });
+  ], null, { surveyId: survey.id, surveyTitle: title, workspaceName });
 
   return {
-    reply: `✓ Felmérés létrehozva\n\nNév: *${title}*\nMunkaterület: *${workspaceName}*\nProjekt: *${projectName}*\n\nÉszrevettem, hogy néhány információ hiányzik (helyiségek, ügyfél, fotók).\nSzeretnéd, hogy végigvezesselek, vagy inkább szabad szöveggel folytatod?\n\n1. Vezérelt — lépésről lépésre segítelek\n2. Szabad — te irányítasz\n\n_Visszavonáshoz: vissza_`,
+    reply: `✓ Felmérés létrehozva\n\nNév: *${title}*\nMunkaterület: *${workspaceName}*\n\nÉszrevettem, hogy néhány információ hiányzik (helyiségek, ügyfél, fotók).\nSzeretnéd, hogy végigvezesselek, vagy inkább szabad szöveggel folytatod?\n\n1. Vezérelt — lépésről lépésre segítelek\n2. Szabad — te irányítasz\n\n_Visszavonáshoz: vissza_`,
     needsClarification: false,
   };
 }
