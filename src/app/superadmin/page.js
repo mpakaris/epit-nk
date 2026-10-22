@@ -10,7 +10,7 @@ import {
   ShieldAlert, AlertCircle, CheckCircle2, Edit3, ArrowUpRight,
   FileText, Receipt, Coins, Globe, CreditCard, Image, Mail, Loader2,
   Skull, Search, X, Wrench, LayoutDashboard, ClipboardList,
-  BarChart3, Settings, BookOpen, Camera,
+  BarChart3, Settings, BookOpen, Camera, MessageCircle,
 } from 'lucide-react';
 
 // ── Navigation cards definition ────────────────────────────────────────────
@@ -51,6 +51,10 @@ export default function SuperAdminPage() {
   // SMTP
   const [smtpPinging, setSmtpPinging] = useState(false);
   const [smtpStatus, setSmtpStatus]   = useState(null);
+
+  // WhatsApp test
+  const [waSending, setWaSending] = useState(false);
+  const [waResult,  setWaResult]  = useState(null);
 
   // Auth repair
   const [repairEmail, setRepairEmail]   = useState('');
@@ -144,6 +148,23 @@ export default function SuperAdminPage() {
       setSmtpStatus({ ok: false, error: err.message });
     } finally {
       setSmtpPinging(false);
+    }
+  };
+
+  const handleWaTest = async () => {
+    setWaSending(true);
+    setWaResult(null);
+    try {
+      const res = await fetch('/api/superadmin/wa-test', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      const data = await res.json();
+      setWaResult(data);
+    } catch (err) {
+      setWaResult({ ok: false, error: err.message });
+    } finally {
+      setWaSending(false);
     }
   };
 
@@ -448,6 +469,32 @@ export default function SuperAdminPage() {
           {smtpStatus && (
             <div style={{ padding: '0.55rem 0.75rem', borderRadius: 'var(--radius-md)', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.4rem', background: smtpStatus.ok ? 'var(--success-bg)' : 'var(--danger-bg)', border: `1px solid ${smtpStatus.ok ? 'var(--success-border)' : 'var(--danger-border)'}`, color: smtpStatus.ok ? 'var(--success-text)' : 'var(--danger-text)' }}>
               {smtpStatus.ok ? <><CheckCircle2 size={14} /> Connected — sending from <strong>{smtpStatus.from}</strong></> : <><AlertCircle size={14} /> {smtpStatus.error}</>}
+            </div>
+          )}
+        </div>
+
+        {/* WhatsApp */}
+        <div className="card" style={{ padding: '1rem 1.1rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.65rem' }}>
+            <MessageCircle size={15} color="#25D366" />
+            <h3 style={{ fontSize: '0.875rem', fontWeight: 800, margin: 0 }}>WhatsApp</h3>
+          </div>
+          <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: '0 0 0.65rem', lineHeight: 1.5 }}>
+            Küld egy teszt üzenetet hogy ellenőrizd az asszisztenst. Bot: <code style={{ fontSize: '0.75rem' }}>{process.env.NEXT_PUBLIC_WHINSELF_BOT_PHONE || 'nincs beállítva'}</code>
+          </p>
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm"
+            onClick={handleWaTest}
+            disabled={waSending}
+          >
+            {waSending ? <Loader2 size={13} className="animate-spin" /> : 'Teszt küldése'}
+          </button>
+          {waResult && (
+            <div style={{ marginTop: '0.55rem', padding: '0.55rem 0.75rem', borderRadius: 'var(--radius-md)', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.4rem', background: waResult.ok ? 'var(--success-bg)' : 'var(--danger-bg)', border: `1px solid ${waResult.ok ? 'var(--success-border)' : 'var(--danger-border)'}`, color: waResult.ok ? 'var(--success-text)' : 'var(--danger-text)' }}>
+              {waResult.ok
+                ? <><CheckCircle2 size={14} /> Elküldve → {waResult.chatId}</>
+                : <><AlertCircle size={14} /> {waResult.error || JSON.stringify(waResult.detail)}</>}
             </div>
           )}
         </div>

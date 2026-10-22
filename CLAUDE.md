@@ -4,6 +4,32 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 @AGENTS.md
 
+# Epitek — Product Overview
+
+Epitek is a **lightweight SaaS for solo contractors** (Hungarian market). It is NOT a full project management suite — it is a focused tool that lets tradespeople replace scattered WhatsApp/Viber/Messenger threads with one organised place.
+
+**Primary users:**
+1. **Solo contractors** — one person who needs quotes, project tracking, a client list, and a public website, all in one place with minimal clicks.
+2. **Small collectives** — 2–6 contractors who team up for a single project and then part ways. One person is the Owner/Coordinator; the others are subcontractors. The collective is temporary and lightweight, not a company.
+
+**Design principles:**
+- Everything shareable with 1–2 clicks (share link, client portal, public website).
+- Speed over completeness — features must be quick to reach, not buried.
+- Mobile-first in practice — contractors use phones on-site.
+- Hungarian language everywhere in the UI.
+
+**Core modules:**
+| Module | Hungarian route | What it does |
+|---|---|---|
+| Workspaces | — | Personal and Collective contexts; toggle without re-logging in |
+| Surveys | `/felmeres` | On-site measurements that feed directly into quotes |
+| Quotes | `/ajanlatok` | Itemised offers (material / labour / equipment etc.); PDF + email send |
+| Project cost tracking | `/projektek` | Invoices, labour entries, diary, financials per project |
+| Client management | `/ugyfelek` | Contact list + shareable client portal (`/clients/[id]`) |
+| Personal website | `/weboldalam` | Free one-page public site at `/szakemberek/[slug]` |
+
+---
+
 # Epitek — Architecture Reference for Claude
 
 ## Dev Commands
