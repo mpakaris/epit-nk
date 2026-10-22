@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Plus, Edit3, Trash2, X, Check, Loader2, ChevronDown, Package } from 'lucide-react';
 import { formatHUF } from '@/lib/constants';
 import PageSpinner from '@/components/PageSpinner';
-import CollectiveBanner from '@/components/CollectiveBanner';
+import WorkspaceBadge from '@/components/WorkspaceBadge';
 
 const TRADES = [
   'általános',
@@ -214,14 +214,12 @@ export default function KatalogusPage() {
   if (loading) return <PageSpinner />;
 
   return (
-    <div className="container" style={{ maxWidth: '860px', paddingBottom: '3rem' }}>
-      <CollectiveBanner />
-
-      <div className="page-header" style={{ padding: '1.25rem 0 1rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+    <div className="container">
+      <div className="page-header">
+        <div className="page-header-row">
           <div>
-            <h1 className="page-title" style={{ marginBottom: '0.15rem' }}>Árkatalógus</h1>
-            <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: 0 }}>Munkadíjak és tételek — az ajánlatokban és felméréseknél auto-kitölthetők</p>
+            <h1 className="page-title" style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>Árkatalógus <WorkspaceBadge /></h1>
+            <p className="page-subtitle">Munkadíjak és tételek — az ajánlatokban és felméréseknél auto-kitölthetők</p>
           </div>
           <button type="button" onClick={() => { setShowAdd(true); setEditing(null); }} className="btn btn-primary btn-sm">
             <Plus size={14} /> Új tétel
