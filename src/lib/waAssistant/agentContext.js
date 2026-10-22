@@ -47,7 +47,7 @@ export async function buildAgentContext(account, conversation) {
 
     // Personal surveys — always load regardless of active workspace
     admin.from('surveys')
-      .select('id, title, notes, location, client_id, collective_id')
+      .select('id, title, notes, location, client_id, collective_id, owner_id, created_by, created_at')
       .eq('owner_id', userId)
       .is('collective_id', null)
       .is('deleted_at', null)
@@ -61,7 +61,7 @@ export async function buildAgentContext(account, conversation) {
   let collectiveSurveys = [];
   if (collectiveIds.length) {
     const { data: cs } = await admin.from('surveys')
-      .select('id, title, notes, location, client_id, collective_id')
+      .select('id, title, notes, location, client_id, collective_id, owner_id, created_by, created_at')
       .in('collective_id', collectiveIds)
       .is('deleted_at', null)
       .order('created_at', { ascending: false })
@@ -80,6 +80,16 @@ export async function buildAgentContext(account, conversation) {
       .select('id, name')
       .in('id', clientIds);
     for (const c of clients || []) clientMap[c.id] = c.name;
+  }
+
+  // Load display names for survey creators
+  const creatorIds = [...new Set((surveys || []).map(s => s.created_by).filter(Boolean))];
+  let creatorMap = {};
+  if (creatorIds.length) {
+    const { data: profiles } = await admin.from('profiles')
+      .select('id, display_name')
+      .in('id', creatorIds);
+    for (const p of profiles || []) creatorMap[p.id] = p.display_name;
   }
 
   // Load layout counts per survey (survey_media with media_type='layout')
@@ -175,16 +185,26 @@ export async function buildAgentContext(account, conversation) {
       lines.push('  (nincs felmérés)');
     } else {
       for (const s of ws.surveys) {
-        const rooms       = entriesBySurvey[s.id] || [];
-        const clientName  = s.client_id ? clientMap[s.client_id] : null;
-        const layoutCount = layoutCountMap[s.id] || 0;
+        const rooms        = entriesBySurvey[s.id] || [];
+        const clientName   = s.client_id ? clientMap[s.client_id] : null;
+        const layoutCount  = layoutCountMap[s.id] || 0;
+        const creatorName  = s.created_by ? (creatorMap[s.created_by] || s.created_by) : null;
+        const isActive     = s.id === conversation.active_survey_id;
         lines.push(`  • "${s.title}" (id: ${s.id})`);
-        if (s.location)   lines.push(`    Helyszín: ${s.location}`);
+        if (s.location)    lines.push(`    Helyszín: ${s.location}`);
         lines.push(`    Ügyfél: ${clientName ? `"${clientName}"` : '(nincs)'}`);
+        if (creatorName)   lines.push(`    Létrehozta: ${creatorName}`);
+        if (s.created_at)  lines.push(`    Létrehozva: ${s.created_at.slice(0, 10)}`);
         lines.push(`    Alaprajz: ${layoutCount > 0 ? `${layoutCount} db` : '(nincs)'}`);
-        if (s.notes)      lines.push(`    Megjegyzések: ${s.notes.slice(0, 150)}${s.notes.length > 150 ? '…' : ''}`);
+        if (s.notes)       lines.push(`    Megjegyzések: ${s.notes.slice(0, 200)}${s.notes.length > 200 ? '…' : ''}`);
         if (rooms.length) {
-          lines.push(`    Helyiségek (${rooms.length}): ${rooms.map(r => r.name).join(', ')}`);
+          if (isActive) {
+            // Full details for active survey so the bot can answer questions about rooms
+            lines.push(`    Helyiségek (${rooms.length}):`);
+            for (const r of rooms) lines.push(formatRoom(r));
+          } else {
+            lines.push(`    Helyiségek (${rooms.length}): ${rooms.map(r => r.name).join(', ')}`);
+          }
         } else {
           lines.push('    Helyiségek: (még nincs)');
         }
