@@ -244,6 +244,12 @@ async function dispatch(intent, extracted, account, conversation, phoneNumber, c
   }
 }
 
+function log(phone, step, data = {}) {
+  const tag = `[wa ${phone?.slice(-4) ?? '????'}]`;
+  const extra = Object.keys(data).length ? ' ' + JSON.stringify(data) : '';
+  console.log(`${tag} ${step}${extra}`);
+}
+
 async function processItem(item, admin, appUrl, secret) {
   const startedAt = new Date().toISOString();
   let waMessageId, phoneNumber, contentType, content, mediaUrl;
@@ -251,6 +257,7 @@ async function processItem(item, admin, appUrl, secret) {
   try {
     ({ waMessageId, phoneNumber, contentType, content, mediaUrl } = parsePayload(item.payload));
   } catch (err) {
+    console.error('[wa process] payload parse error:', err.message);
     await admin.from('wa_processing_queue').update({
       status:       'failed',
       last_error:   'payload_parse_error: ' + err.message,
@@ -269,6 +276,8 @@ async function processItem(item, admin, appUrl, secret) {
     media_url:              mediaUrl,
     processing_started_at:  startedAt,
   }).select('id').single();
+
+  log(phoneNumber, 'inbound', { type: contentType, preview: (content || '').slice(0, 60) });
 
   try {
     // Revert command — undo last write action within 120 minutes
@@ -295,12 +304,20 @@ async function processItem(item, admin, appUrl, secret) {
 
     const account = await resolveAccount(phoneNumber);
     if (!account) {
+      log(phoneNumber, 'unregistered');
       await sendReply(appUrl, secret, phoneNumber, UNREGISTERED_REPLY);
       await finalise(admin, item.id, waMsg?.id, startedAt, { action_taken: 'unregistered' });
       return;
     }
+    log(phoneNumber, 'account', { type: account.accountType, user: account.displayName });
 
     const conversation = await loadConversation(phoneNumber);
+    log(phoneNumber, 'conversation', {
+      workspace_chosen: conversation.workspace_chosen,
+      active_project:   conversation.active_project_id ? 'set' : 'none',
+      active_survey:    conversation.active_survey_id  ? 'set' : 'none',
+      pending_clarif:   conversation.pending_clarification?.type || 'none',
+    });
 
     // Check for a pending clarification first
     let dispatchIntent = null;
@@ -397,13 +414,14 @@ async function processItem(item, admin, appUrl, secret) {
 
     // Build user context package — used by intent classifier and workspace resolver
     const userCtx = !dispatchIntent
-      ? await buildUserContext(account, conversation).catch(() => null)
+      ? await buildUserContext(account, conversation).catch((e) => { log(phoneNumber, 'context-build-error', { err: e.message }); return null; })
       : null;
+    log(phoneNumber, 'user-context', { built: !!userCtx });
 
     // Workspace check — try to resolve from message first, then ask if still ambiguous
     if (!dispatchIntent) {
-      // Quick intent pre-classify to extract workspace_hint before full workspace resolution
       const wsResult = await resolveWorkspace(account, conversation, phoneNumber, content);
+      log(phoneNumber, 'workspace', { needsClarification: wsResult.needsClarification, collectiveId: wsResult.collectiveId ?? 'personal' });
       if (wsResult.needsClarification) {
         const reply = formatClarificationMessage(
           'Melyik munkaterületen dolgozol most?',
@@ -453,15 +471,19 @@ async function processItem(item, admin, appUrl, secret) {
     }
 
     const { intent, confidence, extracted } = intentResult;
+    log(phoneNumber, 'intent', { intent, confidence, extracted: JSON.stringify(extracted).slice(0, 120) });
 
     // Low confidence → treat as unknown
     const effectiveIntent = confidence < 0.6 ? 'unknown' : intent;
+    if (effectiveIntent !== intent) log(phoneNumber, 'intent-downgraded', { from: intent, confidence, threshold: 0.6 });
 
+    log(phoneNumber, 'dispatch', { intent: effectiveIntent });
     const { reply, action } = await dispatch(
       effectiveIntent, extracted, account, conversation,
       phoneNumber, content, mediaUrl, contentType, admin, appUrl, secret
     );
 
+    log(phoneNumber, 'action', { action, reply: reply?.slice(0, 80) });
     const finalReply = transcript ? `🎤 _"${transcript}"_\n\n${reply}` : reply;
     await sendReply(appUrl, secret, phoneNumber, finalReply);
     await appendToContextWindow(phoneNumber, 'user', content || `(${contentType})`);
@@ -474,7 +496,7 @@ async function processItem(item, admin, appUrl, secret) {
       action_taken:      action,
     });
   } catch (err) {
-    console.error('[wa/process] error for item', item.id, err.message);
+    log(phoneNumber, 'ERROR', { message: err.message, stack: err.stack?.split('\n')[1]?.trim() });
 
     const attempts = (item.attempts || 0) + 1;
     if (attempts >= 3) {

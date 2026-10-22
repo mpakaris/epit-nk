@@ -80,9 +80,6 @@ export async function POST(request) {
   try {
     const payload = JSON.parse(rawBody);
 
-    // DEBUG: log first payload to confirm field names
-    console.log('[wa webhook] RAW PAYLOAD:', JSON.stringify(payload, null, 2));
-
     const parsed = parsePayload(payload);
     if (!parsed) {
       return Response.json({ received: true, skipped: 'outbound_or_group' });
