@@ -46,19 +46,35 @@ export async function resolveClarification(phoneNumber, replyText, conversation)
 
   const choice = parseInt(normalised, 10);
 
-  if (isNaN(choice) || choice < 1 || choice > options.length) {
-    const attempts = (pending.attempts || 0) + 1;
-    if (attempts >= 2) {
-      await saveConversation(phoneNumber, { pending_clarification: null });
-    } else {
-      await saveConversation(phoneNumber, {
-        pending_clarification: { ...pending, attempts },
-      });
-    }
-    return { resolved: false, invalid: true };
+  // Numeric match
+  if (!isNaN(choice) && choice >= 1 && choice <= options.length) {
+    await saveConversation(phoneNumber, { pending_clarification: null });
+    return { resolved: true, chosenOption: options[choice - 1], originalIntent: pending.original_intent, originalPayload: pending.original_payload };
   }
 
-  const chosenOption = options[choice - 1];
-  await saveConversation(phoneNumber, { pending_clarification: null });
-  return { resolved: true, chosenOption, originalIntent: pending.original_intent, originalPayload: pending.original_payload };
+  // Text/fuzzy match — accent-insensitive, partial
+  const slug = s => s.toLowerCase()
+    .replace(/[áà]/g, 'a').replace(/[éè]/g, 'e').replace(/[íì]/g, 'i')
+    .replace(/[óòöő]/g, 'o').replace(/[úùüű]/g, 'u')
+    .replace(/[^a-z0-9 ]/g, '');
+
+  const replySlug = slug(replyText || '');
+  const matches = options.filter(o => {
+    const optSlug = slug(o.name);
+    return optSlug.includes(replySlug) || replySlug.includes(optSlug.split(' ')[0]);
+  });
+
+  if (matches.length === 1) {
+    await saveConversation(phoneNumber, { pending_clarification: null });
+    return { resolved: true, chosenOption: matches[0], originalIntent: pending.original_intent, originalPayload: pending.original_payload };
+  }
+
+  // No match — re-ask
+  const attempts = (pending.attempts || 0) + 1;
+  if (attempts >= 2) {
+    await saveConversation(phoneNumber, { pending_clarification: null });
+  } else {
+    await saveConversation(phoneNumber, { pending_clarification: { ...pending, attempts } });
+  }
+  return { resolved: false, invalid: true };
 }
