@@ -1,5 +1,6 @@
 import { logOpenAiUsage } from './logAiUsage';
 
+// Vision task — always gpt-4o, not swappable to mini
 export async function classifyImage(imageBase64, mimeType, { phoneNumber, userId } = {}) {
   const apiKey = process.env.OPEN_AI_OCR_KEY;
   if (!apiKey) return 'unknown';

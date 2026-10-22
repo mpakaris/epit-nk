@@ -1,25 +1,35 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 
-// Fetch all rates for a provider+model. Returns { metric → cost_usd } map.
-async function fetchRates(admin, provider, model) {
+// Fetch rates for a call type. Returns { metric → cost_usd } map + resolved model name.
+async function fetchRatesAndModel(admin, provider, callType) {
+  const isVision = callType === 'classify_image' || callType === 'invoice_ocr';
+  const metricSuffix = isVision ? '_vision' : '';
+
   const { data } = await admin
     .from('wa_ai_rates')
-    .select('metric, cost_usd')
+    .select('metric, cost_usd, model')
     .eq('provider', provider)
-    .eq('model', model);
+    .in('metric', [`input_tokens${metricSuffix}`, `output_tokens${metricSuffix}`]);
 
-  return Object.fromEntries((data || []).map(r => [r.metric, Number(r.cost_usd)]));
+  const rates = Object.fromEntries((data || []).map(r => [r.metric, Number(r.cost_usd)]));
+  // Get model from the first row (all rows for same task should share the same model)
+  const model = data?.[0]?.model || (isVision ? 'gpt-4o' : 'gpt-4o-mini');
+
+  return { rates, model };
 }
 
 export async function logOpenAiUsage({ phoneNumber, userId, model, callType, usage }) {
   if (!usage) return;
 
   const admin = createAdminClient();
-  const rates = await fetchRates(admin, 'openai', model);
+  const { rates, model: resolvedModel } = await fetchRatesAndModel(admin, 'openai', callType);
 
-  // Fallback rates if DB lookup fails (migration not yet applied)
-  const inRate  = rates['input_tokens']  ?? 0.0000025;
-  const outRate = rates['output_tokens'] ?? 0.000010;
+  const isVision = callType === 'classify_image' || callType === 'invoice_ocr';
+  const inKey  = isVision ? 'input_tokens_vision'  : 'input_tokens';
+  const outKey = isVision ? 'output_tokens_vision' : 'output_tokens';
+
+  const inRate  = rates[inKey]  ?? (isVision ? 0.0000025 : 0.00000015);
+  const outRate = rates[outKey] ?? (isVision ? 0.00001   : 0.0000006);
 
   const costUsd   = usage.prompt_tokens * inRate + usage.completion_tokens * outRate;
   const costMicro = Math.round(costUsd * 1_000_000);
@@ -28,18 +38,25 @@ export async function logOpenAiUsage({ phoneNumber, userId, model, callType, usa
     phone_number:   phoneNumber,
     user_id:        userId || null,
     provider:       'openai',
-    model,
+    model:          resolvedModel,
     call_type:      callType,
     tokens_in:      usage.prompt_tokens,
     tokens_out:     usage.completion_tokens,
     tokens_total:   usage.total_tokens,
     cost_usd_micro: costMicro,
     rate_snapshot: {
-      input_tokens:  inRate,
-      output_tokens: outRate,
-      fetched_at:    new Date().toISOString(),
+      [inKey]:   inRate,
+      [outKey]:  outRate,
+      fetched_at: new Date().toISOString(),
     },
   });
+}
+
+// Export resolved model for a given call type — used by the AI callers
+export async function resolveModel(callType) {
+  const admin = createAdminClient();
+  const { model } = await fetchRatesAndModel(admin, 'openai', callType);
+  return model;
 }
 
 export async function logElevenLabsUsage({ phoneNumber, userId, audioSeconds }) {

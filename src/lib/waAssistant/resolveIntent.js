@@ -1,4 +1,4 @@
-import { logOpenAiUsage } from './logAiUsage';
+import { logOpenAiUsage, resolveModel } from './logAiUsage';
 
 const INTENT_ENUM = [
   'create_survey', 'add_survey_entry', 'create_labour_entry', 'create_invoice',
@@ -54,6 +54,7 @@ Magyar szám-szavak: "három és fél" → 3.5, "négyezer" → 4000, "negyvenö
   ];
 
   try {
+    const model = await resolveModel('intent').catch(() => 'gpt-4o-mini');
     const res = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -61,7 +62,7 @@ Magyar szám-szavak: "három és fél" → 3.5, "négyezer" → 4000, "negyvenö
         'Authorization': `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: 'gpt-4o',
+        model,
         messages,
         response_format: {
           type: 'json_schema',
@@ -124,7 +125,7 @@ Magyar szám-szavak: "három és fél" → 3.5, "négyezer" → 4000, "negyvenö
 
     // Fire-and-forget usage logging
     if (data.usage && phoneNumber) {
-      logOpenAiUsage({ phoneNumber, userId, model: 'gpt-4o', callType: 'intent', usage: data.usage })
+      logOpenAiUsage({ phoneNumber, userId, model, callType: 'intent', usage: data.usage })
         .catch(() => {});
     }
 
