@@ -10,7 +10,7 @@ import CollectiveBanner from '@/components/CollectiveBanner';
 import DrawingsSection from '@/components/DrawingsSection';
 import {
   ArrowLeft, MapPin, Calendar, Clock, User, Edit3, Trash2,
-  Play, X, ChevronLeft, ChevronRight, Check, Loader2,
+  Play, X, ChevronLeft, ChevronRight, ChevronDown, Check, Loader2,
   FileText, FolderKanban, Home, Ruler, LayoutPanelLeft,
   Camera, Plus, AlertCircle,
 } from 'lucide-react';
@@ -444,7 +444,74 @@ function AreaSummary({ entry }) {
   );
 }
 
-const PILL = { fontSize: '0.75rem', fontWeight: 700, padding: '0.15rem 0.5rem', borderRadius: 'var(--radius-pill)', background: 'var(--bg-subtle)', border: '1px solid var(--border-subtle)', color: 'var(--text-secondary)', display: 'inline-flex', alignItems: 'center', gap: '0.2rem' };
+const PILL      = { fontSize: '0.75rem', fontWeight: 700, padding: '0.15rem 0.5rem', borderRadius: 'var(--radius-pill)', background: 'var(--bg-subtle)', border: '1px solid var(--border-subtle)', color: 'var(--text-secondary)', display: 'inline-flex', alignItems: 'center', gap: '0.2rem' };
+const PILL_DARK = { fontSize: '0.72rem', fontWeight: 700, padding: '0.15rem 0.5rem', borderRadius: 'var(--radius-pill)', background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.22)', color: 'rgba(255,255,255,0.9)', display: 'inline-flex', alignItems: 'center', gap: '0.2rem' };
+
+// ── Survey entry card (collapsible, offers-style dark header) ─────────────────
+function SurveyEntryCard({ entry, surveyId, canEditEntry, canAdd, onEdit, onDelete, handleDeleteMedia, drawings, createSurveyDrawing, deleteSurveyDrawing, canDrawings, currentUser }) {
+  const hasContent = !!(entry.description || entry.media?.length || drawings.filter(d => d.entry_id === entry.id).length);
+  const [collapsed, setCollapsed] = useState(!hasContent);
+
+  return (
+    <div className="card" style={{ padding: 0, overflow: 'hidden', border: '1.5px solid #cbd5e1' }}>
+      {/* Dark header — click to collapse */}
+      <div
+        style={{ background: '#1e3a5f', padding: '0.85rem 1rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.65rem' }}
+        onClick={() => setCollapsed(c => !c)}
+      >
+        <ChevronDown size={16} color="rgba(255,255,255,0.6)" style={{ transition: 'transform 0.2s', transform: collapsed ? 'rotate(-90deg)' : 'rotate(0deg)', flexShrink: 0 }} />
+        <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+          <span style={{ fontWeight: 800, fontSize: '1rem', color: '#fff' }}>{entry.name}</span>
+          {entry.size_m2   != null && <span style={PILL_DARK}><Ruler size={10} />{Number(entry.size_m2).toFixed(1).replace('.', ',')} m²</span>}
+          {entry.height_m  != null && <span style={PILL_DARK}>{entry.height_m} m mag.</span>}
+          {entry.window_count > 0   && <span style={PILL_DARK}>{entry.window_count} ablak</span>}
+          {entry.door_count   > 0   && <span style={PILL_DARK}>{entry.door_count} ajtó</span>}
+          {entry.media?.length > 0  && <span style={PILL_DARK}>{entry.media.length} fotó</span>}
+        </div>
+        {canEditEntry && (
+          <div style={{ display: 'flex', gap: '0.3rem', flexShrink: 0 }} onClick={e => e.stopPropagation()}>
+            <button type="button" onClick={onEdit} style={{ padding: '0.3rem 0.5rem', background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.22)', color: 'rgba(255,255,255,0.9)', borderRadius: 'var(--radius-sm)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}><Edit3 size={13} /></button>
+            <button type="button" onClick={onDelete} style={{ padding: '0.3rem 0.5rem', background: 'rgba(220,38,38,0.25)', border: '1px solid rgba(220,38,38,0.45)', color: '#fca5a5', borderRadius: 'var(--radius-sm)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}><Trash2 size={13} /></button>
+          </div>
+        )}
+      </div>
+
+      {/* Collapsible body */}
+      {!collapsed && (
+        <div style={{ padding: '1rem' }}>
+          {entry.description && (
+            <p style={{ margin: '0 0 0.75rem', fontSize: '0.875rem', color: 'var(--text-secondary)', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{entry.description}</p>
+          )}
+
+          <AreaSummary entry={entry} />
+
+          <div style={{ marginTop: '0.75rem', borderTop: '1px solid var(--border-subtle)', paddingTop: '0.75rem' }}>
+            {entry.media?.length > 0 ? (
+              <>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
+                  <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600 }}>{entry.media.length} fotó / videó</span>
+                  {canAdd && <InlineUpload surveyId={surveyId} entryId={entry.id} mediaType="photo" label="Hozzáadás" />}
+                </div>
+                <MediaGrid media={entry.media} onDelete={canEditEntry ? handleDeleteMedia : undefined} />
+              </>
+            ) : canAdd ? (
+              <InlineUploadZone surveyId={surveyId} entryId={entry.id} />
+            ) : null}
+          </div>
+
+          <div style={{ marginTop: '0.75rem', borderTop: '1px solid var(--border-subtle)', paddingTop: '0.75rem' }}>
+            <DrawingsSection
+              drawings={drawings.filter(d => d.entry_id === entry.id)}
+              onSave={canDrawings ? (svg => createSurveyDrawing(surveyId, { svg_data: svg, entry_id: entry.id })) : undefined}
+              onDelete={canDrawings ? (drawingId => deleteSurveyDrawing(surveyId, drawingId)) : undefined}
+              canEdit={canDrawings}
+            />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function SurveyDetailPage() {
@@ -711,57 +778,20 @@ export default function SurveyDetailPage() {
                   />
                 </div>
               ) : (
-                <div className="card" style={{ padding: '1rem' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.5rem' }}>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-                        <span style={{ fontWeight: 800, fontSize: '1rem', color: 'var(--text-primary)' }}>{entry.name}</span>
-                        {entry.size_m2   != null && <span style={PILL}><Ruler size={11} />{Number(entry.size_m2).toFixed(1).replace('.', ',')} m²</span>}
-                        {entry.height_m  != null && <span style={PILL}>{entry.height_m} m mag.</span>}
-                        {entry.window_count > 0  && <span style={PILL}>{entry.window_count} ablak</span>}
-                        {entry.door_count   > 0  && <span style={PILL}>{entry.door_count} ajtó</span>}
-                        {entry.created_by_name && (
-                          <span style={{ fontSize: '0.7rem', fontWeight: 700, padding: '0.1rem 0.45rem', borderRadius: 'var(--radius-pill)', background: entry.created_by === currentUser?.id ? 'var(--accent-light)' : 'var(--bg-subtle)', border: `1px solid ${entry.created_by === currentUser?.id ? 'var(--accent-border)' : 'var(--border-subtle)'}`, color: entry.created_by === currentUser?.id ? 'var(--accent)' : 'var(--text-muted)' }}>
-                            {entry.created_by_name}
-                          </span>
-                        )}
-                      </div>
-                      {entry.description && (
-                        <p style={{ marginTop: '0.3rem', fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.55, whiteSpace: 'pre-wrap' }}>{entry.description}</p>
-                      )}
-                    </div>
-                    {canEditEntry(entry) && (
-                      <div style={{ display: 'flex', gap: '0.3rem', flexShrink: 0 }}>
-                        <button type="button" onClick={() => { setEditingEntry(entry); setShowAddEntry(false); }} className="btn btn-secondary btn-sm" style={{ padding: '0.3rem 0.5rem' }}><Edit3 size={13} /></button>
-                        <button type="button" onClick={() => handleDeleteEntry(entry)} className="btn btn-danger btn-sm" style={{ padding: '0.3rem 0.5rem' }}><Trash2 size={13} /></button>
-                      </div>
-                    )}
-                  </div>
-                  <AreaSummary entry={entry} />
-
-                  <div style={{ marginTop: '0.75rem', borderTop: '1px solid var(--border-subtle)', paddingTop: '0.75rem' }}>
-                    {entry.media?.length > 0 ? (
-                      <>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
-                          <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600 }}>{entry.media.length} fotó / videó</span>
-                          {canAdd && <InlineUpload surveyId={id} entryId={entry.id} mediaType="photo" label="Hozzáadás" />}
-                        </div>
-                        <MediaGrid media={entry.media} onDelete={canEditEntry(entry) ? handleDeleteMedia : undefined} />
-                      </>
-                    ) : canAdd ? (
-                      <InlineUploadZone surveyId={id} entryId={entry.id} />
-                    ) : null}
-                  </div>
-
-                  <div style={{ marginTop: '0.75rem', borderTop: '1px solid var(--border-subtle)', paddingTop: '0.75rem' }}>
-                    <DrawingsSection
-                      drawings={drawings.filter(d => d.entry_id === entry.id)}
-                      onSave={canDrawings ? (svg => createSurveyDrawing(id, { svg_data: svg, entry_id: entry.id })) : undefined}
-                      onDelete={canDrawings ? (drawingId => deleteSurveyDrawing(id, drawingId)) : undefined}
-                      canEdit={canDrawings}
-                    />
-                  </div>
-                </div>
+                <SurveyEntryCard
+                  entry={entry}
+                  surveyId={id}
+                  canEditEntry={canEditEntry(entry)}
+                  canAdd={canAdd}
+                  onEdit={() => { setEditingEntry(entry); setShowAddEntry(false); }}
+                  onDelete={() => handleDeleteEntry(entry)}
+                  handleDeleteMedia={handleDeleteMedia}
+                  drawings={drawings}
+                  createSurveyDrawing={createSurveyDrawing}
+                  deleteSurveyDrawing={deleteSurveyDrawing}
+                  canDrawings={canDrawings}
+                  currentUser={currentUser}
+                />
               )}
             </div>
           ))}

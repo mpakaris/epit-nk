@@ -1,16 +1,23 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 
 const BLANK_STATE = (phoneNumber) => ({
-  phone_number:          phoneNumber,
-  active_project_id:     null,
-  active_survey_id:      null,
-  active_collective_id:  null,
-  workspace_chosen:      false,
-  session_mode:          null,
-  pending_clarification: null,
-  last_action:           null,
-  context_window:        [],
-  expires_at:            null,
+  phone_number:             phoneNumber,
+  active_project_id:        null,
+  active_survey_id:         null,
+  active_collective_id:     null,
+  workspace_chosen:         false,
+  session_mode:             null,
+  pending_clarification:    null,
+  last_action:              null,
+  context_window:           [],
+  expires_at:               null,
+  // Current working context — persists across messages
+  current_document_id:      null,
+  current_document_type:    null,
+  current_document_name:    null,
+  current_area:             null,
+  current_area_id:          null,
+  current_context_set_at:   null,
 });
 
 export async function loadConversation(phoneNumber) {
@@ -52,15 +59,21 @@ export async function expireConversation(phoneNumber) {
   const admin = createAdminClient();
 
   await admin.from('wa_conversations').update({
-    active_project_id:    null,
-    active_survey_id:     null,
-    active_collective_id:  null,
-    workspace_chosen:      false,
-    session_mode:          null,
-    pending_clarification: null,
-    last_action:           null,
-    context_window:        [],
-    updated_at:           new Date().toISOString(),
+    active_project_id:      null,
+    active_survey_id:       null,
+    active_collective_id:   null,
+    workspace_chosen:       false,
+    session_mode:           null,
+    pending_clarification:  null,
+    last_action:            null,
+    context_window:         [],
+    current_document_id:    null,
+    current_document_type:  null,
+    current_document_name:  null,
+    current_area:           null,
+    current_area_id:        null,
+    current_context_set_at: null,
+    updated_at:             new Date().toISOString(),
   }).eq('phone_number', phoneNumber);
 }
 

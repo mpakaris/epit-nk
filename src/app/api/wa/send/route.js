@@ -7,23 +7,31 @@ export async function POST(request) {
     return Response.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const { chatId, text } = await request.json();
-  if (!chatId || !text) {
-    return Response.json({ error: 'chatId and text required' }, { status: 400 });
-  }
+  const body = await request.json();
+  const { chatId, text, image, document: doc, caption } = body;
+
+  if (!chatId) return Response.json({ error: 'chatId required' }, { status: 400 });
+  if (!text && !image && !doc) return Response.json({ error: 'text, image, or document required' }, { status: 400 });
 
   const baseUrl = process.env.WHINSELF_BASE_URL;
-  if (!baseUrl) {
-    return Response.json({ error: 'WHINSELF_BASE_URL not configured' }, { status: 500 });
-  }
+  if (!baseUrl) return Response.json({ error: 'WHINSELF_BASE_URL not configured' }, { status: 500 });
 
-  // Ensure JID is in correct Baileys format
   const jid = chatId.includes('@') ? chatId : toJid(chatId);
+
+  // Build Whinself payload
+  let whinPayload;
+  if (image) {
+    whinPayload = { jid, image, ...(caption ? { caption } : {}) };
+  } else if (doc) {
+    whinPayload = { jid, document: doc, ...(caption ? { caption } : {}) };
+  } else {
+    whinPayload = { jid, text };
+  }
 
   const res = await fetch(`${baseUrl}/wspout`, {
     method:  'POST',
     headers: { 'Content-Type': 'application/json' },
-    body:    JSON.stringify({ jid, text }),
+    body:    JSON.stringify(whinPayload),
   });
 
   if (!res.ok) {
@@ -33,11 +41,13 @@ export async function POST(request) {
   }
 
   const admin = createAdminClient();
+  const contentType = image ? 'image' : doc ? 'document' : 'text';
   await admin.from('wa_messages').insert({
     phone_number:  jidToE164(jid),
     direction:     'outbound',
-    content_type:  'text',
-    content:       text,
+    content_type:  contentType,
+    content:       caption || text || null,
+    media_url:     image?.url || doc?.url || null,
   });
 
   return Response.json({ sent: true });

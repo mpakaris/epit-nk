@@ -7,15 +7,29 @@ function verifySignature(payload, signature, secret) {
   return crypto.timingSafeEqual(Buffer.from(computed), Buffer.from(signature));
 }
 
-// Map whingo/Baileys message type → our content_type enum
-function mapContentType(type) {
+// Map Whinself type + mediaType → our content_type enum.
+// Returns null to signal "skip this message entirely".
+function mapContentType(type, mediaType) {
   if (!type) return 'text';
-  const t = type.toLowerCase();
+  const t  = type.toLowerCase();
+  const mt = (mediaType || '').toLowerCase();
+
   if (t === 'conversation' || t === 'extendedtextmessage' || t === 'text' || t === 'chat') return 'text';
   if (t === 'audiovoicemessage' || t === 'audiomessage' || t === 'pttmessage' || t === 'audio' || t === 'ptt' || t === 'voice') return 'voice';
   if (t === 'imagemessage' || t === 'image') return 'image';
   if (t === 'videomessage' || t === 'video') return 'video';
   if (t === 'documentmessage' || t === 'document') return 'document';
+
+  // Whinself sends Type:"media" with MediaType indicating the actual kind
+  if (t === 'media') {
+    if (mt === 'image' || mt === 'photo')          return 'image';
+    if (mt === 'video')                            return 'video';
+    if (mt === 'audio' || mt === 'ptt')            return 'voice';
+    if (mt === 'document')                         return 'document';
+    if (mt === 'collection')                       return null; // album container — individual photos come as separate events
+    return null; // unknown subtype — skip
+  }
+
   return 'text';
 }
 
@@ -40,7 +54,11 @@ function parsePayload(payload) {
   const phoneJid    = (jid.endsWith('@lid') && info.SenderAlt) ? info.SenderAlt : jid;
   const phoneNumber = jidToE164(phoneJid);
   const waMessageId = info.ID || null;
-  const msgType     = info.Type || 'text';
+  const msgType   = info.Type     || 'text';
+  const mediaType = info.MediaType || '';
+
+  const contentType = mapContentType(msgType, mediaType);
+  if (contentType === null) return null; // skip (e.g. album container)
 
   const content =
     msg?.conversation ||
@@ -49,20 +67,19 @@ function parsePayload(payload) {
     msg?.videoMessage?.caption ||
     null;
 
+  // Whinself uses capital URL key; keep lowercase for safety
   const mediaUrl =
-    msg?.imageMessage?.url ||
-    msg?.videoMessage?.url ||
-    msg?.audioMessage?.url ||
-    msg?.documentMessage?.url ||
+    msg?.imageMessage?.URL  || msg?.imageMessage?.url  ||
+    msg?.videoMessage?.URL  || msg?.videoMessage?.url  ||
+    msg?.audioMessage?.URL  || msg?.audioMessage?.url  ||
+    msg?.documentMessage?.URL || msg?.documentMessage?.url ||
+    msg?.image?.URL  || msg?.image?.url  ||
+    msg?.video?.URL  || msg?.video?.url  ||
+    msg?.audio?.URL  || msg?.audio?.url  ||
+    msg?.document?.URL || msg?.document?.url ||
     null;
 
-  return {
-    waMessageId,
-    phoneNumber,
-    contentType: mapContentType(msgType),
-    content,
-    mediaUrl,
-  };
+  return { waMessageId, phoneNumber, contentType, content, mediaUrl };
 }
 
 export async function POST(request) {

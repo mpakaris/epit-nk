@@ -2,10 +2,21 @@ import { uploadToR2, r2PublicUrl, toWebp } from '@/lib/r2';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { classifyImage } from '../classifyImage';
 import { saveClarification } from '../clarification';
+import { decryptWhatsAppMedia } from '../decryptMedia';
 
 const MAX_VIDEO_BYTES = 10 * 1024 * 1024; // 10 MB
 
-export async function attachMedia({ waAccount, conversation, mediaUrl, mimeType, caption, phoneNumber }) {
+async function fetchMedia(mediaUrl, mediaKey, mediaType) {
+  // WhatsApp CDN URLs (mmg.whatsapp.net) deliver encrypted bytes — decrypt if mediaKey present
+  if (mediaKey && mediaUrl?.includes('whatsapp.net')) {
+    return decryptWhatsAppMedia(mediaUrl, mediaKey, mediaType);
+  }
+  const res = await fetch(mediaUrl);
+  if (!res.ok) throw new Error(`Download failed: ${res.status}`);
+  return Buffer.from(await res.arrayBuffer());
+}
+
+export async function attachMedia({ waAccount, conversation, mediaUrl, mediaKey, mimeType, caption, phoneNumber, entryId = null, forcedMediaType = null }) {
   if (!mediaUrl) return { reply: 'Nem sikerült letölteni a médiát. Kérlek próbáld újra.' };
 
   const isVideo    = mimeType?.startsWith('video/');
@@ -14,28 +25,27 @@ export async function attachMedia({ waAccount, conversation, mediaUrl, mimeType,
 
   // --- VIDEO ---
   if (isVideo) {
-    const res = await fetch(mediaUrl);
-    if (!res.ok) return { reply: 'Nem sikerült letölteni a videót. Kérlek próbáld újra.' };
-    const buf = Buffer.from(await res.arrayBuffer());
+    let buf;
+    try { buf = await fetchMedia(mediaUrl, mediaKey, 'video'); }
+    catch (e) { return { reply: `Nem sikerült letölteni a videót: ${e.message}` }; }
 
     if (buf.length > MAX_VIDEO_BYTES) {
       return { reply: 'A videó túl nagy (max 10 MB). Kérlek rövidebb videót küldj.' };
     }
 
-    const r2Key    = `wa/${phoneNumber.replace(/\+/g, '')}/${Date.now()}.mp4`;
+    const r2Key     = `wa/${phoneNumber.replace(/\+/g, '')}/${Date.now()}.mp4`;
     const publicUrl = r2PublicUrl(r2Key);
     await uploadToR2(r2Key, buf, 'video/mp4');
-
-    return attachToRecord({ conversation, phoneNumber, waAccount, r2Key, publicUrl, mimeType: 'video/mp4', mediaType: 'video', fileName: 'video.mp4' });
+    return attachToRecord({ conversation, phoneNumber, waAccount, r2Key, publicUrl, mimeType: 'video/mp4', mediaType: 'video', fileName: 'video.mp4', entryId });
   }
 
   // --- IMAGE ---
   if (isImage) {
-    const res = await fetch(mediaUrl);
-    if (!res.ok) return { reply: 'Nem sikerült letölteni a képet. Kérlek próbáld újra.' };
-    const imgBuf = Buffer.from(await res.arrayBuffer());
+    let imgBuf;
+    try { imgBuf = await fetchMedia(mediaUrl, mediaKey, 'image'); }
+    catch (e) { return { reply: `Nem sikerült letölteni a képet: ${e.message}` }; }
 
-    const webpBuf   = await toWebp(imgBuf);
+    const { buffer: webpBuf } = await toWebp(imgBuf);
     const imageBase64 = imgBuf.toString('base64');
     const imageType   = await classifyImage(imageBase64, mimeType || 'image/jpeg', { phoneNumber, userId: waAccount.userId });
 
@@ -43,36 +53,35 @@ export async function attachMedia({ waAccount, conversation, mediaUrl, mimeType,
       return { handoffToInvoice: true, imgBuf, mimeType };
     }
 
-    const r2Key    = `wa/${phoneNumber.replace(/\+/g, '')}/${Date.now()}.webp`;
+    const r2Key     = `wa/${phoneNumber.replace(/\+/g, '')}/${Date.now()}.webp`;
     const publicUrl = r2PublicUrl(r2Key);
     await uploadToR2(r2Key, webpBuf, 'image/webp');
-
-    return attachToRecord({ conversation, phoneNumber, waAccount, r2Key, publicUrl, mimeType: 'image/webp', mediaType: 'photo', fileName: 'photo.webp' });
+    return attachToRecord({ conversation, phoneNumber, waAccount, r2Key, publicUrl, mimeType: 'image/webp', mediaType: forcedMediaType || 'photo', fileName: forcedMediaType === 'layout' ? 'alaprajz.webp' : 'photo.webp', entryId });
   }
 
   // --- PDF / document ---
   if (isDocument) {
-    const res = await fetch(mediaUrl);
-    if (!res.ok) return { reply: 'Nem sikerült letölteni a dokumentumot. Kérlek próbáld újra.' };
-    const buf = Buffer.from(await res.arrayBuffer());
+    let buf;
+    try { buf = await fetchMedia(mediaUrl, mediaKey, 'document'); }
+    catch (e) { return { reply: `Nem sikerült letölteni a dokumentumot: ${e.message}` }; }
 
-    const r2Key    = `wa/${phoneNumber.replace(/\+/g, '')}/${Date.now()}.pdf`;
+    const r2Key     = `wa/${phoneNumber.replace(/\+/g, '')}/${Date.now()}.pdf`;
     const publicUrl = r2PublicUrl(r2Key);
     await uploadToR2(r2Key, buf, 'application/pdf');
-
-    return attachToRecord({ conversation, phoneNumber, waAccount, r2Key, publicUrl, mimeType: 'application/pdf', mediaType: 'document', fileName: caption || 'document.pdf' });
+    return attachToRecord({ conversation, phoneNumber, waAccount, r2Key, publicUrl, mimeType: 'application/pdf', mediaType: forcedMediaType || 'document', fileName: caption || 'document.pdf', entryId });
   }
 
   return { reply: 'Ezt a médiafajtát még nem támogatom.' };
 }
 
-async function attachToRecord({ conversation, phoneNumber, waAccount, r2Key, publicUrl, mimeType, mediaType, fileName }) {
+async function attachToRecord({ conversation, phoneNumber, waAccount, r2Key, publicUrl, mimeType, mediaType, fileName, entryId = null }) {
   const admin = createAdminClient();
 
   if (conversation.active_survey_id) {
     const { data: survey } = await admin.from('surveys').select('title').eq('id', conversation.active_survey_id).single();
     await admin.from('survey_media').insert({
       survey_id:      conversation.active_survey_id,
+      entry_id:       entryId || null,
       drive_file_id:  r2Key,
       drive_view_url: publicUrl,
       thumbnail_url:  mediaType === 'photo' ? publicUrl : null,
@@ -80,7 +89,7 @@ async function attachToRecord({ conversation, phoneNumber, waAccount, r2Key, pub
       file_name:      fileName,
       media_type:     mediaType,
     });
-    const label = mediaType === 'video' ? 'Videó' : mediaType === 'document' ? 'Dokumentum' : 'Fotó';
+    const label = mediaType === 'video' ? 'Videó' : mediaType === 'document' ? 'Dokumentum' : mediaType === 'layout' ? 'Alaprajz' : 'Fotó';
     return { reply: `✓ ${label} csatolva a *${survey?.title || 'felmérés'}*hez.` };
   }
 
