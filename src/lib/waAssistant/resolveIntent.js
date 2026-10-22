@@ -9,42 +9,43 @@ const INTENT_ENUM = [
 
 const FALLBACK = { intent: 'unknown', confidence: 0, extracted: {}, requires_clarification: false, clarification_reason: null };
 
-export async function resolveIntent({ messageText, contentType, contextWindow, activeProjectName, activeSurveyName, phoneNumber, userId }) {
+export async function resolveIntent({ messageText, contentType, contextWindow, userContext, phoneNumber, userId }) {
   const apiKey = process.env.OPEN_AI_OCR_KEY;
   if (!apiKey) return FALLBACK;
 
-  const systemPrompt = `Te az OkosSzaki építési asszisztens vagy. Magyar anyanyelvű kivitelezőkkel kommunikálsz.
-Az üzenetből azonosítsd a szándékot és nyerd ki a strukturált adatokat.
+  const systemPrompt = `Te az OkosSzaki építési asszisztens vagy. Angolul és magyarul is értesz — a felhasználó bármelyik nyelven írhat, te mindig magyarul válaszolsz.
 
-Aktív projekt: ${activeProjectName || 'nincs kiválasztva'}
-Aktív felmérés: ${activeSurveyName || 'nincs aktív felmérés'}
+--- Felhasználói kontextus ---
+${userContext || 'Nincs elérhető kontextus.'}
+--- Kontextus vége ---
 
 Szándék-kategóriák:
-- create_survey: új felmérés indítása ("felmérés", "kezdjük a felmérést", "új felmérés")
-- add_survey_entry: helyiség/terület méreteinek rögzítése ("konyha 3.5x4.2m", "fürdőszoba méretei")
-- create_labour_entry: munkaidő rögzítése ("8 óra burkolás", "ma 6 óra festés")
-- create_invoice: számla/költség rögzítése ("45000 Ft csempe", "anyagszámla")
+- create_survey: új felmérés indítása ("felmérés", "create a new survey", "kezdjük a felmérést")
+- add_survey_entry: helyiség/terület méreteinek rögzítése ("konyha 3.5x4.2m", "kitchen 3.5x4.2m")
+- create_labour_entry: munkaidő rögzítése ("8 óra burkolás", "8 hours tiling")
+- create_invoice: számla/költség rögzítése ("45000 Ft csempe", "invoice for tiles")
 - attach_media: fotó/videó/dokumentum csatolása
-- query_costs: projekt költségeinek lekérdezése ("mennyit költöttünk?", "mi az egyenleg?")
-- query_survey: felmérési adatok lekérdezése ("mit mértünk a konyhában?")
+- query_costs: projekt költségeinek lekérdezése ("mennyit költöttünk?", "what did we spend?")
+- query_survey: felmérési adatok lekérdezése ("mit mértünk?", "show survey notes")
 - create_client: ügyfél rögzítése
-- list_projects: projektek listázása ("mutasd a projektjeimet")
+- list_projects: projektek listázása
 - list_surveys: felmérések listázása
-- set_active_project: projektre váltás ("a Kovács projekthez", "válts Péter projektjére")
+- set_active_project: projektre váltás
 - set_active_survey: felmérésre váltás
 - greeting: üdvözlés, általános kérdés
 - unknown: nem egyértelmű szándék
 
 Mezők kinyerése:
-- survey_entry: name (helyiség neve), widthM (szám), lengthM (szám), heightM (szám), windowCount (egész), doorCount (egész)
-- labour: labourType (munkafajta), hours (szám), hourlyRate (szám vagy null), workDate (YYYY-MM-DD vagy null)
-- invoice: amountHuf (szám), description (szöveg), category ('Anyag'|'Szerszám/Eszköz'|'Szállítás'|'Engedély/Hatóság'|'Egyéb')
-  Kategória szabályok: csempe/festék/cement/fa/anyag → Anyag; szállítás/fuvar → Szállítás; szerszám/eszköz/állványzat → Szerszám/Eszköz; engedély/hatóság/illeték → Engedély/Hatóság; egyéb → Egyéb
-- surveyTitle: a felmérés neve, ha az üzenetben szerepel (pl. "WA Test No. 1", "Fürdőszoba felmérés") — angolul is elfogadható
+- surveyTitle: felmérés neve az üzenetből (pl. "Gabor's Kitchen Renovation", "Fürdőszoba felmérés")
+- survey_entry: name (helyiség neve), widthM, lengthM, heightM (számok), windowCount, doorCount (egészek)
+- labour: labourType, hours (szám), hourlyRate (szám vagy null), workDate (YYYY-MM-DD vagy null)
+- invoice: amountHuf (szám), description, category ('Anyag'|'Szerszám/Eszköz'|'Szállítás'|'Engedély/Hatóság'|'Egyéb')
+  Kategória: csempe/festék/cement/fa/anyag → Anyag; szállítás/fuvar → Szállítás; szerszám/eszköz → Szerszám/Eszköz; engedély/hatóság → Engedély/Hatóság; egyéb → Egyéb
 - project_hint: projekt neve/részlete az üzenetből
+- workspace_hint: "personal" ha az üzenet személyes munkaterületre utal, kollektíva neve ha arra utal, null ha nincs utalás
 
 FONTOS: ne találj ki adatokat. Ha egy mező hiányzik, hagyd null-ra.
-Magyar szám-szavak konvertálása: "három és fél" → 3.5, "négyezer" → 4000, "negyvenötezer" → 45000`;
+Magyar szám-szavak: "három és fél" → 3.5, "négyezer" → 4000, "negyvenötezer" → 45000`;
 
   const messages = [
     { role: 'system', content: systemPrompt },

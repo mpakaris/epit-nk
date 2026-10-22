@@ -6,6 +6,7 @@ import { resolveClarification, saveClarification, formatClarificationMessage } f
 import { resolveProject } from '@/lib/waAssistant/resolveProject';
 import { resolveWorkspace } from '@/lib/waAssistant/resolveWorkspace';
 import { revertLastAction } from '@/lib/waAssistant/actions/revert';
+import { buildUserContext } from '@/lib/waAssistant/buildUserContext';
 import { resolveIntent } from '@/lib/waAssistant/resolveIntent';
 import { createSurvey } from '@/lib/waAssistant/actions/createSurvey';
 import { addSurveyEntry } from '@/lib/waAssistant/actions/addSurveyEntry';
@@ -394,9 +395,15 @@ async function processItem(item, admin, appUrl, secret) {
       }
     }
 
-    // Workspace check — ask once per session if user has multiple workspaces
+    // Build user context package — used by intent classifier and workspace resolver
+    const userCtx = !dispatchIntent
+      ? await buildUserContext(account, conversation).catch(() => null)
+      : null;
+
+    // Workspace check — try to resolve from message first, then ask if still ambiguous
     if (!dispatchIntent) {
-      const wsResult = await resolveWorkspace(account, conversation, phoneNumber);
+      // Quick intent pre-classify to extract workspace_hint before full workspace resolution
+      const wsResult = await resolveWorkspace(account, conversation, phoneNumber, content);
       if (wsResult.needsClarification) {
         const reply = formatClarificationMessage(
           'Melyik munkaterületen dolgozol most?',
@@ -436,13 +443,12 @@ async function processItem(item, admin, appUrl, secret) {
       intentResult = { intent: dispatchIntent, confidence: 1, extracted: dispatchExtracted };
     } else {
       intentResult = await resolveIntent({
-        messageText:       content,
+        messageText:  content,
         contentType,
-        contextWindow:     conversation.context_window || [],
-        activeProjectName: null,
-        activeSurveyName:  null,
+        contextWindow: conversation.context_window || [],
+        userContext:  userCtx?.contextString || null,
         phoneNumber,
-        userId:            account.userId,
+        userId:       account.userId,
       });
     }
 
