@@ -40,7 +40,6 @@ export async function classifyImage(imageBase64, mimeType, { phoneNumber, userId
           },
         },
         max_completion_tokens:  50,
-        temperature: 0,
       }),
     });
 

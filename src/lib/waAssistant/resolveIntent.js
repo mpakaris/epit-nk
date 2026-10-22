@@ -106,7 +106,6 @@ Magyar szám-szavak: "három és fél" → 3.5, "négyezer" → 4000, "negyvenö
           },
         },
         max_completion_tokens:  500,
-        temperature: 0,
       }),
     });
 

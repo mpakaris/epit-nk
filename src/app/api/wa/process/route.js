@@ -400,11 +400,13 @@ async function processItem(item, admin, appUrl, secret) {
             active_survey_id:     null,
           });
           account.collectiveId = collectiveId;
+          // Update stale local conversation so resolveWorkspace sees the new state
+          conversation.workspace_chosen     = true;
+          conversation.active_collective_id = collectiveId;
           log(phoneNumber, 'workspace-chosen', { collective: collectiveId ?? 'personal' });
 
           const originalContent = clarResult.originalPayload?.originalContent;
           if (originalContent) {
-            // Resume original message — fall through to full pipeline
             content = originalContent;
             // dispatchIntent stays null → goes through intent classification
           } else {
