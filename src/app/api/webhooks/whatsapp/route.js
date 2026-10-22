@@ -81,6 +81,7 @@ export async function POST(request) {
     const payload = JSON.parse(rawBody);
 
     const parsed = parsePayload(payload);
+    console.log('[wh] parsed:', parsed ? `phone=${parsed.phoneNumber} type=${parsed.contentType}` : 'null (skipped)');
     if (!parsed) {
       return Response.json({ received: true, skipped: 'outbound_or_group' });
     }
@@ -88,6 +89,7 @@ export async function POST(request) {
     const { waMessageId, phoneNumber, contentType, content, mediaUrl } = parsed;
 
     if (!phoneNumber) {
+      console.log('[wh] no phone — skipping');
       return Response.json({ received: true, skipped: 'no_phone' });
     }
 
@@ -101,6 +103,7 @@ export async function POST(request) {
         .eq('wa_message_id', waMessageId)
         .maybeSingle();
       if (existing) {
+        console.log('[wh] duplicate msgId — skipping');
         return Response.json({ received: true, duplicate: true });
       }
     }
@@ -125,11 +128,13 @@ export async function POST(request) {
       return Response.json({ received: true, rate_limited: true });
     }
 
-    await admin.from('wa_processing_queue').insert({
+    const { error: qErr } = await admin.from('wa_processing_queue').insert({
       phone_number: phoneNumber,
       payload:      rawBody,
       status:       'pending',
     });
+    if (qErr) console.error('[wh] queue insert error:', qErr.message);
+    else console.log('[wh] queued OK for', phoneNumber);
 
     // Fire-and-forget: kick the queue worker immediately so the item is processed
     // without waiting for a DB webhook or external cron to fire.
