@@ -11,6 +11,10 @@ import { listSurveys } from '@/lib/waAssistant/actions/listSurveys';
 import { createLabourEntry, createLabourEntryWithRate } from '@/lib/waAssistant/actions/createLabourEntry';
 import { queryProjectCosts } from '@/lib/waAssistant/actions/queryProjectCosts';
 import { listProjects } from '@/lib/waAssistant/actions/listProjects';
+import { querySurveyNotes } from '@/lib/waAssistant/actions/querySurveyNotes';
+import { attachMedia } from '@/lib/waAssistant/actions/attachMedia';
+import { createInvoice, confirmInvoice } from '@/lib/waAssistant/actions/createInvoice';
+import { transcribeVoiceNote } from '@/lib/waAssistant/transcribe';
 
 // Map Whinself/Baileys type string → our content_type enum (mirrors webhook handler)
 function mapContentType(type) {
@@ -186,9 +190,30 @@ async function dispatch(intent, extracted, account, conversation, phoneNumber, c
       return { reply: result.reply, action: 'list_projects' };
     }
 
-    case 'create_invoice':
-    case 'attach_media':
-    case 'query_survey':
+    case 'create_invoice': {
+      const result = await createInvoice({ ...ctx, extractedFromIntent: extracted });
+      if (result.needsClarification) {
+        await saveClarification(phoneNumber, result.clarificationType, result.clarificationOptions, result.originalIntent, result.originalPayload);
+        const reply = formatClarificationMessage('Melyik projekthez rögzítsem?', result.clarificationOptions);
+        return { reply, action: 'clarification_sent' };
+      }
+      return { reply: result.reply, action: 'create_invoice' };
+    }
+
+    case 'attach_media': {
+      const result = await attachMedia({ ...ctx, mimeType: contentType === 'image' ? 'image/jpeg' : contentType === 'video' ? 'video/mp4' : 'application/octet-stream', caption: content });
+      if (result.handoffToInvoice) {
+        const inv = await createInvoice({ ...ctx, imgBuf: result.imgBuf, mimeType: result.mimeType, extractedFromIntent: {} });
+        return { reply: inv.reply, action: 'create_invoice' };
+      }
+      return { reply: result.reply, action: 'attach_media' };
+    }
+
+    case 'query_survey': {
+      const result = await querySurveyNotes(ctx);
+      return { reply: result.reply, action: 'query_survey' };
+    }
+
     case 'create_client':
     case 'set_active_survey':
       return { reply: COMING_SOON, action: 'not_implemented' };
@@ -270,18 +295,32 @@ async function processItem(item, admin, appUrl, secret) {
           dispatchIntent    = 'create_survey';
           dispatchExtracted = { ...(clarResult.originalPayload || {}), surveyTitle: content?.trim() };
         } else if (type === 'labour_rate_needed') {
-          // User replied with a rate (or "kihagyom") — do the insert directly
-          const account = await resolveAccount(phoneNumber);
-          const conv    = await loadConversation(phoneNumber);
-          const result  = await createLabourEntryWithRate({
+          const result = await createLabourEntryWithRate({
             waAccount:      account,
-            conversation:   conv,
+            conversation,
             phoneNumber,
             rateText:       content,
             pendingPayload: clarResult.originalPayload || {},
           });
           await sendReply(appUrl, secret, phoneNumber, result.reply);
           await finalise(admin, item.id, waMsg?.id, startedAt, { action_taken: 'create_labour_entry' });
+          return;
+        } else if (type === 'invoice_amount_needed') {
+          const parsed = parseInt((content || '').replace(/\D/g, ''), 10);
+          if (!isNaN(parsed) && parsed > 0) {
+            const payload = { ...(clarResult.originalPayload || {}), amountHuf: parsed };
+            const result  = await createInvoice({ waAccount: account, conversation, mediaUrl: null, mimeType: null, extractedFromIntent: payload, phoneNumber });
+            await sendReply(appUrl, secret, phoneNumber, result.reply);
+            await finalise(admin, item.id, waMsg?.id, startedAt, { action_taken: 'create_invoice' });
+          } else {
+            await sendReply(appUrl, secret, phoneNumber, 'Kérlek adj meg egy összeget számban (pl. 45000).');
+            await finalise(admin, item.id, waMsg?.id, startedAt, { action_taken: 'invalid_clarification' });
+          }
+          return;
+        } else if (type === 'invoice_confirm') {
+          const result = await confirmInvoice({ waAccount: account, conversation, phoneNumber, content, pendingPayload: clarResult.originalPayload || {} });
+          await sendReply(appUrl, secret, phoneNumber, result.reply);
+          await finalise(admin, item.id, waMsg?.id, startedAt, { action_taken: 'create_invoice' });
           return;
         } else {
           dispatchIntent    = clarResult.originalIntent;
@@ -301,6 +340,24 @@ async function processItem(item, admin, appUrl, secret) {
           await sendReply(appUrl, secret, phoneNumber, 'Nem értem a választ. Írj számot vagy "mégse".');
         }
         await finalise(admin, item.id, waMsg?.id, startedAt, { action_taken: 'invalid_clarification' });
+        return;
+      }
+    }
+
+    // Voice note → Whisper transcription (WA-023)
+    let transcript = null;
+    if (!dispatchIntent && (contentType === 'voice' || contentType === 'audio') && mediaUrl) {
+      try {
+        const tx = await transcribeVoiceNote(mediaUrl, phoneNumber);
+        transcript = tx.transcript;
+        content    = transcript; // use transcript as the text for intent classification
+        if (waMsg?.id) {
+          await admin.from('wa_messages').update({ transcript, r2_key: tx.r2Key }).eq('id', waMsg.id);
+        }
+      } catch (err) {
+        console.error('[wa/process] Whisper error:', err.message);
+        await sendReply(appUrl, secret, phoneNumber, 'Sajnos nem sikerült átírni a hangüzenetet. Kérlek írj szöveget.');
+        await finalise(admin, item.id, waMsg?.id, startedAt, { action_taken: 'whisper_failed', error_code: 'WHISPER_FAILED' });
         return;
       }
     }
@@ -329,7 +386,8 @@ async function processItem(item, admin, appUrl, secret) {
       phoneNumber, content, mediaUrl, contentType, admin, appUrl, secret
     );
 
-    await sendReply(appUrl, secret, phoneNumber, reply);
+    const finalReply = transcript ? `🎤 _"${transcript}"_\n\n${reply}` : reply;
+    await sendReply(appUrl, secret, phoneNumber, finalReply);
     await appendToContextWindow(phoneNumber, 'user', content || `(${contentType})`);
     await appendToContextWindow(phoneNumber, 'assistant', reply);
 

@@ -893,7 +893,7 @@ Helper: format a number for Hungarian display
 ---
 
 ## WA-023 — Owner: Add survey entry via voice note
-**Status:** 🔲
+**Status:** ✅
 
 **Acceptance criteria:**
 - Voice note transcribed, transcript shown in reply
@@ -982,7 +982,7 @@ When sending the reply after a successful voice-based action, prepend the transc
 ---
 
 ## WA-024 — Owner: Attach construction photo to survey
-**Status:** 🔲
+**Status:** ✅
 
 **Acceptance criteria:**
 - Construction photo classified correctly, stored in R2, linked to survey
@@ -1067,7 +1067,7 @@ On error: 'Sajnos nem sikerült menteni a fotót. Kérlek próbáld újra.'
 ---
 
 ## WA-025 — Owner: Attach video to survey/project
-**Status:** 🔲
+**Status:** ✅
 
 **Acceptance criteria:**
 - Video stored in R2, linked to correct record
@@ -1122,7 +1122,7 @@ No GPT-4o call is made for videos. No classification. Just store and attach.
 ---
 
 ## WA-026 — Owner: Attach PDF to survey
-**Status:** 🔲
+**Status:** ✅
 
 **Acceptance criteria:**
 - Small PDF (≤ 4MB, ≤ 20 pages) → AI summary in reply
@@ -1338,7 +1338,7 @@ Use formatHUF from src/lib/constants.js if it exists, otherwise: n.toLocaleStrin
 ---
 
 ## WA-031 — Owner: Log labour entry (voice)
-**Status:** 🔲
+**Status:** ✅
 
 **Acceptance criteria:**
 - Voice note transcribed → correct labour entry created
@@ -1383,7 +1383,7 @@ This story is done when a voice note for labour logging works end-to-end.
 ---
 
 ## WA-032 — Owner: Upload invoice image
-**Status:** 🔲
+**Status:** ✅
 
 **Acceptance criteria:**
 - Receipt → amount extracted, confirmation sent
@@ -1471,7 +1471,7 @@ Flow:
 ---
 
 ## WA-033 — Owner: Invoice via voice/text description
-**Status:** 🔲
+**Status:** ✅
 
 **Acceptance criteria:**
 - Verbal invoice logged correctly
@@ -1587,7 +1587,7 @@ Deviation calculation (pure JS):
 ---
 
 ## WA-040 — Owner: Query survey notes
-**Status:** 🔲
+**Status:** ✅
 
 **Acceptance criteria:**
 - All rooms listed with recorded dimensions
