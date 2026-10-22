@@ -1,0 +1,57 @@
+import { loadConversation, saveConversation } from './conversation';
+
+export function formatClarificationMessage(question, options) {
+  const list = options.map((o, i) => `${i + 1}. ${o.name}`).join('\n');
+  return `${question}\n\n${list}\n\nVálaszolj egy számmal, vagy írd: mégse`;
+}
+
+export async function saveClarification(phoneNumber, type, options, originalIntent, originalPayload) {
+  await saveConversation(phoneNumber, {
+    pending_clarification: {
+      type,
+      options,
+      original_intent:  originalIntent,
+      original_payload: originalPayload,
+      asked_at:         new Date().toISOString(),
+      attempts:         0,
+    },
+  });
+}
+
+export async function resolveClarification(phoneNumber, replyText, conversation) {
+  const pending = conversation.pending_clarification;
+
+  if (!pending) return { resolved: false, invalid: true };
+
+  // Expire after 10 minutes
+  if (pending.asked_at && new Date() - new Date(pending.asked_at) > 10 * 60 * 1000) {
+    await saveConversation(phoneNumber, { pending_clarification: null });
+    return { resolved: false, invalid: true };
+  }
+
+  const normalised = (replyText || '').trim().toLowerCase();
+
+  if (['mégse', 'megse', 'nem', 'cancel'].includes(normalised)) {
+    await saveConversation(phoneNumber, { pending_clarification: null });
+    return { resolved: false, cancel: true };
+  }
+
+  const choice = parseInt(normalised, 10);
+  const options = pending.options || [];
+
+  if (isNaN(choice) || choice < 1 || choice > options.length) {
+    const attempts = (pending.attempts || 0) + 1;
+    if (attempts >= 2) {
+      await saveConversation(phoneNumber, { pending_clarification: null });
+    } else {
+      await saveConversation(phoneNumber, {
+        pending_clarification: { ...pending, attempts },
+      });
+    }
+    return { resolved: false, invalid: true };
+  }
+
+  const chosenOption = options[choice - 1];
+  await saveConversation(phoneNumber, { pending_clarification: null });
+  return { resolved: true, chosenOption, originalIntent: pending.original_intent, originalPayload: pending.original_payload };
+}

@@ -1,6 +1,10 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import { resolveAccount, UNREGISTERED_REPLY } from '@/lib/waAssistant/resolveAccount';
-import { toJid, jidToE164, isIndividualJid } from '@/lib/waAssistant/jid';
+import { toJid, jidToE164 } from '@/lib/waAssistant/jid';
+import { loadConversation, saveConversation, appendToContextWindow } from '@/lib/waAssistant/conversation';
+import { resolveClarification, formatClarificationMessage } from '@/lib/waAssistant/clarification';
+import { resolveProject } from '@/lib/waAssistant/resolveProject';
+import { resolveIntent } from '@/lib/waAssistant/resolveIntent';
 
 // Map Whinself/Baileys type string → our content_type enum (mirrors webhook handler)
 function mapContentType(type) {
@@ -53,7 +57,6 @@ function parsePayload(raw) {
 }
 
 async function sendReply(appUrl, secret, chatId, text) {
-  // Normalise to Baileys JID format
   const whingoChat = chatId.includes('@') ? chatId : toJid(chatId);
   await fetch(`${appUrl}/api/wa/send`, {
     method:  'POST',
@@ -63,6 +66,92 @@ async function sendReply(appUrl, secret, chatId, text) {
     },
     body: JSON.stringify({ chatId: whingoChat, text }),
   });
+}
+
+// WA-050: handle VERIFY <code> command sent by an unverified number
+async function handleVerify(admin, phoneNumber, content, appUrl, secret) {
+  const code = content.trim().split(/\s+/)[1];
+  if (!code) {
+    await sendReply(appUrl, secret, phoneNumber, 'Adj meg egy kódot: VERIFY <kód>');
+    return true;
+  }
+
+  const { data: account } = await admin
+    .from('wa_accounts')
+    .select('*')
+    .eq('phone_number', phoneNumber)
+    .maybeSingle();
+
+  if (!account) {
+    await sendReply(appUrl, secret, phoneNumber, 'Nincs függőben lévő összekapcsolás ehhez a számhoz.');
+    return true;
+  }
+
+  const storedCode = account.permissions?._pending_code;
+  const expires    = account.permissions?._code_expires;
+
+  if (!storedCode || (expires && new Date(expires) < new Date())) {
+    await sendReply(appUrl, secret, phoneNumber, 'A kód lejárt. Kérj újat az alkalmazásban.');
+    return true;
+  }
+
+  if (code !== storedCode) {
+    await sendReply(appUrl, secret, phoneNumber, 'Érvénytelen kód. Ellenőrizd és próbáld újra.');
+    return true;
+  }
+
+  const cleanPermissions = { ...account.permissions };
+  delete cleanPermissions._pending_code;
+  delete cleanPermissions._code_expires;
+
+  await admin.from('wa_accounts').update({
+    verified_at:  new Date().toISOString(),
+    is_active:    true,
+    permissions:  cleanPermissions,
+  }).eq('phone_number', phoneNumber);
+
+  await sendReply(appUrl, secret, phoneNumber, '✓ WhatsApp fiókod összekapcsolva. Mostantól használhatod az asszisztenst!');
+  return true;
+}
+
+async function dispatch(intent, extracted, account, conversation, phoneNumber, content, mediaUrl, contentType, admin, appUrl, secret) {
+  // Actions not yet implemented return a "coming soon" reply
+  const COMING_SOON = 'Ez a funkció hamarosan elérhető.';
+
+  switch (intent) {
+    case 'greeting': {
+      const projectHint = conversation.active_project_id ? '' : '\n\nNincs aktív projekted. Írd: *projektek listája*';
+      return { reply: `Szia ${account.displayName}! Miben segíthetek?${projectHint}`, action: 'greeting' };
+    }
+
+    case 'set_active_project': {
+      const result = await resolveProject(content, account, conversation);
+      if (result.needsClarification) {
+        const { saveClarification } = await import('@/lib/waAssistant/clarification');
+        await saveClarification(phoneNumber, 'project_choice', result.clarificationOptions, 'set_active_project', {});
+        const reply = formatClarificationMessage('Melyik projektet választod?', result.clarificationOptions);
+        return { reply, action: 'clarification_sent' };
+      }
+      await saveConversation(phoneNumber, { active_project_id: result.projectId, active_survey_id: null });
+      return { reply: `✓ Aktív projekt: *${result.projectName}*`, action: 'set_active_project' };
+    }
+
+    case 'list_projects':
+    case 'list_surveys':
+    case 'create_survey':
+    case 'add_survey_entry':
+    case 'create_labour_entry':
+    case 'create_invoice':
+    case 'attach_media':
+    case 'query_costs':
+    case 'query_survey':
+    case 'create_client':
+    case 'set_active_survey':
+      return { reply: COMING_SOON, action: 'not_implemented' };
+
+    default:
+      return { reply: 'Nem értettem. Írj pl. "projektek listája", "8 óra burkolás", vagy "felmérés".', action: 'unknown' };
+  }
 }
 
 async function processItem(item, admin, appUrl, secret) {
@@ -92,21 +181,101 @@ async function processItem(item, admin, appUrl, secret) {
   }).select('id').single();
 
   try {
-    const account = await resolveAccount(phoneNumber);
+    // VERIFY command — handled before account check (unverified numbers need this)
+    if (content && content.trim().toUpperCase().startsWith('VERIFY ')) {
+      await handleVerify(admin, phoneNumber, content, appUrl, secret);
+      await finalise(admin, item.id, waMsg?.id, startedAt, { action_taken: 'verify' });
+      return;
+    }
 
+    const account = await resolveAccount(phoneNumber);
     if (!account) {
       await sendReply(appUrl, secret, phoneNumber, UNREGISTERED_REPLY);
       await finalise(admin, item.id, waMsg?.id, startedAt, { action_taken: 'unregistered' });
       return;
     }
 
-    // PHASE 1 echo bot — replaced in WA-020+ with real intent handling
-    const replyText = `Üzenet fogadva: ${content || '(média)'}`;
-    await sendReply(appUrl, secret, phoneNumber, replyText);
+    const conversation = await loadConversation(phoneNumber);
+
+    // Check for a pending clarification first
+    let dispatchIntent = null;
+    let dispatchExtracted = {};
+
+    if (conversation.pending_clarification) {
+      const clarResult = await resolveClarification(phoneNumber, content, conversation);
+
+      if (clarResult.resolved) {
+        // Chosen option resolved — apply it based on clarification type
+        const type = conversation.pending_clarification?.type;
+
+        if (type === 'project_choice') {
+          await saveConversation(phoneNumber, { active_project_id: clarResult.chosenOption.id, active_survey_id: null });
+          await sendReply(appUrl, secret, phoneNumber, `✓ Aktív projekt: *${clarResult.chosenOption.name}*`);
+          await finalise(admin, item.id, waMsg?.id, startedAt, { action_taken: 'project_chosen' });
+          return;
+        }
+
+        if (type === 'survey_choice') {
+          await saveConversation(phoneNumber, { active_survey_id: clarResult.chosenOption.id });
+          await sendReply(appUrl, secret, phoneNumber, `✓ Aktív felmérés: *${clarResult.chosenOption.name}*`);
+          await finalise(admin, item.id, waMsg?.id, startedAt, { action_taken: 'survey_chosen' });
+          return;
+        }
+
+        // Other clarification types — resume original intent
+        dispatchIntent   = clarResult.originalIntent;
+        dispatchExtracted = clarResult.originalPayload || {};
+      } else if (clarResult.cancel) {
+        await sendReply(appUrl, secret, phoneNumber, 'Rendben, megszakítva.');
+        await finalise(admin, item.id, waMsg?.id, startedAt, { action_taken: 'cancelled' });
+        return;
+      } else {
+        // Invalid reply — re-ask
+        const pc = conversation.pending_clarification;
+        if (pc?.options?.length) {
+          await sendReply(appUrl, secret, phoneNumber,
+            formatClarificationMessage('Kérlek válassz egy számot:', pc.options));
+        } else {
+          await sendReply(appUrl, secret, phoneNumber, 'Nem értem a választ. Írj számot vagy "mégse".');
+        }
+        await finalise(admin, item.id, waMsg?.id, startedAt, { action_taken: 'invalid_clarification' });
+        return;
+      }
+    }
+
+    // Classify intent if not already set from clarification resolution
+    let intentResult;
+    if (dispatchIntent) {
+      intentResult = { intent: dispatchIntent, confidence: 1, extracted: dispatchExtracted };
+    } else {
+      intentResult = await resolveIntent({
+        messageText:       content,
+        contentType,
+        contextWindow:     conversation.context_window || [],
+        activeProjectName: null,
+        activeSurveyName:  null,
+      });
+    }
+
+    const { intent, confidence, extracted } = intentResult;
+
+    // Low confidence → treat as unknown
+    const effectiveIntent = confidence < 0.6 ? 'unknown' : intent;
+
+    const { reply, action } = await dispatch(
+      effectiveIntent, extracted, account, conversation,
+      phoneNumber, content, mediaUrl, contentType, admin, appUrl, secret
+    );
+
+    await sendReply(appUrl, secret, phoneNumber, reply);
+    await appendToContextWindow(phoneNumber, 'user', content || `(${contentType})`);
+    await appendToContextWindow(phoneNumber, 'assistant', reply);
 
     await finalise(admin, item.id, waMsg?.id, startedAt, {
-      action_taken: 'echo',
-      action_result: { echo: replyText },
+      intent,
+      intent_confidence: confidence,
+      extracted_data:    extracted,
+      action_taken:      action,
     });
   } catch (err) {
     console.error('[wa/process] error for item', item.id, err.message);
@@ -159,11 +328,10 @@ export async function POST(request) {
     return Response.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const admin = createAdminClient();
+  const admin  = createAdminClient();
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
   const secret = process.env.INTERNAL_CRON_SECRET;
 
-  // Claim up to 3 pending items with a 60s processing lock
   const { data: items, error: rpcError } = await admin.rpc('claim_wa_queue_items', { batch_size: 3 });
 
   if (rpcError) {

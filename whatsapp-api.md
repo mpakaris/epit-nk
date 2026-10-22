@@ -74,7 +74,7 @@ The bot **always asks before writing** when the destination is ambiguous. It **c
 ---
 
 ## WA-001 — Inspect Whinself API
-**Status:** 🔲
+**Status:** ✅
 **As a** developer,
 **I want to** document the exact Whinself webhook payload format and available send endpoints,
 **so that** the webhook handler can be written against the real API.
@@ -137,7 +137,7 @@ Do NOT start WA-002 until this file exists.
 ---
 
 ## WA-002 — Webhook receiver (inbound messages)
-**Status:** 🔲
+**Status:** ✅
 **As a** developer,
 **I want** a Next.js API route that receives Whinself webhook POST requests,
 **so that** we have a stable entry point for all inbound WhatsApp messages.
@@ -211,7 +211,7 @@ INTERNAL_CRON_SECRET=<generate a random 32-char string>
 ---
 
 ## WA-003 — Phone → user resolver
-**Status:** 🔲
+**Status:** ✅
 **As a** developer,
 **I want** a function that maps an inbound phone number to a `wa_accounts` row,
 **so that** every subsequent action knows who is sending.
@@ -262,7 +262,7 @@ Use createAdminClient() — no auth session available for WhatsApp callers.
 ---
 
 ## WA-004 — Queue worker + echo bot
-**Status:** 🔲
+**Status:** ✅
 **As a** developer,
 **I want** a queue worker that processes items and sends echo replies,
 **so that** the full round-trip is confirmed working.
@@ -338,7 +338,7 @@ Test manually: POST to /api/wa/process with the correct Authorization header.
 ---
 
 ## WA-005 — Supabase DB Webhook trigger
-**Status:** 🔲
+**Status:** ✅
 **As a** developer,
 **I want** a Supabase Database Webhook that fires on queue INSERT,
 **so that** messages are processed near-instantly.
@@ -393,7 +393,7 @@ Document the webhook ID and the ngrok/production URL in whinself-api-notes.md.
 ---
 
 ## WA-006 — Rate limiting
-**Status:** 🔲
+**Status:** ✅
 **As a** developer,
 **I want** per-phone rate limiting in the webhook handler.
 
@@ -452,7 +452,7 @@ Test: you cannot easily trigger 30 messages, so verify the logic is correct by c
 ---
 
 ## WA-010 — Conversation state (create/load/expire)
-**Status:** 🔲
+**Status:** ✅
 
 **Acceptance criteria:**
 - After 4h silence, next message starts fresh context
@@ -512,7 +512,7 @@ Export all four functions as named exports.
 ---
 
 ## WA-011 — Active project resolver
-**Status:** 🔲
+**Status:** ✅
 
 **Acceptance criteria:**
 - "A Kovács projekthez" → project resolved, active_project_id set
@@ -582,7 +582,7 @@ Notes:
 ---
 
 ## WA-012 — Clarification flow (numbered choices)
-**Status:** 🔲
+**Status:** ✅
 
 **Acceptance criteria:**
 - Ambiguous message → numbered list sent
@@ -656,7 +656,7 @@ All text output must be in Hungarian.
 ---
 
 ## WA-020 — Intent classifier (GPT-4o)
-**Status:** 🔲
+**Status:** ✅
 
 **Acceptance criteria:**
 - "8 óra burkolás" → `create_labour_entry`, hours: 8, labourType: 'burkolás'
@@ -1721,7 +1721,7 @@ When clarification resolves in the main orchestrator:
 ---
 
 ## WA-050 — Member: Link WhatsApp number to account
-**Status:** 🔲
+**Status:** ✅
 
 **Acceptance criteria:**
 - Verification code flow works end-to-end
