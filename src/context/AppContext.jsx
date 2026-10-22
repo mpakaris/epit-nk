@@ -40,6 +40,7 @@ export function AppProvider({ children }) {
   const [surveyEntriesBySurvey, setSurveyEntriesBySurvey] = useState({});
   const [surveyLayoutsBySurvey, setSurveyLayoutsBySurvey] = useState({});
   const [surveyDrawingsBySurvey, setSurveyDrawingsBySurvey] = useState({});
+  const [surveyItemsBySurvey, setSurveyItemsBySurvey] = useState({});
 
 
   // Diary — keyed by project_id, loaded on demand
@@ -943,16 +944,26 @@ export function AppProvider({ children }) {
     setSurveyLayoutsBySurvey(prev =>  { const n = { ...prev }; delete n[surveyId]; return n; });
     setSurveyEntriesBySurvey(prev =>  { const n = { ...prev }; delete n[surveyId]; return n; });
     setSurveyDrawingsBySurvey(prev => { const n = { ...prev }; delete n[surveyId]; return n; });
+    setSurveyItemsBySurvey(prev =>    { const n = { ...prev }; delete n[surveyId]; return n; });
   };
 
   const fetchSurveyMedia = async (surveyId) => {
-    const res = await fetch(`/api/surveys/${surveyId}`);
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Hiba a média betöltésekor');
+    const [surveyRes, itemsRes] = await Promise.all([
+      fetch(`/api/surveys/${surveyId}`),
+      fetch(`/api/surveys/${surveyId}/items`),
+    ]);
+    const data = await surveyRes.json();
+    if (!surveyRes.ok) throw new Error(data.error || 'Hiba a média betöltésekor');
     setSurveyMediaBySurvey(prev => ({ ...prev, [surveyId]: data.photos || [] }));
     setSurveyLayoutsBySurvey(prev => ({ ...prev, [surveyId]: data.layouts || [] }));
     setSurveyEntriesBySurvey(prev => ({ ...prev, [surveyId]: data.entries || [] }));
     setSurveyDrawingsBySurvey(prev => ({ ...prev, [surveyId]: data.drawings || [] }));
+    const itemsData = await itemsRes.json();
+    if (itemsRes.ok) {
+      setSurveyItemsBySurvey(prev => ({ ...prev, [surveyId]: itemsData.items || [] }));
+    } else {
+      console.warn('[fetchSurveyMedia] items fetch failed:', itemsData?.error);
+    }
     return data;
   };
 
@@ -1076,7 +1087,70 @@ export function AppProvider({ children }) {
       ...prev,
       [surveyId]: (prev[surveyId] || []).filter(d => d.entry_id !== entryId),
     }));
+    setSurveyItemsBySurvey(prev => ({
+      ...prev,
+      [surveyId]: (prev[surveyId] || []).filter(i => i.entry_id !== entryId),
+    }));
     setSurveyMediaBySurvey(prev => ({ ...prev }));
+  };
+
+  // ---- Survey entry items (tételek) ------------------------------------------
+
+  const createSurveyItem = async (surveyId, itemData) => {
+    const res = await fetch(`/api/surveys/${surveyId}/items`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(itemData),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Hiba a tétel létrehozásakor');
+    setSurveyItemsBySurvey(prev => ({
+      ...prev,
+      [surveyId]: [...(prev[surveyId] || []), data.item],
+    }));
+    return data.item;
+  };
+
+  const updateSurveyItem = async (surveyId, itemId, fields) => {
+    const res = await fetch(`/api/surveys/${surveyId}/items/${itemId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(fields),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Hiba a tétel módosításakor');
+    setSurveyItemsBySurvey(prev => ({
+      ...prev,
+      [surveyId]: (prev[surveyId] || []).map(i => i.id === itemId ? data.item : i),
+    }));
+    return data.item;
+  };
+
+  const deleteSurveyItem = async (surveyId, itemId) => {
+    const res = await fetch(`/api/surveys/${surveyId}/items/${itemId}`, { method: 'DELETE' });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Hiba a tétel törlésekor');
+    setSurveyItemsBySurvey(prev => ({
+      ...prev,
+      [surveyId]: (prev[surveyId] || []).filter(i => i.id !== itemId),
+    }));
+  };
+
+  const generateSurveyEntryItems = async (surveyId, entryId) => {
+    const res = await fetch(`/api/surveys/${surveyId}/entries/${entryId}/generate-items`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({}),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Hiba a tételek generálásakor');
+    if (data.items) {
+      setSurveyItemsBySurvey(prev => ({
+        ...prev,
+        [surveyId]: [...(prev[surveyId] || []).filter(i => i.entry_id !== entryId), ...data.items],
+      }));
+    }
+    return data;
   };
 
   // ---- Survey drawings --------------------------------------------------------
@@ -1493,6 +1567,7 @@ export function AppProvider({ children }) {
         surveyEntriesBySurvey,
         surveyLayoutsBySurvey,
         surveyDrawingsBySurvey,
+        surveyItemsBySurvey,
         createSurveyDrawing,
         deleteSurveyDrawing,
         createSurvey,
@@ -1504,6 +1579,10 @@ export function AppProvider({ children }) {
         createSurveyEntry,
         updateSurveyEntry,
         deleteSurveyEntry,
+        createSurveyItem,
+        updateSurveyItem,
+        deleteSurveyItem,
+        generateSurveyEntryItems,
         // Project rooms
         projectRooms,
         createProjectRoom,

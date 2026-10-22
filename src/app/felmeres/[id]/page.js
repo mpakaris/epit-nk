@@ -12,7 +12,8 @@ import {
   ArrowLeft, MapPin, Calendar, Clock, User, Edit3, Trash2,
   Play, X, ChevronLeft, ChevronRight, ChevronDown, Check, Loader2,
   FileText, FolderKanban, Home, Ruler, LayoutPanelLeft,
-  Camera, Plus, AlertCircle,
+  Camera, Plus, AlertCircle, Sparkles, List,
+  Package, Hammer, MoreHorizontal, Wrench, Truck,
 } from 'lucide-react';
 import PageSpinner from '@/components/PageSpinner';
 import { processMediaFile } from '@/lib/mediaGate';
@@ -447,10 +448,380 @@ function AreaSummary({ entry }) {
 const PILL      = { fontSize: '0.75rem', fontWeight: 700, padding: '0.15rem 0.5rem', borderRadius: 'var(--radius-pill)', background: 'var(--bg-subtle)', border: '1px solid var(--border-subtle)', color: 'var(--text-secondary)', display: 'inline-flex', alignItems: 'center', gap: '0.2rem' };
 const PILL_DARK = { fontSize: '0.72rem', fontWeight: 700, padding: '0.15rem 0.5rem', borderRadius: 'var(--radius-pill)', background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.22)', color: 'rgba(255,255,255,0.9)', display: 'inline-flex', alignItems: 'center', gap: '0.2rem' };
 
+// ── Tételek section ───────────────────────────────────────────────────────────
+const ITEM_TYPE_ORDER  = ['material', 'labour', 'equipment', 'transport', 'other'];
+const ITEM_TYPE_ICONS  = { material: Package, labour: Hammer, equipment: Wrench, transport: Truck, other: MoreHorizontal };
+const ITEM_TYPE_COLORS = {
+  material:  { bg: '#eff6ff', color: '#1d4ed8', border: '#bfdbfe' },
+  labour:    { bg: '#ecfdf5', color: '#047857', border: '#a7f3d0' },
+  equipment: { bg: '#fffbeb', color: '#b45309', border: '#fde68a' },
+  transport: { bg: '#faf5ff', color: '#7e22ce', border: '#e9d5ff' },
+  other:     { bg: '#f1f5f9', color: '#475569', border: '#cbd5e1' },
+};
+const ITEM_TYPE_LABELS = { material: 'Anyag', labour: 'Munkadíj', equipment: 'Eszközbérlés', transport: 'Szállítás', other: 'Egyéb' };
+const ITEM_UNITS_BY_TYPE = {
+  material:  ['m²', 'm', 'fm', 'db', 'kg', 'l', 'zsák', 'csomag', 'm³', 't'],
+  labour:    ['m²', 'm', 'fm', 'db', 'nap', 'h'],
+  equipment: ['nap', 'db', 'h'],
+  transport: ['db', 'km', 'nap'],
+  other:     ['db', 'h', 'nap', 'm²'],
+};
+const ALL_UNITS = ['m²', 'm', 'fm', 'db', 'h', 'nap', 'kg', 'l', 'zsák', 'csomag', 'm³', 't', 'km'];
+const DEFAULT_UNIT_BY_TYPE = { material: 'm²', labour: 'm²', equipment: 'nap', transport: 'db', other: 'db' };
+
+// ── Item add/edit — modal on desktop, bottom-sheet on mobile ─────────────────
+function ItemDrawer({ initial, surveyId, entryId, onClose, createSurveyItem, updateSurveyItem, deleteSurveyItem }) {
+  const isEdit = !!initial;
+  const [isMobile, setIsMobile] = useState(false);
+  const [entryType, setEntryType] = useState(initial?.entry_type || 'material');
+  const [desc,  setDesc]  = useState(initial?.description || '');
+  const [qty,   setQty]   = useState(initial?.quantity != null ? String(initial.quantity) : '');
+  const [unit,  setUnit]  = useState(initial?.unit || DEFAULT_UNIT_BY_TYPE[initial?.entry_type || 'material']);
+  const [notes, setNotes] = useState(initial?.notes || '');
+  const [saving,   setSaving]   = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [error,    setError]    = useState('');
+
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 767px)');
+    setIsMobile(mq.matches);
+    const h = (e) => setIsMobile(e.matches);
+    mq.addEventListener('change', h);
+    return () => mq.removeEventListener('change', h);
+  }, []);
+
+  // When type changes, update unit to the sensible default for that type
+  const handleTypeChange = (t) => {
+    setEntryType(t);
+    if (!initial) setUnit(DEFAULT_UNIT_BY_TYPE[t]);
+  };
+
+  const handleSave = async (e) => {
+    e.preventDefault();
+    if (!desc.trim()) { setError('A leírás kötelező'); return; }
+    setSaving(true); setError('');
+    try {
+      const payload = { description: desc.trim(), entry_type: entryType, quantity: qty ? parseFloat(qty) : null, unit: unit.trim() || null, notes: notes.trim() || null };
+      if (isEdit) await updateSurveyItem(surveyId, initial.id, payload);
+      else await createSurveyItem(surveyId, { entry_id: entryId, ...payload, source: 'manual', is_confirmed: true });
+      onClose();
+    } catch (e) { setError(e.message); setSaving(false); }
+  };
+
+  const handleDelete = async () => {
+    setDeleting(true);
+    try { await deleteSurveyItem(surveyId, initial.id); onClose(); }
+    catch (e) { setError(e.message); setDeleting(false); }
+  };
+
+  const PLACEHOLDERS = {
+    material: 'pl. Csempe, Ragasztó, Gipszkarton',
+    labour:   'pl. Csempe rakás, Festés, Glettelés',
+    equipment:'pl. Állványzat bérlés, Betonkeverő',
+    transport:'pl. Törmelék elszállítás, Anyagbeszerzés',
+    other:    'pl. Engedély, Tervezési díj',
+  };
+
+  const panelStyle = isMobile
+    ? { position: 'fixed', bottom: 0, left: 0, right: 0, borderRadius: 'var(--radius-lg) var(--radius-lg) 0 0', boxShadow: '0 -4px 32px rgba(0,0,0,0.18)', padding: '1.25rem 1.25rem calc(1.5rem + env(safe-area-inset-bottom))' }
+    : { position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '100%', maxWidth: 500, borderRadius: 'var(--radius-lg)', boxShadow: '0 8px 40px rgba(0,0,0,0.22)', padding: '1.5rem' };
+
+  return (
+    <>
+      <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 300 }} />
+      <div style={{ ...panelStyle, zIndex: 301, background: 'var(--bg-card)', maxHeight: '92vh', overflow: 'auto' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+          <span style={{ fontSize: '1rem', fontWeight: 800 }}>{isEdit ? 'Tétel szerkesztése' : 'Új tétel'}</span>
+          <button type="button" onClick={onClose} style={{ background: 'var(--bg-subtle)', border: 'none', borderRadius: '50%', width: 34, height: 34, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}><X size={16} /></button>
+        </div>
+
+        {error && <div style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', color: 'var(--danger-text)', padding: '0.5rem 0.75rem', borderRadius: 'var(--radius-md)', fontSize: '0.82rem', marginBottom: '0.85rem' }}>{error}</div>}
+
+        <form onSubmit={handleSave}>
+          {/* Type selector — 5 types, scrollable row */}
+          <div style={{ display: 'flex', gap: '0.4rem', marginBottom: '1rem', overflowX: 'auto', paddingBottom: '0.15rem' }}>
+            {ITEM_TYPE_ORDER.map(t => {
+              const tc = ITEM_TYPE_COLORS[t];
+              const active = entryType === t;
+              const Icon = ITEM_TYPE_ICONS[t];
+              return (
+                <button key={t} type="button" onClick={() => handleTypeChange(t)}
+                  style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.3rem', padding: '0.55rem 0.65rem', borderRadius: 'var(--radius-md)', cursor: 'pointer', border: active ? `2px solid ${tc.color}` : '2px solid var(--border-subtle)', background: active ? tc.bg : 'var(--bg-card)', transition: 'all 0.12s', minWidth: 72 }}>
+                  <Icon size={15} color={active ? tc.color : 'var(--text-muted)'} />
+                  <span style={{ fontSize: '0.68rem', fontWeight: 700, color: active ? tc.color : 'var(--text-muted)', whiteSpace: 'nowrap' }}>{ITEM_TYPE_LABELS[t]}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="form-group">
+            <label className="form-label">Leírás *</label>
+            <input autoFocus type="text" className="form-control" placeholder={PLACEHOLDERS[entryType]} value={desc} onChange={e => setDesc(e.target.value)} required />
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+            <div className="form-group" style={{ margin: 0 }}>
+              <label className="form-label">Mennyiség</label>
+              <input type="number" min="0" step="0.01" className="form-control" placeholder="pl. 9" value={qty} onChange={e => setQty(e.target.value)} />
+            </div>
+            <div className="form-group" style={{ margin: 0 }}>
+              <label className="form-label">Egység</label>
+              <select className="form-control" value={unit} onChange={e => setUnit(e.target.value)}>
+                {(ITEM_UNITS_BY_TYPE[entryType] || ALL_UNITS).map(u => <option key={u} value={u}>{u}</option>)}
+                {/* Show current unit even if not in the type's list */}
+                {unit && !(ITEM_UNITS_BY_TYPE[entryType] || []).includes(unit) && <option value={unit}>{unit}</option>}
+              </select>
+            </div>
+          </div>
+
+          <div className="form-group" style={{ marginTop: '0.75rem' }}>
+            <label className="form-label">Megjegyzés</label>
+            <input type="text" className="form-control" placeholder="Opcionális" value={notes} onChange={e => setNotes(e.target.value)} />
+          </div>
+
+          <div style={{ display: 'flex', gap: '0.65rem', marginTop: '1.25rem', justifyContent: 'space-between' }}>
+            {isEdit && (
+              <button type="button" onClick={handleDelete} disabled={deleting} className="btn btn-danger" style={{ minWidth: 80 }}>
+                {deleting ? <Loader2 size={15} className="animate-spin" /> : <><Trash2 size={14} /> Törlés</>}
+              </button>
+            )}
+            <div style={{ display: 'flex', gap: '0.5rem', marginLeft: 'auto' }}>
+              <button type="button" className="btn btn-secondary" onClick={onClose} disabled={saving}>Mégse</button>
+              <button type="submit" className="btn btn-primary" disabled={saving}>
+                {saving ? <><Loader2 size={15} className="animate-spin" />Mentés…</> : <><Check size={15} />{isEdit ? 'Módosítás' : 'Hozzáadás'}</>}
+              </button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </>
+  );
+}
+
+// Infer type for legacy items that were saved before entry_type was introduced
+function inferType(item) {
+  if (item.entry_type && item.entry_type !== 'material') return item.entry_type;
+  const u = (item.unit || '').toLowerCase();
+  if (u === 'munkafázis' || u === 'munka') return 'labour';
+  return item.entry_type || 'material';
+}
+
+function TételekSection({ surveyId, entry, canAdd }) {
+  const { surveyItemsBySurvey, createSurveyItem, updateSurveyItem, deleteSurveyItem, generateSurveyEntryItems } = useApp();
+
+  const allItems  = surveyItemsBySurvey[surveyId] || [];
+  const items     = allItems.filter(i => i.entry_id === entry.id).sort((a, b) => {
+    const tOrder = ITEM_TYPE_ORDER.indexOf(inferType(a)) - ITEM_TYPE_ORDER.indexOf(inferType(b));
+    return tOrder !== 0 ? tOrder : (a.sort_order - b.sort_order || (a.created_at ?? '').localeCompare(b.created_at ?? ''));
+  });
+  const confirmed   = items.filter(i => i.is_confirmed);
+  const suggestions = items.filter(i => !i.is_confirmed);
+
+  const [open, setOpen]         = useState(false);
+  const [drawer, setDrawer]     = useState(null);   // null | { mode: 'add' } | { mode: 'edit', item }
+  const [generating, setGenerating] = useState(false);
+  const [genError, setGenError]     = useState('');
+  const [selectedIds, setSelectedIds] = useState(new Set());
+
+  // Auto-open once when items first load
+  const didAutoOpen = useRef(false);
+  useEffect(() => {
+    if (items.length > 0 && !didAutoOpen.current) {
+      setOpen(true);
+      didAutoOpen.current = true;
+    }
+  }, [items.length]);
+
+  const handleGenerate = async () => {
+    setGenerating(true); setGenError('');
+    try { await generateSurveyEntryItems(surveyId, entry.id); setOpen(true); }
+    catch (e) { setGenError(e.message || 'Generálás sikertelen'); }
+    finally { setGenerating(false); }
+  };
+
+  const toggleSelect = (id) => setSelectedIds(prev => {
+    const next = new Set(prev);
+    next.has(id) ? next.delete(id) : next.add(id);
+    return next;
+  });
+  const selectAll  = () => setSelectedIds(new Set(items.map(i => i.id)));
+  const selectNone = () => setSelectedIds(new Set());
+
+  const handleBulkDelete = async () => {
+    if (!selectedIds.size) return;
+    await Promise.allSettled([...selectedIds].map(id => deleteSurveyItem(surveyId, id)));
+    setSelectedIds(new Set());
+  };
+
+  const handleBulkConfirm = async () => {
+    const unconfirmedSelected = suggestions.filter(i => selectedIds.has(i.id));
+    if (!unconfirmedSelected.length) return;
+    await Promise.allSettled(unconfirmedSelected.map(i => updateSurveyItem(surveyId, i.id, { is_confirmed: true })));
+    setSelectedIds(prev => { const next = new Set(prev); unconfirmedSelected.forEach(i => next.delete(i.id)); return next; });
+  };
+
+  const closeDrawer = () => setDrawer(null);
+
+  // Group confirmed items by type
+  const grouped = ITEM_TYPE_ORDER
+    .map(type => ({ type, items: confirmed.filter(i => inferType(i) === type) }))
+    .filter(g => g.items.length > 0);
+
+  return (
+    <div style={{ marginTop: '0.75rem', borderTop: '1px solid var(--border-subtle)', paddingTop: '0.75rem' }}>
+      {/* Section header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: open ? '0.65rem' : 0 }}>
+        <button type="button" onClick={() => setOpen(o => !o)}
+          style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+          <span style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-muted)' }}>
+            Tételek {items.length > 0 ? `(${items.length})` : ''}
+          </span>
+          <ChevronDown size={13} color="var(--text-muted)" style={{ transition: 'transform 0.18s', transform: open ? 'rotate(0deg)' : 'rotate(-90deg)' }} />
+        </button>
+        {canAdd && (
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <button type="button" onClick={handleGenerate} disabled={generating}
+              className="btn btn-secondary btn-sm" style={{ fontSize: '0.78rem' }}>
+              {generating ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />}
+              {generating ? 'Generálás…' : 'AI javaslat'}
+            </button>
+            <button type="button" onClick={() => { setDrawer({ mode: 'add' }); setOpen(true); }}
+              className="btn btn-primary btn-sm" style={{ fontSize: '0.78rem' }}>
+              <Plus size={13} /> Tétel
+            </button>
+          </div>
+        )}
+      </div>
+
+      {genError && (
+        <div style={{ fontSize: '0.78rem', color: 'var(--danger-text)', background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', borderRadius: 'var(--radius-sm)', padding: '0.4rem 0.65rem', marginBottom: '0.5rem' }}>
+          {genError}
+        </div>
+      )}
+
+      {open && (
+        <>
+          {/* Bulk action bar — covers both confirmed and suggestions */}
+          {canAdd && items.length > 0 && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.5rem', fontSize: '0.78rem' }}>
+              <button type="button" onClick={selectedIds.size === items.length ? selectNone : selectAll}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: 'var(--accent)', fontWeight: 600, fontSize: '0.78rem' }}>
+                {selectedIds.size === items.length ? 'Egyik sem' : 'Összes'}
+              </button>
+              {selectedIds.size > 0 && suggestions.some(i => selectedIds.has(i.id)) && (
+                <button type="button" onClick={handleBulkConfirm} className="btn btn-secondary btn-sm" style={{ fontSize: '0.78rem' }}>
+                  <Check size={13} /> Elfogad ({suggestions.filter(i => selectedIds.has(i.id)).length})
+                </button>
+              )}
+              {selectedIds.size > 0 && (
+                <button type="button" onClick={handleBulkDelete} className="btn btn-danger btn-sm" style={{ fontSize: '0.78rem', marginLeft: 'auto' }}>
+                  <Trash2 size={13} /> Törlés ({selectedIds.size})
+                </button>
+              )}
+            </div>
+          )}
+
+          {grouped.length === 0 && suggestions.length === 0 && (
+            <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>Nincs tétel.</p>
+          )}
+
+          {/* Confirmed items — grouped by type */}
+          {grouped.length > 0 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              {grouped.map(({ type, items: typeItems }) => {
+                const tc   = ITEM_TYPE_COLORS[type] || ITEM_TYPE_COLORS.other;
+                const Icon = ITEM_TYPE_ICONS[type]  || MoreHorizontal;
+                return (
+                  <div key={type} style={{ background: 'var(--bg-subtle)', borderRadius: 'var(--radius-md)', padding: '0.5rem 0.65rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', marginBottom: '0.35rem' }}>
+                      <div style={{ padding: '0.15rem', borderRadius: 'var(--radius-sm)', background: tc.bg }}>
+                        <Icon size={10} color={tc.color} />
+                      </div>
+                      <span style={{ fontSize: '0.68rem', fontWeight: 700, color: tc.color, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                        {ITEM_TYPE_LABELS[type]}
+                      </span>
+                    </div>
+                    {typeItems.map(item => (
+                      <div key={item.id} style={{ display: 'grid', gridTemplateColumns: '20px 1fr auto auto auto', gap: '0 0.5rem', alignItems: 'center', padding: '0.3rem 0' }}>
+                        {canAdd
+                          ? <input type="checkbox" checked={selectedIds.has(item.id)} onChange={() => toggleSelect(item.id)} style={{ width: 16, height: 16, cursor: 'pointer', accentColor: 'var(--accent)', margin: 0 }} />
+                          : <span />}
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ fontWeight: 600, fontSize: '0.875rem', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.description}</div>
+                          {item.notes && <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>{item.notes}</div>}
+                        </div>
+                        <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: '0.875rem', color: 'var(--text-secondary)', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                          {item.quantity != null ? Number(item.quantity).toLocaleString('hu-HU') : ''}
+                        </span>
+                        <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{item.unit || ''}</span>
+                        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                          {canAdd && (
+                            <button type="button" onClick={() => setDrawer({ mode: 'edit', item })} className="btn btn-secondary btn-sm" style={{ padding: '0.3rem 0.5rem' }}>
+                              <Edit3 size={13} />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* AI suggestions — identical row structure, "Elfogad" replaces edit */}
+          {suggestions.length > 0 && (
+            <div style={{ marginTop: grouped.length ? '0.5rem' : 0, background: 'var(--bg-subtle)', borderRadius: 'var(--radius-md)', padding: '0.5rem 0.65rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', marginBottom: '0.35rem' }}>
+                <Sparkles size={10} color="var(--text-muted)" />
+                <span style={{ fontSize: '0.68rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>AI javaslat</span>
+              </div>
+              {suggestions.map(item => (
+                <div key={item.id} style={{ display: 'grid', gridTemplateColumns: '20px 1fr auto auto auto', gap: '0 0.5rem', alignItems: 'center', padding: '0.3rem 0', opacity: 0.8 }}>
+                  {canAdd
+                    ? <input type="checkbox" checked={selectedIds.has(item.id)} onChange={() => toggleSelect(item.id)} style={{ width: 16, height: 16, cursor: 'pointer', accentColor: 'var(--accent)', margin: 0 }} />
+                    : <span />}
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontWeight: 600, fontSize: '0.875rem', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.description}</div>
+                  </div>
+                  <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: '0.875rem', color: 'var(--text-secondary)', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                    {item.quantity != null ? Number(item.quantity).toLocaleString('hu-HU') : ''}
+                  </span>
+                  <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{item.unit || ''}</span>
+                  <div style={{ display: 'flex', gap: '0.3rem', justifyContent: 'flex-end' }}>
+                    {canAdd && (
+                      <button type="button"
+                        onClick={() => updateSurveyItem(surveyId, item.id, { is_confirmed: true }).catch(() => {})}
+                        className="btn btn-secondary btn-sm" style={{ padding: '0.3rem 0.5rem', fontSize: '0.75rem' }}>
+                        <Check size={12} /> Elfogad
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+
+      {drawer && (
+        <ItemDrawer
+          initial={drawer.mode === 'edit' ? drawer.item : null}
+          surveyId={surveyId}
+          entryId={entry.id}
+          onClose={closeDrawer}
+          createSurveyItem={createSurveyItem}
+          updateSurveyItem={updateSurveyItem}
+          deleteSurveyItem={deleteSurveyItem}
+        />
+      )}
+    </div>
+  );
+}
+
 // ── Survey entry card (collapsible, offers-style dark header) ─────────────────
 function SurveyEntryCard({ entry, surveyId, canEditEntry, canAdd, onEdit, onDelete, handleDeleteMedia, drawings, createSurveyDrawing, deleteSurveyDrawing, canDrawings, currentUser }) {
-  const hasContent = !!(entry.description || entry.media?.length || drawings.filter(d => d.entry_id === entry.id).length);
-  const [collapsed, setCollapsed] = useState(!hasContent);
+  const [collapsed, setCollapsed] = useState(true);
 
   return (
     <div className="card" style={{ padding: 0, overflow: 'hidden', border: '1.5px solid #cbd5e1' }}>
@@ -484,6 +855,8 @@ function SurveyEntryCard({ entry, surveyId, canEditEntry, canAdd, onEdit, onDele
           )}
 
           <AreaSummary entry={entry} />
+
+          <TételekSection surveyId={surveyId} entry={entry} canAdd={canAdd} />
 
           <div style={{ marginTop: '0.75rem', borderTop: '1px solid var(--border-subtle)', paddingTop: '0.75rem' }}>
             {entry.media?.length > 0 ? (
@@ -527,6 +900,8 @@ export default function SurveyDetailPage() {
     createSurveyDrawing, deleteSurveyDrawing,
     isDemoMode,
   } = useApp();
+  // surveyItemsBySurvey, createSurveyItem, updateSurveyItem, deleteSurveyItem, generateSurveyEntryItems
+  // are used inside TételekSection via useApp() directly
 
   const navPrefix = isDemoMode ? '/demo' : '';
 

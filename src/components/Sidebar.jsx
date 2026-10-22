@@ -8,7 +8,7 @@ import {
   Building2, LayoutDashboard, FolderKanban, Users, BookUser,
   FileText, Calendar, User, LogOut, ShieldAlert,
   ChevronLeft, ChevronRight, Eye, X, Menu, ClipboardList, Ruler, Lightbulb,
-  ChevronDown, Globe, ImageIcon, UsersRound, CreditCard,
+  ChevronDown, Globe, ImageIcon, UsersRound, CreditCard, Package,
 } from 'lucide-react';
 
 function buildNavItems(isSuperAdmin, isAdmin, impersonating, websiteUnread = 0, prefix = '', invitationCount = 0) {
@@ -24,6 +24,7 @@ function buildNavItems(isSuperAdmin, isAdmin, impersonating, websiteUnread = 0, 
   const commonNav = [
     { href: prefix + '/dashboard',    label: 'Dashboard',    icon: LayoutDashboard, exact: true },
     { href: prefix + '/felmeres',     label: 'Felmérések',   icon: Ruler },
+    { href: prefix + '/katalogus',    label: 'Árkatalógus',  icon: Package },
     { href: prefix + '/ajanlatok',    label: 'Ajánlatok',    icon: FileText },
     { href: prefix + '/projektek',    label: 'Projektek',    icon: FolderKanban },
     { href: prefix + '/kollektivak',  label: 'Kollektívák',  icon: UsersRound, badge: invitationCount },

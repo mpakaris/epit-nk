@@ -142,6 +142,7 @@ export default function AuditLogPage() {
   const [filterAction, setFilterAction] = useState('');
   const [filterFrom,   setFilterFrom]   = useState('');
   const [filterTo,     setFilterTo]     = useState('');
+  const [filterWA,     setFilterWA]     = useState(false);
 
   const fetchLogs = useCallback(async () => {
     setLoading(true);
@@ -151,6 +152,7 @@ export default function AuditLogPage() {
       if (filterAction) params.set('action', filterAction);
       if (filterFrom)   params.set('from', filterFrom + 'T00:00:00');
       if (filterTo)     params.set('to',   filterTo   + 'T23:59:59');
+      if (filterWA)     params.set('channel', 'whatsapp');
 
       const res = await fetch(`/api/audit?${params}`);
       if (res.ok) {
@@ -161,7 +163,7 @@ export default function AuditLogPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, filterUser, filterAction, filterFrom, filterTo]);
+  }, [page, filterUser, filterAction, filterFrom, filterTo, filterWA]);
 
   useEffect(() => { fetchLogs(); }, [fetchLogs]);
 
@@ -235,9 +237,21 @@ export default function AuditLogPage() {
             <input type="date" className="form-control" value={filterTo} onChange={e => setFilterTo(e.target.value)} min={filterFrom || undefined} />
           </div>
 
-          <div style={{ display: 'flex', gap: '0.4rem' }}>
+          <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
             <button type="submit" className="btn btn-primary btn-sm" style={{ flex: 1 }}>Filter</button>
-            <button type="button" className="btn btn-secondary btn-sm" onClick={() => { setFilterUser(''); setFilterAction(''); setFilterFrom(''); setFilterTo(''); setPage(0); }}>
+            <button
+              type="button"
+              onClick={() => { setFilterWA(w => !w); setPage(0); }}
+              style={{
+                padding: '0.3rem 0.6rem', borderRadius: 'var(--radius-sm)', fontWeight: 700,
+                fontSize: '0.78rem', cursor: 'pointer', border: 'none',
+                background: filterWA ? '#25D366' : 'var(--bg-subtle)',
+                color: filterWA ? '#fff' : 'var(--text-secondary)',
+              }}
+            >
+              📱 WA only
+            </button>
+            <button type="button" className="btn btn-secondary btn-sm" onClick={() => { setFilterUser(''); setFilterAction(''); setFilterFrom(''); setFilterTo(''); setFilterWA(false); setPage(0); }}>
               Clear
             </button>
           </div>
@@ -278,15 +292,27 @@ export default function AuditLogPage() {
                     <WorkspaceBadge workspace={log.workspace} />
                   </td>
                   <td>
-                    <span style={{
-                      display: 'inline-flex', alignItems: 'center',
-                      fontSize: '0.775rem', fontWeight: 700,
-                      padding: '0.2rem 0.55rem', borderRadius: 'var(--radius-pill)',
-                      color: style.color, background: style.bg,
-                      whiteSpace: 'nowrap',
-                    }}>
-                      {style.label}
-                    </span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexWrap: 'wrap' }}>
+                      <span style={{
+                        display: 'inline-flex', alignItems: 'center',
+                        fontSize: '0.775rem', fontWeight: 700,
+                        padding: '0.2rem 0.55rem', borderRadius: 'var(--radius-pill)',
+                        color: style.color, background: style.bg,
+                        whiteSpace: 'nowrap',
+                      }}>
+                        {style.label}
+                      </span>
+                      {log.details?.channel === 'whatsapp' && (
+                        <span style={{
+                          display: 'inline-flex', alignItems: 'center', gap: '0.2rem',
+                          fontSize: '0.7rem', fontWeight: 700,
+                          padding: '0.15rem 0.4rem', borderRadius: 'var(--radius-pill)',
+                          color: '#fff', background: '#25D366', whiteSpace: 'nowrap',
+                        }}>
+                          📱 WA
+                        </span>
+                      )}
+                    </div>
                   </td>
                   <td className="hide-mobile" style={{ fontSize: '0.83rem', color: 'var(--text-secondary)' }}>
                     {log.target_name || log.target_id

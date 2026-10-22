@@ -290,6 +290,55 @@ export const TOOL_DEFS = [
       },
     },
   },
+  {
+    type: 'function',
+    function: {
+      name: 'generate_entry_items',
+      description: 'Tételek (munkafázisok) generálása egy felmérés helyiségéhez AI segítségével a megjegyzés és méretek alapján. Hívd meg, ha a felhasználó tételeket akar generálni egy helyiséghez.',
+      parameters: {
+        type: 'object',
+        properties: {
+          survey_id: { type: 'string', description: 'Felmérés ID' },
+          room_name: { type: 'string', description: 'Helyiség neve (részleges egyezés is elfogadott)' },
+        },
+        required: ['survey_id', 'room_name'],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'upsert_catalogue_item',
+      description: 'Tétel hozzáadása vagy frissítése az árkatalógusban hangüzenetből vagy szöveges bevitelből. Ha az adott nevű tétel már létezik, frissíti. Kezelje a magyar számos szavakat (pl. "nyolcezerötszáz" → 8500).',
+      parameters: {
+        type: 'object',
+        properties: {
+          name:         { type: 'string', description: 'Tétel neve pl. "Csempe rakás"' },
+          unit:         { type: 'string', description: 'Mértékegység pl. "m²", "db", "fm", "óra"' },
+          trade:        { type: 'string', description: 'Szakma / kategória (opcionális) pl. "burkoló", "festő"' },
+          labour_price: { type: 'number', description: 'Munkadíj Ft/egység (opcionális)' },
+          materials: {
+            type: 'array',
+            description: 'Anyaglista (opcionális)',
+            items: {
+              type: 'object',
+              properties: {
+                name:         { type: 'string' },
+                qty_per_unit: { type: 'number' },
+                unit:         { type: 'string' },
+              },
+              required: ['name', 'qty_per_unit', 'unit'],
+              additionalProperties: false,
+            },
+          },
+          notes: { type: 'string', description: 'Megjegyzés (opcionális)' },
+        },
+        required: ['name', 'unit'],
+        additionalProperties: false,
+      },
+    },
+  },
 ];
 
 // ── Tool executors ────────────────────────────────────────────────────────────
@@ -367,13 +416,16 @@ export function buildToolExecutors({ account, conversation, phoneNumber, mediaUr
       }
 
       await saveLastAction(phoneNumber, 'survey_entry', 'survey_entries', entry.id);
+      logAudit({ userId: account.userId, userName: account.displayName,
+        action: 'Helyiség rögzítve', targetType: 'survey_entry', targetId: entry.id,
+        targetName: name, details: { channel: 'whatsapp', survey_id, width_m, length_m, size_m2 },
+      }).catch(() => {});
       return { success: true, entry_id: entry.id, size_m2 };
     },
 
     update_room: async ({ survey_id, room_name, description, width_m, length_m, height_m, window_count, door_count }) => {
       const entry = await findEntry(admin, survey_id, room_name);
       if (!entry) return { success: false, error: `"${room_name}" helyiség nem található.` };
-      const entries = [entry];
 
       const updates = {};
       if (width_m      != null) updates.width_m      = width_m;
@@ -382,13 +434,15 @@ export function buildToolExecutors({ account, conversation, phoneNumber, mediaUr
       if (window_count != null) updates.window_count = window_count;
       if (door_count   != null) updates.door_count   = door_count;
       if (width_m != null && length_m != null) updates.size_m2 = Math.round(width_m * length_m * 100) / 100;
-
-      // description in update_room = full replace (for corrections); use append_room_note for appending
       if (description != null) updates.description = description;
 
-      const { error } = await admin.from('survey_entries').update(updates).eq('id', entries[0].id);
+      const { error } = await admin.from('survey_entries').update(updates).eq('id', entry.id);
       if (error) return { success: false, error: error.message };
-      return { success: true, updated_entry_id: entries[0].id };
+      logAudit({ userId: account.userId, userName: account.displayName,
+        action: 'Helyiség módosítva', targetType: 'survey_entry', targetId: entry.id,
+        targetName: entry.name, details: { channel: 'whatsapp', survey_id, ...updates },
+      }).catch(() => {});
+      return { success: true, updated_entry_id: entry.id };
     },
 
     update_survey: async ({ survey_id, title, location }) => {
@@ -398,16 +452,24 @@ export function buildToolExecutors({ account, conversation, phoneNumber, mediaUr
       if (!Object.keys(updates).length) return { success: false, error: 'Nincs mit frissíteni.' };
       const { error } = await admin.from('surveys').update(updates).eq('id', survey_id);
       if (error) return { success: false, error: error.message };
+      logAudit({ userId: account.userId, userName: account.displayName,
+        action: 'Felmérés módosítva', targetType: 'survey', targetId: survey_id,
+        targetName: title || location, details: { channel: 'whatsapp', ...updates },
+      }).catch(() => {});
       return { success: true };
     },
 
     append_survey_note: async ({ survey_id, note }) => {
-      const { data: survey } = await admin.from('surveys').select('notes').eq('id', survey_id).single();
+      const { data: survey } = await admin.from('surveys').select('notes, title').eq('id', survey_id).single();
       const ts = new Date().toLocaleString('hu-HU', { dateStyle: 'short', timeStyle: 'short' });
       const existing = survey?.notes ? survey.notes + '\n' : '';
       const updated  = `${existing}[${ts}] ${note.trim()}`;
       const { error } = await admin.from('surveys').update({ notes: updated }).eq('id', survey_id);
       if (error) return { success: false, error: error.message };
+      logAudit({ userId: account.userId, userName: account.displayName,
+        action: 'Felmérés megjegyzés hozzáfűzve', targetType: 'survey', targetId: survey_id,
+        targetName: survey?.title, details: { channel: 'whatsapp', note: note.slice(0, 120) },
+      }).catch(() => {});
       return { success: true };
     },
 
@@ -421,6 +483,10 @@ export function buildToolExecutors({ account, conversation, phoneNumber, mediaUr
 
       const { error } = await admin.from('survey_entries').update({ description: updated }).eq('id', entry.id);
       if (error) return { success: false, error: error.message };
+      logAudit({ userId: account.userId, userName: account.displayName,
+        action: 'Helyiség megjegyzés hozzáfűzve', targetType: 'survey_entry', targetId: entry.id,
+        targetName: entry.name, details: { channel: 'whatsapp', survey_id, note: note.slice(0, 120) },
+      }).catch(() => {});
       return { success: true, updated_entry_id: entry.id };
     },
 
@@ -439,6 +505,10 @@ export function buildToolExecutors({ account, conversation, phoneNumber, mediaUr
 
       const { error } = await admin.from('surveys').update({ client_id: clients[0].id }).eq('id', survey_id);
       if (error) return { success: false, error: error.message };
+      logAudit({ userId: account.userId, userName: account.displayName,
+        action: 'Felmérés ügyfél hozzárendelve', targetType: 'survey', targetId: survey_id,
+        targetName: clients[0].name, details: { channel: 'whatsapp', client_id: clients[0].id },
+      }).catch(() => {});
       return { success: true, client_id: clients[0].id, client_name: clients[0].name };
     },
 
@@ -627,6 +697,142 @@ export function buildToolExecutors({ account, conversation, phoneNumber, mediaUr
       await saveConversation(phoneNumber, { active_project_id: project_id });
       conversation.active_project_id = project_id;
       return { success: true };
+    },
+
+    generate_entry_items: async ({ survey_id, room_name }) => {
+      const entry = await findEntry(admin, survey_id, room_name);
+      if (!entry) return { success: false, error: `"${room_name}" helyiség nem található.` };
+
+      const { data: fullEntry } = await admin.from('survey_entries')
+        .select('id, name, description, width_m, length_m, height_m, size_m2, window_count, door_count')
+        .eq('id', entry.id).single();
+
+      const apiKey = process.env.OPEN_AI_OCR_KEY;
+      if (!apiKey) return { success: false, error: 'AI konfigurációs hiba.' };
+
+      const w = fullEntry.width_m, l = fullEntry.length_m, h = fullEntry.height_m;
+      const area  = fullEntry.size_m2 ?? (w && l ? w * l : null);
+      const perim = w && l ? 2 * (w + l) : null;
+      const wallM2 = perim && h ? (perim * h - (fullEntry.window_count || 0) * 1.5 - (fullEntry.door_count || 0) * 2.0) : null;
+
+      const dimParts = [];
+      if (w && l) dimParts.push(`${w}×${l} m`);
+      if (area)   dimParts.push(`${area.toFixed ? area.toFixed(1) : area} m²`);
+      if (h)      dimParts.push(`${h} m belmagasság`);
+      if (wallM2) dimParts.push(`~${wallM2.toFixed ? wallM2.toFixed(1) : wallM2} m² falfelület`);
+      if (fullEntry.window_count) dimParts.push(`${fullEntry.window_count} ablak`);
+      if (fullEntry.door_count)   dimParts.push(`${fullEntry.door_count} ajtó`);
+
+      const userPrompt = `Helyiség: ${fullEntry.name}${dimParts.length ? ` (${dimParts.join(', ')})` : ''}
+Megjegyzés: "${fullEntry.description || '(nincs)'}"
+
+1. Sorold fel az ÖSSZES EXPLICIT említett munkát (source: "user_note")
+2. Javasolj MAX 8 logikusan következő, szinte biztosan szükséges munkafázist (source: "ai_suggestion")
+3. Minden tételnél adj mennyiséget + mértékegységet.
+
+JSON válasz (csak JSON, semmi más):
+{"from_notes":[{"description":"string","quantity":number|null,"unit":"string|null"}],"suggestions":[{"description":"string","quantity":number|null,"unit":"string|null"}]}`;
+
+      let aiData;
+      try {
+        const res = await fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+          body: JSON.stringify({
+            model: 'gpt-4o',
+            messages: [
+              { role: 'system', content: 'Te tapasztalt magyar építőipari szakember asszisztense vagy. Csak JSON-t adsz vissza.' },
+              { role: 'user',   content: userPrompt },
+            ],
+            response_format: { type: 'json_object' },
+            temperature: 0.3,
+            max_tokens: 600,
+          }),
+        });
+        const raw = await res.json();
+        if (!res.ok) return { success: false, error: raw.error?.message || 'AI hiba' };
+        aiData = JSON.parse(raw.choices[0].message.content);
+      } catch (e) {
+        return { success: false, error: 'AI válasz feldolgozása sikertelen' };
+      }
+
+      const fromNotes   = (aiData.from_notes  || []).map(i => ({ ...i, source: 'user_note',     is_confirmed: true  }));
+      const suggestions = (aiData.suggestions || []).slice(0, 1).map(i => ({ ...i, source: 'ai_suggestion', is_confirmed: false }));
+      const toInsert    = [...fromNotes, ...suggestions].map((item, idx) => ({
+        survey_id,
+        entry_id:     fullEntry.id,
+        owner_id:     account.userId,
+        created_by:   account.userId,
+        description:  item.description,
+        quantity:     item.quantity != null ? Number(item.quantity) : null,
+        unit:         item.unit || null,
+        source:       item.source,
+        is_confirmed: item.is_confirmed,
+        sort_order:   idx,
+      }));
+
+      const { error: insertErr } = await admin.from('survey_entry_items').insert(toInsert);
+      if (insertErr) return { success: false, error: insertErr.message };
+
+      const confirmedLines  = fromNotes.map(i => `✅ ${i.description}${i.quantity != null ? ` — ${i.quantity}${i.unit ? ' ' + i.unit : ''}` : ''}`);
+      const suggestionLines = suggestions.map(i => `○ ${i.description}${i.quantity != null ? ` — ${i.quantity}${i.unit ? ' ' + i.unit : ''}` : ''} (javaslat)`);
+      const summary = [...confirmedLines, ...suggestionLines].join('\n');
+
+      logAudit({ userId: account.userId, userName: account.displayName,
+        action: 'Tételek generálva (WhatsApp)', targetType: 'survey_entry', targetId: fullEntry.id,
+        targetName: fullEntry.name, details: { channel: 'whatsapp', survey_id, count: toInsert.length },
+      }).catch(() => {});
+
+      return { success: true, entry_name: fullEntry.name, from_notes_count: fromNotes.length, suggestions_count: suggestions.length, summary };
+    },
+
+    upsert_catalogue_item: async ({ name, unit, trade, labour_price, materials, notes }) => {
+      const trimmedName = name.trim();
+
+      // Check if item already exists for this user (personal or collective)
+      const query = admin.from('catalogue_items')
+        .select('id, name')
+        .eq('owner_id', account.userId)
+        .ilike('name', trimmedName);
+
+      const { data: existing } = await query.maybeSingle();
+
+      const itemData = {
+        owner_id:      account.userId,
+        collective_id: account.collectiveId || null,
+        name:          trimmedName,
+        unit:          unit.trim(),
+        trade:         trade?.trim() || null,
+        labour_price:  labour_price != null ? Number(labour_price) : null,
+        materials:     materials?.length ? materials : null,
+        notes:         notes?.trim() || null,
+      };
+
+      let resultItem, op;
+      if (existing) {
+        const { data, error } = await admin.from('catalogue_items').update(itemData).eq('id', existing.id).select('id, name, unit, labour_price').single();
+        if (error) return { success: false, error: error.message };
+        resultItem = data; op = 'frissítve';
+      } else {
+        const { data, error } = await admin.from('catalogue_items').insert([itemData]).select('id, name, unit, labour_price').single();
+        if (error) return { success: false, error: error.message };
+        resultItem = data; op = 'létrehozva';
+      }
+
+      logAudit({ userId: account.userId, userName: account.displayName,
+        action: `Katalógustétel ${op} (WhatsApp)`, targetType: 'catalogue_item', targetId: resultItem.id,
+        targetName: trimmedName, details: { channel: 'whatsapp', labour_price, unit },
+      }).catch(() => {});
+
+      const priceStr = resultItem.labour_price ? ` — ${resultItem.labour_price.toLocaleString('hu-HU')} Ft/${resultItem.unit}` : '';
+      const matsStr  = materials?.length ? `\nAnyagok: ${materials.map(m => `${m.qty_per_unit} ${m.unit} ${m.name}/${resultItem.unit}`).join(', ')}` : '';
+
+      return {
+        success: true,
+        operation: op,
+        item_id: resultItem.id,
+        summary: `${resultItem.name}${priceStr}${matsStr}\n(${op})`,
+      };
     },
   };
 }

@@ -48,6 +48,7 @@ export async function GET(request) {
   const to       = searchParams.get('to')       || null;
   const limit    = Math.min(Number(searchParams.get('limit') || 50), 200);
   const offset   = Number(searchParams.get('offset') || 0);
+  const channel  = searchParams.get('channel') || null;  // 'whatsapp' for WA-only filter
 
   let q = admin
     .from('audit_logs')
@@ -60,6 +61,7 @@ export async function GET(request) {
   if (action)   q = q.eq('action', action);
   if (from)     q = q.gte('created_at', from);
   if (to)       q = q.lte('created_at', to);
+  if (channel)  q = q.eq('details->>channel', channel);
 
   const { data: logs, count, error } = await q;
   if (error) return Response.json({ error: error.message }, { status: 500 });
