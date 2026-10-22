@@ -1,23 +1,29 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 
-// Cost per 1M tokens in micro-USD (1 micro-USD = $0.000001)
-const OPENAI_COST = {
-  'gpt-4o':       { in: 2_500_000, out: 10_000_000 },  // $2.50 in / $10.00 out per 1M
-  'gpt-4o-mini':  { in:   150_000, out:    600_000 },
-};
+// Fetch all rates for a provider+model. Returns { metric → cost_usd } map.
+async function fetchRates(admin, provider, model) {
+  const { data } = await admin
+    .from('wa_ai_rates')
+    .select('metric, cost_usd')
+    .eq('provider', provider)
+    .eq('model', model);
 
-// ElevenLabs Scribe v2: $0.22 per hour = $0.000061111... per second
-const ELEVENLABS_SCRIBE_COST_PER_SEC = 61; // micro-USD per second ($0.22/3600 ≈ $0.0000611)
+  return Object.fromEntries((data || []).map(r => [r.metric, Number(r.cost_usd)]));
+}
 
 export async function logOpenAiUsage({ phoneNumber, userId, model, callType, usage }) {
   if (!usage) return;
-  const rates = OPENAI_COST[model] || OPENAI_COST['gpt-4o'];
-  const costMicro = Math.round(
-    (usage.prompt_tokens     / 1_000_000) * rates.in +
-    (usage.completion_tokens / 1_000_000) * rates.out
-  );
 
   const admin = createAdminClient();
+  const rates = await fetchRates(admin, 'openai', model);
+
+  // Fallback rates if DB lookup fails (migration not yet applied)
+  const inRate  = rates['input_tokens']  ?? 0.0000025;
+  const outRate = rates['output_tokens'] ?? 0.000010;
+
+  const costUsd   = usage.prompt_tokens * inRate + usage.completion_tokens * outRate;
+  const costMicro = Math.round(costUsd * 1_000_000);
+
   await admin.from('wa_ai_usage').insert({
     phone_number:   phoneNumber,
     user_id:        userId || null,
@@ -28,13 +34,21 @@ export async function logOpenAiUsage({ phoneNumber, userId, model, callType, usa
     tokens_out:     usage.completion_tokens,
     tokens_total:   usage.total_tokens,
     cost_usd_micro: costMicro,
+    rate_snapshot: {
+      input_tokens:  inRate,
+      output_tokens: outRate,
+      fetched_at:    new Date().toISOString(),
+    },
   });
 }
 
 export async function logElevenLabsUsage({ phoneNumber, userId, audioSeconds }) {
-  const costMicro = Math.round(audioSeconds * ELEVENLABS_SCRIBE_COST_PER_SEC);
-
   const admin = createAdminClient();
+  const rates = await fetchRates(admin, 'elevenlabs', 'scribe_v2');
+
+  const secRate = rates['audio_seconds'] ?? 0.0000611111;
+  const costMicro = Math.round(audioSeconds * secRate * 1_000_000);
+
   await admin.from('wa_ai_usage').insert({
     phone_number:   phoneNumber,
     user_id:        userId || null,
@@ -43,5 +57,9 @@ export async function logElevenLabsUsage({ phoneNumber, userId, audioSeconds }) 
     call_type:      'transcribe',
     audio_seconds:  audioSeconds,
     cost_usd_micro: costMicro,
+    rate_snapshot: {
+      audio_seconds: secRate,
+      fetched_at:    new Date().toISOString(),
+    },
   });
 }
