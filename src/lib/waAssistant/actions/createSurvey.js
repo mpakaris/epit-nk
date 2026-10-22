@@ -66,8 +66,25 @@ export async function createSurvey({ waAccount, conversation, extracted, phoneNu
     details:    { channel: 'whatsapp', project_id: projectId },
   });
 
+  const mode = waAccount.permissions?.mode || 'free';
+
+  if (mode === 'guided') {
+    await saveClarification(phoneNumber, 'guided_next_step', [
+      { id: 'rooms',  name: 'Helyiségek és méretek' },
+      { id: 'media',  name: 'Fotó / alaprajz feltöltése' },
+      { id: 'client', name: 'Ügyfél hozzárendelése' },
+      { id: 'done',   name: 'Kész így' },
+    ], null, null);
+
+    return {
+      reply: `✓ Felmérés létrehozva: *${title}* — ${projectName}\n\nMit adunk hozzá most?\n\n1. Helyiségek és méretek\n2. Fotó / alaprajz\n3. Ügyfél hozzárendelése\n4. Kész\n\n_Visszavonáshoz: vissza_`,
+      needsClarification: false,
+    };
+  }
+
+  // Free mode — one soft line listing what's still missing
   return {
-    reply: `✓ Felmérés létrehozva: *${title}* — ${projectName} projekt.\n\nMondj helyiségeket és méreteket, én rögzítem. Pl: _Konyha, 3,5 × 4,2 m_\n\n_Visszavonáshoz: vissza_`,
+    reply: `✓ Felmérés létrehozva: *${title}* — ${projectName}\n_Hiányzik még: helyiségek, ügyfél, fotók — add hozzá most vagy hagyd későbbre._\n\n_Visszavonáshoz: vissza_`,
     needsClarification: false,
   };
 }

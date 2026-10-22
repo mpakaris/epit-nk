@@ -295,6 +295,22 @@ async function processItem(item, admin, appUrl, secret) {
       return;
     }
 
+    // "mód" command — change interaction mode at any time
+    if (content && ['mód', 'mod', 'mode', 'vezérelt', 'szabad'].includes(content.trim().toLowerCase())) {
+      const account = await resolveAccount(phoneNumber);
+      if (account) {
+        const modeOptions = [
+          { id: 'guided', name: 'Vezérelt mód — lépésről lépésre segítelek' },
+          { id: 'free',   name: 'Szabad mód — csak megerősítlek' },
+        ];
+        await saveClarification(phoneNumber, 'mode_choice', modeOptions, null, null);
+        await sendReply(appUrl, secret, phoneNumber,
+          'Hogyan szeretnél dolgozni?\n\n1. Vezérelt mód — lépésről lépésre segítelek\n2. Szabad mód — csak megerősítlek, a többit te irányítod');
+        await finalise(admin, item.id, waMsg?.id, startedAt, { action_taken: 'mode_prompt' });
+        return;
+      }
+    }
+
     // VERIFY command — handled before account check (unverified numbers need this)
     if (content && content.trim().toUpperCase().startsWith('VERIFY ')) {
       await handleVerify(admin, phoneNumber, content, appUrl, secret);
@@ -359,7 +375,45 @@ async function processItem(item, admin, appUrl, secret) {
           return;
         }
 
-        if (type === 'survey_title_needed') {
+        if (type === 'mode_choice') {
+          const mode = clarResult.chosenOption.id; // 'guided' | 'free'
+          const currentPerms = account.permissions || {};
+          await admin.from('wa_accounts').update({
+            permissions: { ...currentPerms, mode },
+          }).eq('phone_number', phoneNumber);
+          account.permissions = { ...currentPerms, mode };
+          log(phoneNumber, 'mode-set', { mode });
+
+          const originalContent = clarResult.originalPayload?.originalContent;
+          if (originalContent) {
+            // Resume the original message — fall through to full pipeline
+            content = originalContent;
+            // dispatchIntent stays null → goes through intent classification normally
+          } else {
+            const label = mode === 'guided' ? 'Vezérelt' : 'Szabad';
+            await sendReply(appUrl, secret, phoneNumber,
+              `✓ ${label} mód beállítva. Mostantól így dolgozunk — bármikor változtathatsz: írd "mód".`);
+            await finalise(admin, item.id, waMsg?.id, startedAt, { action_taken: 'mode_set' });
+            return;
+          }
+        } else if (type === 'guided_next_step') {
+          const choice = clarResult.chosenOption.id;
+          if (choice === 'rooms') {
+            await sendReply(appUrl, secret, phoneNumber,
+              'Mondj helyiségeket és méreteket! Pl: _Konyha, 3,5 × 4,2 m_');
+          } else if (choice === 'media') {
+            await sendReply(appUrl, secret, phoneNumber,
+              'Küld el a fotót vagy alaprajzot! Csatolom a felméréshez.');
+          } else if (choice === 'client') {
+            await sendReply(appUrl, secret, phoneNumber,
+              'Ügyfél hozzárendelése hamarosan elérhető. Addig folytasd a helyiségekkel!');
+          } else {
+            await sendReply(appUrl, secret, phoneNumber,
+              'Rendben! Folytasd bármikor — várom a helyiségeket, fotókat vagy egyéb bejegyzéseket.');
+          }
+          await finalise(admin, item.id, waMsg?.id, startedAt, { action_taken: 'guided_next_step' });
+          return;
+        } else if (type === 'survey_title_needed') {
           dispatchIntent    = 'create_survey';
           dispatchExtracted = { ...(clarResult.originalPayload || {}), surveyTitle: content?.trim() };
         } else if (type === 'labour_rate_needed') {
@@ -410,6 +464,20 @@ async function processItem(item, admin, appUrl, secret) {
         await finalise(admin, item.id, waMsg?.id, startedAt, { action_taken: 'invalid_clarification' });
         return;
       }
+    }
+
+    // First-ever interaction — ask for mode preference, then resume original message
+    if (!account.permissions?.mode && !dispatchIntent) {
+      log(phoneNumber, 'first-interaction — asking mode');
+      const modeOptions = [
+        { id: 'guided', name: 'Vezérelt mód — lépésről lépésre segítelek' },
+        { id: 'free',   name: 'Szabad mód — csak megerősítlek, a többit te irányítod' },
+      ];
+      await saveClarification(phoneNumber, 'mode_choice', modeOptions, null, { originalContent: content });
+      await sendReply(appUrl, secret, phoneNumber,
+        `Szia ${account.displayName}! Mielőtt elkezdenénk — hogyan szeretnél dolgozni?\n\n1. Vezérelt mód — lépésről lépésre segítelek\n2. Szabad mód — csak megerősítlek, a többit te irányítod\n\nEz bármikor megváltoztatható: írd "mód".`);
+      await finalise(admin, item.id, waMsg?.id, startedAt, { action_taken: 'mode_prompt' });
+      return;
     }
 
     // Build user context package — used by intent classifier and workspace resolver
