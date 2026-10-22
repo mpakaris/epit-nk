@@ -23,17 +23,19 @@ function buildNavItems(isSuperAdmin, isAdmin, impersonating, websiteUnread = 0, 
   }
   const commonNav = [
     { href: prefix + '/dashboard',    label: 'Dashboard',    icon: LayoutDashboard, exact: true },
+    { divider: true, key: 'd-munka',  group: 'Munka' },
     { href: prefix + '/felmeres',     label: 'Felmérések',   icon: Ruler },
-    { href: prefix + '/katalogus',    label: 'Árkatalógus',  icon: Package },
     { href: prefix + '/ajanlatok',    label: 'Ajánlatok',    icon: FileText },
     { href: prefix + '/projektek',    label: 'Projektek',    icon: FolderKanban },
-    { href: prefix + '/kollektivak',  label: 'Kollektívák',  icon: UsersRound, badge: invitationCount },
-    { href: prefix + '/naptar',       label: 'Naptár',       icon: Calendar },
+    { href: prefix + '/katalogus',    label: 'Árkatalógus',  icon: Package },
+    { divider: true, key: 'd-kapcs',  group: 'Kapcsolatok' },
     { href: prefix + '/ugyfelek',     label: 'Ügyfelek',     icon: BookUser },
+    { href: prefix + '/kollektivak',  label: 'Kollektívák',  icon: UsersRound, badge: invitationCount },
+    { divider: true, key: 'd-egyeb',  group: 'Egyéb' },
+    { href: prefix + '/naptar',       label: 'Naptár',       icon: Calendar },
     { href: prefix + '/otletek',      label: 'Ötletek',      icon: Lightbulb },
-    { divider: true, key: 'd1' },
     { href: prefix + '/weboldalam',   label: 'Weboldalom',   icon: Globe, badge: websiteUnread },
-    { divider: true, key: 'd2' },
+    { divider: true, key: 'd-profil' },
     { href: prefix + '/profil',              label: 'Profilom',      icon: User },
     { href: prefix + '/profil#elofizetes',   label: 'Előfizetés',    icon: CreditCard,  sub: true },
     { href: prefix + '/profil#szamla',       label: 'Céges adatok',  icon: Building2,   sub: true },
@@ -273,7 +275,9 @@ export default function Sidebar() {
         <nav className="sidebar-nav">
           {navItems.map(item =>
             item.divider ? (
-              <div key={item.key} className="sidebar-divider" />
+              <div key={item.key} className="sidebar-divider">
+                {item.group && !collapsed && <span className="sidebar-group-label">{item.group}</span>}
+              </div>
             ) : item.sub ? (
               <Link
                 key={item.href}
@@ -446,7 +450,9 @@ export default function Sidebar() {
             <nav className="drawer-nav">
               {navItems.map(item =>
                 item.divider ? (
-                  <div key={item.key} className="drawer-divider" />
+                  <div key={item.key} className="drawer-divider">
+                    {item.group && <span className="sidebar-group-label">{item.group}</span>}
+                  </div>
                 ) : item.sub ? (
                   <Link
                     key={item.href}

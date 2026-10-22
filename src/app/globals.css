@@ -1041,9 +1041,25 @@ input[type="month"] {
 }
 
 .sidebar-divider {
+  background: none;
+  margin: 0.2rem 0;
+}
+
+.sidebar-divider:not(:has(.sidebar-group-label)) {
   height: 1px;
   background: var(--border-subtle);
   margin: 0.35rem 0.5rem;
+}
+
+.sidebar-group-label {
+  display: block;
+  font-size: 0.62rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--text-muted);
+  padding: 0.55rem 0.75rem 0.1rem;
+  opacity: 0.7;
 }
 
 .sidebar-user {
