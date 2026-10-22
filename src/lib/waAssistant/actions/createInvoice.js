@@ -49,7 +49,7 @@ Ha nem olvasható el a végösszeg, add vissza null-t.`,
           },
         },
       },
-      max_tokens:  300,
+      max_completion_tokens:  300,
       temperature: 0,
     }),
   });
