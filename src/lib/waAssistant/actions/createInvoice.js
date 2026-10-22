@@ -5,17 +5,18 @@ import { uploadToR2, r2PublicUrl, toWebp } from '@/lib/r2';
 import { saveClarification } from '../clarification';
 import { saveLastAction } from '../conversation';
 import { resolveProject } from '../resolveProject';
-import { logOpenAiUsage } from '../logAiUsage';
+import { logOpenAiUsage, resolveModel } from '../logAiUsage';
 
 async function extractInvoiceFromImage(imgBuffer, mimeType, { phoneNumber, userId } = {}) {
-  const apiKey     = process.env.OPEN_AI_OCR_KEY;
+  const apiKey = process.env.OPEN_AI_OCR_KEY;
+  const model  = await resolveModel('invoice_ocr').catch(() => 'gpt-4o');
   const base64     = imgBuffer.toString('base64');
 
   const res = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
     body: JSON.stringify({
-      model:    'gpt-4o',
+      model,
       messages: [
         {
           role:    'system',

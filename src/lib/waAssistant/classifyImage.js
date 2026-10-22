@@ -1,11 +1,11 @@
-import { logOpenAiUsage } from './logAiUsage';
+import { logOpenAiUsage, resolveModel } from './logAiUsage';
 
-// Vision task — always gpt-4o, not swappable to mini
 export async function classifyImage(imageBase64, mimeType, { phoneNumber, userId } = {}) {
   const apiKey = process.env.OPEN_AI_OCR_KEY;
   if (!apiKey) return 'unknown';
 
   try {
+    const model = await resolveModel('classify_image').catch(() => 'gpt-4o');
     const res = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -13,7 +13,7 @@ export async function classifyImage(imageBase64, mimeType, { phoneNumber, userId
         'Authorization': `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: 'gpt-4o',
+        model,
         messages: [
           { role: 'system', content: 'Milyen típusú ez a kép? Válaszolj egyszóval.' },
           {
@@ -48,7 +48,7 @@ export async function classifyImage(imageBase64, mimeType, { phoneNumber, userId
     const data = await res.json();
     const raw  = data.choices?.[0]?.message?.content;
     if (data.usage && phoneNumber) {
-      logOpenAiUsage({ phoneNumber, userId, model: 'gpt-4o', callType: 'classify_image', usage: data.usage })
+      logOpenAiUsage({ phoneNumber, userId, model, callType: 'classify_image', usage: data.usage })
         .catch(() => {});
     }
     return raw ? JSON.parse(raw).type : 'unknown';
