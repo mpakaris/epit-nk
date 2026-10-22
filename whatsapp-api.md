@@ -749,7 +749,7 @@ Temperature: 0
 ---
 
 ## WA-021 — Owner: Start a new survey (text)
-**Status:** 🔲
+**Status:** ✅
 
 **Acceptance criteria:**
 - Survey row created with correct `owner_id` and `collective_id`
@@ -819,7 +819,7 @@ Error handling: if DB insert fails, return reply: 'Sajnos nem sikerült létreho
 ---
 
 ## WA-022 — Owner: Add survey entry (text)
-**Status:** 🔲
+**Status:** ✅
 
 **Acceptance criteria:**
 - "Konyha 3.5 x 4.2 m" → `survey_entries` row created
@@ -1192,7 +1192,7 @@ Flow:
 ---
 
 ## WA-027 — Owner: List active surveys
-**Status:** 🔲
+**Status:** ✅
 
 **Acceptance criteria:**
 - Lists surveys for active project
@@ -1258,7 +1258,7 @@ When the clarification resolves (in the main orchestrator), call:
 ---
 
 ## WA-030 — Owner: Log labour entry (text)
-**Status:** 🔲
+**Status:** ✅
 
 **Acceptance criteria:**
 - Labour entry created with correct project_id, hours, labour_type, value_huf
@@ -1515,7 +1515,7 @@ Test: send "Vettem csempét 45 ezer forintért" → confirm category is 'Anyag',
 ---
 
 ## WA-034 — Owner: Query project costs
-**Status:** 🔲
+**Status:** ✅
 
 **Acceptance criteria:**
 - Correct totals from calculateProjectFinancials()
@@ -1652,7 +1652,7 @@ Flow:
 ---
 
 ## WA-041 — Owner: List projects
-**Status:** 🔲
+**Status:** ✅
 
 **Acceptance criteria:**
 - Lists projects scoped to user's collective/personal workspace

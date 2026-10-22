@@ -2,9 +2,15 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { resolveAccount, UNREGISTERED_REPLY } from '@/lib/waAssistant/resolveAccount';
 import { toJid, jidToE164 } from '@/lib/waAssistant/jid';
 import { loadConversation, saveConversation, appendToContextWindow } from '@/lib/waAssistant/conversation';
-import { resolveClarification, formatClarificationMessage } from '@/lib/waAssistant/clarification';
+import { resolveClarification, saveClarification, formatClarificationMessage } from '@/lib/waAssistant/clarification';
 import { resolveProject } from '@/lib/waAssistant/resolveProject';
 import { resolveIntent } from '@/lib/waAssistant/resolveIntent';
+import { createSurvey } from '@/lib/waAssistant/actions/createSurvey';
+import { addSurveyEntry } from '@/lib/waAssistant/actions/addSurveyEntry';
+import { listSurveys } from '@/lib/waAssistant/actions/listSurveys';
+import { createLabourEntry, createLabourEntryWithRate } from '@/lib/waAssistant/actions/createLabourEntry';
+import { queryProjectCosts } from '@/lib/waAssistant/actions/queryProjectCosts';
+import { listProjects } from '@/lib/waAssistant/actions/listProjects';
 
 // Map Whinself/Baileys type string → our content_type enum (mirrors webhook handler)
 function mapContentType(type) {
@@ -115,19 +121,18 @@ async function handleVerify(admin, phoneNumber, content, appUrl, secret) {
 }
 
 async function dispatch(intent, extracted, account, conversation, phoneNumber, content, mediaUrl, contentType, admin, appUrl, secret) {
-  // Actions not yet implemented return a "coming soon" reply
   const COMING_SOON = 'Ez a funkció hamarosan elérhető.';
+  const ctx = { waAccount: account, conversation, extracted, phoneNumber, content, mediaUrl, contentType };
 
   switch (intent) {
     case 'greeting': {
-      const projectHint = conversation.active_project_id ? '' : '\n\nNincs aktív projekted. Írd: *projektek listája*';
-      return { reply: `Szia ${account.displayName}! Miben segíthetek?${projectHint}`, action: 'greeting' };
+      const hint = conversation.active_project_id ? '' : '\n\nNincs aktív projekted. Írd: *projektek listája*';
+      return { reply: `Szia ${account.displayName}! Miben segíthetek?${hint}`, action: 'greeting' };
     }
 
     case 'set_active_project': {
       const result = await resolveProject(content, account, conversation);
       if (result.needsClarification) {
-        const { saveClarification } = await import('@/lib/waAssistant/clarification');
         await saveClarification(phoneNumber, 'project_choice', result.clarificationOptions, 'set_active_project', {});
         const reply = formatClarificationMessage('Melyik projektet választod?', result.clarificationOptions);
         return { reply, action: 'clarification_sent' };
@@ -136,14 +141,53 @@ async function dispatch(intent, extracted, account, conversation, phoneNumber, c
       return { reply: `✓ Aktív projekt: *${result.projectName}*`, action: 'set_active_project' };
     }
 
-    case 'list_projects':
-    case 'list_surveys':
-    case 'create_survey':
-    case 'add_survey_entry':
-    case 'create_labour_entry':
+    case 'create_survey': {
+      const result = await createSurvey(ctx);
+      if (result.needsClarification) {
+        await saveClarification(phoneNumber, result.clarificationType, result.clarificationOptions, result.originalIntent, result.originalPayload);
+        const reply = formatClarificationMessage('Melyik projekthez szeretnéd a felmérést?', result.clarificationOptions);
+        return { reply, action: 'clarification_sent' };
+      }
+      return { reply: result.reply, action: 'create_survey' };
+    }
+
+    case 'add_survey_entry': {
+      const result = await addSurveyEntry(ctx);
+      return { reply: result.reply, action: 'add_survey_entry' };
+    }
+
+    case 'list_surveys': {
+      const result = await listSurveys(ctx);
+      return { reply: result.reply, action: 'list_surveys' };
+    }
+
+    case 'create_labour_entry': {
+      const result = await createLabourEntry(ctx);
+      if (result.needsClarification) {
+        await saveClarification(phoneNumber, result.clarificationType, result.clarificationOptions, result.originalIntent, result.originalPayload);
+        const reply = formatClarificationMessage('Melyik projekthez rögzítsem?', result.clarificationOptions);
+        return { reply, action: 'clarification_sent' };
+      }
+      return { reply: result.reply, action: 'create_labour_entry' };
+    }
+
+    case 'query_costs': {
+      const result = await queryProjectCosts(ctx);
+      if (result.needsClarification) {
+        await saveClarification(phoneNumber, result.clarificationType, result.clarificationOptions, result.originalIntent, result.originalPayload);
+        const reply = formatClarificationMessage('Melyik projekt költségeit mutassam?', result.clarificationOptions);
+        return { reply, action: 'clarification_sent' };
+      }
+      return { reply: result.reply, action: 'query_costs' };
+    }
+
+    case 'list_projects': {
+      const result = await listProjects(ctx);
+      return { reply: result.reply, action: 'list_projects' };
+    }
+
     case 'create_invoice':
     case 'attach_media':
-    case 'query_costs':
     case 'query_survey':
     case 'create_client':
     case 'set_active_survey':
@@ -222,9 +266,27 @@ async function processItem(item, admin, appUrl, secret) {
           return;
         }
 
-        // Other clarification types — resume original intent
-        dispatchIntent   = clarResult.originalIntent;
-        dispatchExtracted = clarResult.originalPayload || {};
+        if (type === 'survey_title_needed') {
+          dispatchIntent    = 'create_survey';
+          dispatchExtracted = { ...(clarResult.originalPayload || {}), surveyTitle: content?.trim() };
+        } else if (type === 'labour_rate_needed') {
+          // User replied with a rate (or "kihagyom") — do the insert directly
+          const account = await resolveAccount(phoneNumber);
+          const conv    = await loadConversation(phoneNumber);
+          const result  = await createLabourEntryWithRate({
+            waAccount:      account,
+            conversation:   conv,
+            phoneNumber,
+            rateText:       content,
+            pendingPayload: clarResult.originalPayload || {},
+          });
+          await sendReply(appUrl, secret, phoneNumber, result.reply);
+          await finalise(admin, item.id, waMsg?.id, startedAt, { action_taken: 'create_labour_entry' });
+          return;
+        } else {
+          dispatchIntent    = clarResult.originalIntent;
+          dispatchExtracted = clarResult.originalPayload || {};
+        }
       } else if (clarResult.cancel) {
         await sendReply(appUrl, secret, phoneNumber, 'Rendben, megszakítva.');
         await finalise(admin, item.id, waMsg?.id, startedAt, { action_taken: 'cancelled' });
