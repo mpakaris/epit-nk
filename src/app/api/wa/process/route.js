@@ -4,6 +4,8 @@ import { toJid, jidToE164 } from '@/lib/waAssistant/jid';
 import { loadConversation, saveConversation, appendToContextWindow } from '@/lib/waAssistant/conversation';
 import { resolveClarification, saveClarification, formatClarificationMessage } from '@/lib/waAssistant/clarification';
 import { resolveProject } from '@/lib/waAssistant/resolveProject';
+import { resolveWorkspace } from '@/lib/waAssistant/resolveWorkspace';
+import { revertLastAction } from '@/lib/waAssistant/actions/revert';
 import { resolveIntent } from '@/lib/waAssistant/resolveIntent';
 import { createSurvey } from '@/lib/waAssistant/actions/createSurvey';
 import { addSurveyEntry } from '@/lib/waAssistant/actions/addSurveyEntry';
@@ -268,6 +270,21 @@ async function processItem(item, admin, appUrl, secret) {
   }).select('id').single();
 
   try {
+    // Revert command — undo last write action within 120 minutes
+    if (content && ['vissza', 'revert', 'undo', 'visszavon'].includes(content.trim().toLowerCase())) {
+      const conversation = await loadConversation(phoneNumber);
+      const account = await resolveAccount(phoneNumber);
+      if (!account) {
+        await sendReply(appUrl, secret, phoneNumber, UNREGISTERED_REPLY);
+        await finalise(admin, item.id, waMsg?.id, startedAt, { action_taken: 'unregistered' });
+        return;
+      }
+      const result = await revertLastAction({ conversation, phoneNumber });
+      await sendReply(appUrl, secret, phoneNumber, result.reply);
+      await finalise(admin, item.id, waMsg?.id, startedAt, { action_taken: 'revert' });
+      return;
+    }
+
     // VERIFY command — handled before account check (unverified numbers need this)
     if (content && content.trim().toUpperCase().startsWith('VERIFY ')) {
       await handleVerify(admin, phoneNumber, content, appUrl, secret);
@@ -294,6 +311,21 @@ async function processItem(item, admin, appUrl, secret) {
       if (clarResult.resolved) {
         // Chosen option resolved — apply it based on clarification type
         const type = conversation.pending_clarification?.type;
+
+        if (type === 'workspace_choice') {
+          const isPersonal = clarResult.chosenOption.id === '__personal__';
+          const collectiveId = isPersonal ? null : clarResult.chosenOption.id;
+          await saveConversation(phoneNumber, {
+            active_collective_id: collectiveId,
+            _workspace_chosen:    true,
+            active_project_id:    null,
+            active_survey_id:     null,
+          });
+          const label = isPersonal ? 'Személyes munkaterület' : `*${clarResult.chosenOption.name}*`;
+          await sendReply(appUrl, secret, phoneNumber, `✓ Aktív munkaterület: ${label}\n\nMost ismételd meg az előző üzeneted.`);
+          await finalise(admin, item.id, waMsg?.id, startedAt, { action_taken: 'workspace_chosen' });
+          return;
+        }
 
         if (type === 'project_choice') {
           await saveConversation(phoneNumber, { active_project_id: clarResult.chosenOption.id, active_survey_id: null });
@@ -359,6 +391,24 @@ async function processItem(item, admin, appUrl, secret) {
         }
         await finalise(admin, item.id, waMsg?.id, startedAt, { action_taken: 'invalid_clarification' });
         return;
+      }
+    }
+
+    // Workspace check — ask once per session if user has multiple workspaces
+    if (!dispatchIntent) {
+      const wsResult = await resolveWorkspace(account, conversation, phoneNumber);
+      if (wsResult.needsClarification) {
+        const reply = formatClarificationMessage(
+          'Melyik munkaterületen dolgozol most?',
+          wsResult.clarificationOptions
+        );
+        await sendReply(appUrl, secret, phoneNumber, reply);
+        await finalise(admin, item.id, waMsg?.id, startedAt, { action_taken: 'workspace_clarification' });
+        return;
+      }
+      // Patch account's collectiveId for this turn if session overrides wa_account default
+      if (conversation._workspace_chosen) {
+        account.collectiveId = conversation.active_collective_id;
       }
     }
 

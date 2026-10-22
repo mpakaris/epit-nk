@@ -3,6 +3,7 @@ import { logAudit } from '@/lib/audit';
 import { formatHUF } from '@/lib/constants';
 import { uploadToR2, r2PublicUrl, toWebp } from '@/lib/r2';
 import { saveClarification } from '../clarification';
+import { saveLastAction } from '../conversation';
 import { resolveProject } from '../resolveProject';
 
 async function extractInvoiceFromImage(imgBuffer, mimeType) {
@@ -150,6 +151,8 @@ export async function confirmInvoice({ waAccount, conversation, phoneNumber, con
     return { reply: 'Sajnos nem sikerült rögzíteni a számlát. Kérlek próbáld újra.' };
   }
 
+  await saveLastAction(phoneNumber, 'invoice', 'invoices', entry?.id);
+
   await logAudit({
     userId:     waAccount.userId,
     userName:   waAccount.displayName,
@@ -160,5 +163,5 @@ export async function confirmInvoice({ waAccount, conversation, phoneNumber, con
     details:    { channel: 'whatsapp', value_huf: amountHuf, category },
   });
 
-  return { reply: `✓ Számla rögzítve: ${formatHUF(amountHuf)}, ${category} — ${projectName}` };
+  return { reply: `✓ Számla rögzítve: ${formatHUF(amountHuf)}, ${category} — ${projectName}\n\n_Visszavonáshoz: vissza_` };
 }

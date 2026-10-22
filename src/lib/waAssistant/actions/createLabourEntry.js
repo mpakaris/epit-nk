@@ -2,6 +2,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { logAudit } from '@/lib/audit';
 import { formatHUF } from '@/lib/constants';
 import { saveClarification } from '../clarification';
+import { saveLastAction } from '../conversation';
 import { resolveProject } from '../resolveProject';
 
 export async function createLabourEntry({ waAccount, conversation, extracted, phoneNumber }) {
@@ -86,9 +87,11 @@ async function doInsert({ waAccount, phoneNumber, projectId, projectName, hours,
     details:    { channel: 'whatsapp', hours, labour_type: labourType, value_huf: valueHuf },
   });
 
+  await saveLastAction(phoneNumber || '', 'labour_entry', 'labour_entries', entry?.id);
+
   const reply = hourlyRate
-    ? `✓ Munkaidő rögzítve: ${hours} óra ${labourType} — ${formatHUF(valueHuf)} (${projectName})`
-    : `✓ Munkaidő rögzítve: ${hours} óra ${labourType} — órabér nélkül (${projectName})`;
+    ? `✓ Munkaidő rögzítve: ${hours} óra ${labourType} — ${formatHUF(valueHuf)} (${projectName})\n\n_Visszavonáshoz: vissza_`
+    : `✓ Munkaidő rögzítve: ${hours} óra ${labourType} — órabér nélkül (${projectName})\n\n_Visszavonáshoz: vissza_`;
 
   return { reply };
 }

@@ -1,5 +1,6 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import { logAudit } from '@/lib/audit';
+import { saveLastAction } from '../conversation';
 
 const fmtN = n => (n != null ? String(n).replace('.', ',') : null);
 
@@ -51,6 +52,8 @@ export async function addSurveyEntry({ waAccount, conversation, extracted, phone
     return { reply: 'Sajnos nem sikerült rögzíteni a helyiséget. Kérlek próbáld újra.' };
   }
 
+  await saveLastAction(phoneNumber, 'survey_entry', 'survey_entries', entry?.id);
+
   await logAudit({
     userId:     waAccount.userId,
     userName:   waAccount.displayName,
@@ -67,5 +70,5 @@ export async function addSurveyEntry({ waAccount, conversation, extracted, phone
   if (doorCount > 0)  parts.push(`${doorCount} ajtó`);
   if (windowCount > 0) parts.push(`${windowCount} ablak`);
 
-  return { reply: `✓ Rögzítve: *${name}* — ${parts.join(', ')}\n\nKövetkező helyiség?` };
+  return { reply: `✓ Rögzítve: *${name}* — ${parts.join(', ')}\n\nKövetkező helyiség?\n_Visszavonáshoz: vissza_` };
 }

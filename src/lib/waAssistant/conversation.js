@@ -4,7 +4,9 @@ const BLANK_STATE = (phoneNumber) => ({
   phone_number:          phoneNumber,
   active_project_id:     null,
   active_survey_id:      null,
+  active_collective_id:  null,
   pending_clarification: null,
+  last_action:           null,
   context_window:        [],
   expires_at:            null,
 });
@@ -48,12 +50,30 @@ export async function expireConversation(phoneNumber) {
   const admin = createAdminClient();
 
   await admin.from('wa_conversations').update({
-    active_project_id:     null,
-    active_survey_id:      null,
+    active_project_id:    null,
+    active_survey_id:     null,
+    active_collective_id: null,
     pending_clarification: null,
-    context_window:        [],
-    updated_at:            new Date().toISOString(),
+    last_action:          null,
+    context_window:       [],
+    updated_at:           new Date().toISOString(),
   }).eq('phone_number', phoneNumber);
+}
+
+// Call after every successful write action. Clears any previous revertable action.
+export async function saveLastAction(phoneNumber, type, table, id) {
+  await saveConversation(phoneNumber, {
+    last_action: { type, table, id, timestamp: new Date().toISOString() },
+  });
+}
+
+// Returns the last action if it is still within the 120-minute revert window.
+export function getRevertableAction(conversation) {
+  const a = conversation.last_action;
+  if (!a) return null;
+  const ageMinutes = (Date.now() - new Date(a.timestamp).getTime()) / 60000;
+  if (ageMinutes > 120) return null;
+  return a;
 }
 
 export async function appendToContextWindow(phoneNumber, role, content) {

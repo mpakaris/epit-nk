@@ -1,6 +1,6 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import { logAudit } from '@/lib/audit';
-import { saveConversation } from '../conversation';
+import { saveConversation, saveLastAction } from '../conversation';
 import { saveClarification } from '../clarification';
 import { resolveProject } from '../resolveProject';
 
@@ -54,6 +54,7 @@ export async function createSurvey({ waAccount, conversation, extracted, phoneNu
     active_survey_id:  survey.id,
     active_project_id: projectId,
   });
+  await saveLastAction(phoneNumber, 'survey', 'surveys', survey.id);
 
   await logAudit({
     userId:     waAccount.userId,
@@ -66,7 +67,7 @@ export async function createSurvey({ waAccount, conversation, extracted, phoneNu
   });
 
   return {
-    reply: `✓ Felmérés létrehozva: *${title}* — ${projectName} projekt.\n\nMondj helyiségeket és méreteket, én rögzítem. Pl: _Konyha, 3,5 × 4,2 m_`,
+    reply: `✓ Felmérés létrehozva: *${title}* — ${projectName} projekt.\n\nMondj helyiségeket és méreteket, én rögzítem. Pl: _Konyha, 3,5 × 4,2 m_\n\n_Visszavonáshoz: vissza_`,
     needsClarification: false,
   };
 }
