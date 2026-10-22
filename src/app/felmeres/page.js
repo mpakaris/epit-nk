@@ -6,7 +6,7 @@ import { useApp } from '@/context/AppContext';
 import { formatDate } from '@/lib/constants';
 import { ConfirmModal, AlertModal } from '@/components/Modal';
 import {
-  Ruler, Plus, MapPin, Calendar, User, Trash2,
+  Ruler, Plus, MapPin, Calendar, Clock, User, Trash2,
   LayoutPanelLeft, Camera, PenLine, Grid3x3,
 } from 'lucide-react';
 import PageSpinner from '@/components/PageSpinner';
@@ -181,9 +181,9 @@ export default function SurveyListPage() {
                     )}
                   </div>
 
-                  {/* Creator pill — always in collective, only others in personal */}
-                  {creator && (activeCollectiveId || creator.id !== currentUser?.id) && (
-                    <div>
+                  {/* Creator + timestamp */}
+                  <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                    {creator && (
                       <span style={{
                         display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
                         fontSize: '0.72rem', fontWeight: 700,
@@ -192,10 +192,16 @@ export default function SurveyListPage() {
                         color: creator.id === currentUser?.id ? 'var(--primary)' : 'var(--text-secondary)',
                         border: `1px solid ${creator.id === currentUser?.id ? 'var(--primary)33' : 'var(--border-subtle)'}`,
                       }}>
-                        <User size={10} /> {creator.display_name}
+                        <User size={10} /> {creator.id === currentUser?.id ? 'Én' : creator.display_name}
                       </span>
-                    </div>
-                  )}
+                    )}
+                    {survey.created_at && (
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                        <Clock size={10} />
+                        {new Date(survey.created_at).toLocaleDateString('hu-HU', { year: 'numeric', month: 'short', day: 'numeric' })}
+                      </span>
+                    )}
+                  </div>
 
                   {/* Stats pills */}
                   <div style={{ display: 'flex', gap: '0.3rem', flexWrap: 'wrap', paddingTop: '0.35rem', borderTop: '1px solid var(--border-subtle)' }}>

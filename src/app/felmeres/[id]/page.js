@@ -9,7 +9,7 @@ import { ConfirmModal, AlertModal } from '@/components/Modal';
 import CollectiveBanner from '@/components/CollectiveBanner';
 import DrawingsSection from '@/components/DrawingsSection';
 import {
-  ArrowLeft, MapPin, Calendar, User, Edit3, Trash2,
+  ArrowLeft, MapPin, Calendar, Clock, User, Edit3, Trash2,
   Play, X, ChevronLeft, ChevronRight, Check, Loader2,
   FileText, FolderKanban, Home, Ruler, LayoutPanelLeft,
   Camera, Plus, AlertCircle,
@@ -596,7 +596,8 @@ export default function SurveyDetailPage() {
             )}
             {survey.location && <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}><MapPin size={14} color="var(--accent)" />{survey.location}</span>}
             {survey.date && <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}><Calendar size={14} color="var(--accent)" />{formatDate(survey.date)}</span>}
-            {creator && <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>Rögzítette: {creator.display_name}</span>}
+            {creator && <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', color: 'var(--text-muted)', fontSize: '0.8rem' }}><User size={13} />Rögzítette: {creator.display_name}</span>}
+            {survey.created_at && <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', color: 'var(--text-muted)', fontSize: '0.8rem' }}><Clock size={13} />{new Date(survey.created_at).toLocaleDateString('hu-HU', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>}
           </div>
           {canEditMeta && (
             <button type="button" onClick={() => setShowMetaDrawer(true)} className="btn btn-secondary btn-sm" style={{ padding: '0.3rem 0.5rem', flexShrink: 0 }}>
