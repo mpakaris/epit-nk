@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
 import {
   Building2, LayoutDashboard, FolderKanban, Users, BookUser,
@@ -57,6 +57,7 @@ function isActive(item, pathname) {
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
   const { currentUser, isSuperAdmin, isAdmin, impersonating, stopImpersonation, logout, collectives, effectiveCollectives, setActiveContext, switchImpersonatingContext, activeCollectiveId, allMemberships, entities, isDemoMode } = useApp();
   const effectiveUser = impersonating || currentUser;
   const navPrefix = isDemoMode ? '/demo' : '';
@@ -179,6 +180,7 @@ export default function Sidebar() {
     const collectiveId = value === '' ? null : value;
     if (impersonating) switchImpersonatingContext(collectiveId);
     else setActiveContext(collectiveId);
+    router.push(navPrefix + '/dashboard');
   };
 
   const ContextSwitcher = () => {
