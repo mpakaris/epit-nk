@@ -38,6 +38,7 @@ Mezők kinyerése:
 - labour: labourType (munkafajta), hours (szám), hourlyRate (szám vagy null), workDate (YYYY-MM-DD vagy null)
 - invoice: amountHuf (szám), description (szöveg), category ('Anyag'|'Szerszám/Eszköz'|'Szállítás'|'Engedély/Hatóság'|'Egyéb')
   Kategória szabályok: csempe/festék/cement/fa/anyag → Anyag; szállítás/fuvar → Szállítás; szerszám/eszköz/állványzat → Szerszám/Eszköz; engedély/hatóság/illeték → Engedély/Hatóság; egyéb → Egyéb
+- surveyTitle: a felmérés neve, ha az üzenetben szerepel (pl. "WA Test No. 1", "Fürdőszoba felmérés") — angolul is elfogadható
 - project_hint: projekt neve/részlete az üzenetből
 
 FONTOS: ne találj ki adatokat. Ha egy mező hiányzik, hagyd null-ra.
