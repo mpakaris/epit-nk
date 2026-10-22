@@ -317,6 +317,27 @@ async function processItem(item, admin, appUrl, secret) {
       return;
     }
 
+    // Stop words — exit any active flow gracefully
+    const STOP_WORDS = ['ennyi', 'kész', 'elég', 'stop', 'vége', 'done', 'enough', 'befejeztem', 'befejezve', 'starosta', 'köszönöm', 'thats it', "that's it", 'no more', 'finish'];
+    if (content && STOP_WORDS.includes(content.trim().toLowerCase())) {
+      const account  = await resolveAccount(phoneNumber);
+      const conv     = await loadConversation(phoneNumber);
+      // Clear any pending clarification so the bot isn't stuck
+      if (conv.pending_clarification) {
+        await saveConversation(phoneNumber, { pending_clarification: null });
+      }
+      let reply = 'Rendben, megálltam! Folytasd bármikor.';
+      if (conv.active_survey_id) {
+        reply = 'Rendben! A felmérés elmentve. Folytasd bármikor — írd "felmérések listája" a folytatáshoz.';
+      } else if (conv.active_project_id) {
+        reply = 'Rendben! Megálltam. Folytasd bármikor.';
+      }
+      log(phoneNumber, 'stop-word');
+      await sendReply(appUrl, secret, phoneNumber, reply);
+      await finalise(admin, item.id, waMsg?.id, startedAt, { action_taken: 'stop' });
+      return;
+    }
+
     // "mód" command — change interaction mode at any time
     if (content && ['mód', 'mod', 'mode', 'vezérelt', 'szabad'].includes(content.trim().toLowerCase())) {
       const account = await resolveAccount(phoneNumber);
@@ -434,6 +455,34 @@ async function processItem(item, admin, appUrl, secret) {
               'Rendben! Folytasd bármikor — várom a helyiségeket, fotókat vagy egyéb bejegyzéseket.');
           }
           await finalise(admin, item.id, waMsg?.id, startedAt, { action_taken: 'guided_next_step' });
+          return;
+        } else if (type === 'room_details_needed') {
+          // Parse "1 ajtó, 2 ablak" or "kihagyom"
+          const norm = (content || '').trim().toLowerCase();
+          if (!['kihagyom', 'skip', 'nem', '-', 'ennyi', 'kész'].includes(norm)) {
+            const doorMatch   = norm.match(/(\d+)\s*ajtó/);
+            const windowMatch = norm.match(/(\d+)\s*ablak/);
+            const doors   = doorMatch   ? parseInt(doorMatch[1])   : null;
+            const windows = windowMatch ? parseInt(windowMatch[1]) : null;
+            if (doors !== null || windows !== null) {
+              const entryId = clarResult.originalPayload?.entryId;
+              if (entryId) {
+                const updates = {};
+                if (doors   !== null) updates.door_count   = doors;
+                if (windows !== null) updates.window_count = windows;
+                await admin.from('survey_entries').update(updates).eq('id', entryId);
+                const parts = [doors !== null ? `${doors} ajtó` : null, windows !== null ? `${windows} ablak` : null].filter(Boolean);
+                await sendReply(appUrl, secret, phoneNumber, `✓ Rögzítve: ${parts.join(', ')}\n\nKövetkező helyiség?`);
+              } else {
+                await sendReply(appUrl, secret, phoneNumber, 'Következő helyiség?');
+              }
+            } else {
+              await sendReply(appUrl, secret, phoneNumber, 'Következő helyiség?');
+            }
+          } else {
+            await sendReply(appUrl, secret, phoneNumber, 'Rendben! Következő helyiség?');
+          }
+          await finalise(admin, item.id, waMsg?.id, startedAt, { action_taken: 'room_details' });
           return;
         } else if (type === 'survey_title_needed') {
           dispatchIntent    = 'create_survey';

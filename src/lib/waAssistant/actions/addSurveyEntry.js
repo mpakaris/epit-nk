@@ -1,6 +1,7 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import { logAudit } from '@/lib/audit';
 import { saveLastAction } from '../conversation';
+import { saveClarification } from '../clarification';
 
 const fmtN = n => (n != null ? String(n).replace('.', ',') : null);
 
@@ -66,9 +67,20 @@ export async function addSurveyEntry({ waAccount, conversation, extracted, phone
 
   // Build confirmation — only include dimensions that were provided
   const parts = [`${fmtN(widthM)} × ${fmtN(lengthM)} m (${fmtN(floorAreaM2)} m²)`];
-  if (heightM != null) parts.push(`${fmtN(heightM)} m mennyezet`);
-  if (doorCount > 0)  parts.push(`${doorCount} ajtó`);
-  if (windowCount > 0) parts.push(`${windowCount} ablak`);
+  if (heightM != null)   parts.push(`${fmtN(heightM)} m mennyezet`);
+  if (doorCount > 0)     parts.push(`${doorCount} ajtó`);
+  if (windowCount > 0)   parts.push(`${windowCount} ablak`);
 
-  return { reply: `✓ Rögzítve: *${name}* — ${parts.join(', ')}\n\nKövetkező helyiség?\n_Visszavonáshoz: vissza_` };
+  const confirmation = `✓ Rögzítve: *${name}* — ${parts.join(', ')}`;
+
+  // Guided mode: ask for missing doors/windows
+  const mode = waAccount.permissions?.mode || 'free';
+  const missingDetails = (windowCount == null || windowCount === 0) && (doorCount == null || doorCount === 0);
+
+  if (mode === 'guided' && missingDetails && entry?.id) {
+    await saveClarification(phoneNumber, 'room_details_needed', [], null, { entryId: entry.id, roomName: name });
+    return { reply: `${confirmation}\n\nHány ajtó és ablak van a(z) *${name}*ban/ben?\n(pl. _1 ajtó, 2 ablak_) — vagy írd: _kihagyom_` };
+  }
+
+  return { reply: `${confirmation}\n\nKövetkező helyiség? — vagy írd: _ennyi_\n_Visszavonáshoz: vissza_` };
 }
