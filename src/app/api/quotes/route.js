@@ -18,13 +18,13 @@ export async function POST(request) {
     start_date, end_date, status = 'draft',
     client_id, created_by, shared_with = [], tax_percent = 0,
     survey_id,
-    // collective_id from body only honoured for superadmin — others use DB profile
     collective_id: bodyCollectiveId,
   } = body;
 
   if (!title?.trim()) return Response.json({ error: 'Az ajánlat neve kötelező' }, { status: 400 });
 
-  const collectiveId = profile.role === 'superadmin'
+  // Body's collective_id wins when explicitly provided (including null = personal).
+  const collectiveId = bodyCollectiveId !== undefined
     ? (bodyCollectiveId || null)
     : (profile.active_collective_id || null);
 

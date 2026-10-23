@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
 import Modal from '@/components/Modal';
-import CollectiveBanner from '@/components/CollectiveBanner';
+import CollectiveSelector from '@/components/CollectiveSelector';
 import ClientSelect from '@/components/ClientSelect';
 import PageSpinner from '@/components/PageSpinner';
 import { formatDate } from '@/lib/constants';
@@ -79,6 +79,7 @@ function NewQuotePageInner() {
   const [clientId, setClientId]       = useState(searchParams.get('client_id')   || '');
   const [taxPercent, setTaxPercent]   = useState(String(currentUser?.default_tax_percent ?? 27));
 
+  const [collectiveId, setCollectiveId]     = useState(null);
   const [error, setError]                   = useState('');
   const [isSubmitting, setIsSubmitting]     = useState(false);
   const [showNewClientModal, setShowNewClientModal] = useState(false);
@@ -124,6 +125,7 @@ function NewQuotePageInner() {
         clientId: clientId || null,
         taxPercent: Number(taxPercent) || 0,
         surveyId: surveyId || null,
+        collectiveId,
       });
 
       if (surveyId) {
@@ -173,7 +175,7 @@ function NewQuotePageInner() {
       )}
 
       <form onSubmit={handleSubmit}>
-        <CollectiveBanner />
+        <CollectiveSelector value={collectiveId} onChange={setCollectiveId} />
 
         {/* Survey picker */}
         <div className="card mb-4" style={{ padding: '1.25rem' }}>

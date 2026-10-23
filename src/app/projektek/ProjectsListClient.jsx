@@ -8,17 +8,50 @@ import { calculateProjectFinancials } from '@/lib/calculations';
 import { formatHUF, formatDate } from '@/lib/constants';
 import {
   FolderKanban, Users, TrendingUp, TrendingDown, CheckCircle2,
-  Plus, AlertCircle, ChevronRight, Loader2, Search, X, FileText,
-  User, Clock, PencilLine,
+  Plus, AlertCircle, Loader2, Search, X, FileText,
+  User, Clock, PencilLine, ChevronDown, ChevronUp,
 } from 'lucide-react';
 import Modal from '@/components/Modal';
-import EntitySelector from '@/components/EntitySelector';
 import ClientSelect from '@/components/ClientSelect';
-import WorkspaceBadge from '@/components/WorkspaceBadge';
-import CollectiveBanner from '@/components/CollectiveBanner';
+import CollectiveSelector from '@/components/CollectiveSelector';
+
+const PREVIEW_COUNT = 3;
+
+function SectionHeader({ icon, label, count, accentColor = 'var(--accent)' }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.85rem', marginTop: '1.75rem' }}>
+      <div style={{ width: 26, height: 26, borderRadius: 'var(--radius-md)', background: `color-mix(in srgb, ${accentColor} 12%, transparent)`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+        {React.cloneElement(icon, { size: 13, color: accentColor })}
+      </div>
+      <span style={{ fontSize: '0.72rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--text-secondary)' }}>
+        {label}
+      </span>
+      {count !== undefined && (
+        <span style={{ fontSize: '0.68rem', fontWeight: 700, padding: '0.1rem 0.45rem', borderRadius: 99, background: 'var(--bg-subtle)', border: '1px solid var(--border-subtle)', color: 'var(--text-muted)' }}>
+          {count}
+        </span>
+      )}
+      <div style={{ flex: 1, height: 1, background: 'var(--border-subtle)', marginLeft: '0.25rem' }} />
+    </div>
+  );
+}
+
+function ShowMoreButton({ total, expanded, onToggle }) {
+  if (total <= PREVIEW_COUNT) return null;
+  return (
+    <div style={{ display: 'flex', justifyContent: 'center', marginTop: '0.65rem' }}>
+      <button type="button" onClick={onToggle}
+        style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.8rem', fontWeight: 700, color: 'var(--accent)', background: 'var(--accent-light)', border: '1px solid var(--accent-border)', borderRadius: 'var(--radius-pill)', padding: '0.35rem 1rem', cursor: 'pointer' }}>
+        {expanded ? <><ChevronUp size={13} /> Kevesebb</> : <><ChevronDown size={13} /> + {total - PREVIEW_COUNT} további</>}
+      </button>
+    </div>
+  );
+}
 
 export default function ProjectsListClient({
-  initialProjects,
+  personalProjects,
+  sharedProjects,
+  collectives,
   initialInvoices,
   initialLabourEntries,
   initialUsers,
@@ -27,19 +60,15 @@ export default function ProjectsListClient({
   currentUser,
   isAdmin,
   isSuperAdmin,
-  impersonating,
-  effectiveEntityId,
 }) {
   const router = useRouter();
   const {
     createClient: ctxCreateClient,
-    projects: _ctxProjects,
     quotes: _ctxQuotes,
     invoices: _ctxInvoices,
     labourEntries: _ctxLabourEntries,
     clients: _ctxClients,
     users: _ctxUsers,
-    effectiveMemberships,
     activeCollectiveId,
     dataReady,
     refreshSupabaseData,
@@ -48,12 +77,14 @@ export default function ProjectsListClient({
 
   const navPrefix = isDemoMode ? '/demo' : '';
 
-  const projects      = dataReady ? _ctxProjects      : initialProjects;
   const quotes        = dataReady ? _ctxQuotes        : (initialQuotes || []);
   const invoices      = dataReady ? _ctxInvoices      : initialInvoices;
   const labourEntries = dataReady ? _ctxLabourEntries : initialLabourEntries;
   const clients       = dataReady ? _ctxClients       : (initialClients || []);
   const users         = dataReady ? _ctxUsers         : initialUsers;
+
+  const [expandPersonal, setExpandPersonal] = useState(false);
+  const [expandShared, setExpandShared]     = useState({});
 
   // Create modal state
   const [showCreate, setShowCreate] = useState(false);
@@ -80,8 +111,8 @@ export default function ProjectsListClient({
   const [newClientError, setNewClientError] = useState('');
   const [creatingClient, setCreatingClient] = useState(false);
 
-  const activeCreateEntityId = projEntityId || effectiveEntityId;
-  const effectiveCurrentUserId = impersonating?.id ?? currentUser?.id;
+  const activeCreateEntityId = projEntityId || activeCollectiveId || null;
+  const effectiveCurrentUserId = currentUser?.id;
 
   // Auto-open create modal when navigated via ?create=1 (e.g. from mobile FAB)
   useEffect(() => {
@@ -175,14 +206,13 @@ export default function ProjectsListClient({
     prev.includes(uid) ? prev.filter(id => id !== uid) : [...prev, uid]
   );
 
-  const canCreate = currentUser && !(isSuperAdmin && !impersonating);
-  const myProjects = projects.filter(p => p.created_by === currentUser?.id);
-  const invitedProjects = projects.filter(p => p.created_by !== currentUser?.id);
+  const canCreate = !!currentUser;
 
   const renderCard = (project) => {
     const memberUsers = users.filter(u => (project.members || []).includes(u.id));
     const fin = calculateProjectFinancials(project, invoices, labourEntries, memberUsers, currentUser?.id);
-    const creatorName = activeCollectiveId ? (project.created_by_name || null) : null;
+    const isShared    = !!project.collective_id;
+    const creatorName = isShared ? (project.created_by_name || null) : null;
 
     const previews = project._preview_urls || [];
 
@@ -233,7 +263,7 @@ export default function ProjectsListClient({
               </div>
             </div>
           </div>
-          {activeCollectiveId && (
+          {isShared && (
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', alignItems: 'center' }}>
               {creatorName && (
                 <span style={{
@@ -281,14 +311,19 @@ export default function ProjectsListClient({
     );
   };
 
+  const hasCollectives = (collectives || []).length > 0;
+  const allProjects    = [...(personalProjects || []), ...(sharedProjects || [])];
+
+  const sharedByCollective = (collectives || []).map(col => ({
+    ...col,
+    projects: (sharedProjects || []).filter(p => p.collective_id === col.id),
+  }));
+
   return (
     <div className="container">
       <div className="page-header">
         <div className="page-header-row">
-          <h1 className="page-title" style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
-            Projektek
-            <WorkspaceBadge />
-          </h1>
+          <h1 className="page-title">Projektek</h1>
           {canCreate && (
             <button type="button" onClick={openCreate} className="btn btn-primary btn-sm">
               <Plus size={15} /> Új projekt
@@ -297,7 +332,7 @@ export default function ProjectsListClient({
         </div>
       </div>
 
-      {projects.length === 0 ? (
+      {allProjects.length === 0 ? (
         <div className="card" style={{ textAlign: 'center', padding: '3rem 1.5rem' }}>
           <FolderKanban size={44} color="var(--text-muted)" style={{ margin: '0 auto 0.75rem' }} />
           <h3 style={{ fontSize: '1.05rem', fontWeight: 800, marginBottom: '0.35rem' }}>Nincsenek projektek</h3>
@@ -312,25 +347,45 @@ export default function ProjectsListClient({
         </div>
       ) : (
         <>
-          {myProjects.length > 0 && (
-            <div style={{ marginBottom: '1.75rem' }}>
-              {invitedProjects.length > 0 && (
-                <div style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', marginBottom: '0.75rem' }}>
-                  Általam létrehozva
-                </div>
-              )}
+          {/* ── Personal section ── */}
+          <SectionHeader icon={<User />} label="Személyes" count={(personalProjects || []).length} />
+          {(personalProjects || []).length === 0 ? (
+            <p style={{ fontSize: '0.825rem', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>Nincsenek személyes projektek.</p>
+          ) : (
+            <>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(320px, 100%), 1fr))', gap: '1rem' }}>
-                {myProjects.map(p => renderCard(p))}
+                {(expandPersonal ? personalProjects : personalProjects.slice(0, PREVIEW_COUNT)).map(p => renderCard(p))}
               </div>
-            </div>
+              <ShowMoreButton total={(personalProjects || []).length} expanded={expandPersonal} onToggle={() => setExpandPersonal(v => !v)} />
+            </>
           )}
-          {invitedProjects.length > 0 && (
-            <div style={{ marginBottom: '1.75rem' }}>
-              <div style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', marginBottom: '0.75rem' }}>
-                Meghívottként
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(320px, 100%), 1fr))', gap: '1rem' }}>
-                {invitedProjects.map(p => renderCard(p))}
+
+          {/* ── Collective sections ── */}
+          {sharedByCollective.map(col => (
+            <div key={col.id}>
+              <SectionHeader icon={<Users />} label={col.name} count={col.projects.length} accentColor="#16a34a" />
+              {col.projects.length === 0 ? (
+                <p style={{ fontSize: '0.825rem', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>Nincsenek közös projektek.</p>
+              ) : (
+                <>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(320px, 100%), 1fr))', gap: '1rem' }}>
+                    {(expandShared[col.id] ? col.projects : col.projects.slice(0, PREVIEW_COUNT)).map(p => renderCard(p))}
+                  </div>
+                  <ShowMoreButton total={col.projects.length} expanded={!!expandShared[col.id]} onToggle={() => setExpandShared(v => ({ ...v, [col.id]: !v[col.id] }))} />
+                </>
+              )}
+            </div>
+          ))}
+
+          {/* Invite nudge */}
+          {!hasCollectives && (
+            <div style={{ marginTop: '2rem', padding: '1rem 1.25rem', borderRadius: 'var(--radius-md)', background: 'var(--bg-subtle)', border: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <Users size={18} color="var(--text-muted)" style={{ flexShrink: 0 }} />
+              <div>
+                <div style={{ fontWeight: 700, fontSize: '0.825rem', marginBottom: '0.15rem' }}>Csapatban is dolgozol?</div>
+                <div style={{ fontSize: '0.775rem', color: 'var(--text-secondary)' }}>
+                  Hozz létre egy kollektívát a közös projektekhez. <Link href={`${navPrefix}/kollektivak`} style={{ color: 'var(--accent)', fontWeight: 700 }}>Kollektívák →</Link>
+                </div>
               </div>
             </div>
           )}
@@ -345,8 +400,7 @@ export default function ProjectsListClient({
           </div>
         )}
         <form onSubmit={handleCreate}>
-          <CollectiveBanner />
-          <EntitySelector value={activeCreateEntityId} onChange={setProjEntityId} memberships={effectiveMemberships} />
+          <CollectiveSelector value={projEntityId} onChange={setProjEntityId} />
           <div className="form-group">
             <label className="form-label">Kapcsolódó ajánlat <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>(opcionális)</span></label>
             {projLinkedQuoteId ? (
