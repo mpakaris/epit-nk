@@ -8,7 +8,7 @@ import {
   Building2, LayoutDashboard, FolderKanban, Users, BookUser,
   FileText, Calendar, User, LogOut, ShieldAlert,
   ChevronLeft, ChevronRight, Eye, X, Menu, ClipboardList, Ruler, Lightbulb,
-  ChevronDown, Globe, ImageIcon, UsersRound, CreditCard, Package,
+  Globe, ImageIcon, UsersRound, CreditCard, Package,
 } from 'lucide-react';
 import MobileFAB from './MobileFAB';
 
@@ -59,7 +59,7 @@ function isActive(item, pathname) {
 export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
-  const { currentUser, isSuperAdmin, isAdmin, impersonating, stopImpersonation, logout, collectives, effectiveCollectives, setActiveContext, switchImpersonatingContext, activeCollectiveId, allMemberships, entities, isDemoMode, surveys, quotes, projects, clients } = useApp();
+  const { currentUser, isSuperAdmin, isAdmin, impersonating, stopImpersonation, logout, collectives, effectiveCollectives, isDemoMode, surveys, quotes, projects, clients } = useApp();
   const effectiveUser = impersonating || currentUser;
   const navPrefix = isDemoMode ? '/demo' : '';
 
@@ -68,7 +68,6 @@ export default function Sidebar() {
   const [headerVisible, setHeaderVisible] = useState(true);
   const [websiteUnread, setWebsiteUnread] = useState(0);
   const [invitationCount, setInvitationCount] = useState(0);
-  const [showWsTooltip, setShowWsTooltip] = useState(false);
   const lastScrollY = React.useRef(0);
 
   useEffect(() => {
@@ -149,61 +148,6 @@ export default function Sidebar() {
     return () => document.removeEventListener('touchmove', prevent, { passive: false });
   }, [mobileOpen]);
 
-  // Build context switcher list — personal workspace always first, then collectives
-  const activeMemberships = [
-    {
-      collective_id: null,
-      name: impersonating ? `${impersonating.display_name} – Személyes` : 'Személyes',
-      role: 'owner',
-    },
-    ...(effectiveCollectives || []),
-  ];
-
-  const showContextSwitcher = activeMemberships.length > 1 && (impersonating || !isSuperAdmin);
-
-  useEffect(() => {
-    if (!showContextSwitcher) return;
-    // Establish 7-day window from first appearance
-    let first = localStorage.getItem('ws_tooltip_first');
-    if (!first) { first = Date.now().toString(); localStorage.setItem('ws_tooltip_first', first); }
-    const daysElapsed = (Date.now() - Number(first)) / 86400000;
-    if (daysElapsed > 7) return;
-    // Show every login session unless dismissed this session
-    if (!sessionStorage.getItem('ws_tooltip_dismissed')) setShowWsTooltip(true);
-  }, [showContextSwitcher]);
-
-  const dismissWsTooltip = () => {
-    sessionStorage.setItem('ws_tooltip_dismissed', '1');
-    setShowWsTooltip(false);
-  };
-
-  const handleContextChange = (value) => {
-    const collectiveId = value === '' ? null : value;
-    if (impersonating) switchImpersonatingContext(collectiveId);
-    else setActiveContext(collectiveId);
-    router.push(navPrefix + '/dashboard');
-  };
-
-  const ContextSwitcher = () => {
-    if (!showContextSwitcher) return null;
-    return (
-      <div className="ctx-switcher">
-        <select
-          className="ctx-switcher-select"
-          value={activeCollectiveId || ''}
-          onChange={e => handleContextChange(e.target.value)}
-          title="Kontextus váltás"
-        >
-          {activeMemberships.map(m => (
-            <option key={m.collective_id || 'personal'} value={m.collective_id || ''}>
-              {m.name}{m.role === 'admin' ? ' (admin)' : ''}
-            </option>
-          ))}
-        </select>
-        <ChevronDown size={12} className="ctx-switcher-icon" />
-      </div>
-    );
-  };
 
   if (!currentUser && pathname === '/login') return null;
   if (!currentUser) return null;
@@ -247,23 +191,6 @@ export default function Sidebar() {
             {collapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
           </button>
         </div>
-
-        {/* Context switcher */}
-        {!collapsed && (
-          <div style={{ position: 'relative' }}>
-            <ContextSwitcher />
-            {showWsTooltip && (
-              <div style={{ position: 'absolute', top: 'calc(100% + 10px)', left: '0.75rem', right: '0.75rem', background: 'linear-gradient(135deg, #6366f1, #8b5cf6)', color: 'white', borderRadius: 'var(--radius-md)', padding: '0.65rem 0.75rem', fontSize: '0.78rem', lineHeight: 1.4, zIndex: 100, boxShadow: '0 4px 20px rgba(99,102,241,0.4)' }}>
-                <div style={{ position: 'absolute', top: -6, left: 20, width: 12, height: 12, background: '#6366f1', transform: 'rotate(45deg)', borderRadius: 2 }} />
-                <div style={{ fontWeight: 800, marginBottom: '0.3rem', fontSize: '0.82rem' }}>💡 Munkaterület váltó</div>
-                Váltsd a munkaterületet az összes adatod megtekintéséhez!
-                <button onClick={dismissWsTooltip} style={{ display: 'block', marginTop: '0.55rem', background: 'rgba(255,255,255,0.2)', border: '1px solid rgba(255,255,255,0.3)', color: 'white', borderRadius: 'var(--radius-sm)', padding: '0.3rem 0.6rem', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer', width: '100%' }}>
-                  Értettem ✓
-                </button>
-              </div>
-            )}
-          </div>
-        )}
 
         {/* God mode section */}
         {impersonating && (
@@ -408,22 +335,6 @@ export default function Sidebar() {
         <Link href={homeHref} className="sidebar-brand-icon" style={{ flexShrink: 0 }}>
           <Building2 size={18} />
         </Link>
-
-        {showContextSwitcher && (
-          <div style={{ position: 'relative', flex: 1, minWidth: 0 }}>
-            <ContextSwitcher />
-            {showWsTooltip && (
-              <div style={{ position: 'absolute', top: 'calc(100% + 10px)', left: 0, right: 0, background: 'linear-gradient(135deg, #6366f1, #8b5cf6)', color: 'white', borderRadius: 'var(--radius-md)', padding: '0.65rem 0.75rem', fontSize: '0.78rem', lineHeight: 1.4, zIndex: 200, boxShadow: '0 4px 20px rgba(99,102,241,0.4)' }}>
-                <div style={{ position: 'absolute', top: -6, left: 16, width: 12, height: 12, background: '#6366f1', transform: 'rotate(45deg)', borderRadius: 2 }} />
-                <div style={{ fontWeight: 800, marginBottom: '0.3rem', fontSize: '0.82rem' }}>💡 Munkaterület váltó</div>
-                Váltsd a munkaterületet az összes adatod megtekintéséhez!
-                <button onClick={dismissWsTooltip} style={{ display: 'block', marginTop: '0.55rem', background: 'rgba(255,255,255,0.2)', border: '1px solid rgba(255,255,255,0.3)', color: 'white', borderRadius: 'var(--radius-sm)', padding: '0.3rem 0.6rem', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer', width: '100%' }}>
-                  Értettem ✓
-                </button>
-              </div>
-            )}
-          </div>
-        )}
 
         {impersonating && <Eye size={15} style={{ flexShrink: 0, color: '#7c3aed' }} />}
 
