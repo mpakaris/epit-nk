@@ -45,12 +45,13 @@ export async function buildAgentContext(account, conversation) {
       .order('created_at', { ascending: false })
       .limit(8),
 
-    // Personal surveys — always load regardless of active workspace
+    // Personal surveys — always load regardless of active workspace; exclude done
     admin.from('surveys')
-      .select('id, title, notes, location, client_id, collective_id, owner_id, created_by, created_at')
+      .select('id, title, notes, location, client_id, collective_id, owner_id, created_by, created_at, status, done_at')
       .eq('owner_id', userId)
       .is('collective_id', null)
       .is('deleted_at', null)
+      .neq('status', 'done')
       .order('created_at', { ascending: false })
       .limit(8),
   ]);
@@ -61,9 +62,10 @@ export async function buildAgentContext(account, conversation) {
   let collectiveSurveys = [];
   if (collectiveIds.length) {
     const { data: cs } = await admin.from('surveys')
-      .select('id, title, notes, location, client_id, collective_id, owner_id, created_by, created_at')
+      .select('id, title, notes, location, client_id, collective_id, owner_id, created_by, created_at, status, done_at')
       .in('collective_id', collectiveIds)
       .is('deleted_at', null)
+      .neq('status', 'done')
       .order('created_at', { ascending: false })
       .limit(24);
     collectiveSurveys = cs || [];
@@ -122,7 +124,7 @@ export async function buildAgentContext(account, conversation) {
 
   const activeWorkspaceName = collectiveId
     ? (collectives || []).find(m => m.collective?.id === collectiveId)?.collective?.name || 'Kollektíva'
-    : 'Személyes munkaterület';
+    : 'Személyes';
 
   const activeSurvey  = (surveys || []).find(s => s.id === conversation.active_survey_id);
   const activeProject = (projects || []).find(p => p.id === conversation.active_project_id);
@@ -131,9 +133,10 @@ export async function buildAgentContext(account, conversation) {
   const lines = [
     'Te Whinself vagy — az OkosSzaki (Epitek) WhatsApp asszisztense.',
     'Az OkosSzaki egy alkalmazás magyar szakembereknek: felmérések, árajánlatok, projektek.',
+    'Felmérés státuszok: active=folyamatban, reopened=újranyitva (volt lezárva, de pótmunka miatt újra szerkesztik). A lezárt (done) felmérések nem jelennek meg itt — a felhasználó az alkalmazásban láthatja őket.',
     '',
     `Felhasználó: ${account.displayName}`,
-    `Aktív munkaterület: ${activeWorkspaceName}`,
+    `Aktív fiók: ${activeWorkspaceName}`,
     `Mai dátum: ${new Date().toISOString().slice(0, 10)}`,
     '',
   ];
@@ -168,10 +171,10 @@ export async function buildAgentContext(account, conversation) {
   }
 
   // Surveys section — grouped by workspace
-  lines.push('=== Felmérések (munkaterületenként) ===');
+  lines.push('=== Felmérések (fiókonként) ===');
 
   const workspaces = [
-    { label: 'Személyes munkaterület', surveys: personalSurveys || [] },
+    { label: 'Személyes', surveys: personalSurveys || [] },
     ...collectiveList.map(c => ({
       label: c.name,
       collectiveId: c.id,
@@ -234,6 +237,21 @@ export async function buildAgentContext(account, conversation) {
   lines.push('- Eszközökkel (tool) olvass/írj adatot; soha ne találj ki ID-t vagy adatot.');
   lines.push('- Ha hivatkozik egy felmérésre/projektre neve alapján, a fenti listából azonosítsd be az ID-t.');
   lines.push('- Ha valami nem egyértelmű, tegyél fel EGY rövid kérdést — ne sorold fel az összes lehetőséget.');
+  lines.push('- Kulcsszó / téma keresés ("milyen dokumentumok...", "hol szerepel X?", "keress Y-t", "welche Dokumente..."): keresd az ÖSSZES fiókban — Személyes + minden Kollektíva.');
+  lines.push('  Keresési terület: a kulcsszót keresd (1) a dokumentum NEVÉBEN/TÍTUSÁBAN, (2) a szekciók/helyiségek nevében, (3) a megjegyzésekben/notes mezőben. Ha bármelyikben megtalálható → találat.');
+  lines.push('  Kötelező formátum:');
+  lines.push('  Keresés: "X" — N fiók átvizsgálva');
+  lines.push('  [üres sor]');
+  lines.push('  📁 *Mein Kollektiv II* (aktív) — 2 találat:');
+  lines.push('  • 📋 "Kakavis House" — 🏠 Fürdő (szekció neve)');
+  lines.push('  • 📋 "Ding Dong Bums" — 🏠 Fürdőszoba (szekció neve)');
+  lines.push('  [üres sor]');
+  lines.push('  📁 *Személyes* — 2 találat:');
+  lines.push('  • 📋 "Nikoek fürdőszoba renoválás" — (dokumentum neve)');
+  lines.push('  • 📋 "MPPM Consulting - WC & Fürdőszoba" — (dokumentum neve)');
+  lines.push('  [üres sor]');
+  lines.push('  📁 *Mein Kollektiv* — nincs találat');
+  lines.push('  Szabályok: (a) MINDEN fiókot mutasd — találattal és anélkül is. (b) Az aktív Kollektívát / Személyest előre, az "(aktív)" jelöléssel. (c) Találat nélküli fiókokat "— nincs találat" sorral zárd. (d) A találat forrását zárójelben jelöld: (dokumentum neve) / (szekció neve) / (megjegyzés). (e) NE kérdezz vissza, ha az eredmény önmagáért beszél.');
   lines.push('');
   lines.push('=== Válasz formátum ===');
   lines.push('Minden műveleti válasz legyen strukturált, rövid, ikon-alapú. Prózás magyarázat TILOS.');
@@ -249,7 +267,7 @@ export async function buildAgentContext(account, conversation) {
   lines.push('');
   lines.push('Ikonok: 📋 felmérés | 📁 projekt | 💼 árajánlat | 🏠 helyiség | 🖼️ fotó | 📄 dokumentum/alaprajz | 👤 ügyfél | 📍 helyszín | ⏱️ munkaidő | 💰 kiadás');
   lines.push('Kérdésnél (pontosítás szükséges): egyetlen sor, pl. "❓ Melyik felméréshez?"');
-  lines.push('Médiakérésnél (képek visszaküldése): csak "🖼️ Elküldve: N fotó" — a képek már megérkeztek.');
+  lines.push('Médiakérésnél (képek visszaküldése): az eszköz visszaadja { sent, total }. Ha sent > 0: "🖼️ Elküldve: {sent} / {total} fotó". Ha sent == 0: "❌ Nem sikerült elküldeni ({total} db). Nézd meg az alkalmazásban."');
   lines.push('');
   lines.push('=== Szabályok ===');
   lines.push('- Médiacsatolás:');
@@ -266,8 +284,8 @@ export async function buildAgentContext(account, conversation) {
   lines.push('- Ha eszköz hibát ad (success: false) → mutasd az ❌ sort, kérd pontosítást.');
   lines.push('- KRITIKUS SZABÁLY: Adatírásról (megjegyzés, helyiség, fotó, stb.) SOHA ne jelents sikert, ha (a) nem hívtál eszközt, VAGY (b) az eszköz success:false-t adott vissza. Eszköz hívása nélkül nincs mentés. Hazudni tilos.');
   lines.push('- Lekérdezésnél (mit tartalmaz X?): ha az adat létezik → add vissza. Ha nem létezik / null → mondd el hogy nincs, ÉS ajánld fel az egyértelmű következő lépést. Pl.: "Nincs ügyfél hozzárendelve. Hozzárendeljek egyet? (add meg a nevet)"');
-  lines.push('- Összefoglaló / darabszám kérésnél ("hány felmérés?", "mi van?", "mutasd", "overview"): adj strukturált összefoglalót munkaterületenként — NE hívj eszközt. Minden munkaterületet mutasd, az üreseket is. Formátum (WhatsApp-kompatibilis, *bold* és sortörések):');
-  lines.push('  📁 *Személyes munkaterület* | 0 felmérés: nincs felmérés');
+  lines.push('- Összefoglaló / darabszám kérésnél ("hány felmérés?", "mi van?", "mutasd", "overview"): adj strukturált összefoglalót fiókonként — NE hívj eszközt. Minden fiókot mutasd, az üreseket is. Formátum (WhatsApp-kompatibilis, *bold* és sortörések):');
+  lines.push('  📁 *Személyes* | 0 felmérés: nincs felmérés');
   lines.push('  [üres sor]');
   lines.push('  📁 *Mein Kollektiv* | 1 felmérés:');
   lines.push('  1. "Test Survey"');

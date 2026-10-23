@@ -3,7 +3,7 @@ import { resolveAccount, UNREGISTERED_REPLY } from '@/lib/waAssistant/resolveAcc
 import { toJid, jidToE164 } from '@/lib/waAssistant/jid';
 import { loadConversation, saveConversation, appendToContextWindow } from '@/lib/waAssistant/conversation';
 import { resolveWorkspace } from '@/lib/waAssistant/resolveWorkspace';
-import { resolveClarification } from '@/lib/waAssistant/clarification';
+import { resolveClarification, saveClarification } from '@/lib/waAssistant/clarification';
 import { revertLastAction } from '@/lib/waAssistant/actions/revert';
 import { buildAgentContext } from '@/lib/waAssistant/agentContext';
 import { TOOL_DEFS, buildToolExecutors } from '@/lib/waAssistant/agentTools';
@@ -222,9 +222,12 @@ async function processItem(item, admin, appUrl, secret) {
 
     // ── Workspace resolution ──────────────────────────────────────────────────
 
-    // Handle pending workspace choice response ("1", "2", etc.)
-    if (conversation.pending_clarification?.type === 'workspace_choice') {
-      const clarResult = await resolveClarification(phoneNumber, content, conversation);
+    // Handle any pending workspace or document selection ("1", "2", etc.)
+    if (conversation.pending_clarification?.type === 'document_list' ||
+        conversation.pending_clarification?.type === 'workspace_choice') {
+      const pendingType = conversation.pending_clarification.type;
+      const clarResult  = await resolveClarification(phoneNumber, content, conversation);
+
       if (clarResult.resolved) {
         const isPersonal   = clarResult.chosenOption.id === '__personal__';
         const collectiveId = isPersonal ? null : clarResult.chosenOption.id;
@@ -234,19 +237,17 @@ async function processItem(item, admin, appUrl, secret) {
           active_project_id:    null,
           active_survey_id:     null,
         });
-        account.collectiveId                   = collectiveId;
-        conversation.workspace_chosen          = true;
-        conversation.active_collective_id      = collectiveId;
-        conversation.pending_clarification     = null;
-        log(phoneNumber, 'workspace-chosen', { collective: collectiveId ?? 'personal' });
+        account.collectiveId              = collectiveId;
+        conversation.workspace_chosen     = true;
+        conversation.active_collective_id = collectiveId;
+        conversation.pending_clarification = null;
+        log(phoneNumber, 'workspace-chosen', { collective: collectiveId ?? 'personal', via: pendingType });
 
-        // If original message was stored, restore it so the agent processes it
         const originalContent = clarResult.originalPayload?.originalContent;
         if (originalContent) {
           content = originalContent;
         } else {
-          const label = isPersonal ? 'Személyes munkaterület' : clarResult.chosenOption.name;
-          await sendReply(appUrl, secret, phoneNumber, `✓ Aktív munkaterület: *${label}*`);
+          await sendReply(appUrl, secret, phoneNumber, '✓ Rendben, dolgozzunk tovább!');
           await finalise(admin, item.id, waMsg?.id, startedAt, { action_taken: 'workspace_chosen' });
           return;
         }
@@ -257,18 +258,32 @@ async function processItem(item, admin, appUrl, secret) {
       } else {
         const pc   = conversation.pending_clarification;
         const opts = (pc?.options || []).map((o, i) => `${i + 1}. ${o.name}`).join('\n');
-        await sendReply(appUrl, secret, phoneNumber, `Melyik munkaterületen dolgozol?\n\n${opts}\n\nVálaszolj egy számmal.`);
+        await sendReply(appUrl, secret, phoneNumber,
+          pendingType === 'document_list'
+            ? `Kérlek válassz egy dokumentumot:\n\n${opts}\n\nVálaszolj egy számmal, vagy írd: mégse`
+            : `Melyik fiókban dolgozol?\n\n${opts}\n\nVálaszolj egy számmal.`);
         await finalise(admin, item.id, waMsg?.id, startedAt, { action_taken: 'workspace_re_ask' });
         return;
       }
+
     } else {
       const wsResult = await resolveWorkspace(account, conversation, phoneNumber, content);
-      log(phoneNumber, 'workspace', { needsClarification: wsResult.needsClarification, collectiveId: wsResult.collectiveId ?? 'personal' });
+      log(phoneNumber, 'workspace', {
+        needsClarification: wsResult.needsClarification,
+        type: wsResult.clarificationType ?? 'resolved',
+        collectiveId: wsResult.collectiveId ?? 'personal',
+      });
 
       if (wsResult.needsClarification) {
-        const opts = wsResult.clarificationOptions.map((o, i) => `${i + 1}. ${o.name}`).join('\n');
-        await sendReply(appUrl, secret, phoneNumber,
-          `Melyik munkaterületen dolgozol most?\n\n${opts}\n\nVálaszolj egy számmal, vagy írd: mégse`);
+        if (wsResult.clarificationType === 'document_list') {
+          const opts = wsResult.options.map((o, i) => `${i + 1}. ${o.name}`).join('\n');
+          await sendReply(appUrl, secret, phoneNumber,
+            `Találtam néhány dokumentumot, ami illeszkedik a kéréséhez:\n\n${opts}\n\nKérlek válassz egyet, vagy írd: mégse`);
+        } else {
+          const opts = wsResult.clarificationOptions.map((o, i) => `${i + 1}. ${o.name}`).join('\n');
+          await sendReply(appUrl, secret, phoneNumber,
+            `Melyik fiókban dolgozol most?\n\n${opts}\n\nVálaszolj egy számmal, vagy írd: mégse`);
+        }
         await finalise(admin, item.id, waMsg?.id, startedAt, { action_taken: 'workspace_clarification' });
         return;
       }

@@ -2,6 +2,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { saveConversation, saveLastAction } from './conversation';
 import { logAudit } from '@/lib/audit';
 import { attachMedia as attachMediaAction } from './actions/attachMedia';
+import { uploadToR2, r2PublicUrl, toJpeg } from '@/lib/r2';
 
 // Accent-insensitive normalization for Hungarian room names
 // e.g. "Fürdőszoba" and "Fürdöszoba" both normalize to "furdoszoba"
@@ -349,7 +350,7 @@ export function buildToolExecutors({ account, conversation, phoneNumber, mediaUr
   async function sendMedia(url, caption, mimeType) {
     const jid = phoneNumber.includes('@') ? phoneNumber : `${phoneNumber.replace(/\D/g, '')}@s.whatsapp.net`;
     const isDocument = mimeType === 'application/pdf';
-    await fetch(`${appUrl}/api/wa/send`, {
+    const res = await fetch(`${appUrl}/api/wa/send`, {
       method:  'POST',
       headers: { 'Authorization': `Bearer ${secret}`, 'Content-Type': 'application/json' },
       body: JSON.stringify(
@@ -358,6 +359,10 @@ export function buildToolExecutors({ account, conversation, phoneNumber, mediaUr
           : { chatId: jid, image: { url }, caption: caption || null }
       ),
     });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new Error(body.error || `send_failed (${res.status})`);
+    }
   }
 
   return {
@@ -659,8 +664,29 @@ export function buildToolExecutors({ account, conversation, phoneNumber, mediaUr
         const url = item.drive_view_url;
         if (!url) continue;
         const label = item.media_type === 'layout' ? 'Alaprajz' : item.file_name || 'Fotó';
+
+        let sendUrl  = url;
+        let sendMime = item.mime_type;
+
+        // Whinself cannot send WebP — convert to JPEG on-the-fly for legacy images
+        if (item.mime_type === 'image/webp') {
+          try {
+            const res = await fetch(url);
+            if (!res.ok) throw new Error(`fetch ${res.status}`);
+            const webpBuf = Buffer.from(await res.arrayBuffer());
+            const { buffer: jpegBuf } = await toJpeg(webpBuf);
+            const tempKey = `wa_temp/${Date.now()}-${Math.random().toString(36).slice(2, 7)}.jpg`;
+            await uploadToR2(tempKey, jpegBuf, 'image/jpeg');
+            sendUrl  = r2PublicUrl(tempKey);
+            sendMime = 'image/jpeg';
+          } catch (convErr) {
+            console.error('[show_media] webp→jpeg conversion failed:', convErr.message);
+            // fall through with original url — will likely fail but let the error surface
+          }
+        }
+
         try {
-          await sendMedia(url, label, item.mime_type);
+          await sendMedia(sendUrl, label, sendMime);
           sent++;
         } catch (err) {
           console.error('[show_media] send error:', err.message);

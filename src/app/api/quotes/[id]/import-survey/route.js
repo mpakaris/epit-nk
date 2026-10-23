@@ -53,5 +53,13 @@ export async function POST(request, { params }) {
   const { data: sections, error } = await admin.from('quote_sections').insert(rows).select();
   if (error) return Response.json({ error: error.message }, { status: 500 });
 
+  // Flip survey to done on first import (only if still active)
+  const { data: survey } = await admin.from('surveys').select('status').eq('id', quote.survey_id).single();
+  if (survey?.status === 'active') {
+    await admin.from('surveys')
+      .update({ status: 'done', done_at: new Date().toISOString() })
+      .eq('id', quote.survey_id);
+  }
+
   return Response.json({ sections: sections || [] }, { status: 201 });
 }

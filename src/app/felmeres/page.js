@@ -7,33 +7,57 @@ import { formatDate } from '@/lib/constants';
 import { ConfirmModal, AlertModal } from '@/components/Modal';
 import {
   Ruler, Plus, MapPin, Calendar, Clock, User, Trash2,
-  LayoutPanelLeft, Camera, PenLine, Grid3x3,
+  LayoutPanelLeft, Camera, PenLine, Grid3x3, CheckCircle2, RefreshCw, AlertTriangle,
 } from 'lucide-react';
 import PageSpinner from '@/components/PageSpinner';
 import WorkspaceBadge from '@/components/WorkspaceBadge';
 
-function getSurveyStatus(surveyId, quotes, projects) {
-  const linkedProject = projects.find(p => p.survey_id === surveyId);
-  if (linkedProject) return { label: 'Projekt létrehozva', bg: 'var(--success-bg)', color: 'var(--success-text)', border: 'var(--success-border)' };
-  const linkedQuote = quotes.find(q => q.survey_id === surveyId);
-  if (linkedQuote) return { label: 'Ajánlat létrehozva', bg: 'var(--warning-bg)', color: 'var(--warning-text)', border: 'var(--warning-border)' };
-  return { label: 'Nincs ajánlat', bg: 'var(--bg-subtle)', color: 'var(--text-secondary)', border: 'var(--border-subtle)' };
+function getSurveyStatusBadge(status) {
+  if (status === 'done')     return { label: 'Lezárt',     bg: 'var(--success-bg)',  color: 'var(--success-text)',  border: 'var(--success-border)',  icon: <CheckCircle2 size={10} /> };
+  if (status === 'reopened') return { label: 'Újranyitva', bg: 'var(--warning-bg)',  color: 'var(--warning-text)',  border: 'var(--warning-border)',  icon: <RefreshCw    size={10} /> };
+  return                            { label: 'Aktív',      bg: 'var(--accent-light)', color: 'var(--accent)',        border: 'var(--accent-border)',   icon: null };
 }
 
 export default function SurveyListPage() {
-  const { loading, dataReady, surveys, quotes, projects, clients, users, isAdmin, currentUser, activeCollectiveId, deleteSurvey, isDemoMode } = useApp();
+  const { loading, dataReady, surveys, quotes, projects, clients, users, isAdmin, currentUser, activeCollectiveId, deleteSurvey, updateSurvey, isDemoMode } = useApp();
   const navPrefix = isDemoMode ? '/demo' : '';
 
   const [search, setSearch] = useState('');
+  const [tab, setTab] = useState('active');
   const [confirmModal, setConfirmModal] = useState(null);
   const [alertModal, setAlertModal] = useState(null);
+  const [closingId, setClosingId] = useState(null);
+
+  const STALE_DAYS = 90;
+  const isStale = (survey) => {
+    if (survey.status !== 'active') return false;
+    const ref = survey.updated_at || survey.created_at;
+    if (!ref) return false;
+    return (Date.now() - new Date(ref).getTime()) > STALE_DAYS * 86400_000;
+  };
+
+  const handleQuickClose = async (e, survey) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setClosingId(survey.id);
+    try {
+      await updateSurvey(survey.id, { status: 'done', done_at: new Date().toISOString() });
+    } catch { /* updateSurvey shows its own error */ }
+    setClosingId(null);
+  };
 
   if (loading || !dataReady) return <PageSpinner />;
 
   const norm = (s) => (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
   const q = norm(search);
 
-  const filtered = surveys.filter(s => {
+  const byTab = surveys.filter(s =>
+    tab === 'done' ? s.status === 'done' : s.status !== 'done'
+  );
+  const doneCount   = surveys.filter(s => s.status === 'done').length;
+  const activeCount = surveys.filter(s => s.status !== 'done').length;
+
+  const filtered = byTab.filter(s => {
     if (!q) return true;
     const client = clients.find(c => c.id === s.client_id);
     return norm(s.title).includes(q) || norm(client?.name).includes(q) || norm(s.location).includes(q);
@@ -70,6 +94,35 @@ export default function SurveyListPage() {
         </div>
       </div>
 
+      {/* ── Active / Done tabs ── */}
+      <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', borderBottom: '2px solid var(--border-subtle)', paddingBottom: '0' }}>
+        {[
+          { key: 'active', label: 'Aktív',   count: activeCount },
+          { key: 'done',   label: 'Lezárt',  count: doneCount   },
+        ].map(({ key, label, count }) => (
+          <button
+            key={key}
+            type="button"
+            onClick={() => setTab(key)}
+            style={{
+              background: 'none', border: 'none', cursor: 'pointer', padding: '0.5rem 0.75rem',
+              fontSize: '0.875rem', fontWeight: tab === key ? 700 : 500,
+              color: tab === key ? 'var(--accent)' : 'var(--text-secondary)',
+              borderBottom: tab === key ? '2px solid var(--accent)' : '2px solid transparent',
+              marginBottom: '-2px', display: 'flex', alignItems: 'center', gap: '0.4rem',
+            }}
+          >
+            {label}
+            <span style={{
+              fontSize: '0.7rem', fontWeight: 700, padding: '0.1rem 0.4rem',
+              borderRadius: 'var(--radius-pill)',
+              background: tab === key ? 'var(--accent)' : 'var(--bg-subtle)',
+              color: tab === key ? '#fff' : 'var(--text-muted)',
+            }}>{count}</span>
+          </button>
+        ))}
+      </div>
+
       <div style={{ marginBottom: '1.25rem' }}>
         <input
           type="text"
@@ -99,7 +152,7 @@ export default function SurveyListPage() {
           {filtered.map(survey => {
             const client   = clients.find(c => c.id === survey.client_id);
             const creator  = users.find(u => u.id === survey.created_by);
-            const status   = getSurveyStatus(survey.id, quotes, projects);
+            const status   = getSurveyStatusBadge(survey.status);
             const previews = survey._preview_urls || [];
 
             return (
@@ -144,8 +197,8 @@ export default function SurveyListPage() {
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '0.3rem' }}>
                         <h3 style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{survey.title}</h3>
-                        <span style={{ fontSize: '0.7rem', fontWeight: 700, padding: '0.12rem 0.45rem', borderRadius: 'var(--radius-pill)', background: status.bg, color: status.color, border: `1px solid ${status.border}`, whiteSpace: 'nowrap', flexShrink: 0 }}>
-                          {status.label}
+                        <span style={{ fontSize: '0.7rem', fontWeight: 700, padding: '0.12rem 0.45rem', borderRadius: 'var(--radius-pill)', background: status.bg, color: status.color, border: `1px solid ${status.border}`, whiteSpace: 'nowrap', flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                          {status.icon}{status.label}
                         </span>
                       </div>
 
@@ -202,6 +255,24 @@ export default function SurveyListPage() {
                       </span>
                     )}
                   </div>
+
+                  {/* Stale warning — active survey not touched in 90+ days */}
+                  {isStale(survey) && (
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem', padding: '0.35rem 0.5rem', borderRadius: 'var(--radius-sm)', background: 'var(--warning-bg)', border: '1px solid var(--warning-border)', fontSize: '0.72rem', color: 'var(--warning-text)', fontWeight: 600 }}>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                        <AlertTriangle size={11} />
+                        {Math.floor((Date.now() - new Date(survey.updated_at || survey.created_at).getTime()) / 86400_000)} napja nem szerkesztett
+                      </span>
+                      <button
+                        type="button"
+                        disabled={closingId === survey.id}
+                        onClick={e => handleQuickClose(e, survey)}
+                        style={{ background: 'var(--warning-text)', color: '#fff', border: 'none', borderRadius: 'var(--radius-sm)', padding: '0.15rem 0.45rem', fontSize: '0.68rem', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.25rem', flexShrink: 0 }}
+                      >
+                        <CheckCircle2 size={10} /> Lezárás
+                      </button>
+                    </div>
+                  )}
 
                   {/* Stats pills */}
                   <div style={{ display: 'flex', gap: '0.3rem', flexWrap: 'wrap', paddingTop: '0.35rem', borderTop: '1px solid var(--border-subtle)' }}>

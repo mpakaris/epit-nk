@@ -78,7 +78,7 @@ export async function PATCH(request, { params }) {
     return Response.json({ error: 'Csak a tulajdonos helyezhet át felmérést.' }, { status: 403 });
 
   const allowed = (isOwner || isSuperAdmin || isKollektivOwner)
-    ? ['title', 'notes', 'date', 'location', 'client_id', 'shared_with', 'collective_id']
+    ? ['title', 'notes', 'date', 'location', 'client_id', 'shared_with', 'collective_id', 'status', 'done_at', 'reopened_at']
     : ['shared_with'];
   const update = {};
   for (const k of allowed) if (k in fields) update[k] = fields[k];

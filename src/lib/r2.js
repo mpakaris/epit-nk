@@ -64,6 +64,20 @@ export async function toWebp(inputBuffer, { quality = 82, maxDimension = 2400 } 
   return { buffer: webpBuffer, mimeType: 'image/webp' };
 }
 
+/**
+ * Convert any image buffer to JPEG using sharp.
+ * Returns { buffer, mimeType } — always 'image/jpeg'.
+ * Used for WhatsApp outbound delivery (Whinself rejects WebP).
+ */
+export async function toJpeg(inputBuffer, { quality = 85, maxDimension = 2400 } = {}) {
+  const jpegBuffer = await sharp(inputBuffer)
+    .rotate()
+    .resize(maxDimension, maxDimension, { fit: 'inside', withoutEnlargement: true })
+    .jpeg({ quality })
+    .toBuffer();
+  return { buffer: jpegBuffer, mimeType: 'image/jpeg' };
+}
+
 /** Build the R2 object key for a diary media file. */
 export function diaryMediaKey(entityId, mimeType, filename) {
   const isVideo = mimeType?.startsWith('video/');

@@ -14,6 +14,7 @@ import {
   FileText, FolderKanban, Home, Ruler, LayoutPanelLeft,
   Camera, Plus, AlertCircle, Sparkles, List,
   Package, Hammer, MoreHorizontal, Wrench, Truck,
+  CheckCircle2, RefreshCw, Send,
 } from 'lucide-react';
 import PageSpinner from '@/components/PageSpinner';
 import { processMediaFile } from '@/lib/mediaGate';
@@ -911,6 +912,7 @@ export default function SurveyDetailPage() {
   const [showMetaDrawer, setShowMetaDrawer] = useState(false);
   const [showAddEntry, setShowAddEntry]   = useState(false);
   const [editingEntry, setEditingEntry]   = useState(null);
+  const [statusSaving, setStatusSaving]   = useState(false);
 
   useEffect(() => {
     if (!dataReady) return;
@@ -948,6 +950,25 @@ export default function SurveyDetailPage() {
 
   const linkedQuote   = quotes.find(q => q.survey_id === id);
   const linkedProject = projects.find(p => p.survey_id === id);
+
+  const handleStatusChange = async (newStatus) => {
+    setStatusSaving(true);
+    try {
+      const body = { status: newStatus };
+      if (newStatus === 'reopened') body.reopened_at = new Date().toISOString();
+      if (newStatus === 'done')     body.done_at     = new Date().toISOString();
+      await fetch(`/api/surveys/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      await updateSurvey?.(id, body);
+    } catch (e) {
+      setAlertModal({ message: 'Állapot mentése sikertelen.' });
+    } finally {
+      setStatusSaving(false);
+    }
+  };
 
   const handleDeleteSurvey = () => {
     const entryCount   = entries.length;
@@ -1017,12 +1038,46 @@ export default function SurveyDetailPage() {
       {/* Header */}
       <div className="page-header" style={{ padding: '0.5rem 0 1rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '1rem', flexWrap: 'wrap' }}>
-          <h1 className="page-title" style={{ marginBottom: 0 }}>{survey.title}</h1>
-          {canEditMeta && (
-            <button type="button" onClick={handleDeleteSurvey} className="btn btn-danger btn-sm">
-              <Trash2 size={14} /> Törlés
-            </button>
-          )}
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap', marginBottom: '0.35rem' }}>
+              <h1 className="page-title" style={{ marginBottom: 0 }}>{survey.title}</h1>
+              {/* Status badge */}
+              {survey.status === 'done' && (
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.75rem', fontWeight: 700, padding: '0.2rem 0.6rem', borderRadius: 'var(--radius-pill)', background: 'var(--success-bg)', color: 'var(--success-text)', border: '1px solid var(--success-border)' }}>
+                  <CheckCircle2 size={12} /> Lezárt
+                </span>
+              )}
+              {survey.status === 'reopened' && (
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.75rem', fontWeight: 700, padding: '0.2rem 0.6rem', borderRadius: 'var(--radius-pill)', background: 'var(--warning-bg)', color: 'var(--warning-text)', border: '1px solid var(--warning-border)' }}>
+                  <RefreshCw size={12} /> Újranyitva
+                </span>
+              )}
+            </div>
+            {/* Status action hint */}
+            {survey.status === 'done' && survey.done_at && (
+              <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: 0 }}>
+                Lezárva: {new Date(survey.done_at).toLocaleDateString('hu-HU', { year: 'numeric', month: 'short', day: 'numeric' })}
+              </p>
+            )}
+          </div>
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+            {/* Re-open / Mark done toggle */}
+            {canEditMeta && survey.status === 'done' && (
+              <button type="button" onClick={() => handleStatusChange('reopened')} disabled={statusSaving} className="btn btn-secondary btn-sm">
+                <RefreshCw size={13} /> Újranyitás
+              </button>
+            )}
+            {canEditMeta && (survey.status === 'active' || survey.status === 'reopened') && (
+              <button type="button" onClick={() => handleStatusChange('done')} disabled={statusSaving} className="btn btn-secondary btn-sm">
+                <CheckCircle2 size={13} /> Lezárás
+              </button>
+            )}
+            {canEditMeta && (
+              <button type="button" onClick={handleDeleteSurvey} className="btn btn-danger btn-sm">
+                <Trash2 size={14} /> Törlés
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -1140,36 +1195,61 @@ export default function SurveyDetailPage() {
         )}
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-          {entries.map(entry => (
-            <div key={entry.id}>
-              {canEditEntry(entry) && editingEntry?.id === entry.id ? (
-                <div className="card" style={{ padding: '1rem', border: '2px solid var(--accent-border)', background: 'var(--accent-light)' }}>
-                  <div style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--accent)', letterSpacing: '0.05em', marginBottom: '0.75rem' }}>Szerkesztés: {entry.name}</div>
-                  <EntryForm
-                    initial={entry}
+          {entries.map(entry => {
+            const isNewEntry = survey.status === 'reopened'
+              && survey.done_at
+              && entry.created_at
+              && new Date(entry.created_at) > new Date(survey.done_at);
+
+            return (
+              <div key={entry.id}>
+                {/* New-entry banner for reopened surveys */}
+                {isNewEntry && (
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem', padding: '0.4rem 0.75rem', borderRadius: 'var(--radius-sm) var(--radius-sm) 0 0', background: 'var(--warning-bg)', border: '1px solid var(--warning-border)', borderBottom: 'none', fontSize: '0.75rem', fontWeight: 700, color: 'var(--warning-text)' }}>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                      <RefreshCw size={11} /> Új szekció — újranyitás után hozzáadva
+                    </span>
+                    {linkedQuote && (
+                      <button
+                        type="button"
+                        onClick={() => router.push(`${navPrefix}/ajanlatok/${linkedQuote.id}`)}
+                        style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', background: 'var(--warning-text)', color: '#fff', border: 'none', borderRadius: 'var(--radius-sm)', padding: '0.2rem 0.5rem', fontSize: '0.7rem', fontWeight: 700, cursor: 'pointer' }}
+                      >
+                        <Send size={10} /> Küldés árajánlatba
+                      </button>
+                    )}
+                  </div>
+                )}
+                {canEditEntry(entry) && editingEntry?.id === entry.id ? (
+                  <div className="card" style={{ padding: '1rem', border: '2px solid var(--accent-border)', background: 'var(--accent-light)', ...(isNewEntry ? { borderRadius: '0 0 var(--radius-md) var(--radius-md)' } : {}) }}>
+                    <div style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--accent)', letterSpacing: '0.05em', marginBottom: '0.75rem' }}>Szerkesztés: {entry.name}</div>
+                    <EntryForm
+                      initial={entry}
+                      surveyId={id}
+                      onSave={(fields) => updateSurveyEntry(id, entry.id, fields)}
+                      onCancel={() => setEditingEntry(null)}
+                    />
+                  </div>
+                ) : (
+                  <SurveyEntryCard
+                    entry={entry}
                     surveyId={id}
-                    onSave={(fields) => updateSurveyEntry(id, entry.id, fields)}
-                    onCancel={() => setEditingEntry(null)}
+                    canEditEntry={canEditEntry(entry)}
+                    canAdd={canAdd}
+                    onEdit={() => { setEditingEntry(entry); setShowAddEntry(false); }}
+                    onDelete={() => handleDeleteEntry(entry)}
+                    handleDeleteMedia={handleDeleteMedia}
+                    drawings={drawings}
+                    createSurveyDrawing={createSurveyDrawing}
+                    deleteSurveyDrawing={deleteSurveyDrawing}
+                    canDrawings={canDrawings}
+                    currentUser={currentUser}
+                    style={isNewEntry ? { borderRadius: '0 0 var(--radius-md) var(--radius-md)', borderTop: '2px solid var(--warning-border)' } : undefined}
                   />
-                </div>
-              ) : (
-                <SurveyEntryCard
-                  entry={entry}
-                  surveyId={id}
-                  canEditEntry={canEditEntry(entry)}
-                  canAdd={canAdd}
-                  onEdit={() => { setEditingEntry(entry); setShowAddEntry(false); }}
-                  onDelete={() => handleDeleteEntry(entry)}
-                  handleDeleteMedia={handleDeleteMedia}
-                  drawings={drawings}
-                  createSurveyDrawing={createSurveyDrawing}
-                  deleteSurveyDrawing={deleteSurveyDrawing}
-                  canDrawings={canDrawings}
-                  currentUser={currentUser}
-                />
-              )}
-            </div>
-          ))}
+                )}
+              </div>
+            );
+          })}
         </div>
       </div>
 

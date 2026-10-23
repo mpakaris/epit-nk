@@ -45,7 +45,7 @@ export async function createSurvey({ waAccount, conversation, extracted, phoneNu
 
   const workspaceName = waAccount.collectiveId
     ? (waAccount.waAccount?.collective?.name || 'Kollektíva')
-    : 'Személyes munkaterület';
+    : 'Személyes';
 
   await saveClarification(phoneNumber, 'doc_mode_choice', [
     { id: 'guided', name: 'Vezérelt — lépésről lépésre segítelek' },
@@ -53,7 +53,7 @@ export async function createSurvey({ waAccount, conversation, extracted, phoneNu
   ], null, { surveyId: survey.id, surveyTitle: title, workspaceName });
 
   return {
-    reply: `✓ Felmérés létrehozva\n\nNév: *${title}*\nMunkaterület: *${workspaceName}*\n\nÉszrevettem, hogy néhány információ hiányzik (helyiségek, ügyfél, fotók).\nSzeretnéd, hogy végigvezesselek, vagy inkább szabad szöveggel folytatod?\n\n1. Vezérelt — lépésről lépésre segítelek\n2. Szabad — te irányítasz\n\n_Visszavonáshoz: vissza_`,
+    reply: `✓ Felmérés létrehozva\n\nNév: *${title}*\nFiók: *${workspaceName}*\n\nÉszrevettem, hogy néhány információ hiányzik (szekciók, ügyfél, fotók).\nSzeretnéd, hogy végigvezesselek, vagy inkább szabad szöveggel folytatod?\n\n1. Vezérelt — lépésről lépésre segítelek\n2. Szabad — te irányítasz\n\n_Visszavonáshoz: vissza_`,
     needsClarification: false,
   };
 }

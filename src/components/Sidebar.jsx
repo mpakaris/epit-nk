@@ -11,7 +11,7 @@ import {
   ChevronDown, Globe, ImageIcon, UsersRound, CreditCard, Package,
 } from 'lucide-react';
 
-function buildNavItems(isSuperAdmin, isAdmin, impersonating, websiteUnread = 0, prefix = '', invitationCount = 0) {
+function buildNavItems(isSuperAdmin, isAdmin, impersonating, websiteUnread = 0, prefix = '', invitationCount = 0, counts = {}) {
   if (isSuperAdmin && !impersonating) {
     return [
       { key: 'sa-entitasok',  href: '/superadmin',              label: 'Entities',  icon: Building2,    exact: true },
@@ -24,12 +24,12 @@ function buildNavItems(isSuperAdmin, isAdmin, impersonating, websiteUnread = 0, 
   const commonNav = [
     { href: prefix + '/dashboard',    label: 'Dashboard',    icon: LayoutDashboard, exact: true },
     { divider: true, key: 'd-munka',  group: 'Munka' },
-    { href: prefix + '/felmeres',     label: 'Felmérések',   icon: Ruler },
-    { href: prefix + '/ajanlatok',    label: 'Ajánlatok',    icon: FileText },
-    { href: prefix + '/projektek',    label: 'Projektek',    icon: FolderKanban },
+    { href: prefix + '/felmeres',     label: 'Felmérések',   icon: Ruler,        count: counts.surveys  },
+    { href: prefix + '/ajanlatok',    label: 'Ajánlatok',    icon: FileText,     count: counts.quotes   },
+    { href: prefix + '/projektek',    label: 'Projektek',    icon: FolderKanban, count: counts.projects },
     { href: prefix + '/katalogus',    label: 'Árkatalógus',  icon: Package },
     { divider: true, key: 'd-kapcs',  group: 'Kapcsolatok' },
-    { href: prefix + '/ugyfelek',     label: 'Ügyfelek',     icon: BookUser },
+    { href: prefix + '/ugyfelek',     label: 'Ügyfelek',     icon: BookUser,  count: counts.clients },
     { href: prefix + '/kollektivak',  label: 'Kollektívák',  icon: UsersRound, badge: invitationCount },
     { divider: true, key: 'd-egyeb',  group: 'Egyéb' },
     { href: prefix + '/naptar',       label: 'Naptár',       icon: Calendar },
@@ -58,7 +58,7 @@ function isActive(item, pathname) {
 export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
-  const { currentUser, isSuperAdmin, isAdmin, impersonating, stopImpersonation, logout, collectives, effectiveCollectives, setActiveContext, switchImpersonatingContext, activeCollectiveId, allMemberships, entities, isDemoMode } = useApp();
+  const { currentUser, isSuperAdmin, isAdmin, impersonating, stopImpersonation, logout, collectives, effectiveCollectives, setActiveContext, switchImpersonatingContext, activeCollectiveId, allMemberships, entities, isDemoMode, surveys, quotes, projects, clients } = useApp();
   const effectiveUser = impersonating || currentUser;
   const navPrefix = isDemoMode ? '/demo' : '';
 
@@ -208,7 +208,14 @@ export default function Sidebar() {
   if (!currentUser) return null;
   if (pathname.startsWith('/naplo/') || pathname.startsWith('/clients/') || pathname.startsWith('/szakemberek/') || pathname.startsWith('/demo/szakemberek/') || pathname.startsWith('/invitations/') || pathname.endsWith('/nyomtatas') || pathname.startsWith('/impressum') || pathname.startsWith('/adatkezeles') || pathname.startsWith('/aszf') || pathname.startsWith('/about')) return null;
 
-  const navItems = buildNavItems(isSuperAdmin, isAdmin, impersonating, websiteUnread, navPrefix, invitationCount);
+  const counts = (!isSuperAdmin || impersonating) ? {
+    surveys:  (surveys  || []).filter(s => s.status !== 'done').length,
+    quotes:   (quotes   || []).filter(q => q.status !== 'deleted').length,
+    projects: (projects || []).filter(p => !p.closed_at).length,
+    clients:  (clients  || []).length,
+  } : {};
+
+  const navItems = buildNavItems(isSuperAdmin, isAdmin, impersonating, websiteUnread, navPrefix, invitationCount, counts);
   const homeHref = isSuperAdmin && !impersonating ? '/superadmin' : isAdmin ? '/admin' : (navPrefix + '/projektek');
 
   const initials = (effectiveUser?.display_name || '?')
@@ -308,6 +315,11 @@ export default function Sidebar() {
               >
                 <item.icon size={18} className="link-icon" />
                 {!collapsed && <span>{item.label}</span>}
+                {!collapsed && item.count > 0 && !item.badge && (
+                  <span style={{ marginLeft: 'auto', background: 'var(--bg-subtle)', color: 'var(--text-muted)', border: '1px solid var(--border-subtle)', borderRadius: 99, fontSize: '0.65rem', fontWeight: 700, minWidth: 16, height: 16, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '0 4px' }}>
+                    {item.count}
+                  </span>
+                )}
                 {item.badge > 0 && (
                   collapsed ? (
                     <span style={{ position: 'absolute', top: 6, right: 6, width: 7, height: 7, borderRadius: '50%', background: 'var(--primary)', border: '1.5px solid var(--bg-base)' }} />
@@ -476,6 +488,11 @@ export default function Sidebar() {
                   >
                     <item.icon size={22} />
                     <span>{item.label}</span>
+                    {item.count > 0 && !item.badge && (
+                      <span style={{ marginLeft: 'auto', background: 'var(--bg-subtle)', color: 'var(--text-muted)', border: '1px solid var(--border-subtle)', borderRadius: 99, fontSize: '0.7rem', fontWeight: 700, minWidth: 18, height: 18, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '0 5px' }}>
+                        {item.count}
+                      </span>
+                    )}
                     {item.badge > 0 && (
                       <span style={{ marginLeft: 'auto', background: 'var(--primary)', color: 'white', borderRadius: 99, fontSize: '0.65rem', fontWeight: 700, minWidth: 16, height: 16, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '0 4px' }}>
                         {item.badge}

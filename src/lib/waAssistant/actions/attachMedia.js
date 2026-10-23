@@ -1,4 +1,4 @@
-import { uploadToR2, r2PublicUrl, toWebp } from '@/lib/r2';
+import { uploadToR2, r2PublicUrl, toJpeg } from '@/lib/r2';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { classifyImage } from '../classifyImage';
 import { saveClarification } from '../clarification';
@@ -45,7 +45,6 @@ export async function attachMedia({ waAccount, conversation, mediaUrl, mediaKey,
     try { imgBuf = await fetchMedia(mediaUrl, mediaKey, 'image'); }
     catch (e) { return { reply: `Nem sikerült letölteni a képet: ${e.message}` }; }
 
-    const { buffer: webpBuf } = await toWebp(imgBuf);
     const imageBase64 = imgBuf.toString('base64');
     const imageType   = await classifyImage(imageBase64, mimeType || 'image/jpeg', { phoneNumber, userId: waAccount.userId });
 
@@ -53,10 +52,12 @@ export async function attachMedia({ waAccount, conversation, mediaUrl, mediaKey,
       return { handoffToInvoice: true, imgBuf, mimeType };
     }
 
-    const r2Key     = `wa/${phoneNumber.replace(/\+/g, '')}/${Date.now()}.webp`;
+    // Store as JPEG — Whinself cannot send WebP back to WhatsApp
+    const { buffer: jpegBuf } = await toJpeg(imgBuf);
+    const r2Key     = `wa/${phoneNumber.replace(/\+/g, '')}/${Date.now()}.jpg`;
     const publicUrl = r2PublicUrl(r2Key);
-    await uploadToR2(r2Key, webpBuf, 'image/webp');
-    return attachToRecord({ conversation, phoneNumber, waAccount, r2Key, publicUrl, mimeType: 'image/webp', mediaType: forcedMediaType || 'photo', fileName: forcedMediaType === 'layout' ? 'alaprajz.webp' : 'photo.webp', entryId });
+    await uploadToR2(r2Key, jpegBuf, 'image/jpeg');
+    return attachToRecord({ conversation, phoneNumber, waAccount, r2Key, publicUrl, mimeType: 'image/jpeg', mediaType: forcedMediaType || 'photo', fileName: forcedMediaType === 'layout' ? 'alaprajz.jpg' : 'photo.jpg', entryId });
   }
 
   // --- PDF / document ---
