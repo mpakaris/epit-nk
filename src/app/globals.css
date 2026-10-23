@@ -1420,3 +1420,492 @@ div[style*="overflowX"]::-webkit-scrollbar { display: none; }
 @media (max-width: 400px) {
   .cal-event-text { display: none !important; }
 }
+
+/* ─── Mobile FAB (Floating Action Button) ─────────────────────────────────── */
+.mobile-fab-root { display: none; }
+.fab-overlay     { display: none; }
+
+@media (max-width: 768px) {
+  /* Backdrop when + is expanded */
+  .fab-overlay {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(2px);
+    z-index: 58;
+  }
+
+  /* Root container — sits above the bottom nav */
+  .mobile-fab-root {
+    display: block;
+    position: fixed;
+    right: 16px;
+    bottom: 82px; /* 64px nav + 18px breathing room */
+    z-index: 60;
+  }
+
+  /* Button stack: + on top, camera below */
+  .fab-stack {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+  }
+
+  /* Main + button */
+  .fab-main {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 100%);
+    color: #fff;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 6px 20px rgba(15, 23, 42, 0.45);
+    transition: transform 0.2s;
+    position: relative;
+    z-index: 61;
+  }
+  .fab-main:active { transform: scale(0.93); }
+  .fab-main.active {
+    background: linear-gradient(135deg, #3d1a1a 0%, #8b3a3a 100%);
+    transform: rotate(45deg);
+  }
+
+  /* Camera button */
+  .fab-camera {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #1a1f2e 0%, #2d3748 100%);
+    color: rgba(255,255,255,0.75);
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+    position: relative;
+    z-index: 61;
+    transition: transform 0.15s;
+  }
+  .fab-camera:active { transform: scale(0.9); }
+
+  /* Speed-dial list — sits above the + button, right-aligned */
+  .fab-anchor {
+    position: absolute;
+    bottom: calc(100% + 12px); /* 12px gap above the + button */
+    right: 0;
+    display: flex;
+    flex-direction: column-reverse; /* ACTIONS[0] at bottom (closest to +) */
+    align-items: flex-end;
+    gap: 10px;
+    pointer-events: none;
+  }
+
+  /* Individual pill action items */
+  .fab-action {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 10px;
+    padding: 0 16px;
+    height: 48px;
+    border-radius: 24px;
+    border: none;
+    cursor: pointer;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+    opacity: 0;
+    transform: translateY(10px) scale(0.88);
+    pointer-events: none;
+    transition:
+      transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1) var(--delay, 0ms),
+      opacity   0.18s ease                               var(--delay, 0ms);
+  }
+  .fab-action.visible {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    pointer-events: auto;
+  }
+
+  /* Label text inside the pill */
+  .fab-action-label {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #fff;
+    white-space: nowrap;
+  }
+}
+
+/* ─── QuickSnap Modal ─────────────────────────────────────────────────────── */
+.quicksnap-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 200;
+  display: flex;
+  align-items: flex-end;
+}
+
+.quicksnap-sheet {
+  width: 100%;
+  background: #fff;
+  border-radius: 20px 20px 0 0;
+  height: 82vh;           /* always opens tall */
+  max-height: 92vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: sheet-slide-up 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+@keyframes sheet-slide-up {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+
+.quicksnap-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2.5rem 1rem 0.75rem;
+  position: relative;
+  flex-shrink: 0;
+}
+.quicksnap-handle {
+  width: 40px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--border-subtle);
+}
+.quicksnap-close {
+  position: absolute;
+  right: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--text-muted);
+}
+
+/* Preview fills ~45% of the sheet height */
+.quicksnap-preview {
+  width: 100%;
+  flex: 0 0 42%;
+  overflow: hidden;
+  margin-top: 0.5rem;
+}
+.quicksnap-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.quicksnap-body {
+  padding: 1.25rem 1rem 1.5rem;
+  overflow-y: auto;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+.quicksnap-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 120px;
+}
+
+.quicksnap-heading {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin: 0 0 1.1rem;
+}
+
+.quicksnap-back {
+  background: none;
+  border: none;
+  color: var(--accent);
+  font-weight: 700;
+  font-size: 0.85rem;
+  cursor: pointer;
+  padding: 0;
+  margin-bottom: 0.75rem;
+  display: block;
+}
+
+/* Breadcrumb progress strip */
+.quicksnap-crumbs {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.55rem 1rem;
+  border-bottom: 1px solid var(--border-subtle);
+  flex-shrink: 0;
+}
+.quicksnap-crumbs .crumb {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+.quicksnap-crumbs .crumb.active {
+  color: var(--accent);
+  font-weight: 800;
+}
+.quicksnap-crumbs .crumb.done {
+  color: var(--success);
+}
+.quicksnap-crumbs .crumb-sep {
+  font-size: 0.7rem;
+  color: var(--border-subtle);
+}
+
+/* Area selector — full-width rows with icon + text */
+.quicksnap-area-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  flex: 1;
+}
+.quicksnap-area-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  padding: 0.9rem 1rem;
+  background: var(--bg-subtle);
+  border: 1.5px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s, background 0.15s;
+  width: 100%;
+}
+.quicksnap-area-btn:active {
+  background: var(--bg-card-hover);
+  border-color: var(--accent);
+}
+.quicksnap-area-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-md);
+  background: var(--bg-base);
+  border: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: var(--text-primary);
+}
+.quicksnap-area-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  flex: 1;
+  min-width: 0;
+}
+.quicksnap-area-label {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+.quicksnap-area-desc {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+/* Legacy type-grid kept in case anything still uses it */
+.quicksnap-type-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.85rem;
+  flex: 1;
+}
+.quicksnap-type-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  padding: 1.5rem 0.75rem;
+  background: var(--bg-subtle);
+  border: 1.5px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  color: var(--text-primary);
+  min-height: 110px;
+}
+.quicksnap-type-btn:active {
+  background: var(--bg-card-hover);
+  border-color: var(--accent);
+}
+.quicksnap-type-label {
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+.quicksnap-type-desc {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  text-align: center;
+  line-height: 1.4;
+}
+
+.quicksnap-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.quicksnap-list-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1rem;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.12s;
+}
+.quicksnap-list-item:active { background: #e2e8f0; }
+.quicksnap-list-name {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.quicksnap-note {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin: 0 0 0.25rem;
+}
+.quicksnap-empty {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  text-align: center;
+  padding: 1.5rem 0;
+}
+.quicksnap-error {
+  font-size: 0.82rem;
+  color: var(--danger-text);
+  background: var(--danger-bg);
+  border: 1px solid var(--danger-border);
+  border-radius: var(--radius-sm);
+  padding: 0.5rem 0.75rem;
+  margin-top: 0.5rem;
+}
+
+/* PDF placeholder inside .quicksnap-preview */
+.invoice-pdf-preview {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  background: var(--bg-subtle);
+}
+.invoice-pdf-label {
+  font-size: 1.1rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  color: var(--text-secondary);
+}
+.invoice-pdf-name {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  max-width: 80%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: center;
+}
+
+/* ─── InvoiceSnapModal specifics ─────────────────────────────────────────── */
+.quicksnap-section-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin: 0 0 0.5rem;
+}
+
+/* Room chips */
+.invoice-room-chips,
+.invoice-cat-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+.invoice-room-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.35rem 0.75rem;
+  border-radius: var(--radius-pill);
+  border: 1.5px solid var(--border-subtle);
+  background: var(--bg-subtle);
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: border-color 0.12s, background 0.12s, color 0.12s;
+}
+.invoice-room-chip.selected {
+  border-color: var(--accent);
+  background: #eff6ff;
+  color: var(--accent);
+}
+
+/* Big amount input */
+.invoice-amount-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: var(--bg-subtle);
+  border: 1.5px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 0.5rem 0.85rem;
+  transition: border-color 0.15s;
+}
+.invoice-amount-row:focus-within {
+  border-color: var(--accent);
+  background: #fff;
+}
+.invoice-amount-input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  outline: none;
+  min-width: 0;
+  font-family: var(--font-mono);
+}
+.invoice-amount-input::placeholder { color: var(--border-subtle); }
+.invoice-amount-currency {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}

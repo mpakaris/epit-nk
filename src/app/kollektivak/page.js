@@ -181,9 +181,9 @@ export default function KollektivakPage() {
 
   const fetchCollectives = async () => {
     const [colRes, invRes, myInvRes] = await Promise.all([
-      fetch('/api/collectives'),
-      fetch('/api/collectives/invitations'),
-      fetch('/api/collectives/my-invitations'),
+      fetch('/api/collectives', { cache: 'no-store' }),
+      fetch('/api/collectives/invitations', { cache: 'no-store' }),
+      fetch('/api/collectives/my-invitations', { cache: 'no-store' }),
     ]);
     const colData = await colRes.json();
     const invData = invRes.ok ? await invRes.json() : { invitations: [] };

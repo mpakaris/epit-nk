@@ -1,18 +1,22 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { resolveEffectiveUserId } from '@/lib/godMode';
+
+export const dynamic = 'force-dynamic';
 
 // GET — pending invitations received by the logged-in user (matched by email)
-export async function GET() {
+export async function GET(request) {
   const supabase = await createClient();
   const { data: { user }, error: authErr } = await supabase.auth.getUser();
   if (authErr || !user) return Response.json({ error: 'Unauthenticated' }, { status: 401 });
 
   const admin = createAdminClient();
+  const userId = await resolveEffectiveUserId(request, user, admin);
 
   const { data: profile } = await admin
     .from('profiles')
     .select('email')
-    .eq('id', user.id)
+    .eq('id', userId)
     .single();
 
   if (!profile?.email) return Response.json({ invitations: [] });

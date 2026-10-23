@@ -10,6 +10,7 @@ import {
   ChevronLeft, ChevronRight, Eye, X, Menu, ClipboardList, Ruler, Lightbulb,
   ChevronDown, Globe, ImageIcon, UsersRound, CreditCard, Package,
 } from 'lucide-react';
+import MobileFAB from './MobileFAB';
 
 function buildNavItems(isSuperAdmin, isAdmin, impersonating, websiteUnread = 0, prefix = '', invitationCount = 0, counts = {}) {
   if (isSuperAdmin && !impersonating) {
@@ -216,7 +217,7 @@ export default function Sidebar() {
   } : {};
 
   const navItems = buildNavItems(isSuperAdmin, isAdmin, impersonating, websiteUnread, navPrefix, invitationCount, counts);
-  const homeHref = isSuperAdmin && !impersonating ? '/superadmin' : isAdmin ? '/admin' : (navPrefix + '/projektek');
+  const homeHref = isSuperAdmin && !impersonating ? '/superadmin' : (navPrefix + '/dashboard');
 
   const initials = (effectiveUser?.display_name || '?')
     .split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase();
@@ -531,6 +532,9 @@ export default function Sidebar() {
           </div>
         </>
       )}
+
+      {/* ===== MOBILE FAB ===== */}
+      <MobileFAB />
     </>
   );
 }

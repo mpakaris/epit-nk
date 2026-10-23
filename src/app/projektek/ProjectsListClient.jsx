@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
@@ -82,6 +82,12 @@ export default function ProjectsListClient({
 
   const activeCreateEntityId = projEntityId || effectiveEntityId;
   const effectiveCurrentUserId = impersonating?.id ?? currentUser?.id;
+
+  // Auto-open create modal when navigated via ?create=1 (e.g. from mobile FAB)
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get('create') === '1') openCreate();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const openCreate = () => {
     setProjName(''); setProjDesc(''); setProjStart(''); setProjEnd('');

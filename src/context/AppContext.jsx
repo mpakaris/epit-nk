@@ -1492,7 +1492,7 @@ export function AppProvider({ children }) {
           }
         },
         // Collectives & context switcher
-        collectives,
+        collectives: effectiveCollectives,
         effectiveCollectives,
         allMemberships,
         setActiveContext,

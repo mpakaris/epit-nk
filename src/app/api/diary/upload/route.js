@@ -37,7 +37,8 @@ export async function POST(request) {
   for (const file of files) {
     if (!(file instanceof File)) continue;
     const isVideo = (file.type || '').startsWith('video/');
-    const limit   = isVideo ? MAX_VIDEO_BYTES : MAX_IMAGE_BYTES;
+    const isPdf   = file.type === 'application/pdf';
+    const limit   = (isVideo || isPdf) ? MAX_VIDEO_BYTES : MAX_IMAGE_BYTES;
     if (file.size > limit) {
       return Response.json({ error: `"${file.name}" túl nagy (max ${limit / 1024 / 1024} MB)` }, { status: 400 });
     }

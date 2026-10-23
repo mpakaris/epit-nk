@@ -63,56 +63,58 @@ export async function GET(request) {
   const realSurveys = surveysRes.data || [];
 
   // ── Clients ───────────────────────────────────────────────────────────────
-  let collectiveRole = null;
-  let clientsData = [];
+  // Always return personal + shared-with-me clients regardless of active workspace.
+  // Shared clients get a _shared_via marker so the UI can split them into two sections.
+  const { data: personalClients } = await admin
+    .from('clients')
+    .select('*, client_collective_shares(collective_id)')
+    .eq('owner_id', userId)
+    .is('deleted_at', null)
+    .order('name');
 
-  if (isPersonal) {
-    const { data } = await admin
-      .from('clients')
-      .select('*, client_collective_shares(collective_id)')
-      .eq('owner_id', userId)
-      .is('deleted_at', null)
-      .order('name');
-    clientsData = data || [];
-  } else {
-    const { data: membership } = await admin
-      .from('collective_members')
-      .select('role')
-      .eq('collective_id', collectiveId)
-      .eq('user_id', userId)
-      .single();
-    collectiveRole = membership?.role || null;
+  const { data: userMemberships } = await admin
+    .from('collective_members')
+    .select('collective_id')
+    .eq('user_id', userId)
+    .eq('status', 'active');
 
+  const userCollectiveIds = (userMemberships || []).map(m => m.collective_id);
+  const personalClientIds = new Set((personalClients || []).map(c => c.id));
+
+  let sharedClients = [];
+  if (userCollectiveIds.length > 0) {
     const { data: shares } = await admin
       .from('client_collective_shares')
-      .select('client_id')
-      .eq('collective_id', collectiveId);
-    const sharedIds = (shares || []).map(s => s.client_id);
+      .select('client_id, collective_id, collectives(name)')
+      .in('collective_id', userCollectiveIds);
 
-    if (collectiveRole === 'owner' || collectiveRole === 'admin') {
-      // Owner/admin: only explicitly shared clients, full data
-      if (sharedIds.length > 0) {
-        const { data } = await admin
-          .from('clients')
-          .select('*, client_collective_shares(collective_id)')
-          .in('id', sharedIds)
-          .is('deleted_at', null)
-          .order('name');
-        clientsData = data || [];
-      }
-    } else {
-      // Contributor: only explicitly shared clients, name-only (GDPR)
-      if (sharedIds.length > 0) {
-        const { data } = await admin
-          .from('clients')
-          .select('id, name')
-          .in('id', sharedIds)
-          .is('deleted_at', null)
-          .order('name');
-        clientsData = data || [];
-      }
+    const sharesByClient = {};
+    for (const s of (shares || [])) {
+      if (personalClientIds.has(s.client_id)) continue;
+      if (!sharesByClient[s.client_id]) sharesByClient[s.client_id] = [];
+      sharesByClient[s.client_id].push({
+        collective_id: s.collective_id,
+        collective_name: s.collectives?.name || null,
+      });
+    }
+
+    const foreignIds = Object.keys(sharesByClient);
+    if (foreignIds.length > 0) {
+      const { data: sharedClientData } = await admin
+        .from('clients')
+        .select('*, client_collective_shares(collective_id)')
+        .in('id', foreignIds)
+        .is('deleted_at', null)
+        .order('name');
+
+      sharedClients = (sharedClientData || []).map(c => ({
+        ...c,
+        _shared_via: sharesByClient[c.id] || [],
+      }));
     }
   }
+
+  const clientsData = [...(personalClients || []), ...sharedClients];
 
   // ── Users ─────────────────────────────────────────────────────────────────
   let usersData = [];

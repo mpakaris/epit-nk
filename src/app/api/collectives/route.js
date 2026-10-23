@@ -5,6 +5,8 @@ import { isEffectivePremium } from '@/lib/subscriptionLimits';
 import { sendEmail } from '@/lib/email';
 import { wrapEmail } from '@/lib/emailTemplates';
 
+export const dynamic = 'force-dynamic';
+
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 
 // GET  — list collectives the caller belongs to (with members)
@@ -42,7 +44,7 @@ async function sendInclusiveFreezeEmails(admin, collective, memberUserIds) {
   }
 }
 
-export async function GET() {
+export async function GET(request) {
   const supabase = await createClient();
   const { data: { user }, error: authErr } = await supabase.auth.getUser();
   if (authErr || !user) return Response.json({ error: 'Unauthenticated' }, { status: 401 });
@@ -56,12 +58,20 @@ export async function GET() {
     .eq('id', user.id)
     .single();
 
+  // God mode: superadmin impersonating another user
+  let userId = user.id;
+  if (profile?.role === 'superadmin') {
+    const cookieHeader = request.headers.get('cookie') || '';
+    const godModeMatch = cookieHeader.match(/god_mode_user=([a-f0-9-]+)/);
+    if (godModeMatch) userId = godModeMatch[1];
+  }
+
   // Don't include is_inclusive in the embedded join — fetch it separately so a
   // missing column (migration 087 not yet applied) doesn't break the whole query.
   const { data: memberships } = await admin
     .from('collective_members')
     .select('collective_id, role, status, collectives(id, name, created_at, collective_tier, creem_subscription_id, subscription_status, subscription_period_end)')
-    .eq('user_id', user.id)
+    .eq('user_id', userId)
     .eq('status', 'active');
 
   const collectiveIds = (memberships || []).map(m => m.collective_id);
@@ -118,11 +128,13 @@ export async function GET() {
   }));
 
   // === Inclusive collective lazy-creation ===
+  // Skip entirely during god-mode impersonation — don't auto-create on behalf of another user.
+  const isImpersonating = userId !== user.id;
   const isSuperAdmin    = profile?.role === 'superadmin';
   const isEffPremium    = isSuperAdmin || isEffectivePremium(profile ?? {});
   const hasInclusiveOwned = collectives.some(c => c.is_inclusive && c.my_role === 'owner');
 
-  if (isEffPremium && !hasInclusiveOwned) {
+  if (!isImpersonating && isEffPremium && !hasInclusiveOwned) {
     const displayName = profile?.display_name || 'Felhasználó';
     const newId = globalThis.crypto.randomUUID();
     const now = new Date().toISOString();
@@ -134,7 +146,7 @@ export async function GET() {
     });
     await admin.from('collective_members').insert({
       collective_id: newId,
-      user_id:       user.id,
+      user_id:       userId,
       role:          'owner',
       status:        'active',
     });
@@ -149,7 +161,7 @@ export async function GET() {
       is_inclusive:             true,
       my_role:               'owner',
       members: [{
-        user_id:      user.id,
+        user_id:      userId,
         role:         'owner',
         status:       'active',
         joined_at:    now,
@@ -183,7 +195,7 @@ export async function GET() {
     }
   }
 
-  return Response.json({ collectives });
+  return Response.json({ collectives }, { headers: { 'Cache-Control': 'no-store' } });
 }
 
 export async function POST(req) {
