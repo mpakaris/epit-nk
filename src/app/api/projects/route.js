@@ -19,8 +19,8 @@ export async function POST(request) {
   const { name, description, memberIds = [], startDate, endDate, clientId, collectiveId: bodyCollectiveId, quoteId } = await request.json();
   if (!name?.trim()) return Response.json({ error: 'A projekt neve kötelező!' }, { status: 400 });
 
-  // Superadmin can pass explicit collectiveId; others use their active context
-  const collectiveId = profile.role === 'superadmin'
+  // Body's collectiveId wins when explicitly provided (including null = personal).
+  const collectiveId = bodyCollectiveId !== undefined
     ? (bodyCollectiveId || null)
     : (profile.active_collective_id || null);
 

@@ -7,8 +7,7 @@ import { useApp } from '@/context/AppContext';
 import Modal, { AlertModal } from '@/components/Modal';
 import { ArrowLeft, AlertCircle, Check, Loader2, Plus, User } from 'lucide-react';
 import PageSpinner from '@/components/PageSpinner';
-import EntitySelector from '@/components/EntitySelector';
-import CollectiveBanner from '@/components/CollectiveBanner';
+import CollectiveSelector from '@/components/CollectiveSelector';
 import ClientSelect from '@/components/ClientSelect';
 
 // Isolated component — its own state doesn't re-render the parent on every keystroke
@@ -83,9 +82,9 @@ function NewClientModal({ isOpen, onClose, onCreate }) {
 
 export default function NewSurveyPage() {
   const router = useRouter();
-  const { clients, loading, createSurvey, createClient, isAdmin, effectiveEntityId, currentUser, effectiveMemberships, isDemoMode } = useApp();
+  const { clients, loading, createSurvey, createClient, isAdmin, currentUser, isDemoMode } = useApp();
   const navPrefix = isDemoMode ? '/demo' : '';
-  const [selectedEntityId, setSelectedEntityId] = useState(null); // null = use effectiveEntityId
+  const [collectiveId, setCollectiveId] = useState(null);
 
   const [title, setTitle] = useState('');
   const [clientId, setClientId] = useState('');
@@ -99,10 +98,8 @@ export default function NewSurveyPage() {
   if (loading) return <PageSpinner />;
   if (!currentUser) return <div className="container" style={{ paddingTop: '3rem', textAlign: 'center', color: 'var(--danger-text)' }}>Nincs jogosultsága.</div>;
 
-  const activeEntityId = selectedEntityId || effectiveEntityId;
-
   const handleClientCreated = async ({ name, phone, email, address, gdprConsent }) => {
-    const newClient = await createClient({ name, phone, email, address, gdprConsent, entityId: activeEntityId });
+    const newClient = await createClient({ name, phone, email, address, gdprConsent, entityId: collectiveId });
     setClientId(newClient.id);
     setShowNewClientModal(false);
   };
@@ -113,7 +110,7 @@ export default function NewSurveyPage() {
     if (!title.trim()) { setError('A cím megadása kötelező!'); return; }
     setIsSubmitting(true);
     try {
-      const survey = await createSurvey({ title: title.trim(), notes: notes.trim(), date: date || null, location: location.trim(), clientId, entityId: activeEntityId });
+      const survey = await createSurvey({ title: title.trim(), notes: notes.trim(), date: date || null, location: location.trim(), clientId, collectiveId });
       router.push(`${navPrefix}/felmeres/${survey.id}`);
     } catch (err) {
       setError(err.message || 'Hiba a felmérés mentésekor');
@@ -143,8 +140,7 @@ export default function NewSurveyPage() {
       )}
 
       <form onSubmit={handleSubmit}>
-        <CollectiveBanner />
-        <EntitySelector value={activeEntityId} onChange={setSelectedEntityId} memberships={effectiveMemberships} />
+        <CollectiveSelector value={collectiveId} onChange={setCollectiveId} />
 
         <div className="card mb-4" style={{ padding: '1.25rem' }}>
           <div style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.05em', marginBottom: '1rem' }}>Alapadatok</div>

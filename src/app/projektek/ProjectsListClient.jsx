@@ -12,9 +12,8 @@ import {
   User, Clock, PencilLine, ChevronDown, ChevronUp,
 } from 'lucide-react';
 import Modal from '@/components/Modal';
-import EntitySelector from '@/components/EntitySelector';
 import ClientSelect from '@/components/ClientSelect';
-import CollectiveBanner from '@/components/CollectiveBanner';
+import CollectiveSelector from '@/components/CollectiveSelector';
 
 const PREVIEW_COUNT = 3;
 
@@ -70,7 +69,6 @@ export default function ProjectsListClient({
     labourEntries: _ctxLabourEntries,
     clients: _ctxClients,
     users: _ctxUsers,
-    effectiveMemberships,
     activeCollectiveId,
     dataReady,
     refreshSupabaseData,
@@ -402,8 +400,7 @@ export default function ProjectsListClient({
           </div>
         )}
         <form onSubmit={handleCreate}>
-          <CollectiveBanner />
-          <EntitySelector value={activeCreateEntityId} onChange={setProjEntityId} memberships={effectiveMemberships} />
+          <CollectiveSelector value={projEntityId} onChange={setProjEntityId} />
           <div className="form-group">
             <label className="form-label">Kapcsolódó ajánlat <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>(opcionális)</span></label>
             {projLinkedQuoteId ? (

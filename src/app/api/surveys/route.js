@@ -51,7 +51,9 @@ export async function POST(request) {
   if (!title?.trim()) return Response.json({ error: 'A cím kötelező' }, { status: 400 });
 
   const { profile, user } = ctx;
-  const collectiveId = profile.role === 'superadmin'
+  // Body's collective_id wins when explicitly provided (including null = personal).
+  // Fall back to profile's active context for backwards compatibility.
+  const collectiveId = bodyCollectiveId !== undefined
     ? (bodyCollectiveId || null)
     : (profile.active_collective_id || null);
 
