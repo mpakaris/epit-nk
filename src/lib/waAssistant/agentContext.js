@@ -26,24 +26,24 @@ export async function buildAgentContext(account, conversation) {
 
   const [
     { data: collectives },
-    { data: projects },
-    { data: quotes },
+    { data: personalProjects },
+    { data: personalQuotes },
     { data: personalSurveys },
+    { data: profile },
+    { data: premiumSub },
   ] = await Promise.all([
     admin.from('collective_members')
       .select('collective:collectives(id, name)')
       .eq('user_id', userId)
       .eq('status', 'active'),
 
-    scopeFilter(admin.from('projects').select('id, name, closed_at'))
-      .is('closed_at', null)
-      .order('created_at', { ascending: false })
-      .limit(8),
+    admin.from('projects').select('id, name, closed_at, collective_id')
+      .eq('owner_id', userId).is('collective_id', null).is('closed_at', null)
+      .order('created_at', { ascending: false }).limit(8),
 
-    scopeFilter(admin.from('quotes').select('id, title, status'))
-      .neq('status', 'deleted')
-      .order('created_at', { ascending: false })
-      .limit(8),
+    admin.from('quotes').select('id, title, status, collective_id')
+      .eq('owner_id', userId).is('collective_id', null).neq('status', 'deleted')
+      .order('created_at', { ascending: false }).limit(8),
 
     // Personal surveys — always load regardless of active workspace; exclude done
     admin.from('surveys')
@@ -54,21 +54,49 @@ export async function buildAgentContext(account, conversation) {
       .neq('status', 'done')
       .order('created_at', { ascending: false })
       .limit(8),
+
+    // Profile (email, subscription info)
+    admin.from('profiles')
+      .select('display_name, email, subscription_tier, is_subscription_premium, trial_ends_at')
+      .eq('id', userId)
+      .maybeSingle(),
+
+    // Active subscription (for renewal date)
+    admin.from('subscriptions')
+      .select('product_family, status, period_end')
+      .eq('user_id', userId)
+      .in('product_family', ['premium', 'bundle'])
+      .in('status', ['active', 'trialing', 'scheduled_cancel'])
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle(),
   ]);
 
   // Load surveys for ALL collectives the user belongs to
   const collectiveList = (collectives || []).map(m => m.collective).filter(Boolean);
   const collectiveIds  = collectiveList.map(c => c.id);
-  let collectiveSurveys = [];
+  let collectiveSurveys  = [];
+  let collectiveProjects = [];
+  let collectiveQuotes   = [];
   if (collectiveIds.length) {
-    const { data: cs } = await admin.from('surveys')
-      .select('id, title, notes, location, client_id, collective_id, owner_id, created_by, created_at, status, done_at')
-      .in('collective_id', collectiveIds)
-      .is('deleted_at', null)
-      .neq('status', 'done')
-      .order('created_at', { ascending: false })
-      .limit(24);
-    collectiveSurveys = cs || [];
+    const [{ data: cs }, { data: cp }, { data: cq }] = await Promise.all([
+      admin.from('surveys')
+        .select('id, title, notes, location, client_id, collective_id, owner_id, created_by, created_at, status, done_at')
+        .in('collective_id', collectiveIds)
+        .is('deleted_at', null)
+        .neq('status', 'done')
+        .order('created_at', { ascending: false })
+        .limit(24),
+      admin.from('projects').select('id, name, collective_id')
+        .in('collective_id', collectiveIds).is('closed_at', null)
+        .order('created_at', { ascending: false }).limit(20),
+      admin.from('quotes').select('id, title, status, collective_id')
+        .in('collective_id', collectiveIds).neq('status', 'deleted')
+        .order('created_at', { ascending: false }).limit(20),
+    ]);
+    collectiveSurveys  = cs || [];
+    collectiveProjects = cp || [];
+    collectiveQuotes   = cq || [];
   }
 
   // All surveys combined for entry/layout/client loading
@@ -126,8 +154,20 @@ export async function buildAgentContext(account, conversation) {
     ? (collectives || []).find(m => m.collective?.id === collectiveId)?.collective?.name || 'Kollektíva'
     : 'Személyes';
 
+  const allProjectsEarly = [...(personalProjects || []), ...collectiveProjects];
   const activeSurvey  = (surveys || []).find(s => s.id === conversation.active_survey_id);
-  const activeProject = (projects || []).find(p => p.id === conversation.active_project_id);
+  const activeProject = allProjectsEarly.find(p => p.id === conversation.active_project_id);
+
+  // Subscription info string
+  const tierLabel = { basic: 'Ingyenes (Basic)', trial: 'Trial (ingyenes próbaidőszak)', premium: 'Prémium' };
+  const subTier   = profile?.subscription_tier || 'basic';
+  let subLine     = tierLabel[subTier] || subTier;
+  if (subTier === 'trial' && profile?.trial_ends_at) {
+    subLine += ` — lejár: ${profile.trial_ends_at.slice(0, 10)}`;
+  } else if (premiumSub?.period_end) {
+    const label = premiumSub.status === 'scheduled_cancel' ? 'lejár' : 'megújul';
+    subLine += ` — ${label}: ${premiumSub.period_end.slice(0, 10)}`;
+  }
 
   // Build system prompt
   const lines = [
@@ -138,6 +178,49 @@ export async function buildAgentContext(account, conversation) {
     `Felhasználó: ${account.displayName}`,
     `Aktív fiók: ${activeWorkspaceName}`,
     `Mai dátum: ${new Date().toISOString().slice(0, 10)}`,
+    '',
+    '=== Fiókadatok ===',
+    `Email: ${profile?.email || '(ismeretlen)'}`,
+    `Előfizetés: ${subLine}`,
+    '',
+    '=== Általános mód (fiókválasztás nélkül is megválaszolható) ===',
+    'Ha a felhasználó fiókadatokat kér (pl. "Ki vagyok én?", "Mi az email-em?", "Mikor újul meg az előfizetésem?"), válaszolj a fenti Fiókadatok alapján — NEM kell fiókot kérni.',
+    'Ha a felhasználó MINDEN fiókból kér összesítőt (pl. "Listázz minden dokumentumot"), a lenti felmérés/projekt/árajánlat listákból válaszolj — NEM kell fiókot kérni.',
+    'Fiókot csak akkor kérj, ha egy konkrét fiókon belüli ÍRÁSI műveletet kell elvégezni (pl. helyiség hozzáadása, fotó csatolása), és nem egyértelmű, hogy melyik fiókba kerüljön.',
+    '',
+    '=== WhatsApp-on NEM lehetséges ===',
+    'Az alábbiak biztonsági okokból KIZÁRÓLAG az alkalmazásban végezhetők el — WhatsApp-on keresztül nem:',
+    '- Személyes adatok (név, email) módosítása vagy törlése',
+    '- Előfizetés módosítása, lemondása, megújítása',
+    '- Jelszó módosítása',
+    '- Felhasználói fiók törlése',
+    'Ha ilyet kér: "❌ Ez csak az OkosSzaki alkalmazásban lehetséges."',
+    '',
+    '=== Képességek kérdésnél ===',
+    'Ha a felhasználó azt kérdezi, hogy mit tud ez a bot, mit lehet csinálni, milyen funkciók érhetők el (pl. "Mit tudsz?", "Mire jó ez?", "Mit csinálhatok itt?", "Segítesz valamiben?"), válaszolj ezzel a sablonnal — szó szerint, pontosan így formázva:',
+    '',
+    'Szia! 👋 Ezeket tudom segíteni WhatsApp-on:',
+    '',
+    '*📋 Felmérések*',
+    '• Felméréseid listázása (minden fiókból)',
+    '• Helyiség hozzáadása felméréshez',
+    '• Méretek, ajtók, ablakok rögzítése',
+    '• Megjegyzés fűzése helyiséghez vagy felméréshez',
+    '• Fotók csatolása (képet küldj, megmondom hova kerül)',
+    '',
+    '*🔨 Projektek & 💼 Árajánlatok*',
+    '• Listázás, keresés cím/kulcsszó alapján',
+    '',
+    '*👤 Fiókadatok*',
+    '• Profil megtekintése (név, email)',
+    '• Előfizetés állapota és megújulás dátuma',
+    '',
+    '*🔍 Keresés*',
+    '• Kulcsszó keresés minden dokumentumban, minden fiókban',
+    '',
+    '❌ *Amit NEM tudok:* adatmódosítás, törlés, jelszócsere, előfizetés kezelés — ezek csak az alkalmazásban lehetségesek.',
+    '',
+    '❓ Miben segíthetek?',
     '',
   ];
 
@@ -170,67 +253,68 @@ export async function buildAgentContext(account, conversation) {
     lines.push('');
   }
 
-  // Surveys section — grouped by workspace
-  lines.push('=== Felmérések (fiókonként) ===');
+  // Documents section — all types grouped by workspace
+  lines.push('=== Dokumentumok (fiókonként) ===');
 
   const workspaces = [
-    { label: 'Személyes', surveys: personalSurveys || [] },
+    {
+      label:    'Személyes',
+      surveys:  personalSurveys  || [],
+      projects: personalProjects || [],
+      quotes:   personalQuotes   || [],
+    },
     ...collectiveList.map(c => ({
-      label: c.name,
+      label:    c.name,
       collectiveId: c.id,
-      surveys: collectiveSurveys.filter(s => s.collective_id === c.id),
+      surveys:  collectiveSurveys .filter(s => s.collective_id === c.id),
+      projects: collectiveProjects.filter(p => p.collective_id === c.id),
+      quotes:   collectiveQuotes  .filter(q => q.collective_id === c.id),
     })),
   ];
 
   for (const ws of workspaces) {
-    lines.push(`📁 *${ws.label}* | ${ws.surveys.length} felmérés${ws.surveys.length === 0 ? ': nincs felmérés' : ':'}`);
-    if (ws.surveys.length === 0) {
-      lines.push('  (nincs felmérés)');
-    } else {
-      for (const s of ws.surveys) {
-        const rooms        = entriesBySurvey[s.id] || [];
-        const clientName   = s.client_id ? clientMap[s.client_id] : null;
-        const layoutCount  = layoutCountMap[s.id] || 0;
-        const creatorName  = s.created_by ? (creatorMap[s.created_by] || s.created_by) : null;
-        const isActive     = s.id === conversation.active_survey_id;
-        lines.push(`  • "${s.title}" (id: ${s.id})`);
-        if (s.location)    lines.push(`    Helyszín: ${s.location}`);
-        lines.push(`    Ügyfél: ${clientName ? `"${clientName}"` : '(nincs)'}`);
-        if (creatorName)   lines.push(`    Létrehozta: ${creatorName}`);
-        if (s.created_at)  lines.push(`    Létrehozva: ${s.created_at.slice(0, 10)}`);
-        lines.push(`    Alaprajz: ${layoutCount > 0 ? `${layoutCount} db` : '(nincs)'}`);
-        if (s.notes)       lines.push(`    Megjegyzések: ${s.notes.slice(0, 200)}${s.notes.length > 200 ? '…' : ''}`);
+    const total = ws.surveys.length + ws.quotes.length + ws.projects.length;
+    lines.push(`--- ${ws.label}${total === 0 ? ' (üres)' : ''} ---`);
+
+    if (ws.surveys.length) {
+      lines.push('  Felmérések:');
+      ws.surveys.forEach((s, i) => {
+        const rooms       = entriesBySurvey[s.id] || [];
+        const clientName  = s.client_id ? clientMap[s.client_id] : null;
+        const layoutCount = layoutCountMap[s.id] || 0;
+        const creatorName = s.created_by ? (creatorMap[s.created_by] || s.created_by) : null;
+        const isActive    = s.id === conversation.active_survey_id;
+        lines.push(`  ${i + 1}. ${s.title} (id: ${s.id})`);
+        if (s.location)   lines.push(`     Helyszín: ${s.location}`);
+        lines.push(`     Ügyfél: ${clientName ? clientName : '(nincs)'}`);
+        if (creatorName)  lines.push(`     Létrehozta: ${creatorName}`);
+        if (s.created_at) lines.push(`     Létrehozva: ${s.created_at.slice(0, 10)}`);
+        lines.push(`     Alaprajz: ${layoutCount > 0 ? `${layoutCount} db` : '(nincs)'}`);
+        if (s.notes)      lines.push(`     Megjegyzések: ${s.notes.slice(0, 200)}${s.notes.length > 200 ? '…' : ''}`);
         if (rooms.length) {
           if (isActive) {
-            // Full details for active survey so the bot can answer questions about rooms
-            lines.push(`    Helyiségek (${rooms.length}):`);
+            lines.push(`     Helyiségek (${rooms.length}):`);
             for (const r of rooms) lines.push(formatRoom(r));
           } else {
-            lines.push(`    Helyiségek (${rooms.length}): ${rooms.map(r => r.name).join(', ')}`);
+            lines.push(`     Helyiségek (${rooms.length}): ${rooms.map(r => r.name).join(', ')}`);
           }
         } else {
-          lines.push('    Helyiségek: (még nincs)');
+          lines.push('     Helyiségek: (még nincs)');
         }
-      }
+      });
+    }
+
+    if (ws.quotes.length) {
+      lines.push('  Árajánlatok:');
+      ws.quotes.forEach((q, i) => lines.push(`  ${i + 1}. ${q.title} (id: ${q.id}, státusz: ${q.status})`));
+    }
+
+    if (ws.projects.length) {
+      lines.push('  Projektek:');
+      ws.projects.forEach((p, i) => lines.push(`  ${i + 1}. ${p.name} (id: ${p.id})`));
     }
   }
   lines.push('');
-
-  // Projects section
-  if (projects?.length) {
-    lines.push('=== Projektek ===');
-    for (const p of projects) lines.push(`• "${p.name}" (id: ${p.id})`);
-    lines.push('');
-  } else {
-    lines.push('=== Projektek ===\n(nincs nyitott projekt)\n');
-  }
-
-  // Quotes section
-  if (quotes?.length) {
-    lines.push('=== Árajánlatok ===');
-    for (const q of quotes) lines.push(`• "${q.title}" (id: ${q.id}, státusz: ${q.status})`);
-    lines.push('');
-  }
 
   lines.push('=== Utasítások ===');
   lines.push('- MINDIG magyarul válaszolj — kivétel nélkül, függetlenül attól, hogy a felhasználó milyen nyelven ír.');
@@ -242,16 +326,16 @@ export async function buildAgentContext(account, conversation) {
   lines.push('  Kötelező formátum:');
   lines.push('  Keresés: "X" — N fiók átvizsgálva');
   lines.push('  [üres sor]');
-  lines.push('  📁 *Mein Kollektiv II* (aktív) — 2 találat:');
-  lines.push('  • 📋 "Kakavis House" — 🏠 Fürdő (szekció neve)');
-  lines.push('  • 📋 "Ding Dong Bums" — 🏠 Fürdőszoba (szekció neve)');
+  lines.push('  --- Mein Kollektiv II --- 2 találat:');
+  lines.push('  • Kakavis House — Fürdő (szekció neve)');
+  lines.push('  • Ding Dong Bums — Fürdőszoba (szekció neve)');
   lines.push('  [üres sor]');
-  lines.push('  📁 *Személyes* — 2 találat:');
-  lines.push('  • 📋 "Nikoek fürdőszoba renoválás" — (dokumentum neve)');
-  lines.push('  • 📋 "MPPM Consulting - WC & Fürdőszoba" — (dokumentum neve)');
+  lines.push('  --- Személyes --- 2 találat:');
+  lines.push('  • Nikoek fürdőszoba renoválás (dokumentum neve)');
+  lines.push('  • MPPM Consulting - WC & Fürdőszoba (dokumentum neve)');
   lines.push('  [üres sor]');
-  lines.push('  📁 *Mein Kollektiv* — nincs találat');
-  lines.push('  Szabályok: (a) MINDEN fiókot mutasd — találattal és anélkül is. (b) Az aktív Kollektívát / Személyest előre, az "(aktív)" jelöléssel. (c) Találat nélküli fiókokat "— nincs találat" sorral zárd. (d) A találat forrását zárójelben jelöld: (dokumentum neve) / (szekció neve) / (megjegyzés). (e) NE kérdezz vissza, ha az eredmény önmagáért beszél.');
+  lines.push('  --- Mein Kollektiv --- nincs találat');
+  lines.push('  Szabályok: (a) MINDEN fiókot mutasd — találattal és anélkül is. (b) A találat forrását zárójelben jelöld: (dokumentum neve) / (szekció neve) / (megjegyzés). (c) NE kérdezz vissza, ha az eredmény önmagáért beszél. (d) Ikonokat ne használj a keresési eredményekben.');
   lines.push('');
   lines.push('=== Válasz formátum ===');
   lines.push('Minden műveleti válasz legyen strukturált, rövid, ikon-alapú. Prózás magyarázat TILOS.');
@@ -265,7 +349,7 @@ export async function buildAgentContext(account, conversation) {
   lines.push('  🏠 Helyiség: Konyha');
   lines.push('  ❌ Nem található ez a helyiség');
   lines.push('');
-  lines.push('Ikonok: 📋 felmérés | 📁 projekt | 💼 árajánlat | 🏠 helyiség | 🖼️ fotó | 📄 dokumentum/alaprajz | 👤 ügyfél | 📍 helyszín | ⏱️ munkaidő | 💰 kiadás');
+  lines.push('Ikonok (műveleti válaszoknál): 📋 felmérés | 🔨 projekt | 💼 árajánlat | 🏠 helyiség | 🖼️ fotó | 📄 dokumentum/alaprajz | 👤 ügyfél | 📍 helyszín | ⏱️ munkaidő | 💰 kiadás');
   lines.push('Kérdésnél (pontosítás szükséges): egyetlen sor, pl. "❓ Melyik felméréshez?"');
   lines.push('Médiakérésnél (képek visszaküldése): az eszköz visszaadja { sent, total }. Ha sent > 0: "🖼️ Elküldve: {sent} / {total} fotó". Ha sent == 0: "❌ Nem sikerült elküldeni ({total} db). Nézd meg az alkalmazásban."');
   lines.push('');
@@ -284,17 +368,23 @@ export async function buildAgentContext(account, conversation) {
   lines.push('- Ha eszköz hibát ad (success: false) → mutasd az ❌ sort, kérd pontosítást.');
   lines.push('- KRITIKUS SZABÁLY: Adatírásról (megjegyzés, helyiség, fotó, stb.) SOHA ne jelents sikert, ha (a) nem hívtál eszközt, VAGY (b) az eszköz success:false-t adott vissza. Eszköz hívása nélkül nincs mentés. Hazudni tilos.');
   lines.push('- Lekérdezésnél (mit tartalmaz X?): ha az adat létezik → add vissza. Ha nem létezik / null → mondd el hogy nincs, ÉS ajánld fel az egyértelmű következő lépést. Pl.: "Nincs ügyfél hozzárendelve. Hozzárendeljek egyet? (add meg a nevet)"');
-  lines.push('- Összefoglaló / darabszám kérésnél ("hány felmérés?", "mi van?", "mutasd", "overview"): adj strukturált összefoglalót fiókonként — NE hívj eszközt. Minden fiókot mutasd, az üreseket is. Formátum (WhatsApp-kompatibilis, *bold* és sortörések):');
-  lines.push('  📁 *Személyes* | 0 felmérés: nincs felmérés');
+  lines.push('- Összefoglaló / dokumentumlista kérésnél ("hány felmérés?", "mi van?", "mutasd", "milyen dokumentumok?", "overview"): adj strukturált összefoglalót fiókonként — NE hívj eszközt. Minden fiókot mutasd. Formátum (sorrend: Felmérések → Árajánlatok → Projektek):');
+  lines.push('  --- Személyes (üres) ---');
   lines.push('  [üres sor]');
-  lines.push('  📁 *Mein Kollektiv* | 1 felmérés:');
-  lines.push('  1. "Test Survey"');
+  lines.push('  --- Mein Kollektiv ---');
+  lines.push('  Felmérések:');
+  lines.push('  1. Test Survey');
+  lines.push('  Árajánlatok:');
+  lines.push('  1. Minta Árajánlat (elfogadott)');
   lines.push('  [üres sor]');
-  lines.push('  📁 *Mein Kollektiv II* | 2 felmérés:');
-  lines.push('  1. "Ding Dong Bums"');
-  lines.push('  2. "New Survey Test"');
+  lines.push('  --- Mein Kollektiv II ---');
+  lines.push('  Felmérések:');
+  lines.push('  1. Ding Dong Bums');
+  lines.push('  2. New Survey Test');
+  lines.push('  Projektek:');
+  lines.push('  1. Felújítás projekt');
   lines.push('  [üres sor majd:] ❓ Keresel valamit konkrétan?');
-  lines.push('  Szabály: ha 0 felmérés → "nincs felmérés" UGYANABBAN a sorban (nincs számozás). Ha ≥1 → külön sorokba számozva.');
+  lines.push('  Szabályok: (a) Ha egy fiók teljesen üres → "--- Név (üres) ---" egyetlen sor, semmi más. (b) Ha van tartalom → csak azok a szekciók jelennek meg, amikben van elem. (c) Sorrend mindig: Felmérések → Árajánlatok → Projektek.');
   lines.push('- TÖRLÉS TILOS: felmérést, helyiséget, képet soha ne törölj — "❌ Törlés csak az alkalmazásban lehetséges."');
   lines.push('- Megjegyzés hozzáfűzéshez mindig append_room_note / append_survey_note — ezek időbélyeggel fűzik hozzá, nem írják felül.');
 
@@ -302,10 +392,10 @@ export async function buildAgentContext(account, conversation) {
     systemPrompt: lines.join('\n'),
     activeSurvey,
     activeProject,
-    surveys:    surveys       || [],
-    projects:   projects      || [],
-    quotes:     quotes        || [],
-    workspaces: workspaces    || [],
+    surveys:    surveys            || [],
+    projects:   allProjectsEarly,
+    quotes:     [...(personalQuotes || []), ...collectiveQuotes],
+    workspaces: workspaces         || [],
     entriesBySurvey,
   };
 }

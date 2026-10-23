@@ -170,11 +170,7 @@ export async function resolveWorkspace(waAccount, conversation, phoneNumber, mes
     }
   }
 
-  // 3. No document match → ask which workspace
-  const options = [
-    { id: '__personal__', name: 'Személyes' },
-    ...collectives.map(c => ({ id: c.id, name: c.name })),
-  ];
-  await saveClarification(phoneNumber, 'workspace_choice', options, null, { originalContent: messageText });
-  return { needsClarification: true, clarificationType: 'workspace_choice', clarificationOptions: options };
+  // 3. No document match → don't ask upfront; let the agent run in generic mode.
+  // Workspace will be resolved lazily when a workspace-specific operation is needed.
+  return { collectiveId: null, needsClarification: false };
 }
