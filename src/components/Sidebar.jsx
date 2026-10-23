@@ -31,7 +31,7 @@ function buildNavItems(isSuperAdmin, isAdmin, impersonating, websiteUnread = 0, 
     { href: prefix + '/katalogus',    label: 'Árkatalógus',  icon: Package },
     { divider: true, key: 'd-kapcs',  group: 'Kapcsolatok' },
     { href: prefix + '/ugyfelek',     label: 'Ügyfelek',     icon: BookUser,  count: counts.clients },
-    { href: prefix + '/kollektivak',  label: 'Kollektívák',  icon: UsersRound, badge: invitationCount },
+    { href: prefix + '/kollektivak',  label: 'Kollektívák',  icon: UsersRound, count: counts.collectives, badge: invitationCount },
     { divider: true, key: 'd-egyeb',  group: 'Egyéb' },
     { href: prefix + '/naptar',       label: 'Naptár',       icon: Calendar },
     { href: prefix + '/otletek',      label: 'Ötletek',      icon: Lightbulb },
@@ -210,10 +210,11 @@ export default function Sidebar() {
   if (pathname.startsWith('/naplo/') || pathname.startsWith('/clients/') || pathname.startsWith('/szakemberek/') || pathname.startsWith('/demo/szakemberek/') || pathname.startsWith('/invitations/') || pathname.endsWith('/nyomtatas') || pathname.startsWith('/impressum') || pathname.startsWith('/adatkezeles') || pathname.startsWith('/aszf') || pathname.startsWith('/about')) return null;
 
   const counts = (!isSuperAdmin || impersonating) ? {
-    surveys:  (surveys  || []).filter(s => s.status !== 'done').length,
-    quotes:   (quotes   || []).filter(q => q.status !== 'deleted').length,
-    projects: (projects || []).filter(p => !p.closed_at).length,
-    clients:  (clients  || []).length,
+    surveys:     (surveys  || []).filter(s => s.status !== 'done').length,
+    quotes:      (quotes   || []).filter(q => q.status !== 'deleted').length,
+    projects:    (projects || []).filter(p => !p.closed_at).length,
+    clients:     (clients  || []).length,
+    collectives: (effectiveCollectives || []).length,
   } : {};
 
   const navItems = buildNavItems(isSuperAdmin, isAdmin, impersonating, websiteUnread, navPrefix, invitationCount, counts);
