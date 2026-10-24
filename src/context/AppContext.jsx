@@ -417,6 +417,10 @@ export function AppProvider({ children }) {
 
   const logout = async () => {
     auditPublic('Logout', { userName: currentUser?.display_name || currentUser?.email || '', entityId: currentUser?.active_collective_id || currentUser?.id });
+    // Clear god mode state before signing out so it doesn't bleed into the next session
+    try { sessionStorage.removeItem('god_mode'); } catch {}
+    document.cookie = 'god_mode_user=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
+    document.cookie = 'god_mode_entity=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
     await supabase.auth.signOut();
     setCurrentUser(null);
     setImpersonating(null);
