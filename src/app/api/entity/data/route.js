@@ -22,11 +22,12 @@ export async function GET(request) {
 
   if (profile.role === 'superadmin') {
     const cookieHeader = request.headers.get('cookie') || '';
-    const userMatch     = cookieHeader.match(/god_mode_user=([a-f0-9-]+)/);
-    const entityMatch   = cookieHeader.match(/god_mode_entity=([a-f0-9-]+)/);
-    if (!userMatch) return Response.json({ error: 'No god mode user set' }, { status: 400 });
-    userId      = userMatch[1];
-    collectiveId = entityMatch ? entityMatch[1] : null;
+    const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    const rawUser   = cookieHeader.match(/god_mode_user=([a-f0-9-]+)/)?.[1];
+    const rawEntity = cookieHeader.match(/god_mode_entity=([a-f0-9-]+)/)?.[1];
+    if (!rawUser || !UUID_RE.test(rawUser)) return Response.json({ error: 'No god mode user set' }, { status: 400 });
+    userId       = rawUser;
+    collectiveId = rawEntity && UUID_RE.test(rawEntity) ? rawEntity : null;
   } else {
     collectiveId = profile.active_collective_id || null;
   }

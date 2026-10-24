@@ -56,7 +56,7 @@ export async function POST(request) {
       targetName: targetProfile.display_name,
     });
 
-    return NextResponse.json({ success: true, temporaryPassword });
+    return NextResponse.json({ success: true });
   } catch (err) {
     console.error('Error in reset-password route:', err);
     return NextResponse.json({ error: err.message || 'Szerverhiba történt' }, { status: 500 });

@@ -62,8 +62,9 @@ export async function GET(request) {
   let userId = user.id;
   if (profile?.role === 'superadmin') {
     const cookieHeader = request.headers.get('cookie') || '';
-    const godModeMatch = cookieHeader.match(/god_mode_user=([a-f0-9-]+)/);
-    if (godModeMatch) userId = godModeMatch[1];
+    const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    const raw = cookieHeader.match(/god_mode_user=([a-f0-9-]+)/)?.[1];
+    if (raw && UUID_RE.test(raw)) userId = raw;
   }
 
   // Don't include is_inclusive in the embedded join — fetch it separately so a

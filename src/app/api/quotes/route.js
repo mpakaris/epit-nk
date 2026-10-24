@@ -50,6 +50,16 @@ export async function POST(request) {
     if (!mem) return Response.json({ error: 'Nincs hozzáférés ehhez a csoporthoz' }, { status: 403 });
   }
 
+  // Validate shared_with — only include IDs that are real profile UUIDs
+  let safeSharedWith = [];
+  if (Array.isArray(shared_with) && shared_with.length > 0) {
+    const { data: validProfiles } = await admin
+      .from('profiles')
+      .select('id')
+      .in('id', shared_with.slice(0, 50));
+    safeSharedWith = (validProfiles || []).map(p => p.id);
+  }
+
   const { data, error } = await admin.from('quotes').insert([{
     owner_id:      user.id,
     collective_id: collectiveId,
@@ -62,7 +72,7 @@ export async function POST(request) {
     status,
     client_id:     client_id     || null,
     created_by:    created_by    || user.id,
-    shared_with:   shared_with,
+    shared_with:   safeSharedWith,
     tax_percent:   Number(tax_percent) || 0,
     survey_id:     survey_id     || null,
   }]).select().single();
