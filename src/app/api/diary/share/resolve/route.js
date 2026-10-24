@@ -1,8 +1,14 @@
 import { createAdminClient } from '@/lib/supabase/admin';
+import { rateLimit, getClientIp } from '@/lib/rateLimit';
 
 // GET /api/diary/share/resolve?token=X — public, no auth required
 // Returns project diary entries for a valid share token
 export async function GET(request) {
+  // Rate limit: 10 requests per minute per IP
+  const ip = getClientIp(request);
+  const { allowed } = rateLimit(`diary-share:${ip}`, { limit: 10, windowMs: 60_000 });
+  if (!allowed) return Response.json({ error: 'Too many requests' }, { status: 429 });
+
   const { searchParams } = new URL(request.url);
   const tokenValue = searchParams.get('token');
   if (!tokenValue) return Response.json({ error: 'Missing token' }, { status: 400 });

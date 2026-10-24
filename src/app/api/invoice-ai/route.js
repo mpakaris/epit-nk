@@ -113,13 +113,26 @@ Hungarian invoice terms for reference:
     }
 
     const content = aiData.choices?.[0]?.message?.content ?? '';
-    const parsed = JSON.parse(content);
 
-    return NextResponse.json({
-      currency: parsed.currency || 'HUF',
-      lineItems: Array.isArray(parsed.lineItems) ? parsed.lineItems : [],
-      grandTotal: Number(parsed.grandTotal) || 0,
-    });
+    let parsed;
+    try { parsed = JSON.parse(content); }
+    catch { return NextResponse.json({ currency: 'HUF', lineItems: [], grandTotal: 0 }); }
+
+    // Validate and sanitize — never trust external API responses
+    const VALID_CURRENCIES = new Set(['HUF', 'EUR', 'USD', 'GBP', 'CHF', 'CZK', 'PLN', 'RON']);
+    const currency  = VALID_CURRENCIES.has(parsed.currency) ? parsed.currency : 'HUF';
+    const grandTotal = typeof parsed.grandTotal === 'number' && isFinite(parsed.grandTotal) && parsed.grandTotal >= 0
+      ? Math.round(parsed.grandTotal)
+      : 0;
+    const rawItems  = Array.isArray(parsed.lineItems) ? parsed.lineItems.slice(0, 100) : [];
+    const lineItems = rawItems.map(item => ({
+      description: String(item?.description ?? '').substring(0, 500),
+      quantity:    typeof item?.quantity === 'number' && isFinite(item.quantity) ? item.quantity : 1,
+      unitPrice:   typeof item?.unitPrice === 'number' && isFinite(item.unitPrice) ? Math.round(item.unitPrice) : 0,
+      total:       typeof item?.total === 'number' && isFinite(item.total) ? Math.round(item.total) : 0,
+    }));
+
+    return NextResponse.json({ currency, lineItems, grandTotal });
   } catch (err) {
     console.error('Invoice AI error:', err);
     return NextResponse.json({ currency: 'HUF', lineItems: [], grandTotal: 0 });

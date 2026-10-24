@@ -3,6 +3,13 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { createClient as createSupabaseClient } from '@/lib/supabase/client';
+
+// Cookie helpers — always add Secure on HTTPS, SameSite=Lax
+const _cookieFlags = () => typeof window !== 'undefined' && window.location.protocol === 'https:'
+  ? '; path=/; SameSite=Lax; Secure'
+  : '; path=/; SameSite=Lax';
+const setGodCookie  = (name, value) => { document.cookie = `${name}=${value}${_cookieFlags()}`; };
+const clearGodCookie = (name) => { document.cookie = `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax`; };
 import { processMediaFiles } from '@/lib/mediaGate';
 
 export const AppContext = createContext(null);
@@ -196,7 +203,7 @@ export function AppProvider({ children }) {
         setImpersonating(data);
         // Re-sync cookies so server components see them after a hard refresh
         if (data?.id) {
-          document.cookie = `god_mode_user=${data.id}; path=/; SameSite=Lax`;
+          setGodCookie('god_mode_user', data.id);
           // Re-fetch collectives so effectiveCollectives is correct after page reload
           fetch(`/api/superadmin/user?id=${data.id}&include=collectives`)
             .then(r => r.ok ? r.json() : { collectives: [] })
@@ -204,7 +211,7 @@ export function AppProvider({ children }) {
             .catch(() => {});
         }
         if (data?.active_collective_id) {
-          document.cookie = `god_mode_entity=${data.active_collective_id}; path=/; SameSite=Lax`;
+          setGodCookie('god_mode_entity', data.active_collective_id);
         }
       }
     } catch {}
@@ -247,8 +254,8 @@ export function AppProvider({ children }) {
             setProjectRooms([]);
             // Clear any stale god mode cookies
             if (typeof document !== 'undefined' && godModeUser) {
-              document.cookie = 'god_mode_user=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
-              document.cookie = 'god_mode_entity=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
+              clearGodCookie('god_mode_user');
+              clearGodCookie('god_mode_entity');
             }
             setDataReady(true);
           }
@@ -419,8 +426,8 @@ export function AppProvider({ children }) {
     auditPublic('Logout', { userName: currentUser?.display_name || currentUser?.email || '', entityId: currentUser?.active_collective_id || currentUser?.id });
     // Clear god mode state before signing out so it doesn't bleed into the next session
     try { sessionStorage.removeItem('god_mode'); } catch {}
-    document.cookie = 'god_mode_user=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
-    document.cookie = 'god_mode_entity=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
+    clearGodCookie('god_mode_user');
+    clearGodCookie('god_mode_entity');
     await supabase.auth.signOut();
     setCurrentUser(null);
     setImpersonating(null);
@@ -477,11 +484,11 @@ export function AppProvider({ children }) {
     // Set both together so effectiveCollectives is correct on first render
     setImpersonatingCollectives(fetchedCollectives || []);
     setImpersonating(impersonatingProfile);
-    document.cookie = `god_mode_user=${userId}; path=/; SameSite=Lax`;
+    setGodCookie('god_mode_user', userId);
     if (activeCollectiveId) {
-      document.cookie = `god_mode_entity=${activeCollectiveId}; path=/; SameSite=Lax`;
+      setGodCookie('god_mode_entity', activeCollectiveId);
     } else {
-      document.cookie = 'god_mode_entity=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
+      clearGodCookie('god_mode_entity');
     }
 
     // Full entity-scoped fetch so context has the right data before any page renders it
@@ -510,8 +517,8 @@ export function AppProvider({ children }) {
   const stopImpersonation = async () => {
     setImpersonating(null);
     setImpersonatingCollectives([]);
-    document.cookie = 'god_mode_entity=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
-    document.cookie = 'god_mode_user=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
+    clearGodCookie('god_mode_entity');
+    clearGodCookie('god_mode_user');
     // Clear sessionStorage NOW so refreshSupabaseData doesn't think we're still impersonating
     try { sessionStorage.removeItem('god_mode'); } catch {}
     // Reload SA global data so the superadmin page has fresh data and dataReady = true
@@ -539,9 +546,9 @@ export function AppProvider({ children }) {
   const switchImpersonatingContext = async (collectiveId) => {
     setImpersonating(prev => prev ? { ...prev, active_collective_id: collectiveId } : prev);
     if (collectiveId) {
-      document.cookie = `god_mode_entity=${collectiveId}; path=/; SameSite=Lax`;
+      setGodCookie('god_mode_entity', collectiveId);
     } else {
-      document.cookie = 'god_mode_entity=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
+      clearGodCookie('god_mode_entity');
     }
     setDataReady(false);
     try {
