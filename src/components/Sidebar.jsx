@@ -86,12 +86,12 @@ export default function Sidebar() {
 
   // Fetch pending invitation count for the Kollektívák badge
   useEffect(() => {
-    if (isSuperAdmin || impersonating || isDemoMode) return;
+    if (!currentUser || isSuperAdmin || impersonating || isDemoMode) return;
     fetch('/api/collectives/my-invitations')
       .then(r => r.ok ? r.json() : { invitations: [] })
       .then(d => setInvitationCount((d.invitations || []).length))
       .catch(() => {});
-  }, [isSuperAdmin, impersonating, isDemoMode, pathname]);
+  }, [currentUser, isSuperAdmin, impersonating, isDemoMode, pathname]);
 
   useEffect(() => {
     document.documentElement.style.setProperty('--sidebar-w', collapsed ? '60px' : '240px');
