@@ -81,6 +81,14 @@ export default function ProjectsListClient({
     setAlertModal({ variant: 'success', title: 'Visszavonva', message: 'Az áthelyezési kérelem visszavonva. A dokumentum újra szerkeszthető.' });
   };
 
+  const handleTransferSuccess = (result) => {
+    if (result.moved) {
+      refreshSupabaseData();
+    } else if (result.request) {
+      setOutgoingTransfers(prev => [...prev, result.request]);
+    }
+  };
+
   const handleDelete = (project) => {
     setConfirmDelete({
       message: `Biztosan törölni kívánja „${project.name}" projektet? Ez nem vonható vissza.`,
@@ -506,6 +514,7 @@ export default function ProjectsListClient({
         documentType="project"
         documentId={transferModal?.documentId}
         documentTitle={transferModal?.documentTitle}
+        onSuccess={handleTransferSuccess}
       />
     </div>
   );

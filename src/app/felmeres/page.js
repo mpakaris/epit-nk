@@ -44,13 +44,26 @@ export default function SurveyListPage() {
       .catch(() => {});
   }, [dataReady, isDemoMode]);
 
-  useEffect(() => {
-    if (!dataReady) return;
+  const fetchCombined = () => {
     fetch('/api/workspace/combined', { cache: 'no-store' })
       .then(r => r.ok ? r.json() : { personal: { surveys: [] }, shared: { surveys: [] }, collectives: [] })
       .then(d => { setCombined(d); setFetching(false); })
       .catch(() => setFetching(false));
+  };
+
+  useEffect(() => {
+    if (!dataReady) return;
+    fetchCombined();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dataReady]);
+
+  const handleTransferSuccess = (result) => {
+    if (result.moved) {
+      fetchCombined();
+    } else if (result.request) {
+      setOutgoingTransfers(prev => [...prev, result.request]);
+    }
+  };
 
   const handleRetract = async (requestId) => {
     const res = await fetch(`/api/transfer-requests/${requestId}`, {
@@ -291,6 +304,7 @@ export default function SurveyListPage() {
         documentType="survey"
         documentId={transferModal?.documentId}
         documentTitle={transferModal?.documentTitle}
+        onSuccess={handleTransferSuccess}
       />
     </div>
   );

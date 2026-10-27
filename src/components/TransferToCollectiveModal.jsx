@@ -8,7 +8,7 @@ import { AlertTriangle, Users, ArrowRight, ArrowLeft, Check, Loader2 } from 'luc
 const DOC_TYPE_LABEL = { project: 'projektet', quote: 'ajánlatot', survey: 'felmérést' };
 const DOC_ROUTE      = { project: '/projektek', quote: '/ajanlatok', survey: '/felmeres' };
 
-export default function TransferToCollectiveModal({ isOpen, onClose, documentType, documentId, documentTitle }) {
+export default function TransferToCollectiveModal({ isOpen, onClose, documentType, documentId, documentTitle, onSuccess }) {
   const { collectives: userMemberships, isDemoMode } = useApp();
   const navPrefix = isDemoMode ? '/demo' : '';
 
@@ -60,6 +60,7 @@ export default function TransferToCollectiveModal({ isOpen, onClose, documentTyp
       }
       setMovedDirectly(data.moved === true);
       setStep('success');
+      onSuccess?.(data);
     } catch {
       setError('Hálózati hiba. Próbáld újra.');
     } finally {

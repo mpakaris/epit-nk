@@ -40,13 +40,26 @@ export default function QuotesListPage() {
       .catch(() => {});
   }, [dataReady, isDemoMode]);
 
-  useEffect(() => {
-    if (!dataReady) return;
+  const fetchCombined = () => {
     fetch('/api/workspace/combined', { cache: 'no-store' })
       .then(r => r.ok ? r.json() : { personal: { quotes: [] }, shared: { quotes: [] }, collectives: [] })
       .then(d => { setCombined(d); setFetching(false); })
       .catch(() => setFetching(false));
+  };
+
+  useEffect(() => {
+    if (!dataReady) return;
+    fetchCombined();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dataReady]);
+
+  const handleTransferSuccess = (result) => {
+    if (result.moved) {
+      fetchCombined();
+    } else if (result.request) {
+      setOutgoingTransfers(prev => [...prev, result.request]);
+    }
+  };
 
   const handleRetract = async (requestId) => {
     const res = await fetch(`/api/transfer-requests/${requestId}`, {
@@ -274,6 +287,7 @@ export default function QuotesListPage() {
         documentType="quote"
         documentId={transferModal?.documentId}
         documentTitle={transferModal?.documentTitle}
+        onSuccess={handleTransferSuccess}
       />
     </div>
   );
