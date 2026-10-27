@@ -62,6 +62,7 @@ export default function ProjectsListClient({
   const [expandShared, setExpandShared]     = useState({});
   const [confirmDelete, setConfirmDelete]   = useState(null);
   const [deleteAlert,   setDeleteAlert]     = useState(null);
+  const [deletedIds,    setDeletedIds]      = useState(new Set());
   const [alertModal,    setAlertModal]      = useState(null);
   const [transferModal,    setTransferModal]    = useState(null);
   const [outgoingTransfers, setOutgoingTransfers] = useState([]);
@@ -93,8 +94,11 @@ export default function ProjectsListClient({
     setConfirmDelete({
       message: `Biztosan törölni kívánja „${project.name}" projektet? Ez nem vonható vissza.`,
       onConfirm: async () => {
-        try { await deleteProject(project.id, project); }
-        catch (err) { setDeleteAlert(err.message || 'Hiba a törléskor'); }
+        try {
+          await deleteProject(project.id, project);
+          setDeletedIds(prev => new Set([...prev, project.id]));
+          setAlertModal({ variant: 'success', title: 'Projekt törölve', message: `„${project.name}" sikeresen törölve.` });
+        } catch (err) { setDeleteAlert(err.message || 'Hiba a törléskor'); }
       },
     });
   };
@@ -256,11 +260,13 @@ export default function ProjectsListClient({
     );
   };
 
-  const allProjects = [...(personalProjects || []), ...(sharedProjects || [])];
+  const visiblePersonal = (personalProjects || []).filter(p => !deletedIds.has(p.id));
+  const visibleShared   = (sharedProjects   || []).filter(p => !deletedIds.has(p.id));
+  const allProjects = [...visiblePersonal, ...visibleShared];
 
   const sharedByCollective = (collectives || []).map(col => ({
     ...col,
-    projects: (sharedProjects || []).filter(p => p.collective_id === col.id),
+    projects: visibleShared.filter(p => p.collective_id === col.id),
   }));
 
   return (
@@ -311,16 +317,16 @@ export default function ProjectsListClient({
         </div>
       ) : (
         <>
-          <WorkspaceSectionHeader type="personal" count={(personalProjects || []).length} />
-          {(personalProjects || []).length === 0 ? (
+          <WorkspaceSectionHeader type="personal" count={visiblePersonal.length} />
+          {visiblePersonal.length === 0 ? (
             <p style={{ fontSize: '0.825rem', color: 'var(--text-muted)', marginBottom: '1.25rem' }}>Nincsenek személyes projektek.</p>
           ) : (
             <>
               <div className="card-grid">
-                {(expandPersonal ? personalProjects : (personalProjects || []).slice(0, PREVIEW_COUNT)).map(p => renderCard(p))}
+                {(expandPersonal ? visiblePersonal : visiblePersonal.slice(0, PREVIEW_COUNT)).map(p => renderCard(p))}
               </div>
               <ExpandButton
-                total={(personalProjects || []).length}
+                total={visiblePersonal.length}
                 showing={PREVIEW_COUNT}
                 expanded={expandPersonal}
                 onToggle={() => setExpandPersonal(v => !v)}

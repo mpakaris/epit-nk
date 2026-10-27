@@ -80,8 +80,15 @@ export default function QuotesListPage() {
     setConfirmModal({
       message: `Biztosan törölni kívánja „${q.title}" ajánlatot?`,
       onConfirm: async () => {
-        try { await deleteQuote(q.id); }
-        catch (err) { setAlertModal({ message: err.message || 'Hiba a törléskor' }); }
+        try {
+          await deleteQuote(q.id);
+          setCombined(prev => prev ? {
+            ...prev,
+            personal: { ...prev.personal, quotes: (prev.personal?.quotes || []).filter(x => x.id !== q.id) },
+            shared:   { ...prev.shared,   quotes: (prev.shared?.quotes   || []).filter(x => x.id !== q.id) },
+          } : prev);
+          setAlertModal({ variant: 'success', title: 'Ajánlat törölve', message: `„${q.title}" sikeresen törölve.` });
+        } catch (err) { setAlertModal({ message: err.message || 'Hiba a törléskor' }); }
       },
     });
   };

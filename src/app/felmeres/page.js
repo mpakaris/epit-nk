@@ -89,8 +89,15 @@ export default function SurveyListPage() {
     setConfirmModal({
       message: `Biztosan törölni kívánja „${survey.title}" felmérést?${extra} Ez nem vonható vissza.`,
       onConfirm: async () => {
-        try { await deleteSurvey(survey.id, survey); }
-        catch (err) { setAlertModal({ message: err.message || 'Hiba a törléskor' }); }
+        try {
+          await deleteSurvey(survey.id, survey);
+          setCombined(prev => prev ? {
+            ...prev,
+            personal: { ...prev.personal, surveys: (prev.personal?.surveys || []).filter(s => s.id !== survey.id) },
+            shared:   { ...prev.shared,   surveys: (prev.shared?.surveys   || []).filter(s => s.id !== survey.id) },
+          } : prev);
+          setAlertModal({ variant: 'success', title: 'Felmérés törölve', message: `„${survey.title}" sikeresen törölve.` });
+        } catch (err) { setAlertModal({ message: err.message || 'Hiba a törléskor' }); }
       },
     });
   };
