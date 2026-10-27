@@ -236,8 +236,14 @@ export default function KollektivakPage() {
       } else {
         setTransferRequests(prev => prev.filter(r => r.id !== req.id));
         const docTypeLabel = { project: 'Projekt', quote: 'Ajánlat', survey: 'Felmérés' };
+        const docRoute     = { project: '/projektek', quote: '/ajanlatok', survey: '/felmeres' };
         if (action === 'accept') {
-          setAlertModal({ variant: 'success', title: 'Áthelyezés elfogadva', message: `„${req.document_title}" mostantól a kollektíva dokumentuma.` });
+          setAlertModal({
+            variant: 'success',
+            title: 'Áthelyezés elfogadva',
+            message: `„${req.document_title}" mostantól a kollektíva dokumentuma.`,
+            action: { href: `${docRoute[req.document_type] || ''}/${req.document_id}`, label: 'Megtekintés →' },
+          });
         } else {
           setAlertModal({ variant: 'warning', title: 'Kérelem visszautasítva', message: `„${req.document_title}" ${docTypeLabel[req.document_type] || 'dokumentum'} kérelme visszautasítva.` });
         }
