@@ -38,6 +38,34 @@ function SectionHeader({ icon: Icon, title, href, count }) {
   );
 }
 
+function MobileQuickCards({ cards, router }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      {cards.map(({ key, icon: Icon, title, desc, href, color, bg }) => (
+        <button
+          key={key}
+          onClick={() => router.push(href)}
+          style={{
+            display: 'flex', alignItems: 'center', gap: 16,
+            padding: '16px 14px', borderRadius: 'var(--radius-xl)',
+            background: bg, border: `1.5px solid ${color}28`,
+            cursor: 'pointer', textAlign: 'left', width: '100%', minHeight: 72,
+          }}
+        >
+          <div style={{ width: 44, height: 44, borderRadius: 'var(--radius-lg)', background: color, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <Icon size={20} color="#fff" />
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 2 }}>{title}</div>
+            <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.4 }}>{desc}</div>
+          </div>
+          <ChevronRight size={16} color="var(--text-muted)" style={{ flexShrink: 0 }} />
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export default function DashboardClient({
   initialProjects,
   initialInvoices,
@@ -172,51 +200,18 @@ export default function DashboardClient({
       {/* ══════════════════════ MOBILE HOME ══════════════════════ */}
       <div className="show-mobile">
 
-        {/* ── Quick-start cards (missing types) ── */}
-        {showQuickStart && (
+        {/* ── All-empty welcome screen ── */}
+        {isEmptyUser && (
           <div style={{ paddingTop: 24 }}>
-            {isEmptyUser && (
-              <div style={{ textAlign: 'center', marginBottom: 20 }}>
-                <div style={{ fontSize: 17, fontWeight: 800, color: 'var(--text-primary)', marginBottom: 4 }}>
-                  Hol tartasz most?
-                </div>
-                <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>
-                  Hozd létre az első dokumentumodat.
-                </div>
+            <div style={{ textAlign: 'center', marginBottom: 20 }}>
+              <div style={{ fontSize: 17, fontWeight: 800, color: 'var(--text-primary)', marginBottom: 4 }}>
+                Hol tartasz most?
               </div>
-            )}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {quickCards.map(({ key, icon: Icon, title, desc, href, color, bg }) => (
-                <button
-                  key={key}
-                  onClick={() => router.push(href)}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: 16,
-                    padding: '16px 14px', borderRadius: 'var(--radius-xl)',
-                    background: bg, border: `1.5px solid ${color}28`,
-                    cursor: 'pointer', textAlign: 'left', width: '100%',
-                    minHeight: 72,
-                  }}
-                >
-                  <div style={{
-                    width: 44, height: 44, borderRadius: 'var(--radius-lg)',
-                    background: color, display: 'flex', alignItems: 'center',
-                    justifyContent: 'center', flexShrink: 0,
-                  }}>
-                    <Icon size={20} color="#fff" />
-                  </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 2 }}>
-                      {title}
-                    </div>
-                    <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.4 }}>
-                      {desc}
-                    </div>
-                  </div>
-                  <ChevronRight size={16} color="var(--text-muted)" style={{ flexShrink: 0 }} />
-                </button>
-              ))}
+              <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>
+                Hozd létre az első dokumentumodat.
+              </div>
             </div>
+            <MobileQuickCards cards={quickCards} router={router} />
           </div>
         )}
 
@@ -351,6 +346,12 @@ export default function DashboardClient({
             </div>
           );
         })}
+        {/* ── Quick-start cards for missing types (bottom, in order) ── */}
+        {showQuickStart && (
+          <div style={{ marginTop: 8, marginBottom: 8 }}>
+            <MobileQuickCards cards={quickCards} router={router} />
+          </div>
+        )}
         </>}{/* end !isEmptyUser */}
       </div>
       {/* ══════════════════════ END MOBILE HOME ══════════════════════ */}
