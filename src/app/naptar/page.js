@@ -1,15 +1,16 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useApp } from '@/context/AppContext';
 import { formatDate, QUOTE_STATUSES } from '@/lib/constants';
 import {
   ChevronLeft, ChevronRight, FolderKanban, FileText,
-  Calendar, List
+  Calendar, List, Plus, Clock
 } from 'lucide-react';
 import PageSpinner from '@/components/PageSpinner';
 import WorkspaceBadge from '@/components/WorkspaceBadge';
+import NewAppointmentModal from '@/components/NewAppointmentModal';
 
 const DAYS_HU  = ['H', 'K', 'Sze', 'Cs', 'P', 'Szo', 'V'];
 const MONTHS_HU = [
@@ -28,7 +29,7 @@ function diffDays(a, b) {
   return Math.round((toDay(b) - toDay(a)) / 86400000);
 }
 
-function buildEvents(projects, quotes, clients, quoteSections, projectRooms) {
+function buildEvents(projects, quotes, clients, quoteSections, projectRooms, appointments = []) {
   const events = [];
   for (const p of projects) {
     if (p.start_date || p.end_date) {
@@ -60,6 +61,16 @@ function buildEvents(projects, quotes, clients, quoteSections, projectRooms) {
         href: `/ajanlatok/${q.id}`,
       });
     }
+  }
+  for (const a of appointments) {
+    if (!a.date) continue;
+    const client = a.client_id ? clients.find(c => c.id === a.client_id) : null;
+    const day  = toDay(a.date);
+    const href = a.linked_survey_id  ? `/felmeres/${a.linked_survey_id}`
+               : a.linked_quote_id   ? `/ajanlatok/${a.linked_quote_id}`
+               : a.linked_project_id ? `/projektek/${a.linked_project_id}`
+               : null;
+    events.push({ id: `appt-${a.id}`, title: a.title, clientName: client?.name || null, type: 'appointment', start: day, end: day, href, time: a.time });
   }
   return events;
 }
@@ -133,8 +144,18 @@ export default function CalendarPage() {
   const { projects, quotes, clients, loading, quoteSections, projectRooms } = useApp();
   const [view, setView]               = useState('grid');
   const [currentDate, setCurrentDate] = useState(new Date());
+  const [appointments,  setAppointments]  = useState([]);
+  const [newApptOpen,   setNewApptOpen]   = useState(false);
 
-  const events = useMemo(() => buildEvents(projects, quotes, clients, quoteSections, projectRooms), [projects, quotes, clients, quoteSections, projectRooms]);
+  const fetchAppointments = useCallback(() => {
+    fetch('/api/appointments')
+      .then(r => r.ok ? r.json() : { appointments: [] })
+      .then(d => setAppointments(d.appointments || []))
+      .catch(() => {});
+  }, []);
+  useEffect(() => { fetchAppointments(); }, [fetchAppointments]);
+
+  const events = useMemo(() => buildEvents(projects, quotes, clients, quoteSections, projectRooms, appointments), [projects, quotes, clients, quoteSections, projectRooms, appointments]);
   const today  = useMemo(() => { const d = new Date(); d.setHours(0,0,0,0); return d; }, []);
 
   // ── TIMELINE ──────────────────────────────────────────────────────────────
@@ -172,15 +193,25 @@ export default function CalendarPage() {
         <div className="page-header-row">
           <div>
             <h1 className="page-title" style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>Naptár <WorkspaceBadge /></h1>
-            <p className="page-subtitle">Projektek és ajánlatok ütemezése</p>
+            <p className="page-subtitle">Projektek, ajánlatok és időpontok</p>
           </div>
-          <div style={{ display: 'flex', gap: '0.4rem', background: 'var(--bg-subtle)', padding: '0.3rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)', flexShrink: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+          <button
+            type="button"
+            onClick={() => setNewApptOpen(true)}
+            className="btn btn-primary btn-sm"
+            style={{ display: 'flex', alignItems: 'center', gap: 6 }}
+          >
+            <Plus size={15} /> Új időpont
+          </button>
+          <div style={{ display: 'flex', gap: '0.4rem', background: 'var(--bg-subtle)', padding: '0.3rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)' }}>
             <button type="button" onClick={() => setView('timeline')} style={viewBtnStyle(view === 'timeline')}>
               <List size={15} /> Időrend
             </button>
             <button type="button" onClick={() => setView('grid')} style={viewBtnStyle(view === 'grid')}>
               <Calendar size={15} /> Hónap
             </button>
+          </div>
           </div>
         </div>
       </div>
@@ -195,7 +226,16 @@ export default function CalendarPage() {
           <span style={{ width: '28px', height: '10px', borderRadius: '3px', background: 'var(--warning)', display: 'inline-block' }} />
           Ajánlat
         </span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+          <span style={{ width: '28px', height: '10px', borderRadius: '3px', background: 'var(--accent)', display: 'inline-block' }} />
+          Időpont
+        </span>
       </div>
+
+      <NewAppointmentModal
+        isOpen={newApptOpen}
+        onClose={() => { setNewApptOpen(false); fetchAppointments(); }}
+      />
 
       {/* ═══ TIMELINE VIEW ═══════════════════════════════════════════════════ */}
       {view === 'timeline' && (
@@ -210,12 +250,15 @@ export default function CalendarPage() {
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
             {upcomingEvents.map(event => {
-              const isProject = event.type === 'project';
+              const isProject     = event.type === 'project';
+              const isAppointment = event.type === 'appointment';
+              const accentColor   = isProject ? 'var(--success)' : isAppointment ? 'var(--accent)' : 'var(--warning)';
+              const Wrapper = event.href ? Link : 'div';
               return (
-                <Link key={event.id} href={event.href} style={{ textDecoration: 'none' }}>
-                  <div className="card card-interactive" style={{ padding: '1rem', borderLeft: `4px solid ${isProject ? 'var(--success)' : 'var(--warning)'}`, display: 'flex', alignItems: 'flex-start', gap: '0.85rem' }}>
-                    <div style={{ padding: '0.5rem', borderRadius: 'var(--radius-md)', background: isProject ? 'var(--success-bg)' : 'var(--warning-bg)', flexShrink: 0 }}>
-                      {isProject ? <FolderKanban size={18} color="var(--success)" /> : <FileText size={18} color="var(--warning)" />}
+                <Wrapper key={event.id} href={event.href || undefined} style={{ textDecoration: 'none' }}>
+                  <div className={`card${event.href ? ' card-interactive' : ''}`} style={{ padding: '1rem', borderLeft: `4px solid ${accentColor}`, display: 'flex', alignItems: 'flex-start', gap: '0.85rem' }}>
+                    <div style={{ padding: '0.5rem', borderRadius: 'var(--radius-md)', background: isProject ? 'var(--success-bg)' : isAppointment ? '#eff6ff' : 'var(--warning-bg)', flexShrink: 0 }}>
+                      {isProject ? <FolderKanban size={18} color="var(--success)" /> : isAppointment ? <Clock size={18} color="var(--accent)" /> : <FileText size={18} color="var(--warning)" />}
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
@@ -227,15 +270,15 @@ export default function CalendarPage() {
                       <div style={{ fontSize: '0.775rem', color: 'var(--text-muted)', marginTop: '0.2rem', display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
                         <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
                           <Calendar size={12} />
-                          {event.start ? formatDate(event.start) : '?'} – {event.end ? formatDate(event.end) : '?'}
+                          {isAppointment && event.time ? `${formatDate(event.start)} ${event.time.slice(0,5)}` : `${event.start ? formatDate(event.start) : '?'}${event.end && event.end.getTime() !== event.start?.getTime() ? ` – ${formatDate(event.end)}` : ''}`}
                         </span>
-                        <span style={{ fontWeight: 600, color: isProject ? 'var(--success-text)' : 'var(--warning-text)' }}>
-                          {isProject ? 'Projekt' : (QUOTE_STATUSES.find(s => s.id === event.status)?.label || 'Ajánlat')}
+                        <span style={{ fontWeight: 600, color: accentColor }}>
+                          {isProject ? 'Projekt' : isAppointment ? 'Időpont' : (QUOTE_STATUSES.find(s => s.id === event.status)?.label || 'Ajánlat')}
                         </span>
                       </div>
                     </div>
                   </div>
-                </Link>
+                </Wrapper>
               );
             })}
           </div>
@@ -320,10 +363,11 @@ export default function CalendarPage() {
                         <div style={{ position: 'absolute', top: DAY_NUM_H, left: 0, right: 0, bottom: 0 }}>
                           {lanes.map((lane, laneIdx) =>
                             lane.map(({ ev, colStart, colEnd, startsHere, endsHere }) => {
-                              const isProject = ev.type === 'project';
-                              const baseColor = isProject ? 'var(--success)' : 'var(--warning)';
-                              const bgColor   = isProject ? 'var(--success-bg)' : 'var(--warning-bg)';
-                              const textColor = isProject ? 'var(--success-text)' : 'var(--warning-text)';
+                              const isProject     = ev.type === 'project';
+                              const isAppointment = ev.type === 'appointment';
+                              const baseColor = isProject ? 'var(--success)' : isAppointment ? 'var(--accent)' : 'var(--warning)';
+                              const bgColor   = isProject ? 'var(--success-bg)' : isAppointment ? '#eff6ff' : 'var(--warning-bg)';
+                              const textColor = isProject ? 'var(--success-text)' : isAppointment ? '#1d4ed8' : 'var(--warning-text)';
                               const span = colEnd - colStart + 1;
                               const leftPct  = (colStart / 7) * 100;
                               const widthPct = (span / 7) * 100;
@@ -362,12 +406,11 @@ export default function CalendarPage() {
                                 >
                                   {startsHere && (
                                     <span className="cal-event-text" style={{ display: 'flex', alignItems: 'center', overflow: 'hidden' }}>
-                                      {isProject
-                                        ? <FolderKanban size={10} style={{ marginRight: 3, flexShrink: 0 }} />
-                                        : <FileText size={10} style={{ marginRight: 3, flexShrink: 0 }} />
-                                      }
+                                      {isProject     ? <FolderKanban size={10} style={{ marginRight: 3, flexShrink: 0 }} />
+                                      : isAppointment ? <Clock        size={10} style={{ marginRight: 3, flexShrink: 0 }} />
+                                      :                 <FileText     size={10} style={{ marginRight: 3, flexShrink: 0 }} />}
                                       <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                        {ev.title}{ev.clientName ? ` · ${ev.clientName}` : ''}
+                                        {ev.time ? `${ev.time.slice(0,5)} ` : ''}{ev.title}{ev.clientName ? ` · ${ev.clientName}` : ''}
                                       </span>
                                     </span>
                                   )}

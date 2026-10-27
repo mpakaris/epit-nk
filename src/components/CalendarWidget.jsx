@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useApp } from '@/context/AppContext';
 import { formatDate } from '@/lib/constants';
-import { Calendar, FolderKanban, FileText, ArrowUpRight } from 'lucide-react';
+import { Calendar, FolderKanban, FileText, ArrowUpRight, Plus, Clock } from 'lucide-react';
+import NewAppointmentModal from '@/components/NewAppointmentModal';
 
 const DAYS_HU = ['H', 'K', 'Sze', 'Cs', 'P', 'Szo', 'V'];
 
@@ -44,6 +45,17 @@ export default function CalendarWidget({ projects: propProjects, quotes: propQuo
   const clients = propClients ?? ctx.clients;
   const projectRooms = ctx.projectRooms;
 
+  const [appointments, setAppointments] = useState([]);
+  const [newApptOpen,  setNewApptOpen]  = useState(false);
+
+  function fetchAppointments() {
+    fetch('/api/appointments')
+      .then(r => r.ok ? r.json() : { appointments: [] })
+      .then(d => setAppointments(d.appointments || []))
+      .catch(() => {});
+  }
+  useEffect(() => { fetchAppointments(); }, []);
+
   const today = useMemo(() => { const d = new Date(); d.setHours(0,0,0,0); return d; }, []);
   const year  = today.getFullYear();
   const month = today.getMonth();
@@ -65,8 +77,18 @@ export default function CalendarWidget({ projects: propProjects, quotes: propQuo
         list.push({ id: q.id, title: q.title, clientName: client?.name || null, type: 'quote', status: q.status, start: q.start_date ? toDay(q.start_date) : null, end: q.end_date ? toDay(q.end_date) : null, href: `/ajanlatok/${q.id}` });
       }
     }
+    for (const a of appointments) {
+      if (!a.date) continue;
+      const client = a.client_id ? clients.find(c => c.id === a.client_id) : null;
+      const day = toDay(a.date);
+      const href = a.linked_survey_id  ? `/felmeres/${a.linked_survey_id}`
+                 : a.linked_quote_id   ? `/ajanlatok/${a.linked_quote_id}`
+                 : a.linked_project_id ? `/projektek/${a.linked_project_id}`
+                 : null;
+      list.push({ id: `appt-${a.id}`, title: a.title, clientName: client?.name || null, type: 'appointment', start: day, end: day, href, time: a.time });
+    }
     return list;
-  }, [projects, quotes, clients, projectRooms]);
+  }, [projects, quotes, clients, projectRooms, appointments]);
 
   const weeks = useMemo(() => {
     const firstDay = new Date(year, month, 1);
@@ -122,9 +144,23 @@ export default function CalendarWidget({ projects: propProjects, quotes: propQuo
           <Calendar size={16} color="var(--accent)" />
           {MONTHS_HU[month]} {year}
         </h3>
-        <Link href="/naptar" style={{ fontSize: '0.78rem', color: 'var(--accent)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.2rem', textDecoration: 'none' }}>
-          Teljes naptár <ArrowUpRight size={13} />
-        </Link>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <button
+            type="button"
+            onClick={() => setNewApptOpen(true)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 4,
+              padding: '0.3rem 0.65rem', borderRadius: 'var(--radius-md)',
+              background: 'var(--accent)', color: '#fff', border: 'none',
+              fontSize: '0.78rem', fontWeight: 700, cursor: 'pointer',
+            }}
+          >
+            <Plus size={13} /> Időpont
+          </button>
+          <Link href="/naptar" style={{ fontSize: '0.78rem', color: 'var(--accent)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.2rem', textDecoration: 'none' }}>
+            Teljes naptár <ArrowUpRight size={13} />
+          </Link>
+        </div>
       </div>
 
       {/* Day-of-week headers */}
@@ -178,10 +214,11 @@ export default function CalendarWidget({ projects: propProjects, quotes: propQuo
               <div style={{ position: 'absolute', top: DAY_NUM_H, left: 0, right: 0, bottom: 0 }}>
                 {lanes.map((lane, laneIdx) =>
                   lane.map(({ ev, colStart, colEnd, startsHere, endsHere }) => {
-                    const isProject = ev.type === 'project';
-                    const baseColor = isProject ? 'var(--success)' : 'var(--warning)';
-                    const bgColor   = isProject ? 'var(--success-bg)' : 'var(--warning-bg)';
-                    const textColor = isProject ? 'var(--success-text)' : 'var(--warning-text)';
+                    const isProject     = ev.type === 'project';
+                    const isAppointment = ev.type === 'appointment';
+                    const baseColor = isProject ? 'var(--success)' : isAppointment ? 'var(--accent)' : 'var(--warning)';
+                    const bgColor   = isProject ? 'var(--success-bg)' : isAppointment ? '#eff6ff' : 'var(--warning-bg)';
+                    const textColor = isProject ? 'var(--success-text)' : isAppointment ? '#1d4ed8' : 'var(--warning-text)';
                     const span      = colEnd - colStart + 1;
 
                     return (
@@ -218,12 +255,11 @@ export default function CalendarWidget({ projects: propProjects, quotes: propQuo
                       >
                         {startsHere && (
                           <span className="cal-event-text" style={{ display: 'flex', alignItems: 'center', overflow: 'hidden' }}>
-                            {isProject
-                              ? <FolderKanban size={9} style={{ marginRight: 2, flexShrink: 0 }} />
-                              : <FileText     size={9} style={{ marginRight: 2, flexShrink: 0 }} />
-                            }
+                            {isProject     ? <FolderKanban size={9} style={{ marginRight: 2, flexShrink: 0 }} />
+                            : isAppointment ? <Clock        size={9} style={{ marginRight: 2, flexShrink: 0 }} />
+                            :                <FileText      size={9} style={{ marginRight: 2, flexShrink: 0 }} />}
                             <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                              {ev.title}{ev.clientName ? ` · ${ev.clientName}` : ''}
+                              {ev.time ? `${ev.time.slice(0,5)} ` : ''}{ev.title}{ev.clientName ? ` · ${ev.clientName}` : ''}
                             </span>
                           </span>
                         )}
@@ -245,7 +281,15 @@ export default function CalendarWidget({ projects: propProjects, quotes: propQuo
         <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
           <span style={{ width: 20, height: 8, borderRadius: 2, background: 'var(--warning)', display: 'inline-block' }} /> Ajánlat
         </span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+          <span style={{ width: 20, height: 8, borderRadius: 2, background: 'var(--accent)', display: 'inline-block' }} /> Időpont
+        </span>
       </div>
+
+      <NewAppointmentModal
+        isOpen={newApptOpen}
+        onClose={() => { setNewApptOpen(false); fetchAppointments(); }}
+      />
     </div>
   );
 }
