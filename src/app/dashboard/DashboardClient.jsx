@@ -391,6 +391,47 @@ export default function DashboardClient({
         </div>
       )}
 
+      {/* Empty state — desktop */}
+      {isEmptyUser && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: '1.75rem' }}>
+          {[
+            { icon: Ruler,        title: 'Új felmérés',  desc: 'Méretek, helyszín és fotók rögzítése helyszínen', href: p('/felmeres/uj'),   color: '#2563eb', bg: '#eff6ff', border: '#bfdbfe' },
+            { icon: FileText,     title: 'Új ajánlat',   desc: 'Tételek, ár összeállítása, ügyfélnek küldöm',   href: p('/ajanlatok/uj'), color: '#7c3aed', bg: '#f5f3ff', border: '#ddd6fe' },
+            { icon: FolderKanban, title: 'Új projekt',   desc: 'Számlák, munkadíj és napló egy helyen',          href: p('/projektek/uj'), color: '#059669', bg: '#ecfdf5', border: '#a7f3d0' },
+          ].map(({ icon: Icon, title, desc, href, color, bg, border }) => (
+            <button
+              key={title}
+              onClick={() => router.push(href)}
+              style={{
+                display: 'flex', flexDirection: 'column', alignItems: 'flex-start',
+                gap: 16, padding: '28px 24px',
+                borderRadius: 'var(--radius-lg)', background: bg,
+                border: `1.5px solid ${border}`,
+                cursor: 'pointer', textAlign: 'left', width: '100%',
+              }}
+            >
+              <div style={{
+                width: 52, height: 52, borderRadius: 'var(--radius-lg)',
+                background: color, display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                <Icon size={24} color="#fff" />
+              </div>
+              <div>
+                <div style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: 6 }}>
+                  {title}
+                </div>
+                <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                  {desc}
+                </div>
+              </div>
+              <div style={{ marginTop: 'auto', fontSize: '0.8rem', fontWeight: 700, color: color, display: 'flex', alignItems: 'center', gap: 4 }}>
+                Létrehozás <ChevronRight size={14} />
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* Calendar */}
       {!(isSuperAdmin && !impersonating) && (
         <div style={{ marginBottom: '1.75rem' }}>
