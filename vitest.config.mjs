@@ -13,7 +13,7 @@ export default defineConfig({
     // One worker so DB writes from one file don't race with reads in another
     maxWorkers: 1,
     minWorkers: 1,
-    // Full teardown after every run — deletes records, collectives, and users
-    globalTeardown: './tests/globalTeardown.js',
+    // Cleanup before + after every run — deletes test records, collectives, users
+    globalSetup: './tests/globalSetup.js',
   },
 })
