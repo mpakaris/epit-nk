@@ -31,7 +31,7 @@ export async function PATCH(request, { params }) {
       return Response.json({ error: 'Csak a kérelmező vonhatja vissza a kérelmet.' }, { status: 403 });
     const { error } = await admin
       .from('transfer_requests')
-      .update({ status: 'retracted', resolved_at: new Date().toISOString() })
+      .update({ status: 'retracted', resolved_at: new Date().toISOString(), resolved_by: user.id })
       .eq('id', id);
     if (error) return Response.json({ error: 'Hiba a visszavonáskor.' }, { status: 500 });
     return Response.json({ ok: true });
@@ -66,7 +66,7 @@ export async function PATCH(request, { params }) {
   // Update request status
   const { error: reqErr } = await admin
     .from('transfer_requests')
-    .update({ status: action === 'accept' ? 'accepted' : 'rejected', resolved_at: new Date().toISOString() })
+    .update({ status: action === 'accept' ? 'accepted' : 'rejected', resolved_at: new Date().toISOString(), resolved_by: user.id })
     .eq('id', id);
 
   if (reqErr) return Response.json({ error: 'Hiba az állapot frissítésekor.' }, { status: 500 });
