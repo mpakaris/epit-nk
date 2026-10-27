@@ -172,8 +172,8 @@ export default function DashboardClient({
       {/* ══════════════════════ MOBILE HOME ══════════════════════ */}
       <div className="show-mobile">
 
-        {/* ── Quick-start cards (shown until user has ≥1 of each type) ── */}
-        {showQuickStart && (
+        {/* ── Quick-start cards (all three empty = brand new user) ── */}
+        {isEmptyUser && (
           <div style={{ paddingTop: 24 }}>
             {isEmptyUser && (
               <div style={{ textAlign: 'center', marginBottom: 20 }}>
@@ -416,46 +416,6 @@ export default function DashboardClient({
         </div>
       )}
 
-      {/* Quick-start cards — desktop (shown until user has ≥1 of each type) */}
-      {showQuickStart && (
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: `repeat(${quickCards.length}, 1fr)`,
-          gap: 16, marginBottom: '1.75rem',
-        }}>
-          {quickCards.map(({ key, icon: Icon, title, desc, href, color, bg, border }) => (
-            <button
-              key={key}
-              onClick={() => router.push(href)}
-              style={{
-                display: 'flex', flexDirection: 'column', alignItems: 'flex-start',
-                gap: 16, padding: '28px 24px',
-                borderRadius: 'var(--radius-lg)', background: bg,
-                border: `1.5px solid ${border}`,
-                cursor: 'pointer', textAlign: 'left', width: '100%',
-              }}
-            >
-              <div style={{
-                width: 52, height: 52, borderRadius: 'var(--radius-lg)',
-                background: color, display: 'flex', alignItems: 'center', justifyContent: 'center',
-              }}>
-                <Icon size={24} color="#fff" />
-              </div>
-              <div>
-                <div style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: 6 }}>
-                  {title}
-                </div>
-                <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-                  {desc}
-                </div>
-              </div>
-              <div style={{ marginTop: 'auto', fontSize: '0.8rem', fontWeight: 700, color: color, display: 'flex', alignItems: 'center', gap: 4 }}>
-                Létrehozás <ChevronRight size={14} />
-              </div>
-            </button>
-          ))}
-        </div>
-      )}
 
       {/* Latest activity */}
       <div style={{ marginBottom: '1.75rem' }}>
@@ -518,9 +478,23 @@ export default function DashboardClient({
       <div style={{ marginBottom: '1.75rem' }}>
         <SectionHeader icon={FolderKanban} title="Projektek" href={p('/projektek')} count={projects.length} />
         {recentProjects.length === 0 ? (
-          <div className="card" style={{ textAlign: 'center', padding: '1.5rem', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-            Még nincs projekt.
-          </div>
+          <button onClick={() => router.push(p('/projektek/uj'))} style={{
+            display: 'flex', flexDirection: 'column', alignItems: 'flex-start',
+            gap: 16, padding: '28px 24px', width: '100%',
+            borderRadius: 'var(--radius-lg)', background: '#ecfdf5',
+            border: '1.5px solid #a7f3d0', cursor: 'pointer', textAlign: 'left',
+          }}>
+            <div style={{ width: 52, height: 52, borderRadius: 'var(--radius-lg)', background: '#059669', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <FolderKanban size={24} color="#fff" />
+            </div>
+            <div>
+              <div style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: 6 }}>Első projekt létrehozása</div>
+              <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>Számlák, munkadíj és napló egy helyen</div>
+            </div>
+            <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#059669', display: 'flex', alignItems: 'center', gap: 4 }}>
+              Létrehozás <ChevronRight size={14} />
+            </div>
+          </button>
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(300px, 100%), 1fr))', gap: '1rem' }}>
             {recentProjects.map(project => {
@@ -546,7 +520,19 @@ export default function DashboardClient({
         <div className="card">
           <SectionHeader icon={Ruler} title="Legújabb felmérések" href={p('/felmeres')} />
           {recentSurveys.length === 0 ? (
-            <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem', padding: '0.5rem 0' }}>Még nincs felmérés.</div>
+            <button onClick={() => router.push(p('/felmeres/uj'))} style={{
+              display: 'flex', alignItems: 'center', gap: 12, width: '100%',
+              padding: '12px 0', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left',
+            }}>
+              <div style={{ width: 38, height: 38, borderRadius: 'var(--radius-md)', background: '#2563eb', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <Ruler size={17} color="#fff" />
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--text-primary)' }}>Első felmérés létrehozása</div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Helyszíni méretek és fotók rögzítése</div>
+              </div>
+              <ChevronRight size={15} color="var(--text-muted)" style={{ flexShrink: 0 }} />
+            </button>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column' }}>
               {recentSurveys.map((s, idx) => (
@@ -565,7 +551,19 @@ export default function DashboardClient({
         <div className="card">
           <SectionHeader icon={FileText} title="Legújabb ajánlatok" href={p('/ajanlatok')} />
           {recentQuotes.length === 0 ? (
-            <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem', padding: '0.5rem 0' }}>Még nincs ajánlat.</div>
+            <button onClick={() => router.push(p('/ajanlatok/uj'))} style={{
+              display: 'flex', alignItems: 'center', gap: 12, width: '100%',
+              padding: '12px 0', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left',
+            }}>
+              <div style={{ width: 38, height: 38, borderRadius: 'var(--radius-md)', background: '#7c3aed', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <FileText size={17} color="#fff" />
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--text-primary)' }}>Első ajánlat létrehozása</div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Tételek, ár összeállítása, küldés</div>
+              </div>
+              <ChevronRight size={15} color="var(--text-muted)" style={{ flexShrink: 0 }} />
+            </button>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column' }}>
               {recentQuotes.map((q, idx) => {
