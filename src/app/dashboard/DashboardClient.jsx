@@ -398,6 +398,13 @@ export default function DashboardClient({
         </div>
       )}
 
+      {/* Calendar — always below stat cards */}
+      {!(isSuperAdmin && !impersonating) && (
+        <div style={{ marginBottom: '1.75rem' }}>
+          <CalendarWidget projects={projects} clients={clients || []} quotes={quotes || []} />
+        </div>
+      )}
+
       {/* Empty state — desktop */}
       {isEmptyUser && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: '1.75rem' }}>
@@ -436,13 +443,6 @@ export default function DashboardClient({
               </div>
             </button>
           ))}
-        </div>
-      )}
-
-      {/* Calendar */}
-      {!(isSuperAdmin && !impersonating) && (
-        <div style={{ marginBottom: '1.75rem' }}>
-          <CalendarWidget projects={projects} clients={clients || []} quotes={quotes || []} />
         </div>
       )}
 
