@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useApp } from '@/context/AppContext';
 import { ConfirmModal, AlertModal } from '@/components/Modal';
+import TransferToCollectiveModal from '@/components/TransferToCollectiveModal';
 import { Ruler, Plus, Search, ChevronLeft, Users } from 'lucide-react';
 import PageSpinner from '@/components/PageSpinner';
 import ItemCard from '@/components/mobile/ItemCard';
@@ -21,7 +22,7 @@ function surveyStatus(s) {
 export default function SurveyListPage() {
   const {
     loading, dataReady, clients, users, isAdmin, currentUser,
-    deleteSurvey, updateSurvey, isDemoMode,
+    deleteSurvey, updateSurvey, isDemoMode, collectives: userMemberships,
   } = useApp();
   const navPrefix = isDemoMode ? '/demo' : '';
 
@@ -32,6 +33,7 @@ export default function SurveyListPage() {
   const [expandShared,   setExpandShared]   = useState({});
   const [confirmModal,   setConfirmModal]   = useState(null);
   const [alertModal,     setAlertModal]     = useState(null);
+  const [transferModal,  setTransferModal]  = useState(null); // { documentId, documentTitle }
 
   useEffect(() => {
     if (!dataReady) return;
@@ -80,8 +82,12 @@ export default function SurveyListPage() {
 
   const isEmpty = filteredPersonal.length === 0 && sharedByColl.every(c => c.surveys.length === 0);
 
+  const hasCollectives = (userMemberships || []).length > 0;
+
   const renderSurveyCard = (survey) => {
-    const client = clients.find(c => c.id === survey.client_id);
+    const client      = clients.find(c => c.id === survey.client_id);
+    const isOwner     = survey.owner_id === currentUser?.id || survey.created_by === currentUser?.id;
+    const canTransfer = isOwner && !survey.collective_id && hasCollectives && !isDemoMode;
     return (
       <ItemCard
         key={survey.id}
@@ -92,7 +98,8 @@ export default function SurveyListPage() {
         status={surveyStatus(survey)}
         photoUrls={survey._preview_urls || []}
         isShared={!!survey.collective_id}
-        onDelete={(survey.owner_id === currentUser?.id || survey.created_by === currentUser?.id) ? () => handleDelete(survey) : undefined}
+        onDelete={isOwner ? () => handleDelete(survey) : undefined}
+        onTransfer={canTransfer ? () => setTransferModal({ documentId: survey.id, documentTitle: survey.title }) : undefined}
       />
     );
   };
@@ -250,6 +257,13 @@ export default function SurveyListPage() {
         isOpen={!!alertModal}
         onClose={() => setAlertModal(null)}
         message={alertModal?.message}
+      />
+      <TransferToCollectiveModal
+        isOpen={!!transferModal}
+        onClose={() => setTransferModal(null)}
+        documentType="survey"
+        documentId={transferModal?.documentId}
+        documentTitle={transferModal?.documentTitle}
       />
     </div>
   );

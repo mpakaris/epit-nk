@@ -53,6 +53,7 @@ export default function ItemCard({
   onDelete,
   onDuplicate,
   onRename,
+  onTransfer,
 }) {
   const [sheetOpen, setSheetOpen] = useState(false);
 
@@ -188,6 +189,7 @@ export default function ItemCard({
         onOpen={() => { window.location.href = href; }}
         onDuplicate={onDuplicate}
         onRename={onRename}
+        onTransfer={onTransfer}
         onDelete={onDelete}
       />
     </>

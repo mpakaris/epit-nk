@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useApp } from '@/context/AppContext';
 import { QUOTE_STATUSES } from '@/lib/constants';
 import { ConfirmModal, AlertModal } from '@/components/Modal';
+import TransferToCollectiveModal from '@/components/TransferToCollectiveModal';
 import { FileText, Plus, Search, ChevronLeft, Users } from 'lucide-react';
 import PageSpinner from '@/components/PageSpinner';
 import ItemCard from '@/components/mobile/ItemCard';
@@ -16,7 +17,7 @@ const PREVIEW_COUNT = 3;
 export default function QuotesListPage() {
   const {
     currentUser, isAdmin, loading, dataReady,
-    quoteEntries, clients, surveys, users, deleteQuote, isDemoMode,
+    quoteEntries, clients, surveys, users, deleteQuote, isDemoMode, collectives: userMemberships,
   } = useApp();
   const navPrefix = isDemoMode ? '/demo' : '';
 
@@ -28,6 +29,7 @@ export default function QuotesListPage() {
   const [expandShared,   setExpandShared]   = useState({});
   const [confirmModal,   setConfirmModal]   = useState(null);
   const [alertModal,     setAlertModal]     = useState(null);
+  const [transferModal,  setTransferModal]  = useState(null); // { documentId, documentTitle }
 
   useEffect(() => {
     if (!dataReady) return;
@@ -71,10 +73,13 @@ export default function QuotesListPage() {
   }));
   const isEmpty = filteredPersonal.length === 0 && sharedByColl.every(c => c.quotes.length === 0);
 
+  const hasCollectives = (userMemberships || []).length > 0;
+
   const renderQuoteCard = (quote) => {
-    const client  = clients.find(c => c.id === quote.client_id);
-    const survey  = quote.survey_id ? surveys.find(s => s.id === quote.survey_id) : null;
-    const canDelete = quote.owner_id === currentUser?.id || quote.created_by === currentUser?.id;
+    const client    = clients.find(c => c.id === quote.client_id);
+    const survey    = quote.survey_id ? surveys.find(s => s.id === quote.survey_id) : null;
+    const isOwner   = quote.owner_id === currentUser?.id || quote.created_by === currentUser?.id;
+    const canTransfer = isOwner && !quote.collective_id && hasCollectives && !isDemoMode;
     return (
       <ItemCard
         key={quote.id}
@@ -85,7 +90,8 @@ export default function QuotesListPage() {
         status={quote.status || 'draft'}
         photoUrls={survey?._preview_urls || []}
         isShared={!!quote.collective_id}
-        onDelete={canDelete ? () => handleDelete(quote) : undefined}
+        onDelete={isOwner ? () => handleDelete(quote) : undefined}
+        onTransfer={canTransfer ? () => setTransferModal({ documentId: quote.id, documentTitle: quote.title }) : undefined}
       />
     );
   };
@@ -234,6 +240,13 @@ export default function QuotesListPage() {
         isOpen={!!alertModal}
         onClose={() => setAlertModal(null)}
         message={alertModal?.message}
+      />
+      <TransferToCollectiveModal
+        isOpen={!!transferModal}
+        onClose={() => setTransferModal(null)}
+        documentType="quote"
+        documentId={transferModal?.documentId}
+        documentTitle={transferModal?.documentTitle}
       />
     </div>
   );

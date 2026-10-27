@@ -12,6 +12,7 @@ import {
   User, Clock, PencilLine, ChevronDown, ChevronUp, ChevronLeft,
 } from 'lucide-react';
 import Modal, { ConfirmModal, AlertModal } from '@/components/Modal';
+import TransferToCollectiveModal from '@/components/TransferToCollectiveModal';
 import ClientSelect from '@/components/ClientSelect';
 import CollectiveSelector from '@/components/CollectiveSelector';
 import ItemCard from '@/components/mobile/ItemCard';
@@ -61,6 +62,7 @@ export default function ProjectsListClient({
   const [expandShared, setExpandShared]     = useState({});
   const [confirmDelete, setConfirmDelete]   = useState(null);
   const [deleteAlert,   setDeleteAlert]     = useState(null);
+  const [transferModal, setTransferModal]   = useState(null); // { documentId, documentTitle }
 
   const handleDelete = (project) => {
     setConfirmDelete({
@@ -195,10 +197,13 @@ export default function ProjectsListClient({
 
   const canCreate = !!currentUser;
 
+  const hasCollectives = (collectives || []).length > 0;
+
   const renderCard = (project) => {
-    const client = clients.find(c => c.id === project.client_id);
-    const isDone = !!(project.done_at || project.closed_at);
-    const canDelete = project.owner_id === currentUser?.id || project.created_by === currentUser?.id;
+    const client      = clients.find(c => c.id === project.client_id);
+    const isDone      = !!(project.done_at || project.closed_at);
+    const isOwner     = project.owner_id === currentUser?.id || project.created_by === currentUser?.id;
+    const canTransfer = isOwner && !project.collective_id && hasCollectives && !isDemoMode;
     return (
       <ItemCard
         key={project.id}
@@ -209,13 +214,13 @@ export default function ProjectsListClient({
         status={isDone ? 'kesz' : 'folyamatban'}
         photoUrls={project._preview_urls || []}
         isShared={!!project.collective_id}
-        onDelete={canDelete ? () => handleDelete(project) : undefined}
+        onDelete={isOwner ? () => handleDelete(project) : undefined}
+        onTransfer={canTransfer ? () => setTransferModal({ documentId: project.id, documentTitle: project.name }) : undefined}
       />
     );
   };
 
-  const hasCollectives = (collectives || []).length > 0;
-  const allProjects    = [...(personalProjects || []), ...(sharedProjects || [])];
+  const allProjects = [...(personalProjects || []), ...(sharedProjects || [])];
 
   const sharedByCollective = (collectives || []).map(col => ({
     ...col,
@@ -459,6 +464,13 @@ export default function ProjectsListClient({
         onClose={() => setDeleteAlert(null)}
         title="Hiba"
         message={deleteAlert}
+      />
+      <TransferToCollectiveModal
+        isOpen={!!transferModal}
+        onClose={() => setTransferModal(null)}
+        documentType="project"
+        documentId={transferModal?.documentId}
+        documentTitle={transferModal?.documentTitle}
       />
     </div>
   );

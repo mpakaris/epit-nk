@@ -1,9 +1,9 @@
 'use client';
 
 import React, { useEffect } from 'react';
-import { Trash2, Copy, PenLine, ExternalLink, X } from 'lucide-react';
+import { Trash2, Copy, PenLine, ExternalLink, X, ArrowUpRight } from 'lucide-react';
 
-export default function BottomSheet({ isOpen, onClose, title, subtitle, onOpen, onDuplicate, onRename, onDelete }) {
+export default function BottomSheet({ isOpen, onClose, title, subtitle, onOpen, onDuplicate, onRename, onTransfer, onDelete }) {
   useEffect(() => {
     if (!isOpen) return;
     const prev = document.body.style.overflow;
@@ -52,6 +52,7 @@ export default function BottomSheet({ isOpen, onClose, title, subtitle, onOpen, 
         {onOpen && <Row icon={ExternalLink} label="Megnyitás" onClick={onOpen} />}
         {onDuplicate && <Row icon={Copy} label="Duplikálás" onClick={onDuplicate} />}
         {onRename && <Row icon={PenLine} label="Átnevezés" onClick={onRename} />}
+        {onTransfer && <Row icon={ArrowUpRight} label="Áthelyezés kollektívába" onClick={onTransfer} />}
 
         {onDelete && (
           <>

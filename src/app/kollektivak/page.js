@@ -11,7 +11,7 @@ import { isEffectivePremium } from '@/lib/subscriptionLimits';
 import {
   Users, Plus, Crown, UserCheck, Trash2, UserMinus,
   Mail, AlertCircle, CheckCircle2, Loader2, X, Ban, ShieldCheck, RefreshCw, AlertTriangle,
-  Building2, ChevronRight, MoreHorizontal, Pencil, Check, Lock, Zap,
+  Building2, ChevronRight, MoreHorizontal, Pencil, Check, Lock, Zap, ArrowUpRight, FileText,
 } from 'lucide-react';
 
 const ROLE_LABEL = { owner: 'Tulajdonos', admin: 'Admin', contributor: 'Közreműködő' };
@@ -54,6 +54,8 @@ export default function KollektivakPage() {
   const [fetching, setFetching] = useState(true);
   const [myInvitations, setMyInvitations] = useState([]); // invitations received by this user
   const [respondingInvId, setRespondingInvId] = useState(null);
+  const [transferRequests, setTransferRequests] = useState([]); // pending transfer requests for owned collectives
+  const [respondingTransferId, setRespondingTransferId] = useState(null);
 
   // Create modal — 3-step flow (name → tier → confirm)
   const [showCreate, setShowCreate] = useState(false);
@@ -182,14 +184,16 @@ export default function KollektivakPage() {
   };
 
   const fetchCollectives = async () => {
-    const [colRes, invRes, myInvRes] = await Promise.all([
+    const [colRes, invRes, myInvRes, transferRes] = await Promise.all([
       fetch('/api/collectives', { cache: 'no-store' }),
       fetch('/api/collectives/invitations', { cache: 'no-store' }),
       fetch('/api/collectives/my-invitations', { cache: 'no-store' }),
+      fetch('/api/transfer-requests', { cache: 'no-store' }),
     ]);
-    const colData = await colRes.json();
-    const invData = invRes.ok ? await invRes.json() : { invitations: [] };
-    const myInvData = myInvRes.ok ? await myInvRes.json() : { invitations: [] };
+    const colData      = await colRes.json();
+    const invData      = invRes.ok ? await invRes.json() : { invitations: [] };
+    const myInvData    = myInvRes.ok ? await myInvRes.json() : { invitations: [] };
+    const transferData = transferRes.ok ? await transferRes.json() : { requests: [] };
 
     if (colRes.ok) {
       const pendingBy  = {};
@@ -211,7 +215,35 @@ export default function KollektivakPage() {
     }
 
     setMyInvitations(myInvData.invitations || []);
+    setTransferRequests(transferData.requests || []);
     setFetching(false);
+  };
+
+  const handleTransferResponse = async (req, action) => {
+    setRespondingTransferId(req.id);
+    try {
+      const res = await fetch(`/api/transfer-requests/${req.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setAlertModal({ message: data.error || 'Hiba történt.' });
+      } else {
+        setTransferRequests(prev => prev.filter(r => r.id !== req.id));
+        const docTypeLabel = { project: 'Projekt', quote: 'Ajánlat', survey: 'Felmérés' };
+        if (action === 'accept') {
+          setAlertModal({ variant: 'success', title: 'Áthelyezés elfogadva', message: `„${req.document_title}" mostantól a kollektíva dokumentuma.` });
+        } else {
+          setAlertModal({ variant: 'warning', title: 'Kérelem visszautasítva', message: `„${req.document_title}" ${docTypeLabel[req.document_type] || 'dokumentum'} kérelme visszautasítva.` });
+        }
+      }
+    } catch {
+      setAlertModal({ message: 'Hálózati hiba. Próbáld újra.' });
+    } finally {
+      setRespondingTransferId(null);
+    }
   };
 
   // Handle Creem redirect after collective checkout
@@ -695,12 +727,13 @@ export default function KollektivakPage() {
   };
 
   const renderCollective = (collective) => {
-    const isOwner        = collective.my_role === 'owner';
-    const isInclusive    = collective.is_inclusive ?? false;
-    const activeMembers  = (collective.members || []).filter(m => m.status === 'active');
-    const blockedMembers = (collective.members || []).filter(m => m.status === 'blocked');
-    const pendingInvs    = collective.pending_invitations  || [];
-    const declinedInvs   = collective.declined_invitations || [];
+    const isOwner          = collective.my_role === 'owner';
+    const isInclusive      = collective.is_inclusive ?? false;
+    const activeMembers    = (collective.members || []).filter(m => m.status === 'active');
+    const blockedMembers   = (collective.members || []).filter(m => m.status === 'blocked');
+    const pendingInvs      = collective.pending_invitations  || [];
+    const declinedInvs     = collective.declined_invitations || [];
+    const pendingTransfers = transferRequests.filter(r => r.collective_id === collective.id);
 
     // Seats used = active non-owner members + pending invitations (owner doesn't count)
     const usedSeats = activeMembers.filter(m => m.role !== 'owner').length + pendingInvs.length;
@@ -934,7 +967,7 @@ export default function KollektivakPage() {
         )}
 
         {/* ── People ── */}
-        {(activeMembers.length > 0 || (isOwner && (blockedMembers.length > 0 || pendingInvs.length > 0 || declinedInvs.length > 0))) && (
+        {(activeMembers.length > 0 || (isOwner && (blockedMembers.length > 0 || pendingInvs.length > 0 || declinedInvs.length > 0 || pendingTransfers.length > 0))) && (
           <div style={{ marginTop: '0.75rem', background: 'var(--bg-subtle)', borderRadius: 'var(--radius-md)', padding: '0.35rem 0.25rem', display: 'flex', flexDirection: 'column', gap: '0.1rem' }}>
 
             {/* Active members */}
@@ -973,6 +1006,72 @@ export default function KollektivakPage() {
                     </div>
                   </div>
                 ))}
+              </>
+            )}
+
+            {/* Pending transfer requests */}
+            {isOwner && pendingTransfers.length > 0 && (
+              <>
+                <div style={{ height: 1, background: 'var(--border-subtle)', margin: '0.25rem 0.35rem' }} />
+                <div style={{ fontSize: '0.62rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--accent)', padding: '0.25rem 0.6rem 0.1rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                  Áthelyezési kérelmek
+                  <span style={{ background: 'var(--accent)', color: '#fff', borderRadius: 99, fontSize: '0.6rem', fontWeight: 800, minWidth: 16, height: 16, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '0 4px' }}>
+                    {pendingTransfers.length}
+                  </span>
+                </div>
+                {pendingTransfers.map(req => {
+                  const DOC_LABEL = { project: 'Projekt', quote: 'Ajánlat', survey: 'Felmérés' };
+                  const DOC_ROUTE = { project: '/projektek', quote: '/ajanlatok', survey: '/felmeres' };
+                  return (
+                    <div key={req.id} style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.4rem 0.6rem', padding: '0.5rem 0.6rem', borderRadius: 'var(--radius-md)' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flex: '1 1 180px', minWidth: 0 }}>
+                        <div style={{ width: 30, height: 30, borderRadius: '50%', background: 'var(--accent-light)', border: '1px solid var(--accent-border)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                          <ArrowUpRight size={12} color="var(--accent)" />
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontWeight: 600, fontSize: '0.825rem', lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            „{req.document_title || 'Névtelen'}"
+                          </div>
+                          <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
+                            {DOC_LABEL[req.document_type] || 'Dokumentum'} · {req.requester?.display_name || req.requester?.email || 'Ismeretlen'} · {formatDate(req.created_at)}
+                          </div>
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', gap: '0.4rem', marginLeft: 'auto' }}>
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn-sm"
+                          disabled={respondingTransferId === req.id}
+                          onClick={() => setConfirmModal({
+                            title: 'Kérelem visszautasítása',
+                            message: <span>Biztosan visszautasítod <strong>{req.requester?.display_name || 'ismeretlen'}</strong> áthelyezési kérelmét? A dokumentum marad a kérelmezőnél.</span>,
+                            confirmLabel: 'Visszautasítás',
+                            onConfirm: () => handleTransferResponse(req, 'reject'),
+                          })}
+                          style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', color: 'var(--danger-text)', borderColor: 'var(--danger-border)' }}
+                        >
+                          {respondingTransferId === req.id ? <Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> : <X size={13} />}
+                          Visszautasítás
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-primary btn-sm"
+                          disabled={respondingTransferId === req.id}
+                          onClick={() => setConfirmModal({
+                            title: 'Áthelyezés elfogadása',
+                            message: <span>A <strong>„{req.document_title}"</strong> {DOC_LABEL[req.document_type]?.toLowerCase() || 'dokumentum'} a kollektíva dokumentuma lesz, és a tulajdonosa te leszel. Ez nem vonható vissza.</span>,
+                            confirmLabel: 'Elfogadás',
+                            onConfirm: () => handleTransferResponse(req, 'accept'),
+                          })}
+                          style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+                        >
+                          {respondingTransferId === req.id ? <Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> : <CheckCircle2 size={13} />}
+                          Elfogadás
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
               </>
             )}
 
