@@ -54,6 +54,7 @@ export default function KollektivakPage() {
   const [fetching, setFetching] = useState(true);
   const [myInvitations, setMyInvitations] = useState([]); // invitations received by this user
   const [respondingInvId, setRespondingInvId] = useState(null);
+  const [respondingInvAction, setRespondingInvAction] = useState(null);
   const [transferRequests, setTransferRequests] = useState([]); // pending transfer requests for owned collectives
   const [respondingTransferId, setRespondingTransferId] = useState(null);
 
@@ -163,6 +164,7 @@ export default function KollektivakPage() {
 
   const handleRespondToInvitation = async (inv, action) => {
     setRespondingInvId(inv.id);
+    setRespondingInvAction(action);
     try {
       const res = await fetch(`/api/invitations/${inv.token}/${action}`, { method: 'POST' });
       const data = await res.json();
@@ -180,6 +182,7 @@ export default function KollektivakPage() {
       setAlertModal({ message: 'Hálózati hiba. Próbáld újra.' });
     } finally {
       setRespondingInvId(null);
+      setRespondingInvAction(null);
     }
   };
 
@@ -1223,11 +1226,11 @@ export default function KollektivakPage() {
                 {!isMobile && (
                   <div style={{ display: 'flex', gap: '0.4rem', flexShrink: 0 }}>
                     <button type="button" className="btn btn-secondary btn-sm" disabled={respondingInvId === inv.id} onClick={() => handleRespondToInvitation(inv, 'decline')} style={{ color: 'var(--danger-text)', borderColor: 'var(--danger-border)' }}>
-                      {respondingInvId === inv.id ? <Loader2 size={13} className="animate-spin" /> : <X size={13} />}
+                      {respondingInvId === inv.id && respondingInvAction === 'decline' ? <Loader2 size={13} className="animate-spin" /> : <X size={13} />}
                       Visszautasítás
                     </button>
                     <button type="button" className="btn btn-primary btn-sm" disabled={respondingInvId === inv.id} onClick={() => handleRespondToInvitation(inv, 'accept')}>
-                      {respondingInvId === inv.id ? <Loader2 size={13} className="animate-spin" /> : <CheckCircle2 size={13} />}
+                      {respondingInvId === inv.id && respondingInvAction === 'accept' ? <Loader2 size={13} className="animate-spin" /> : <CheckCircle2 size={13} />}
                       Elfogadás
                     </button>
                   </div>
