@@ -183,6 +183,7 @@ export default function DashboardClient({
         clientName={client?.name}
         date={item._date}
         status={status}
+        type={item._kind}
         photoUrls={item._preview_urls || []}
         isShared={!!item.collective_id}
         stripHeight={90}
@@ -375,7 +376,7 @@ export default function DashboardClient({
         <div style={{ marginBottom: 24 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
             <WorkspaceSectionHeader type="personal" count={personalSurveys.length + personalQuotes.length + personalProjects.length} />
-            <Link href={p('/felmeres')} style={{ fontSize: 14, fontWeight: 700, color: '#2563eb', textDecoration: 'none', flexShrink: 0, marginLeft: 12, marginBottom: 12 }}>Mind</Link>
+            <Link href={p('/osszes?workspace=personal')} style={{ fontSize: 14, fontWeight: 700, color: '#2563eb', textDecoration: 'none', flexShrink: 0, marginLeft: 12, marginBottom: 12 }}>Mind</Link>
           </div>
           {[...personalSurveys, ...personalQuotes, ...personalProjects]
             .sort((a, b) => new Date(b.updated_at || b.created_at) - new Date(a.updated_at || a.created_at))
@@ -413,7 +414,10 @@ export default function DashboardClient({
 
           return (
             <div key={col.id} className="collective-inset-panel">
-              <WorkspaceSectionHeader type="collective" name={col.name} count={total} />
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <WorkspaceSectionHeader type="collective" name={col.name} count={total} />
+                <Link href={p(`/osszes?workspace=${col.id}`)} style={{ fontSize: 14, fontWeight: 700, color: '#2563eb', textDecoration: 'none', flexShrink: 0, marginLeft: 12, marginBottom: 12 }}>Mind</Link>
+              </div>
               {lastSurvey && (
                 <CompactRow
                   key={lastSurvey.id}

@@ -12,16 +12,16 @@ const TYPE_ICONS = {
   ugyfel:    Contact,
 };
 
-const TYPE_LABELS = {
-  felmeres: 'Felmérés',
-  ajanlat:  'Ajánlat',
-  projekt:  'Projekt',
-  ugyfel:   'Ügyfél',
+const TYPE_META = {
+  felmeres: { label: 'Felmérés', color: '#2563eb', bg: '#eff6ff' },
+  ajanlat:  { label: 'Ajánlat',  color: '#7c3aed', bg: '#f5f3ff' },
+  projekt:  { label: 'Projekt',  color: '#059669', bg: '#ecfdf5' },
+  ugyfel:   { label: 'Ügyfél',   color: '#d97706', bg: '#fffbeb' },
 };
 
 export default function CompactRow({ href, title, meta, type, isShared }) {
   const Icon = TYPE_ICONS[type] || Folder;
-  const typeLabel = TYPE_LABELS[type] || '';
+  const typeMeta = TYPE_META[type];
 
   return (
     <Link
@@ -35,13 +35,13 @@ export default function CompactRow({ href, title, meta, type, isShared }) {
         marginBottom: 8,
       }}
     >
-      {/* Icon chip */}
+      {/* Icon chip — colored per type */}
       <div style={{
         width: 44, height: 44, borderRadius: 12,
-        background: '#f1f5f9', flexShrink: 0,
+        background: typeMeta?.bg || '#f1f5f9', flexShrink: 0,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
       }}>
-        <Icon size={22} color="#475569" strokeWidth={1.75} aria-hidden="true" />
+        <Icon size={22} color={typeMeta?.color || '#475569'} strokeWidth={1.75} aria-hidden="true" />
       </div>
 
       {/* Text */}
@@ -54,11 +54,26 @@ export default function CompactRow({ href, title, meta, type, isShared }) {
           {title}
         </div>
         <div style={{
-          fontSize: 14, fontWeight: 500, color: '#475569',
-          lineHeight: '20px', overflow: 'hidden',
-          textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+          display: 'flex', alignItems: 'center', gap: 6, marginTop: 2,
         }}>
-          {meta}{meta && typeLabel ? ' · ' : ''}{typeLabel}
+          {typeMeta && (
+            <span style={{
+              fontSize: 11, fontWeight: 700, lineHeight: 1,
+              color: typeMeta.color, background: typeMeta.bg,
+              padding: '2px 7px', borderRadius: 999,
+              flexShrink: 0,
+            }}>
+              {typeMeta.label}
+            </span>
+          )}
+          {meta && (
+            <span style={{
+              fontSize: 13, fontWeight: 500, color: '#475569',
+              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+            }}>
+              {meta}
+            </span>
+          )}
         </div>
       </div>
 

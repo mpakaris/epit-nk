@@ -34,6 +34,23 @@ async function getCallerAndQuote(id) {
   return { err: 'Forbidden', status: 403 };
 }
 
+export async function GET(request, { params }) {
+  const { id } = await params;
+  const ctx = await getCallerAndQuote(id);
+  if (ctx.err) return Response.json({ error: ctx.err }, { status: ctx.status });
+
+  const [sectionsRes, entriesRes] = await Promise.all([
+    ctx.admin.from('quote_sections').select('*').eq('quote_id', id).order('created_at'),
+    ctx.admin.from('quote_entries').select('*').eq('quote_id', id).order('created_at'),
+  ]);
+
+  return Response.json({
+    quote:    ctx.quote,
+    sections: sectionsRes.data || [],
+    entries:  entriesRes.data  || [],
+  });
+}
+
 export async function PATCH(request, { params }) {
   const { id } = await params;
   const ctx = await getCallerAndQuote(id);

@@ -1837,7 +1837,7 @@ export default function ProjectDetailClient({
         </Link>
       </div>
 
-      <CollectiveBanner />
+      <CollectiveBanner documentCollectiveId={project.collective_id ?? null} />
 
       <div className="page-header" style={{ padding: '0.5rem 0 1rem' }}>
         <div className="page-header-row">

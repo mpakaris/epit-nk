@@ -805,7 +805,34 @@ export default function QuoteDetailPage() {
   const [alertModal, setAlertModal]     = useState(null);
   const [copied, setCopied]             = useState(false);
 
-  const quote = quotes.find(q => q.id === id);
+  // Fallback: if the quote isn't in the current workspace context (e.g. personal
+  // context while the quote belongs to a collective, or vice versa) fetch it directly.
+  const [fallbackQuote,    setFallbackQuote]    = useState(null);
+  const [fallbackEntries,  setFallbackEntries]  = useState(null);
+  const [fallbackSections, setFallbackSections] = useState(null);
+  const [fallbackFetching, setFallbackFetching] = useState(false);
+
+  const ctxQuote = quotes.find(q => q.id === id);
+
+  useEffect(() => {
+    if (!dataReady || ctxQuote || fallbackFetching || fallbackQuote !== null) return;
+    setFallbackFetching(true);
+    fetch(`/api/quotes/${id}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        if (d?.quote) {
+          setFallbackQuote(d.quote);
+          setFallbackEntries(d.entries);
+          setFallbackSections(d.sections);
+        }
+      })
+      .catch(() => {})
+      .finally(() => setFallbackFetching(false));
+  }, [dataReady, ctxQuote, id]);
+
+  const quote          = ctxQuote || fallbackQuote;
+  const resolvedEntries  = ctxQuote ? quoteEntries.filter(e => e.quote_id === id) : (fallbackEntries  || []);
+  const resolvedSections = ctxQuote ? quoteSections.filter(s => s.quote_id === id) : (fallbackSections || []);
 
   useEffect(() => {
     if (quote?.survey_id) fetchSurveyMedia(quote.survey_id).catch(() => {});
@@ -824,7 +851,7 @@ export default function QuoteDetailPage() {
     setMetaInitialized(true);
   }, [quote, metaInitialized]);
 
-  if (loading || !dataReady) return <PageSpinner />;
+  if (loading || !dataReady || fallbackFetching) return <PageSpinner />;
   if (!quote) return (
     <div className="container" style={{ paddingTop: '2.5rem', textAlign: 'center' }}>
       <h2>Az ajánlat nem található</h2>
@@ -834,7 +861,7 @@ export default function QuoteDetailPage() {
 
   const client        = clients.find(c => c.id === quote.client_id);
   const creator       = users.find(u => u.id === quote.created_by);
-  const entries       = quoteEntries.filter(e => e.quote_id === id);
+  const entries       = resolvedEntries;
   const netTotal      = entries.reduce((s, e) => s + Number(e.amount_huf || 0), 0);
   const taxRate       = Number(quote.tax_percent ?? 27);
   const taxAmount     = Math.round(netTotal * taxRate / 100);
@@ -848,7 +875,7 @@ export default function QuoteDetailPage() {
   const sc            = STATUS_COLORS[quote.status] || STATUS_COLORS.draft;
   const linkedProject = quote.project_id ? projects.find(p => p.id === quote.project_id) : null;
   const linkedSurvey  = quote.survey_id  ? surveys.find(s => s.id === quote.survey_id)   : null;
-  const sections      = quoteSections.filter(s => s.quote_id === id).sort((a, b) => a.sort_order - b.sort_order || new Date(a.created_at) - new Date(b.created_at));
+  const sections      = resolvedSections.sort((a, b) => a.sort_order - b.sort_order || new Date(a.created_at) - new Date(b.created_at));
 
   const previewAmount = calcAmount(entryForm.entry_type, entryForm.quantity, entryForm.unit_price, entryForm.flat_amount);
 
@@ -1164,7 +1191,7 @@ export default function QuoteDetailPage() {
         </Link>
       </div>
 
-      <CollectiveBanner />
+      <CollectiveBanner documentCollectiveId={quote.collective_id ?? null} />
 
       {/* Header */}
       <div className="page-header" style={{ padding: '0.5rem 0 1rem' }}>
@@ -1342,20 +1369,6 @@ export default function QuoteDetailPage() {
         {sections.map(s => renderSectionCard(s))}
         {renderSectionCard(null)}
       </div>
-
-      {/* Shared members */}
-      {canModify && (quote.shared_with || []).length > 0 && (
-        <div className="card mb-4" style={{ padding: '1rem' }}>
-          <div style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.05em', marginBottom: '0.65rem' }}>Meghívott tagok</div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
-            {users.filter(u => (quote.shared_with || []).includes(u.id)).map(u => (
-              <span key={u.id} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.25rem 0.65rem', borderRadius: 'var(--radius-pill)', background: 'var(--accent-light)', border: '1px solid var(--accent-border)', fontSize: '0.82rem', fontWeight: 600, color: 'var(--accent)' }}>
-                <User size={12} />{u.display_name}
-              </span>
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* Client comment history */}
       {canModify && <ClientComments quoteId={id} />}

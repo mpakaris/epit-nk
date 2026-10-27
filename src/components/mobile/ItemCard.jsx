@@ -42,12 +42,19 @@ function titleGradient(title = '') {
   return `linear-gradient(135deg, ${a} 0%, ${b} 100%)`;
 }
 
+const TYPE_META = {
+  felmeres: { label: 'Felmérés', color: '#2563eb', bg: 'rgba(37,99,235,0.18)' },
+  ajanlat:  { label: 'Ajánlat',  color: '#fff',    bg: 'rgba(124,58,237,0.75)' },
+  projekt:  { label: 'Projekt',  color: '#fff',    bg: 'rgba(5,150,105,0.75)'  },
+};
+
 export default function ItemCard({
   href,
   title,
   clientName,
   date,
   status,
+  type,
   photoUrls = [],
   isShared = false,
   stripHeight = 72,
@@ -128,6 +135,21 @@ export default function ItemCard({
           {isShared && (
             <div style={{ position: 'absolute', top: 8, left: 8 }}>
               <TeamBadge />
+            </div>
+          )}
+
+          {/* Type badge */}
+          {type && TYPE_META[type] && (
+            <div style={{ position: 'absolute', top: 8, right: 8 }}>
+              <span style={{
+                fontSize: 11, fontWeight: 700, lineHeight: 1,
+                color: TYPE_META[type].color,
+                background: TYPE_META[type].bg,
+                padding: '3px 8px', borderRadius: 999,
+                backdropFilter: 'blur(4px)',
+              }}>
+                {TYPE_META[type].label}
+              </span>
             </div>
           )}
 

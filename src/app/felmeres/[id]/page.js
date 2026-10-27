@@ -1105,7 +1105,7 @@ export default function SurveyDetailPage() {
         </Link>
       </div>
 
-      <CollectiveBanner />
+      <CollectiveBanner documentCollectiveId={survey.collective_id ?? null} />
 
       {/* Header */}
       <div className="page-header" style={{ padding: '0.5rem 0 1rem' }}>

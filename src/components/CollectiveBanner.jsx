@@ -3,11 +3,18 @@
 import { useApp } from '@/context/AppContext';
 import { Users } from 'lucide-react';
 
-export default function CollectiveBanner() {
+export default function CollectiveBanner({ documentCollectiveId } = {}) {
   const { activeCollectiveId, collectives } = useApp();
-  if (!activeCollectiveId) return null;
 
-  const name = collectives.find(c => c.collective_id === activeCollectiveId)?.name;
+  // If the document has an explicit collective_id, only show when it matches.
+  // If no prop passed (legacy call sites), fall back to the workspace context check.
+  const relevantId = documentCollectiveId !== undefined
+    ? documentCollectiveId
+    : activeCollectiveId;
+
+  if (!relevantId) return null;
+
+  const name = collectives.find(c => c.collective_id === relevantId)?.name;
 
   return (
     <div style={{

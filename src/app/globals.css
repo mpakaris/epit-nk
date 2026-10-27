@@ -244,11 +244,6 @@ button, input, select, textarea {
 }
 
 @media (max-width: 768px) {
-  /* Bottom padding so content clears the floating nav */
-  .page-body {
-    padding-bottom: 124px;
-  }
-
   .floating-nav {
     display: grid;
     grid-template-columns: repeat(5, 1fr);
@@ -1489,9 +1484,11 @@ div[style*="overflowX"]::-webkit-scrollbar { display: none; }
   .page-header-row { flex-direction: column; align-items: flex-start; }
 }
 
-/* App main: add bottom safe area on mobile for drawer */
+/* App main: clear the floating nav (88px + safe area) for every page on mobile */
 @media (max-width: 768px) {
-  .app-main { padding-bottom: 2rem; }
+  .app-main { padding-bottom: calc(96px + env(safe-area-inset-bottom)); }
+  /* page-body already lives inside app-main — zero its duplicate mobile padding */
+  .page-body { padding-bottom: 0; }
 }
 
 /* Invoice filter row — side-by-side on desktop, stacked full-width on mobile */
