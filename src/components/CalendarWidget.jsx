@@ -4,10 +4,12 @@ import React, { useMemo, useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useApp } from '@/context/AppContext';
 import { formatDate } from '@/lib/constants';
-import { Calendar, FolderKanban, FileText, ArrowUpRight, Plus, Clock } from 'lucide-react';
+import { Calendar, FolderKanban, FileText, ArrowUpRight, Plus, Clock, ChevronLeft, ChevronRight } from 'lucide-react';
 import NewAppointmentModal from '@/components/NewAppointmentModal';
+import useMobile from '@/hooks/useMobile';
 
-const DAYS_HU = ['H', 'K', 'Sze', 'Cs', 'P', 'Szo', 'V'];
+const DAYS_HU       = ['H', 'K', 'Sze', 'Cs', 'P', 'Szo', 'V'];
+const MONTHS_SHORT  = ['Jan','Feb','Már','Ápr','Máj','Jún','Júl','Aug','Sze','Okt','Nov','Dec'];
 
 function toDay(d) {
   const r = new Date(d);
@@ -47,6 +49,8 @@ export default function CalendarWidget({ projects: propProjects, quotes: propQuo
 
   const [appointments, setAppointments] = useState([]);
   const [newApptOpen,  setNewApptOpen]  = useState(false);
+  const [weekOffset,   setWeekOffset]   = useState(0);
+  const isMobile = useMobile();
 
   function fetchAppointments() {
     fetch('/api/appointments')
@@ -90,6 +94,46 @@ export default function CalendarWidget({ projects: propProjects, quotes: propQuo
     return list;
   }, [projects, quotes, clients, projectRooms, appointments]);
 
+  // ── Mobile: week view ────────────────────────────────────────────────────
+  const weekDays = useMemo(() => {
+    const base = new Date(today);
+    const dow  = base.getDay(); // 0=Sun
+    base.setDate(base.getDate() - (dow === 0 ? 6 : dow - 1) + weekOffset * 7);
+    base.setHours(0, 0, 0, 0);
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(base);
+      d.setDate(d.getDate() + i);
+      return d;
+    });
+  }, [today, weekOffset]);
+
+  const weekLabel = useMemo(() => {
+    const s = weekDays[0], e = weekDays[6];
+    if (s.getMonth() === e.getMonth())
+      return `${MONTHS_SHORT[s.getMonth()]} ${s.getDate()}–${e.getDate()}`;
+    return `${MONTHS_SHORT[s.getMonth()]} ${s.getDate()} – ${MONTHS_SHORT[e.getMonth()]} ${e.getDate()}`;
+  }, [weekDays]);
+
+  const weekEvents = useMemo(() => {
+    const wStart = weekDays[0], wEnd = weekDays[6];
+    return events
+      .filter(ev => {
+        const s = ev.start || ev.end, e = ev.end || ev.start;
+        return s && e && s <= wEnd && e >= wStart;
+      })
+      .sort((a, b) => (a.start || a.end) - (b.start || b.end));
+  }, [events, weekDays]);
+
+  const dotsByDay = useMemo(() =>
+    weekDays.map(day =>
+      events.filter(ev => {
+        const s = ev.start || ev.end, e = ev.end || ev.start;
+        return s && e && day >= s && day <= e;
+      })
+    ),
+  [weekDays, events]);
+
+  // ── Desktop: month view ───────────────────────────────────────────────────
   const weeks = useMemo(() => {
     const firstDay = new Date(year, month, 1);
     const lastDay  = new Date(year, month + 1, 0);
@@ -136,6 +180,114 @@ export default function CalendarWidget({ projects: propProjects, quotes: propQuo
 
   const MONTHS_HU = ['Január','Február','Március','Április','Május','Június','Július','Augusztus','Szeptember','Október','November','December'];
 
+  // ── Mobile weekly render ─────────────────────────────────────────────────
+  if (isMobile) {
+    const eventColor = (type) =>
+      type === 'project' ? 'var(--success)' : type === 'appointment' ? 'var(--accent)' : 'var(--warning)';
+
+    return (
+      <div className="card" style={{ padding: '0.9rem' }}>
+        {/* Header row */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <button type="button" onClick={() => setWeekOffset(w => w - 1)}
+              style={{ border: 'none', background: 'none', cursor: 'pointer', padding: '4px 2px', color: 'var(--text-secondary)' }}>
+              <ChevronLeft size={18} />
+            </button>
+            <span style={{ fontSize: '0.88rem', fontWeight: 800, color: 'var(--text-primary)', minWidth: 90, textAlign: 'center' }}>
+              {weekLabel}
+            </span>
+            <button type="button" onClick={() => setWeekOffset(w => w + 1)}
+              style={{ border: 'none', background: 'none', cursor: 'pointer', padding: '4px 2px', color: 'var(--text-secondary)' }}>
+              <ChevronRight size={18} />
+            </button>
+          </div>
+          <button type="button" onClick={() => setNewApptOpen(true)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 4,
+              padding: '5px 10px', borderRadius: 'var(--radius-md)',
+              background: 'var(--accent)', color: '#fff', border: 'none',
+              fontSize: '0.78rem', fontWeight: 700, cursor: 'pointer',
+            }}>
+            <Plus size={13} /> Időpont
+          </button>
+        </div>
+
+        {/* Week strip */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 2, marginBottom: 12 }}>
+          {weekDays.map((day, i) => {
+            const isToday   = day.getTime() === today.getTime();
+            const isWeekend = i >= 5;
+            const dots      = dotsByDay[i];
+            return (
+              <div key={i} style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: isWeekend ? 'var(--danger-text)' : 'var(--text-muted)', marginBottom: 3, textTransform: 'uppercase' }}>
+                  {DAYS_HU[i]}
+                </div>
+                <div style={{
+                  width: 28, height: 28, borderRadius: '50%', margin: '0 auto 4px',
+                  background: isToday ? 'var(--accent)' : 'transparent',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: 13, fontWeight: isToday ? 800 : 600,
+                  color: isToday ? '#fff' : isWeekend ? 'var(--danger-text)' : 'var(--text-primary)',
+                }}>
+                  {day.getDate()}
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'center', gap: 2, minHeight: 7 }}>
+                  {dots.slice(0, 3).map((ev, j) => (
+                    <div key={j} style={{ width: 6, height: 6, borderRadius: '50%', background: eventColor(ev.type) }} />
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Event list for the week */}
+        {weekEvents.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '0.75rem 0 0.25rem', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
+            Ezen a héten nincs esemény.
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {weekEvents.map(ev => {
+              const color = eventColor(ev.type);
+              const Row   = ev.href ? Link : 'div';
+              return (
+                <Row key={ev.id} href={ev.href || undefined} style={{ textDecoration: 'none' }}>
+                  <div style={{
+                    display: 'flex', alignItems: 'center', gap: 10,
+                    padding: '8px 10px', borderRadius: 'var(--radius-md)',
+                    background: 'var(--bg-subtle)',
+                    borderLeft: `3px solid ${color}`,
+                  }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {ev.time ? `${ev.time.slice(0, 5)} · ` : ''}{ev.title}
+                      </div>
+                      {ev.clientName && (
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 1 }}>{ev.clientName}</div>
+                      )}
+                    </div>
+                    <div style={{ fontSize: 11, fontWeight: 700, color, flexShrink: 0 }}>
+                      {formatDate(ev.start || ev.end)}
+                    </div>
+                  </div>
+                </Row>
+              );
+            })}
+          </div>
+        )}
+
+        <NewAppointmentModal
+          isOpen={newApptOpen}
+          onClose={() => { setNewApptOpen(false); fetchAppointments(); }}
+        />
+      </div>
+    );
+  }
+
+  // ── Desktop monthly render ────────────────────────────────────────────────
   return (
     <div className="card" style={{ padding: '1.1rem 1.1rem 1rem' }}>
       {/* Header */}

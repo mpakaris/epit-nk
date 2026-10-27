@@ -247,6 +247,13 @@ export default function DashboardClient({
           ))}
         </div>
 
+        {/* Weekly calendar */}
+        {!(isSuperAdmin && !impersonating) && (
+          <div style={{ marginBottom: 24 }}>
+            <CalendarWidget projects={projects} clients={clients || []} quotes={quotes || []} />
+          </div>
+        )}
+
         {/* Most recently touched item */}
         {mostRecent && (
           <div style={{ marginBottom: 24 }}>
