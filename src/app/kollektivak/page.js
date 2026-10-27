@@ -1525,7 +1525,7 @@ export default function KollektivakPage() {
       </Modal>
 
 
-      <ConfirmModal isOpen={!!confirmModal} onClose={() => setConfirmModal(null)} onConfirm={() => confirmModal?.onConfirm()} title={confirmModal?.title ?? 'Megerősítés'} message={confirmModal?.message} confirmLabel={confirmModal?.confirmLabel} cancelLabel={confirmModal?.cancelLabel} />
+      <ConfirmModal isOpen={!!confirmModal} onClose={() => setConfirmModal(null)} onConfirm={() => confirmModal?.onConfirm()} title={confirmModal?.title ?? 'Megerősítés'} message={confirmModal?.message} confirmLabel={confirmModal?.confirmLabel} cancelLabel={confirmModal?.cancelLabel} confirmStyle={confirmModal?.confirmStyle} />
       <AlertModal isOpen={!!alertModal} onClose={() => setAlertModal(null)} message={alertModal?.message} variant={alertModal?.variant ?? 'error'} title={alertModal?.title} action={alertModal?.action} />
 
       {/* Cancel subscription confirm modal */}
