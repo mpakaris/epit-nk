@@ -6,15 +6,21 @@
  *   member — contributor; must request approval from the owner
  *
  * Scenarios covered:
- *   1. Owner moves their own personal survey directly (no request row created)
- *   2. Contributor creates a pending request; owner can list it via GET
- *   3. Duplicate pending request for the same document is blocked (400)
- *   4. Contributor cannot respond to (accept/reject) their own request (403)
- *   5. Owner accepts → document moves, owner_id transfers to the collective owner
- *   6. Accepted request disappears from the GET list
- *   7. Owner rejects → document stays personal, owner_id unchanged
- *   8. Already-in-collective document cannot be transferred again (400)
- *   9. Contributor cannot transfer a document they do not own (403)
+ *   1.  Owner moves their own personal survey directly (no request row created)
+ *   2.  Contributor creates a pending request; owner can list it via GET
+ *   3.  Duplicate pending request for the same document is blocked (400)
+ *   4.  GET ?outgoing=true returns the requester's own pending requests
+ *   5.  Contributor cannot respond to (accept/reject) their own request (403)
+ *   6.  Owner accepts → document moves, owner_id transfers to the collective owner
+ *   7.  Accepted request disappears from the GET list
+ *   8.  Owner rejects → document stays personal, owner_id unchanged
+ *   9.  Already-in-collective document cannot be transferred again (400)
+ *   10. Contributor cannot transfer a document they do not own (403)
+ *   11. Contributor can retract a pending request → status 'retracted', doc unlocks
+ *   12. Owner cannot retract a request they did not create (403)
+ *   13. PATCH on a locked document returns 423
+ *   14. DELETE on a locked document returns 423
+ *   15. After retraction PATCH/DELETE succeed again
  */
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
@@ -31,10 +37,16 @@ let ownerSurveyId    // owner's personal survey → direct move
 let ownerSurvey2Id   // owner's second personal survey → edge-case (not-your-doc)
 let memberSurveyId   // member's personal survey → request → accept
 let memberQuoteId    // member's personal quote  → request → reject
+let lockSurveyId     // member's personal survey → API lock test
+let retractSurveyId  // member's personal survey → retract test
+let permSurveyId     // member's personal survey → retract permission test
 
 // Transfer-request IDs
 let acceptRequestId
 let rejectRequestId
+let lockRequestId
+let retractRequestId
+let permRequestId
 
 beforeAll(async () => {
   const [ownerSession, memberSession] = await Promise.all([
@@ -66,7 +78,8 @@ afterAll(async () => {
   }
 
   // Remove documents (delete by id — safe even if owner_id changed after acceptance)
-  const surveyIds = [ownerSurveyId, memberSurveyId, ownerSurvey2Id].filter(Boolean)
+  const surveyIds = [ownerSurveyId, memberSurveyId, ownerSurvey2Id,
+                     lockSurveyId, retractSurveyId, permSurveyId].filter(Boolean)
   for (const id of surveyIds) {
     await admin.from('survey_entries').delete().eq('survey_id', id)
     await admin.from('surveys').delete().eq('id', id)
@@ -148,6 +161,15 @@ describe('Transfer — contributor request → owner accepts', () => {
     expect(body.request.status).toBe('pending')
     expect(body.request.document_type).toBe('survey')
     acceptRequestId = body.request.id
+  })
+
+  it('GET ?outgoing=true returns the pending request to the requester', async () => {
+    const { status, body } = await api('GET', '/api/transfer-requests?outgoing=true', null, memberCookie)
+    expect(status).toBe(200)
+    const found = (body.requests || []).find(r => r.id === acceptRequestId)
+    expect(found).toBeTruthy()
+    expect(found.document_id).toBe(memberSurveyId)
+    expect(found.status).toBe('pending')
   })
 
   it('duplicate pending request for the same document is blocked', async () => {
@@ -307,5 +329,173 @@ describe('Transfer — edge cases', () => {
       action: 'approve',
     }, ownerCookie)
     expect(status).toBe(400)
+  })
+})
+
+// ─── RETRACT ─────────────────────────────────────────────────────────────────
+
+describe('Transfer — retract (requester withdraws pending request)', () => {
+  it('member creates a personal survey for retract test', async () => {
+    const { status, body } = await api('POST', '/api/surveys', {
+      title: '[TEST] Visszavonandó felmérés',
+      collective_id: null,
+    }, memberCookie)
+    expect(status).toBe(201)
+    retractSurveyId = body.survey.id
+  })
+
+  it('member submits a transfer request', async () => {
+    const { status, body } = await api('POST', '/api/transfer-requests', {
+      document_type: 'survey',
+      document_id:   retractSurveyId,
+      collective_id: collectiveId,
+    }, memberCookie)
+    expect(status).toBe(200)
+    expect(body.requested).toBe(true)
+    retractRequestId = body.request.id
+  })
+
+  it('member retracts the request', async () => {
+    const { status, body } = await api('PATCH', `/api/transfer-requests/${retractRequestId}`, {
+      action: 'retract',
+    }, memberCookie)
+    expect(status).toBe(200)
+    expect(body.ok).toBe(true)
+  })
+
+  it('transfer_request row is marked retracted in DB', async () => {
+    const { data } = await admin
+      .from('transfer_requests')
+      .select('status, resolved_at')
+      .eq('id', retractRequestId)
+      .single()
+    expect(data.status).toBe('retracted')
+    expect(data.resolved_at).toBeTruthy()
+  })
+
+  it('GET ?outgoing=true no longer includes the retracted request', async () => {
+    const { status, body } = await api('GET', '/api/transfer-requests?outgoing=true', null, memberCookie)
+    expect(status).toBe(200)
+    const found = (body.requests || []).find(r => r.id === retractRequestId)
+    expect(found).toBeUndefined()
+  })
+
+  it('survey remains personal after retraction', async () => {
+    const { data } = await admin
+      .from('surveys')
+      .select('collective_id, owner_id')
+      .eq('id', retractSurveyId)
+      .single()
+    expect(data.collective_id).toBeNull()
+    expect(data.owner_id).toBe(memberUserId)
+  })
+})
+
+// ─── API LOCK (PATCH / DELETE blocked while pending) ─────────────────────────
+
+describe('Transfer — API lock (PATCH/DELETE return 423 while pending)', () => {
+  it('member creates a personal survey for lock test', async () => {
+    const { status, body } = await api('POST', '/api/surveys', {
+      title: '[TEST] Zárolásra kerülő felmérés',
+      collective_id: null,
+    }, memberCookie)
+    expect(status).toBe(201)
+    lockSurveyId = body.survey.id
+  })
+
+  it('member submits a transfer request — survey is now locked', async () => {
+    const { status, body } = await api('POST', '/api/transfer-requests', {
+      document_type: 'survey',
+      document_id:   lockSurveyId,
+      collective_id: collectiveId,
+    }, memberCookie)
+    expect(status).toBe(200)
+    lockRequestId = body.request.id
+  })
+
+  it('PATCH on a locked survey returns 423', async () => {
+    const { status, body } = await api('PATCH', `/api/surveys/${lockSurveyId}`, {
+      title: '[TEST] Próba módosítás (tilos)',
+    }, memberCookie)
+    expect(status).toBe(423)
+    expect(body.error).toMatch(/átadás alatt/)
+  })
+
+  it('DELETE on a locked survey returns 423', async () => {
+    const { status, body } = await api('DELETE', `/api/surveys/${lockSurveyId}`, null, memberCookie)
+    expect(status).toBe(423)
+    expect(body.error).toMatch(/átadás alatt/)
+  })
+
+  it('survey is still intact after blocked mutation attempts', async () => {
+    const { data } = await admin
+      .from('surveys')
+      .select('title, deleted_at')
+      .eq('id', lockSurveyId)
+      .single()
+    expect(data.title).toBe('[TEST] Zárolásra kerülő felmérés')
+    expect(data.deleted_at).toBeNull()
+  })
+
+  it('member retracts the request — survey unlocks', async () => {
+    const { status } = await api('PATCH', `/api/transfer-requests/${lockRequestId}`, {
+      action: 'retract',
+    }, memberCookie)
+    expect(status).toBe(200)
+  })
+
+  it('PATCH succeeds after retraction', async () => {
+    const { status, body } = await api('PATCH', `/api/surveys/${lockSurveyId}`, {
+      title: '[TEST] Zárolás feloldva — módosítva',
+    }, memberCookie)
+    expect(status).toBe(200)
+    expect(body.survey.title).toBe('[TEST] Zárolás feloldva — módosítva')
+  })
+})
+
+// ─── RETRACT PERMISSIONS ─────────────────────────────────────────────────────
+
+describe('Transfer — retract permissions (only requester can retract)', () => {
+  it('member creates a personal survey', async () => {
+    const { status, body } = await api('POST', '/api/surveys', {
+      title: '[TEST] Visszavonási jogosultság teszt',
+      collective_id: null,
+    }, memberCookie)
+    expect(status).toBe(201)
+    permSurveyId = body.survey.id
+  })
+
+  it('member submits a transfer request', async () => {
+    const { status, body } = await api('POST', '/api/transfer-requests', {
+      document_type: 'survey',
+      document_id:   permSurveyId,
+      collective_id: collectiveId,
+    }, memberCookie)
+    expect(status).toBe(200)
+    permRequestId = body.request.id
+  })
+
+  it('collective owner cannot retract a request they did not create', async () => {
+    const { status } = await api('PATCH', `/api/transfer-requests/${permRequestId}`, {
+      action: 'retract',
+    }, ownerCookie)
+    expect(status).toBe(403)
+  })
+
+  it('request is still pending after the failed retract attempt', async () => {
+    const { data } = await admin
+      .from('transfer_requests')
+      .select('status')
+      .eq('id', permRequestId)
+      .single()
+    expect(data.status).toBe('pending')
+  })
+
+  it('requester (member) can retract their own request', async () => {
+    const { status, body } = await api('PATCH', `/api/transfer-requests/${permRequestId}`, {
+      action: 'retract',
+    }, memberCookie)
+    expect(status).toBe(200)
+    expect(body.ok).toBe(true)
   })
 })
