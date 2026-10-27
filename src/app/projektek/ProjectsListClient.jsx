@@ -62,7 +62,22 @@ export default function ProjectsListClient({
   const [expandShared, setExpandShared]     = useState({});
   const [confirmDelete, setConfirmDelete]   = useState(null);
   const [deleteAlert,   setDeleteAlert]     = useState(null);
-  const [transferModal, setTransferModal]   = useState(null); // { documentId, documentTitle }
+  const [transferModal,    setTransferModal]    = useState(null);
+  const [outgoingTransfers, setOutgoingTransfers] = useState([]);
+
+  const handleRetract = async (requestId) => {
+    const res = await fetch(`/api/transfer-requests/${requestId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'retract' }),
+    });
+    if (!res.ok) {
+      const { error } = await res.json().catch(() => ({}));
+      setDeleteAlert(error || 'Hiba történt. Kérjük, próbáld újra.');
+      throw new Error(error);
+    }
+    setOutgoingTransfers(prev => prev.filter(r => r.id !== requestId));
+  };
 
   const handleDelete = (project) => {
     setConfirmDelete({
@@ -101,6 +116,14 @@ export default function ProjectsListClient({
 
   const activeCreateEntityId = projEntityId || activeCollectiveId || null;
   const effectiveCurrentUserId = currentUser?.id;
+
+  useEffect(() => {
+    if (!dataReady || isDemoMode) return;
+    fetch('/api/transfer-requests?outgoing=true')
+      .then(r => r.ok ? r.json() : { requests: [] })
+      .then(d => setOutgoingTransfers(d.requests || []))
+      .catch(() => {});
+  }, [dataReady, isDemoMode]);
 
   // Auto-open create modal when navigated via ?create=1 (e.g. from mobile FAB)
   // useSearchParams keeps this reactive — works even when already on this page
@@ -204,6 +227,7 @@ export default function ProjectsListClient({
     const isDone      = !!(project.done_at || project.closed_at);
     const isOwner     = project.owner_id === currentUser?.id || project.created_by === currentUser?.id;
     const canTransfer = isOwner && !project.collective_id && hasCollectives && !isDemoMode;
+    const pendingReq  = outgoingTransfers.find(r => r.document_id === project.id);
     return (
       <ItemCard
         key={project.id}
@@ -214,8 +238,10 @@ export default function ProjectsListClient({
         status={isDone ? 'kesz' : 'folyamatban'}
         photoUrls={project._preview_urls || []}
         isShared={!!project.collective_id}
-        onDelete={isOwner ? () => handleDelete(project) : undefined}
-        onTransfer={canTransfer ? () => setTransferModal({ documentId: project.id, documentTitle: project.name }) : undefined}
+        onDelete={isOwner && !pendingReq ? () => handleDelete(project) : undefined}
+        onTransfer={canTransfer && !pendingReq ? () => setTransferModal({ documentId: project.id, documentTitle: project.name }) : undefined}
+        isPendingTransfer={!!pendingReq}
+        onRetractTransfer={pendingReq ? () => handleRetract(pendingReq.id) : undefined}
       />
     );
   };

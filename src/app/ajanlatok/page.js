@@ -29,7 +29,16 @@ export default function QuotesListPage() {
   const [expandShared,   setExpandShared]   = useState({});
   const [confirmModal,   setConfirmModal]   = useState(null);
   const [alertModal,     setAlertModal]     = useState(null);
-  const [transferModal,  setTransferModal]  = useState(null); // { documentId, documentTitle }
+  const [transferModal,    setTransferModal]    = useState(null);
+  const [outgoingTransfers, setOutgoingTransfers] = useState([]);
+
+  useEffect(() => {
+    if (!dataReady || isDemoMode) return;
+    fetch('/api/transfer-requests?outgoing=true')
+      .then(r => r.ok ? r.json() : { requests: [] })
+      .then(d => setOutgoingTransfers(d.requests || []))
+      .catch(() => {});
+  }, [dataReady, isDemoMode]);
 
   useEffect(() => {
     if (!dataReady) return;
@@ -38,6 +47,20 @@ export default function QuotesListPage() {
       .then(d => { setCombined(d); setFetching(false); })
       .catch(() => setFetching(false));
   }, [dataReady]);
+
+  const handleRetract = async (requestId) => {
+    const res = await fetch(`/api/transfer-requests/${requestId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'retract' }),
+    });
+    if (!res.ok) {
+      const { error } = await res.json().catch(() => ({}));
+      setAlertModal({ message: error || 'Hiba történt. Kérjük, próbáld újra.' });
+      throw new Error(error);
+    }
+    setOutgoingTransfers(prev => prev.filter(r => r.id !== requestId));
+  };
 
   const handleDelete = (q) => {
     setConfirmModal({
@@ -76,10 +99,11 @@ export default function QuotesListPage() {
   const hasCollectives = (userMemberships || []).length > 0;
 
   const renderQuoteCard = (quote) => {
-    const client    = clients.find(c => c.id === quote.client_id);
-    const survey    = quote.survey_id ? surveys.find(s => s.id === quote.survey_id) : null;
-    const isOwner   = quote.owner_id === currentUser?.id || quote.created_by === currentUser?.id;
+    const client      = clients.find(c => c.id === quote.client_id);
+    const survey      = quote.survey_id ? surveys.find(s => s.id === quote.survey_id) : null;
+    const isOwner     = quote.owner_id === currentUser?.id || quote.created_by === currentUser?.id;
     const canTransfer = isOwner && !quote.collective_id && hasCollectives && !isDemoMode;
+    const pendingReq  = outgoingTransfers.find(r => r.document_id === quote.id);
     return (
       <ItemCard
         key={quote.id}
@@ -90,8 +114,10 @@ export default function QuotesListPage() {
         status={quote.status || 'draft'}
         photoUrls={survey?._preview_urls || []}
         isShared={!!quote.collective_id}
-        onDelete={isOwner ? () => handleDelete(quote) : undefined}
-        onTransfer={canTransfer ? () => setTransferModal({ documentId: quote.id, documentTitle: quote.title }) : undefined}
+        onDelete={isOwner && !pendingReq ? () => handleDelete(quote) : undefined}
+        onTransfer={canTransfer && !pendingReq ? () => setTransferModal({ documentId: quote.id, documentTitle: quote.title }) : undefined}
+        isPendingTransfer={!!pendingReq}
+        onRetractTransfer={pendingReq ? () => handleRetract(pendingReq.id) : undefined}
       />
     );
   };

@@ -142,6 +142,11 @@ export default function TransferToCollectiveModal({ isOpen, onClose, documentTyp
                   {' '}<strong>Ez nem vonható vissza.</strong>
                 </p>
               )}
+              {isContributor && (
+                <p style={{ fontSize: '0.8rem', color: 'var(--warning-text)', marginTop: '0.75rem', padding: '0.5rem 0.65rem', background: 'var(--warning-bg)', borderRadius: 'var(--radius-md)', lineHeight: 1.5 }}>
+                  Amíg a kérelem függőben van, a dokumentum nem szerkeszthető és nem törölhető.
+                </p>
+              )}
             </div>
           </div>
 

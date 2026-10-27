@@ -84,8 +84,20 @@ export async function GET(request) {
   if (!user) return Response.json({ error: 'Unauthenticated' }, { status: 401 });
 
   const admin = createAdminClient();
+  const { searchParams } = new URL(request.url);
 
-  // Find all collectives where this user is owner
+  // Outgoing mode: return the current user's own pending requests (for locking their docs)
+  if (searchParams.get('outgoing') === 'true') {
+    const { data: requests } = await admin
+      .from('transfer_requests')
+      .select('*')
+      .eq('from_user_id', user.id)
+      .eq('status', 'pending')
+      .order('created_at', { ascending: false });
+    return Response.json({ requests: requests || [] });
+  }
+
+  // Default (incoming): pending requests for collectives this user owns
   const { data: owned } = await admin
     .from('collective_members')
     .select('collective_id')
@@ -106,7 +118,6 @@ export async function GET(request) {
 
   if (!requests || requests.length === 0) return Response.json({ requests: [] });
 
-  // Enrich with requester display names
   const fromUserIds = [...new Set(requests.map(r => r.from_user_id))];
   const { data: requesters } = await admin
     .from('profiles')

@@ -33,7 +33,16 @@ export default function SurveyListPage() {
   const [expandShared,   setExpandShared]   = useState({});
   const [confirmModal,   setConfirmModal]   = useState(null);
   const [alertModal,     setAlertModal]     = useState(null);
-  const [transferModal,  setTransferModal]  = useState(null); // { documentId, documentTitle }
+  const [transferModal,    setTransferModal]    = useState(null);
+  const [outgoingTransfers, setOutgoingTransfers] = useState([]);
+
+  useEffect(() => {
+    if (!dataReady || isDemoMode) return;
+    fetch('/api/transfer-requests?outgoing=true')
+      .then(r => r.ok ? r.json() : { requests: [] })
+      .then(d => setOutgoingTransfers(d.requests || []))
+      .catch(() => {});
+  }, [dataReady, isDemoMode]);
 
   useEffect(() => {
     if (!dataReady) return;
@@ -42,6 +51,20 @@ export default function SurveyListPage() {
       .then(d => { setCombined(d); setFetching(false); })
       .catch(() => setFetching(false));
   }, [dataReady]);
+
+  const handleRetract = async (requestId) => {
+    const res = await fetch(`/api/transfer-requests/${requestId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'retract' }),
+    });
+    if (!res.ok) {
+      const { error } = await res.json().catch(() => ({}));
+      setAlertModal({ message: error || 'Hiba történt. Kérjük, próbáld újra.' });
+      throw new Error(error);
+    }
+    setOutgoingTransfers(prev => prev.filter(r => r.id !== requestId));
+  };
 
   const handleDelete = (survey) => {
     const photoCount = (survey._photo_count || 0) + (survey._layout_count || 0);
@@ -88,6 +111,7 @@ export default function SurveyListPage() {
     const client      = clients.find(c => c.id === survey.client_id);
     const isOwner     = survey.owner_id === currentUser?.id || survey.created_by === currentUser?.id;
     const canTransfer = isOwner && !survey.collective_id && hasCollectives && !isDemoMode;
+    const pendingReq  = outgoingTransfers.find(r => r.document_id === survey.id);
     return (
       <ItemCard
         key={survey.id}
@@ -98,8 +122,10 @@ export default function SurveyListPage() {
         status={surveyStatus(survey)}
         photoUrls={survey._preview_urls || []}
         isShared={!!survey.collective_id}
-        onDelete={isOwner ? () => handleDelete(survey) : undefined}
-        onTransfer={canTransfer ? () => setTransferModal({ documentId: survey.id, documentTitle: survey.title }) : undefined}
+        onDelete={isOwner && !pendingReq ? () => handleDelete(survey) : undefined}
+        onTransfer={canTransfer && !pendingReq ? () => setTransferModal({ documentId: survey.id, documentTitle: survey.title }) : undefined}
+        isPendingTransfer={!!pendingReq}
+        onRetractTransfer={pendingReq ? () => handleRetract(pendingReq.id) : undefined}
       />
     );
   };

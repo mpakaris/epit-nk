@@ -12,7 +12,7 @@ export async function PATCH(request, { params }) {
   const { id } = await params;
   const { action } = await request.json();
 
-  if (!['accept', 'reject'].includes(action))
+  if (!['accept', 'reject', 'retract'].includes(action))
     return Response.json({ error: 'Érvénytelen művelet.' }, { status: 400 });
 
   // Fetch the pending request
@@ -25,7 +25,19 @@ export async function PATCH(request, { params }) {
 
   if (!req) return Response.json({ error: 'A kérelem nem található.' }, { status: 404 });
 
-  // Verify responding user is the collective owner
+  // Retract — only the original requester
+  if (action === 'retract') {
+    if (req.from_user_id !== user.id)
+      return Response.json({ error: 'Csak a kérelmező vonhatja vissza a kérelmet.' }, { status: 403 });
+    const { error } = await admin
+      .from('transfer_requests')
+      .update({ status: 'retracted', resolved_at: new Date().toISOString() })
+      .eq('id', id);
+    if (error) return Response.json({ error: 'Hiba a visszavonáskor.' }, { status: 500 });
+    return Response.json({ ok: true });
+  }
+
+  // Accept / reject — only the collective owner
   const { data: membership } = await admin
     .from('collective_members')
     .select('role')

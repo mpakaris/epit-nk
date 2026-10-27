@@ -2,7 +2,8 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { Camera, Ellipsis } from 'lucide-react';
+import { Camera, Ellipsis, AlertTriangle, Loader2 } from 'lucide-react';
+import Modal from '@/components/Modal';
 import StatusBadge from './StatusBadge';
 import TeamBadge from './TeamBadge';
 import BottomSheet from './BottomSheet';
@@ -54,8 +55,24 @@ export default function ItemCard({
   onDuplicate,
   onRename,
   onTransfer,
+  isPendingTransfer = false,
+  onRetractTransfer,
 }) {
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [lockOpen,  setLockOpen]  = useState(false);
+  const [retracting, setRetracting] = useState(false);
+
+  const handleRetract = async () => {
+    setRetracting(true);
+    try {
+      await onRetractTransfer?.();
+      setLockOpen(false);
+    } catch {
+      // parent showed error modal
+    } finally {
+      setRetracting(false);
+    }
+  };
 
   const previews = photoUrls.slice(0, 3);
   const photoCount = photoUrls.length;
@@ -114,6 +131,19 @@ export default function ItemCard({
             </div>
           )}
 
+          {/* Pending transfer badge */}
+          {isPendingTransfer && (
+            <div style={{ position: 'absolute', bottom: 6, left: 8 }}>
+              <span style={{
+                background: 'var(--warning-text)', color: '#fff',
+                fontSize: 10, fontWeight: 800, padding: '2px 7px',
+                borderRadius: 999, letterSpacing: '0.03em', whiteSpace: 'nowrap',
+              }}>
+                ÁTADÁS FOLYAMATBAN
+              </span>
+            </div>
+          )}
+
           {/* Photo count */}
           {photoCount > 0 && (
             <div style={{
@@ -167,7 +197,7 @@ export default function ItemCard({
         {/* ⋯ menu button — above the card link in z-order */}
         <button
           type="button"
-          onClick={() => setSheetOpen(true)}
+          onClick={() => isPendingTransfer ? setLockOpen(true) : setSheetOpen(true)}
           aria-label="További műveletek"
           style={{
             position: 'absolute', right: 4, top: stripHeight + 4,
@@ -192,6 +222,35 @@ export default function ItemCard({
         onTransfer={onTransfer}
         onDelete={onDelete}
       />
+
+      <Modal isOpen={lockOpen} onClose={retracting ? undefined : () => setLockOpen(false)} title="Átadás folyamatban">
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.85rem', marginBottom: '1.25rem' }}>
+          <div style={{ flexShrink: 0, width: 40, height: 40, borderRadius: '50%', background: 'var(--warning-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <AlertTriangle size={20} color="var(--warning-text)" />
+          </div>
+          <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', lineHeight: 1.6, margin: 0 }}>
+            Ez a dokumentum kollektívába való átadásra vár, ezért nem módosítható és nem törölhető.
+            {onRetractTransfer && <><br /><br />Vissza szeretnéd vonni a kérelmet?</>}
+          </p>
+        </div>
+        <div style={{ display: 'flex', gap: '0.65rem', justifyContent: 'flex-end' }}>
+          <button className="btn btn-secondary btn-sm" onClick={() => setLockOpen(false)} disabled={retracting}>
+            {onRetractTransfer ? 'Mégse' : 'Bezárás'}
+          </button>
+          {onRetractTransfer && (
+            <button
+              className="btn btn-sm"
+              style={{ background: 'var(--warning-text)', color: '#fff', minWidth: 110 }}
+              onClick={handleRetract}
+              disabled={retracting}
+            >
+              {retracting
+                ? <><Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> Visszavonás…</>
+                : 'Visszavonás'}
+            </button>
+          )}
+        </div>
+      </Modal>
     </>
   );
 }

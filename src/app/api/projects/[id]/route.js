@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { logAudit } from '@/lib/audit';
+import { hasPendingTransfer } from '@/lib/transferLock';
 
 async function getCallerAndProject(id) {
   const supabase = await createClient();
@@ -107,6 +108,9 @@ export async function PATCH(request, { params }) {
   if (!isOwner && !isSuperAdmin && !isKollektivOwner)
     return Response.json({ error: 'Csak a tulajdonos módosíthatja a projektet.' }, { status: 403 });
 
+  if (!isSuperAdmin && await hasPendingTransfer('project', id))
+    return Response.json({ error: 'Ez a dokumentum átadás alatt áll, ezért nem módosítható.' }, { status: 423 });
+
   const allowed = ['name', 'description', 'start_date', 'end_date', 'client_id', 'closed_at',
                    ...(isOwner || isSuperAdmin || isKollektivOwner ? ['collective_id'] : [])];
   const update = {};
@@ -142,6 +146,9 @@ export async function DELETE(request, { params }) {
   const isKollektivOwner = ctx.memberRole === 'owner' || ctx.memberRole === 'admin';
   if (!isOwner && !isSuperAdmin && !isKollektivOwner)
     return Response.json({ error: 'Csak a tulajdonos törölheti a projektet.' }, { status: 403 });
+
+  if (!isSuperAdmin && await hasPendingTransfer('project', id))
+    return Response.json({ error: 'Ez a dokumentum átadás alatt áll, ezért nem módosítható.' }, { status: 423 });
 
   const { error } = await ctx.admin.from('projects')
     .update({ deleted_at: new Date().toISOString() }).eq('id', id);
