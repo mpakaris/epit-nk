@@ -1071,7 +1071,7 @@ export default function KollektivakPage() {
                             ),
                             confirmLabel: 'Igen, átveszem',
                             onConfirm: () => handleTransferResponse(req, 'accept'),
-                          confirmStyle: { background: 'var(--accent)', color: '#fff' },
+                          confirmStyle: { background: 'var(--success-text)', color: '#fff' },
                           })}
                           style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}
                         >
