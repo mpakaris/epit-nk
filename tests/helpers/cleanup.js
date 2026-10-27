@@ -38,17 +38,7 @@ async function del(admin, table, column, ids, label) {
   }
 }
 
-export async function fullCleanup() {
-  const admin = makeAdmin()
-
-  const userIds = await getTestUserIds(admin)
-  if (!userIds.length) {
-    console.log('No test users found — nothing to clean.')
-    return
-  }
-  console.log(`Test users: ${userIds.join(', ')}`)
-
-  // ── Collect parent IDs ────────────────────────────────────────────────────
+async function cleanRecords(admin, userIds) {
   const [{ data: projects }, { data: quotes }, { data: surveys }] = await Promise.all([
     admin.from('projects').select('id').in('owner_id', userIds),
     admin.from('quotes').select('id').in('owner_id', userIds),
@@ -58,15 +48,6 @@ export async function fullCleanup() {
   const quoteIds   = (quotes   || []).map(q => q.id)
   const surveyIds  = (surveys  || []).map(s => s.id)
 
-  // Find collectives owned by test users (to delete after records)
-  const { data: ownedMemberships } = await admin
-    .from('collective_members')
-    .select('collective_id')
-    .in('user_id', userIds)
-    .eq('role', 'owner')
-  const collectiveIds = [...new Set((ownedMemberships || []).map(m => m.collective_id))]
-
-  // ── 1. Sub-records ────────────────────────────────────────────────────────
   console.log('\nSub-records:')
   await del(admin, 'diary_entries',   'project_id', projectIds, 'diary_entries')
   await del(admin, 'invoices',        'project_id', projectIds, 'invoices')
@@ -79,18 +60,41 @@ export async function fullCleanup() {
   await del(admin, 'survey_media',    'survey_id',  surveyIds,  'survey_media')
   await del(admin, 'survey_drawings', 'survey_id',  surveyIds,  'survey_drawings')
 
-  // ── 2. Top-level owned records ────────────────────────────────────────────
   console.log('\nTop-level records:')
   await del(admin, 'projects', 'owner_id', userIds, 'projects')
   await del(admin, 'quotes',   'owner_id', userIds, 'quotes')
   await del(admin, 'surveys',  'owner_id', userIds, 'surveys')
   await del(admin, 'clients',  'owner_id', userIds, 'clients')
+}
 
-  // ── 3. Collectives (CASCADE removes collective_members) ───────────────────
+// Pre-test: wipe only records, keep users + collectives so tests can sign in.
+export async function cleanRecordsOnly() {
+  const admin = makeAdmin()
+  const userIds = await getTestUserIds(admin)
+  if (!userIds.length) { console.log('No test users found — skipping.'); return }
+  console.log(`Test users: ${userIds.join(', ')}`)
+  await cleanRecords(admin, userIds)
+  console.log('\n✅ Record cleanup done.\n')
+}
+
+// Post-test: wipe everything — records, collectives, and auth users.
+export async function fullCleanup() {
+  const admin = makeAdmin()
+  const userIds = await getTestUserIds(admin)
+  if (!userIds.length) { console.log('No test users found — nothing to clean.'); return }
+  console.log(`Test users: ${userIds.join(', ')}`)
+
+  await cleanRecords(admin, userIds)
+
+  // Collectives (CASCADE removes collective_members)
+  const { data: ownedMemberships } = await admin
+    .from('collective_members').select('collective_id')
+    .in('user_id', userIds).eq('role', 'owner')
+  const collectiveIds = [...new Set((ownedMemberships || []).map(m => m.collective_id))]
   console.log('\nCollectives:')
   await del(admin, 'collectives', 'id', collectiveIds, 'collectives + memberships (cascade)')
 
-  // ── 4. Auth users (CASCADE removes profiles + remaining memberships) ──────
+  // Auth users (CASCADE removes profiles + remaining memberships)
   console.log('\nAuth users:')
   for (const uid of userIds) {
     const { error } = await admin.auth.admin.deleteUser(uid)
