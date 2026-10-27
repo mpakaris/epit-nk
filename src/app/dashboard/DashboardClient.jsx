@@ -215,7 +215,7 @@ export default function DashboardClient({
           padding: '0.85rem 1rem',
           marginTop: 10,
           marginBottom: '1rem',
-          display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap',
+          display: 'flex', alignItems: 'center', gap: '0.75rem',
         }}>
           <div style={{ width: 36, height: 36, borderRadius: 'var(--radius-md)', background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
             <Mail size={17} color="#fff" />
@@ -250,7 +250,7 @@ export default function DashboardClient({
           padding: '0.85rem 1rem',
           marginTop: pendingInvitations.length === 0 ? 10 : 0,
           marginBottom: '1rem',
-          display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap',
+          display: 'flex', alignItems: 'center', gap: '0.75rem',
         }}>
           <div style={{ width: 36, height: 36, borderRadius: 'var(--radius-md)', background: '#16a34a', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
             <ArrowUpRight size={17} color="#fff" />
