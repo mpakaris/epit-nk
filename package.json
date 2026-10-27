@@ -30,6 +30,7 @@
     "react-leaflet": "^5.0.0",
     "react-sketch-canvas": "^8.0.0",
     "recharts": "^3.10.1",
+    "resend": "^6.35.0",
     "sharp": "^0.35.5"
   },
   "devDependencies": {

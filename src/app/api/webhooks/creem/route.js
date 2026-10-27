@@ -167,7 +167,7 @@ async function getProfile(admin, userId) {
 }
 
 async function notifyAdmin({ subject, bodyHtml }) {
-  const to = process.env.SMTP_FROM_EMAIL;
+  const to = process.env.ADMIN_EMAIL || process.env.SMTP_FROM_EMAIL;
   if (!to) return;
   await sendEmail({ to, subject, html: wrapEmail(bodyHtml) }).catch(err =>
     console.error('[webhook] email notification failed:', err.message)

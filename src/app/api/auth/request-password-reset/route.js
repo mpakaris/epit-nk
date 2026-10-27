@@ -67,9 +67,9 @@ export async function POST(request) {
     </p>
   `, 'Jelszó visszaállítása – OkosSzaki');
 
-  if (!process.env.SMTP_FROM_EMAIL || !process.env.GOOGLE_SMTP_APP_PASSWORD) {
-    console.error('[password-reset] SMTP env vars missing: SMTP_FROM_EMAIL or GOOGLE_SMTP_APP_PASSWORD not set');
-    return Response.json({ error: 'Az e-mail küldés nincs beállítva (SMTP konfiguráció hiányzik). Kérjük, lépj kapcsolatba az üzemeltetővel.' }, { status: 503 });
+  if (!process.env.RESEND_API_KEY) {
+    console.error('[password-reset] RESEND_API_KEY env var is missing');
+    return Response.json({ error: 'Az e-mail küldés nincs beállítva. Kérjük, lépj kapcsolatba az üzemeltetővel.' }, { status: 503 });
   }
 
   try {
