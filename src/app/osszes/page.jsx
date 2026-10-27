@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
@@ -14,7 +14,7 @@ const SECTIONS = [
   { key: 'projekt',  label: 'Projektek',  icon: Folder,        color: '#059669' },
 ];
 
-export default function OsszesPage() {
+function OsszesContent() {
   const { loading, dataReady, clients, isDemoMode } = useApp();
   const navPrefix = isDemoMode ? '/demo' : '';
   const searchParams = useSearchParams();
@@ -169,5 +169,13 @@ export default function OsszesPage() {
         </>
       )}
     </div>
+  );
+}
+
+export default function OsszesPage() {
+  return (
+    <Suspense fallback={<PageSpinner />}>
+      <OsszesContent />
+    </Suspense>
   );
 }
