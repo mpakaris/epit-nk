@@ -151,13 +151,67 @@ export default function DashboardClient({
     );
   }
 
+  const isEmptyUser = dataReady && surveys.length === 0 && quotes.length === 0 && projects.length === 0;
+
   return (
     <div className="container page-body">
 
       {/* ══════════════════════ MOBILE HOME ══════════════════════ */}
       <div className="show-mobile">
 
+        {/* ── Empty state for brand-new users ── */}
+        {isEmptyUser && (
+          <div style={{ paddingTop: 24 }}>
+            <div style={{ textAlign: 'center', marginBottom: 28 }}>
+              <div style={{ fontSize: 17, fontWeight: 800, color: 'var(--text-primary)', marginBottom: 6 }}>
+                Hol tartasz most?
+              </div>
+              <div style={{ fontSize: 14, color: 'var(--text-muted)', lineHeight: 1.5 }}>
+                Hozd létre az első dokumentumodat.
+              </div>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {[
+                { icon: Ruler,        title: 'Felmérés', desc: 'Méretek, helyszín és fotók rögzítése helyszínen', href: p('/felmeres/uj'),   color: '#2563eb', bg: '#eff6ff' },
+                { icon: FileText,     title: 'Ajánlat',  desc: 'Tételek, ár összeállítása, ügyfélnek küldöm',   href: p('/ajanlatok/uj'), color: '#7c3aed', bg: '#f5f3ff' },
+                { icon: FolderKanban, title: 'Projekt',  desc: 'Számlák, munkadíj és napló egy helyen',          href: p('/projektek/uj'), color: '#059669', bg: '#ecfdf5' },
+              ].map(({ icon: Icon, title, desc, href, color, bg }) => (
+                <button
+                  key={title}
+                  onClick={() => router.push(href)}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 16,
+                    padding: '18px 16px', borderRadius: 'var(--radius-xl)',
+                    background: bg, border: `1.5px solid ${color}28`,
+                    cursor: 'pointer', textAlign: 'left', width: '100%',
+                    minHeight: 76,
+                  }}
+                >
+                  <div style={{
+                    width: 46, height: 46, borderRadius: 'var(--radius-lg)',
+                    background: color, display: 'flex', alignItems: 'center',
+                    justifyContent: 'center', flexShrink: 0,
+                  }}>
+                    <Icon size={20} color="#fff" />
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 3 }}>
+                      {title}
+                    </div>
+                    <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+                      {desc}
+                    </div>
+                  </div>
+                  <ChevronRight size={18} color="var(--text-muted)" style={{ flexShrink: 0 }} />
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Pipeline tiles */}
+        {!isEmptyUser && <>
+        {/* ─────────────────────────────────────── */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginBottom: 24, marginTop: 16 }}>
           {[
             { label: 'Felmérés', href: p('/felmeres'), personal: personalSurveys.length, shared: sharedSurveys.length },
@@ -279,6 +333,7 @@ export default function DashboardClient({
             </div>
           );
         })}
+        </>}{/* end !isEmptyUser */}
       </div>
       {/* ══════════════════════ END MOBILE HOME ══════════════════════ */}
 
