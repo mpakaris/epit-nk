@@ -497,6 +497,7 @@ Any route or UI that creates a resource (quote, survey, project, collective) mus
 - **Membership check without role** — checking only `active` status is not enough for document creation; must also verify `role === 'owner' || role === 'admin'`.
 - **Superadmin bypass in new routes** — do not add `isSuperAdmin` escape hatches to new routes; SA uses DB access.
 - **`flexWrap: 'wrap'` on banner rows** — see rule 11.
+- **Single-layer permission check** — every mutation needs both a client-side guard AND an API-side guard; see rule 12.
 
 ### 11. Banner / Notification Row Layout
 Banners with icon + text + action button use different layouts on mobile vs desktop. Always use `useMobile()` — never `flexWrap: 'wrap'` (it creates squished columns on narrow screens).
@@ -521,6 +522,41 @@ const isMobile = useMobile();
     </div>
   )}
 </div>
+```
+
+### 12. Double Permission Check — Client AND API
+
+Every mutation (create, edit, delete) must be guarded at **two layers**:
+
+**Layer 1 — Client-side (AppContext / component)**
+Fast feedback before a network round-trip. Reads from local state (`projects.find()`, `surveys.find()`, `collectives.some()`). Throws an error that the UI catches and shows to the user.
+
+```js
+// AppContext deleteX pattern
+const doc = documents.find(d => d.id === id);
+const isOwner          = doc?.owner_id === uid || doc?.created_by === uid;
+const isKollektivOwner = collectives.some(c => c.collective_id === doc?.collective_id && c.role === 'owner');
+if (!isAdmin && !isOwner && !isKollektivOwner) throw new Error('Nincs jogosultsága!');
+// then call the API
+```
+
+**Layer 2 — API-side (route handler)**
+Authoritative. Re-reads from the DB — never trusts client-supplied ownership claims. Returns 403 / 423 on violation. This is the real security boundary.
+
+**Critical invariant: keep local state fresh**
+
+The client guard is only as good as the data it reads. After any operation that changes ownership or permissions (e.g. accepting a transfer, switching workspace context), call `refreshSupabaseData()` before the user can act on the affected documents. If state is stale, the client guard produces false-negatives — it throws when it shouldn't, or worse, allows when it shouldn't.
+
+```js
+// After accepting a transfer — refresh immediately so the new owner
+// sees the document in their cache with the updated owner_id
+refreshSupabaseData();
+```
+
+**Wrong — only one layer:**
+```js
+// Client only → API has no guard, anyone can call the endpoint directly
+// API only  → UX shows delete button to users who will get a 403
 ```
 
 ---
