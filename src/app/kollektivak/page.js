@@ -796,22 +796,19 @@ export default function KollektivakPage() {
             ) : (
               <div
                 onClick={() => isOwner && (setEditingNameId(collective.id), setEditingNameValue(collective.name))}
-                style={{ fontWeight: 800, fontSize: '1.05rem', display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: isOwner ? 'text' : 'default', marginBottom: '0.15rem', flexWrap: 'wrap' }}
+                style={{ fontWeight: 800, fontSize: '1.05rem', display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: isOwner ? 'text' : 'default', marginBottom: '0.15rem' }}
                 title={isOwner ? 'Kattints az átnevezéshez' : undefined}
               >
-                {collective.name}
-                {isInclusive && isOwner && (
-                  <span style={{ fontSize: '0.6rem', fontWeight: 800, padding: '0.1rem 0.45rem', borderRadius: 'var(--radius-pill)', background: '#dcfce7', color: '#15803d', border: '1px solid #bbf7d0', letterSpacing: '0.04em' }}>
-                    INKLUZÍV
-                  </span>
-                )}
+                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{collective.name}</span>
                 {isOwner && <Pencil size={12} color="var(--text-muted)" style={{ opacity: 0.5, flexShrink: 0 }} />}
               </div>
             )}
             <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
-              <span style={{ background: ROLE_BG[collective.my_role], color: ROLE_COLOR[collective.my_role], fontWeight: 700, padding: '0.05rem 0.45rem', borderRadius: 'var(--radius-pill)', fontSize: '0.65rem' }}>
-                {ROLE_LABEL[collective.my_role]}
-              </span>
+              {!isOwner && (
+                <span style={{ background: ROLE_BG[collective.my_role], color: ROLE_COLOR[collective.my_role], fontWeight: 700, padding: '0.05rem 0.45rem', borderRadius: 'var(--radius-pill)', fontSize: '0.65rem' }}>
+                  {ROLE_LABEL[collective.my_role]}
+                </span>
+              )}
               <span><strong>{activeMembers.length}</strong> aktív tag</span>
               {pendingInvs.length > 0 && <span>· {pendingInvs.length} függőben lévő meghívó</span>}
             </div>
