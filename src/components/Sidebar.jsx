@@ -173,13 +173,12 @@ export default function Sidebar() {
       <aside className="app-sidebar" style={{ width: collapsed ? '60px' : '240px' }}>
         {/* Brand + collapse toggle */}
         <div className="sidebar-header">
-          <Link href={homeHref} className="sidebar-brand" style={{ opacity: collapsed ? 0 : 1, pointerEvents: collapsed ? 'none' : 'auto', transition: 'opacity 0.15s ease' }}>
-            <div className="sidebar-brand-icon"><Building2 size={16} /></div>
-            <span>Epitünk</span>
+          <Link href={homeHref} className="sidebar-brand" style={{ opacity: collapsed ? 0 : 1, pointerEvents: collapsed ? 'none' : 'auto', transition: 'opacity 0.15s ease', textDecoration: 'none', gap: 0 }}>
+            <span style={{ fontFamily: "'Orbitron', sans-serif", fontWeight: 800, fontSize: '0.9rem', letterSpacing: '0.01em', color: 'var(--primary)', lineHeight: 1 }}>OKOS</span><span style={{ fontFamily: "'Orbitron', sans-serif", fontWeight: 800, fontSize: '0.9rem', letterSpacing: '0.01em', color: '#f97316', lineHeight: 1 }}>SZAKI.hu</span>
           </Link>
           {collapsed && (
-            <Link href={homeHref} className="sidebar-brand-icon" style={{ margin: '0 auto' }}>
-              <Building2 size={16} />
+            <Link href={homeHref} style={{ margin: '0 auto', textDecoration: 'none', display: 'flex', alignItems: 'center' }}>
+              <span style={{ fontFamily: "'Orbitron', sans-serif", fontWeight: 900, fontSize: '0.75rem', color: '#f97316', lineHeight: 1 }}>OS</span>
             </Link>
           )}
           <button
@@ -332,8 +331,8 @@ export default function Sidebar() {
 
       {/* ===== MOBILE HEADER ===== */}
       <header className="mobile-header" style={{ transform: headerVisible ? 'translateY(0)' : 'translateY(-100%)', transition: 'transform 0.25s ease' }}>
-        <Link href={homeHref} className="sidebar-brand-icon" style={{ flexShrink: 0 }}>
-          <Building2 size={18} />
+        <Link href={homeHref} style={{ flexShrink: 0, textDecoration: 'none', lineHeight: 1, display: 'flex', alignItems: 'baseline', gap: 0 }}>
+          <span style={{ fontFamily: "'Orbitron', sans-serif", fontWeight: 800, fontSize: '1.05rem', letterSpacing: '0.01em', color: 'var(--primary)' }}>OKOS</span><span style={{ fontFamily: "'Orbitron', sans-serif", fontWeight: 800, fontSize: '1.05rem', letterSpacing: '0.01em', color: '#f97316' }}>SZAKI.hu</span>
         </Link>
 
         {impersonating && <Eye size={15} style={{ flexShrink: 0, color: '#7c3aed' }} />}
