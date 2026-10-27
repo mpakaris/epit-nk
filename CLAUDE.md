@@ -498,28 +498,30 @@ Any route or UI that creates a resource (quote, survey, project, collective) mus
 - **Superadmin bypass in new routes** — do not add `isSuperAdmin` escape hatches to new routes; SA uses DB access.
 - **`flexWrap: 'wrap'` on banner rows** — see rule 11.
 
-### 11. Banner / Notification Row Layout — Never Wrap
-Any row with a leading icon, text block, and action button must **never** use `flexWrap: 'wrap'`. On narrow screens this pushes the button onto a new line, creating a squished two-column mess.
+### 11. Banner / Notification Row Layout
+Banners with icon + text + action button use different layouts on mobile vs desktop. Always use `useMobile()` — never `flexWrap: 'wrap'` (it creates squished columns on narrow screens).
 
-Always structure as three non-wrapping flex children:
 ```jsx
-// CORRECT — icon left, text grows, button pinned right on all screen sizes
-<div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-  <div style={{ flexShrink: 0, width: 36, height: 36, ... }}>{/* icon */}</div>
-  <div style={{ flex: 1, minWidth: 0 }}>
-    <div style={{ fontWeight: 700 }}>Title</div>
-    <div style={{ fontSize: '0.775rem' }}>Subtitle</div>
-  </div>
-  <button style={{ flexShrink: 0 }}>Megtekintés</button>
-</div>
+const isMobile = useMobile();
 
-// WRONG — button drops to a new line on mobile
-<div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
-  ...
+// Desktop: icon · text (flex:1) · button — one row
+// Mobile:  icon · text (flex:1) on line 1, button right-aligned on line 2
+<div style={{ background: '...', padding: '0.85rem 1rem', borderRadius: 'var(--radius-md)' }}>
+  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+    <div style={{ flexShrink: 0, width: 36, height: 36, ... }}>{/* icon */}</div>
+    <div style={{ flex: 1, minWidth: 0 }}>
+      <div style={{ fontWeight: 700 }}>Title</div>
+      <div style={{ fontSize: '0.775rem' }}>Subtitle</div>
+    </div>
+    {!isMobile && <Link style={{ flexShrink: 0 }}>Megtekintés</Link>}
+  </div>
+  {isMobile && (
+    <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '0.65rem' }}>
+      <Link>Megtekintés</Link>
+    </div>
+  )}
 </div>
 ```
-
-The text block's `flex: 1` absorbs all available space; `minWidth: 0` allows it to shrink and truncate rather than overflow. The button's `flexShrink: 0` keeps it at full width. This works on both mobile and desktop without any breakpoint logic.
 
 ---
 
