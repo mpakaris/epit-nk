@@ -1,10 +1,16 @@
 /**
  * Full teardown of all test data.
  * Safe deletion order based on FK constraints:
- *   1. Sub-records (no FK depedencies outward)
- *   2. Top-level owned records (frees owner_id references to profiles)
- *   3. Collectives — CASCADE auto-removes collective_members
- *   4. Auth users — CASCADE removes profiles → remaining memberships
+ *   1. Sub-records with non-cascading profile FKs (must go before profiles)
+ *   2. Sub-records of top-level documents
+ *   3. Top-level owned records (frees owner_id references to profiles)
+ *   4. Collectives — CASCADE auto-removes collective_members
+ *   5. Auth users — CASCADE removes profiles → remaining memberships
+ *
+ * Tables with non-cascading REFERENCES profiles(id) that must be deleted first:
+ *   - transfer_requests.from_user_id
+ *   - appointments.owner_id          (proven culprit — blocks profile deletion)
+ *   - quote_client_comments.resolved_by (nullable, low risk but handled)
  */
 
 import { createClient } from '@supabase/supabase-js'
@@ -49,8 +55,11 @@ async function cleanRecords(admin, userIds) {
   const surveyIds  = (surveys  || []).map(s => s.id)
 
   console.log('\nSub-records:')
-  await del(admin, 'transfer_requests', 'from_user_id', userIds,    'transfer_requests')
-  await del(admin, 'diary_entries',     'project_id',   projectIds, 'diary_entries')
+  // Must delete before profiles — no ON DELETE CASCADE on these FKs
+  await del(admin, 'transfer_requests',     'from_user_id', userIds,    'transfer_requests')
+  await del(admin, 'appointments',          'owner_id',     userIds,    'appointments')
+  await del(admin, 'quote_client_comments', 'resolved_by',  userIds,    'quote_client_comments (resolved_by)')
+  await del(admin, 'diary_entries',         'project_id',   projectIds, 'diary_entries')
   await del(admin, 'invoices',          'project_id',   projectIds, 'invoices')
   await del(admin, 'labour_entries',    'project_id',   projectIds, 'labour_entries')
   await del(admin, 'project_members',   'project_id',   projectIds, 'project_members')
