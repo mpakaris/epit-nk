@@ -800,7 +800,7 @@ export default function KollektivakPage() {
                 title={isOwner ? 'Kattints az átnevezéshez' : undefined}
               >
                 {collective.name}
-                {isInclusive && (
+                {isInclusive && isOwner && (
                   <span style={{ fontSize: '0.6rem', fontWeight: 800, padding: '0.1rem 0.45rem', borderRadius: 'var(--radius-pill)', background: '#dcfce7', color: '#15803d', border: '1px solid #bbf7d0', letterSpacing: '0.04em' }}>
                     INKLUZÍV
                   </span>
