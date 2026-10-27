@@ -153,56 +153,67 @@ export default function DashboardClient({
 
   const isEmptyUser = dataReady && surveys.length === 0 && quotes.length === 0 && projects.length === 0;
 
+  // Cards for types the user hasn't started yet (shown until each has ≥1 doc)
+  const ALL_QUICK_CARDS = [
+    { key: 'felmeres', icon: Ruler,        title: 'Új felmérés', desc: 'Méretek, helyszín és fotók rögzítése helyszínen', href: p('/felmeres/uj'),   color: '#2563eb', bg: '#eff6ff', border: '#bfdbfe' },
+    { key: 'ajanlat',  icon: FileText,     title: 'Új ajánlat',  desc: 'Tételek, ár összeállítása, ügyfélnek küldöm',   href: p('/ajanlatok/uj'), color: '#7c3aed', bg: '#f5f3ff', border: '#ddd6fe' },
+    { key: 'projekt',  icon: FolderKanban, title: 'Új projekt',  desc: 'Számlák, munkadíj és napló egy helyen',          href: p('/projektek/uj'), color: '#059669', bg: '#ecfdf5', border: '#a7f3d0' },
+  ];
+  const quickCards = dataReady ? ALL_QUICK_CARDS.filter(c =>
+    c.key === 'felmeres' ? surveys.length  === 0 :
+    c.key === 'ajanlat'  ? quotes.length   === 0 :
+                           projects.length === 0
+  ) : [];
+  const showQuickStart = quickCards.length > 0;
+
   return (
     <div className="container page-body">
 
       {/* ══════════════════════ MOBILE HOME ══════════════════════ */}
       <div className="show-mobile">
 
-        {/* ── Empty state for brand-new users ── */}
-        {isEmptyUser && (
+        {/* ── Quick-start cards (shown until user has ≥1 of each type) ── */}
+        {showQuickStart && (
           <div style={{ paddingTop: 24 }}>
-            <div style={{ textAlign: 'center', marginBottom: 28 }}>
-              <div style={{ fontSize: 17, fontWeight: 800, color: 'var(--text-primary)', marginBottom: 6 }}>
-                Hol tartasz most?
+            {isEmptyUser && (
+              <div style={{ textAlign: 'center', marginBottom: 20 }}>
+                <div style={{ fontSize: 17, fontWeight: 800, color: 'var(--text-primary)', marginBottom: 4 }}>
+                  Hol tartasz most?
+                </div>
+                <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>
+                  Hozd létre az első dokumentumodat.
+                </div>
               </div>
-              <div style={{ fontSize: 14, color: 'var(--text-muted)', lineHeight: 1.5 }}>
-                Hozd létre az első dokumentumodat.
-              </div>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              {[
-                { icon: Ruler,        title: 'Felmérés', desc: 'Méretek, helyszín és fotók rögzítése helyszínen', href: p('/felmeres/uj'),   color: '#2563eb', bg: '#eff6ff' },
-                { icon: FileText,     title: 'Ajánlat',  desc: 'Tételek, ár összeállítása, ügyfélnek küldöm',   href: p('/ajanlatok/uj'), color: '#7c3aed', bg: '#f5f3ff' },
-                { icon: FolderKanban, title: 'Projekt',  desc: 'Számlák, munkadíj és napló egy helyen',          href: p('/projektek/uj'), color: '#059669', bg: '#ecfdf5' },
-              ].map(({ icon: Icon, title, desc, href, color, bg }) => (
+            )}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {quickCards.map(({ key, icon: Icon, title, desc, href, color, bg }) => (
                 <button
-                  key={title}
+                  key={key}
                   onClick={() => router.push(href)}
                   style={{
                     display: 'flex', alignItems: 'center', gap: 16,
-                    padding: '18px 16px', borderRadius: 'var(--radius-xl)',
+                    padding: '16px 14px', borderRadius: 'var(--radius-xl)',
                     background: bg, border: `1.5px solid ${color}28`,
                     cursor: 'pointer', textAlign: 'left', width: '100%',
-                    minHeight: 76,
+                    minHeight: 72,
                   }}
                 >
                   <div style={{
-                    width: 46, height: 46, borderRadius: 'var(--radius-lg)',
+                    width: 44, height: 44, borderRadius: 'var(--radius-lg)',
                     background: color, display: 'flex', alignItems: 'center',
                     justifyContent: 'center', flexShrink: 0,
                   }}>
                     <Icon size={20} color="#fff" />
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 3 }}>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 2 }}>
                       {title}
                     </div>
-                    <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+                    <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.4 }}>
                       {desc}
                     </div>
                   </div>
-                  <ChevronRight size={18} color="var(--text-muted)" style={{ flexShrink: 0 }} />
+                  <ChevronRight size={16} color="var(--text-muted)" style={{ flexShrink: 0 }} />
                 </button>
               ))}
             </div>
@@ -216,7 +227,7 @@ export default function DashboardClient({
           </div>
         )}
 
-        {/* Pipeline tiles */}
+        {/* Pipeline tiles + recent items */}
         {!isEmptyUser && <>
         {/* ─────────────────────────────────────── */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginBottom: 24, marginTop: 16 }}>
@@ -405,16 +416,16 @@ export default function DashboardClient({
         </div>
       )}
 
-      {/* Empty state — desktop */}
-      {isEmptyUser && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: '1.75rem' }}>
-          {[
-            { icon: Ruler,        title: 'Új felmérés',  desc: 'Méretek, helyszín és fotók rögzítése helyszínen', href: p('/felmeres/uj'),   color: '#2563eb', bg: '#eff6ff', border: '#bfdbfe' },
-            { icon: FileText,     title: 'Új ajánlat',   desc: 'Tételek, ár összeállítása, ügyfélnek küldöm',   href: p('/ajanlatok/uj'), color: '#7c3aed', bg: '#f5f3ff', border: '#ddd6fe' },
-            { icon: FolderKanban, title: 'Új projekt',   desc: 'Számlák, munkadíj és napló egy helyen',          href: p('/projektek/uj'), color: '#059669', bg: '#ecfdf5', border: '#a7f3d0' },
-          ].map(({ icon: Icon, title, desc, href, color, bg, border }) => (
+      {/* Quick-start cards — desktop (shown until user has ≥1 of each type) */}
+      {showQuickStart && (
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: `repeat(${quickCards.length}, 1fr)`,
+          gap: 16, marginBottom: '1.75rem',
+        }}>
+          {quickCards.map(({ key, icon: Icon, title, desc, href, color, bg, border }) => (
             <button
-              key={title}
+              key={key}
               onClick={() => router.push(href)}
               style={{
                 display: 'flex', flexDirection: 'column', alignItems: 'flex-start',
