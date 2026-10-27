@@ -190,18 +190,24 @@ export default function DashboardClient({
     );
   }
 
-  const isEmptyUser = dataReady && surveys.length === 0 && quotes.length === 0 && projects.length === 0;
+  // Totals across all workspaces (personal + collective)
+  const totalSurveys  = personalSurveys.length  + sharedSurveys.length;
+  const totalQuotes   = personalQuotes.length   + sharedQuotes.length;
+  const totalProjects = personalProjects.length + sharedProjects.length;
 
-  // Cards for types the user hasn't started yet (shown until each has ≥1 doc)
+  // Empty only when combined data has loaded AND every workspace is empty
+  const isEmptyUser = dataReady && combined !== null && totalSurveys === 0 && totalQuotes === 0 && totalProjects === 0;
+
+  // Quick-start cards for document types not yet created in any workspace
   const ALL_QUICK_CARDS = [
     { key: 'felmeres', icon: Ruler,        title: 'Új felmérés', desc: 'Méretek, helyszín és fotók rögzítése helyszínen', href: p('/felmeres/uj'),   color: '#2563eb', bg: '#eff6ff', border: '#bfdbfe' },
     { key: 'ajanlat',  icon: FileText,     title: 'Új ajánlat',  desc: 'Tételek, ár összeállítása, ügyfélnek küldöm',   href: p('/ajanlatok/uj'), color: '#7c3aed', bg: '#f5f3ff', border: '#ddd6fe' },
     { key: 'projekt',  icon: FolderKanban, title: 'Új projekt',  desc: 'Számlák, munkadíj és napló egy helyen',          href: p('/projektek/uj'), color: '#059669', bg: '#ecfdf5', border: '#a7f3d0' },
   ];
-  const quickCards = dataReady ? ALL_QUICK_CARDS.filter(c =>
-    c.key === 'felmeres' ? surveys.length  === 0 :
-    c.key === 'ajanlat'  ? quotes.length   === 0 :
-                           projects.length === 0
+  const quickCards = (dataReady && combined !== null) ? ALL_QUICK_CARDS.filter(c =>
+    c.key === 'felmeres' ? totalSurveys  === 0 :
+    c.key === 'ajanlat'  ? totalQuotes   === 0 :
+                           totalProjects === 0
   ) : [];
   const showQuickStart = quickCards.length > 0;
 
