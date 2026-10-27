@@ -11,7 +11,7 @@ import {
   Plus, AlertCircle, Loader2, Search, X, FileText,
   User, Clock, PencilLine, ChevronDown, ChevronUp, ChevronLeft,
 } from 'lucide-react';
-import Modal from '@/components/Modal';
+import Modal, { ConfirmModal, AlertModal } from '@/components/Modal';
 import ClientSelect from '@/components/ClientSelect';
 import CollectiveSelector from '@/components/CollectiveSelector';
 import ItemCard from '@/components/mobile/ItemCard';
@@ -37,6 +37,7 @@ export default function ProjectsListClient({
   const searchParams = useSearchParams();
   const {
     createClient: ctxCreateClient,
+    deleteProject,
     quotes: _ctxQuotes,
     invoices: _ctxInvoices,
     labourEntries: _ctxLabourEntries,
@@ -58,6 +59,18 @@ export default function ProjectsListClient({
 
   const [expandPersonal, setExpandPersonal] = useState(false);
   const [expandShared, setExpandShared]     = useState({});
+  const [confirmDelete, setConfirmDelete]   = useState(null);
+  const [deleteAlert,   setDeleteAlert]     = useState(null);
+
+  const handleDelete = (project) => {
+    setConfirmDelete({
+      message: `Biztosan törölni kívánja „${project.name}" projektet? Ez nem vonható vissza.`,
+      onConfirm: async () => {
+        try { await deleteProject(project.id); }
+        catch (err) { setDeleteAlert(err.message || 'Hiba a törléskor'); }
+      },
+    });
+  };
 
   // Create modal state
   const [showCreate, setShowCreate] = useState(false);
@@ -185,6 +198,7 @@ export default function ProjectsListClient({
   const renderCard = (project) => {
     const client = clients.find(c => c.id === project.client_id);
     const isDone = !!(project.done_at || project.closed_at);
+    const canDelete = project.owner_id === currentUser?.id || project.created_by === currentUser?.id;
     return (
       <ItemCard
         key={project.id}
@@ -195,6 +209,7 @@ export default function ProjectsListClient({
         status={isDone ? 'kesz' : 'folyamatban'}
         photoUrls={project._preview_urls || []}
         isShared={!!project.collective_id}
+        onDelete={canDelete ? () => handleDelete(project) : undefined}
       />
     );
   };
@@ -430,6 +445,21 @@ export default function ProjectsListClient({
           </div>
         </form>
       </Modal>
+
+      <ConfirmModal
+        isOpen={!!confirmDelete}
+        onClose={() => setConfirmDelete(null)}
+        onConfirm={() => { confirmDelete?.onConfirm(); setConfirmDelete(null); }}
+        title="Projekt törlése"
+        message={confirmDelete?.message}
+        confirmLabel="Törlés"
+      />
+      <AlertModal
+        isOpen={!!deleteAlert}
+        onClose={() => setDeleteAlert(null)}
+        title="Hiba"
+        message={deleteAlert}
+      />
     </div>
   );
 }
