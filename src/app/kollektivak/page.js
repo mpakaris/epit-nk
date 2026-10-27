@@ -1208,7 +1208,7 @@ export default function KollektivakPage() {
           </div>
           {myInvitations.map(inv => (
             <div key={inv.id} className="card" style={{ marginBottom: '0.75rem', border: '1px solid var(--accent-border, #bfdbfe)', background: 'var(--accent-light, #eff6ff)' }}>
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                 <div style={{ width: 38, height: 38, borderRadius: 'var(--radius-md)', background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                   <Mail size={18} color="#fff" />
                 </div>
@@ -1220,28 +1220,31 @@ export default function KollektivakPage() {
                     {new Date(inv.created_at).toLocaleDateString('hu-HU', { year: 'numeric', month: 'long', day: 'numeric' })}
                   </div>
                 </div>
-                <div style={{ display: 'flex', gap: '0.4rem', flexShrink: 0, marginLeft: 'auto' }}>
-                  <button
-                    type="button"
-                    className="btn btn-secondary btn-sm"
-                    disabled={respondingInvId === inv.id}
-                    onClick={() => handleRespondToInvitation(inv, 'decline')}
-                    style={{ color: 'var(--danger-text)', borderColor: 'var(--danger-border)' }}
-                  >
+                {!isMobile && (
+                  <div style={{ display: 'flex', gap: '0.4rem', flexShrink: 0 }}>
+                    <button type="button" className="btn btn-secondary btn-sm" disabled={respondingInvId === inv.id} onClick={() => handleRespondToInvitation(inv, 'decline')} style={{ color: 'var(--danger-text)', borderColor: 'var(--danger-border)' }}>
+                      {respondingInvId === inv.id ? <Loader2 size={13} className="animate-spin" /> : <X size={13} />}
+                      Visszautasítás
+                    </button>
+                    <button type="button" className="btn btn-primary btn-sm" disabled={respondingInvId === inv.id} onClick={() => handleRespondToInvitation(inv, 'accept')}>
+                      {respondingInvId === inv.id ? <Loader2 size={13} className="animate-spin" /> : <CheckCircle2 size={13} />}
+                      Elfogadás
+                    </button>
+                  </div>
+                )}
+              </div>
+              {isMobile && (
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.4rem', marginTop: '0.65rem' }}>
+                  <button type="button" className="btn btn-secondary btn-sm" disabled={respondingInvId === inv.id} onClick={() => handleRespondToInvitation(inv, 'decline')} style={{ color: 'var(--danger-text)', borderColor: 'var(--danger-border)' }}>
                     {respondingInvId === inv.id ? <Loader2 size={13} className="animate-spin" /> : <X size={13} />}
                     Visszautasítás
                   </button>
-                  <button
-                    type="button"
-                    className="btn btn-primary btn-sm"
-                    disabled={respondingInvId === inv.id}
-                    onClick={() => handleRespondToInvitation(inv, 'accept')}
-                  >
+                  <button type="button" className="btn btn-primary btn-sm" disabled={respondingInvId === inv.id} onClick={() => handleRespondToInvitation(inv, 'accept')}>
                     {respondingInvId === inv.id ? <Loader2 size={13} className="animate-spin" /> : <CheckCircle2 size={13} />}
                     Elfogadás
                   </button>
                 </div>
-              </div>
+              )}
             </div>
           ))}
         </div>
