@@ -93,7 +93,7 @@ export default function ProjectsListClient({
     setConfirmDelete({
       message: `Biztosan törölni kívánja „${project.name}" projektet? Ez nem vonható vissza.`,
       onConfirm: async () => {
-        try { await deleteProject(project.id); }
+        try { await deleteProject(project.id, project); }
         catch (err) { setDeleteAlert(err.message || 'Hiba a törléskor'); }
       },
     });

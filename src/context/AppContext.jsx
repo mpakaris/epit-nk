@@ -806,10 +806,12 @@ export function AppProvider({ children }) {
     return updateProject(projectId, { closed_at: null });
   };
 
-  const deleteProject = async (projectId) => {
-    const project = projects.find(p => p.id === projectId);
+  const deleteProject = async (projectId, projectData = null) => {
+    const project = projectData || projects.find(p => p.id === projectId);
     const isCreator        = project?.created_by === effectiveUser?.id || project?.owner_id === effectiveUser?.id;
-    const isKollektivOwner = collectives.some(c => c.collective_id === project?.collective_id && (c.role === 'owner' || c.role === 'admin'));
+    const isKollektivOwner = project
+      ? collectives.some(c => c.collective_id === project.collective_id && (c.role === 'owner' || c.role === 'admin'))
+      : collectives.some(c => c.role === 'owner' || c.role === 'admin'); // doc not in context — coarser check, API enforces precisely
     if (!isAdmin && !isCreator && !isKollektivOwner) throw new Error('Nincs jogosultsága törölni ezt a projektet!');
     const res = await fetch(`/api/projects/${projectId}`, { method: 'DELETE' });
     const data = await res.json();
@@ -942,10 +944,12 @@ export function AppProvider({ children }) {
     return data.survey;
   };
 
-  const deleteSurvey = async (surveyId) => {
-    const survey = surveys.find(s => s.id === surveyId);
+  const deleteSurvey = async (surveyId, surveyData = null) => {
+    const survey = surveyData || surveys.find(s => s.id === surveyId);
     const isSurveyOwner    = survey?.owner_id === uid || survey?.created_by === uid;
-    const isKollektivOwner = collectives.some(c => c.collective_id === survey?.collective_id && (c.role === 'owner' || c.role === 'admin'));
+    const isKollektivOwner = survey
+      ? collectives.some(c => c.collective_id === survey.collective_id && (c.role === 'owner' || c.role === 'admin'))
+      : collectives.some(c => c.role === 'owner' || c.role === 'admin'); // doc not in context — coarser check, API enforces precisely
     if (!isAdmin && !isSurveyOwner && !isKollektivOwner) throw new Error('Csak adminisztrátor vagy a felmérés tulajdonosa törölhet!');
     const res = await fetch(`/api/surveys/${surveyId}`, { method: 'DELETE' });
     const data = await res.json();

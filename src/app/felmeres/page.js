@@ -89,7 +89,7 @@ export default function SurveyListPage() {
     setConfirmModal({
       message: `Biztosan törölni kívánja „${survey.title}" felmérést?${extra} Ez nem vonható vissza.`,
       onConfirm: async () => {
-        try { await deleteSurvey(survey.id); }
+        try { await deleteSurvey(survey.id, survey); }
         catch (err) { setAlertModal({ message: err.message || 'Hiba a törléskor' }); }
       },
     });
