@@ -172,8 +172,8 @@ export default function DashboardClient({
       {/* ══════════════════════ MOBILE HOME ══════════════════════ */}
       <div className="show-mobile">
 
-        {/* ── Quick-start cards (all three empty = brand new user) ── */}
-        {isEmptyUser && (
+        {/* ── Quick-start cards (missing types) ── */}
+        {showQuickStart && (
           <div style={{ paddingTop: 24 }}>
             {isEmptyUser && (
               <div style={{ textAlign: 'center', marginBottom: 20 }}>
