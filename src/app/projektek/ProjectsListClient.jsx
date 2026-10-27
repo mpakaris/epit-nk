@@ -2,51 +2,23 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
 import { calculateProjectFinancials } from '@/lib/calculations';
 import { formatHUF, formatDate } from '@/lib/constants';
 import {
   FolderKanban, Users, TrendingUp, TrendingDown, CheckCircle2,
   Plus, AlertCircle, Loader2, Search, X, FileText,
-  User, Clock, PencilLine, ChevronDown, ChevronUp,
+  User, Clock, PencilLine, ChevronDown, ChevronUp, ChevronLeft,
 } from 'lucide-react';
 import Modal from '@/components/Modal';
 import ClientSelect from '@/components/ClientSelect';
 import CollectiveSelector from '@/components/CollectiveSelector';
+import ItemCard from '@/components/mobile/ItemCard';
+import WorkspaceSectionHeader from '@/components/mobile/WorkspaceSectionHeader';
+import ExpandButton from '@/components/mobile/ExpandButton';
 
 const PREVIEW_COUNT = 3;
-
-function SectionHeader({ icon, label, count, accentColor = 'var(--accent)' }) {
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.85rem', marginTop: '1.75rem' }}>
-      <div style={{ width: 26, height: 26, borderRadius: 'var(--radius-md)', background: `color-mix(in srgb, ${accentColor} 12%, transparent)`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-        {React.cloneElement(icon, { size: 13, color: accentColor })}
-      </div>
-      <span style={{ fontSize: '0.72rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--text-secondary)' }}>
-        {label}
-      </span>
-      {count !== undefined && (
-        <span style={{ fontSize: '0.68rem', fontWeight: 700, padding: '0.1rem 0.45rem', borderRadius: 99, background: 'var(--bg-subtle)', border: '1px solid var(--border-subtle)', color: 'var(--text-muted)' }}>
-          {count}
-        </span>
-      )}
-      <div style={{ flex: 1, height: 1, background: 'var(--border-subtle)', marginLeft: '0.25rem' }} />
-    </div>
-  );
-}
-
-function ShowMoreButton({ total, expanded, onToggle }) {
-  if (total <= PREVIEW_COUNT) return null;
-  return (
-    <div style={{ display: 'flex', justifyContent: 'center', marginTop: '0.65rem' }}>
-      <button type="button" onClick={onToggle}
-        style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.8rem', fontWeight: 700, color: 'var(--accent)', background: 'var(--accent-light)', border: '1px solid var(--accent-border)', borderRadius: 'var(--radius-pill)', padding: '0.35rem 1rem', cursor: 'pointer' }}>
-        {expanded ? <><ChevronUp size={13} /> Kevesebb</> : <><ChevronDown size={13} /> + {total - PREVIEW_COUNT} további</>}
-      </button>
-    </div>
-  );
-}
 
 export default function ProjectsListClient({
   personalProjects,
@@ -62,6 +34,7 @@ export default function ProjectsListClient({
   isSuperAdmin,
 }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const {
     createClient: ctxCreateClient,
     quotes: _ctxQuotes,
@@ -115,10 +88,11 @@ export default function ProjectsListClient({
   const effectiveCurrentUserId = currentUser?.id;
 
   // Auto-open create modal when navigated via ?create=1 (e.g. from mobile FAB)
+  // useSearchParams keeps this reactive — works even when already on this page
   useEffect(() => {
-    if (new URLSearchParams(window.location.search).get('create') === '1') openCreate();
+    if (searchParams.get('create') === '1') openCreate();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [searchParams]);
 
   const openCreate = () => {
     setProjName(''); setProjDesc(''); setProjStart(''); setProjEnd('');
@@ -209,105 +183,19 @@ export default function ProjectsListClient({
   const canCreate = !!currentUser;
 
   const renderCard = (project) => {
-    const memberUsers = users.filter(u => (project.members || []).includes(u.id));
-    const fin = calculateProjectFinancials(project, invoices, labourEntries, memberUsers, currentUser?.id);
-    const isShared    = !!project.collective_id;
-    const creatorName = isShared ? (project.created_by_name || null) : null;
-
-    const previews = project._preview_urls || [];
-
+    const client = clients.find(c => c.id === project.client_id);
+    const isDone = !!(project.done_at || project.closed_at);
     return (
-      <div
+      <ItemCard
         key={project.id}
-        className="card card-interactive"
-        onClick={() => router.push(`${navPrefix}/projektek/${project.id}`)}
-        style={{ display: 'flex', flexDirection: 'column', cursor: 'pointer', padding: 0, overflow: 'hidden' }}
-      >
-        {/* Photo strip / colour header */}
-        {previews.length === 0 ? (
-          <div style={{ height: 72, background: 'linear-gradient(135deg, #0f766e 0%, #0d9488 60%, #14b8a6 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', position: 'relative' }}>
-            <TrendingUp size={48} color="rgba(255,255,255,0.1)" style={{ position: 'absolute', right: 16, bottom: -8, transform: 'rotate(-10deg)' }} />
-            <FolderKanban size={28} color="rgba(255,255,255,0.35)" />
-          </div>
-        ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(previews.length, 4)}, 1fr)`, height: 90, overflow: 'hidden', borderBottom: '1px solid var(--border-subtle)' }}>
-            {previews.map((url, i) => (
-              <div key={i} style={{ position: 'relative', overflow: 'hidden', background: 'var(--bg-subtle)' }}>
-                <img src={url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} loading="lazy" />
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* Body */}
-        <div style={{ padding: '1rem', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: '1rem', flex: 1 }}>
-          <div>
-            <div style={{ marginBottom: '0.35rem' }}>
-              <h3 style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.015em' }}>{project.name}</h3>
-            </div>
-            {project.description && (
-              <p style={{ fontSize: '0.825rem', color: 'var(--text-secondary)', marginBottom: '0.65rem', lineHeight: 1.4 }}>{project.description}</p>
-            )}
-            <div style={{ background: 'var(--bg-subtle)', borderRadius: 'var(--radius-md)', padding: '0.65rem 0.85rem', display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.4rem', border: '1px solid var(--border-subtle)' }}>
-              <div>
-                <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>Összköltség</div>
-                <div style={{ fontWeight: 800, fontSize: '0.85rem' }} className="text-mono">{formatHUF(fin.totalCost)}</div>
-              </div>
-              <div>
-                <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>Munkadíj</div>
-                <div style={{ fontWeight: 800, fontSize: '0.85rem', color: 'var(--success-text)' }} className="text-mono">{formatHUF(fin.totalLabourValue)}</div>
-              </div>
-              <div>
-                <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>Számlák</div>
-                <div style={{ fontWeight: 800, fontSize: '0.85rem', color: 'var(--text-secondary)' }} className="text-mono">{fin.projectInvoices.length} db</div>
-              </div>
-            </div>
-          </div>
-          {isShared && (
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', alignItems: 'center' }}>
-              {creatorName && (
-                <span style={{
-                  display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
-                  fontSize: '0.72rem', fontWeight: 700,
-                  padding: '0.18rem 0.55rem', borderRadius: 'var(--radius-pill)',
-                  background: project.created_by === currentUser?.id ? 'var(--primary-bg, #eff6ff)' : 'var(--bg-subtle)',
-                  color: project.created_by === currentUser?.id ? 'var(--primary)' : 'var(--text-secondary)',
-                  border: `1px solid ${project.created_by === currentUser?.id ? 'var(--primary)33' : 'var(--border-subtle)'}`,
-                }}>
-                  <User size={10} /> {creatorName}
-                </span>
-              )}
-              <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
-                <Clock size={10} /> {formatDate(project.created_at)}
-              </span>
-              {project.updated_at && (
-                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
-                  <PencilLine size={10} /> {project.updated_by_name ? `${project.updated_by_name} · ` : ''}{formatDate(project.updated_at)}
-                </span>
-              )}
-            </div>
-          )}
-
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: '0.6rem', borderTop: '1px solid var(--border-subtle)', gap: '0.5rem' }}>
-            <div>
-              {fin.balance > 0
-                ? <span className="balance-pill positive"><TrendingUp size={12} /><span>+{formatHUF(fin.balance)}</span></span>
-                : fin.balance < 0
-                  ? <span className="balance-pill negative"><TrendingDown size={12} /><span>{formatHUF(fin.balance)}</span></span>
-                  : <span className="balance-pill neutral"><CheckCircle2 size={12} /><span>Rendezett</span></span>
-              }
-            </div>
-            <Link
-              href={`${navPrefix}/projektek/${project.id}/feltoltes`}
-              className="btn btn-primary btn-sm"
-              style={{ padding: '0.35rem 0.7rem', fontSize: '0.78rem', gap: '0.3rem' }}
-              onClick={e => e.stopPropagation()}
-            >
-              <Plus size={13} /> Hozzáadás
-            </Link>
-          </div>
-        </div>
-      </div>
+        href={`${navPrefix}/projektek/${project.id}`}
+        title={project.name}
+        clientName={client?.name}
+        date={project.start_date || project.created_at}
+        status={isDone ? 'kesz' : 'folyamatban'}
+        photoUrls={project._preview_urls || []}
+        isShared={!!project.collective_id}
+      />
     );
   };
 
@@ -320,8 +208,28 @@ export default function ProjectsListClient({
   }));
 
   return (
-    <div className="container">
-      <div className="page-header">
+    <div className="container page-body">
+
+      {/* ── Mobile-only header ── */}
+      <div className="list-page-mobile-header" style={{ marginBottom: 20 }}>
+        <Link
+          href={`${navPrefix}/dashboard`}
+          style={{
+            display: 'inline-flex', alignItems: 'center', gap: 4,
+            fontSize: 15, fontWeight: 600, color: '#475569',
+            textDecoration: 'none', height: 44, marginBottom: 4,
+          }}
+        >
+          <ChevronLeft size={18} strokeWidth={1.75} aria-hidden="true" />
+          Kezdőlap
+        </Link>
+        <h1 style={{ fontSize: 32, fontWeight: 800, color: '#0f172a', letterSpacing: '-0.025em', lineHeight: '38px' }}>
+          Projektek
+        </h1>
+      </div>
+
+      {/* ── Desktop header ── */}
+      <div className="page-header list-page-header">
         <div className="page-header-row">
           <h1 className="page-title">Projektek</h1>
           {canCreate && (
@@ -334,7 +242,7 @@ export default function ProjectsListClient({
 
       {allProjects.length === 0 ? (
         <div className="card" style={{ textAlign: 'center', padding: '3rem 1.5rem' }}>
-          <FolderKanban size={44} color="var(--text-muted)" style={{ margin: '0 auto 0.75rem' }} />
+          <FolderKanban size={44} color="var(--text-muted)" style={{ margin: '0 auto 0.75rem' }} aria-hidden="true" />
           <h3 style={{ fontSize: '1.05rem', fontWeight: 800, marginBottom: '0.35rem' }}>Nincsenek projektek</h3>
           <p style={{ color: 'var(--text-secondary)', maxWidth: '400px', margin: '0 auto 1.25rem', fontSize: '0.875rem' }}>
             Még nem hoztál létre projektet.
@@ -347,44 +255,52 @@ export default function ProjectsListClient({
         </div>
       ) : (
         <>
-          {/* ── Personal section ── */}
-          <SectionHeader icon={<User />} label="Személyes" count={(personalProjects || []).length} />
+          <WorkspaceSectionHeader type="personal" count={(personalProjects || []).length} />
           {(personalProjects || []).length === 0 ? (
-            <p style={{ fontSize: '0.825rem', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>Nincsenek személyes projektek.</p>
+            <p style={{ fontSize: '0.825rem', color: 'var(--text-muted)', marginBottom: '1.25rem' }}>Nincsenek személyes projektek.</p>
           ) : (
             <>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(320px, 100%), 1fr))', gap: '1rem' }}>
-                {(expandPersonal ? personalProjects : personalProjects.slice(0, PREVIEW_COUNT)).map(p => renderCard(p))}
+              <div className="card-grid">
+                {(expandPersonal ? personalProjects : (personalProjects || []).slice(0, PREVIEW_COUNT)).map(p => renderCard(p))}
               </div>
-              <ShowMoreButton total={(personalProjects || []).length} expanded={expandPersonal} onToggle={() => setExpandPersonal(v => !v)} />
+              <ExpandButton
+                total={(personalProjects || []).length}
+                showing={PREVIEW_COUNT}
+                expanded={expandPersonal}
+                onToggle={() => setExpandPersonal(v => !v)}
+              />
             </>
           )}
 
-          {/* ── Collective sections ── */}
           {sharedByCollective.map(col => (
-            <div key={col.id}>
-              <SectionHeader icon={<Users />} label={col.name} count={col.projects.length} accentColor="#16a34a" />
+            <div key={col.id} className="collective-inset-panel" style={{ marginTop: 24 }}>
+              <WorkspaceSectionHeader type="collective" name={col.name} count={col.projects.length} />
               {col.projects.length === 0 ? (
-                <p style={{ fontSize: '0.825rem', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>Nincsenek közös projektek.</p>
+                <p style={{ fontSize: '0.825rem', color: 'var(--text-muted)', marginBottom: 8 }}>Nincsenek közös projektek.</p>
               ) : (
                 <>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(320px, 100%), 1fr))', gap: '1rem' }}>
+                  <div className="card-grid">
                     {(expandShared[col.id] ? col.projects : col.projects.slice(0, PREVIEW_COUNT)).map(p => renderCard(p))}
                   </div>
-                  <ShowMoreButton total={col.projects.length} expanded={!!expandShared[col.id]} onToggle={() => setExpandShared(v => ({ ...v, [col.id]: !v[col.id] }))} />
+                  <ExpandButton
+                    total={col.projects.length}
+                    showing={PREVIEW_COUNT}
+                    expanded={!!expandShared[col.id]}
+                    onToggle={() => setExpandShared(v => ({ ...v, [col.id]: !v[col.id] }))}
+                  />
                 </>
               )}
             </div>
           ))}
 
-          {/* Invite nudge */}
           {!hasCollectives && (
             <div style={{ marginTop: '2rem', padding: '1rem 1.25rem', borderRadius: 'var(--radius-md)', background: 'var(--bg-subtle)', border: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-              <Users size={18} color="var(--text-muted)" style={{ flexShrink: 0 }} />
+              <Users size={18} color="var(--text-muted)" style={{ flexShrink: 0 }} aria-hidden="true" />
               <div>
                 <div style={{ fontWeight: 700, fontSize: '0.825rem', marginBottom: '0.15rem' }}>Csapatban is dolgozol?</div>
                 <div style={{ fontSize: '0.775rem', color: 'var(--text-secondary)' }}>
-                  Hozz létre egy kollektívát a közös projektekhez. <Link href={`${navPrefix}/kollektivak`} style={{ color: 'var(--accent)', fontWeight: 700 }}>Kollektívák →</Link>
+                  Hozz létre egy kollektívát a közös projektekhez.{' '}
+                  <Link href={`${navPrefix}/kollektivak`} style={{ color: 'var(--accent)', fontWeight: 700 }}>Kollektívák →</Link>
                 </div>
               </div>
             </div>

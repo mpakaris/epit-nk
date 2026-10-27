@@ -1,7 +1,20 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef, Suspense } from 'react';
 import { useApp } from '@/context/AppContext';
+import { useSearchParams } from 'next/navigation';
+
+// Tiny helper that watches ?create=1 — must live inside <Suspense>
+// Uses a ref for the callback so it never appears as a dep (avoids infinite loop).
+function CreateParamWatcher({ onTrigger }) {
+  const searchParams = useSearchParams();
+  const onTriggerRef = useRef(onTrigger);
+  onTriggerRef.current = onTrigger;
+  useEffect(() => {
+    if (searchParams.get('create') === '1') onTriggerRef.current();
+  }, [searchParams]);
+  return null;
+}
 import Modal, { ConfirmModal, AlertModal } from '@/components/Modal';
 import {
   Users,
@@ -268,6 +281,9 @@ export default function AdminClientsPage() {
 
   return (
     <div className="container">
+      <Suspense fallback={null}>
+        <CreateParamWatcher onTrigger={openCreateModal} />
+      </Suspense>
       <div className="page-header">
         <div className="page-header-row">
           <div>

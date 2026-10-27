@@ -14,6 +14,9 @@ import {
 import StatCard from '@/components/StatCard';
 import CalendarWidget from '@/components/CalendarWidget';
 import WorkspaceBadge from '@/components/WorkspaceBadge';
+import CompactRow from '@/components/mobile/CompactRow';
+import WorkspaceSectionHeader from '@/components/mobile/WorkspaceSectionHeader';
+import ItemCard from '@/components/mobile/ItemCard';
 
 const QUOTE_STATUS = { draft: 'Tervezet', sent: 'Kiküldve', accepted: 'Elfogadva', rejected: 'Elutasítva' };
 const QUOTE_STATUS_COLOR = { draft: 'var(--text-muted)', sent: 'var(--warning-text)', accepted: 'var(--success-text)', rejected: 'var(--danger-text)' };
@@ -96,9 +99,191 @@ export default function DashboardClient({
       .catch(() => {});
   }, [isDemoMode]);
 
+  const [combined, setCombined] = useState(null);
+  useEffect(() => {
+    if (!dataReady) return;
+    fetch('/api/workspace/combined', { cache: 'no-store' })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => setCombined(d))
+      .catch(() => {});
+  }, [dataReady]);
+
+
+  // ── Mobile home data ──
+  const personalSurveys  = combined?.personal?.surveys  || [];
+  const personalQuotes   = combined?.personal?.quotes   || [];
+  const personalProjects = combined?.personal?.projects || [];
+  const sharedSurveys    = combined?.shared?.surveys    || [];
+  const sharedQuotes     = combined?.shared?.quotes     || [];
+  const sharedProjects   = combined?.shared?.projects   || [];
+  const collectiveMeta   = combined?.collectives        || [];
+
+  const allItems = [
+    ...personalSurveys.map(s => ({ ...s, _kind: 'felmeres', _date: s.updated_at || s.created_at })),
+    ...personalQuotes.map(q  => ({ ...q, _kind: 'ajanlat',  _date: q.updated_at || q.created_at })),
+    ...personalProjects.map(p => ({ ...p, _kind: 'projekt',  _date: p.updated_at || p.created_at })),
+    ...sharedSurveys.map(s  => ({ ...s, _kind: 'felmeres', _date: s.updated_at || s.created_at })),
+    ...sharedQuotes.map(q   => ({ ...q, _kind: 'ajanlat',  _date: q.updated_at || q.created_at })),
+    ...sharedProjects.map(p => ({ ...p, _kind: 'projekt',  _date: p.updated_at || p.created_at })),
+  ].sort((a, b) => new Date(b._date) - new Date(a._date));
+
+  const mostRecent = allItems[0];
+
+  function recentItemCard(item) {
+    if (!item) return null;
+    const client = (clients || []).find(c => c.id === item.client_id);
+    const href   = `${p('/' + (item._kind === 'felmeres' ? 'felmeres' : item._kind === 'ajanlat' ? 'ajanlatok' : 'projektek') + '/' + item.id)}`;
+    const status = item._kind === 'felmeres'
+      ? (item.status === 'done' ? 'done' : item.status === 'reopened' ? 'reopened' : 'active')
+      : item._kind === 'ajanlat' ? (item.status || 'draft')
+      : (item.done_at || item.closed_at ? 'kesz' : 'folyamatban');
+    return (
+      <ItemCard
+        href={href}
+        title={item.name || item.title}
+        clientName={client?.name}
+        date={item._date}
+        status={status}
+        photoUrls={item._preview_urls || []}
+        isShared={!!item.collective_id}
+        stripHeight={90}
+      />
+    );
+  }
 
   return (
-    <div className="container">
+    <div className="container page-body">
+
+      {/* ══════════════════════ MOBILE HOME ══════════════════════ */}
+      <div className="show-mobile">
+
+        {/* Pipeline tiles */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginBottom: 24, marginTop: 16 }}>
+          {[
+            { label: 'Felmérés', href: p('/felmeres'), personal: personalSurveys.length, shared: sharedSurveys.length },
+            { label: 'Ajánlat',  href: p('/ajanlatok'), personal: personalQuotes.length,  shared: sharedQuotes.length  },
+            { label: 'Projekt',  href: p('/projektek'), personal: personalProjects.length, shared: sharedProjects.length },
+          ].map(tile => (
+            <Link key={tile.label} href={tile.href} style={{ textDecoration: 'none' }}>
+              <div style={{
+                background: '#fff', borderRadius: 16, padding: '14px 12px',
+                boxShadow: 'var(--shadow-card)', minHeight: 140,
+                display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
+              }}>
+                <div style={{ fontSize: 28, fontWeight: 800, color: '#0f172a', lineHeight: 1 }}>
+                  {tile.personal + tile.shared}
+                </div>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: '#0f172a', marginBottom: 6 }}>{tile.label}</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#2563eb', flexShrink: 0 }} />
+                      <span style={{ fontSize: 11, fontWeight: 600, color: '#475569' }}>{tile.personal}</span>
+                    </div>
+                    {tile.shared > 0 && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#15803d', flexShrink: 0 }} />
+                        <span style={{ fontSize: 11, fontWeight: 600, color: '#475569' }}>{tile.shared}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </Link>
+          ))}
+        </div>
+
+        {/* Most recently touched item */}
+        {mostRecent && (
+          <div style={{ marginBottom: 24 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#64748b', marginBottom: 8 }}>
+              Folytasd
+            </div>
+            {recentItemCard(mostRecent)}
+          </div>
+        )}
+
+        {/* Personal recent */}
+        <div style={{ marginBottom: 24 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+            <WorkspaceSectionHeader type="personal" count={personalSurveys.length + personalQuotes.length + personalProjects.length} />
+            <Link href={p('/felmeres')} style={{ fontSize: 14, fontWeight: 700, color: '#2563eb', textDecoration: 'none', flexShrink: 0, marginLeft: 12, marginBottom: 12 }}>Mind</Link>
+          </div>
+          {[...personalSurveys, ...personalQuotes, ...personalProjects]
+            .sort((a, b) => new Date(b.updated_at || b.created_at) - new Date(a.updated_at || a.created_at))
+            .slice(0, 2)
+            .map(item => {
+              const kind = personalSurveys.find(s => s.id === item.id) ? 'felmeres' : personalQuotes.find(q => q.id === item.id) ? 'ajanlat' : 'projekt';
+              const client = (clients || []).find(c => c.id === item.client_id);
+              return (
+                <CompactRow
+                  key={item.id}
+                  href={p('/' + (kind === 'felmeres' ? 'felmeres' : kind === 'ajanlat' ? 'ajanlatok' : 'projektek') + '/' + item.id)}
+                  title={item.name || item.title}
+                  meta={client?.name}
+                  type={kind}
+                  isShared={false}
+                />
+              );
+            })}
+        </div>
+
+        {/* Collectives — last survey, offer, project per collective */}
+        {collectiveMeta.map(col => {
+          const byDate = (a, b) => new Date(b.updated_at || b.created_at) - new Date(a.updated_at || a.created_at);
+          const colSurveys  = sharedSurveys.filter(s => s.collective_id === col.id).sort(byDate);
+          const colQuotes   = sharedQuotes.filter(q => q.collective_id === col.id).sort(byDate);
+          const colProjects = sharedProjects.filter(proj => proj.collective_id === col.id).sort(byDate);
+
+          const lastSurvey  = colSurveys[0]  || null;
+          const lastQuote   = colQuotes[0]   || null;
+          const lastProject = colProjects[0] || null;
+
+          if (!lastSurvey && !lastQuote && !lastProject) return null;
+
+          const total = colSurveys.length + colQuotes.length + colProjects.length;
+
+          return (
+            <div key={col.id} className="collective-inset-panel">
+              <WorkspaceSectionHeader type="collective" name={col.name} count={total} />
+              {lastSurvey && (
+                <CompactRow
+                  key={lastSurvey.id}
+                  href={p(`/felmeres/${lastSurvey.id}`)}
+                  title={lastSurvey.title}
+                  meta={(clients || []).find(c => c.id === lastSurvey.client_id)?.name}
+                  type="felmeres"
+                  isShared
+                />
+              )}
+              {lastQuote && (
+                <CompactRow
+                  key={lastQuote.id}
+                  href={p(`/ajanlatok/${lastQuote.id}`)}
+                  title={lastQuote.title}
+                  meta={(clients || []).find(c => c.id === lastQuote.client_id)?.name}
+                  type="ajanlat"
+                  isShared
+                />
+              )}
+              {lastProject && (
+                <CompactRow
+                  key={lastProject.id}
+                  href={p(`/projektek/${lastProject.id}`)}
+                  title={lastProject.name}
+                  meta={(clients || []).find(c => c.id === lastProject.client_id)?.name}
+                  type="projekt"
+                  isShared
+                />
+              )}
+            </div>
+          );
+        })}
+      </div>
+      {/* ══════════════════════ END MOBILE HOME ══════════════════════ */}
+
+      {/* ══════════════════════ DESKTOP DASHBOARD (hidden on mobile) ══════════════════════ */}
+      <div className="hide-mobile">
       <div className="page-header">
         <div className="page-header-row">
           <h1 className="page-title" style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
@@ -288,6 +473,7 @@ export default function DashboardClient({
           )}
         </div>
       </div>
+      </div>{/* end hide-mobile */}
     </div>
   );
 }

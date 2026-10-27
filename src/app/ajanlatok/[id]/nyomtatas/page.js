@@ -1,10 +1,10 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
 import { formatHUF, formatDate, QUOTE_ENTRY_TYPES } from '@/lib/constants';
-import { Printer, ArrowLeft, Loader2 } from 'lucide-react';
+import { Printer, ArrowLeft, Loader2, Download } from 'lucide-react';
 
 const FONT  = `-apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif`;
 const SLATE = '#0f172a';
@@ -88,8 +88,52 @@ export default function OfferPrintPage() {
   const { id } = useParams();
   const router  = useRouter();
   const { quotes, quoteSections, quoteEntries, clients, loading, dataReady, isDemoMode } = useApp();
-  const [profile, setProfile] = useState(isDemoMode ? DEMO_PROFILE_PRINT : null);
-  const [accent,  setAccent]  = useState(PALETTE[0]);
+  const [profile,       setProfile]       = useState(isDemoMode ? DEMO_PROFILE_PRINT : null);
+  const [accent,        setAccent]        = useState(PALETTE[0]);
+  const [downloading,   setDownloading]   = useState(false);
+
+  const handleDownload = async () => {
+    if (isDemoMode) { alert('PDF letöltés demo módban nem elérhető.'); return; }
+    setDownloading(true);
+    try {
+      const res = await fetch(`/api/quotes/${id}/pdf`);
+      if (!res.ok) throw new Error('PDF generálás sikertelen');
+      const blob = await res.blob();
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a');
+      a.href     = url;
+      a.download = res.headers.get('content-disposition')?.match(/filename="(.+)"/)?.[1] || 'Ajanlat.pdf';
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  // Mobile PDF scaling: render at 794px (A4 width) and scale to fit viewport
+  const docRef    = useRef(null);
+  const [docScale,  setDocScale]  = useState(1);
+  const [docHeight, setDocHeight] = useState(null);
+
+  useEffect(() => {
+    const updateScale = () => {
+      const vw = window.innerWidth;
+      setDocScale(Math.min(1, (vw - 16) / 794));
+    };
+    updateScale();
+    window.addEventListener('resize', updateScale);
+    return () => window.removeEventListener('resize', updateScale);
+  }, []);
+
+  useEffect(() => {
+    const el = docRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(([entry]) => setDocHeight(entry.contentRect.height));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   useEffect(() => {
     if (isDemoMode) return;
@@ -148,6 +192,10 @@ export default function OfferPrintPage() {
         <button type="button" onClick={() => window.print()} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.4rem 1rem', borderRadius: 8, border: 'none', background: A, cursor: 'pointer', fontSize: '0.82rem', fontWeight: 700, color: AT, fontFamily: FONT }}>
           <Printer size={14} /> Nyomtatás / PDF mentés
         </button>
+        <button type="button" onClick={handleDownload} disabled={downloading} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.4rem 1rem', borderRadius: 8, border: '1px solid #e2e8f0', background: '#fff', cursor: downloading ? 'wait' : 'pointer', fontSize: '0.82rem', fontWeight: 600, color: '#475569', fontFamily: FONT }}>
+          {downloading ? <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> : <Download size={14} />}
+          {downloading ? 'Generálás…' : 'PDF letöltés'}
+        </button>
         {/* Color palette */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginLeft: 'auto' }}>
           <span style={{ fontSize: '0.72rem', fontWeight: 600, color: '#94a3b8', whiteSpace: 'nowrap' }}>Szín:</span>
@@ -178,8 +226,25 @@ export default function OfferPrintPage() {
       </div>
 
       {/* Page wrapper */}
-      <div className="print-root" style={{ padding: '2rem 1rem', minHeight: '100vh' }}>
-        <div style={{ maxWidth: 794, margin: '0 auto', background: '#fff', boxShadow: '0 4px 24px rgba(0,0,0,0.08)', borderRadius: 4 }}>
+      <div className="print-root" style={{ padding: '1.5rem 8px', minHeight: '100vh' }}>
+        {/* Centering container: takes exactly the scaled footprint so scrolling works */}
+        <div className="pdf-scale-wrap" style={{
+          width: 794 * docScale,
+          height: docHeight ? docHeight * docScale : undefined,
+          margin: '0 auto',
+          position: 'relative',
+        }}>
+        <div
+          ref={docRef}
+          className="pdf-scale-doc"
+          style={{
+            width: 794,
+            position: 'absolute', top: 0, left: 0,
+            transformOrigin: 'top left',
+            transform: `scale(${docScale})`,
+            background: '#fff', boxShadow: '0 4px 24px rgba(0,0,0,0.08)', borderRadius: 4,
+          }}
+        >
 
           {/* ── Accent bar ── */}
           <div style={{ height: 6, background: `linear-gradient(90deg, ${A}, ${A}99)`, borderRadius: '4px 4px 0 0' }} />
@@ -392,7 +457,8 @@ export default function OfferPrintPage() {
             </div>
 
           </div>{/* end padding div */}
-        </div>{/* end white card */}
+        </div>{/* end white card / scaled doc */}
+        </div>{/* end centering container */}
       </div>{/* end page wrapper */}
     </>
   );

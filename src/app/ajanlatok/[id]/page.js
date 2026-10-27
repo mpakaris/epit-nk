@@ -369,24 +369,53 @@ function SectionCard({ section, surveyEntry, surveyId, quoteId, canEdit, isQuote
 
         {/* MOBILE (hidden on desktop) */}
         <div className="show-mobile">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <div style={{ color: 'rgba(255,255,255,0.5)', flexShrink: 0, pointerEvents: 'none' }}>
-              {collapsed ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
+          {/* Row 1: title + chevron */}
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+            <span style={{ flex: 1, fontWeight: 800, fontSize: '1.05rem', color: '#fff', lineHeight: 1.35 }}>
+              {section.name}
+            </span>
+            <div style={{ color: 'rgba(255,255,255,0.5)', flexShrink: 0, paddingTop: 2, pointerEvents: 'none' }}>
+              {collapsed ? <ChevronDown size={20} /> : <ChevronUp size={20} />}
             </div>
-            <span style={{ fontWeight: 800, fontSize: '1rem', color: '#fff', flex: 1, minWidth: 0 }}>{section.name}</span>
-            {headerEditButtons}
           </div>
-          {hasMeasurementPills && (
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.3rem', marginTop: '0.4rem', paddingLeft: '1.5rem' }}>
+
+          {/* Row 2: measurements + creator (collective only) — only when data exists */}
+          {(hasMeasurementPills || (activeCollectiveId && (section.created_by_name || contributors[0]))) && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 6, marginTop: 8 }}>
               {measurementPillsDark}
+              {activeCollectiveId && (section.created_by_name || contributors[0]) && (
+                <span style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.55)', display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <User size={11} />{section.created_by_name || contributors[0]}
+                </span>
+              )}
             </div>
           )}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem', marginTop: '0.45rem', paddingLeft: '1.5rem' }}>
-            <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.35rem' }}>
-              <span style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.5)' }}>{sectionEntries.length} tétel</span>
-              {contributors.map(name => <span key={name} style={{ ...PILL_DARK, fontSize: '0.68rem' }}><User size={10} />{name}</span>)}
+
+          {/* Divider */}
+          <div style={{ height: 1, background: 'rgba(255,255,255,0.15)', margin: '10px 0 8px' }} />
+
+          {/* Row 3: subtotal + entry count + action buttons */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }} onClick={e => e.stopPropagation()}>
+            <div style={{ flex: 1, display: 'flex', alignItems: 'baseline', gap: 8, minWidth: 0 }}>
+              <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, fontSize: '1.1rem', color: '#fff', flexShrink: 0 }}>
+                {formatHUF(sectionSubtotalForHeader)}
+              </span>
+              <span style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.5)', fontWeight: 600, flexShrink: 0 }}>
+                {sectionEntries.length} tétel
+              </span>
             </div>
-            <span style={TOTAL_PILL_DARK}>{formatHUF(sectionSubtotalForHeader)}</span>
+            {canEditSection && (
+              <>
+                <button type="button" onClick={() => setIsEditing(true)} aria-label="Szerkesztés"
+                  style={{ width: 44, height: 44, background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.22)', color: '#fff', borderRadius: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <Edit3 size={18} />
+                </button>
+                <button type="button" onClick={() => onDelete(section)} aria-label="Törlés"
+                  style={{ width: 44, height: 44, background: 'rgba(220,38,38,0.2)', border: '1px solid rgba(220,38,38,0.4)', color: '#fca5a5', borderRadius: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <Trash2 size={18} />
+                </button>
+              </>
+            )}
           </div>
         </div>
       </div>
@@ -659,6 +688,7 @@ export default function QuoteDetailPage() {
     currentUser, isAdmin, loading, dataReady, activeCollectiveId, collectives,
     quotes, quoteEntries, quoteSections, clients, users, projects, surveys,
     updateQuote, updateQuoteStatus, deleteQuote, convertQuoteToProject,
+    createQuote,
     createQuoteSection, updateQuoteSection, deleteQuoteSection,
     createQuoteEntry, updateQuoteEntry, deleteQuoteEntry,
     fetchSurveyMedia, surveyEntriesBySurvey,
@@ -697,6 +727,17 @@ export default function QuoteDetailPage() {
   const [isConverting, setIsConverting]         = useState(false);
 
   const [showSendConfirm, setShowSendConfirm]       = useState(false);
+
+  // Actions bottom sheet
+  const [showActionsSheet, setShowActionsSheet] = useState(false);
+  // Collapsable meta card (starts collapsed on mobile)
+  const [metaCollapsed, setMetaCollapsed]       = useState(true);
+  // Duplicate modal
+  const [showDuplicateModal, setShowDuplicateModal] = useState(false);
+  const [duplicateTitle,        setDuplicateTitle]        = useState('');
+  const [duplicateWithClient,   setDuplicateWithClient]   = useState(true);
+  const [duplicateWithSections, setDuplicateWithSections] = useState(true);
+  const [isDuplicating, setIsDuplicating] = useState(false);
   const [attachTerms, setAttachTerms]               = useState(true);
   const [termsPdfName, setTermsPdfName]             = useState(null);
   const [profileIncomplete, setProfileIncomplete]   = useState(false);
@@ -801,7 +842,7 @@ export default function QuoteDetailPage() {
   const isQuoteOwner     = quote.created_by === currentUser?.id || quote.owner_id === currentUser?.id;
   const isKollektivOwner = collectives?.some(c => c.collective_id === quote.collective_id && (c.role === 'owner' || c.role === 'admin'));
   const isCollMember     = !!(activeCollectiveId && quote.collective_id === activeCollectiveId);
-  const canModify        = isQuoteOwner || isAdmin || isKollektivOwner || (quote.shared_with || []).includes(currentUser?.id) || isCollMember;
+  const canModify        = isQuoteOwner || isKollektivOwner || (quote.shared_with || []).includes(currentUser?.id) || isCollMember;
   const isLocked      = quote.status === 'accepted' || quote.status === 'rejected';
   const canEdit       = canModify && !isLocked;
   const sc            = STATUS_COLORS[quote.status] || STATUS_COLORS.draft;
@@ -872,6 +913,54 @@ export default function QuoteDetailPage() {
         catch (err) { setAlertModal({ message: err.message }); }
       },
     });
+  };
+
+  const handleResetToDraft = async () => {
+    try { await updateQuoteStatus(id, 'draft'); }
+    catch (err) { setAlertModal({ message: err.message }); }
+  };
+
+  const handleDuplicate = async () => {
+    setIsDuplicating(true);
+    try {
+      const newQuote = await createQuote({
+        title: duplicateTitle.trim() || `${quote.title} – Másolat`,
+        location: quote.location,
+        workType: quote.work_type,
+        description: quote.description,
+        startDate: quote.start_date,
+        endDate: quote.end_date,
+        clientId: duplicateWithClient ? quote.client_id : null,
+        taxPercent: quote.tax_percent,
+        surveyId: null,
+        collectiveId: quote.collective_id,
+      });
+      if (duplicateWithSections) {
+        for (const section of sections) {
+          const newSection = await createQuoteSection(newQuote.id, {
+            name: section.name, description: section.description || null,
+            width_m: section.width_m ?? null, length_m: section.length_m ?? null,
+            height_m: section.height_m ?? null, window_count: section.window_count || 0,
+            door_count: section.door_count || 0, sort_order: section.sort_order ?? 0,
+          });
+          const sectionEntries = entries.filter(e => e.section_id === section.id);
+          for (const e of sectionEntries) {
+            await createQuoteEntry(newSection.id, e.entry_type, e.work_description, e.quantity, e.unit, e.unit_price, e.amount_huf, e.notes || '', null, currentUser.id);
+          }
+        }
+        // Unsectioned entries
+        const general = entries.filter(e => !e.section_id);
+        for (const e of general) {
+          await createQuoteEntry(null, e.entry_type, e.work_description, e.quantity, e.unit, e.unit_price, e.amount_huf, e.notes || '', null, currentUser.id);
+        }
+      }
+      setShowDuplicateModal(false);
+      router.push(`${navPrefix}/ajanlatok/${newQuote.id}`);
+    } catch (err) {
+      setAlertModal({ message: err.message });
+    } finally {
+      setIsDuplicating(false);
+    }
   };
 
   // ── Section handlers ──────────────────────────────────────────────────────
@@ -1079,85 +1168,19 @@ export default function QuoteDetailPage() {
 
       {/* Header */}
       <div className="page-header" style={{ padding: '0.5rem 0 1rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-            <h1 className="page-title" style={{ marginBottom: 0 }}>{metaTitle || quote.title}</h1>
-            <span style={{ fontSize: '0.8rem', fontWeight: 700, padding: '0.2rem 0.65rem', borderRadius: 'var(--radius-pill)', background: sc.bg, color: sc.color, border: `1px solid ${sc.border}` }}>
-              {QUOTE_STATUSES.find(s => s.id === quote.status)?.label}
-            </span>
-          </div>
-          <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
-            <Link href={`${navPrefix}/ajanlatok/${id}/nyomtatas`} className="btn btn-secondary btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
-              <Printer size={14} /> Előnézet / PDF
-            </Link>
-            {canModify && (
-              <>
-                {canEdit && (
-                  <button type="button" onClick={handleSaveMeta} disabled={!isMetaDirty || savingMeta} className="btn btn-primary btn-sm">
-                    {savingMeta ? <><Loader2 size={13} className="animate-spin" />Mentés</> : <><Check size={13} />Mentés</>}
-                  </button>
-                )}
-                <button type="button" onClick={handleDeleteQuote} className="btn btn-danger btn-sm">
-                  <Trash2 size={14} /> Törlés
-                </button>
-              </>
-            )}
-          </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+          <h1 className="page-title" style={{ marginBottom: 0 }}>{metaTitle || quote.title}</h1>
+          <span style={{ fontSize: '0.8rem', fontWeight: 700, padding: '0.2rem 0.65rem', borderRadius: 'var(--radius-pill)', background: sc.bg, color: sc.color, border: `1px solid ${sc.border}` }}>
+            {QUOTE_STATUSES.find(s => s.id === quote.status)?.label}
+          </span>
+          {canEdit && isMetaDirty && (
+            <button type="button" onClick={handleSaveMeta} disabled={savingMeta} className="btn btn-primary btn-sm">
+              {savingMeta ? <><Loader2 size={13} className="animate-spin" />Mentés</> : <><Check size={13} />Mentés</>}
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Status actions */}
-      {canModify && !isLocked && (
-        <div className="card mb-4" style={{ padding: '0.75rem 1rem' }}>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', alignItems: 'center' }}>
-            {/* Current status badge */}
-            <span style={{ ...sc, fontSize: '0.78rem', fontWeight: 800, padding: '0.25rem 0.65rem', borderRadius: 'var(--radius-pill)', border: `1px solid`, display: 'inline-flex', alignItems: 'center', gap: '0.3rem', flexShrink: 0 }}>
-              {quote.status === 'draft' && <><Edit3 size={12} /> Tervezet</>}
-              {quote.status === 'sent'  && <><Send size={12} /> Kiküldve</>}
-            </span>
-
-            <span style={{ color: 'var(--border-subtle)', fontSize: '1rem', marginLeft: '0.25rem' }}>→</span>
-
-            {/* Primary next action */}
-            {quote.status === 'draft' && (
-              <button type="button" onClick={openSendConfirm} className="btn btn-primary btn-sm" title={!client?.email ? 'Az ügyfélnek nincs email címe' : ''}>
-                <Send size={14} /> Küldés emailben
-              </button>
-            )}
-
-            {/* Resend for sent status */}
-            {quote.status === 'sent' && (
-              <button type="button" onClick={openSendConfirm} className="btn btn-secondary btn-sm" title={!client?.email ? 'Az ügyfélnek nincs email címe' : ''}>
-                <Send size={14} /> Újraküldés
-              </button>
-            )}
-
-            {/* Accept — primary on sent, secondary on draft */}
-            {(quote.status === 'draft' || quote.status === 'sent') && (
-              <button
-                type="button"
-                onClick={() => handleStatusChange('accepted')}
-                className={quote.status === 'sent' ? 'btn btn-sm' : 'btn btn-secondary btn-sm'}
-                style={quote.status === 'sent' ? { background: 'var(--success)', color: '#fff', border: 'none' } : {}}
-              >
-                <CheckCircle2 size={14} /> Elfogadva → Projektté
-              </button>
-            )}
-
-            {/* Reject — always subtle */}
-            {(quote.status === 'draft' || quote.status === 'sent') && (
-              <button
-                type="button"
-                onClick={() => handleStatusChange('rejected')}
-                className="btn btn-secondary btn-sm"
-                style={{ color: 'var(--danger-text)', borderColor: 'var(--danger-border)' }}
-              >
-                <XCircle size={14} /> Elutasítva
-              </button>
-            )}
-          </div>
-        </div>
-      )}
 
       {/* Client portal link */}
       {quote.status !== 'draft' && client && (
@@ -1175,8 +1198,24 @@ export default function QuoteDetailPage() {
         </div>
       )}
 
-      {/* Meta card — always editable when canEdit */}
-      <div className="card mb-4" style={{ padding: '1.1rem 1.25rem' }}>
+      {/* Meta card — collapsable */}
+      <div className="card mb-4" style={{ padding: 0, overflow: 'hidden' }}>
+        {/* Toggle header */}
+        <button
+          type="button"
+          onClick={() => setMetaCollapsed(v => !v)}
+          style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.75rem 1.25rem', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', gap: '0.5rem' }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flexWrap: 'wrap', flex: 1, minWidth: 0 }}>
+            {client && <span style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-primary)' }}>{client.name}</span>}
+            {quote.location && <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.2rem' }}><MapPin size={12} />{quote.location}</span>}
+            {!client && !quote.location && <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Általános adatok</span>}
+          </div>
+          {metaCollapsed ? <ChevronDown size={16} color="var(--text-muted)" /> : <ChevronUp size={16} color="var(--text-muted)" />}
+        </button>
+
+        {/* Collapsable content */}
+        {!metaCollapsed && <div style={{ padding: '0 1.25rem 1.1rem', borderTop: '1px solid var(--border-subtle)' }}>
         {canEdit ? (
           <>
             <div className="form-group">
@@ -1243,6 +1282,7 @@ export default function QuoteDetailPage() {
             {linkedProject && <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}><FolderKanban size={15} color="var(--success)" /><Link href={`${navPrefix}/projektek/${linkedProject.id}`} style={{ fontWeight: 700, color: 'var(--success-text)', fontSize: '0.875rem' }}>{linkedProject.name}</Link></div>}
           </div>
         )}
+        </div>}
       </div>
 
       {/* Sections + totals */}
@@ -1255,12 +1295,30 @@ export default function QuoteDetailPage() {
         )}
       </div>
 
-      {/* Totals bar */}
+      {/* Totals summary */}
       {entries.length > 0 && (
-        <div style={{ padding: '0.75rem 1rem', background: 'var(--bg-subtle)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)', marginBottom: '0.75rem', display: 'flex', gap: '1.5rem', flexWrap: 'wrap' }}>
-          <div><span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>Nettó: </span><span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700 }}>{formatHUF(netTotal)}</span></div>
-          {taxRate > 0 && <div><span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>ÁFA ({taxRate}%): </span><span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: 'var(--text-secondary)' }}>{formatHUF(taxAmount)}</span></div>}
-          <div><span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>Bruttó: </span><span style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, fontSize: '1.05rem', color: 'var(--text-primary)', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}><Coins size={14} color="var(--accent)" />{formatHUF(grossTotal)}</span></div>
+        <div style={{ border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', overflow: 'hidden', marginBottom: '0.75rem' }}>
+          {/* Nettó + ÁFA */}
+          <div style={{ display: 'grid', gridTemplateColumns: taxRate > 0 ? '1fr 1fr' : '1fr' }}>
+            <div style={{ padding: '0.85rem 1.1rem' }}>
+              <div style={{ fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: '0.3rem' }}>Nettó</div>
+              <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: '1rem', color: 'var(--text-primary)' }}>{formatHUF(netTotal)}</div>
+            </div>
+            {taxRate > 0 && (
+              <div style={{ padding: '0.85rem 1.1rem', borderLeft: '1px solid var(--border-subtle)' }}>
+                <div style={{ fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: '0.3rem' }}>ÁFA ({taxRate}%)</div>
+                <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: '1rem', color: 'var(--text-secondary)' }}>{formatHUF(taxAmount)}</div>
+              </div>
+            )}
+          </div>
+          {/* Bruttó — hero */}
+          <div style={{ borderTop: '1px solid var(--border-subtle)', background: '#0f172a', padding: '0.85rem 1.1rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'rgba(255,255,255,0.5)' }}>Bruttó összeg</div>
+            <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 900, fontSize: '1.35rem', color: '#fff', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+              <Coins size={16} color="rgba(255,255,255,0.5)" />
+              {formatHUF(grossTotal)}
+            </div>
+          </div>
         </div>
       )}
 
@@ -1351,14 +1409,28 @@ export default function QuoteDetailPage() {
           <input type="text" className="form-control" autoFocus placeholder={entryForm.entry_type === 'material' ? 'pl. Gipszkarton lap 12,5mm' : entryForm.entry_type === 'labour' ? 'pl. Gipszkarton szerelés' : 'pl. Állványzat bérlés'} value={entryForm.work_description} onChange={e => setEntryForm(f => ({ ...f, work_description: e.target.value }))} />
         </div>
         {(entryForm.entry_type === 'material' || entryForm.entry_type === 'labour') && (
-          <div className="qty-grid">
-            <div><label className="form-label">Mennyiség</label><input type="number" min="0" step="0.01" className="form-control text-mono" placeholder="0" value={entryForm.quantity} onChange={e => setEntryForm(f => ({ ...f, quantity: e.target.value }))} /></div>
-            <div><label className="form-label">Egység</label><select className="form-control" value={entryForm.unit} onChange={e => setEntryForm(f => ({ ...f, unit: e.target.value }))}>{(entryForm.entry_type === 'labour' ? LABOUR_UNITS : QUANTITY_UNITS).map(u => <option key={u} value={u}>{u}</option>)}</select></div>
-            <div><label className="form-label">Egységár (Ft)</label><input type="number" min="0" className="form-control text-mono" placeholder="0" value={entryForm.unit_price} onChange={e => setEntryForm(f => ({ ...f, unit_price: e.target.value }))} /></div>
-          </div>
+          <>
+            {/* Unit chip row — easier to tap than a <select> on mobile */}
+            <div className="form-group">
+              <label className="form-label">Egység</label>
+              <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
+                {(entryForm.entry_type === 'labour' ? LABOUR_UNITS : QUANTITY_UNITS).map(u => (
+                  <button key={u} type="button"
+                    onClick={() => setEntryForm(f => ({ ...f, unit: u }))}
+                    style={{ padding: '0.3rem 0.65rem', borderRadius: 'var(--radius-md)', fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer', background: entryForm.unit === u ? 'var(--accent)' : 'var(--bg-subtle)', color: entryForm.unit === u ? '#fff' : 'var(--text-secondary)', border: `1px solid ${entryForm.unit === u ? 'var(--accent)' : 'var(--border-subtle)'}` }}>
+                    {u}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="qty-grid">
+              <div><label className="form-label">Mennyiség</label><input inputMode="decimal" type="number" min="0" step="0.01" className="form-control text-mono" placeholder="0" value={entryForm.quantity} onChange={e => setEntryForm(f => ({ ...f, quantity: e.target.value }))} /></div>
+              <div><label className="form-label">Egységár (Ft)</label><input inputMode="decimal" type="number" min="0" className="form-control text-mono" placeholder="0" value={entryForm.unit_price} onChange={e => setEntryForm(f => ({ ...f, unit_price: e.target.value }))} /></div>
+            </div>
+          </>
         )}
         {(entryForm.entry_type === 'equipment' || entryForm.entry_type === 'transport' || entryForm.entry_type === 'other') && (
-          <div className="form-group"><label className="form-label">Összeg (Ft) *</label><input type="number" min="1" className="form-control text-mono" placeholder="0" value={entryForm.flat_amount} onChange={e => setEntryForm(f => ({ ...f, flat_amount: e.target.value }))} /></div>
+          <div className="form-group"><label className="form-label">Összeg (Ft) *</label><input inputMode="decimal" type="number" min="1" className="form-control text-mono" placeholder="0" value={entryForm.flat_amount} onChange={e => setEntryForm(f => ({ ...f, flat_amount: e.target.value }))} /></div>
         )}
         {previewAmount > 0 && <div style={{ padding: '0.6rem 0.85rem', borderRadius: 'var(--radius-md)', background: 'var(--success-bg)', border: '1px solid var(--success-border)', color: 'var(--success-text)', fontWeight: 700, fontSize: '0.875rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}><Coins size={15} /> Tétel: <span style={{ fontFamily: 'var(--font-mono)' }}>{formatHUF(previewAmount)}</span></div>}
 
@@ -1532,6 +1604,206 @@ export default function QuoteDetailPage() {
       )}
 
       <AlertModal isOpen={!!alertModal} onClose={() => setAlertModal(null)} message={alertModal?.message} variant={alertModal?.variant} />
+
+      {/* ── Floating actions button ── */}
+      {canModify && (
+        <button
+          type="button"
+          onClick={() => setShowActionsSheet(true)}
+          aria-label="Műveletek"
+          style={{
+            position: 'fixed', bottom: 'calc(96px + env(safe-area-inset-bottom))', right: 20,
+            width: 52, height: 52, borderRadius: '50%',
+            background: '#0f172a', border: 'none', color: '#fff',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            boxShadow: '0 4px 16px rgba(15,23,42,0.35)',
+            cursor: 'pointer', zIndex: 50,
+          }}
+        >
+          <MoreHorizontal size={22} strokeWidth={1.75} />
+        </button>
+      )}
+
+      {/* ── Actions bottom sheet ── */}
+      {showActionsSheet && (
+        <>
+          <div
+            onClick={() => setShowActionsSheet(false)}
+            style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.45)', zIndex: 200 }}
+            aria-hidden="true"
+          />
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Műveletek"
+            className="bs-panel"
+            style={{ padding: '0 0 calc(8px + env(safe-area-inset-bottom))' }}
+          >
+            <div className="bs-handle" style={{ display: 'flex', justifyContent: 'center', paddingTop: 12, marginBottom: 4 }}>
+              <div style={{ width: 36, height: 4, borderRadius: 2, background: '#e2e8f0' }} />
+            </div>
+            <div style={{ padding: '0 20px 12px', fontSize: 13, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#64748b' }}>
+              Műveletek
+            </div>
+
+            {/* PDF Preview */}
+            <Link
+              href={`${navPrefix}/ajanlatok/${id}/nyomtatas`}
+              onClick={() => setShowActionsSheet(false)}
+              style={{ display: 'flex', alignItems: 'center', gap: 14, width: '100%', minHeight: 56, padding: '0 20px', textDecoration: 'none', color: '#0f172a' }}
+            >
+              <div style={{ width: 44, height: 44, borderRadius: 12, background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <Printer size={20} strokeWidth={1.75} color="#475569" />
+              </div>
+              <span style={{ fontSize: 16, fontWeight: 600 }}>Előnézet / PDF</span>
+            </Link>
+
+            {/* Send email */}
+            {canModify && (
+              <button
+                type="button"
+                onClick={() => { setShowActionsSheet(false); openSendConfirm(); }}
+                disabled={!client?.email}
+                style={{ display: 'flex', alignItems: 'center', gap: 14, width: '100%', minHeight: 56, padding: '0 20px', background: 'none', border: 'none', cursor: client?.email ? 'pointer' : 'default', textAlign: 'left', opacity: client?.email ? 1 : 0.45 }}
+              >
+                <div style={{ width: 44, height: 44, borderRadius: 12, background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <Send size={20} strokeWidth={1.75} color="#475569" />
+                </div>
+                <div>
+                  <div style={{ fontSize: 16, fontWeight: 600, color: '#0f172a' }}>{quote.status === 'sent' ? 'Újraküldés emailben' : 'Küldés emailben'}</div>
+                  {!client?.email && <div style={{ fontSize: 12, color: '#94a3b8' }}>Az ügyfélnek nincs email címe</div>}
+                </div>
+              </button>
+            )}
+
+            {/* Accept → Project */}
+            {canModify && !isLocked && (
+              <button
+                type="button"
+                onClick={() => { setShowActionsSheet(false); handleStatusChange('accepted'); }}
+                style={{ display: 'flex', alignItems: 'center', gap: 14, width: '100%', minHeight: 56, padding: '0 20px', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left' }}
+              >
+                <div style={{ width: 44, height: 44, borderRadius: 12, background: '#f0fdf4', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <CheckCircle2 size={20} strokeWidth={1.75} color="#16a34a" />
+                </div>
+                <span style={{ fontSize: 16, fontWeight: 600, color: '#0f172a' }}>Elfogadva → Projektté</span>
+              </button>
+            )}
+
+            {/* Reject */}
+            {canModify && !isLocked && (
+              <button
+                type="button"
+                onClick={() => { setShowActionsSheet(false); handleStatusChange('rejected'); }}
+                style={{ display: 'flex', alignItems: 'center', gap: 14, width: '100%', minHeight: 56, padding: '0 20px', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left' }}
+              >
+                <div style={{ width: 44, height: 44, borderRadius: 12, background: '#fff1f2', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <XCircle size={20} strokeWidth={1.75} color="#ef4444" />
+                </div>
+                <span style={{ fontSize: 16, fontWeight: 600, color: '#0f172a' }}>Elutasítva</span>
+              </button>
+            )}
+
+            {/* Save (only when dirty) */}
+            {canEdit && isMetaDirty && (
+              <button
+                type="button"
+                onClick={() => { setShowActionsSheet(false); handleSaveMeta(); }}
+                disabled={savingMeta}
+                style={{ display: 'flex', alignItems: 'center', gap: 14, width: '100%', minHeight: 56, padding: '0 20px', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left' }}
+              >
+                <div style={{ width: 44, height: 44, borderRadius: 12, background: '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <Check size={20} strokeWidth={1.75} color="#2563eb" />
+                </div>
+                <span style={{ fontSize: 16, fontWeight: 600, color: '#0f172a' }}>Módosítások mentése</span>
+              </button>
+            )}
+
+            {/* Reset rejected → draft */}
+            {quote.status === 'rejected' && canModify && (
+              <button
+                type="button"
+                onClick={() => { setShowActionsSheet(false); handleResetToDraft(); }}
+                style={{ display: 'flex', alignItems: 'center', gap: 14, width: '100%', minHeight: 56, padding: '0 20px', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left' }}
+              >
+                <div style={{ width: 44, height: 44, borderRadius: 12, background: '#f0fdf4', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <RotateCcw size={20} strokeWidth={1.75} color="#16a34a" />
+                </div>
+                <span style={{ fontSize: 16, fontWeight: 600, color: '#0f172a' }}>Visszaállítás tervezetre</span>
+              </button>
+            )}
+
+            {/* Duplicate */}
+            {canModify && (
+              <button
+                type="button"
+                onClick={() => { setShowActionsSheet(false); setDuplicateTitle(`${quote.title} – Másolat`); setDuplicateWithClient(true); setDuplicateWithSections(true); setShowDuplicateModal(true); }}
+                style={{ display: 'flex', alignItems: 'center', gap: 14, width: '100%', minHeight: 56, padding: '0 20px', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left' }}
+              >
+                <div style={{ width: 44, height: 44, borderRadius: 12, background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <Copy size={20} strokeWidth={1.75} color="#475569" />
+                </div>
+                <span style={{ fontSize: 16, fontWeight: 600, color: '#0f172a' }}>Ajánlat másolása</span>
+              </button>
+            )}
+
+            {/* Delete */}
+            {canModify && (
+              <button
+                type="button"
+                onClick={() => { setShowActionsSheet(false); handleDeleteQuote(); }}
+                style={{ display: 'flex', alignItems: 'center', gap: 14, width: '100%', minHeight: 56, padding: '0 20px', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left' }}
+              >
+                <div style={{ width: 44, height: 44, borderRadius: 12, background: '#fff1f2', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <Trash2 size={20} strokeWidth={1.75} color="#ef4444" />
+                </div>
+                <span style={{ fontSize: 16, fontWeight: 600, color: '#ef4444' }}>Ajánlat törlése</span>
+              </button>
+            )}
+          </div>
+        </>
+      )}
+
+      {/* ── Duplicate modal ── */}
+      <Modal isOpen={showDuplicateModal} onClose={() => setShowDuplicateModal(false)} title="Ajánlat másolása">
+        <div className="form-group" style={{ marginBottom: '1.25rem' }}>
+          <label className="form-label">Új ajánlat neve</label>
+          <input
+            type="text"
+            className="form-control"
+            autoFocus
+            value={duplicateTitle}
+            onChange={e => setDuplicateTitle(e.target.value)}
+            placeholder={`${quote?.title} – Másolat`}
+          />
+        </div>
+        <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
+          Mit másoljon át?
+        </p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '1.5rem' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', padding: '0.65rem 0.85rem', borderRadius: 'var(--radius-md)', border: `1px solid ${duplicateWithClient ? 'var(--accent-border)' : 'var(--border-subtle)'}`, background: duplicateWithClient ? 'var(--accent-light)' : '#fff', cursor: 'pointer' }}>
+            <input type="checkbox" checked={duplicateWithClient} onChange={e => setDuplicateWithClient(e.target.checked)} style={{ accentColor: 'var(--accent)', width: 16, height: 16 }} />
+            <div>
+              <div style={{ fontWeight: 700, fontSize: '0.875rem' }}>Ügyfél</div>
+              <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>{client?.name || 'Nincs megrendelő'}</div>
+            </div>
+          </label>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', padding: '0.65rem 0.85rem', borderRadius: 'var(--radius-md)', border: `1px solid ${duplicateWithSections ? 'var(--accent-border)' : 'var(--border-subtle)'}`, background: duplicateWithSections ? 'var(--accent-light)' : '#fff', cursor: 'pointer' }}>
+            <input type="checkbox" checked={duplicateWithSections} onChange={e => setDuplicateWithSections(e.target.checked)} style={{ accentColor: 'var(--accent)', width: 16, height: 16 }} />
+            <div>
+              <div style={{ fontWeight: 700, fontSize: '0.875rem' }}>Szekciók és tételek</div>
+              <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>{sections.length} szekció · {entries.length} tétel</div>
+            </div>
+          </label>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+          <button type="button" className="btn btn-secondary btn-sm" onClick={() => setShowDuplicateModal(false)}>Mégse</button>
+          <button type="button" className="btn btn-primary btn-sm" onClick={handleDuplicate} disabled={isDuplicating}>
+            {isDuplicating ? <><Loader2 size={13} className="animate-spin" />Másolás…</> : <><Copy size={13} />Másolat létrehozása</>}
+          </button>
+        </div>
+      </Modal>
+
     </div>
   );
 }

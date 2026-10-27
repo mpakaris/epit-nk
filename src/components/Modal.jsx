@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useEffect, useRef } from 'react';
-import { X, AlertTriangle, AlertCircle, CheckCircle2 } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { X, AlertTriangle, AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
 
 function ModalBase({ isOpen, onClose, children, style, persistent }) {
   const onCloseRef = useRef(onClose);
@@ -79,8 +79,22 @@ export default function Modal({ isOpen, onClose, title, children, maxWidth, maxH
 }
 
 export function ConfirmModal({ isOpen, onClose, onConfirm, title = 'Megerősítés', message, confirmLabel = 'Törlés', cancelLabel = 'Mégse' }) {
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => { if (!isOpen) setLoading(false); }, [isOpen]);
+
+  const handleConfirm = async () => {
+    setLoading(true);
+    try {
+      await onConfirm();
+    } finally {
+      setLoading(false);
+      onClose();
+    }
+  };
+
   return (
-    <ModalBase isOpen={isOpen} onClose={onClose} style={{ maxWidth: '420px' }}>
+    <ModalBase isOpen={isOpen} onClose={loading ? undefined : onClose} style={{ maxWidth: '420px' }}>
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.85rem', marginBottom: '1.25rem' }}>
         <div style={{ flexShrink: 0, width: 40, height: 40, borderRadius: '50%', background: 'var(--danger-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <AlertTriangle size={20} color="var(--danger-text)" />
@@ -95,15 +109,18 @@ export function ConfirmModal({ isOpen, onClose, onConfirm, title = 'Megerősít�
         </div>
       </div>
       <div style={{ display: 'flex', gap: '0.65rem', justifyContent: 'flex-end' }}>
-        <button className="btn btn-secondary btn-sm" onClick={onClose}>
+        <button className="btn btn-secondary btn-sm" onClick={onClose} disabled={loading}>
           {cancelLabel}
         </button>
         <button
           className="btn btn-sm"
-          style={{ background: 'var(--danger)', color: '#fff' }}
-          onClick={() => { onConfirm(); onClose(); }}
+          style={{ background: 'var(--danger)', color: '#fff', minWidth: 80 }}
+          onClick={handleConfirm}
+          disabled={loading}
         >
-          {confirmLabel}
+          {loading
+            ? <><Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> Törlés…</>
+            : confirmLabel}
         </button>
       </div>
     </ModalBase>

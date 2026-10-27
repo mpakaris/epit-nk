@@ -48,14 +48,34 @@
   --radius-md: 8px;
   --radius-lg: 12px;
   --radius-xl: 16px;
+  --radius-2xl: 24px;
   --radius-pill: 9999px;
-  
+
   /* Crisp clean shadows */
   --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.04);
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.06), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
   --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.06), 0 4px 6px -2px rgba(0, 0, 0, 0.03);
   --shadow-floating: 0 12px 28px rgba(0, 0, 0, 0.12);
+  --shadow-card: 0 1px 3px rgba(15,23,42,.08), 0 1px 2px rgba(15,23,42,.04);
+  --shadow-float-nav: 0 8px 24px rgba(15,23,42,.14), 0 2px 6px rgba(15,23,42,.06);
+
+  /* Collective workspace identity */
+  --collective: #16a34a;
+  --collective-light: #dcfce7;
+  --collective-text: #15803d;
+  --collective-team-bg: #f0fdf4;
+  --collective-team-text: #166534;
+  --collective-hairline: #cbd5e1;
+
+  /* Personal workspace identity */
+  --personal: #2563eb;
+  --personal-light: #eff6ff;
+  --personal-text: #1d4ed8;
+
+  /* Sharing banner */
+  --share-bg: #fff7ed;
+  --share-text: #9a3412;
 
   --font-main: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
@@ -218,45 +238,98 @@ button, input, select, textarea {
   border: 1px solid #bae6fd;
 }
 
-/* Mobile Bottom Navigation Bar */
-.mobile-bottom-nav {
+/* Floating bottom nav (mobile) — replaces old edge-anchored bar */
+.floating-nav {
   display: none;
 }
 
 @media (max-width: 768px) {
-  .mobile-bottom-nav {
-    display: flex;
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    height: 64px;
-    background: #ffffff;
-    border-top: 1px solid var(--border-subtle);
-    z-index: 50;
-    align-items: center;
-    justify-content: space-around;
-    padding: 0 0.5rem;
-    box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.05);
+  /* Bottom padding so content clears the floating nav */
+  .page-body {
+    padding-bottom: 124px;
   }
 
-  .mobile-nav-link {
+  .floating-nav {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    position: fixed;
+    bottom: calc(16px + env(safe-area-inset-bottom));
+    left: 12px;
+    right: 12px;
+    height: 72px;
+    background: #ffffff;
+    border-radius: 28px;
+    z-index: 60;
+    align-items: center;
+    box-shadow: var(--shadow-float-nav);
+  }
+
+  .floating-nav-item {
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 0.2rem;
-    color: var(--text-muted);
-    font-size: 0.7rem;
-    font-weight: 600;
+    gap: 3px;
+    height: 56px;
+    color: #64748b;
     text-decoration: none;
-    flex: 1;
-    height: 100%;
+    font-size: 0.75rem;
+    font-weight: 700;
+    line-height: 1;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    border-radius: 20px;
+    padding: 0 4px;
+    transition: color 0.15s;
   }
 
-  .mobile-nav-link.active {
-    color: var(--accent);
-    font-weight: 700;
+  .floating-nav-item.active {
+    color: #0f172a;
+  }
+
+  .floating-nav-item.active .floating-nav-icon {
+    background: #f1f5f9;
+    border-radius: 20px;
+  }
+
+  .floating-nav-icon {
+    width: 40px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s;
+  }
+
+  .floating-nav-plus {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 56px;
+    height: 56px;
+    background: #0f172a;
+    border-radius: 50%;
+    border: none;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(15,23,42,.35);
+    color: #fff;
+    margin: 0 auto;
+    transition: transform 0.15s, background 0.15s;
+  }
+
+  .floating-nav-plus:hover,
+  .floating-nav-plus:active {
+    transform: scale(0.96);
+  }
+
+  /* Legacy class kept so existing Navbar.jsx renders nothing on mobile without a rewrite */
+  .mobile-bottom-nav {
+    display: none !important;
+  }
+
+  .mobile-nav-link {
+    display: none;
   }
 
   .desktop-nav {
@@ -668,7 +741,7 @@ input[type="month"] {
     padding: 0;
     align-items: flex-end;
   }
-  
+
   .modal-dialog {
     width: 100vw;
     max-width: 100vw;
@@ -677,6 +750,8 @@ input[type="month"] {
     border-bottom-right-radius: 0;
     max-height: 85vh;
     padding: 1.25rem 1rem;
+    /* Ensure the save button stays above the software keyboard */
+    padding-bottom: max(24px, env(keyboard-inset-height, 0px));
   }
 }
 
@@ -1296,11 +1371,28 @@ input[type="month"] {
   .grid-chart { grid-template-columns: 1fr; }
 }
 
-/* Responsive card grids — cards min 280px, 1 per row on phones */
+/* Responsive card grids — 1 col mobile, 3 col desktop */
 .card-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(320px, 100%), 1fr));
-  gap: 1rem;
+  grid-template-columns: 1fr;
+  gap: 0;
+}
+
+@media (min-width: 769px) {
+  .card-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0 16px;
+  }
+}
+
+/* ItemCard typography — mobile base, desktop compact inside grid */
+.item-card-title { font-size: 17px; }
+.item-card-meta  { font-size: 15px; }
+
+@media (min-width: 769px) {
+  .card-grid .item-card-title { font-size: 14px; }
+  .card-grid .item-card-meta  { font-size: 12px; }
+  .card-grid .item-card-strip { height: 120px !important; }
 }
 
 /* Member breakdown — desktop table, mobile card list */
@@ -1378,7 +1470,7 @@ div[style*="overflowX"]::-webkit-scrollbar { display: none; }
 /* Quote entry quantity grid: 3 col → stacked on mobile */
 .qty-grid {
   display: grid;
-  grid-template-columns: 2fr 1.2fr 2fr;
+  grid-template-columns: 1fr 1fr;
   gap: 0.5rem;
   margin-bottom: 1rem;
 }
@@ -1908,4 +2000,90 @@ div[style*="overflowX"]::-webkit-scrollbar { display: none; }
   font-weight: 700;
   color: var(--text-muted);
   flex-shrink: 0;
+}
+
+/* Mobile list page utilities */
+@media (max-width: 768px) {
+  .list-page-header {
+    display: none; /* desktop title/subtitle hidden; mobile uses inline header */
+  }
+  .list-page-mobile-header {
+    display: block;
+  }
+  .collective-inset-panel {
+    background: #f1f5f9;
+    border-radius: var(--radius-2xl);
+    padding: 12px;
+    margin-bottom: 24px;
+  }
+}
+@media (min-width: 769px) {
+  .list-page-mobile-header {
+    display: none;
+  }
+  .collective-inset-panel {
+    margin-bottom: 24px;
+  }
+}
+
+/* Mobile search input */
+.mobile-search-wrap {
+  position: relative;
+  margin-bottom: 20px;
+}
+.mobile-search-wrap input {
+  width: 100%;
+  height: 52px;
+  background: #f1f5f9;
+  border: none;
+  border-radius: 16px;
+  padding: 0 16px 0 44px;
+  font-size: 16px;
+  font-weight: 500;
+  color: #0f172a;
+}
+.mobile-search-wrap input::placeholder { color: #64748b; }
+.mobile-search-wrap .search-icon {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+  color: #64748b;
+}
+
+/* Progressive disclosure: collapsed on mobile by default, always open on desktop */
+@media (min-width: 641px) {
+  .advanced-section {
+    display: block !important;
+  }
+}
+
+/* ── Bottom sheet → desktop modal ── */
+/* Mobile: slides up from the bottom */
+.bs-panel {
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  background: #fff;
+  border-radius: 24px 24px 0 0;
+  z-index: 201;
+  padding-bottom: calc(16px + env(safe-area-inset-bottom));
+}
+
+/* Desktop: centered modal */
+@media (min-width: 769px) {
+  .bs-panel {
+    top: 50%;
+    left: 50%;
+    right: auto;
+    bottom: auto;
+    transform: translate(-50%, -50%);
+    width: 100%;
+    max-width: 420px;
+    border-radius: 16px;
+    padding-bottom: 12px;
+    box-shadow: 0 20px 60px rgba(15,23,42,0.22);
+  }
+  /* Hide the drag handle on desktop */
+  .bs-handle { display: none; }
 }
