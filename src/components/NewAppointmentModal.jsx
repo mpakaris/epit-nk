@@ -153,7 +153,7 @@ export default function NewAppointmentModal({ isOpen, onClose, defaultDate }) {
             disabled={saving}
             style={{ width: '100%', marginTop: 4 }}
           >
-            {saving ? 'Mentés…' : linkType ? 'Mentés + Dokumentum →' : 'Mentés'}
+            {saving ? 'Mentés…' : 'Mentés'}
           </button>
 
         </div>
