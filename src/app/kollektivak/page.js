@@ -48,7 +48,7 @@ const CREEM_TIERS = [
 export default function KollektivakPage() {
   const isMobile = useMobile();
   const router = useRouter();
-  const { currentUser, loading, dataReady, refreshCollectives } = useApp();
+  const { currentUser, loading, dataReady, refreshCollectives, refreshSupabaseData } = useApp();
 
   const [collectives, setCollectives] = useState([]);
   const [fetching, setFetching] = useState(true);
@@ -238,6 +238,7 @@ export default function KollektivakPage() {
         const docTypeLabel = { project: 'Projekt', quote: 'Ajánlat', survey: 'Felmérés' };
         const docRoute     = { project: '/projektek', quote: '/ajanlatok', survey: '/felmeres' };
         if (action === 'accept') {
+          refreshSupabaseData();
           setAlertModal({
             variant: 'success',
             title: 'Áthelyezés elfogadva',
