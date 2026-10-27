@@ -78,7 +78,7 @@ export default function Modal({ isOpen, onClose, title, children, maxWidth, maxH
   );
 }
 
-export function ConfirmModal({ isOpen, onClose, onConfirm, title = 'Megerősítés', message, confirmLabel = 'Törlés', cancelLabel = 'Mégse' }) {
+export function ConfirmModal({ isOpen, onClose, onConfirm, title = 'Megerősítés', message, confirmLabel = 'Törlés', cancelLabel = 'Mégse', confirmStyle }) {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => { if (!isOpen) setLoading(false); }, [isOpen]);
@@ -92,6 +92,8 @@ export function ConfirmModal({ isOpen, onClose, onConfirm, title = 'Megerősít�
       onClose();
     }
   };
+
+  const btnStyle = { background: 'var(--danger)', color: '#fff', minWidth: 80, ...confirmStyle };
 
   return (
     <ModalBase isOpen={isOpen} onClose={loading ? undefined : onClose} style={{ maxWidth: '420px' }}>
@@ -114,12 +116,12 @@ export function ConfirmModal({ isOpen, onClose, onConfirm, title = 'Megerősít�
         </button>
         <button
           className="btn btn-sm"
-          style={{ background: 'var(--danger)', color: '#fff', minWidth: 80 }}
+          style={btnStyle}
           onClick={handleConfirm}
           disabled={loading}
         >
           {loading
-            ? <><Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> Törlés…</>
+            ? <><Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> {confirmLabel}…</>
             : confirmLabel}
         </button>
       </div>

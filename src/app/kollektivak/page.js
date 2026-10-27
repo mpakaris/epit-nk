@@ -1058,10 +1058,20 @@ export default function KollektivakPage() {
                           className="btn btn-primary btn-sm"
                           disabled={respondingTransferId === req.id}
                           onClick={() => setConfirmModal({
-                            title: 'Áthelyezés elfogadása',
-                            message: <span>A <strong>„{req.document_title}"</strong> {DOC_LABEL[req.document_type]?.toLowerCase() || 'dokumentum'} a kollektíva dokumentuma lesz, és a tulajdonosa te leszel. Ez nem vonható vissza.</span>,
-                            confirmLabel: 'Elfogadás',
+                            title: 'Tulajdonjog átvétele',
+                            message: (
+                              <span>
+                                Biztosan átveszed a(z) <strong>„{req.document_title}"</strong> {DOC_LABEL[req.document_type]?.toLowerCase() || 'dokumentum'} tulajdonjogát?
+                                <br /><br />
+                                Te leszel a dokumentum és minden tartalmának tulajdonosa.
+                                {req.requester?.display_name && <> A kérelmező (<strong>{req.requester.display_name}</strong>) elveszíti a tulajdonjogát.</>}
+                                <br /><br />
+                                <strong>Ez a lépés nem vonható vissza.</strong>
+                              </span>
+                            ),
+                            confirmLabel: 'Igen, átveszem',
                             onConfirm: () => handleTransferResponse(req, 'accept'),
+                          confirmStyle: { background: 'var(--accent)', color: '#fff' },
                           })}
                           style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}
                         >
