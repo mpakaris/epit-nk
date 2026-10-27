@@ -5,8 +5,28 @@ export function calculateProjectFinancials(project, invoices = [], labourEntries
   const projectLabour = labourEntries.filter(le => le.project_id === project.id);
   const totalLabourValue = projectLabour.reduce((sum, le) => sum + Number(le.value_huf || 0), 0);
 
-  const memberIds = project.members || members.map(m => m.id);
-  const memberCount = Math.max(memberIds.length, 1);
+  // Detect contributors whose membership has since been removed.
+  // Their amounts still count toward totals, so they must appear in the
+  // breakdown and in memberCount — otherwise equalShare is wrong and
+  // settlements don't balance.
+  const knownIds = new Set(members.map(m => m.id));
+  const orphanIds = [...new Set([
+    ...projectInvoices.map(i => i.uploaded_by),
+    ...projectLabour.map(l => l.uploaded_by),
+  ].filter(id => id && !knownIds.has(id)))];
+
+  const effectiveMembers = [
+    ...members,
+    ...orphanIds.map(id => ({
+      id,
+      display_name: '(Törölt felhasználó)',
+      email: null,
+      role: null,
+      deleted_at: new Date().toISOString(),
+    })),
+  ];
+
+  const memberCount = Math.max(effectiveMembers.length, 1);
   const equalCostShare = Math.round(totalCost / memberCount);
   const equalLabourShare = Math.round(totalLabourValue / memberCount);
 
@@ -24,7 +44,7 @@ export function calculateProjectFinancials(project, invoices = [], labourEntries
   const labourBalance = ownLabourValue - equalLabourShare;
   const balance = costBalance + labourBalance;
 
-  const memberBreakdown = members.map(m => {
+  const memberBreakdown = effectiveMembers.map(m => {
     const mInvoices = projectInvoices.filter(inv => inv.uploaded_by === m.id);
     const mPaid = mInvoices.reduce((sum, inv) => sum + Number(inv.value_huf || 0), 0);
     const mLabour = projectLabour.filter(le => le.uploaded_by === m.id);

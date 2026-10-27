@@ -23,6 +23,7 @@ export async function GET(request) {
 
   const { profile, user } = ctx;
   let query = admin.from('surveys').select('*')
+    .is('deleted_at', null)
     .order('date', { ascending: false, nullsFirst: false })
     .order('created_at', { ascending: false });
 

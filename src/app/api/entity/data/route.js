@@ -34,7 +34,7 @@ export async function GET(request) {
   const isPersonal = !collectiveId;
 
   // ── Projects ─────────────────────────────────────────────────────────────
-  let projectsQuery = admin.from('projects').select('*').order('created_at', { ascending: false });
+  let projectsQuery = admin.from('projects').select('*').is('deleted_at', null).order('created_at', { ascending: false });
   if (isPersonal) {
     projectsQuery = projectsQuery.eq('owner_id', userId).is('collective_id', null);
   } else {
