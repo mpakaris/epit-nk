@@ -9,7 +9,7 @@ import { formatHUF, formatDate } from '@/lib/constants';
 import {
   FolderKanban, Users, TrendingUp, TrendingDown, CheckCircle2,
   Plus, Coins, Receipt, Hammer, BookOpen, Ruler, FileText,
-  UserCheck, Clock, ChevronRight, Mail, UsersRound,
+  UserCheck, Clock, ChevronRight, Mail, UsersRound, ArrowUpRight,
 } from 'lucide-react';
 import StatCard from '@/components/StatCard';
 import CalendarWidget from '@/components/CalendarWidget';
@@ -127,6 +127,15 @@ export default function DashboardClient({
       .catch(() => {});
   }, [isDemoMode]);
 
+  const [pendingTransfers, setPendingTransfers] = useState([]);
+  useEffect(() => {
+    if (isDemoMode) return;
+    fetch('/api/transfer-requests')
+      .then(r => r.ok ? r.json() : { requests: [] })
+      .then(d => setPendingTransfers(d.requests || []))
+      .catch(() => {});
+  }, [isDemoMode]);
+
   const [combined, setCombined] = useState(null);
   useEffect(() => {
     if (!dataReady) return;
@@ -196,6 +205,74 @@ export default function DashboardClient({
 
   return (
     <div className="container page-body">
+
+      {/* ── Pending invitation nudge (mobile + desktop) ── */}
+      {pendingInvitations.length > 0 && (
+        <div style={{
+          background: 'linear-gradient(135deg, #eff6ff, #f5f3ff)',
+          border: '1px solid #c7d2fe',
+          borderRadius: 'var(--radius-md)',
+          padding: '0.85rem 1rem',
+          marginBottom: '1rem',
+          display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap',
+        }}>
+          <div style={{ width: 36, height: 36, borderRadius: 'var(--radius-md)', background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <Mail size={17} color="#fff" />
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontWeight: 800, fontSize: '0.9rem', color: '#1e3a8a' }}>
+              {pendingInvitations.length === 1
+                ? `Meghívtak a(z) „${pendingInvitations[0].collective_name}" kollektívába`
+                : `${pendingInvitations.length} kollektíva meghívód van`}
+            </div>
+            <div style={{ fontSize: '0.775rem', color: '#3730a3', marginTop: '0.1rem' }}>
+              {pendingInvitations.length === 1
+                ? `Meghívó: ${pendingInvitations[0].inviter_name || 'Ismeretlen'}`
+                : pendingInvitations.map(i => i.collective_name).join(', ')}
+            </div>
+          </div>
+          <Link
+            href={p('/kollektivak')}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', padding: '0.5rem 0.9rem', background: 'var(--accent)', color: '#fff', borderRadius: 'var(--radius-md)', fontWeight: 700, fontSize: '0.8rem', textDecoration: 'none', flexShrink: 0 }}
+          >
+            <UsersRound size={13} /> Megtekintés
+          </Link>
+        </div>
+      )}
+
+      {/* ── Pending transfer request nudge (collective owners only) ── */}
+      {pendingTransfers.length > 0 && (
+        <div style={{
+          background: 'linear-gradient(135deg, #f0fdf4, #eff6ff)',
+          border: '1px solid #bbf7d0',
+          borderRadius: 'var(--radius-md)',
+          padding: '0.85rem 1rem',
+          marginBottom: '1rem',
+          display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap',
+        }}>
+          <div style={{ width: 36, height: 36, borderRadius: 'var(--radius-md)', background: '#16a34a', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <ArrowUpRight size={17} color="#fff" />
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontWeight: 800, fontSize: '0.9rem', color: '#14532d' }}>
+              {pendingTransfers.length === 1
+                ? `„${pendingTransfers[0].document_title}" áthelyezési kérelem vár döntésre`
+                : `${pendingTransfers.length} áthelyezési kérelem vár döntésre`}
+            </div>
+            <div style={{ fontSize: '0.775rem', color: '#166534', marginTop: '0.1rem' }}>
+              {pendingTransfers.length === 1
+                ? `Kérelmező: ${pendingTransfers[0].requester?.display_name || 'Ismeretlen'}`
+                : pendingTransfers.map(r => r.requester?.display_name || 'Ismeretlen').join(', ')}
+            </div>
+          </div>
+          <Link
+            href={p('/kollektivak')}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', padding: '0.5rem 0.9rem', background: '#16a34a', color: '#fff', borderRadius: 'var(--radius-md)', fontWeight: 700, fontSize: '0.8rem', textDecoration: 'none', flexShrink: 0 }}
+          >
+            <UsersRound size={13} /> Megtekintés
+          </Link>
+        </div>
+      )}
 
       {/* ══════════════════════ MOBILE HOME ══════════════════════ */}
       <div className="show-mobile">
@@ -366,40 +443,6 @@ export default function DashboardClient({
           </h1>
         </div>
       </div>
-
-      {/* Pending invitation nudge */}
-      {pendingInvitations.length > 0 && (
-        <div style={{
-          background: 'linear-gradient(135deg, #eff6ff, #f5f3ff)',
-          border: '1px solid #c7d2fe',
-          borderRadius: 'var(--radius-md)',
-          padding: '0.85rem 1rem',
-          marginBottom: '1.25rem',
-          display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap',
-        }}>
-          <div style={{ width: 36, height: 36, borderRadius: 'var(--radius-md)', background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-            <Mail size={17} color="#fff" />
-          </div>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontWeight: 800, fontSize: '0.9rem', color: '#1e3a8a' }}>
-              {pendingInvitations.length === 1
-                ? `Meghívtak a(z) „${pendingInvitations[0].collective_name}" kollektívába`
-                : `${pendingInvitations.length} kollektíva meghívód van`}
-            </div>
-            <div style={{ fontSize: '0.775rem', color: '#3730a3', marginTop: '0.1rem' }}>
-              {pendingInvitations.length === 1
-                ? `Meghívó: ${pendingInvitations[0].inviter_name || 'Ismeretlen'}`
-                : pendingInvitations.map(i => i.collective_name).join(', ')}
-            </div>
-          </div>
-          <Link
-            href={p('/kollektivak')}
-            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', padding: '0.5rem 0.9rem', background: 'var(--accent)', color: '#fff', borderRadius: 'var(--radius-md)', fontWeight: 700, fontSize: '0.8rem', textDecoration: 'none', flexShrink: 0 }}
-          >
-            <UsersRound size={13} /> Megtekintés
-          </Link>
-        </div>
-      )}
 
       {/* Stat cards */}
       {!(isSuperAdmin && !impersonating) && (
