@@ -25,7 +25,7 @@ export async function POST(request, { params }) {
   const body = await request.json();
   const { data, error } = await admin.from('quote_entries').insert([{
     quote_id:         quoteId,
-    user_id:          body.user_id          || user.id,
+    user_id:          user.id,
     entry_type:       body.entry_type       || 'other',
     work_description: body.work_description,
     quantity:         body.quantity         != null ? Number(body.quantity)   : null,

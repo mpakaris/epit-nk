@@ -11,6 +11,7 @@ import {
 import Link from 'next/link';
 import { isEffectivePremium } from '@/lib/subscriptionLimits';
 import Modal, { AlertModal } from '@/components/Modal';
+import useMobile from '@/hooks/useMobile';
 
 // ── Pricing plans ─────────────────────────────────────────────────────────────
 const PLANS = [
@@ -153,6 +154,7 @@ const DEMO_PROFILE = {
 export default function ProfilPage() {
   const { currentUser, logout, changePassword, isDemoMode, refreshSupabaseData, collectives, updateDisplayName } = useApp();
   const router = useRouter();
+  const isMobile = useMobile();
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -354,7 +356,7 @@ export default function ProfilPage() {
       const res = await fetch('/api/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ productId: plan.productId, successUrl: window.innerWidth < 768 ? '/checkout-popup-success?checkout_type=premium' : '/profil' }),
+        body: JSON.stringify({ productId: plan.productId, successUrl: isMobile ? '/checkout-popup-success?checkout_type=premium' : '/profil' }),
       });
       const data = await res.json();
       if (!data.checkoutUrl) {
@@ -369,7 +371,6 @@ export default function ProfilPage() {
       return;
     }
 
-    const isMobile = window.innerWidth < 768;
     const productId = plan.productId;
 
     if (isMobile) {

@@ -10,7 +10,7 @@ import {
   ChevronLeft, ChevronRight, Eye, X, Menu, ClipboardList, Ruler, Lightbulb,
   Globe, ImageIcon, UsersRound, CreditCard, Package,
 } from 'lucide-react';
-import MobileFAB from './MobileFAB';
+import FloatingNav from './mobile/FloatingNav';
 
 function buildNavItems(isSuperAdmin, isAdmin, impersonating, websiteUnread = 0, prefix = '', invitationCount = 0, counts = {}) {
   if (isSuperAdmin && !impersonating) {
@@ -151,7 +151,7 @@ export default function Sidebar() {
 
   if (!currentUser && pathname === '/login') return null;
   if (!currentUser) return null;
-  if (pathname.startsWith('/naplo/') || pathname.startsWith('/clients/') || pathname.startsWith('/szakemberek/') || pathname.startsWith('/demo/szakemberek/') || pathname.startsWith('/invitations/') || pathname.endsWith('/nyomtatas') || pathname.startsWith('/impressum') || pathname.startsWith('/adatkezeles') || pathname.startsWith('/aszf') || pathname.startsWith('/about')) return null;
+  if (pathname.startsWith('/naplo/') || pathname.startsWith('/clients/') || pathname.startsWith('/szakemberek/') || pathname.startsWith('/demo/szakemberek/') || pathname.startsWith('/invitations/') || pathname.startsWith('/impressum') || pathname.startsWith('/adatkezeles') || pathname.startsWith('/aszf') || pathname.startsWith('/about')) return null;
 
   const counts = (!isSuperAdmin || impersonating) ? {
     surveys:     (surveys  || []).filter(s => s.status !== 'done').length,
@@ -427,7 +427,7 @@ export default function Sidebar() {
                   {effectiveUser.role === 'superadmin' ? 'Superadmin' : effectiveUser.role === 'admin' ? 'Admin' : 'Tag'}
                   {(!isSuperAdmin || impersonating) && (
                     <span style={{ marginLeft: '0.4rem', fontWeight: 700, ...(effectiveUser.is_subscription_premium ? { color: '#854d0e' } : {}) }}>
-                      · {effectiveUser.is_subscription_premium ? '⭐ Prémium' : 'Bázis'}
+                      · {effectiveUser.is_subscription_premium ? '⭐ Prémium' : (effectiveUser.subscription_tier === 'trial' && effectiveUser.trial_ends_at && new Date(effectiveUser.trial_ends_at) > new Date()) ? '🎁 Próba' : 'Bázis'}
                     </span>
                   )}
                 </div>
@@ -445,8 +445,8 @@ export default function Sidebar() {
         </>
       )}
 
-      {/* ===== MOBILE FAB ===== */}
-      <MobileFAB />
+      {/* ===== FLOATING BOTTOM NAV (mobile) ===== */}
+      <FloatingNav />
     </>
   );
 }

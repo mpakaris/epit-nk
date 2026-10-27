@@ -104,9 +104,8 @@ export async function PATCH(request, { params }) {
   const isSuperAdmin     = ctx.profile.role === 'superadmin';
   const isKollektivOwner = ctx.memberRole === 'owner' || ctx.memberRole === 'admin';
 
-  // collective_id (move to collective) only allowed by owner or superadmin
-  if ('collective_id' in fields && !isOwner && !isSuperAdmin && !isKollektivOwner)
-    return Response.json({ error: 'Csak a tulajdonos helyezhet át projektet.' }, { status: 403 });
+  if (!isOwner && !isSuperAdmin && !isKollektivOwner)
+    return Response.json({ error: 'Csak a tulajdonos módosíthatja a projektet.' }, { status: 403 });
 
   const allowed = ['name', 'description', 'start_date', 'end_date', 'client_id', 'closed_at',
                    ...(isOwner || isSuperAdmin || isKollektivOwner ? ['collective_id'] : [])];
@@ -144,7 +143,8 @@ export async function DELETE(request, { params }) {
   if (!isOwner && !isSuperAdmin && !isKollektivOwner)
     return Response.json({ error: 'Csak a tulajdonos törölheti a projektet.' }, { status: 403 });
 
-  const { error } = await ctx.admin.from('projects').delete().eq('id', id);
+  const { error } = await ctx.admin.from('projects')
+    .update({ deleted_at: new Date().toISOString() }).eq('id', id);
   if (error) return Response.json({ error: error.message }, { status: 400 });
 
   logAudit({

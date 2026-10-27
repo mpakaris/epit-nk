@@ -35,16 +35,17 @@ export async function POST(request) {
     }
   }
 
-  // If targeting a collective, verify membership
+  // If targeting a collective, only the owner/admin may create projects
   if (collectiveId && profile.role !== 'superadmin') {
     const { data: mem } = await admin
       .from('collective_members')
-      .select('collective_id')
+      .select('role')
       .eq('user_id', user.id)
       .eq('collective_id', collectiveId)
       .eq('status', 'active')
       .single();
-    if (!mem) return Response.json({ error: 'Nincs hozzáférés ehhez a csoporthoz!' }, { status: 403 });
+    if (!mem || (mem.role !== 'owner' && mem.role !== 'admin'))
+      return Response.json({ error: 'Csak a kollektíva tulajdonosa hozhat létre projektet.' }, { status: 403 });
   }
 
   const { data: creatorProfile } = await admin.from('profiles').select('display_name').eq('id', user.id).single();

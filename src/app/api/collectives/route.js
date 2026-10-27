@@ -136,6 +136,24 @@ export async function GET(request) {
   const hasInclusiveOwned = collectives.some(c => c.is_inclusive && c.my_role === 'owner');
 
   if (!isImpersonating && isEffPremium && !hasInclusiveOwned) {
+    // Re-query directly before inserting — reduces race window from concurrent requests
+    // (React StrictMode fires effects twice; both GETs would otherwise both create a collective)
+    const { data: freshCheck } = await admin
+      .from('collective_members')
+      .select('collective_id, collectives!inner(is_inclusive)')
+      .eq('user_id', userId)
+      .eq('role', 'owner')
+      .eq('status', 'active')
+      .eq('collectives.is_inclusive', true)
+      .maybeSingle();
+    if (freshCheck) {
+      // Another request already created it — add it to the response and skip insert
+      const existing = collectives.find(c => c.id === freshCheck.collective_id);
+      if (!existing) {
+        const { data: c } = await admin.from('collectives').select('id, name, created_at, collective_tier, creem_subscription_id, subscription_status, subscription_period_end').eq('id', freshCheck.collective_id).single();
+        if (c) collectives.push({ ...c, is_inclusive: true, my_role: 'owner', members: [], pending_invitations: [], declined_invitations: [] });
+      }
+    } else {
     const displayName = profile?.display_name || 'Felhasználó';
     const newId = globalThis.crypto.randomUUID();
     const now = new Date().toISOString();
@@ -170,6 +188,7 @@ export async function GET(request) {
         email:        user.email || null,
       }],
     });
+    } // end else (freshCheck)
   }
 
   // === Trial expiry freeze ===

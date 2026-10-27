@@ -362,9 +362,168 @@ GET  /api/szakemberek/[slug]    Public szakember page data
 
 ---
 
+## Standards — Non-Negotiable Rules
+
+These rules apply to every change, in every file. If a task conflicts with any of these, flag it before writing code.
+
+### 1. Mobile-First
+- **Breakpoint: 768 px** is the single mobile boundary. Mobile ≤ 767 px, tablet/desktop ≥ 768 px. Never use 640, 769, 800, or any other value.
+- **Always use `useMobile()`** from `@/hooks/useMobile` for JS-side checks. Never write `window.innerWidth` inline — not in state initialisers, not in event handlers, not anywhere.
+- Touch targets minimum 44 × 44 px. Fixed bottom elements require `env(safe-area-inset-bottom)` padding.
+
+### 2. Feedback UI — Two Components Only
+Never create a new overlay (`position: fixed` div, portal, etc.). Use only:
+| Use case | Component | File |
+|---|---|---|
+| Forms, content, multi-step flows | `Modal` | `@/components/Modal.jsx` |
+| Context-menu actions (Open / Rename / Delete) | `BottomSheet` | `@/components/mobile/BottomSheet.jsx` |
+| Success / error / warning feedback | `AlertModal` | `@/components/Modal.jsx` |
+| Destructive confirmation | `ConfirmModal` | `@/components/Modal.jsx` |
+
+Both adapt automatically: `Modal` becomes a bottom sheet at ≤ 640 px via `.modal-dialog` CSS; `BottomSheet` becomes a centered modal at ≥ 769 px via `.bs-panel` CSS.
+
+### 3. Permission Model
+
+**Superadmin has no code-level permission checks** — SA operates via DB access only. Never add `if (isSuperAdmin)` bypass logic to new routes (only existing routes that already have it are grandfathered).
+
+Three meaningful roles in a collective context:
+
+| Actor | Create Document | Edit/Delete Document | Edit/Delete Own Sections & Entries | Edit/Delete Others' Sections & Entries | Send Offer / Change Status |
+|---|---|---|---|---|---|
+| Kollektive Owner / Admin | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Collective Member (`contributor`) | ❌ | ❌ | ✅ | ❌ | ❌ |
+| Unauthenticated | ❌ | ❌ | ❌ | ❌ | ❌ |
+
+**"Document"** = top-level record: `projects`, `quotes`, `surveys`  
+**"Section"** = `quote_sections` — members may create their own; `created_by` determines ownership  
+**"Entry"** = `quote_entries`, `labour_entries`, `invoices`, `diary_entries`, `survey_entries`, `survey_items` — `user_id` or `created_by` determines ownership
+
+Standard permission check pattern for document-level mutations:
+```js
+const isOwner          = doc.owner_id === user.id || doc.created_by === user.id;
+const isKollektivOwner = memberRole === 'owner' || memberRole === 'admin';
+if (!isOwner && !isKollektivOwner)
+  return Response.json({ error: 'Csak a tulajdonos módosíthatja.' }, { status: 403 });
+```
+
+Standard check for document creation in a collective:
+```js
+// When creating a document in collective context, contributor role is blocked
+const { data: mem } = await admin.from('collective_members')
+  .select('role').eq('collective_id', collectiveId).eq('user_id', user.id).eq('status', 'active').maybeSingle();
+if (!mem || (mem.role !== 'owner' && mem.role !== 'admin'))
+  return Response.json({ error: 'Csak a kollektíva tulajdonosa hozhat létre dokumentumot.' }, { status: 403 });
+```
+
+Standard check for entry-level mutations (own work only for contributors):
+```js
+const isEntryOwner     = entry.user_id === user.id || entry.created_by === user.id;
+const isKollektivOwner = memberRole === 'owner' || memberRole === 'admin';
+if (!isEntryOwner && !isKollektivOwner)
+  return Response.json({ error: 'Csak a saját bejegyzést módosíthatod.' }, { status: 403 });
+```
+
+**`user_id` on entries must ALWAYS be set server-side** — never read from request body:
+```js
+// WRONG — client can impersonate any user
+user_id: body.user_id || user.id,
+// CORRECT
+user_id: user.id,
+```
+
+### 4. Soft Delete Only
+Never issue a hard `.delete()` on user-owned content: `projects`, `quotes`, `surveys`, `clients`, `invoices`, `diary_entries`, `ideas`.
+```js
+// CORRECT
+await admin.from('quotes').update({ deleted_at: new Date().toISOString() }).eq('id', id);
+// WRONG — never use on user content
+await admin.from('quotes').delete().eq('id', id);
+```
+All list queries must filter: `.is('deleted_at', null)`.
+Sub-records (quote_entries, survey_entries, room items) may be hard-deleted — they have no `deleted_at` column.
+Superadmin `total-recall` and admin entity-deletion routes are the only legitimate exceptions.
+
+### 5. Data Scoping
+```js
+// Personal context — only own records, no collective bleedthrough
+.eq('owner_id', userId).is('collective_id', null).is('deleted_at', null)
+// Collective context — only collective records
+.eq('collective_id', collectiveId).is('deleted_at', null)
+```
+`clients` are ALWAYS personal (`owner_id = user.id`), never shared across collectives — GDPR.
+
+### 6. Demo Mode Navigation
+Every component that navigates must use `navPrefix`:
+```js
+const { isDemoMode } = useApp();
+const navPrefix = isDemoMode ? '/demo' : '';
+router.push(`${navPrefix}/projektek/${id}`);
+<Link href={`${navPrefix}/ajanlatok`}>
+```
+
+### 7. Design Tokens — No Hardcoded Values
+Always use CSS variables. Never hardcode colours, radii, or shadows in JSX `style` props.
+```js
+// WRONG
+style={{ color: '#0f172a', borderRadius: '8px', borderBottom: '1px solid #e2e8f0' }}
+// CORRECT
+style={{ color: 'var(--text-primary)', borderRadius: 'var(--radius-md)', borderBottom: '1px solid var(--border-subtle)' }}
+```
+
+### 8. API Fetch Error Handling
+Every `fetch()` must check `res.ok` and surface errors via `AlertModal`:
+```js
+const res = await fetch('/api/...', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+if (!res.ok) {
+  const { error } = await res.json().catch(() => ({}));
+  setAlert({ open: true, message: error || 'Hiba történt. Kérjük, próbáld újra.' });
+  return;
+}
+```
+
+### 9. Subscription Gate on Creation
+Any route or UI that creates a resource (quote, survey, project, collective) must check limits via `isEffectivePremium(profile)` from `@/lib/subscriptionLimits` when a tier limit applies.
+
+### 10. Common Agent Mistakes — Read Before Every Change
+- **Missing `deleted_at` filter** — new list queries frequently omit `.is('deleted_at', null)`.
+- **Third overlay** — do not create new `position: fixed` overlays; use `Modal` or `BottomSheet`.
+- **`window.innerWidth` inline** — always use `useMobile()` hook instead.
+- **Hard delete on user content** — `.delete()` is forbidden on the tables listed in rule 4.
+- **Missing `navPrefix`** — every in-app `<Link>` or `router.push()` in a shared/demo-aware component needs it.
+- **Hardcoded breakpoint** — the one mobile breakpoint is 768 px.
+- **Hardcoded colour hex** — use CSS vars from `globals.css`.
+- **Hungarian UI** — all user-facing text (labels, buttons, placeholders, empty states, errors) must be in Hungarian.
+- **`user_id` from request body** — always set `user_id: user.id` server-side on inserts; never trust the client.
+- **Membership check without role** — checking only `active` status is not enough for document creation; must also verify `role === 'owner' || role === 'admin'`.
+- **Superadmin bypass in new routes** — do not add `isSuperAdmin` escape hatches to new routes; SA uses DB access.
+
+---
+
 ## Known Issues / In Progress
-- Migration 053 written — apply via Supabase SQL editor to drop old entity_id columns
+
+### Race condition — inclusive collective duplicate creation
+`GET /api/collectives` auto-creates the user's inclusive collective if they don't have one. React StrictMode (and any double-render) fires the GET twice simultaneously, both requests see no inclusive collective, and both create one. Partial fix in place (re-queries DB before inserting), but the proper fix is a **unique partial index**:
+```sql
+CREATE UNIQUE INDEX IF NOT EXISTS one_inclusive_per_owner
+ON collective_members (user_id)
+WHERE role = 'owner' AND status = 'active'
+AND collective_id IN (SELECT id FROM collectives WHERE is_inclusive = true);
+```
+Apply via Supabase SQL editor when ready.
+
+### Schema gaps
+- `survey_items` table — referenced in code (`/api/surveys/[id]/items`) and permission docs but does **not exist** in the DB. Requires a migration before that route is functional.
+- `project_media` table — referenced in deletion scripts but does **not exist** in the DB. Requires a migration.
+- `diary_entries` has **no `deleted_at` column** — currently uses hard delete. Soft-delete rule (§4) cannot be applied until a migration adds the column.
+
+### Bugs to fix
+- **Superadmin impersonation display_name bleedthrough** — when SA impersonates a user, `profiles.display_name` of the SA account gets overwritten with the impersonated user's name. Root cause is in the impersonation flow; `god_mode.js` / `refreshSupabaseData` need to avoid writing SA's own profile during impersonation.
+
+### Pending migrations
+- Migration 053 written — apply via Supabase SQL editor to drop old `entity_id` columns
 - RLS policies still reference old `current_entity_id()` function — not enforced, rewrite pending
+
+### Pending features
 - `admin` role in collective_members: schema ready, no UI to promote yet
 - Approval workflow (`status: pending|approved`): schema ready, logic not active
 - Per-project contributor assignment: schema ready, logic not active

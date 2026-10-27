@@ -74,12 +74,10 @@ export async function PATCH(request, { params }) {
   const isSuperAdmin     = ctx.profile.role === 'superadmin';
   const isKollektivOwner = ctx.memberRole === 'owner' || ctx.memberRole === 'admin';
 
-  if ('collective_id' in fields && !isOwner && !isSuperAdmin && !isKollektivOwner)
-    return Response.json({ error: 'Csak a tulajdonos helyezhet át felmérést.' }, { status: 403 });
+  if (!isOwner && !isSuperAdmin && !isKollektivOwner)
+    return Response.json({ error: 'Csak a tulajdonos módosíthatja a felmérést.' }, { status: 403 });
 
-  const allowed = (isOwner || isSuperAdmin || isKollektivOwner)
-    ? ['title', 'notes', 'date', 'location', 'client_id', 'shared_with', 'collective_id', 'status', 'done_at', 'reopened_at']
-    : ['shared_with'];
+  const allowed = ['title', 'notes', 'date', 'location', 'client_id', 'shared_with', 'collective_id', 'status', 'done_at', 'reopened_at'];
   const update = {};
   for (const k of allowed) if (k in fields) update[k] = fields[k];
 

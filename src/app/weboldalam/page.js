@@ -14,6 +14,7 @@ import {
 import Link from 'next/link';
 import PageSpinner from '@/components/PageSpinner';
 import { COLOR_SCHEMES, TYPOGRAPHY } from '@/lib/websiteThemes';
+import useMobile from '@/hooks/useMobile';
 
 function extractSocialHandle(value, platform) {
   if (!value) return '';
@@ -549,11 +550,10 @@ function ImagePickerModal({ tradeId, selectedImageId, onSelect, onClose, orienta
   const [tradeOpen, setTradeOpen] = useState(false);
   const [images, setImages] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
+  const isMobile = useMobile();
   const tradeRef = useRef(null);
 
   useEffect(() => {
-    setIsMobile(window.matchMedia('(max-width: 639px)').matches);
     fetch('/api/trades').then(r => r.json()).then(d => setTrades(d.trades || []));
   }, []);
 

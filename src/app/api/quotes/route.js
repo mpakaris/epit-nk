@@ -16,7 +16,7 @@ export async function POST(request) {
   const {
     title, location, work_type, description,
     start_date, end_date, status = 'draft',
-    client_id, created_by, shared_with = [], tax_percent = 0,
+    client_id, shared_with = [], tax_percent = 0,
     survey_id,
     collective_id: bodyCollectiveId,
   } = body;
@@ -42,12 +42,13 @@ export async function POST(request) {
   if (collectiveId && profile.role !== 'superadmin') {
     const { data: mem } = await admin
       .from('collective_members')
-      .select('collective_id')
+      .select('role')
       .eq('user_id', user.id)
       .eq('collective_id', collectiveId)
       .eq('status', 'active')
       .maybeSingle();
-    if (!mem) return Response.json({ error: 'Nincs hozzáférés ehhez a csoporthoz' }, { status: 403 });
+    if (!mem || (mem.role !== 'owner' && mem.role !== 'admin'))
+      return Response.json({ error: 'Csak a kollektíva tulajdonosa hozhat létre ajánlatot.' }, { status: 403 });
   }
 
   // Validate shared_with — only include IDs that are real profile UUIDs
@@ -71,7 +72,7 @@ export async function POST(request) {
     end_date:      end_date      || null,
     status,
     client_id:     client_id     || null,
-    created_by:    created_by    || user.id,
+    created_by:    user.id,
     shared_with:   safeSharedWith,
     tax_percent:   Number(tax_percent) || 0,
     survey_id:     survey_id     || null,

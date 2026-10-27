@@ -11,6 +11,8 @@ import InvoiceCard from '@/components/InvoiceCard';
 import CollectiveBanner from '@/components/CollectiveBanner';
 import StatCard from '@/components/StatCard';
 import Modal, { ConfirmModal, AlertModal } from '@/components/Modal';
+import QuickCostSheet from '@/components/mobile/QuickCostSheet';
+import useMobile from '@/hooks/useMobile';
 import { ResponsiveContainer, AreaChart, Area, ReferenceLine, XAxis, YAxis, Tooltip, BarChart, Bar, Cell, LabelList } from 'recharts';
 import {
   ArrowLeft, Plus, Receipt, Coins, Users, TrendingUp, TrendingDown,
@@ -734,14 +736,7 @@ function InvoiceDetailDrawer({ invoice, isAdmin, rooms, splits = [], onClose, on
   const removeSplit = (idx) => setEditSplits(prev => prev.filter((_, i) => i !== idx));
   const updateSplit = (idx, field, value) => setEditSplits(prev => prev.map((s, i) => i === idx ? { ...s, [field]: value } : s));
 
-  const [isMobile, setIsMobile] = React.useState(() =>
-    typeof window !== 'undefined' ? window.innerWidth < 768 : true
-  );
-  React.useEffect(() => {
-    const check = () => setIsMobile(window.innerWidth < 768);
-    window.addEventListener('resize', check);
-    return () => window.removeEventListener('resize', check);
-  }, []);
+  const isMobile = useMobile();
 
   React.useEffect(() => {
     const scrollY = window.scrollY;
@@ -1564,6 +1559,7 @@ export default function ProjectDetailClient({
     clients: ctxClients,
     collectives,
     isDemoMode,
+    refreshSupabaseData,
   } = useApp();
 
   const navPrefix = isDemoMode ? '/demo' : '';
@@ -1591,6 +1587,7 @@ export default function ProjectDetailClient({
   const [diaryLoading, setDiaryLoading] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
   const [toast, setToast] = useState('');
+  const [showQuickCostSheet, setShowQuickCostSheet] = useState(false);
   const [editingDiaryEntry, setEditingDiaryEntry] = useState(null);
   const [editingLabour, setEditingLabour] = useState(null);
   const [detailInvoice, setDetailInvoice] = useState(null);
@@ -1663,7 +1660,7 @@ export default function ProjectDetailClient({
   });
 
   const isKollektivOwner = collectives?.some(c => c.collective_id === project.collective_id && (c.role === 'owner' || c.role === 'admin'));
-  const canManageProject = isAdmin || isKollektivOwner || project.created_by === currentUser?.id || project.owner_id === currentUser?.id;
+  const canManageProject = isKollektivOwner || project.created_by === currentUser?.id || project.owner_id === currentUser?.id;
 
   const [showOptionsMenu, setShowOptionsMenu] = useState(false);
   const optionsRef = React.useRef(null);
@@ -2054,8 +2051,8 @@ export default function ProjectDetailClient({
                     Import ({unimportedSections.length})
                   </button>
                 )}
-                <button type="button" className="btn btn-primary btn-sm" style={{ fontSize: '0.75rem' }} onClick={() => { setEditingRoom(null); setRoomModalOpen(true); }}>
-                  <Plus size={13} /> Új szekció
+                <button type="button" className="btn btn-primary btn-sm" style={{ fontSize: '0.75rem' }} onClick={() => { setEditingRoom(null); setRoomModalOpen(true); }} aria-label="Új szekció">
+                  <Plus size={13} />
                 </button>
               </div>
             </div>
@@ -2363,7 +2360,7 @@ export default function ProjectDetailClient({
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(300px, 100%), 1fr))', gap: '0.85rem' }}>
               {filteredLabour.map((entry) => {
                 const uploader = initialUsers.find(u => u.id === entry.uploaded_by);
-                const canManageEntry = isAdmin || canManageProject || entry.uploaded_by === currentUser?.id;
+                const canManageEntry = canManageProject || entry.uploaded_by === currentUser?.id;
                 const entryRoom = projectRooms.find(r => r.id === entry.room_id) || null;
                 return (
                   <div key={entry.id} className="card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: '0.85rem' }}>
@@ -2939,6 +2936,39 @@ export default function ProjectDetailClient({
           <CheckCircle2 size={16} color="#4ade80" /> {toast}
         </div>
       )}
+
+      {/* Mobile floating action button — opens QuickCostSheet */}
+      <button
+        type="button"
+        className="show-mobile"
+        onClick={() => setShowQuickCostSheet(true)}
+        aria-label="Bejegyzés hozzáadása"
+        style={{
+          position: 'fixed',
+          bottom: 'calc(100px + env(safe-area-inset-bottom))',
+          right: 20,
+          width: 52, height: 52,
+          borderRadius: '50%',
+          background: '#2563eb',
+          border: 'none', color: '#fff',
+          boxShadow: '0 4px 16px rgba(37,99,235,.45)',
+          cursor: 'pointer', zIndex: 50,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}
+      >
+        <Plus size={24} strokeWidth={2.5} aria-hidden="true" />
+      </button>
+
+      <QuickCostSheet
+        isOpen={showQuickCostSheet}
+        onClose={() => setShowQuickCostSheet(false)}
+        projectId={project.id}
+        onSuccess={() => {
+          refreshSupabaseData();
+          setToast('Bejegyzés mentve');
+          setTimeout(() => setToast(''), 2500);
+        }}
+      />
     </div>
   );
 }

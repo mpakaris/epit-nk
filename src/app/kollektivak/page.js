@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
 import Modal, { ConfirmModal, AlertModal } from '@/components/Modal';
+import useMobile from '@/hooks/useMobile';
 import PageSpinner from '@/components/PageSpinner';
 import { formatDate } from '@/lib/constants';
 import { isEffectivePremium } from '@/lib/subscriptionLimits';
@@ -45,6 +46,7 @@ const CREEM_TIERS = [
 ];
 
 export default function KollektivakPage() {
+  const isMobile = useMobile();
   const router = useRouter();
   const { currentUser, loading, dataReady, refreshCollectives } = useApp();
 
@@ -308,7 +310,6 @@ export default function KollektivakPage() {
       return;
     }
 
-    const isMobile = window.innerWidth < 768;
     const pendingName = createName.trim();
     const pendingTier = createTier.key;
 
@@ -1450,11 +1451,11 @@ export default function KollektivakPage() {
                   const res = await fetch('/api/checkout', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ productId, successUrl: window.innerWidth < 768 ? '/checkout-popup-success?checkout_type=kollektiva' : '/kollektivak?kollektiva_upgraded=1' }),
+                    body: JSON.stringify({ productId, successUrl: isMobile ? '/checkout-popup-success?checkout_type=kollektiva' : '/kollektivak?kollektiva_upgraded=1' }),
                   });
                   const data = await res.json();
                   if (data.checkoutUrl) {
-                    if (window.innerWidth < 768) setCheckoutIframeUrl(data.checkoutUrl);
+                    if (isMobile) setCheckoutIframeUrl(data.checkoutUrl);
                     else window.open(data.checkoutUrl, '_blank', 'noopener,noreferrer');
                   } else {
                     setAlertModal({ message: data.error || 'Hiba a fizetési folyamat indításakor.' });

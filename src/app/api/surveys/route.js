@@ -71,12 +71,13 @@ export async function POST(request) {
   if (collectiveId && profile.role !== 'superadmin') {
     const { data: mem } = await admin
       .from('collective_members')
-      .select('collective_id')
+      .select('role')
       .eq('user_id', user.id)
       .eq('collective_id', collectiveId)
       .eq('status', 'active')
       .maybeSingle();
-    if (!mem) return Response.json({ error: 'Nincs hozzáférés ehhez a csoporthoz' }, { status: 403 });
+    if (!mem || (mem.role !== 'owner' && mem.role !== 'admin'))
+      return Response.json({ error: 'Csak a kollektíva tulajdonosa hozhat létre felmérést.' }, { status: 403 });
   }
 
   const { data: survey, error: insertErr } = await admin.from('surveys').insert([{

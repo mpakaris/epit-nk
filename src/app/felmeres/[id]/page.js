@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
@@ -18,6 +18,9 @@ import {
 } from 'lucide-react';
 import PageSpinner from '@/components/PageSpinner';
 import { processMediaFile } from '@/lib/mediaGate';
+import { useUploadQueue } from '@/hooks/useUploadQueue';
+import useMobile from '@/hooks/useMobile';
+import UploadProgressBadge from '@/components/mobile/UploadProgressBadge';
 
 // ── Lightbox ──────────────────────────────────────────────────────────────────
 function Lightbox({ media, startIndex, onClose }) {
@@ -61,10 +64,10 @@ function Lightbox({ media, startIndex, onClose }) {
 }
 
 // ── Media grid (read-only or with delete) ─────────────────────────────────────
-function MediaGrid({ media, onDelete }) {
+function MediaGrid({ media, onDelete, pendingItems = [] }) {
   const [lightbox, setLightbox] = useState(null);
-  if (!media || media.length === 0) return null;
-  const sorted = [...media].sort((a, b) => {
+  if (!media?.length && !pendingItems.length) return null;
+  const sorted = [...(media || [])].sort((a, b) => {
     const aVid = a.mime_type?.startsWith('video/') ? 1 : 0;
     const bVid = b.mime_type?.startsWith('video/') ? 1 : 0;
     return aVid - bVid;
@@ -72,6 +75,22 @@ function MediaGrid({ media, onDelete }) {
   return (
     <>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(80px, 1fr))', gap: '0.35rem', marginTop: '0.5rem' }}>
+        {/* Pending / uploading local previews */}
+        {pendingItems.map(item => (
+          <div key={item.id} style={{ position: 'relative', aspectRatio: '1', borderRadius: 'var(--radius-md)', overflow: 'hidden', border: '1px solid var(--border-subtle)', background: 'var(--bg-subtle)' }}>
+            {item.preview
+              ? <img src={item.preview} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: 0.65 }} />
+              : <div style={{ width: '100%', height: '100%', background: '#1a1a2e', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Play size={18} color="#fff" /></div>
+            }
+            <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.25)' }}>
+              {item.status === 'error'
+                ? <AlertCircle size={16} color="#fca5a5" />
+                : <Loader2 size={16} color="#fff" className="animate-spin" />
+              }
+            </div>
+          </div>
+        ))}
+        {/* Uploaded media */}
         {sorted.map((item, i) => {
           const isVideo = item.mime_type?.startsWith('video/');
           return (
@@ -100,7 +119,7 @@ function MediaGrid({ media, onDelete }) {
 }
 
 // ── Inline upload button ───────────────────────────────────────────────────────
-function InlineUpload({ surveyId, entryId, mediaType, label = 'Fotók' }) {
+function InlineUpload({ surveyId, entryId, mediaType, label = 'Fotók', enqueue, iconOnly }) {
   const { uploadSurveyMedia } = useApp();
   const inputRef = useRef(null);
   const [uploading, setUploading] = useState(false);
@@ -109,12 +128,34 @@ function InlineUpload({ surveyId, entryId, mediaType, label = 'Fotók' }) {
     const raw = Array.from(e.target.files || []);
     e.target.value = '';
     if (!raw.length) return;
-    const files = await Promise.all(raw.map(processMediaFile));
-    setUploading(true); setError('');
-    try { await uploadSurveyMedia(surveyId, files, { entryId, mediaType }); }
-    catch (err) { setError(err.message || 'Feltöltési hiba'); }
-    finally { setUploading(false); }
+    if (enqueue) {
+      enqueue(raw, { surveyId, entryId, mediaType });
+    } else {
+      const files = await Promise.all(raw.map(processMediaFile));
+      setUploading(true); setError('');
+      try { await uploadSurveyMedia(surveyId, files, { entryId, mediaType }); }
+      catch (err) { setError(err.message || 'Feltöltési hiba'); }
+      finally { setUploading(false); }
+    }
   };
+
+  if (iconOnly) {
+    return (
+      <>
+        <input ref={inputRef} type="file" accept="image/*,video/*" multiple onChange={handleFiles} style={{ display: 'none' }} />
+        <button
+          type="button"
+          onClick={() => inputRef.current?.click()}
+          disabled={uploading}
+          aria-label={label}
+          style={{ width: 32, height: 32, borderRadius: '50%', background: '#f1f5f9', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+        >
+          {uploading ? <Loader2 size={14} className="animate-spin" color="#475569" /> : <Plus size={16} color="#475569" strokeWidth={1.75} aria-hidden="true" />}
+        </button>
+      </>
+    );
+  }
+
   return (
     <div style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.25rem' }}>
       <input ref={inputRef} type="file" accept="image/*,video/*" multiple onChange={handleFiles} style={{ display: 'none' }} />
@@ -127,7 +168,7 @@ function InlineUpload({ surveyId, entryId, mediaType, label = 'Fotók' }) {
 }
 
 // ── Upload drop zone (empty state) ────────────────────────────────────────────
-function InlineUploadZone({ surveyId, entryId }) {
+function InlineUploadZone({ surveyId, entryId, enqueue }) {
   const { uploadSurveyMedia } = useApp();
   const inputRef = useRef(null);
   const [uploading, setUploading] = useState(false);
@@ -136,18 +177,22 @@ function InlineUploadZone({ surveyId, entryId }) {
     const raw = Array.from(e.target.files || []);
     e.target.value = '';
     if (!raw.length) return;
-    const files = await Promise.all(raw.map(processMediaFile));
-    setUploading(true); setError('');
-    try { await uploadSurveyMedia(surveyId, files, { entryId, mediaType: 'photo' }); }
-    catch (err) { setError(err.message || 'Feltöltési hiba'); }
-    finally { setUploading(false); }
+    if (enqueue) {
+      enqueue(raw, { surveyId, entryId, mediaType: 'photo' });
+    } else {
+      const files = await Promise.all(raw.map(processMediaFile));
+      setUploading(true); setError('');
+      try { await uploadSurveyMedia(surveyId, files, { entryId, mediaType: 'photo' }); }
+      catch (err) { setError(err.message || 'Feltöltési hiba'); }
+      finally { setUploading(false); }
+    }
   };
   return (
     <div>
-      <input ref={inputRef} type="file" accept="image/*,video/*" multiple onChange={handleFiles} style={{ display: 'none' }} />
-      <button type="button" onClick={() => inputRef.current?.click()} disabled={uploading}
-        style={{ width: '100%', padding: '1.25rem', border: '2px dashed var(--border-subtle)', borderRadius: 'var(--radius-md)', background: uploading ? 'var(--bg-subtle)' : '#fff', cursor: uploading ? 'default' : 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.4rem' }}>
-        {uploading
+      <input ref={inputRef} type="file" accept="image/*,video/*" capture="environment" multiple onChange={handleFiles} style={{ display: 'none' }} />
+      <button type="button" onClick={() => inputRef.current?.click()} disabled={uploading && !enqueue}
+        style={{ width: '100%', padding: '1.25rem', border: '2px dashed var(--border-subtle)', borderRadius: 'var(--radius-md)', background: (uploading && !enqueue) ? 'var(--bg-subtle)' : '#fff', cursor: (uploading && !enqueue) ? 'default' : 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.4rem' }}>
+        {uploading && !enqueue
           ? <><Loader2 size={22} color="var(--accent)" className="animate-spin" /><span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--accent)' }}>Feltöltés...</span></>
           : <><Camera size={22} color="var(--text-muted)" /><span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Fotók / videók feltöltése</span><span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Koppintson a galériához vagy kamerához</span></>}
       </button>
@@ -473,7 +518,7 @@ const DEFAULT_UNIT_BY_TYPE = { material: 'm²', labour: 'm²', equipment: 'nap',
 // ── Item add/edit — modal on desktop, bottom-sheet on mobile ─────────────────
 function ItemDrawer({ initial, surveyId, entryId, onClose, createSurveyItem, updateSurveyItem, deleteSurveyItem }) {
   const isEdit = !!initial;
-  const [isMobile, setIsMobile] = useState(false);
+  const isMobile = useMobile();
   const [entryType, setEntryType] = useState(initial?.entry_type || 'material');
   const [desc,  setDesc]  = useState(initial?.description || '');
   const [qty,   setQty]   = useState(initial?.quantity != null ? String(initial.quantity) : '');
@@ -482,14 +527,6 @@ function ItemDrawer({ initial, surveyId, entryId, onClose, createSurveyItem, upd
   const [saving,   setSaving]   = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [error,    setError]    = useState('');
-
-  useEffect(() => {
-    const mq = window.matchMedia('(max-width: 767px)');
-    setIsMobile(mq.matches);
-    const h = (e) => setIsMobile(e.matches);
-    mq.addEventListener('change', h);
-    return () => mq.removeEventListener('change', h);
-  }, []);
 
   // When type changes, update unit to the sensible default for that type
   const handleTypeChange = (t) => {
@@ -821,7 +858,7 @@ function TételekSection({ surveyId, entry, canAdd }) {
 }
 
 // ── Survey entry card (collapsible, offers-style dark header) ─────────────────
-function SurveyEntryCard({ entry, surveyId, canEditEntry, canAdd, onEdit, onDelete, handleDeleteMedia, drawings, createSurveyDrawing, deleteSurveyDrawing, canDrawings, currentUser }) {
+function SurveyEntryCard({ entry, surveyId, canEditEntry, canAdd, onEdit, onDelete, handleDeleteMedia, drawings, createSurveyDrawing, deleteSurveyDrawing, canDrawings, currentUser, pendingUploads = [], enqueue }) {
   const [collapsed, setCollapsed] = useState(true);
 
   return (
@@ -860,16 +897,24 @@ function SurveyEntryCard({ entry, surveyId, canEditEntry, canAdd, onEdit, onDele
           <TételekSection surveyId={surveyId} entry={entry} canAdd={canAdd} />
 
           <div style={{ marginTop: '0.75rem', borderTop: '1px solid var(--border-subtle)', paddingTop: '0.75rem' }}>
-            {entry.media?.length > 0 ? (
+            {(entry.media?.length > 0 || pendingUploads.length > 0) ? (
               <>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
-                  <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600 }}>{entry.media.length} fotó / videó</span>
-                  {canAdd && <InlineUpload surveyId={surveyId} entryId={entry.id} mediaType="photo" label="Hozzáadás" />}
+                  <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    {entry.media?.length || 0} fotó / videó
+                    <UploadProgressBadge pending={pendingUploads.filter(i => i.status === 'pending').length} uploading={pendingUploads.filter(i => i.status === 'uploading').length} done={pendingUploads.filter(i => i.status === 'done').length} error={pendingUploads.filter(i => i.status === 'error').length} />
+                  </span>
+                  {canAdd && (
+                    <>
+                      <span className="hide-mobile"><InlineUpload surveyId={surveyId} entryId={entry.id} mediaType="photo" label="Hozzáadás" enqueue={enqueue} /></span>
+                      <span className="show-mobile"><InlineUpload surveyId={surveyId} entryId={entry.id} mediaType="photo" label="Hozzáadás" enqueue={enqueue} iconOnly /></span>
+                    </>
+                  )}
                 </div>
-                <MediaGrid media={entry.media} onDelete={canEditEntry ? handleDeleteMedia : undefined} />
+                <MediaGrid media={entry.media} onDelete={canEditEntry ? handleDeleteMedia : undefined} pendingItems={pendingUploads.filter(i => i.status !== 'done')} />
               </>
             ) : canAdd ? (
-              <InlineUploadZone surveyId={surveyId} entryId={entry.id} />
+              <InlineUploadZone surveyId={surveyId} entryId={entry.id} enqueue={enqueue} />
             ) : null}
           </div>
 
@@ -896,11 +941,23 @@ export default function SurveyDetailPage() {
     isAdmin, currentUser, collectives,
     deleteSurvey, updateSurvey, deleteSurveyMedia,
     surveyMediaBySurvey, surveyEntriesBySurvey, surveyLayoutsBySurvey, surveyDrawingsBySurvey,
-    fetchSurveyMedia,
+    fetchSurveyMedia, uploadSurveyMedia,
     createSurveyEntry, updateSurveyEntry, deleteSurveyEntry,
     createSurveyDrawing, deleteSurveyDrawing,
     isDemoMode,
   } = useApp();
+
+  // Background upload queue — photos appear as local previews instantly
+  const uploadFn = useCallback(async (rawFile, { surveyId, entryId, mediaType }) => {
+    await uploadSurveyMedia(surveyId, [rawFile], { entryId, mediaType });
+  }, [uploadSurveyMedia]);
+
+  const { enqueue, queue, retryAll, totalPending, totalUploading, totalError } = useUploadQueue({ uploadFn });
+
+  const getPendingForEntry = useCallback(
+    (entryId) => queue.filter(i => i.meta.entryId === entryId && i.status !== 'done'),
+    [queue]
+  );
   // surveyItemsBySurvey, createSurveyItem, updateSurveyItem, deleteSurveyItem, generateSurveyEntryItems
   // are used inside TételekSection via useApp() directly
 
@@ -913,15 +970,30 @@ export default function SurveyDetailPage() {
   const [showAddEntry, setShowAddEntry]   = useState(false);
   const [editingEntry, setEditingEntry]   = useState(null);
   const [statusSaving, setStatusSaving]   = useState(false);
+  // Fallback: fetch directly when survey is not in the active context
+  const [directSurvey,   setDirectSurvey]   = useState(null);
+  const [directFetching, setDirectFetching] = useState(false);
 
   useEffect(() => {
     if (!dataReady) return;
     fetchSurveyMedia(id).catch(() => {}).finally(() => setDetailLoading(false));
   }, [id, dataReady]);
 
-  if (loading || !dataReady) return <PageSpinner />;
+  useEffect(() => {
+    if (!dataReady) return;
+    if (surveys.find(s => s.id === id)) return;
+    // Survey not in active context — try a direct API fetch (e.g. context mismatch)
+    setDirectFetching(true);
+    fetch(`/api/surveys/${id}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d?.survey) setDirectSurvey(d.survey); })
+      .catch(() => {})
+      .finally(() => setDirectFetching(false));
+  }, [id, dataReady, surveys]);
 
-  const survey = surveys.find(s => s.id === id);
+  if (loading || !dataReady || directFetching) return <PageSpinner />;
+
+  const survey = surveys.find(s => s.id === id) || directSurvey;
   if (!survey) return (
     <div className="container" style={{ paddingTop: '2.5rem', textAlign: 'center' }}>
       <h2>A felmérés nem található</h2>
@@ -941,10 +1013,10 @@ export default function SurveyDetailPage() {
   const isKollektivOwner = myCollectiveRole === 'owner' || myCollectiveRole === 'admin';
   const isCollMember     = !!myCollectiveRole;
   // Any member can add entries/upload; only creator or collective owner can edit/delete specific entries
-  const canAdd       = isAdmin || isOwner || isSharedMember || isCollMember;
-  const canEditMeta  = isAdmin || isKollektivOwner || isOwner;
-  const canDrawings  = isAdmin || isKollektivOwner || isOwner;
-  const canEditEntry = (entry) => isAdmin || isKollektivOwner || entry.created_by === currentUser?.id;
+  const canAdd       = isOwner || isSharedMember || isCollMember;
+  const canEditMeta  = isKollektivOwner || isOwner;
+  const canDrawings  = isKollektivOwner || isOwner;
+  const canEditEntry = (entry) => isKollektivOwner || entry.created_by === currentUser?.id;
 
   const sharedMembers = (survey.shared_with || []).map(uid => users.find(u => u.id === uid)).filter(Boolean);
 
@@ -1130,7 +1202,14 @@ export default function SurveyDetailPage() {
             </span>
           </div>
           {canAdd && !detailLoading && (
-            <InlineUpload surveyId={id} entryId={null} mediaType="layout" label="Alaprajz hozzáadása" />
+            <>
+              <span className="hide-mobile">
+                <InlineUpload surveyId={id} entryId={null} mediaType="layout" label="Alaprajz hozzáadása" enqueue={enqueue} />
+              </span>
+              <span className="show-mobile">
+                <InlineUpload surveyId={id} entryId={null} mediaType="layout" label="Alaprajz hozzáadása" enqueue={enqueue} iconOnly />
+              </span>
+            </>
           )}
         </div>
         {detailLoading ? (
@@ -1162,9 +1241,22 @@ export default function SurveyDetailPage() {
             <h2 style={{ fontSize: '1rem', fontWeight: 800, margin: 0 }}>Helyiségek ({entries.length})</h2>
           </div>
           {canAdd && entries.length < 30 && (
-            <button type="button" onClick={() => { setShowAddEntry(true); setEditingEntry(null); }} className="btn btn-primary btn-sm">
-              <Plus size={14} /> Helyiség hozzáadása
-            </button>
+            <>
+              {/* Desktop: labeled button */}
+              <button type="button" onClick={() => { setShowAddEntry(true); setEditingEntry(null); }} className="btn btn-primary btn-sm hide-mobile">
+                <Plus size={14} /> Helyiség hozzáadása
+              </button>
+              {/* Mobile: icon-only */}
+              <button
+                type="button"
+                onClick={() => { setShowAddEntry(true); setEditingEntry(null); }}
+                className="show-mobile"
+                aria-label="Helyiség hozzáadása"
+                style={{ width: 32, height: 32, borderRadius: '50%', background: '#0f172a', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              >
+                <Plus size={16} color="#fff" strokeWidth={2} aria-hidden="true" />
+              </button>
+            </>
           )}
           {canAdd && entries.length >= 30 && (
             <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>Maximum 30 helyiség</span>
@@ -1244,6 +1336,8 @@ export default function SurveyDetailPage() {
                     deleteSurveyDrawing={deleteSurveyDrawing}
                     canDrawings={canDrawings}
                     currentUser={currentUser}
+                    pendingUploads={getPendingForEntry(entry.id)}
+                    enqueue={canAdd ? enqueue : undefined}
                     style={isNewEntry ? { borderRadius: '0 0 var(--radius-md) var(--radius-md)', borderTop: '2px solid var(--warning-border)' } : undefined}
                   />
                 )}
@@ -1277,6 +1371,7 @@ export default function SurveyDetailPage() {
           )}
         </div>
       )}
+
 
       <MetaDrawer
         survey={survey}

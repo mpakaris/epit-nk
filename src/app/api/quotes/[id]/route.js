@@ -43,8 +43,8 @@ export async function PATCH(request, { params }) {
   const isSuperAdmin     = ctx.profile.role === 'superadmin';
   const isKollektivOwner = ctx.memberRole === 'owner' || ctx.memberRole === 'admin';
 
-  if ('collective_id' in fields && !isOwner && !isSuperAdmin && !isKollektivOwner)
-    return Response.json({ error: 'Csak a tulajdonos helyezhet át ajánlatot.' }, { status: 403 });
+  if (!isOwner && !isSuperAdmin && !isKollektivOwner)
+    return Response.json({ error: 'Csak a tulajdonos módosíthatja az ajánlatot.' }, { status: 403 });
 
   const allowed = ['title', 'location', 'work_type', 'description', 'start_date', 'end_date',
                    'status', 'client_id', 'shared_with', 'tax_percent', 'survey_id',
