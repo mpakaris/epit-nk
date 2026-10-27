@@ -211,7 +211,7 @@ export default function DashboardClient({
 
         {/* Weekly calendar — shown always, even on empty state */}
         {!(isSuperAdmin && !impersonating) && (
-          <div style={{ marginBottom: 24 }}>
+          <div style={{ marginBottom: 24, marginTop: 24 }}>
             <CalendarWidget projects={projects} clients={clients || []} quotes={quotes || []} />
           </div>
         )}
