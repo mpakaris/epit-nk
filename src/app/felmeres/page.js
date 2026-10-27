@@ -64,6 +64,7 @@ export default function SurveyListPage() {
       throw new Error(error);
     }
     setOutgoingTransfers(prev => prev.filter(r => r.id !== requestId));
+    setAlertModal({ variant: 'success', title: 'Visszavonva', message: 'Az áthelyezési kérelem visszavonva. A dokumentum újra szerkeszthető.' });
   };
 
   const handleDelete = (survey) => {

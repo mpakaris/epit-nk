@@ -62,6 +62,7 @@ export default function ProjectsListClient({
   const [expandShared, setExpandShared]     = useState({});
   const [confirmDelete, setConfirmDelete]   = useState(null);
   const [deleteAlert,   setDeleteAlert]     = useState(null);
+  const [alertModal,    setAlertModal]      = useState(null);
   const [transferModal,    setTransferModal]    = useState(null);
   const [outgoingTransfers, setOutgoingTransfers] = useState([]);
 
@@ -77,6 +78,7 @@ export default function ProjectsListClient({
       throw new Error(error);
     }
     setOutgoingTransfers(prev => prev.filter(r => r.id !== requestId));
+    setAlertModal({ variant: 'success', title: 'Visszavonva', message: 'Az áthelyezési kérelem visszavonva. A dokumentum újra szerkeszthető.' });
   };
 
   const handleDelete = (project) => {
@@ -490,6 +492,13 @@ export default function ProjectsListClient({
         onClose={() => setDeleteAlert(null)}
         title="Hiba"
         message={deleteAlert}
+      />
+      <AlertModal
+        isOpen={!!alertModal}
+        onClose={() => setAlertModal(null)}
+        variant={alertModal?.variant || 'error'}
+        title={alertModal?.title}
+        message={alertModal?.message}
       />
       <TransferToCollectiveModal
         isOpen={!!transferModal}
