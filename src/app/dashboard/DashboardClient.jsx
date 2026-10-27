@@ -213,6 +213,7 @@ export default function DashboardClient({
           border: '1px solid #c7d2fe',
           borderRadius: 'var(--radius-md)',
           padding: '0.85rem 1rem',
+          marginTop: 10,
           marginBottom: '1rem',
           display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap',
         }}>
@@ -247,6 +248,7 @@ export default function DashboardClient({
           border: '1px solid #bbf7d0',
           borderRadius: 'var(--radius-md)',
           padding: '0.85rem 1rem',
+          marginTop: pendingInvitations.length === 0 ? 10 : 0,
           marginBottom: '1rem',
           display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap',
         }}>
