@@ -808,9 +808,12 @@ export function AppProvider({ children }) {
 
   const deleteProject = async (projectId) => {
     const project = projects.find(p => p.id === projectId);
-    const isCreator        = project?.created_by === effectiveUser?.id || project?.owner_id === effectiveUser?.id;
-    const isKollektivOwner = collectives.some(c => c.collective_id === project?.collective_id && (c.role === 'owner' || c.role === 'admin'));
-    if (!isAdmin && !isCreator && !isKollektivOwner) throw new Error('Nincs jogosultsága törölni ezt a projektet!');
+    if (project) {
+      const isCreator        = project.created_by === effectiveUser?.id || project.owner_id === effectiveUser?.id;
+      const isKollektivOwner = collectives.some(c => c.collective_id === project.collective_id && (c.role === 'owner' || c.role === 'admin'));
+      if (!isAdmin && !isCreator && !isKollektivOwner) throw new Error('Nincs jogosultsága törölni ezt a projektet!');
+    }
+    // If project not in local state (e.g. just transferred), skip client guard — API enforces it.
     const res = await fetch(`/api/projects/${projectId}`, { method: 'DELETE' });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Hiba a projekt törlésekor');
@@ -944,9 +947,12 @@ export function AppProvider({ children }) {
 
   const deleteSurvey = async (surveyId) => {
     const survey = surveys.find(s => s.id === surveyId);
-    const isSurveyOwner    = survey?.owner_id === uid || survey?.created_by === uid;
-    const isKollektivOwner = collectives.some(c => c.collective_id === survey?.collective_id && (c.role === 'owner' || c.role === 'admin'));
-    if (!isAdmin && !isSurveyOwner && !isKollektivOwner) throw new Error('Csak adminisztrátor vagy a felmérés tulajdonosa törölhet!');
+    if (survey) {
+      const isSurveyOwner    = survey.owner_id === uid || survey.created_by === uid;
+      const isKollektivOwner = collectives.some(c => c.collective_id === survey.collective_id && (c.role === 'owner' || c.role === 'admin'));
+      if (!isAdmin && !isSurveyOwner && !isKollektivOwner) throw new Error('Csak adminisztrátor vagy a felmérés tulajdonosa törölhet!');
+    }
+    // If survey not in local state (e.g. just transferred), skip client guard — API enforces it.
     const res = await fetch(`/api/surveys/${surveyId}`, { method: 'DELETE' });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Hiba a felmérés törlésekor');
