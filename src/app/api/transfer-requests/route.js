@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { logAudit } from '@/lib/audit';
 
 const TABLE_MAP  = { project: 'projects', quote: 'quotes', survey: 'surveys' };
 const TITLE_FIELD = { project: 'name',    quote: 'title',  survey: 'title'   };
@@ -53,6 +54,19 @@ export async function POST(request) {
       .update({ collective_id })
       .eq('id', document_id);
     if (error) return Response.json({ error: 'Hiba az áthelyezéskor.' }, { status: 500 });
+
+    const { data: prof } = await admin.from('profiles').select('display_name').eq('id', user.id).single();
+    logAudit({
+      entityId:   collective_id,
+      userId:     user.id,
+      userName:   prof?.display_name || user.email,
+      action:     'Dokumentum áthelyezve kollektívába',
+      targetType: document_type,
+      targetId:   document_id,
+      targetName: docTitle,
+      details:    { collective_id },
+    });
+
     return Response.json({ moved: true });
   }
 
@@ -75,6 +89,19 @@ export async function POST(request) {
     .single();
 
   if (error) return Response.json({ error: 'Hiba a kérelem létrehozásakor.' }, { status: 500 });
+
+  const { data: prof } = await admin.from('profiles').select('display_name').eq('id', user.id).single();
+  logAudit({
+    entityId:   collective_id,
+    userId:     user.id,
+    userName:   prof?.display_name || user.email,
+    action:     'Áthelyezési kérelem elküldve',
+    targetType: document_type,
+    targetId:   document_id,
+    targetName: docTitle,
+    details:    { request_id: req.id, collective_id },
+  });
+
   return Response.json({ requested: true, request: req });
 }
 

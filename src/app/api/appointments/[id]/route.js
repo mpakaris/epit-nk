@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { logAudit } from '@/lib/audit';
 
 async function getCallerAndAppointment(id) {
   const supabase = await createClient();
@@ -56,6 +57,18 @@ export async function PATCH(request, { params }) {
 
   const { data, error } = await ctx.admin.from('appointments').update(update).eq('id', id).select().single();
   if (error) return Response.json({ error: error.message }, { status: 400 });
+
+  const { data: prof } = await ctx.admin.from('profiles').select('display_name').eq('id', ctx.user.id).single();
+  logAudit({
+    entityId:   ctx.appt.collective_id || ctx.user.id,
+    userId:     ctx.user.id,
+    userName:   prof?.display_name || ctx.user.email,
+    action:     'Időpont módosítva',
+    targetType: 'appointment',
+    targetId:   id,
+    targetName: data.title,
+  });
+
   return Response.json({ appointment: data });
 }
 
@@ -66,5 +79,17 @@ export async function DELETE(request, { params }) {
 
   const { error } = await ctx.admin.from('appointments').update({ deleted_at: new Date().toISOString() }).eq('id', id);
   if (error) return Response.json({ error: error.message }, { status: 400 });
+
+  const { data: prof } = await ctx.admin.from('profiles').select('display_name').eq('id', ctx.user.id).single();
+  logAudit({
+    entityId:   ctx.appt.collective_id || ctx.user.id,
+    userId:     ctx.user.id,
+    userName:   prof?.display_name || ctx.user.email,
+    action:     'Időpont törölve',
+    targetType: 'appointment',
+    targetId:   id,
+    targetName: ctx.appt.title,
+  });
+
   return Response.json({ success: true });
 }

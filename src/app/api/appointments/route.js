@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { isEffectivePremium, checkPersonalLimit } from '@/lib/subscriptionLimits';
+import { logAudit } from '@/lib/audit';
 
 export async function GET() {
   const supabase = await createClient();
@@ -141,6 +142,17 @@ export async function POST(request) {
       linkedType = 'projekt';
     }
   }
+
+  logAudit({
+    entityId:   collectiveId || user.id,
+    userId:     user.id,
+    userName:   profile.display_name || user.email,
+    action:     'Időpont létrehozva',
+    targetType: 'appointment',
+    targetId:   appt.id,
+    targetName: appt.title,
+    details:    link_type ? { link_type, linked_doc_id: linkedDoc?.id } : null,
+  });
 
   return Response.json({ appointment: appt, linkedDoc, linkedType }, { status: 201 });
 }

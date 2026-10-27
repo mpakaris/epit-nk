@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { logAudit } from '@/lib/audit';
 
 const TABLE_MAP = { project: 'projects', quote: 'quotes', survey: 'surveys' };
 
@@ -34,6 +35,19 @@ export async function PATCH(request, { params }) {
       .update({ status: 'retracted', resolved_at: new Date().toISOString(), resolved_by: user.id })
       .eq('id', id);
     if (error) return Response.json({ error: 'Hiba a visszavonáskor.' }, { status: 500 });
+
+    const { data: prof } = await admin.from('profiles').select('display_name').eq('id', user.id).single();
+    logAudit({
+      entityId:   req.collective_id,
+      userId:     user.id,
+      userName:   prof?.display_name || user.email,
+      action:     'Áthelyezési kérelem visszavonva',
+      targetType: req.document_type,
+      targetId:   req.document_id,
+      targetName: req.document_title,
+      details:    { request_id: id },
+    });
+
     return Response.json({ ok: true });
   }
 
@@ -70,6 +84,18 @@ export async function PATCH(request, { params }) {
     .eq('id', id);
 
   if (reqErr) return Response.json({ error: 'Hiba az állapot frissítésekor.' }, { status: 500 });
+
+  const { data: prof } = await admin.from('profiles').select('display_name').eq('id', user.id).single();
+  logAudit({
+    entityId:   req.collective_id,
+    userId:     user.id,
+    userName:   prof?.display_name || user.email,
+    action:     action === 'accept' ? 'Áthelyezés elfogadva' : 'Áthelyezés visszautasítva',
+    targetType: req.document_type,
+    targetId:   req.document_id,
+    targetName: req.document_title,
+    details:    { request_id: id, from_user_id: req.from_user_id },
+  });
 
   return Response.json({ ok: true });
 }
