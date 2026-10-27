@@ -11,6 +11,7 @@ import {
 import PageSpinner from '@/components/PageSpinner';
 import WorkspaceBadge from '@/components/WorkspaceBadge';
 import NewAppointmentModal from '@/components/NewAppointmentModal';
+import AppointmentDetailModal from '@/components/AppointmentDetailModal';
 
 const DAYS_HU  = ['H', 'K', 'Sze', 'Cs', 'P', 'Szo', 'V'];
 const MONTHS_HU = [
@@ -70,7 +71,7 @@ function buildEvents(projects, quotes, clients, quoteSections, projectRooms, app
                : a.linked_quote_id   ? `/ajanlatok/${a.linked_quote_id}`
                : a.linked_project_id ? `/projektek/${a.linked_project_id}`
                : null;
-    events.push({ id: `appt-${a.id}`, title: a.title, clientName: client?.name || null, type: 'appointment', start: day, end: day, href, time: a.time });
+    events.push({ id: `appt-${a.id}`, title: a.title, clientName: client?.name || null, type: 'appointment', start: day, end: day, href, time: a.time, apptId: a.id });
   }
   return events;
 }
@@ -144,8 +145,9 @@ export default function CalendarPage() {
   const { projects, quotes, clients, loading, quoteSections, projectRooms } = useApp();
   const [view, setView]               = useState('grid');
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [appointments,  setAppointments]  = useState([]);
-  const [newApptOpen,   setNewApptOpen]   = useState(false);
+  const [appointments,    setAppointments]    = useState([]);
+  const [newApptOpen,     setNewApptOpen]     = useState(false);
+  const [selectedApptId,  setSelectedApptId]  = useState(null);
 
   const fetchAppointments = useCallback(() => {
     fetch('/api/appointments')
@@ -236,6 +238,12 @@ export default function CalendarPage() {
         isOpen={newApptOpen}
         onClose={() => { setNewApptOpen(false); fetchAppointments(); }}
       />
+      <AppointmentDetailModal
+        apptId={selectedApptId}
+        isOpen={!!selectedApptId}
+        onClose={() => setSelectedApptId(null)}
+        onChanged={fetchAppointments}
+      />
 
       {/* ═══ TIMELINE VIEW ═══════════════════════════════════════════════════ */}
       {view === 'timeline' && (
@@ -253,9 +261,14 @@ export default function CalendarPage() {
               const isProject     = event.type === 'project';
               const isAppointment = event.type === 'appointment';
               const accentColor   = isProject ? 'var(--success)' : isAppointment ? 'var(--accent)' : 'var(--warning)';
-              const Wrapper = event.href ? Link : 'div';
+              const Wrapper = isAppointment ? 'button' : event.href ? Link : 'div';
               return (
-                <Wrapper key={event.id} href={event.href || undefined} style={{ textDecoration: 'none' }}>
+                <Wrapper
+                  key={event.id}
+                  href={!isAppointment ? (event.href || undefined) : undefined}
+                  onClick={isAppointment ? () => setSelectedApptId(event.apptId) : undefined}
+                  style={{ textDecoration: 'none', ...(isAppointment ? { background: 'none', border: 'none', padding: 0, width: '100%', cursor: 'pointer', textAlign: 'left' } : {}) }}
+                >
                   <div className={`card${event.href ? ' card-interactive' : ''}`} style={{ padding: '1rem', borderLeft: `4px solid ${accentColor}`, display: 'flex', alignItems: 'flex-start', gap: '0.85rem' }}>
                     <div style={{ padding: '0.5rem', borderRadius: 'var(--radius-md)', background: isProject ? 'var(--success-bg)' : isAppointment ? '#eff6ff' : 'var(--warning-bg)', flexShrink: 0 }}>
                       {isProject ? <FolderKanban size={18} color="var(--success)" /> : isAppointment ? <Clock size={18} color="var(--accent)" /> : <FileText size={18} color="var(--warning)" />}
@@ -365,6 +378,7 @@ export default function CalendarPage() {
                             lane.map(({ ev, colStart, colEnd, startsHere, endsHere }) => {
                               const isProject     = ev.type === 'project';
                               const isAppointment = ev.type === 'appointment';
+                              const GridEl = isAppointment ? 'button' : Link;
                               const baseColor = isProject ? 'var(--success)' : isAppointment ? 'var(--accent)' : 'var(--warning)';
                               const bgColor   = isProject ? 'var(--success-bg)' : isAppointment ? '#eff6ff' : 'var(--warning-bg)';
                               const textColor = isProject ? 'var(--success-text)' : isAppointment ? '#1d4ed8' : 'var(--warning-text)';
@@ -373,9 +387,10 @@ export default function CalendarPage() {
                               const widthPct = (span / 7) * 100;
 
                               return (
-                                <Link
+                                <GridEl
                                   key={`${ev.id}-${laneIdx}`}
-                                  href={ev.href}
+                                  href={!isAppointment ? ev.href : undefined}
+                                  onClick={isAppointment ? () => setSelectedApptId(ev.apptId) : undefined}
                                   title={[ev.title, ev.clientName, `${ev.start ? formatDate(ev.start) : '?'} – ${ev.end ? formatDate(ev.end) : '?'}`].filter(Boolean).join(' · ')}
                                   style={{
                                     position: 'absolute',
@@ -414,7 +429,7 @@ export default function CalendarPage() {
                                       </span>
                                     </span>
                                   )}
-                                </Link>
+                                </GridEl>
                               );
                             })
                           )}

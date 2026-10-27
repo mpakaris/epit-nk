@@ -6,6 +6,7 @@ import { useApp } from '@/context/AppContext';
 import { formatDate } from '@/lib/constants';
 import { Calendar, FolderKanban, FileText, ArrowUpRight, Plus, Clock, ChevronLeft, ChevronRight } from 'lucide-react';
 import NewAppointmentModal from '@/components/NewAppointmentModal';
+import AppointmentDetailModal from '@/components/AppointmentDetailModal';
 import useMobile from '@/hooks/useMobile';
 
 const DAYS_HU       = ['H', 'K', 'Sze', 'Cs', 'P', 'Szo', 'V'];
@@ -47,9 +48,10 @@ export default function CalendarWidget({ projects: propProjects, quotes: propQuo
   const clients = propClients ?? ctx.clients;
   const projectRooms = ctx.projectRooms;
 
-  const [appointments, setAppointments] = useState([]);
-  const [newApptOpen,  setNewApptOpen]  = useState(false);
-  const [weekOffset,   setWeekOffset]   = useState(0);
+  const [appointments,    setAppointments]    = useState([]);
+  const [newApptOpen,     setNewApptOpen]     = useState(false);
+  const [selectedApptId,  setSelectedApptId]  = useState(null);
+  const [weekOffset,      setWeekOffset]      = useState(0);
   const isMobile = useMobile();
 
   function fetchAppointments() {
@@ -89,7 +91,7 @@ export default function CalendarWidget({ projects: propProjects, quotes: propQuo
                  : a.linked_quote_id   ? `/ajanlatok/${a.linked_quote_id}`
                  : a.linked_project_id ? `/projektek/${a.linked_project_id}`
                  : null;
-      list.push({ id: `appt-${a.id}`, title: a.title, clientName: client?.name || null, type: 'appointment', start: day, end: day, href, time: a.time });
+      list.push({ id: `appt-${a.id}`, title: a.title, clientName: client?.name || null, type: 'appointment', start: day, end: day, href, time: a.time, apptId: a.id });
     }
     return list;
   }, [projects, quotes, clients, projectRooms, appointments]);
@@ -251,10 +253,16 @@ export default function CalendarWidget({ projects: propProjects, quotes: propQuo
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             {weekEvents.map(ev => {
-              const color = eventColor(ev.type);
-              const Row   = ev.href ? Link : 'div';
+              const color   = eventColor(ev.type);
+              const isAppt  = ev.type === 'appointment';
+              const Wrapper = isAppt ? 'button' : ev.href ? Link : 'div';
               return (
-                <Row key={ev.id} href={ev.href || undefined} style={{ textDecoration: 'none' }}>
+                <Wrapper
+                  key={ev.id}
+                  href={!isAppt ? (ev.href || undefined) : undefined}
+                  onClick={isAppt ? () => setSelectedApptId(ev.apptId) : undefined}
+                  style={{ textDecoration: 'none', background: 'none', border: 'none', padding: 0, width: '100%', cursor: isAppt ? 'pointer' : undefined, textAlign: 'left' }}
+                >
                   <div style={{
                     display: 'flex', alignItems: 'center', gap: 10,
                     padding: '8px 10px', borderRadius: 'var(--radius-md)',
@@ -273,7 +281,7 @@ export default function CalendarWidget({ projects: propProjects, quotes: propQuo
                       {formatDate(ev.start || ev.end)}
                     </div>
                   </div>
-                </Row>
+                </Wrapper>
               );
             })}
           </div>
@@ -282,6 +290,12 @@ export default function CalendarWidget({ projects: propProjects, quotes: propQuo
         <NewAppointmentModal
           isOpen={newApptOpen}
           onClose={() => { setNewApptOpen(false); fetchAppointments(); }}
+        />
+        <AppointmentDetailModal
+          apptId={selectedApptId}
+          isOpen={!!selectedApptId}
+          onClose={() => setSelectedApptId(null)}
+          onChanged={fetchAppointments}
         />
       </div>
     );
@@ -373,10 +387,12 @@ export default function CalendarWidget({ projects: propProjects, quotes: propQuo
                     const textColor = isProject ? 'var(--success-text)' : isAppointment ? '#1d4ed8' : 'var(--warning-text)';
                     const span      = colEnd - colStart + 1;
 
+                    const EventEl = isAppointment ? 'button' : Link;
                     return (
-                      <Link
+                      <EventEl
                         key={`${ev.id}-${laneIdx}`}
-                        href={ev.href}
+                        href={!isAppointment ? ev.href : undefined}
+                        onClick={isAppointment ? () => setSelectedApptId(ev.apptId) : undefined}
                         title={[ev.title, ev.clientName, `${ev.start ? formatDate(ev.start) : '?'} – ${ev.end ? formatDate(ev.end) : '?'}`].filter(Boolean).join(' · ')}
                         style={{
                           position: 'absolute',
@@ -415,7 +431,7 @@ export default function CalendarWidget({ projects: propProjects, quotes: propQuo
                             </span>
                           </span>
                         )}
-                      </Link>
+                      </EventEl>
                     );
                   })
                 )}
@@ -441,6 +457,12 @@ export default function CalendarWidget({ projects: propProjects, quotes: propQuo
       <NewAppointmentModal
         isOpen={newApptOpen}
         onClose={() => { setNewApptOpen(false); fetchAppointments(); }}
+      />
+      <AppointmentDetailModal
+        apptId={selectedApptId}
+        isOpen={!!selectedApptId}
+        onClose={() => setSelectedApptId(null)}
+        onChanged={fetchAppointments}
       />
     </div>
   );
