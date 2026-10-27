@@ -296,6 +296,8 @@ export default function SurveyListPage() {
       <AlertModal
         isOpen={!!alertModal}
         onClose={() => setAlertModal(null)}
+        variant={alertModal?.variant}
+        title={alertModal?.title}
         message={alertModal?.message}
       />
       <TransferToCollectiveModal

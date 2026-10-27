@@ -279,6 +279,8 @@ export default function QuotesListPage() {
       <AlertModal
         isOpen={!!alertModal}
         onClose={() => setAlertModal(null)}
+        variant={alertModal?.variant}
+        title={alertModal?.title}
         message={alertModal?.message}
       />
       <TransferToCollectiveModal
