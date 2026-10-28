@@ -948,6 +948,8 @@ export default function SurveyDetailPage() {
     isDemoMode,
   } = useApp();
 
+  const isMobile = useMobile();
+
   // Background upload queue — photos appear as local previews instantly
   const uploadFn = useCallback(async (rawFile, { surveyId, entryId, mediaType }) => {
     await uploadSurveyMedia(surveyId, [rawFile], { entryId, mediaType });
