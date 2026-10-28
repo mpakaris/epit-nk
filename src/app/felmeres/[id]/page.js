@@ -1032,10 +1032,11 @@ export default function SurveyDetailPage() {
   const isKollektivOwner = myCollectiveRole === 'owner' || myCollectiveRole === 'admin';
   const isCollMember     = !!myCollectiveRole;
   // Any member can add entries/upload; only creator or collective owner can edit/delete specific entries
-  const canAdd       = isOwner || isSharedMember || isCollMember;
-  const canEditMeta  = isKollektivOwner || isOwner;
-  const canDrawings  = isKollektivOwner || isOwner;
-  const canEditEntry = (entry) => isKollektivOwner || entry.created_by === currentUser?.id;
+  const isDocLocked  = !!survey.locked_reason;
+  const canAdd       = !isDocLocked && (isOwner || isSharedMember || isCollMember);
+  const canEditMeta  = !isDocLocked && (isKollektivOwner || isOwner);
+  const canDrawings  = !isDocLocked && (isKollektivOwner || isOwner);
+  const canEditEntry = (entry) => !isDocLocked && (isKollektivOwner || entry.created_by === currentUser?.id);
 
   const sharedMembers = (survey.shared_with || []).map(uid => users.find(u => u.id === uid)).filter(Boolean);
 
@@ -1125,6 +1126,16 @@ export default function SurveyDetailPage() {
       </div>
 
       <CollectiveBanner documentCollectiveId={survey.collective_id ?? null} />
+      {isDocLocked && !lockedModalOpen && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', padding: '0.75rem 1rem', marginBottom: '1rem', borderRadius: 'var(--radius-md)', background: 'var(--danger-bg)', border: '1px solid var(--danger-border)' }}>
+          <span style={{ fontSize: '0.85rem', color: 'var(--danger-text)', fontWeight: 600, flex: 1 }}>
+            🔒 Ez a dokumentum csak olvasható.
+          </span>
+          <button type="button" onClick={() => setLockedModalOpen(true)} style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--danger-text)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', flexShrink: 0 }}>
+            Lehetőségeim →
+          </button>
+        </div>
+      )}
 
       {/* Header */}
       <div className="page-header" style={{ padding: '0.5rem 0 1rem' }}>

@@ -886,9 +886,10 @@ export default function QuoteDetailPage() {
   const isQuoteOwner     = quote.created_by === currentUser?.id || quote.owner_id === currentUser?.id;
   const isKollektivOwner = collectives?.some(c => c.collective_id === quote.collective_id && (c.role === 'owner' || c.role === 'admin'));
   const isCollMember     = !!(activeCollectiveId && quote.collective_id === activeCollectiveId);
-  const canModify        = isQuoteOwner || isKollektivOwner || (quote.shared_with || []).includes(currentUser?.id) || isCollMember;
+  const isDocLocked   = !!quote.locked_reason;
+  const canModify     = !isDocLocked && (isQuoteOwner || isKollektivOwner || (quote.shared_with || []).includes(currentUser?.id) || isCollMember);
   const isLocked      = quote.status === 'accepted' || quote.status === 'rejected';
-  const canEdit       = canModify && !isLocked && !quote.locked_reason;
+  const canEdit       = canModify && !isLocked;
   const isPendingOutgoingTransfer = outgoingTransfers.some(t => t.document_id === id && t.status === 'pending');
   const transferAttemptCount = outgoingTransfers.filter(t => t.document_id === id && (t.status === 'rejected' || t.status === 'transfer_expired')).length;
   const sc            = STATUS_COLORS[quote.status] || STATUS_COLORS.draft;
@@ -1211,6 +1212,16 @@ export default function QuoteDetailPage() {
       </div>
 
       <CollectiveBanner documentCollectiveId={quote.collective_id ?? null} />
+      {isDocLocked && !lockedModalOpen && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', padding: '0.75rem 1rem', marginBottom: '1rem', borderRadius: 'var(--radius-md)', background: 'var(--danger-bg)', border: '1px solid var(--danger-border)' }}>
+          <span style={{ fontSize: '0.85rem', color: 'var(--danger-text)', fontWeight: 600, flex: 1 }}>
+            🔒 Ez az ajánlat csak olvasható.
+          </span>
+          <button type="button" onClick={() => setLockedModalOpen(true)} style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--danger-text)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', flexShrink: 0 }}>
+            Lehetőségeim →
+          </button>
+        </div>
+      )}
 
       {/* Header */}
       <div className="page-header" style={{ padding: '0.5rem 0 1rem' }}>

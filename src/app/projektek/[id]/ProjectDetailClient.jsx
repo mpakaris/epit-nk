@@ -1673,8 +1673,9 @@ export default function ProjectDetailClient({
     return true;
   });
 
+  const isDocLocked      = !!project.locked_reason;
   const isKollektivOwner = collectives?.some(c => c.collective_id === project.collective_id && (c.role === 'owner' || c.role === 'admin'));
-  const canManageProject = isKollektivOwner || project.created_by === currentUser?.id || project.owner_id === currentUser?.id;
+  const canManageProject = !isDocLocked && (isKollektivOwner || project.created_by === currentUser?.id || project.owner_id === currentUser?.id);
 
   const [showOptionsMenu, setShowOptionsMenu] = useState(false);
   const optionsRef = React.useRef(null);
@@ -1852,6 +1853,16 @@ export default function ProjectDetailClient({
       </div>
 
       <CollectiveBanner documentCollectiveId={project.collective_id ?? null} />
+      {isDocLocked && !lockedModalOpen && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', padding: '0.75rem 1rem', marginBottom: '1rem', borderRadius: 'var(--radius-md)', background: 'var(--danger-bg)', border: '1px solid var(--danger-border)' }}>
+          <span style={{ fontSize: '0.85rem', color: 'var(--danger-text)', fontWeight: 600, flex: 1 }}>
+            🔒 Ez a projekt csak olvasható.
+          </span>
+          <button type="button" onClick={() => setLockedModalOpen(true)} style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--danger-text)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', flexShrink: 0 }}>
+            Lehetőségeim →
+          </button>
+        </div>
+      )}
 
       <div className="page-header" style={{ padding: '0.5rem 0 1rem' }}>
         <div className="page-header-row">
