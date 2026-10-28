@@ -1036,11 +1036,29 @@ export default function KollektivakPage() {
                           <ArrowUpRight size={12} color="var(--accent)" />
                         </div>
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontWeight: 600, fontSize: '0.825rem', lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            „{req.document_title || 'Névtelen'}"
+                          <div style={{ fontWeight: 700, fontSize: '0.85rem', lineHeight: 1.35, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: '0.35rem' }}>
+                            {req.document_title || 'Névtelen'}
                           </div>
-                          <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
-                            {DOC_LABEL[req.document_type] || 'Dokumentum'} · {req.requester?.display_name || req.requester?.email || 'Ismeretlen'} · {formatDate(req.created_at)}
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.3rem' }}>
+                            {(() => {
+                              const TYPE_PILL = {
+                                project: { label: 'Projekt',  bg: '#ecfdf5', color: '#059669', border: '#a7f3d0' },
+                                quote:   { label: 'Ajánlat',  bg: '#f5f3ff', color: '#7c3aed', border: '#ddd6fe' },
+                                survey:  { label: 'Felmérés', bg: '#eff6ff', color: '#2563eb', border: '#bfdbfe' },
+                              };
+                              const pill = TYPE_PILL[req.document_type];
+                              return pill ? (
+                                <span style={{ fontSize: '0.65rem', fontWeight: 700, padding: '2px 7px', borderRadius: 999, background: pill.bg, color: pill.color, border: `1px solid ${pill.border}` }}>
+                                  {pill.label}
+                                </span>
+                              ) : null;
+                            })()}
+                            <span style={{ fontSize: '0.65rem', fontWeight: 600, padding: '2px 7px', borderRadius: 999, background: 'var(--bg-subtle)', color: 'var(--text-secondary)', border: '1px solid var(--border-subtle)' }}>
+                              {req.requester?.display_name || req.requester?.email || 'Ismeretlen'}
+                            </span>
+                            <span style={{ fontSize: '0.65rem', fontWeight: 600, padding: '2px 7px', borderRadius: 999, background: 'var(--bg-subtle)', color: 'var(--text-muted)', border: '1px solid var(--border-subtle)' }}>
+                              {formatDate(req.created_at)}
+                            </span>
                           </div>
                         </div>
                       </div>
