@@ -159,16 +159,17 @@ function WorkspaceOption({ type, label, description, isSelected, onSelect }) {
             ? <User size={26} color={iconColor} strokeWidth={1.75} aria-hidden="true" />
             : <Users size={26} color={iconColor} strokeWidth={1.75} aria-hidden="true" />}
         </div>
-        {isMember && (
+        {(isMember || (!isPersonal && !isMember)) && (
           <span style={{
             position: 'absolute', bottom: 0, right: -2,
             fontSize: 10, fontWeight: 800, lineHeight: 1,
-            color: '#fff', background: '#ea580c',
+            color: '#fff',
+            background: isMember ? '#ea580c' : '#16a34a',
             padding: '3px 6px', borderRadius: 999,
             border: '2px solid #fff',
             whiteSpace: 'nowrap',
           }}>
-            Tag
+            {isMember ? 'Tag' : 'Tulajdonos'}
           </span>
         )}
       </div>
