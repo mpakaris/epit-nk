@@ -64,6 +64,7 @@ export default function ItemCard({
   onTransfer,
   isPendingTransfer = false,
   onRetractTransfer,
+  lockedReason,
 }) {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [lockOpen,  setLockOpen]  = useState(false);
@@ -149,6 +150,19 @@ export default function ItemCard({
                 backdropFilter: 'blur(4px)',
               }}>
                 {TYPE_META[type].label}
+              </span>
+            </div>
+          )}
+
+          {/* Locked / rejected badge */}
+          {lockedReason && (
+            <div style={{ position: 'absolute', bottom: 6, left: 8 }}>
+              <span style={{
+                background: 'var(--danger-text)', color: '#fff',
+                fontSize: 10, fontWeight: 800, padding: '2px 7px',
+                borderRadius: 999, letterSpacing: '0.03em', whiteSpace: 'nowrap',
+              }}>
+                {lockedReason === 'transfer_expired' ? 'LEJÁRT' : 'VISSZAUTASÍTVA'}
               </span>
             </div>
           )}

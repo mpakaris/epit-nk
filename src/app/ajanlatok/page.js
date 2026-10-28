@@ -139,6 +139,7 @@ export default function QuotesListPage() {
         onTransfer={canTransfer && !pendingReq ? () => setTransferModal({ documentId: quote.id, documentTitle: quote.title }) : undefined}
         isPendingTransfer={!!pendingReq}
         onRetractTransfer={pendingReq ? () => handleRetract(pendingReq.id) : undefined}
+        lockedReason={quote.locked_reason || undefined}
       />
     );
   };

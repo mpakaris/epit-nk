@@ -256,6 +256,7 @@ export default function ProjectsListClient({
         onTransfer={canTransfer && !pendingReq ? () => setTransferModal({ documentId: project.id, documentTitle: project.name }) : undefined}
         isPendingTransfer={!!pendingReq}
         onRetractTransfer={pendingReq ? () => handleRetract(pendingReq.id) : undefined}
+        lockedReason={project.locked_reason || undefined}
       />
     );
   };

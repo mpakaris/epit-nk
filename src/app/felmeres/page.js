@@ -147,6 +147,7 @@ export default function SurveyListPage() {
         onTransfer={canTransfer && !pendingReq ? () => setTransferModal({ documentId: survey.id, documentTitle: survey.title }) : undefined}
         isPendingTransfer={!!pendingReq}
         onRetractTransfer={pendingReq ? () => handleRetract(pendingReq.id) : undefined}
+        lockedReason={survey.locked_reason || undefined}
       />
     );
   };
