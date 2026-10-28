@@ -23,7 +23,7 @@ export function logAiCall({
 }) {
   const admin = createAdminClient();
   admin.from('wa_ai_calls').insert({
-    phone_number:   phoneNumber,
+    phone_number:   phoneNumber || 'web',
     wa_message_id:  waMessageId  || null,
     provider,
     call_type:      callType,

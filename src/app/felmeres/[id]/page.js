@@ -710,9 +710,11 @@ function inferType(item) {
   return item.entry_type || 'material';
 }
 
-function TételekSection({ surveyId, entry, canAdd, triggerAudio = 0, triggerGenerate = 0, triggerAddItem = 0 }) {
-  const { surveyItemsBySurvey, createSurveyItem, updateSurveyItem, deleteSurveyItem, generateSurveyEntryItems, updateSurveyEntry } = useApp();
+function TételekSection({ surveyId, entry, canAdd, canEditAll = true, triggerAudio = 0, triggerGenerate = 0, triggerAddItem = 0 }) {
+  const { surveyItemsBySurvey, createSurveyItem, updateSurveyItem, deleteSurveyItem, generateSurveyEntryItems, updateSurveyEntry, currentUser } = useApp();
   const isMobile = useMobile();
+
+  const canEditItem = (item) => canEditAll || item.created_by === currentUser?.id;
 
   const allItems  = surveyItemsBySurvey[surveyId] || [];
   const items     = allItems.filter(i => i.entry_id === entry.id).sort((a, b) => {
@@ -821,12 +823,14 @@ function TételekSection({ surveyId, entry, canAdd, triggerAudio = 0, triggerGen
     if (triggerAddItem !== prevAddItemTrigger.current) { prevAddItemTrigger.current = triggerAddItem; if (triggerAddItem > 0) { setDrawer({ mode: 'add' }); setOpen(true); } }
   }, [triggerAddItem]);
 
+  const editableItems = items.filter(i => canEditItem(i));
+
   const toggleSelect = (id) => setSelectedIds(prev => {
     const next = new Set(prev);
     next.has(id) ? next.delete(id) : next.add(id);
     return next;
   });
-  const selectAll  = () => setSelectedIds(new Set(items.map(i => i.id)));
+  const selectAll  = () => setSelectedIds(new Set(editableItems.map(i => i.id)));
   const selectNone = () => setSelectedIds(new Set());
 
   const handleBulkDelete = async () => {
@@ -954,9 +958,9 @@ function TételekSection({ surveyId, entry, canAdd, triggerAudio = 0, triggerGen
           {/* Bulk action bar — covers both confirmed and suggestions */}
           {canAdd && items.length > 0 && (
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.5rem', fontSize: '0.78rem' }}>
-              <button type="button" onClick={selectedIds.size === items.length ? selectNone : selectAll}
+              <button type="button" onClick={selectedIds.size === editableItems.length ? selectNone : selectAll}
                 style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: 'var(--accent)', fontWeight: 600, fontSize: '0.78rem' }}>
-                {selectedIds.size === items.length ? 'Egyik sem' : 'Összes'}
+                {selectedIds.size === editableItems.length ? 'Egyik sem' : 'Összes'}
               </button>
               {selectedIds.size > 0 && suggestions.some(i => selectedIds.has(i.id)) && (
                 <button type="button" onClick={handleBulkConfirm} disabled={bulkConfirming} className="btn btn-secondary btn-sm" style={{ fontSize: '0.78rem' }}>
@@ -995,7 +999,7 @@ function TételekSection({ surveyId, entry, canAdd, triggerAudio = 0, triggerGen
                     </div>
                     {typeItems.map(item => (
                       <div key={item.id} style={{ display: 'grid', gridTemplateColumns: '20px 1fr auto auto auto', gap: '0 0.5rem', alignItems: 'center', padding: '0.3rem 0' }}>
-                        {canAdd
+                        {canAdd && canEditItem(item)
                           ? <input type="checkbox" checked={selectedIds.has(item.id)} onChange={() => toggleSelect(item.id)} style={{ width: 16, height: 16, cursor: 'pointer', accentColor: 'var(--accent)', margin: 0 }} />
                           : <span />}
                         <div style={{ minWidth: 0 }}>
@@ -1007,7 +1011,7 @@ function TételekSection({ surveyId, entry, canAdd, triggerAudio = 0, triggerGen
                         </span>
                         <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{item.unit || ''}</span>
                         <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                          {canAdd && (
+                          {canAdd && canEditItem(item) && (
                             <button type="button" onClick={() => setDrawer({ mode: 'edit', item })} className="btn btn-secondary btn-sm" style={{ padding: '0.3rem 0.5rem' }}>
                               <Edit3 size={13} />
                             </button>
@@ -1030,7 +1034,7 @@ function TételekSection({ surveyId, entry, canAdd, triggerAudio = 0, triggerGen
               </div>
               {suggestions.map(item => (
                 <div key={item.id} style={{ display: 'grid', gridTemplateColumns: '20px 1fr auto auto auto', gap: '0 0.5rem', alignItems: 'center', padding: '0.3rem 0', opacity: 0.8 }}>
-                  {canAdd
+                  {canAdd && canEditItem(item)
                     ? <input type="checkbox" checked={selectedIds.has(item.id)} onChange={() => toggleSelect(item.id)} style={{ width: 16, height: 16, cursor: 'pointer', accentColor: 'var(--accent)', margin: 0 }} />
                     : <span />}
                   <div style={{ minWidth: 0 }}>
@@ -1041,7 +1045,7 @@ function TételekSection({ surveyId, entry, canAdd, triggerAudio = 0, triggerGen
                   </span>
                   <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{item.unit || ''}</span>
                   <div style={{ display: 'flex', gap: '0.3rem', justifyContent: 'flex-end' }}>
-                    {canAdd && (
+                    {canAdd && canEditItem(item) && (
                       <button type="button"
                         onClick={() => updateSurveyItem(surveyId, item.id, { is_confirmed: true }).catch(() => {})}
                         className="btn btn-secondary btn-sm" style={{ padding: '0.3rem 0.5rem', fontSize: '0.75rem' }}>
@@ -1072,7 +1076,7 @@ function TételekSection({ surveyId, entry, canAdd, triggerAudio = 0, triggerGen
 }
 
 // ── Survey entry card (collapsible, offers-style dark header) ─────────────────
-function SurveyEntryCard({ entry, surveyId, canEditEntry, canAdd, onEdit, onDelete, handleDeleteMedia, drawings, createSurveyDrawing, deleteSurveyDrawing, canDrawings, currentUser, pendingUploads = [], enqueue }) {
+function SurveyEntryCard({ entry, surveyId, canEditEntry, canAdd, canEditAll = true, onEdit, onDelete, handleDeleteMedia, drawings, createSurveyDrawing, deleteSurveyDrawing, canDrawings, currentUser, pendingUploads = [], enqueue }) {
   const [collapsed, setCollapsed] = useState(true);
   const isMobile = useMobile();
   const [ctxOpen, setCtxOpen] = useState(false);
@@ -1178,6 +1182,7 @@ function SurveyEntryCard({ entry, surveyId, canEditEntry, canAdd, onEdit, onDele
             surveyId={surveyId}
             entry={entry}
             canAdd={canAdd}
+            canEditAll={canEditAll}
             triggerAudio={triggerAudio}
             triggerGenerate={triggerGenerate}
             triggerAddItem={triggerAddItem}
@@ -2011,6 +2016,7 @@ export default function SurveyDetailPage() {
                     surveyId={id}
                     canEditEntry={canEditEntry(entry)}
                     canAdd={canAdd}
+                    canEditAll={isKollektivOwner || isOwner}
                     onEdit={() => { setEditingEntry(entry); setShowAddEntry(false); }}
                     onDelete={() => handleDeleteEntry(entry)}
                     handleDeleteMedia={handleDeleteMedia}
