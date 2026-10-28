@@ -15,11 +15,12 @@ import {
   CheckCircle2, XCircle, Send, FolderKanban, AlertCircle,
   Edit3, Loader2, Package, Hammer, Truck, MoreHorizontal, Ruler, Home,
   X, Copy, ExternalLink, Check, Camera, ChevronDown, ChevronUp,
-  MessageSquare, CheckCheck, RotateCcw,
+  MessageSquare, CheckCheck, RotateCcw, Mic,
 } from 'lucide-react';
 import PageSpinner from '@/components/PageSpinner';
 import useMobile from '@/hooks/useMobile';
 import { processMediaFile } from '@/lib/mediaGate';
+import AudioRecorder from '@/components/AudioRecorder';
 
 const ENTRY_TYPE_ORDER = { material: 0, labour: 1, transport: 2, equipment: 3, other: 4 };
 const sortEntries = (arr) => [...arr].sort((a, b) => (ENTRY_TYPE_ORDER[a.entry_type] ?? 4) - (ENTRY_TYPE_ORDER[b.entry_type] ?? 4));
@@ -196,12 +197,75 @@ function SectionAddForm({ surveyId, onSave, onCancel }) {
 }
 
 // ── Section card — felmeres-style read/edit toggle ────────────────────────────
-function SectionCard({ section, surveyEntry, surveyId, quoteId, canEdit, isQuoteOwner, currentUserId, onDelete, onAddEntry, onEditEntry, onDeleteEntry, sectionEntries, quote }) {
-  const { updateQuoteSection, activeCollectiveId } = useApp();
+function SectionCard({ section, surveyEntry, surveyId, quoteId, canEdit, isQuoteOwner, currentUserId, onDelete, onAddEntry, onEditEntry, onDeleteEntry, sectionEntries, quote, onEntriesGenerated }) {
+  const { updateQuoteSection, activeCollectiveId, createQuoteEntry } = useApp();
   const [collapsed, setCollapsed] = useState(false);
   const canEditSection   = canEdit && (isQuoteOwner || section.created_by === currentUserId);
   const canEditEntry     = (entry) => canEdit && (isQuoteOwner || entry.user_id === currentUserId);
   const [isEditing, setIsEditing] = useState(false);
+  const [audioGenerating, setAudioGenerating] = useState(false);
+  const [audioError, setAudioError]           = useState('');
+  const [pendingEntries, setPendingEntries]   = useState([]); // AI suggestions before commit
+
+  const handleAudioTranscript = async (transcript) => {
+    setAudioError('');
+    setAudioGenerating(true);
+    try {
+      const res = await fetch(`/api/quotes/${quoteId}/sections/${section.id}/generate-entries`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ transcript }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'AI generálás sikertelen');
+      setPendingEntries(data.entries.map((e, i) => ({ ...e, _key: `${Date.now()}-${i}`, _accepted: false })));
+      setCollapsed(false);
+    } catch (e) {
+      setAudioError(e.message || 'Hiba a generáláskor');
+    } finally {
+      setAudioGenerating(false);
+    }
+  };
+
+  const acceptPending = async (entry) => {
+    const amount = entry.unit_price != null && entry.quantity != null
+      ? Math.round(entry.quantity * entry.unit_price)
+      : (entry.flat_amount ?? 0);
+    await createQuoteEntry({
+      quoteId,
+      workDescription: entry.work_description,
+      amountHuf: amount,
+      entryType: entry.entry_type,
+      quantity:  entry.quantity,
+      unit:      entry.unit,
+      unitPrice: entry.unit_price,
+      notes:     entry.notes || '',
+      sectionId: section.id,
+    });
+    setPendingEntries(prev => prev.filter(e => e._key !== entry._key));
+    onEntriesGenerated?.();
+  };
+
+  const acceptAllPending = async () => {
+    for (const entry of pendingEntries) {
+      const amount = entry.unit_price != null && entry.quantity != null
+        ? Math.round(entry.quantity * entry.unit_price)
+        : (entry.flat_amount ?? 0);
+      await createQuoteEntry({
+        quoteId,
+        workDescription: entry.work_description,
+        amountHuf: amount,
+        entryType: entry.entry_type,
+        quantity:  entry.quantity,
+        unit:      entry.unit,
+        unitPrice: entry.unit_price,
+        notes:     entry.notes || '',
+        sectionId: section.id,
+      });
+    }
+    setPendingEntries([]);
+    onEntriesGenerated?.();
+  };
 
   // Edit form state
   const [name, setName]               = useState('');
@@ -215,7 +279,10 @@ function SectionCard({ section, surveyEntry, surveyId, quoteId, canEdit, isQuote
   const [description, setDescription] = useState('');
   const [startDate, setStartDate]     = useState('');
   const [endDate, setEndDate]         = useState('');
-  const [saving, setSaving]           = useState(false);
+  const [saving,     setSaving]     = useState(false);
+  const [saveStatus, setSaveStatus] = useState('idle');
+
+  const valuesRef = useRef({});
 
   // Populate form when entering edit mode — use section's own stored measurements
   useEffect(() => {
@@ -245,21 +312,25 @@ function SectionCard({ section, surveyEntry, surveyId, quoteId, canEdit, isQuote
     setWallM2(net != null ? net.toFixed(2) : '');
   }, [widthM, lengthM, heightM, windowCount, doorCount, wallAuto]);
 
-  const handleSave = async () => {
-    if (!name.trim()) return;
+  // Keep latest form values accessible from blur handler without stale closure
+  valuesRef.current = { name, description, widthM, lengthM, heightM, windowCount, doorCount, startDate, endDate };
+
+  const saveOnly = async () => {
+    const v = valuesRef.current;
+    if (!v.name.trim()) return;
     setSaving(true);
     try {
-      const hNum = heightM     ? Number(heightM)         : null;
-      const wNum = windowCount ? parseInt(windowCount,10) : 0;
-      const dNum = doorCount   ? parseInt(doorCount,  10) : 0;
       await updateQuoteSection(quoteId, section.id, {
-        name: name.trim(), description: description.trim()||null,
-        width_m: parseFloat(widthM)||null, length_m: parseFloat(lengthM)||null,
-        height_m: hNum, window_count: wNum, door_count: dNum,
-        start_date: startDate||null, end_date: endDate||null,
+        name: v.name.trim(), description: v.description.trim()||null,
+        width_m: parseFloat(v.widthM)||null, length_m: parseFloat(v.lengthM)||null,
+        height_m: v.heightM ? Number(v.heightM) : null,
+        window_count: v.windowCount ? parseInt(v.windowCount,10) : 0,
+        door_count:   v.doorCount   ? parseInt(v.doorCount,  10) : 0,
+        start_date: v.startDate||null, end_date: v.endDate||null,
         survey_entry_id: section.survey_entry_id||null,
       });
-      setIsEditing(false);
+      setSaveStatus('saved');
+      setTimeout(() => setSaveStatus('idle'), 1800);
     } catch { } finally { setSaving(false); }
   };
 
@@ -269,29 +340,30 @@ function SectionCard({ section, surveyEntry, surveyId, quoteId, canEdit, isQuote
       <div style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--accent)', letterSpacing: '0.05em', marginBottom: '0.75rem' }}>Szerkesztés: {section.name}</div>
       <div className="form-group">
         <label className="form-label">Helyiség neve *</label>
-        <input type="text" className="form-control" autoFocus value={name} onChange={e => setName(e.target.value)} />
+        <input type="text" className="form-control" autoFocus value={name} onChange={e => setName(e.target.value)} onBlur={saveOnly} />
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '0.5rem', marginBottom: computedArea != null ? '0.25rem' : '0.5rem' }}>
-        <div className="form-group" style={{ margin: 0 }}><label className="form-label">Szél. (m)</label><input type="number" min="0" step="0.1" className="form-control" value={widthM} onChange={e => setWidthM(e.target.value)} placeholder="3.5" /></div>
-        <div className="form-group" style={{ margin: 0 }}><label className="form-label">Hossz. (m)</label><input type="number" min="0" step="0.1" className="form-control" value={lengthM} onChange={e => setLengthM(e.target.value)} placeholder="4.2" /></div>
-        <div className="form-group" style={{ margin: 0 }}><label className="form-label">Magass. (m)</label><input type="number" min="0" step="0.05" className="form-control" value={heightM} onChange={e => setHeightM(e.target.value)} placeholder="2.6" /></div>
+        <div className="form-group" style={{ margin: 0 }}><label className="form-label">Szél. (m)</label><input type="number" min="0" step="0.1" className="form-control" value={widthM} onChange={e => setWidthM(e.target.value)} onBlur={saveOnly} placeholder="3.5" /></div>
+        <div className="form-group" style={{ margin: 0 }}><label className="form-label">Hossz. (m)</label><input type="number" min="0" step="0.1" className="form-control" value={lengthM} onChange={e => setLengthM(e.target.value)} onBlur={saveOnly} placeholder="4.2" /></div>
+        <div className="form-group" style={{ margin: 0 }}><label className="form-label">Magass. (m)</label><input type="number" min="0" step="0.05" className="form-control" value={heightM} onChange={e => setHeightM(e.target.value)} onBlur={saveOnly} placeholder="2.6" /></div>
       </div>
       {computedArea != null && <div style={{ marginBottom: '0.35rem', fontSize: '0.75rem', color: 'var(--accent)', fontWeight: 700 }}>Alapterület: {computedArea.toFixed(2).replace('.', ',')} m²</div>}
       {existingSize != null && computedArea == null && <div style={{ marginBottom: '0.35rem', fontSize: '0.75rem', color: 'var(--text-muted)' }}>Jelenlegi: {Number(existingSize).toFixed(1).replace('.', ',')} m² — add meg a méreteket a frissítéshez</div>}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '0.5rem', marginBottom: '0.5rem' }}>
-        <div className="form-group" style={{ margin: 0 }}><label className="form-label">Ablak (db)</label><input type="number" min="0" step="1" className="form-control" value={windowCount} onChange={e => setWindowCount(e.target.value)} placeholder="0" /></div>
-        <div className="form-group" style={{ margin: 0 }}><label className="form-label">Ajtó (db)</label><input type="number" min="0" step="1" className="form-control" value={doorCount} onChange={e => setDoorCount(e.target.value)} placeholder="0" /></div>
-        <div className="form-group" style={{ margin: 0 }}><label className="form-label">Falfel. (m²)</label><input type="number" min="0" step="0.01" className="form-control" value={wallM2} onChange={e => { setWallAuto(false); setWallM2(e.target.value); }} placeholder="m²" /></div>
+        <div className="form-group" style={{ margin: 0 }}><label className="form-label">Ablak (db)</label><input type="number" min="0" step="1" className="form-control" value={windowCount} onChange={e => setWindowCount(e.target.value)} onBlur={saveOnly} placeholder="0" /></div>
+        <div className="form-group" style={{ margin: 0 }}><label className="form-label">Ajtó (db)</label><input type="number" min="0" step="1" className="form-control" value={doorCount} onChange={e => setDoorCount(e.target.value)} onBlur={saveOnly} placeholder="0" /></div>
+        <div className="form-group" style={{ margin: 0 }}><label className="form-label">Falfel. (m²)</label><input type="number" min="0" step="0.01" className="form-control" value={wallM2} onChange={e => { setWallAuto(false); setWallM2(e.target.value); }} onBlur={saveOnly} placeholder="m²" /></div>
       </div>
       <div className="grid-2col" style={{ marginBottom: '0.5rem' }}>
-        <div className="form-group" style={{ margin: 0 }}><label className="form-label">Kezdés</label><input type="date" className="form-control" value={startDate} onChange={e => setStartDate(e.target.value)} /></div>
-        <div className="form-group" style={{ margin: 0 }}><label className="form-label">Befejezés</label><input type="date" className="form-control" min={startDate||undefined} value={endDate} onChange={e => setEndDate(e.target.value)} /></div>
+        <div className="form-group" style={{ margin: 0 }}><label className="form-label">Kezdés</label><input type="date" className="form-control" value={startDate} onChange={e => setStartDate(e.target.value)} onBlur={saveOnly} /></div>
+        <div className="form-group" style={{ margin: 0 }}><label className="form-label">Befejezés</label><input type="date" className="form-control" min={startDate||undefined} value={endDate} onChange={e => setEndDate(e.target.value)} onBlur={saveOnly} /></div>
       </div>
-      <div className="form-group" style={{ marginBottom: '1rem' }}><label className="form-label">Leírás</label><textarea rows={2} className="form-control" value={description} onChange={e => setDescription(e.target.value)} placeholder="Elvégzendő munkák, állapot…" /></div>
-      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
-        <button type="button" className="btn btn-secondary btn-sm" onClick={() => setIsEditing(false)} disabled={saving}>Mégse</button>
-        <button type="button" className="btn btn-primary btn-sm" onClick={handleSave} disabled={saving}>
-          {saving ? <><Loader2 size={13} className="animate-spin" />Mentés</> : 'Módosítás'}
+      <div className="form-group" style={{ marginBottom: '1rem' }}><label className="form-label">Leírás</label><textarea rows={2} className="form-control" value={description} onChange={e => setDescription(e.target.value)} onBlur={saveOnly} placeholder="Elvégzendő munkák, állapot…" /></div>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '0.5rem' }}>
+        {saving && <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.3rem' }}><Loader2 size={12} className="animate-spin" />Mentés…</span>}
+        {saveStatus === 'saved' && !saving && <span style={{ fontSize: '0.75rem', color: 'var(--success-text)', display: 'flex', alignItems: 'center', gap: '0.3rem' }}><Check size={12} />Mentve</span>}
+        <button type="button" className="btn btn-primary btn-sm" onClick={async () => { await saveOnly(); setIsEditing(false); }} disabled={saving}>
+          Kész
         </button>
       </div>
     </div>
@@ -464,16 +536,80 @@ function SectionCard({ section, surveyEntry, surveyId, quoteId, canEdit, isQuote
 
             return (
               <div style={{ marginTop: '1rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '0.5rem' }}>
                   <span style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.04em' }}>
                     Tételek ({sectionEntries.length})
                   </span>
                   {canEdit && (
-                    <button type="button" onClick={() => onAddEntry(section.id)} className="btn btn-primary btn-sm" style={{ fontSize: '0.75rem' }}>
-                      <Plus size={13} /> Tétel
-                    </button>
+                    <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
+                      <AudioRecorder
+                        size="sm"
+                        disabled={audioGenerating}
+                        onTranscript={handleAudioTranscript}
+                        onError={msg => setAudioError(msg)}
+                      />
+                      <button type="button" onClick={() => onAddEntry(section.id)} className="btn btn-primary btn-sm" style={{ fontSize: '0.75rem' }}>
+                        <Plus size={13} /> Tétel
+                      </button>
+                    </div>
                   )}
                 </div>
+
+                {audioGenerating && (
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.5rem' }}>
+                    <Loader2 size={14} className="animate-spin" /> AI tételek generálása…
+                  </div>
+                )}
+
+                {audioError && (
+                  <div style={{ fontSize: '0.78rem', color: 'var(--danger-text)', background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', borderRadius: 'var(--radius-sm)', padding: '0.4rem 0.65rem', marginBottom: '0.5rem' }}>
+                    {audioError}
+                  </div>
+                )}
+
+                {pendingEntries.length > 0 && (
+                  <div style={{ background: '#f0fdf4', border: '1.5px solid #86efac', borderRadius: 'var(--radius-md)', padding: '0.75rem', marginBottom: '0.75rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                      <span style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', color: '#15803d', letterSpacing: '0.04em' }}>
+                        AI javaslat ({pendingEntries.length} tétel)
+                      </span>
+                      <button type="button" onClick={acceptAllPending} className="btn btn-sm" style={{ fontSize: '0.72rem', background: '#16a34a', color: '#fff', border: 'none', padding: '0.25rem 0.6rem' }}>
+                        <Check size={12} /> Összes elfogad
+                      </button>
+                    </div>
+                    {pendingEntries.map(e => {
+                      const tc = TYPE_COLORS[e.entry_type] || TYPE_COLORS.other;
+                      const Icon = TYPE_ICONS[e.entry_type] || MoreHorizontal;
+                      const amount = e.unit_price != null && e.quantity != null
+                        ? Math.round(e.quantity * e.unit_price)
+                        : (e.flat_amount ?? null);
+                      return (
+                        <div key={e._key} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', padding: '0.35rem 0', borderBottom: '1px solid #bbf7d0' }}>
+                          <div style={{ padding: '0.2rem', borderRadius: 'var(--radius-sm)', background: tc.bg, flexShrink: 0, marginTop: 2 }}>
+                            <Icon size={10} color={tc.color} />
+                          </div>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontWeight: 600, fontSize: '0.85rem', color: 'var(--text-primary)' }}>{e.work_description}</div>
+                            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                              {e.quantity != null ? `${e.quantity} ${e.unit || ''}` : (e.unit || '')}
+                              {e.unit_price != null ? ` · ${e.unit_price.toLocaleString('hu-HU')} Ft/${e.unit}` : ''}
+                              {amount != null ? ` · ${amount.toLocaleString('hu-HU')} Ft` : ''}
+                            </div>
+                            {e.notes && <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>{e.notes}</div>}
+                          </div>
+                          <div style={{ display: 'flex', gap: '0.3rem', flexShrink: 0 }}>
+                            <button type="button" onClick={() => acceptPending(e)} style={{ width: 28, height: 28, borderRadius: 'var(--radius-sm)', background: '#16a34a', border: 'none', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }} aria-label="Elfogad">
+                              <Check size={13} />
+                            </button>
+                            <button type="button" onClick={() => setPendingEntries(prev => prev.filter(x => x._key !== e._key))} style={{ width: 28, height: 28, borderRadius: 'var(--radius-sm)', background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', color: 'var(--danger-text)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }} aria-label="Elutasít">
+                              <X size={13} />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
 
                 {grouped.length === 0 ? (
                   <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>Nincs tétel.</p>
@@ -1150,6 +1286,7 @@ export default function QuoteDetailPage() {
         onDeleteEntry={handleDeleteEntry}
         sectionEntries={sortEntries(sectionEntries)}
         quote={quote}
+        onEntriesGenerated={() => {}}
       />
     );
 

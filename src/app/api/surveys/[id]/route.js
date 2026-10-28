@@ -99,7 +99,8 @@ export async function PATCH(request, { params }) {
   if (!isSuperAdmin && !isOwner && await hasPendingTransfer('survey', id))
     return Response.json({ error: 'Ez a dokumentum átadás alatt áll, ezért nem módosítható.' }, { status: 423 });
 
-  const allowed = ['title', 'notes', 'date', 'location', 'client_id', 'shared_with', 'collective_id', 'status', 'done_at', 'reopened_at'];
+  const allowed = ['title', 'notes', 'date', 'location', 'client_id', 'shared_with', 'collective_id', 'status', 'done_at', 'reopened_at',
+    'plot_size_m2', 'garden_size_m2', 'electrical_phases', 'electrical_ampere', 'electrical_voltage', 'heating_type', 'property_notes'];
   const update = {};
   for (const k of allowed) if (k in fields) update[k] = fields[k];
 

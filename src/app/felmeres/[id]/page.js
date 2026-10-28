@@ -15,13 +15,16 @@ import {
   FileText, FolderKanban, Home, Ruler, LayoutPanelLeft,
   Camera, Plus, AlertCircle, Sparkles, List,
   Package, Hammer, MoreHorizontal, Wrench, Truck,
-  CheckCircle2, RefreshCw, Send,
+  CheckCircle2, RefreshCw, Send, Mic, PenLine,
+  Zap, Flame, Wind, Thermometer, Building2,
 } from 'lucide-react';
 import PageSpinner from '@/components/PageSpinner';
 import { processMediaFile } from '@/lib/mediaGate';
 import { useUploadQueue } from '@/hooks/useUploadQueue';
 import useMobile from '@/hooks/useMobile';
 import UploadProgressBadge from '@/components/mobile/UploadProgressBadge';
+import AudioRecorder from '@/components/AudioRecorder';
+import BottomSheet from '@/components/mobile/BottomSheet';
 
 // ── Lightbox ──────────────────────────────────────────────────────────────────
 function Lightbox({ media, startIndex, onClose }) {
@@ -227,12 +230,41 @@ function EntryForm({ initial, surveyId, onSave, onCancel }) {
     const net = computedPerimeter && h > 0 ? Math.max(0, computedPerimeter * h - ded) : null;
     setWallM2(net != null ? net.toFixed(2) : '');
   }, [widthM, lengthM, heightM, windowCount, doorCount, wallAuto]);
-  const [error, setError]   = useState('');
-  const [saving, setSaving] = useState(false);
+  const [error,      setError]      = useState('');
+  const [saving,     setSaving]     = useState(false);
+  const [saveStatus, setSaveStatus] = useState('idle'); // idle | saved | error
   const fileInputRef   = useRef(null);
   const cameraInputRef = useRef(null);
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [previews, setPreviews]           = useState([]);
+
+  const valuesRef = useRef({});
+  valuesRef.current = { name, description, widthM, lengthM, heightM, windowCount, doorCount };
+
+  const handleBlurSave = async () => {
+    if (!initial) return;
+    const v = valuesRef.current;
+    if (!v.name.trim()) { setError('A hely neve kötelező!'); return; }
+    setError(''); setSaving(true);
+    try {
+      await onSave({
+        name:         v.name.trim(),
+        description:  v.description.trim() || null,
+        width_m:      parseFloat(v.widthM)      || null,
+        length_m:     parseFloat(v.lengthM)     || null,
+        height_m:     parseFloat(v.heightM)     || null,
+        window_count: parseInt(v.windowCount)   || 0,
+        door_count:   parseInt(v.doorCount)     || 0,
+      });
+      setSaveStatus('saved');
+      setTimeout(() => setSaveStatus('idle'), 1800);
+    } catch (err) {
+      setError(err.message || 'Hiba');
+      setSaveStatus('idle');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const addFiles = async (e) => {
     const raw = Array.from(e.target.files || []);
@@ -286,41 +318,42 @@ function EntryForm({ initial, surveyId, onSave, onCancel }) {
       )}
       <div className="form-group">
         <label className="form-label" htmlFor="entry-name">Helyiség neve *</label>
-        <input id="entry-name" type="text" className="form-control" autoFocus required value={name} onChange={e => setName(e.target.value)} placeholder="pl. Fürdőszoba, Konyha, Nappali" />
+        <input id="entry-name" type="text" className="form-control" autoFocus={!initial} value={name} onChange={e => setName(e.target.value)} onBlur={handleBlurSave} placeholder="pl. Fürdőszoba, Konyha, Nappali" />
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.5rem' }}>
         <div className="form-group" style={{ margin: 0 }}>
           <label className="form-label" htmlFor="entry-width">Szél. (m)</label>
-          <input id="entry-width" type="number" min="0" step="0.1" className="form-control" value={widthM} onChange={e => setWidthM(e.target.value)} placeholder="pl. 3.5" />
+          <input id="entry-width" type="number" min="0" step="0.1" className="form-control" value={widthM} onChange={e => setWidthM(e.target.value)} onBlur={handleBlurSave} placeholder="pl. 3.5" />
         </div>
         <div className="form-group" style={{ margin: 0 }}>
           <label className="form-label" htmlFor="entry-length">Hossz. (m)</label>
-          <input id="entry-length" type="number" min="0" step="0.1" className="form-control" value={lengthM} onChange={e => setLengthM(e.target.value)} placeholder="pl. 4.2" />
+          <input id="entry-length" type="number" min="0" step="0.1" className="form-control" value={lengthM} onChange={e => setLengthM(e.target.value)} onBlur={handleBlurSave} placeholder="pl. 4.2" />
         </div>
         <div className="form-group" style={{ margin: 0 }}>
           <label className="form-label" htmlFor="entry-height">Magass. (m)</label>
-          <input id="entry-height" type="number" min="0" step="0.05" className="form-control" value={heightM} onChange={e => setHeightM(e.target.value)} placeholder="pl. 2.6" />
+          <input id="entry-height" type="number" min="0" step="0.05" className="form-control" value={heightM} onChange={e => setHeightM(e.target.value)} onBlur={handleBlurSave} placeholder="pl. 2.6" />
         </div>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.5rem', marginTop: '0.5rem' }}>
         <div className="form-group" style={{ margin: 0 }}>
           <label className="form-label" htmlFor="entry-windows">Ablak (db)</label>
-          <input id="entry-windows" type="number" min="0" step="1" className="form-control" value={windowCount} onChange={e => setWindowCount(e.target.value)} placeholder="0" />
+          <input id="entry-windows" type="number" min="0" step="1" className="form-control" value={windowCount} onChange={e => setWindowCount(e.target.value)} onBlur={handleBlurSave} placeholder="0" />
         </div>
         <div className="form-group" style={{ margin: 0 }}>
           <label className="form-label" htmlFor="entry-doors">Ajtó (db)</label>
-          <input id="entry-doors" type="number" min="0" step="1" className="form-control" value={doorCount} onChange={e => setDoorCount(e.target.value)} placeholder="0" />
+          <input id="entry-doors" type="number" min="0" step="1" className="form-control" value={doorCount} onChange={e => setDoorCount(e.target.value)} onBlur={handleBlurSave} placeholder="0" />
         </div>
         <div className="form-group" style={{ margin: 0 }}>
           <label className="form-label" htmlFor="entry-wall">Falfel. (m²)</label>
           <input id="entry-wall" type="number" min="0" step="0.01" className="form-control" value={wallM2}
             onChange={e => { setWallAuto(false); setWallM2(e.target.value); }}
+            onBlur={handleBlurSave}
             placeholder="m²" />
         </div>
       </div>
       <div className="form-group" style={{ marginTop: '0.75rem' }}>
         <label className="form-label" htmlFor="entry-desc">Megjegyzés</label>
-        <textarea id="entry-desc" rows={2} className="form-control" value={description} onChange={e => setDescription(e.target.value)} placeholder="Állapot, munkák, megjegyzések…" />
+        <textarea id="entry-desc" rows={2} className="form-control" value={description} onChange={e => setDescription(e.target.value)} onBlur={handleBlurSave} placeholder="Állapot, munkák, megjegyzések…" />
       </div>
       {!initial && (
         <div style={{ marginTop: '0.75rem' }}>
@@ -348,11 +381,23 @@ function EntryForm({ initial, surveyId, onSave, onCancel }) {
           )}
         </div>
       )}
-      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '1rem' }}>
-        <button type="button" className="btn btn-secondary btn-sm" onClick={onCancel} disabled={saving}>Mégse</button>
-        <button type="submit" className="btn btn-primary btn-sm" disabled={saving}>
-          {saving ? <><Loader2 size={13} className="animate-spin" />{initial ? 'Módosítás' : selectedFiles.length > 0 ? 'Feltöltés' : 'Mentés'}</> : (initial ? 'Módosítás' : 'Helyiség hozzáadása')}
-        </button>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '0.5rem', marginTop: '1rem' }}>
+        {initial ? (
+          <>
+            {saving && <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.3rem' }}><Loader2 size={12} className="animate-spin" />Mentés…</span>}
+            {saveStatus === 'saved' && !saving && <span style={{ fontSize: '0.75rem', color: 'var(--success-text)', display: 'flex', alignItems: 'center', gap: '0.3rem' }}><Check size={12} />Mentve</span>}
+            <button type="button" className="btn btn-primary btn-sm" onClick={async () => { await handleBlurSave(); onCancel(); }} disabled={saving}>
+              Kész
+            </button>
+          </>
+        ) : (
+          <>
+            <button type="button" className="btn btn-secondary btn-sm" onClick={onCancel} disabled={saving}>Mégse</button>
+            <button type="submit" className="btn btn-primary btn-sm" disabled={saving}>
+              {saving ? <><Loader2 size={13} className="animate-spin" />{selectedFiles.length > 0 ? 'Feltöltés' : 'Mentés'}</> : 'Helyiség hozzáadása'}
+            </button>
+          </>
+        )}
       </div>
     </form>
   );
@@ -365,8 +410,9 @@ function MetaDrawer({ survey, clients, isOpen, onClose, onSave }) {
   const [location, setLocation] = useState('');
   const [notes, setNotes]       = useState('');
   const [clientId, setClientId] = useState('');
-  const [saving, setSaving]     = useState(false);
-  const [error, setError]       = useState('');
+  const [saving, setSaving]       = useState(false);
+  const [error, setError]         = useState('');
+  const [formatting, setFormatting] = useState(false);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -379,8 +425,7 @@ function MetaDrawer({ survey, clients, isOpen, onClose, onSave }) {
     setSaving(false);
   }, [isOpen, survey]);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleClose = async () => {
     if (!title.trim()) { setError('A felmérés neve kötelező!'); return; }
     setSaving(true);
     setError('');
@@ -403,50 +448,70 @@ function MetaDrawer({ survey, clients, isOpen, onClose, onSave }) {
 
   return (
     <>
-      <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 200 }} />
+      <div onClick={handleClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 200 }} />
       <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 201, background: 'var(--bg-card)', borderRadius: 'var(--radius-lg) var(--radius-lg) 0 0', boxShadow: '0 -4px 32px rgba(0,0,0,0.18)', maxHeight: '90vh', overflow: 'auto', padding: '1.25rem 1.25rem 2rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
           <span style={{ fontSize: '1rem', fontWeight: 800 }}>Alapadatok szerkesztése</span>
-          <button type="button" onClick={onClose} style={{ background: 'var(--bg-subtle)', border: 'none', borderRadius: '50%', width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--text-secondary)' }}><X size={16} /></button>
+          <button type="button" onClick={handleClose} disabled={saving}
+            style={{ background: 'var(--bg-subtle)', border: 'none', borderRadius: '50%', width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: saving ? 'not-allowed' : 'pointer', color: 'var(--text-secondary)' }}>
+            {saving ? <Loader2 size={15} className="animate-spin" /> : <X size={16} />}
+          </button>
         </div>
         {error && (
           <div style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', color: 'var(--danger-text)', padding: '0.55rem 0.75rem', borderRadius: 'var(--radius-md)', fontSize: '0.8rem', display: 'flex', gap: '0.4rem', marginBottom: '0.75rem' }}>
             <AlertCircle size={14} style={{ flexShrink: 0 }} /><span>{error}</span>
           </div>
         )}
-        <form onSubmit={handleSubmit}>
-          <div className="form-group">
-            <label className="form-label" htmlFor="sv-title">Felmérés neve *</label>
-            <input id="sv-title" type="text" className="form-control" autoFocus required value={title} onChange={e => setTitle(e.target.value)} placeholder="pl. Fürdőszoba felmérés" />
+        <div className="form-group">
+          <label className="form-label" htmlFor="sv-title">Felmérés neve *</label>
+          <input id="sv-title" type="text" className="form-control" autoFocus value={title} onChange={e => setTitle(e.target.value)} placeholder="pl. Fürdőszoba felmérés" />
+        </div>
+        <div className="grid-2col">
+          <div className="form-group" style={{ margin: 0 }}>
+            <label className="form-label" htmlFor="sv-date">Dátum</label>
+            <input id="sv-date" type="date" className="form-control" value={date} onChange={e => setDate(e.target.value)} />
           </div>
-          <div className="grid-2col">
-            <div className="form-group" style={{ margin: 0 }}>
-              <label className="form-label" htmlFor="sv-date">Dátum</label>
-              <input id="sv-date" type="date" className="form-control" value={date} onChange={e => setDate(e.target.value)} />
-            </div>
-            <div className="form-group" style={{ margin: 0 }}>
-              <label className="form-label" htmlFor="sv-location">Helyszín</label>
-              <input id="sv-location" type="text" className="form-control" value={location} onChange={e => setLocation(e.target.value)} placeholder="pl. 8600 Siófok, Fő u. 12." />
-            </div>
+          <div className="form-group" style={{ margin: 0 }}>
+            <label className="form-label" htmlFor="sv-location">Helyszín</label>
+            <input id="sv-location" type="text" className="form-control" value={location} onChange={e => setLocation(e.target.value)} placeholder="pl. 8600 Siófok, Fő u. 12." />
           </div>
-          <div className="form-group" style={{ marginTop: '0.75rem' }}>
-            <label className="form-label" htmlFor="sv-client">Ügyfél</label>
-            <select id="sv-client" className="form-control" value={clientId} onChange={e => setClientId(e.target.value)}>
-              <option value="">– Ügyfél nélkül –</option>
-              {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
+        </div>
+        <div className="form-group" style={{ marginTop: '0.75rem' }}>
+          <label className="form-label" htmlFor="sv-client">Ügyfél</label>
+          <select id="sv-client" className="form-control" value={clientId} onChange={e => setClientId(e.target.value)}>
+            <option value="">– Ügyfél nélkül –</option>
+            {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+        </div>
+        <div className="form-group">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.3rem' }}>
+            <label className="form-label" htmlFor="sv-notes" style={{ margin: 0 }}>Megjegyzések</label>
+            <AudioRecorder
+              size="sm"
+              disabled={formatting}
+              onTranscript={async (text) => {
+                setFormatting(true);
+                try {
+                  const res = await fetch('/api/format-notes', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ transcript: text }),
+                  });
+                  const data = await res.json();
+                  const formatted = res.ok ? (data.formatted || text) : text;
+                  setNotes(n => n.trim() ? n.trim() + '\n\n' + formatted : formatted);
+                } catch {
+                  setNotes(n => n.trim() ? n.trim() + '\n\n' + text : text);
+                } finally {
+                  setFormatting(false);
+                }
+              }}
+              onError={() => {}}
+            />
+            {formatting && <Loader2 size={13} className="animate-spin" style={{ color: 'var(--text-muted)' }} />}
           </div>
-          <div className="form-group" style={{ marginBottom: '1.25rem' }}>
-            <label className="form-label" htmlFor="sv-notes">Megjegyzések</label>
-            <textarea id="sv-notes" rows={3} className="form-control" value={notes} onChange={e => setNotes(e.target.value)} placeholder="Felmérési megjegyzések, részletek…" />
-          </div>
-          <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
-            <button type="button" className="btn btn-secondary" onClick={onClose} disabled={saving}>Mégse</button>
-            <button type="submit" className="btn btn-primary" disabled={saving}>
-              {saving ? <><Loader2 size={15} className="animate-spin" />Mentés…</> : <><Check size={15} />Mentés</>}
-            </button>
-          </div>
-        </form>
+          <textarea id="sv-notes" rows={3} className="form-control" value={notes} onChange={e => setNotes(e.target.value)} placeholder="Felmérési megjegyzések, részletek…" />
+        </div>
       </div>
     </>
   );
@@ -645,8 +710,11 @@ function inferType(item) {
   return item.entry_type || 'material';
 }
 
-function TételekSection({ surveyId, entry, canAdd }) {
-  const { surveyItemsBySurvey, createSurveyItem, updateSurveyItem, deleteSurveyItem, generateSurveyEntryItems } = useApp();
+function TételekSection({ surveyId, entry, canAdd, canEditAll = true, triggerAudio = 0, triggerGenerate = 0, triggerAddItem = 0 }) {
+  const { surveyItemsBySurvey, createSurveyItem, updateSurveyItem, deleteSurveyItem, generateSurveyEntryItems, updateSurveyEntry, currentUser } = useApp();
+  const isMobile = useMobile();
+
+  const canEditItem = (item) => canEditAll || item.created_by === currentUser?.id;
 
   const allItems  = surveyItemsBySurvey[surveyId] || [];
   const items     = allItems.filter(i => i.entry_id === entry.id).sort((a, b) => {
@@ -658,9 +726,69 @@ function TételekSection({ surveyId, entry, canAdd }) {
 
   const [open, setOpen]         = useState(false);
   const [drawer, setDrawer]     = useState(null);   // null | { mode: 'add' } | { mode: 'edit', item }
-  const [generating, setGenerating] = useState(false);
-  const [genError, setGenError]     = useState('');
+  const [generating, setGenerating]   = useState(false);
+  const [genError, setGenError]       = useState('');
   const [selectedIds, setSelectedIds] = useState(new Set());
+  const [bulkDeleting, setBulkDeleting]   = useState(false);
+  const [bulkConfirming, setBulkConfirming] = useState(false);
+  const [audioError, setAudioError]             = useState('');
+  const [pendingTranscript, setPendingTranscript] = useState('');
+  const [pendingFields, setPendingFields]         = useState({});
+  const [aiStatus, setAiStatus]                   = useState('idle'); // idle | filling | generating | done | error
+
+  const doSaveAndGenerate = async (description, extraFields = {}) => {
+    setAiStatus('generating'); setGenError('');
+    setGenerating(true);
+    try {
+      await updateSurveyEntry(surveyId, entry.id, { description, ...extraFields });
+      await generateSurveyEntryItems(surveyId, entry.id);
+      setOpen(true);
+      setAiStatus('done');
+      setTimeout(() => setAiStatus('idle'), 2000);
+    } catch (e) {
+      setGenError(e.message || 'Generálás sikertelen');
+      setAiStatus('idle');
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const handleAudioTranscript = async (text) => {
+    setAudioError('');
+    setPendingTranscript('');
+    setPendingFields({});
+    setAiStatus('filling');
+
+    let description = text;
+    const extraFields = {};
+
+    try {
+      const res = await fetch(`/api/surveys/${surveyId}/entries/${entry.id}/fill-entry`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ transcript: text }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const f = data.fields;
+        if (f.width_m      != null) extraFields.width_m      = f.width_m;
+        if (f.length_m     != null) extraFields.length_m     = f.length_m;
+        if (f.height_m     != null) extraFields.height_m     = f.height_m;
+        if (f.window_count != null) extraFields.window_count = f.window_count;
+        if (f.door_count   != null) extraFields.door_count   = f.door_count;
+        if (f.description)           description = f.description;
+      }
+    } catch { /* fall back to raw transcript */ }
+
+    setAiStatus('idle');
+    const existing = (entry.description || '').trim();
+    if (existing) {
+      setPendingTranscript(description);
+      setPendingFields(extraFields);
+    } else {
+      doSaveAndGenerate(description, extraFields);
+    }
+  };
 
   // Auto-open once when items first load
   const didAutoOpen = useRef(false);
@@ -671,32 +799,55 @@ function TételekSection({ surveyId, entry, canAdd }) {
     }
   }, [items.length]);
 
+  const handleGenerateRef = useRef(null);
   const handleGenerate = async () => {
     setGenerating(true); setGenError('');
     try { await generateSurveyEntryItems(surveyId, entry.id); setOpen(true); }
     catch (e) { setGenError(e.message || 'Generálás sikertelen'); }
     finally { setGenerating(false); }
   };
+  handleGenerateRef.current = handleGenerate;
+
+  // External triggers from context menu
+  const prevAudioTrigger    = useRef(triggerAudio);
+  const prevGenerateTrigger = useRef(triggerGenerate);
+  const prevAddItemTrigger  = useRef(triggerAddItem);
+
+  useEffect(() => {
+    if (triggerAudio !== prevAudioTrigger.current) { prevAudioTrigger.current = triggerAudio; if (triggerAudio > 0) setAudioError(''); }
+  }, [triggerAudio]);
+  useEffect(() => {
+    if (triggerGenerate !== prevGenerateTrigger.current) { prevGenerateTrigger.current = triggerGenerate; if (triggerGenerate > 0) handleGenerateRef.current?.(); }
+  }, [triggerGenerate]);
+  useEffect(() => {
+    if (triggerAddItem !== prevAddItemTrigger.current) { prevAddItemTrigger.current = triggerAddItem; if (triggerAddItem > 0) { setDrawer({ mode: 'add' }); setOpen(true); } }
+  }, [triggerAddItem]);
+
+  const editableItems = items.filter(i => canEditItem(i));
 
   const toggleSelect = (id) => setSelectedIds(prev => {
     const next = new Set(prev);
     next.has(id) ? next.delete(id) : next.add(id);
     return next;
   });
-  const selectAll  = () => setSelectedIds(new Set(items.map(i => i.id)));
+  const selectAll  = () => setSelectedIds(new Set(editableItems.map(i => i.id)));
   const selectNone = () => setSelectedIds(new Set());
 
   const handleBulkDelete = async () => {
-    if (!selectedIds.size) return;
+    if (!selectedIds.size || bulkDeleting) return;
+    setBulkDeleting(true);
     await Promise.allSettled([...selectedIds].map(id => deleteSurveyItem(surveyId, id)));
     setSelectedIds(new Set());
+    setBulkDeleting(false);
   };
 
   const handleBulkConfirm = async () => {
     const unconfirmedSelected = suggestions.filter(i => selectedIds.has(i.id));
-    if (!unconfirmedSelected.length) return;
+    if (!unconfirmedSelected.length || bulkConfirming) return;
+    setBulkConfirming(true);
     await Promise.allSettled(unconfirmedSelected.map(i => updateSurveyItem(surveyId, i.id, { is_confirmed: true })));
     setSelectedIds(prev => { const next = new Set(prev); unconfirmedSelected.forEach(i => next.delete(i.id)); return next; });
+    setBulkConfirming(false);
   };
 
   const closeDrawer = () => setDrawer(null);
@@ -718,19 +869,83 @@ function TételekSection({ surveyId, entry, canAdd }) {
           <ChevronDown size={13} color="var(--text-muted)" style={{ transition: 'transform 0.18s', transform: open ? 'rotate(0deg)' : 'rotate(-90deg)' }} />
         </button>
         {canAdd && (
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
-            <button type="button" onClick={handleGenerate} disabled={generating}
-              className="btn btn-secondary btn-sm" style={{ fontSize: '0.78rem' }}>
-              {generating ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />}
-              {generating ? 'Generálás…' : 'AI javaslat'}
-            </button>
-            <button type="button" onClick={() => { setDrawer({ mode: 'add' }); setOpen(true); }}
-              className="btn btn-primary btn-sm" style={{ fontSize: '0.78rem' }}>
-              <Plus size={13} /> Tétel
-            </button>
+          <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
+            {/* AudioRecorder is always present (for external trigger support), but trigger button hidden on mobile */}
+            <AudioRecorder
+              size="sm"
+              disabled={generating}
+              externalTrigger={triggerAudio}
+              onTranscript={handleAudioTranscript}
+              onError={msg => setAudioError(msg)}
+              hideTriggerButton={isMobile}
+              hint={`Ez a „${entry.name}" felmérése. Mondd el a méreteket (szélesség, hossz, belmagasság), ablak- és ajtószámot, az állapotot és az elvégzendő munkákat.`}
+            />
+            {!isMobile && <>
+              <button type="button" onClick={handleGenerate} disabled={generating}
+                className="btn btn-secondary btn-sm" style={{ fontSize: '0.78rem' }}>
+                {generating ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />}
+                {generating ? 'Generálás…' : 'AI javaslat'}
+              </button>
+              <button type="button" onClick={() => { setDrawer({ mode: 'add' }); setOpen(true); }}
+                className="btn btn-primary btn-sm" style={{ fontSize: '0.78rem' }}>
+                <Plus size={13} /> Tétel
+              </button>
+            </>}
           </div>
         )}
       </div>
+
+      {/* AI status feedback */}
+      {aiStatus !== 'idle' && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.45rem 0.65rem', marginBottom: '0.5rem', borderRadius: 'var(--radius-sm)', background: aiStatus === 'error' ? 'var(--danger-bg)' : aiStatus === 'done' ? 'var(--success-bg)' : 'var(--bg-subtle)', border: `1px solid ${aiStatus === 'error' ? 'var(--danger-border)' : aiStatus === 'done' ? 'var(--success-border)' : 'var(--border-subtle)'}`, fontSize: '0.8rem', fontWeight: 600, color: aiStatus === 'error' ? 'var(--danger-text)' : aiStatus === 'done' ? 'var(--success-text)' : 'var(--text-secondary)' }}>
+          {(aiStatus === 'filling' || aiStatus === 'generating') && <Loader2 size={13} className="animate-spin" />}
+          {aiStatus === 'done'  && <Check size={13} />}
+          {aiStatus === 'filling'    && 'Méretek és leírás kinyerése…'}
+          {aiStatus === 'generating' && 'Tételek generálása…'}
+          {aiStatus === 'done'       && 'Kész — tételek hozzáadva'}
+          {aiStatus === 'error'      && 'Hiba a feldolgozás során'}
+        </div>
+      )}
+
+      {audioError && (
+        <div style={{ fontSize: '0.78rem', color: 'var(--danger-text)', background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', borderRadius: 'var(--radius-sm)', padding: '0.4rem 0.65rem', marginBottom: '0.5rem' }}>
+          {audioError}
+        </div>
+      )}
+
+      {pendingTranscript && aiStatus === 'idle' && (
+        <div style={{ background: 'var(--bg-subtle)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: '0.6rem 0.75rem', marginBottom: '0.5rem' }}>
+          <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', fontStyle: 'italic', marginBottom: '0.5rem' }}>
+            🎙 &ldquo;{pendingTranscript}&rdquo;
+          </div>
+          {Object.keys(pendingFields).length > 0 && (
+            <div style={{ fontSize: '0.72rem', color: 'var(--accent)', marginBottom: '0.4rem', display: 'flex', flexWrap: 'wrap', gap: '0.3rem' }}>
+              {pendingFields.width_m  != null && <span>Szél: {pendingFields.width_m} m</span>}
+              {pendingFields.length_m != null && <span>Hossz: {pendingFields.length_m} m</span>}
+              {pendingFields.height_m != null && <span>Mag: {pendingFields.height_m} m</span>}
+              {pendingFields.window_count != null && <span>{pendingFields.window_count} ablak</span>}
+              {pendingFields.door_count   != null && <span>{pendingFields.door_count} ajtó</span>}
+            </div>
+          )}
+          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.4rem' }}>
+            Már van megjegyzés. Mit szeretnél?
+          </div>
+          <div style={{ display: 'flex', gap: '0.4rem' }}>
+            <button type="button" className="btn btn-primary btn-sm" style={{ fontSize: '0.75rem' }}
+              onClick={() => { doSaveAndGenerate((entry.description || '').trim() + '\n' + pendingTranscript, pendingFields); setPendingTranscript(''); setPendingFields({}); }}>
+              Hozzáfűzés
+            </button>
+            <button type="button" className="btn btn-secondary btn-sm" style={{ fontSize: '0.75rem' }}
+              onClick={() => { doSaveAndGenerate(pendingTranscript, pendingFields); setPendingTranscript(''); setPendingFields({}); }}>
+              Felülírás
+            </button>
+            <button type="button" className="btn btn-secondary btn-sm" style={{ fontSize: '0.75rem', marginLeft: 'auto' }}
+              onClick={() => { setPendingTranscript(''); setPendingFields({}); }}>
+              <X size={12} /> Mégse
+            </button>
+          </div>
+        </div>
+      )}
 
       {genError && (
         <div style={{ fontSize: '0.78rem', color: 'var(--danger-text)', background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', borderRadius: 'var(--radius-sm)', padding: '0.4rem 0.65rem', marginBottom: '0.5rem' }}>
@@ -743,18 +958,20 @@ function TételekSection({ surveyId, entry, canAdd }) {
           {/* Bulk action bar — covers both confirmed and suggestions */}
           {canAdd && items.length > 0 && (
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.5rem', fontSize: '0.78rem' }}>
-              <button type="button" onClick={selectedIds.size === items.length ? selectNone : selectAll}
+              <button type="button" onClick={selectedIds.size === editableItems.length ? selectNone : selectAll}
                 style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: 'var(--accent)', fontWeight: 600, fontSize: '0.78rem' }}>
-                {selectedIds.size === items.length ? 'Egyik sem' : 'Összes'}
+                {selectedIds.size === editableItems.length ? 'Egyik sem' : 'Összes'}
               </button>
               {selectedIds.size > 0 && suggestions.some(i => selectedIds.has(i.id)) && (
-                <button type="button" onClick={handleBulkConfirm} className="btn btn-secondary btn-sm" style={{ fontSize: '0.78rem' }}>
-                  <Check size={13} /> Elfogad ({suggestions.filter(i => selectedIds.has(i.id)).length})
+                <button type="button" onClick={handleBulkConfirm} disabled={bulkConfirming} className="btn btn-secondary btn-sm" style={{ fontSize: '0.78rem' }}>
+                  {bulkConfirming ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}
+                  Elfogad ({suggestions.filter(i => selectedIds.has(i.id)).length})
                 </button>
               )}
               {selectedIds.size > 0 && (
-                <button type="button" onClick={handleBulkDelete} className="btn btn-danger btn-sm" style={{ fontSize: '0.78rem', marginLeft: 'auto' }}>
-                  <Trash2 size={13} /> Törlés ({selectedIds.size})
+                <button type="button" onClick={handleBulkDelete} disabled={bulkDeleting} className="btn btn-danger btn-sm" style={{ fontSize: '0.78rem', marginLeft: 'auto' }}>
+                  {bulkDeleting ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
+                  Törlés ({selectedIds.size})
                 </button>
               )}
             </div>
@@ -782,7 +999,7 @@ function TételekSection({ surveyId, entry, canAdd }) {
                     </div>
                     {typeItems.map(item => (
                       <div key={item.id} style={{ display: 'grid', gridTemplateColumns: '20px 1fr auto auto auto', gap: '0 0.5rem', alignItems: 'center', padding: '0.3rem 0' }}>
-                        {canAdd
+                        {canAdd && canEditItem(item)
                           ? <input type="checkbox" checked={selectedIds.has(item.id)} onChange={() => toggleSelect(item.id)} style={{ width: 16, height: 16, cursor: 'pointer', accentColor: 'var(--accent)', margin: 0 }} />
                           : <span />}
                         <div style={{ minWidth: 0 }}>
@@ -794,7 +1011,7 @@ function TételekSection({ surveyId, entry, canAdd }) {
                         </span>
                         <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{item.unit || ''}</span>
                         <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                          {canAdd && (
+                          {canAdd && canEditItem(item) && (
                             <button type="button" onClick={() => setDrawer({ mode: 'edit', item })} className="btn btn-secondary btn-sm" style={{ padding: '0.3rem 0.5rem' }}>
                               <Edit3 size={13} />
                             </button>
@@ -817,7 +1034,7 @@ function TételekSection({ surveyId, entry, canAdd }) {
               </div>
               {suggestions.map(item => (
                 <div key={item.id} style={{ display: 'grid', gridTemplateColumns: '20px 1fr auto auto auto', gap: '0 0.5rem', alignItems: 'center', padding: '0.3rem 0', opacity: 0.8 }}>
-                  {canAdd
+                  {canAdd && canEditItem(item)
                     ? <input type="checkbox" checked={selectedIds.has(item.id)} onChange={() => toggleSelect(item.id)} style={{ width: 16, height: 16, cursor: 'pointer', accentColor: 'var(--accent)', margin: 0 }} />
                     : <span />}
                   <div style={{ minWidth: 0 }}>
@@ -828,7 +1045,7 @@ function TételekSection({ surveyId, entry, canAdd }) {
                   </span>
                   <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{item.unit || ''}</span>
                   <div style={{ display: 'flex', gap: '0.3rem', justifyContent: 'flex-end' }}>
-                    {canAdd && (
+                    {canAdd && canEditItem(item) && (
                       <button type="button"
                         onClick={() => updateSurveyItem(surveyId, item.id, { is_confirmed: true }).catch(() => {})}
                         className="btn btn-secondary btn-sm" style={{ padding: '0.3rem 0.5rem', fontSize: '0.75rem' }}>
@@ -859,8 +1076,40 @@ function TételekSection({ surveyId, entry, canAdd }) {
 }
 
 // ── Survey entry card (collapsible, offers-style dark header) ─────────────────
-function SurveyEntryCard({ entry, surveyId, canEditEntry, canAdd, onEdit, onDelete, handleDeleteMedia, drawings, createSurveyDrawing, deleteSurveyDrawing, canDrawings, currentUser, pendingUploads = [], enqueue }) {
+function SurveyEntryCard({ entry, surveyId, canEditEntry, canAdd, canEditAll = true, onEdit, onDelete, handleDeleteMedia, drawings, createSurveyDrawing, deleteSurveyDrawing, canDrawings, currentUser, pendingUploads = [], enqueue }) {
   const [collapsed, setCollapsed] = useState(true);
+  const isMobile = useMobile();
+  const [ctxOpen, setCtxOpen] = useState(false);
+
+  // Integer triggers — each increment fires the corresponding child action once
+  const [triggerAudio,    setTriggerAudio]    = useState(0);
+  const [triggerGenerate, setTriggerGenerate] = useState(0);
+  const [triggerAddItem,  setTriggerAddItem]  = useState(0);
+  const [triggerDrawing,  setTriggerDrawing]  = useState(0);
+  const photoInputRef = useRef(null);
+
+  const handlePhotoFromCtx = (e) => {
+    const raw = Array.from(e.target.files || []);
+    e.target.value = '';
+    if (!raw.length || !enqueue) return;
+    enqueue(raw, { surveyId, entryId: entry.id, mediaType: 'photo' });
+    setCollapsed(false);
+  };
+
+  const ctxActions = canAdd ? [
+    { icon: Mic,      label: 'Diktálás',       onClick: () => { setCollapsed(false); setTriggerAudio(n => n + 1); } },
+    { icon: Sparkles, label: 'AI javaslat',    onClick: () => { setCollapsed(false); setTriggerGenerate(n => n + 1); } },
+    { icon: Plus,     label: 'Tétel hozzáadása', onClick: () => { setCollapsed(false); setTriggerAddItem(n => n + 1); } },
+    { icon: Camera,   label: 'Fotó / videó',   onClick: () => { setCollapsed(false); photoInputRef.current?.click(); } },
+    ...(canDrawings ? [{ icon: PenLine, label: 'Vázlat', onClick: () => { setCollapsed(false); setTriggerDrawing(n => n + 1); } }] : []),
+    ...(canEditEntry ? [
+      { icon: Edit3,  label: 'Szerkesztés',  dividerBefore: true, onClick: onEdit },
+      { icon: Trash2, label: 'Törlés',       danger: true,        onClick: onDelete },
+    ] : []),
+  ] : canEditEntry ? [
+    { icon: Edit3,  label: 'Szerkesztés', onClick: onEdit },
+    { icon: Trash2, label: 'Törlés',      danger: true, onClick: onDelete },
+  ] : [];
 
   return (
     <div className="card" style={{ padding: 0, overflow: 'hidden', border: '1.5px solid #cbd5e1' }}>
@@ -869,22 +1118,56 @@ function SurveyEntryCard({ entry, surveyId, canEditEntry, canAdd, onEdit, onDele
         style={{ background: '#1e3a5f', padding: '0.85rem 1rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.65rem' }}
         onClick={() => setCollapsed(c => !c)}
       >
-        <ChevronDown size={16} color="rgba(255,255,255,0.6)" style={{ transition: 'transform 0.2s', transform: collapsed ? 'rotate(-90deg)' : 'rotate(0deg)', flexShrink: 0 }} />
-        <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-          <span style={{ fontWeight: 800, fontSize: '1rem', color: '#fff' }}>{entry.name}</span>
-          {entry.size_m2   != null && <span style={PILL_DARK}><Ruler size={10} />{Number(entry.size_m2).toFixed(1).replace('.', ',')} m²</span>}
-          {entry.height_m  != null && <span style={PILL_DARK}>{entry.height_m} m mag.</span>}
-          {entry.window_count > 0   && <span style={PILL_DARK}>{entry.window_count} ablak</span>}
-          {entry.door_count   > 0   && <span style={PILL_DARK}>{entry.door_count} ajtó</span>}
-          {entry.media?.length > 0  && <span style={PILL_DARK}>{entry.media.length} fotó</span>}
+        {(() => {
+          const pills = [
+            entry.size_m2      != null && <span key="m2"     style={PILL_DARK}><Ruler size={10} />{Number(entry.size_m2).toFixed(1).replace('.', ',')} m²</span>,
+            entry.height_m     != null && <span key="h"      style={PILL_DARK}>{entry.height_m} m mag.</span>,
+            entry.window_count  > 0    && <span key="win"    style={PILL_DARK}>{entry.window_count} ablak</span>,
+            entry.door_count    > 0    && <span key="door"   style={PILL_DARK}>{entry.door_count} ajtó</span>,
+            entry.media?.length > 0    && <span key="media"  style={PILL_DARK}>{entry.media.length} fotó</span>,
+          ].filter(Boolean);
+
+          return isMobile ? (
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <span style={{ fontWeight: 800, fontSize: '1rem', color: '#fff', display: 'block' }}>{entry.name}</span>
+              {pills.length > 0 && (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.3rem', marginTop: '0.35rem' }}>{pills}</div>
+              )}
+            </div>
+          ) : (
+            <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <span style={{ fontWeight: 800, fontSize: '1rem', color: '#fff' }}>{entry.name}</span>
+              {pills}
+            </div>
+          );
+        })()}
+        <div style={{ display: 'flex', gap: '0.3rem', alignItems: 'center', flexShrink: 0 }} onClick={e => e.stopPropagation()}>
+          {(canEditEntry || canAdd) && (
+            isMobile ? (
+              <button type="button" onClick={() => setCtxOpen(true)}
+                style={{ padding: '0.3rem 0.5rem', background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.22)', color: 'rgba(255,255,255,0.9)', borderRadius: 'var(--radius-sm)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}>
+                <MoreHorizontal size={16} />
+              </button>
+            ) : canEditEntry ? (
+              <>
+                <button type="button" onClick={onEdit} style={{ padding: '0.3rem 0.5rem', background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.22)', color: 'rgba(255,255,255,0.9)', borderRadius: 'var(--radius-sm)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}><Edit3 size={13} /></button>
+                <button type="button" onClick={onDelete} style={{ padding: '0.3rem 0.5rem', background: 'rgba(220,38,38,0.25)', border: '1px solid rgba(220,38,38,0.45)', color: '#fca5a5', borderRadius: 'var(--radius-sm)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}><Trash2 size={13} /></button>
+              </>
+            ) : null
+          )}
         </div>
-        {canEditEntry && (
-          <div style={{ display: 'flex', gap: '0.3rem', flexShrink: 0 }} onClick={e => e.stopPropagation()}>
-            <button type="button" onClick={onEdit} style={{ padding: '0.3rem 0.5rem', background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.22)', color: 'rgba(255,255,255,0.9)', borderRadius: 'var(--radius-sm)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}><Edit3 size={13} /></button>
-            <button type="button" onClick={onDelete} style={{ padding: '0.3rem 0.5rem', background: 'rgba(220,38,38,0.25)', border: '1px solid rgba(220,38,38,0.45)', color: '#fca5a5', borderRadius: 'var(--radius-sm)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}><Trash2 size={13} /></button>
-          </div>
-        )}
       </div>
+
+      {/* Hidden photo input for context menu */}
+      <input ref={photoInputRef} type="file" accept="image/*,video/*" multiple onChange={handlePhotoFromCtx} style={{ display: 'none' }} />
+
+      {/* Mobile context menu */}
+      <BottomSheet
+        isOpen={ctxOpen}
+        onClose={() => setCtxOpen(false)}
+        title={entry.name}
+        actions={ctxActions}
+      />
 
       {/* Collapsible body */}
       {!collapsed && (
@@ -895,37 +1178,346 @@ function SurveyEntryCard({ entry, surveyId, canEditEntry, canAdd, onEdit, onDele
 
           <AreaSummary entry={entry} />
 
-          <TételekSection surveyId={surveyId} entry={entry} canAdd={canAdd} />
+          <TételekSection
+            surveyId={surveyId}
+            entry={entry}
+            canAdd={canAdd}
+            canEditAll={canEditAll}
+            triggerAudio={triggerAudio}
+            triggerGenerate={triggerGenerate}
+            triggerAddItem={triggerAddItem}
+          />
 
-          <div style={{ marginTop: '0.75rem', borderTop: '1px solid var(--border-subtle)', paddingTop: '0.75rem' }}>
-            {(entry.media?.length > 0 || pendingUploads.length > 0) ? (
-              <>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
-                  <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
-                    {entry.media?.length || 0} fotó / videó
-                    <UploadProgressBadge pending={pendingUploads.filter(i => i.status === 'pending').length} uploading={pendingUploads.filter(i => i.status === 'uploading').length} done={pendingUploads.filter(i => i.status === 'done').length} error={pendingUploads.filter(i => i.status === 'error').length} />
-                  </span>
-                  {canAdd && (
-                    <>
-                      <span className="hide-mobile"><InlineUpload surveyId={surveyId} entryId={entry.id} mediaType="photo" label="Hozzáadás" enqueue={enqueue} /></span>
-                      <span className="show-mobile"><InlineUpload surveyId={surveyId} entryId={entry.id} mediaType="photo" label="Hozzáadás" enqueue={enqueue} iconOnly /></span>
-                    </>
+          {(() => {
+            const entryDrawings = drawings.filter(d => d.entry_id === entry.id);
+            const hasMedia      = (entry.media?.length > 0) || pendingUploads.length > 0;
+            const hasDrawings   = entryDrawings.length > 0;
+
+            // Both empty → single compact footer row (one divider, two buttons)
+            if (!hasMedia && !hasDrawings) {
+              const showPhotoBtn   = canAdd && !isMobile;
+              const showDrawingBtn = canDrawings && !isMobile;
+              if (!showPhotoBtn && !showDrawingBtn) return null;
+              return (
+                <div style={{ marginTop: '0.75rem', borderTop: '1px solid var(--border-subtle)', paddingTop: '0.65rem', display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                  {showPhotoBtn && <InlineUpload surveyId={surveyId} entryId={entry.id} mediaType="photo" label="Fotó / videó" enqueue={enqueue} />}
+                  {showDrawingBtn && (
+                    <DrawingsSection
+                      drawings={[]}
+                      onSave={svg => createSurveyDrawing(surveyId, { svg_data: svg, entry_id: entry.id })}
+                      onDelete={drawingId => deleteSurveyDrawing(surveyId, drawingId)}
+                      canEdit={true}
+                      compact
+                      triggerCount={triggerDrawing}
+                    />
                   )}
                 </div>
-                <MediaGrid media={entry.media} onDelete={canEditEntry ? handleDeleteMedia : undefined} pendingItems={pendingUploads.filter(i => i.status !== 'done')} />
-              </>
-            ) : canAdd ? (
-              <InlineUploadZone surveyId={surveyId} entryId={entry.id} enqueue={enqueue} />
-            ) : null}
-          </div>
+              );
+            }
 
-          <div style={{ marginTop: '0.75rem', borderTop: '1px solid var(--border-subtle)', paddingTop: '0.75rem' }}>
-            <DrawingsSection
-              drawings={drawings.filter(d => d.entry_id === entry.id)}
-              onSave={canDrawings ? (svg => createSurveyDrawing(surveyId, { svg_data: svg, entry_id: entry.id })) : undefined}
-              onDelete={canDrawings ? (drawingId => deleteSurveyDrawing(surveyId, drawingId)) : undefined}
-              canEdit={canDrawings}
-            />
+            // At least one has content — show each section normally
+            return (
+              <>
+                {(hasMedia || canAdd) && (
+                  <div style={{ marginTop: '0.75rem', borderTop: '1px solid var(--border-subtle)', paddingTop: '0.75rem' }}>
+                    {hasMedia ? (
+                      <>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
+                          <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
+                            {entry.media?.length || 0} fotó / videó
+                            <UploadProgressBadge pending={pendingUploads.filter(i => i.status === 'pending').length} uploading={pendingUploads.filter(i => i.status === 'uploading').length} done={pendingUploads.filter(i => i.status === 'done').length} error={pendingUploads.filter(i => i.status === 'error').length} />
+                          </span>
+                          {canAdd && (
+                            <>
+                              <span className="hide-mobile"><InlineUpload surveyId={surveyId} entryId={entry.id} mediaType="photo" label="Hozzáadás" enqueue={enqueue} /></span>
+                              <span className="show-mobile"><InlineUpload surveyId={surveyId} entryId={entry.id} mediaType="photo" label="Hozzáadás" enqueue={enqueue} iconOnly /></span>
+                            </>
+                          )}
+                        </div>
+                        <MediaGrid media={entry.media} onDelete={canEditEntry ? handleDeleteMedia : undefined} pendingItems={pendingUploads.filter(i => i.status !== 'done')} />
+                      </>
+                    ) : (
+                      <InlineUpload surveyId={surveyId} entryId={entry.id} mediaType="photo" label="Fotó / videó" enqueue={enqueue} />
+                    )}
+                  </div>
+                )}
+                <div style={{ marginTop: '0.75rem', borderTop: '1px solid var(--border-subtle)', paddingTop: '0.75rem' }}>
+                  <DrawingsSection
+                    drawings={entryDrawings}
+                    onSave={canDrawings ? (svg => createSurveyDrawing(surveyId, { svg_data: svg, entry_id: entry.id })) : undefined}
+                    onDelete={canDrawings ? (drawingId => deleteSurveyDrawing(surveyId, drawingId)) : undefined}
+                    canEdit={canDrawings}
+                    triggerCount={triggerDrawing}
+                  />
+                </div>
+              </>
+            );
+          })()}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Utility image categories ──────────────────────────────────────────────────
+const UTILITY_CATS = [
+  { type: 'electrical_box',  label: 'Elektromos elosztó', Icon: Zap },
+  { type: 'heating_system',  label: 'Fűtési rendszer',    Icon: Flame },
+  { type: 'ac_unit',         label: 'Klíma',               Icon: Wind },
+  { type: 'boiler',          label: 'Bojler / Kazán',      Icon: Thermometer },
+  { type: 'floor_heating',   label: 'Padlófűtés elosztó', Icon: Building2 },
+];
+
+// ── Property info section ─────────────────────────────────────────────────────
+function PropertyInfoSection({ survey, surveyId, canEdit, enqueue, triggerNotesAudio = 0 }) {
+  const { updateSurvey, surveyMediaBySurvey, deleteSurveyMedia } = useApp();
+  const isMobile = useMobile();
+
+  const [collapsed, setCollapsed] = useState(true);
+  const [saveStatus, setSaveStatus] = useState('idle'); // idle | saving | saved | error
+  const [aiStatus,   setAiStatus]   = useState('idle'); // idle | filling | saving | done | error
+
+  // Auto-expand + open AudioRecorder when triggered from context menu
+  useEffect(() => {
+    if (triggerNotesAudio > 0) setCollapsed(false);
+  }, [triggerNotesAudio]);
+
+  // Form state — initialised from survey
+  const [plotSize,    setPlotSize]    = useState(() => survey.plot_size_m2    != null ? String(survey.plot_size_m2)    : '');
+  const [gardenSize,  setGardenSize]  = useState(() => survey.garden_size_m2  != null ? String(survey.garden_size_m2)  : '');
+  const [phases,      setPhases]      = useState(() => survey.electrical_phases != null ? String(survey.electrical_phases) : '');
+  const [ampere,      setAmpere]      = useState(() => survey.electrical_ampere  != null ? String(survey.electrical_ampere)  : '');
+  const [voltage,     setVoltage]     = useState(() => survey.electrical_voltage != null ? String(survey.electrical_voltage) : '');
+  const [heatingType, setHeatingType] = useState(() => survey.heating_type || '');
+  const [propNotes,   setPropNotes]   = useState(() => survey.property_notes  || '');
+
+  // Keep latest values in a ref so the blur handler always reads fresh state
+  const valuesRef = useRef({});
+  valuesRef.current = { plotSize, gardenSize, phases, ampere, voltage, heatingType, propNotes };
+
+  const saveAll = useCallback(async (overrides = {}) => {
+    const v = { ...valuesRef.current, ...overrides };
+    setSaveStatus('saving');
+    try {
+      await updateSurvey(surveyId, {
+        plot_size_m2:       v.plotSize    ? Number(v.plotSize)    : null,
+        garden_size_m2:     v.gardenSize  ? Number(v.gardenSize)  : null,
+        electrical_phases:  v.phases      ? Number(v.phases)      : null,
+        electrical_ampere:  v.ampere      ? Number(v.ampere)      : null,
+        electrical_voltage: v.voltage     ? Number(v.voltage)     : null,
+        heating_type:       v.heatingType.trim() || null,
+        property_notes:     v.propNotes.trim()   || null,
+      });
+      setSaveStatus('saved');
+      setTimeout(() => setSaveStatus('idle'), 1800);
+    } catch {
+      setSaveStatus('error');
+      setTimeout(() => setSaveStatus('idle'), 3000);
+    }
+  }, [updateSurvey, surveyId]);
+
+  const handlePropertyTranscript = async (text) => {
+    setAiStatus('filling');
+    const overrides = {};
+    try {
+      const res = await fetch(`/api/surveys/${surveyId}/fill-property`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ transcript: text }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'AI hiba');
+      const f = data.fields;
+      if (f.plot_size_m2    != null) { setPlotSize(String(f.plot_size_m2));           overrides.plotSize    = String(f.plot_size_m2); }
+      if (f.garden_size_m2  != null) { setGardenSize(String(f.garden_size_m2));       overrides.gardenSize  = String(f.garden_size_m2); }
+      if (f.electrical_phases != null) { setPhases(String(f.electrical_phases));      overrides.phases      = String(f.electrical_phases); }
+      if (f.electrical_ampere != null) { setAmpere(String(f.electrical_ampere));      overrides.ampere      = String(f.electrical_ampere); }
+      if (f.electrical_voltage != null) { setVoltage(String(f.electrical_voltage));   overrides.voltage     = String(f.electrical_voltage); }
+      if (f.heating_type)  { setHeatingType(f.heating_type);                          overrides.heatingType = f.heating_type; }
+      if (f.property_notes) {
+        const merged = propNotes.trim() ? propNotes.trim() + '\n\n' + f.property_notes : f.property_notes;
+        setPropNotes(merged);
+        overrides.propNotes = merged;
+      }
+      setAiStatus('saving');
+      await saveAll(overrides);
+      setAiStatus('done');
+      setTimeout(() => setAiStatus('idle'), 2000);
+    } catch {
+      setAiStatus('error');
+      setTimeout(() => setAiStatus('idle'), 3000);
+    }
+  };
+
+  const allMedia = surveyMediaBySurvey[surveyId] || [];
+
+  // Summary line for collapsed header
+  const summaryParts = [];
+  if (survey.plot_size_m2)        summaryParts.push(`Telek: ${survey.plot_size_m2} m²`);
+  if (survey.garden_size_m2)      summaryParts.push(`Kert: ${survey.garden_size_m2} m²`);
+  if (survey.electrical_phases)   summaryParts.push(`${survey.electrical_phases}F${survey.electrical_ampere ? ` / ${survey.electrical_ampere}A` : ''}`);
+  if (survey.heating_type)        summaryParts.push(survey.heating_type);
+  const utilityMediaCount = allMedia.filter(m => UTILITY_CATS.some(c => c.type === m.media_type)).length;
+  if (utilityMediaCount)          summaryParts.push(`${utilityMediaCount} rendszerfotó`);
+
+  const headerIndicator = aiStatus === 'filling' ? (
+    <span style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.7)', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+      <Loader2 size={11} className="animate-spin" /> AI feldolgozás…
+    </span>
+  ) : aiStatus === 'saving' ? (
+    <span style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.7)', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+      <Loader2 size={11} className="animate-spin" /> Mentés…
+    </span>
+  ) : aiStatus === 'done' ? (
+    <span style={{ fontSize: '0.72rem', color: '#86efac', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+      <Check size={11} /> Kész
+    </span>
+  ) : aiStatus === 'error' ? (
+    <span style={{ fontSize: '0.72rem', color: '#fca5a5' }}>Hiba!</span>
+  ) : saveStatus === 'saving' ? (
+    <span style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.6)', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+      <Loader2 size={11} className="animate-spin" /> Mentés…
+    </span>
+  ) : saveStatus === 'saved' ? (
+    <span style={{ fontSize: '0.72rem', color: '#86efac', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+      <Check size={11} /> Mentve
+    </span>
+  ) : null;
+
+  return (
+    <div className="card mb-4" style={{ padding: 0, overflow: 'hidden' }}>
+      {/* Header */}
+      <div
+        onClick={() => setCollapsed(c => !c)}
+        style={{ background: '#1e3a5f', padding: '0.85rem 1rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.65rem' }}
+      >
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <span style={{ fontWeight: 800, fontSize: '0.95rem', color: '#fff' }}>Ingatlan adatok</span>
+            {!collapsed && headerIndicator}
+          </div>
+          {collapsed && summaryParts.length > 0 && (
+            <div style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.6)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {summaryParts.join(' · ')}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Body */}
+      {!collapsed && (
+        <div style={{ padding: '1rem' }}>
+          {aiStatus !== 'idle' && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 0.75rem', marginBottom: '0.75rem', borderRadius: 'var(--radius-sm)', background: aiStatus === 'error' ? 'var(--danger-bg)' : aiStatus === 'done' ? 'var(--success-bg)' : 'var(--bg-subtle)', border: `1px solid ${aiStatus === 'error' ? 'var(--danger-border)' : aiStatus === 'done' ? 'var(--success-border)' : 'var(--border-subtle)'}`, fontSize: '0.82rem', fontWeight: 600, color: aiStatus === 'error' ? 'var(--danger-text)' : aiStatus === 'done' ? 'var(--success-text)' : 'var(--text-secondary)' }}>
+              {(aiStatus === 'filling' || aiStatus === 'saving') && <Loader2 size={14} className="animate-spin" />}
+              {aiStatus === 'done' && <Check size={14} />}
+              {aiStatus === 'filling' && 'AI feldolgozás folyamatban…'}
+              {aiStatus === 'saving' && 'Mentés…'}
+              {aiStatus === 'done' && 'Mezők kitöltve és mentve'}
+              {aiStatus === 'error' && 'Hiba a feldolgozás során'}
+            </div>
+          )}
+
+          {canEdit ? (
+            <>
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(3, 1fr)', gap: '0.5rem', marginBottom: '0.75rem' }}>
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label">Telek (m²)</label>
+                  <input type="number" min="0" step="1" className="form-control" value={plotSize} onChange={e => setPlotSize(e.target.value)} onBlur={() => saveAll()} placeholder="pl. 800" />
+                </div>
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label">Kert (m²)</label>
+                  <input type="number" min="0" step="1" className="form-control" value={gardenSize} onChange={e => setGardenSize(e.target.value)} onBlur={() => saveAll()} placeholder="pl. 200" />
+                </div>
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label">Fázisok</label>
+                  <select className="form-control" value={phases} onChange={e => { setPhases(e.target.value); }} onBlur={() => saveAll()}>
+                    <option value="">–</option>
+                    <option value="1">1 fázis</option>
+                    <option value="3">3 fázis</option>
+                  </select>
+                </div>
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label">Biztosíték (A)</label>
+                  <input type="number" min="0" step="1" className="form-control" value={ampere} onChange={e => setAmpere(e.target.value)} onBlur={() => saveAll()} placeholder="pl. 63" />
+                </div>
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label">Feszültség (V)</label>
+                  <input type="number" min="0" step="1" className="form-control" value={voltage} onChange={e => setVoltage(e.target.value)} onBlur={() => saveAll()} placeholder="230" />
+                </div>
+                <div className="form-group" style={{ margin: 0, gridColumn: isMobile ? 'span 2' : 'auto' }}>
+                  <label className="form-label">Fűtési rendszer</label>
+                  <input type="text" className="form-control" value={heatingType} onChange={e => setHeatingType(e.target.value)} onBlur={() => saveAll()} placeholder="pl. gázkazán, padlófűtés" />
+                </div>
+              </div>
+              <div className="form-group" style={{ marginBottom: '0.75rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.3rem' }}>
+                  <label className="form-label" style={{ margin: 0 }}>Megjegyzések</label>
+                  {!isMobile && (
+                    <AudioRecorder
+                      size="sm"
+                      disabled={aiStatus !== 'idle'}
+                      hideTriggerButton={false}
+                      externalTrigger={triggerNotesAudio}
+                      onTranscript={handlePropertyTranscript}
+                      onError={() => setAiStatus('idle')}
+                      hint="Mesélj az ingatlanról: telekméret, kertméret, elektromos rendszer (fázisok, ampere, feszültség), fűtési mód, bojler, klíma, általános állapot — mindent ami az egész épületre vonatkozik."
+                    />
+                  )}
+                  {isMobile && (
+                    <AudioRecorder
+                      size="sm"
+                      disabled={aiStatus !== 'idle'}
+                      hideTriggerButton={true}
+                      externalTrigger={triggerNotesAudio}
+                      onTranscript={handlePropertyTranscript}
+                      onError={() => setAiStatus('idle')}
+                      hint="Mesélj az ingatlanról: telekméret, kertméret, elektromos rendszer (fázisok, ampere, feszültség), fűtési mód, bojler, klíma, általános állapot — mindent ami az egész épületre vonatkozik."
+                    />
+                  )}
+                </div>
+                <textarea rows={3} className="form-control" value={propNotes}
+                  onChange={e => setPropNotes(e.target.value)}
+                  onBlur={() => saveAll()}
+                  placeholder="Egyéb ingatlanadatok…"
+                  style={{ fontSize: isMobile ? '0.82rem' : '0.875rem' }}
+                />
+              </div>
+            </>
+          ) : (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem 1.5rem', fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '0.75rem' }}>
+              {survey.plot_size_m2    != null && <span><strong>Telek:</strong> {survey.plot_size_m2} m²</span>}
+              {survey.garden_size_m2  != null && <span><strong>Kert:</strong> {survey.garden_size_m2} m²</span>}
+              {survey.electrical_phases != null && (
+                <span><strong>Elektromosság:</strong> {survey.electrical_phases}F{survey.electrical_ampere ? ` / ${survey.electrical_ampere}A` : ''}{survey.electrical_voltage ? ` / ${survey.electrical_voltage}V` : ''}</span>
+              )}
+              {survey.heating_type  && <span><strong>Fűtés:</strong> {survey.heating_type}</span>}
+              {survey.property_notes && <p style={{ width: '100%', margin: 0, lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{survey.property_notes}</p>}
+              {!survey.plot_size_m2 && !survey.garden_size_m2 && !survey.electrical_phases && !survey.heating_type && !survey.property_notes && (
+                <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>Nincs adat.</span>
+              )}
+            </div>
+          )}
+
+          {/* Utility image categories */}
+          <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+            <div style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.04em' }}>Rendszerfotók</div>
+            {UTILITY_CATS.map(({ type, label, Icon }) => {
+              const catMedia = allMedia.filter(m => m.media_type === type);
+              return (
+                <div key={type}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: catMedia.length ? '0.35rem' : 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                      <Icon size={13} color="var(--accent)" />
+                      <span style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-secondary)' }}>{label}</span>
+                      {catMedia.length > 0 && <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>({catMedia.length})</span>}
+                    </div>
+                    {canEdit && enqueue && <InlineUpload surveyId={surveyId} entryId={null} mediaType={type} label="Fotó" enqueue={enqueue} iconOnly />}
+                  </div>
+                  {catMedia.length > 0 && <MediaGrid media={catMedia} onDelete={canEdit ? (item) => deleteSurveyMedia(item.id, surveyId, null, item.media_type) : undefined} />}
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
@@ -975,6 +1567,10 @@ export default function SurveyDetailPage() {
   const [showAddEntry, setShowAddEntry]   = useState(false);
   const [editingEntry, setEditingEntry]   = useState(null);
   const [statusSaving, setStatusSaving]   = useState(false);
+  const [surveyCtxOpen, setSurveyCtxOpen] = useState(false);
+  const [surveyDrawingTrigger, setSurveyDrawingTrigger] = useState(0);
+  const [propertyNotesTrigger, setPropertyNotesTrigger] = useState(0);
+  const layoutInputRef = useRef(null);
   // Fallback: fetch directly when survey is not in the active context
   const [directSurvey,   setDirectSurvey]   = useState(null);
   const [directFetching, setDirectFetching] = useState(false);
@@ -1152,11 +1748,10 @@ export default function SurveyDetailPage() {
 
       {/* Header */}
       <div className="page-header" style={{ padding: '0.5rem 0 1rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '1rem', flexWrap: 'wrap' }}>
-          <div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.75rem' }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap', marginBottom: '0.35rem' }}>
               <h1 className="page-title" style={{ marginBottom: 0 }}>{survey.title}</h1>
-              {/* Status badge */}
               {survey.status === 'done' && (
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.75rem', fontWeight: 700, padding: '0.2rem 0.6rem', borderRadius: 'var(--radius-pill)', background: 'var(--success-bg)', color: 'var(--success-text)', border: '1px solid var(--success-border)' }}>
                   <CheckCircle2 size={12} /> Lezárt
@@ -1168,31 +1763,39 @@ export default function SurveyDetailPage() {
                 </span>
               )}
             </div>
-            {/* Status action hint */}
             {survey.status === 'done' && survey.done_at && (
               <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: 0 }}>
                 Lezárva: {new Date(survey.done_at).toLocaleDateString('hu-HU', { year: 'numeric', month: 'short', day: 'numeric' })}
               </p>
             )}
           </div>
-          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
-            {/* Re-open / Mark done toggle */}
-            {canEditMeta && survey.status === 'done' && (
-              <button type="button" onClick={() => handleStatusChange('reopened')} disabled={statusSaving} className="btn btn-secondary btn-sm">
-                <RefreshCw size={13} /> Újranyitás
-              </button>
-            )}
-            {canEditMeta && (survey.status === 'active' || survey.status === 'reopened') && (
-              <button type="button" onClick={() => handleStatusChange('done')} disabled={statusSaving} className="btn btn-secondary btn-sm">
-                <CheckCircle2 size={13} /> Lezárás
-              </button>
-            )}
-            {canEditMeta && (
+
+          {/* Desktop action buttons */}
+          {canEditMeta && (
+            <div className="hide-mobile" style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexShrink: 0 }}>
+              {survey.status === 'done' && (
+                <button type="button" onClick={() => handleStatusChange('reopened')} disabled={statusSaving} className="btn btn-secondary btn-sm">
+                  <RefreshCw size={13} /> Újranyitás
+                </button>
+              )}
+              {(survey.status === 'active' || survey.status === 'reopened') && (
+                <button type="button" onClick={() => handleStatusChange('done')} disabled={statusSaving} className="btn btn-secondary btn-sm">
+                  <CheckCircle2 size={13} /> Lezárás
+                </button>
+              )}
               <button type="button" onClick={handleDeleteSurvey} className="btn btn-danger btn-sm">
                 <Trash2 size={14} /> Törlés
               </button>
-            )}
-          </div>
+            </div>
+          )}
+
+          {/* Mobile: single ⋮ context menu */}
+          {canEditMeta && (
+            <button type="button" onClick={() => setSurveyCtxOpen(true)}
+              className="show-mobile btn btn-secondary btn-sm" style={{ padding: '0.3rem 0.55rem', flexShrink: 0 }}>
+              <MoreHorizontal size={16} />
+            </button>
+          )}
         </div>
       </div>
 
@@ -1211,7 +1814,7 @@ export default function SurveyDetailPage() {
             {creator && <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', color: 'var(--text-muted)', fontSize: '0.8rem' }}><User size={13} />Rögzítette: {creator.display_name}</span>}
             {survey.created_at && <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', color: 'var(--text-muted)', fontSize: '0.8rem' }}><Clock size={13} />{new Date(survey.created_at).toLocaleDateString('hu-HU', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>}
           </div>
-          {canEditMeta && (
+          {canEditMeta && !isMobile && (
             <button type="button" onClick={() => setShowMetaDrawer(true)} className="btn btn-secondary btn-sm" style={{ padding: '0.3rem 0.5rem', flexShrink: 0 }}>
               <Edit3 size={13} />
             </button>
@@ -1235,46 +1838,88 @@ export default function SurveyDetailPage() {
         )}
       </div>
 
-      {/* Layouts */}
-      <div className="card mb-4" style={{ padding: '1rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <LayoutPanelLeft size={15} color="var(--accent)" />
-            <span style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.05em' }}>
-              Alaprajzok ({layouts.length})
-            </span>
-          </div>
-          {canAdd && !detailLoading && (
-            <>
+      {/* Layouts — hidden on mobile when empty */}
+      {(!isMobile || layouts.length > 0 || detailLoading) && (
+        <div className="card mb-4" style={{ padding: '1rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <LayoutPanelLeft size={15} color="var(--accent)" />
+              <span style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.05em' }}>
+                Alaprajzok ({layouts.length})
+              </span>
+            </div>
+            {canAdd && !detailLoading && (
               <span className="hide-mobile">
                 <InlineUpload surveyId={id} entryId={null} mediaType="layout" label="Alaprajz hozzáadása" enqueue={enqueue} />
               </span>
-              <span className="show-mobile">
-                <InlineUpload surveyId={id} entryId={null} mediaType="layout" label="Alaprajz hozzáadása" enqueue={enqueue} iconOnly />
-              </span>
-            </>
+            )}
+          </div>
+          {detailLoading ? (
+            <div style={{ color: 'var(--text-muted)', fontSize: '0.8rem', padding: '0.5rem 0' }}>Betöltés...</div>
+          ) : layouts.length === 0 ? (
+            <div style={{ color: 'var(--text-muted)', fontSize: '0.82rem', padding: '0.75rem', border: '2px dashed var(--border-subtle)', borderRadius: 'var(--radius-md)', textAlign: 'center' }}>
+              {canAdd ? 'Nincs alaprajz feltöltve. (Opcionális)' : 'Nincs alaprajz feltöltve.'}
+            </div>
+          ) : (
+            <MediaGrid media={layouts} onDelete={canEditMeta ? handleDeleteMedia : undefined} />
           )}
         </div>
-        {detailLoading ? (
-          <div style={{ color: 'var(--text-muted)', fontSize: '0.8rem', padding: '0.5rem 0' }}>Betöltés...</div>
-        ) : layouts.length === 0 ? (
-          <div style={{ color: 'var(--text-muted)', fontSize: '0.82rem', padding: '0.75rem', border: '2px dashed var(--border-subtle)', borderRadius: 'var(--radius-md)', textAlign: 'center' }}>
-            {canAdd ? 'Nincs alaprajz feltöltve. (Opcionális)' : 'Nincs alaprajz feltöltve.'}
-          </div>
-        ) : (
-          <MediaGrid media={layouts} onDelete={canEditMeta ? handleDeleteMedia : undefined} />
-        )}
-      </div>
+      )}
 
-      {/* Survey-level drawings */}
-      <div className="card mb-4" style={{ padding: '1rem' }}>
-        <DrawingsSection
-          drawings={drawings.filter(d => !d.entry_id)}
-          onSave={canDrawings ? (svg => createSurveyDrawing(id, { svg_data: svg })) : undefined}
-          onDelete={canDrawings ? (drawingId => deleteSurveyDrawing(id, drawingId)) : undefined}
-          canEdit={canDrawings}
-        />
-      </div>
+      {/* Property / utility info */}
+      <PropertyInfoSection
+        survey={survey}
+        surveyId={id}
+        canEdit={canEditMeta}
+        enqueue={canAdd ? enqueue : undefined}
+        triggerNotesAudio={propertyNotesTrigger}
+      />
+
+      {/* Hidden layout upload input for mobile context menu */}
+      <input
+        ref={layoutInputRef}
+        type="file" accept="image/*" multiple style={{ display: 'none' }}
+        onChange={e => {
+          const raw = Array.from(e.target.files || []);
+          e.target.value = '';
+          if (raw.length && enqueue) enqueue(raw, { surveyId: id, entryId: null, mediaType: 'layout' });
+        }}
+      />
+
+      {/* Mobile survey-level context menu */}
+      <BottomSheet
+        isOpen={surveyCtxOpen}
+        onClose={() => setSurveyCtxOpen(false)}
+        title={survey.title}
+        actions={[
+          { icon: Edit3,        label: 'Általános szerkesztése',  onClick: () => setShowMetaDrawer(true) },
+          { icon: Mic,         label: 'Ingatlan megjegyzés diktálása', onClick: () => { setPropertyNotesTrigger(n => n + 1); } },
+          ...(survey.status === 'done'
+            ? [{ icon: RefreshCw, label: 'Újranyitás', onClick: () => handleStatusChange('reopened') }]
+            : [{ icon: CheckCircle2, label: 'Lezárás', onClick: () => handleStatusChange('done') }]
+          ),
+          { icon: LayoutPanelLeft, label: 'Alaprajz hozzáadása', onClick: () => layoutInputRef.current?.click() },
+          { icon: PenLine, label: 'Általános vázlat', onClick: () => setSurveyDrawingTrigger(n => n + 1) },
+          { icon: Trash2,  label: 'Törlés', danger: true, dividerBefore: true, onClick: handleDeleteSurvey },
+        ]}
+      />
+
+      {/* Survey-level drawings — hidden on mobile when empty */}
+      {(() => {
+        const surveyDrawings = drawings.filter(d => !d.entry_id);
+        if (isMobile && surveyDrawings.length === 0) return null;
+        return (
+          <div className="card mb-4" style={{ padding: '1rem' }}>
+            <DrawingsSection
+              drawings={surveyDrawings}
+              onSave={canDrawings ? (svg => createSurveyDrawing(id, { svg_data: svg })) : undefined}
+              onDelete={canDrawings ? (drawingId => deleteSurveyDrawing(id, drawingId)) : undefined}
+              canEdit={canDrawings}
+              triggerCount={surveyDrawingTrigger}
+            />
+          </div>
+        );
+      })()}
 
       {/* Rooms */}
       <div style={{ marginBottom: '1.25rem' }}>
@@ -1371,6 +2016,7 @@ export default function SurveyDetailPage() {
                     surveyId={id}
                     canEditEntry={canEditEntry(entry)}
                     canAdd={canAdd}
+                    canEditAll={isKollektivOwner || isOwner}
                     onEdit={() => { setEditingEntry(entry); setShowAddEntry(false); }}
                     onDelete={() => handleDeleteEntry(entry)}
                     handleDeleteMedia={handleDeleteMedia}
