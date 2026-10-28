@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { logAudit } from '@/lib/audit';
-import { hasPendingTransfer } from '@/lib/transferLock';
+import { hasPendingTransfer, canUnlockToPersonal } from '@/lib/transferLock';
 
 async function getCallerAndSurvey(id) {
   const supabase = await createClient();
@@ -77,6 +77,24 @@ export async function PATCH(request, { params }) {
 
   if (!isOwner && !isSuperAdmin && !isKollektivOwner)
     return Response.json({ error: 'Csak a tulajdonos módosíthatja a felmérést.' }, { status: 403 });
+
+  // Unlock action — clears locked_reason after quota check
+  if (fields._action === 'unlock') {
+    if (!isOwner && !isSuperAdmin)
+      return Response.json({ error: 'Csak a dokumentum tulajdonosa oldhatja fel a zárolást.' }, { status: 403 });
+    const check = await canUnlockToPersonal('survey', ctx.user.id, ctx.profile);
+    if (!check.allowed)
+      return Response.json({ error: 'Nincs szabad hely az előfizetésedben.', reason: check.reason, limit: check.limit }, { status: 402 });
+    const { data, error } = await ctx.admin.from('surveys')
+      .update({ locked_reason: null, locked_at: null })
+      .eq('id', id).select().single();
+    if (error) return Response.json({ error: error.message }, { status: 400 });
+    return Response.json({ survey: data });
+  }
+
+  // Block edits if document is locked (rejected/expired transfer)
+  if (!isSuperAdmin && ctx.survey.locked_reason)
+    return Response.json({ error: 'Ez a dokumentum csak olvasható. Nyisd meg a dokumentumot a feloldáshoz.', locked_reason: ctx.survey.locked_reason }, { status: 423 });
 
   if (!isSuperAdmin && !isOwner && await hasPendingTransfer('survey', id))
     return Response.json({ error: 'Ez a dokumentum átadás alatt áll, ezért nem módosítható.' }, { status: 423 });

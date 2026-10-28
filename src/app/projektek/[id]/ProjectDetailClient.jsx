@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
@@ -11,6 +11,7 @@ import InvoiceCard from '@/components/InvoiceCard';
 import CollectiveBanner from '@/components/CollectiveBanner';
 import StatCard from '@/components/StatCard';
 import Modal, { ConfirmModal, AlertModal } from '@/components/Modal';
+import LockedDocumentModal from '@/components/LockedDocumentModal';
 import QuickCostSheet from '@/components/mobile/QuickCostSheet';
 import useMobile from '@/hooks/useMobile';
 import { ResponsiveContainer, AreaChart, Area, ReferenceLine, XAxis, YAxis, Tooltip, BarChart, Bar, Cell, LabelList } from 'recharts';
@@ -1584,6 +1585,19 @@ export default function ProjectDetailClient({
   const [activeTab, setActiveTab] = useState('invoices');
   const [confirmModal, setConfirmModal] = useState(null);
   const [alertModal, setAlertModal] = useState(null);
+  const [lockedModalOpen, setLockedModalOpen] = useState(() => !!project?.locked_reason);
+  const [transferAttemptCount, setTransferAttemptCount] = useState(0);
+
+  useEffect(() => {
+    if (!project?.locked_reason) return;
+    setLockedModalOpen(true);
+    fetch('/api/transfer-requests?outgoing=true')
+      .then(r => r.ok ? r.json() : { requests: [] })
+      .then(d => {
+        const count = (d.requests || []).filter(t => t.document_id === project.id && (t.status === 'rejected' || t.status === 'transfer_expired')).length;
+        setTransferAttemptCount(count);
+      }).catch(() => {});
+  }, [project?.id, project?.locked_reason]);
   const [diaryLoading, setDiaryLoading] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
   const [toast, setToast] = useState('');
@@ -2886,6 +2900,16 @@ export default function ProjectDetailClient({
       <RoomModal isOpen={roomModalOpen} onClose={() => setRoomModalOpen(false)} room={editingRoom} onSave={handleSaveRoom} />
       <ConfirmModal isOpen={!!confirmModal} onClose={() => setConfirmModal(null)} onConfirm={() => confirmModal?.onConfirm()} title="Megerősítés" message={confirmModal?.message} />
       <AlertModal isOpen={!!alertModal} onClose={() => setAlertModal(null)} message={alertModal?.message} />
+      <LockedDocumentModal
+        isOpen={lockedModalOpen}
+        documentType="project"
+        documentId={project.id}
+        lockedReason={project.locked_reason}
+        transferAttempts={transferAttemptCount}
+        onDelete={async () => { await ctxDeleteProject(project.id); router.push('/projektek'); }}
+        onUnlocked={() => setLockedModalOpen(false)}
+        onKeepReadOnly={() => setLockedModalOpen(false)}
+      />
 
       <EditDiaryEntryModal
         isOpen={!!editingDiaryEntry}

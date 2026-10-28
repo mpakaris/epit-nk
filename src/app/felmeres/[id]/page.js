@@ -6,6 +6,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
 import { formatDate } from '@/lib/constants';
 import { ConfirmModal, AlertModal } from '@/components/Modal';
+import LockedDocumentModal from '@/components/LockedDocumentModal';
 import CollectiveBanner from '@/components/CollectiveBanner';
 import DrawingsSection from '@/components/DrawingsSection';
 import {
@@ -966,6 +967,8 @@ export default function SurveyDetailPage() {
   const [detailLoading, setDetailLoading] = useState(true);
   const [confirmModal, setConfirmModal]   = useState(null);
   const [alertModal, setAlertModal]       = useState(null);
+  const [lockedModalOpen, setLockedModalOpen]       = useState(false);
+  const [transferAttemptCount, setTransferAttemptCount] = useState(0);
   const [showMetaDrawer, setShowMetaDrawer] = useState(false);
   const [showAddEntry, setShowAddEntry]   = useState(false);
   const [editingEntry, setEditingEntry]   = useState(null);
@@ -990,6 +993,22 @@ export default function SurveyDetailPage() {
       .catch(() => {})
       .finally(() => setDirectFetching(false));
   }, [id, dataReady, surveys]);
+
+  // Auto-open locked modal + count attempts
+  useEffect(() => {
+    const s = surveys.find(sv => sv.id === id) || directSurvey;
+    if (s?.locked_reason) {
+      setLockedModalOpen(true);
+      if (!isDemoMode) {
+        fetch('/api/transfer-requests?outgoing=true')
+          .then(r => r.ok ? r.json() : { requests: [] })
+          .then(d => {
+            const count = (d.requests || []).filter(t => t.document_id === id && (t.status === 'rejected' || t.status === 'transfer_expired')).length;
+            setTransferAttemptCount(count);
+          }).catch(() => {});
+      }
+    }
+  }, [id, surveys, directSurvey, isDemoMode]);
 
   if (loading || !dataReady || directFetching) return <PageSpinner />;
 
@@ -1383,6 +1402,16 @@ export default function SurveyDetailPage() {
 
       <ConfirmModal isOpen={!!confirmModal} onClose={() => setConfirmModal(null)} onConfirm={() => confirmModal?.onConfirm()} title="Megerősítés" message={confirmModal?.message} />
       <AlertModal isOpen={!!alertModal} onClose={() => setAlertModal(null)} message={alertModal?.message} />
+      <LockedDocumentModal
+        isOpen={lockedModalOpen}
+        documentType="survey"
+        documentId={id}
+        lockedReason={survey.locked_reason}
+        transferAttempts={transferAttemptCount}
+        onDelete={async () => { await deleteSurvey(id); router.push(`${navPrefix}/felmeres`); }}
+        onUnlocked={() => setLockedModalOpen(false)}
+        onKeepReadOnly={() => setLockedModalOpen(false)}
+      />
     </div>
   );
 }

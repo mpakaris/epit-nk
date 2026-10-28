@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { logAudit } from '@/lib/audit';
-import { hasPendingTransfer } from '@/lib/transferLock';
+import { hasPendingTransfer, canUnlockToPersonal } from '@/lib/transferLock';
 
 async function getCallerAndQuote(id) {
   const supabase = await createClient();
@@ -63,6 +63,24 @@ export async function PATCH(request, { params }) {
 
   if (!isOwner && !isSuperAdmin && !isKollektivOwner)
     return Response.json({ error: 'Csak a tulajdonos módosíthatja az ajánlatot.' }, { status: 403 });
+
+  // Unlock action
+  if (fields._action === 'unlock') {
+    if (!isOwner && !isSuperAdmin)
+      return Response.json({ error: 'Csak a dokumentum tulajdonosa oldhatja fel a zárolást.' }, { status: 403 });
+    const check = await canUnlockToPersonal('quote', ctx.user.id, ctx.profile);
+    if (!check.allowed)
+      return Response.json({ error: 'Nincs szabad hely az előfizetésedben.', reason: check.reason, limit: check.limit }, { status: 402 });
+    const { data, error } = await ctx.admin.from('quotes')
+      .update({ locked_reason: null, locked_at: null })
+      .eq('id', id).select().single();
+    if (error) return Response.json({ error: error.message }, { status: 400 });
+    return Response.json({ quote: data });
+  }
+
+  // Block edits if document is locked
+  if (!isSuperAdmin && ctx.quote.locked_reason)
+    return Response.json({ error: 'Ez a dokumentum csak olvasható.', locked_reason: ctx.quote.locked_reason }, { status: 423 });
 
   if (!isSuperAdmin && !isOwner && await hasPendingTransfer('quote', id))
     return Response.json({ error: 'Ez a dokumentum átadás alatt áll, ezért nem módosítható.' }, { status: 423 });

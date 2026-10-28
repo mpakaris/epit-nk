@@ -9,8 +9,8 @@ const BASE = process.env.TEST_APP_URL || 'http://localhost:3000'
  * @param {string} cookie  Cookie header string from signIn()
  * @returns {{ status: number, body: any }}
  */
-export async function api(method, path, body, cookie) {
-  const headers = { 'Content-Type': 'application/json' }
+export async function api(method, path, body, cookie, extraHeaders = {}) {
+  const headers = { 'Content-Type': 'application/json', ...extraHeaders }
   if (cookie) headers['Cookie'] = cookie
 
   const res = await fetch(`${BASE}${path}`, {

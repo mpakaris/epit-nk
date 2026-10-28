@@ -82,6 +82,29 @@ export async function POST(request) {
   if (existing)
     return Response.json({ error: 'Már van folyamatban lévő áthelyezési kérelem ehhez a dokumentumhoz.' }, { status: 400 });
 
+  // Attempt cap: max 2 rejections/expirations per document
+  const { data: pastAttempts } = await admin
+    .from('transfer_requests')
+    .select('id, status, resolved_at')
+    .eq('document_type', document_type)
+    .eq('document_id', document_id)
+    .in('status', ['rejected', 'transfer_expired'])
+    .order('resolved_at', { ascending: false });
+
+  const attempts = pastAttempts || [];
+  if (attempts.length >= 2)
+    return Response.json({ error: 'Ez a dokumentum elérte az áthelyezési kísérletek maximális számát (2). Nem küldhető be újra.' }, { status: 400 });
+
+  // 3-day cooling period after last rejection
+  if (attempts.length > 0 && attempts[0].resolved_at) {
+    const coolUntil = new Date(attempts[0].resolved_at);
+    coolUntil.setDate(coolUntil.getDate() + 3);
+    if (new Date() < coolUntil) {
+      const daysLeft = Math.ceil((coolUntil - new Date()) / 86400000);
+      return Response.json({ error: `Visszautasítás után 3 napot kell várni az újbóli beküldés előtt. Még ${daysLeft} nap van hátra.` }, { status: 429 });
+    }
+  }
+
   const { data: req, error } = await admin
     .from('transfer_requests')
     .insert({ document_type, document_id, document_title: docTitle, from_user_id: user.id, collective_id })

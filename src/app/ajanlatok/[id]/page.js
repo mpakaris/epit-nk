@@ -6,6 +6,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
 import { formatHUF, formatDate, QUOTE_STATUSES, QUOTE_ENTRY_TYPES, QUANTITY_UNITS, LABOUR_UNITS } from '@/lib/constants';
 import Modal, { ConfirmModal, AlertModal } from '@/components/Modal';
+import LockedDocumentModal from '@/components/LockedDocumentModal';
 import SectionMediaGrid from '@/components/SectionMediaGrid';
 import CollectiveBanner from '@/components/CollectiveBanner';
 import ClientSelect from '@/components/ClientSelect';
@@ -801,9 +802,11 @@ export default function QuoteDetailPage() {
     }
   };
 
-  const [confirmModal, setConfirmModal] = useState(null);
-  const [alertModal, setAlertModal]     = useState(null);
-  const [copied, setCopied]             = useState(false);
+  const [confirmModal,       setConfirmModal]       = useState(null);
+  const [alertModal,         setAlertModal]         = useState(null);
+  const [copied,             setCopied]             = useState(false);
+  const [lockedModalOpen,    setLockedModalOpen]    = useState(false);
+  const [outgoingTransfers,  setOutgoingTransfers]  = useState([]);
 
   // Fallback: if the quote isn't in the current workspace context (e.g. personal
   // context while the quote belongs to a collective, or vice versa) fetch it directly.
@@ -838,6 +841,20 @@ export default function QuoteDetailPage() {
     if (quote?.survey_id) fetchSurveyMedia(quote.survey_id).catch(() => {});
   }, [quote?.survey_id]);
 
+  // Fetch outgoing transfers so we know pending/rejected state
+  useEffect(() => {
+    if (!dataReady || isDemoMode) return;
+    fetch('/api/transfer-requests?outgoing=true')
+      .then(r => r.ok ? r.json() : { requests: [] })
+      .then(d => setOutgoingTransfers(d.requests || []))
+      .catch(() => {});
+  }, [dataReady, isDemoMode]);
+
+  // Auto-open locked modal when document has a locked_reason
+  useEffect(() => {
+    if (quote?.locked_reason) setLockedModalOpen(true);
+  }, [quote?.locked_reason]);
+
   useEffect(() => {
     if (!quote || metaInitialized) return;
     setMetaTitle(quote.title || '');
@@ -871,7 +888,9 @@ export default function QuoteDetailPage() {
   const isCollMember     = !!(activeCollectiveId && quote.collective_id === activeCollectiveId);
   const canModify        = isQuoteOwner || isKollektivOwner || (quote.shared_with || []).includes(currentUser?.id) || isCollMember;
   const isLocked      = quote.status === 'accepted' || quote.status === 'rejected';
-  const canEdit       = canModify && !isLocked;
+  const canEdit       = canModify && !isLocked && !quote.locked_reason;
+  const isPendingOutgoingTransfer = outgoingTransfers.some(t => t.document_id === id && t.status === 'pending');
+  const transferAttemptCount = outgoingTransfers.filter(t => t.document_id === id && (t.status === 'rejected' || t.status === 'transfer_expired')).length;
   const sc            = STATUS_COLORS[quote.status] || STATUS_COLORS.draft;
   const linkedProject = quote.project_id ? projects.find(p => p.id === quote.project_id) : null;
   const linkedSurvey  = quote.survey_id  ? surveys.find(s => s.id === quote.survey_id)   : null;
@@ -1618,6 +1637,23 @@ export default function QuoteDetailPage() {
 
       <AlertModal isOpen={!!alertModal} onClose={() => setAlertModal(null)} message={alertModal?.message} variant={alertModal?.variant} />
 
+      <LockedDocumentModal
+        isOpen={lockedModalOpen}
+        documentType="quote"
+        documentId={id}
+        lockedReason={quote.locked_reason}
+        transferAttempts={transferAttemptCount}
+        onDelete={async () => {
+          await deleteQuote(id, quote);
+          router.push(`${navPrefix}/ajanlatok`);
+        }}
+        onUnlocked={() => {
+          setLockedModalOpen(false);
+          setFallbackQuote(prev => prev ? { ...prev, locked_reason: null, locked_at: null } : null);
+        }}
+        onKeepReadOnly={() => setLockedModalOpen(false)}
+      />
+
       {/* ── Floating actions button ── */}
       {canModify && (
         <button
@@ -1671,13 +1707,13 @@ export default function QuoteDetailPage() {
               <span style={{ fontSize: 16, fontWeight: 600 }}>Előnézet / PDF</span>
             </Link>
 
-            {/* Send email */}
+            {/* Send email — disabled while transfer is pending */}
             {canModify && (
               <button
                 type="button"
                 onClick={() => { setShowActionsSheet(false); openSendConfirm(); }}
-                disabled={!client?.email}
-                style={{ display: 'flex', alignItems: 'center', gap: 14, width: '100%', minHeight: 56, padding: '0 20px', background: 'none', border: 'none', cursor: client?.email ? 'pointer' : 'default', textAlign: 'left', opacity: client?.email ? 1 : 0.45 }}
+                disabled={!client?.email || isPendingOutgoingTransfer}
+                style={{ display: 'flex', alignItems: 'center', gap: 14, width: '100%', minHeight: 56, padding: '0 20px', background: 'none', border: 'none', cursor: (client?.email && !isPendingOutgoingTransfer) ? 'pointer' : 'default', textAlign: 'left', opacity: (client?.email && !isPendingOutgoingTransfer) ? 1 : 0.45 }}
               >
                 <div style={{ width: 44, height: 44, borderRadius: 12, background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                   <Send size={20} strokeWidth={1.75} color="#475569" />
