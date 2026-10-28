@@ -57,54 +57,54 @@ export default function WorkspacePicker({
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           {/* Personal option */}
-          <WorkspaceOption
-            type="personal"
-            label="Személyes"
-            description={personalOnly ? 'Az ügyféladatok mindig személyesek (GDPR).' : 'Csak te látod ezt a munkát.'}
-            isSelected={selected === null}
-            onSelect={personalOnly ? undefined : () => onChange(null)}
-          />
-
-          {/* Collective options */}
-          {!personalOnly && collectives.map(col => (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             <WorkspaceOption
-              key={col.id}
-              type={col.role === 'owner' || col.role === 'admin' ? 'collective' : 'member'}
-              label={col.name}
-              description={
-                col.role === 'owner' || col.role === 'admin'
-                  ? 'Saját kollektíva · a csapat minden tagja látja.'
-                  : 'Tag vagy · beküldheted jóváhagyásra.'
-              }
-              isSelected={selected === col.id}
-              onSelect={() => onChange(col.id)}
+              type="personal"
+              label="Személyes"
+              description={personalOnly ? 'Az ügyféladatok mindig személyesek (GDPR).' : 'Csak te látod ezt a munkát.'}
+              isSelected={selected === null}
+              onSelect={personalOnly ? undefined : () => onChange(null)}
             />
-          ))}
+          </div>
+
+          {/* Collective options — each with its inline banner */}
+          {!personalOnly && collectives.map(col => {
+            const isOwned = col.role === 'owner' || col.role === 'admin';
+            const isThisSelected = selected === col.id;
+            return (
+              <div key={col.id} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <WorkspaceOption
+                  type={isOwned ? 'collective' : 'member'}
+                  label={col.name}
+                  description={
+                    isOwned
+                      ? 'Saját kollektíva · a csapat minden tagja látja.'
+                      : 'Tag vagy · beküldheted jóváhagyásra.'
+                  }
+                  isSelected={isThisSelected}
+                  onSelect={() => onChange(col.id)}
+                />
+                {isThisSelected && isOwned && (
+                  <SharingBanner collectiveName={col.name} />
+                )}
+                {isThisSelected && !isOwned && (
+                  <div style={{
+                    display: 'flex', alignItems: 'flex-start', gap: '0.65rem',
+                    padding: '0.85rem 1rem',
+                    borderRadius: 'var(--radius-md)',
+                    background: '#fff7ed',
+                    border: '1px solid #fed7aa',
+                  }}>
+                    <Info size={16} color="#ea580c" style={{ flexShrink: 0, marginTop: 2 }} aria-hidden="true" />
+                    <p style={{ fontSize: 14, color: '#9a3412', lineHeight: 1.55, margin: 0 }}>
+                      <strong>Jóváhagyás szükséges.</strong> Addig ez a {typeLabel} a <strong>személyes munkaterületeden</strong> él és szerkeszthető. Amikor a tulajdonos elfogadja, átkerül a csapathoz.
+                    </p>
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
-
-        {/* Info banner for contributor collective */}
-        {isContributor && (
-          <div style={{
-            marginTop: 16,
-            display: 'flex', alignItems: 'flex-start', gap: '0.65rem',
-            padding: '0.85rem 1rem',
-            borderRadius: 'var(--radius-md)',
-            background: '#fff7ed',
-            border: '1px solid #fed7aa',
-          }}>
-            <Info size={16} color="#ea580c" style={{ flexShrink: 0, marginTop: 2 }} aria-hidden="true" />
-            <p style={{ fontSize: 14, color: '#9a3412', lineHeight: 1.55, margin: 0 }}>
-              <strong>Jóváhagyás szükséges.</strong> Addig ez a {typeLabel} a <strong>személyes munkaterületeden</strong> él és szerkeszthető. Amikor a kollektíva tulajdonosa elfogadja, átkerül a csapathoz.
-            </p>
-          </div>
-        )}
-
-        {/* Sharing banner for own collective */}
-        {!personalOnly && !isContributor && selected !== null && (
-          <div style={{ marginTop: 16 }}>
-            <SharingBanner collectiveName={selectedCol?.name} />
-          </div>
-        )}
       </div>
 
       {/* Primary button */}
