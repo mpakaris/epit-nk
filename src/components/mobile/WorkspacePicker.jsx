@@ -133,12 +133,16 @@ function WorkspaceOption({ type, label, description, isSelected, onSelect }) {
   const iconColor   = isPersonal ? '#2563eb' : isMember ? '#ea580c' : '#16a34a';
   const ringColor   = isPersonal ? '#2563eb' : isMember ? '#ea580c' : '#16a34a';
 
+  const badgeLabel = isPersonal ? 'Privát' : isMember ? 'Tag' : 'Tulajdonos';
+  const badgeBg    = isPersonal ? '#2563eb' : isMember ? '#ea580c' : '#16a34a';
+
   return (
     <button
       type="button"
       onClick={onSelect}
       aria-pressed={isSelected}
       style={{
+        position: 'relative',
         display: 'flex', alignItems: 'flex-start', gap: 14,
         minHeight: 120, padding: 20, textAlign: 'left',
         background: '#fff', borderRadius: 20, cursor: 'pointer',
@@ -148,30 +152,26 @@ function WorkspaceOption({ type, label, description, isSelected, onSelect }) {
         width: '100%',
       }}
     >
-      {/* Icon with optional edge badge */}
-      <div style={{ position: 'relative', flexShrink: 0, width: 56, height: 56 }}>
-        <div style={{
-          width: 56, height: 56, borderRadius: '50%',
-          background: chipBg,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-        }}>
-          {isPersonal
-            ? <User size={26} color={iconColor} strokeWidth={1.75} aria-hidden="true" />
-            : <Users size={26} color={iconColor} strokeWidth={1.75} aria-hidden="true" />}
-        </div>
-        {(isMember || (!isPersonal && !isMember)) && (
-          <span style={{
-            position: 'absolute', bottom: 0, right: -2,
-            fontSize: 10, fontWeight: 800, lineHeight: 1,
-            color: '#fff',
-            background: isMember ? '#ea580c' : '#16a34a',
-            padding: '3px 6px', borderRadius: 999,
-            border: '2px solid #fff',
-            whiteSpace: 'nowrap',
-          }}>
-            {isMember ? 'Tag' : 'Tulajdonos'}
-          </span>
-        )}
+      {/* Role badge — top-right corner of the card */}
+      <span style={{
+        position: 'absolute', top: 14, right: 52,
+        fontSize: 10, fontWeight: 800, lineHeight: 1,
+        color: '#fff', background: badgeBg,
+        padding: '3px 8px', borderRadius: 999,
+        whiteSpace: 'nowrap',
+      }}>
+        {badgeLabel}
+      </span>
+
+      {/* Icon — clean, no badge */}
+      <div style={{
+        width: 56, height: 56, borderRadius: '50%',
+        background: chipBg, flexShrink: 0,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+      }}>
+        {isPersonal
+          ? <User size={26} color={iconColor} strokeWidth={1.75} aria-hidden="true" />
+          : <Users size={26} color={iconColor} strokeWidth={1.75} aria-hidden="true" />}
       </div>
 
       <div style={{ flex: 1, paddingTop: 4 }}>
