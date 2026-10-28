@@ -148,30 +148,36 @@ function WorkspaceOption({ type, label, description, isSelected, onSelect }) {
         width: '100%',
       }}
     >
-      <div style={{
-        width: 56, height: 56, borderRadius: '50%',
-        background: chipBg, flexShrink: 0,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-      }}>
-        {isPersonal
-          ? <User size={26} color={iconColor} strokeWidth={1.75} aria-hidden="true" />
-          : <Users size={26} color={iconColor} strokeWidth={1.75} aria-hidden="true" />}
+      {/* Icon with optional edge badge */}
+      <div style={{ position: 'relative', flexShrink: 0, width: 56, height: 56 }}>
+        <div style={{
+          width: 56, height: 56, borderRadius: '50%',
+          background: chipBg,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>
+          {isPersonal
+            ? <User size={26} color={iconColor} strokeWidth={1.75} aria-hidden="true" />
+            : <Users size={26} color={iconColor} strokeWidth={1.75} aria-hidden="true" />}
+        </div>
+        {isMember && (
+          <span style={{
+            position: 'absolute', bottom: 0, right: -2,
+            fontSize: 10, fontWeight: 800, lineHeight: 1,
+            color: '#fff', background: '#ea580c',
+            padding: '3px 6px', borderRadius: 999,
+            border: '2px solid #fff',
+            whiteSpace: 'nowrap',
+          }}>
+            Tag
+          </span>
+        )}
       </div>
 
       <div style={{ flex: 1, paddingTop: 4 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+        <div style={{ marginBottom: 4 }}>
           <span style={{ fontSize: 20, fontWeight: 800, color: '#0f172a', lineHeight: '26px' }}>
             {label}
           </span>
-          {isMember && (
-            <span style={{
-              fontSize: 11, fontWeight: 700, color: '#ea580c',
-              background: '#fff7ed', border: '1px solid #fed7aa',
-              padding: '2px 7px', borderRadius: 999, lineHeight: 1,
-            }}>
-              Tag
-            </span>
-          )}
         </div>
         <div style={{ fontSize: 14, fontWeight: 500, color: '#475569', lineHeight: '20px' }}>
           {description}
