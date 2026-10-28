@@ -413,27 +413,26 @@ describe('Transfer — API lock (PATCH/DELETE return 423 while pending)', () => 
     lockRequestId = body.request.id
   })
 
-  it('PATCH on a locked survey returns 423', async () => {
+  it('document owner can PATCH their own pending-transfer survey (owner always editable)', async () => {
     const { status, body } = await api('PATCH', `/api/surveys/${lockSurveyId}`, {
-      title: '[TEST] Próba módosítás (tilos)',
+      title: '[TEST] Zárolásra kerülő felmérés — szerkesztve',
     }, memberCookie)
-    expect(status).toBe(423)
-    expect(body.error).toMatch(/átadás alatt/)
+    expect(status).toBe(200)
+    expect(body.survey.title).toBe('[TEST] Zárolásra kerülő felmérés — szerkesztve')
   })
 
-  it('DELETE on a locked survey returns 423', async () => {
+  it('DELETE on a pending-transfer survey returns 423', async () => {
     const { status, body } = await api('DELETE', `/api/surveys/${lockSurveyId}`, null, memberCookie)
     expect(status).toBe(423)
     expect(body.error).toMatch(/átadás alatt/)
   })
 
-  it('survey is still intact after blocked mutation attempts', async () => {
+  it('survey is still not deleted after blocked DELETE attempt', async () => {
     const { data } = await admin
       .from('surveys')
       .select('title, deleted_at')
       .eq('id', lockSurveyId)
       .single()
-    expect(data.title).toBe('[TEST] Zárolásra kerülő felmérés')
     expect(data.deleted_at).toBeNull()
   })
 

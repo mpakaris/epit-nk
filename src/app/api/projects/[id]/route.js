@@ -57,7 +57,7 @@ export async function GET(request, { params }) {
   const { data: project } = await admin.from('projects').select('*').eq('id', id).single();
   if (!project) return Response.json({ error: 'Not found' }, { status: 404 });
 
-  const { data: profile } = await admin.from('profiles').select('role, active_collective_id').eq('id', user.id).single();
+  const { data: profile } = await admin.from('profiles').select('role, active_collective_id, display_name, is_subscription_premium, subscription_tier, trial_ends_at').eq('id', user.id).single();
   const isSuperAdmin = profile?.role === 'superadmin';
   const isOwner      = project.owner_id === user.id || project.created_by === user.id;
   let allowed = isSuperAdmin || isOwner;

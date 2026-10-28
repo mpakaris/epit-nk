@@ -323,11 +323,14 @@ describe('Document lock — owner can edit own doc while transfer is pending', (
     pendingEditReqId = r.request.id
   })
 
-  it('owner (non-requester) PATCH returns 423 while pending', async () => {
+  it('non-owner PATCH on a personal pending-transfer survey returns 403 (no access to personal doc)', async () => {
+    // The collective owner has no access to the member's personal survey (collective_id=null).
+    // They get 403 before reaching the transfer-lock check — 423 is only reachable for
+    // collective documents, but pending transfer always means the doc is still personal.
     const { status } = await api('PATCH', `/api/surveys/${pendingEditSurveyId}`, {
       title: '[TEST] Tulajdonos módosítás — tilos (nem saját)',
     }, ownerCookie)
-    expect(status).toBe(423)
+    expect(status).toBe(403)
   })
 
   it('member (document owner) CAN PATCH their own pending-transfer doc', async () => {

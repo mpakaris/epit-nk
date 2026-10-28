@@ -25,7 +25,8 @@ export async function checkPersonalLimit(admin, userId, table, configKey) {
       .select('id', { count: 'exact', head: true })
       .eq('owner_id', userId)
       .is('collective_id', null)
-      .is('deleted_at', null),
+      .is('deleted_at', null)
+      .is('locked_reason', null),   // locked docs are in limbo, don't consume quota
     admin.from('pricing_config').select('value').eq('key', configKey).single(),
   ]);
   const count = countRes.count ?? 0;

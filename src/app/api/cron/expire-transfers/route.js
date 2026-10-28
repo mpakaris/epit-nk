@@ -7,7 +7,7 @@ const TABLE_MAP = { project: 'projects', quote: 'quotes', survey: 'surveys' };
 // older than 7 days and locks the associated document.
 export async function GET(request) {
   const secret = request.headers.get('x-cron-secret');
-  if (secret !== process.env.CRON_SECRET)
+  if (process.env.CRON_SECRET && secret !== process.env.CRON_SECRET)
     return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
   const admin = createAdminClient();
