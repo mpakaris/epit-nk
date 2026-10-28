@@ -18,6 +18,7 @@ import {
   MessageSquare, CheckCheck, RotateCcw,
 } from 'lucide-react';
 import PageSpinner from '@/components/PageSpinner';
+import useMobile from '@/hooks/useMobile';
 import { processMediaFile } from '@/lib/mediaGate';
 
 const ENTRY_TYPE_ORDER = { material: 0, labour: 1, transport: 2, equipment: 3, other: 4 };
@@ -697,6 +698,7 @@ export default function QuoteDetailPage() {
   } = useApp();
 
   const navPrefix = isDemoMode ? '/demo' : '';
+  const isMobile  = useMobile();
 
   // Inline meta state
   const [metaTitle, setMetaTitle]           = useState('');
@@ -1213,13 +1215,24 @@ export default function QuoteDetailPage() {
 
       <CollectiveBanner documentCollectiveId={quote.collective_id ?? null} />
       {isDocLocked && !lockedModalOpen && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', padding: '0.75rem 1rem', marginBottom: '1rem', borderRadius: 'var(--radius-md)', background: 'var(--danger-bg)', border: '1px solid var(--danger-border)' }}>
-          <span style={{ fontSize: '0.85rem', color: 'var(--danger-text)', fontWeight: 600, flex: 1 }}>
-            🔒 Ez az ajánlat csak olvasható.
-          </span>
-          <button type="button" onClick={() => setLockedModalOpen(true)} style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--danger-text)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', flexShrink: 0 }}>
-            Lehetőségeim →
-          </button>
+        <div style={{ padding: '0.75rem 1rem', marginBottom: '1rem', borderRadius: 'var(--radius-md)', background: 'var(--danger-bg)', border: '1px solid var(--danger-border)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+            <span style={{ fontSize: '0.85rem', color: 'var(--danger-text)', fontWeight: 600, flex: 1 }}>
+              🔒 Ez az ajánlat csak olvasható.
+            </span>
+            {!isMobile && (
+              <button type="button" onClick={() => setLockedModalOpen(true)} style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--danger-text)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', flexShrink: 0 }}>
+                Lehetőségeim →
+              </button>
+            )}
+          </div>
+          {isMobile && (
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '0.5rem' }}>
+              <button type="button" onClick={() => setLockedModalOpen(true)} style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--danger-text)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>
+                Lehetőségeim →
+              </button>
+            </div>
+          )}
         </div>
       )}
 
