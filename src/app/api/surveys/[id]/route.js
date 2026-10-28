@@ -78,7 +78,7 @@ export async function PATCH(request, { params }) {
   if (!isOwner && !isSuperAdmin && !isKollektivOwner)
     return Response.json({ error: 'Csak a tulajdonos módosíthatja a felmérést.' }, { status: 403 });
 
-  if (!isSuperAdmin && await hasPendingTransfer('survey', id))
+  if (!isSuperAdmin && !isOwner && await hasPendingTransfer('survey', id))
     return Response.json({ error: 'Ez a dokumentum átadás alatt áll, ezért nem módosítható.' }, { status: 423 });
 
   const allowed = ['title', 'notes', 'date', 'location', 'client_id', 'shared_with', 'collective_id', 'status', 'done_at', 'reopened_at'];

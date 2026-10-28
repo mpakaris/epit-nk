@@ -68,7 +68,7 @@ function NewQuotePageInner() {
   } = useApp();
 
   const navPrefix = isDemoMode ? '/demo' : '';
-  const collectives = (effectiveCollectives || []).map(c => ({ id: c.collective_id, name: c.name }));
+  const collectives = (effectiveCollectives || []).map(c => ({ id: c.collective_id, name: c.name, role: c.role }));
 
   // Mobile step: 1 = workspace (only if has collectives), 2 = form
   const [mobileStep, setMobileStep] = useState(1);
@@ -93,6 +93,7 @@ function NewQuotePageInner() {
 
   const selectedSurvey    = surveys.find(s => s.id === surveyId);
   const selectedCollective = collectives.find(c => c.id === collectiveId);
+  const isContributorCollective = !!(collectiveId && selectedCollective?.role !== 'owner' && selectedCollective?.role !== 'admin');
 
   useEffect(() => {
     const last = localStorage.getItem('last_tax_percent');
@@ -132,8 +133,15 @@ function NewQuotePageInner() {
         title: title.trim(), location: location.trim(), workType: workType.trim(),
         description: description.trim(), startDate: startDate || null, endDate: endDate || null,
         clientId: clientId || null, taxPercent: Number(taxPercent) || 0,
-        surveyId: surveyId || null, collectiveId,
+        surveyId: surveyId || null, collectiveId: isContributorCollective ? null : collectiveId,
       });
+      if (isContributorCollective) {
+        await fetch('/api/transfer-requests', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ document_type: 'quote', document_id: quote.id, collective_id: collectiveId }),
+        });
+      }
 
       if (surveyId) {
         try {

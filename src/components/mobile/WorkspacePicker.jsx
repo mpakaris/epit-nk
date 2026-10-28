@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { User, Users, Check, X } from 'lucide-react';
+import { User, Users, Check, X, Info } from 'lucide-react';
 import SharingBanner from './SharingBanner';
 
 export default function WorkspacePicker({
@@ -9,11 +9,15 @@ export default function WorkspacePicker({
   selected,       // null = personal, string = collective id
   onChange,
   onClose,
-  onNext,         // called when "Tovább →" tapped
+  onNext,
   typeLabel = 'felmérés',
-  personalOnly = false, // locks to personal (for client creation — GDPR)
+  personalOnly = false,
 }) {
   if (!personalOnly && collectives.length === 0) return null;
+
+  const selectedCol = collectives.find(c => c.id === selected);
+  const isContributor = selected !== null && selectedCol &&
+    selectedCol.role !== 'owner' && selectedCol.role !== 'admin';
 
   return (
     <div style={{
@@ -65,19 +69,40 @@ export default function WorkspacePicker({
           {!personalOnly && collectives.map(col => (
             <WorkspaceOption
               key={col.id}
-              type="collective"
+              type={col.role === 'owner' || col.role === 'admin' ? 'collective' : 'member'}
               label={col.name}
-              description="Kollektíva · a csapat minden tagja látja."
+              description={
+                col.role === 'owner' || col.role === 'admin'
+                  ? 'Saját kollektíva · a csapat minden tagja látja.'
+                  : 'Tag vagy · beküldheted jóváhagyásra.'
+              }
               isSelected={selected === col.id}
               onSelect={() => onChange(col.id)}
             />
           ))}
         </div>
 
-        {/* Sharing banner when collective selected */}
-        {!personalOnly && selected !== null && (
+        {/* Info banner for contributor collective */}
+        {isContributor && (
+          <div style={{
+            marginTop: 16,
+            display: 'flex', alignItems: 'flex-start', gap: '0.65rem',
+            padding: '0.85rem 1rem',
+            borderRadius: 'var(--radius-md)',
+            background: '#fff7ed',
+            border: '1px solid #fed7aa',
+          }}>
+            <Info size={16} color="#ea580c" style={{ flexShrink: 0, marginTop: 2 }} aria-hidden="true" />
+            <p style={{ fontSize: 14, color: '#9a3412', lineHeight: 1.55, margin: 0 }}>
+              <strong>Jóváhagyás szükséges.</strong> Addig ez a {typeLabel} a <strong>személyes munkaterületeden</strong> él és szerkeszthető. Amikor a kollektíva tulajdonosa elfogadja, átkerül a csapathoz.
+            </p>
+          </div>
+        )}
+
+        {/* Sharing banner for own collective */}
+        {!personalOnly && !isContributor && selected !== null && (
           <div style={{ marginTop: 16 }}>
-            <SharingBanner collectiveName={collectives.find(c => c.id === selected)?.name} />
+            <SharingBanner collectiveName={selectedCol?.name} />
           </div>
         )}
       </div>
@@ -94,7 +119,7 @@ export default function WorkspacePicker({
             fontSize: 17, fontWeight: 700, cursor: 'pointer',
           }}
         >
-          Tovább →
+          {isContributor ? 'Létrehozás és beküldés →' : 'Tovább →'}
         </button>
       </div>
     </div>
@@ -102,10 +127,11 @@ export default function WorkspacePicker({
 }
 
 function WorkspaceOption({ type, label, description, isSelected, onSelect }) {
-  const isPersonal   = type === 'personal';
-  const chipBg       = isPersonal ? '#eff6ff' : '#dcfce7';
-  const iconColor    = isPersonal ? '#2563eb' : '#16a34a';
-  const ringColor    = isPersonal ? '#2563eb' : '#16a34a';
+  const isPersonal  = type === 'personal';
+  const isMember    = type === 'member';
+  const chipBg      = isPersonal ? '#eff6ff' : isMember ? '#fff7ed' : '#dcfce7';
+  const iconColor   = isPersonal ? '#2563eb' : isMember ? '#ea580c' : '#16a34a';
+  const ringColor   = isPersonal ? '#2563eb' : isMember ? '#ea580c' : '#16a34a';
 
   return (
     <button
@@ -114,7 +140,7 @@ function WorkspaceOption({ type, label, description, isSelected, onSelect }) {
       aria-pressed={isSelected}
       style={{
         display: 'flex', alignItems: 'flex-start', gap: 14,
-        minHeight: 140, padding: 20, textAlign: 'left',
+        minHeight: 120, padding: 20, textAlign: 'left',
         background: '#fff', borderRadius: 20, cursor: 'pointer',
         border: isSelected ? `2px solid ${ringColor}` : '2px solid transparent',
         boxShadow: 'var(--shadow-card)',
@@ -122,7 +148,6 @@ function WorkspaceOption({ type, label, description, isSelected, onSelect }) {
         width: '100%',
       }}
     >
-      {/* Icon chip */}
       <div style={{
         width: 56, height: 56, borderRadius: '50%',
         background: chipBg, flexShrink: 0,
@@ -133,17 +158,26 @@ function WorkspaceOption({ type, label, description, isSelected, onSelect }) {
           : <Users size={26} color={iconColor} strokeWidth={1.75} aria-hidden="true" />}
       </div>
 
-      {/* Text */}
       <div style={{ flex: 1, paddingTop: 4 }}>
-        <div style={{ fontSize: 20, fontWeight: 800, color: '#0f172a', lineHeight: '26px', marginBottom: 4 }}>
-          {label}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+          <span style={{ fontSize: 20, fontWeight: 800, color: '#0f172a', lineHeight: '26px' }}>
+            {label}
+          </span>
+          {isMember && (
+            <span style={{
+              fontSize: 11, fontWeight: 700, color: '#ea580c',
+              background: '#fff7ed', border: '1px solid #fed7aa',
+              padding: '2px 7px', borderRadius: 999, lineHeight: 1,
+            }}>
+              Tag
+            </span>
+          )}
         </div>
-        <div style={{ fontSize: 15, fontWeight: 500, color: '#475569', lineHeight: '22px' }}>
+        <div style={{ fontSize: 14, fontWeight: 500, color: '#475569', lineHeight: '20px' }}>
           {description}
         </div>
       </div>
 
-      {/* Selection indicator */}
       <div style={{
         width: 28, height: 28, borderRadius: '50%', flexShrink: 0, marginTop: 2,
         background: isSelected ? ringColor : 'transparent',

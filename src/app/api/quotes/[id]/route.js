@@ -64,7 +64,7 @@ export async function PATCH(request, { params }) {
   if (!isOwner && !isSuperAdmin && !isKollektivOwner)
     return Response.json({ error: 'Csak a tulajdonos módosíthatja az ajánlatot.' }, { status: 403 });
 
-  if (!isSuperAdmin && await hasPendingTransfer('quote', id))
+  if (!isSuperAdmin && !isOwner && await hasPendingTransfer('quote', id))
     return Response.json({ error: 'Ez a dokumentum átadás alatt áll, ezért nem módosítható.' }, { status: 423 });
 
   const allowed = ['title', 'location', 'work_type', 'description', 'start_date', 'end_date',

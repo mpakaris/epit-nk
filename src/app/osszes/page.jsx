@@ -20,16 +20,21 @@ function OsszesContent() {
   const searchParams = useSearchParams();
   const workspace = searchParams.get('workspace'); // 'personal' | collective UUID
 
-  const [combined, setCombined]   = useState(null);
-  const [fetching, setFetching]   = useState(true);
-  const [search,   setSearch]     = useState('');
+  const [combined,          setCombined]          = useState(null);
+  const [fetching,          setFetching]          = useState(true);
+  const [outgoingTransfers, setOutgoingTransfers] = useState([]);
+  const [search,            setSearch]            = useState('');
 
   useEffect(() => {
     if (!dataReady) return;
-    fetch('/api/workspace/combined', { cache: 'no-store' })
-      .then(r => r.ok ? r.json() : null)
-      .then(d => { setCombined(d); setFetching(false); })
-      .catch(() => setFetching(false));
+    Promise.all([
+      fetch('/api/workspace/combined', { cache: 'no-store' }).then(r => r.ok ? r.json() : null),
+      fetch('/api/transfer-requests?outgoing=true').then(r => r.ok ? r.json() : { requests: [] }),
+    ]).then(([combined, transfers]) => {
+      setCombined(combined);
+      setOutgoingTransfers(transfers?.requests || []);
+      setFetching(false);
+    }).catch(() => setFetching(false));
   }, [dataReady]);
 
   if (loading || !dataReady || fetching) return <PageSpinner />;
@@ -161,6 +166,7 @@ function OsszesContent() {
                     meta={clientName(item)}
                     type={key}
                     isShared={!!item.collective_id}
+                    isPendingTransfer={outgoingTransfers.some(t => t.document_id === item.id)}
                   />
                 ))}
               </section>

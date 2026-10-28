@@ -22,7 +22,7 @@ export default function NewProjectPage() {
   } = useApp();
 
   const navPrefix = isDemoMode ? '/demo' : '';
-  const collectives = (effectiveCollectives || []).map(c => ({ id: c.collective_id, name: c.name }));
+  const collectives = (effectiveCollectives || []).map(c => ({ id: c.collective_id, name: c.name, role: c.role }));
 
   // Mobile step: 1 = workspace (only if has collectives), 2 = form
   const [mobileStep, setMobileStep] = useState(1);
@@ -41,6 +41,7 @@ export default function NewProjectPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const selectedCollective = collectives.find(c => c.id === collectiveId);
+  const isContributorCollective = !!(collectiveId && selectedCollective?.role !== 'owner' && selectedCollective?.role !== 'admin');
   const selectedQuote      = (quotes || []).find(q => q.id === quoteId);
 
   const norm = s => (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
@@ -79,7 +80,7 @@ export default function NewProjectPage() {
           name: name.trim(),
           description: description.trim() || null,
           clientId: clientId || null,
-          collectiveId,
+          collectiveId: isContributorCollective ? null : collectiveId,
           quoteId: quoteId || null,
           startDate: startDate || null,
           endDate: endDate || null,
@@ -88,6 +89,13 @@ export default function NewProjectPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Hiba a projekt létrehozásakor');
+      if (isContributorCollective) {
+        await fetch('/api/transfer-requests', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ document_type: 'project', document_id: data.project.id, collective_id: collectiveId }),
+        });
+      }
       await refreshSupabaseData();
       router.push(`${navPrefix}/projektek/${data.project.id}`);
     } catch (err) {

@@ -19,7 +19,7 @@ const TYPE_META = {
   ugyfel:   { label: 'Ügyfél',   color: '#d97706', bg: '#fffbeb' },
 };
 
-export default function CompactRow({ href, title, meta, type, isShared }) {
+export default function CompactRow({ href, title, meta, type, isShared, isPendingTransfer }) {
   const Icon = TYPE_ICONS[type] || Folder;
   const typeMeta = TYPE_META[type];
 
@@ -64,6 +64,17 @@ export default function CompactRow({ href, title, meta, type, isShared }) {
               flexShrink: 0,
             }}>
               {typeMeta.label}
+            </span>
+          )}
+          {isPendingTransfer && (
+            <span style={{
+              fontSize: 10, fontWeight: 800, lineHeight: 1,
+              color: '#92400e', background: '#fef3c7',
+              border: '1px solid #fde68a',
+              padding: '2px 6px', borderRadius: 999,
+              flexShrink: 0, whiteSpace: 'nowrap',
+            }}>
+              ÁTVITEL FOLYAMATBAN
             </span>
           )}
           {meta && (

@@ -81,8 +81,9 @@ export default function NewSurveyPage() {
   if (loading) return <PageSpinner />;
   if (!currentUser) return <div className="container" style={{ paddingTop: '3rem', textAlign: 'center', color: 'var(--danger-text)' }}>Nincs jogosultsága.</div>;
 
-  const collectives = (effectiveCollectives || []).map(c => ({ id: c.collective_id, name: c.name }));
+  const collectives = (effectiveCollectives || []).map(c => ({ id: c.collective_id, name: c.name, role: c.role }));
   const selectedCollective = collectives.find(c => c.id === collectiveId);
+  const isContributorCollective = !!(collectiveId && selectedCollective?.role !== 'owner' && selectedCollective?.role !== 'admin');
 
   const handleClientCreated = async ({ name, phone, email, address, gdprConsent }) => {
     const newClient = await createClient({ name, phone, email, address, gdprConsent, entityId: collectiveId });
@@ -96,7 +97,14 @@ export default function NewSurveyPage() {
     if (!title.trim()) { setError('A cím megadása kötelező!'); return; }
     setIsSubmitting(true);
     try {
-      const survey = await createSurvey({ title: title.trim(), notes: notes.trim(), date: date || null, location: location.trim(), clientId, collectiveId });
+      const survey = await createSurvey({ title: title.trim(), notes: notes.trim(), date: date || null, location: location.trim(), clientId, collectiveId: isContributorCollective ? null : collectiveId });
+      if (isContributorCollective) {
+        await fetch('/api/transfer-requests', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ document_type: 'survey', document_id: survey.id, collective_id: collectiveId }),
+        });
+      }
       router.push(`${navPrefix}/felmeres/${survey.id}`);
     } catch (err) {
       setError(err.message || 'Hiba a felmérés mentésekor');
