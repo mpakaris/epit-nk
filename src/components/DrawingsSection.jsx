@@ -1,12 +1,20 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { PenLine, Plus, Trash2 } from 'lucide-react';
 import Modal from '@/components/Modal';
 import DrawingPad from '@/components/DrawingPad';
 
-export default function DrawingsSection({ drawings = [], onSave, onDelete, canEdit = true }) {
+export default function DrawingsSection({ drawings = [], onSave, onDelete, canEdit = true, compact = false, triggerCount = 0 }) {
   const [showPad, setShowPad] = useState(false);
+
+  const prevTriggerRef = useRef(triggerCount);
+  useEffect(() => {
+    if (triggerCount !== prevTriggerRef.current) {
+      prevTriggerRef.current = triggerCount;
+      if (triggerCount > 0) setShowPad(true);
+    }
+  }, [triggerCount]);
   const [saving, setSaving] = useState(false);
 
   const handleSave = async (svg) => {
@@ -21,18 +29,34 @@ export default function DrawingsSection({ drawings = [], onSave, onDelete, canEd
     }
   };
 
+  // compact = no drawings exist; just render the trigger button inline
+  if (compact) {
+    return (
+      <>
+        <button type="button" onClick={() => setShowPad(true)} className="btn btn-secondary btn-sm" style={{ fontSize: '0.75rem' }}>
+          <PenLine size={13} /> Vázlat
+        </button>
+        <Modal isOpen={showPad} onClose={() => !saving && setShowPad(false)} title="Új vázlat" maxWidth="860px" maxHeight="95vh" persistent>
+          <DrawingPad onSave={handleSave} onCancel={() => setShowPad(false)} saving={saving} />
+        </Modal>
+      </>
+    );
+  }
+
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.65rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
-          <PenLine size={14} color="var(--accent)" />
-          <span style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.04em' }}>
-            Vázlatok ({drawings.length})
-          </span>
-        </div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: drawings.length > 0 ? '0.65rem' : 0 }}>
+        {drawings.length > 0 && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+            <PenLine size={14} color="var(--accent)" />
+            <span style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.04em' }}>
+              Vázlatok ({drawings.length})
+            </span>
+          </div>
+        )}
         {canEdit && (
-          <button type="button" onClick={() => setShowPad(true)} className="btn btn-secondary btn-sm" style={{ fontSize: '0.78rem' }}>
-            <Plus size={13} /> Új vázlat
+          <button type="button" onClick={() => setShowPad(true)} className="btn btn-secondary btn-sm" style={{ fontSize: '0.78rem', marginLeft: drawings.length > 0 ? 'auto' : 0 }}>
+            <Plus size={13} /> {drawings.length > 0 ? 'Új vázlat' : 'Vázlat'}
           </button>
         )}
       </div>
@@ -59,16 +83,6 @@ export default function DrawingsSection({ drawings = [], onSave, onDelete, canEd
               )}
             </div>
           ))}
-        </div>
-      )}
-
-      {drawings.length === 0 && !showPad && canEdit && (
-        <div
-          onClick={() => setShowPad(true)}
-          style={{ cursor: 'pointer', textAlign: 'center', padding: '1.25rem', border: '2px dashed var(--border-subtle)', borderRadius: 'var(--radius-md)', color: 'var(--text-muted)', fontSize: '0.825rem' }}
-        >
-          <PenLine size={20} style={{ margin: '0 auto 0.35rem', display: 'block', opacity: 0.5 }} />
-          Kattints az első vázlat létrehozásához
         </div>
       )}
 

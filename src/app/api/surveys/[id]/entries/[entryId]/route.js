@@ -50,7 +50,7 @@ export async function PATCH(request, { params }) {
   const update = {};
   for (const k of allowed) if (k in fields) update[k] = fields[k];
   if (update.name !== undefined) update.name = update.name?.trim();
-  if (!update.name) return Response.json({ error: 'A hely neve kötelező' }, { status: 400 });
+  if ('name' in update && !update.name) return Response.json({ error: 'A hely neve kötelező' }, { status: 400 });
   for (const f of ['width_m', 'length_m', 'height_m']) {
     if (f in update) update[f] = update[f] != null && update[f] !== '' ? Number(update[f]) : null;
   }

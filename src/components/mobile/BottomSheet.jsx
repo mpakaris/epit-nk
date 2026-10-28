@@ -1,9 +1,10 @@
 'use client';
 
 import React, { useEffect } from 'react';
+
 import { Trash2, Copy, PenLine, ExternalLink, X, ArrowUpRight } from 'lucide-react';
 
-export default function BottomSheet({ isOpen, onClose, title, subtitle, onOpen, onDuplicate, onRename, onTransfer, onDelete }) {
+export default function BottomSheet({ isOpen, onClose, title, subtitle, onOpen, onDuplicate, onRename, onTransfer, onDelete, actions }) {
   useEffect(() => {
     if (!isOpen) return;
     const prev = document.body.style.overflow;
@@ -53,6 +54,13 @@ export default function BottomSheet({ isOpen, onClose, title, subtitle, onOpen, 
         {onDuplicate && <Row icon={Copy} label="Duplikálás" onClick={onDuplicate} />}
         {onRename && <Row icon={PenLine} label="Átnevezés" onClick={onRename} />}
         {onTransfer && <Row icon={ArrowUpRight} label="Áthelyezés kollektívába" onClick={onTransfer} />}
+
+        {actions?.map((a, i) => (
+          <React.Fragment key={i}>
+            {a.dividerBefore && <div style={{ height: 1, background: 'var(--border-subtle)', margin: '4px 0' }} />}
+            <Row icon={a.icon} label={a.label} onClick={a.onClick} danger={a.danger} />
+          </React.Fragment>
+        ))}
 
         {onDelete && (
           <>
