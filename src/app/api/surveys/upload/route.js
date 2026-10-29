@@ -59,7 +59,7 @@ export async function POST(request) {
     const publicUrl = r2PublicUrl(key);
     const isImage = mimeType.startsWith('image/');
 
-    const { data: media, error: dbErr } = await admin.from('survey_media').insert([{
+    let { data: media, error: dbErr } = await admin.from('survey_media').insert([{
       survey_id: surveyId,
       entry_id: entryId,
       media_type: mediaType,
@@ -68,7 +68,22 @@ export async function POST(request) {
       thumbnail_url: isImage ? publicUrl : null,
       mime_type: mimeType,
       file_name: file.name,
+      uploaded_by: user.id,
     }]).select().single();
+
+    // Fallback if column not yet migrated
+    if (dbErr?.message?.includes('uploaded_by')) {
+      ({ data: media, error: dbErr } = await admin.from('survey_media').insert([{
+        survey_id: surveyId,
+        entry_id: entryId,
+        media_type: mediaType,
+        drive_file_id: key,
+        drive_view_url: publicUrl,
+        thumbnail_url: isImage ? publicUrl : null,
+        mime_type: mimeType,
+        file_name: file.name,
+      }]).select().single());
+    }
 
     if (dbErr) return Response.json({ error: `DB hiba: ${dbErr.message}` }, { status: 500 });
     results.push(media);

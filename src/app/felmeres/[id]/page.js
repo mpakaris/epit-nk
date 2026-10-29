@@ -15,7 +15,7 @@ import {
   FileText, FolderKanban, Home, Ruler, LayoutPanelLeft,
   Camera, Plus, AlertCircle, List,
   MoreHorizontal,
-  CheckCircle2, RefreshCw, Send, Mic, PenLine,
+  CheckCircle2, RefreshCw, Send, Mic, PenLine, Sparkles,
 } from 'lucide-react';
 import PageSpinner from '@/components/PageSpinner';
 import { processMediaFile } from '@/lib/mediaGate';
@@ -31,6 +31,7 @@ import AreaSummary from './components/AreaSummary';
 import TételekSection from './components/TételekSection';
 import SurveyEntryCard from './components/SurveyEntryCard';
 import PropertyInfoSection from './components/PropertyInfoSection';
+import LayoutAnalysisModal from './components/LayoutAnalysisModal';
 
 // ── Room/entry form ────────────────────────────────────────────────────────────
 function EntryForm({ initial, surveyId, onSave, onCancel }) {
@@ -370,7 +371,10 @@ export default function SurveyDetailPage() {
 
   // Background upload queue — photos appear as local previews instantly
   const uploadFn = useCallback(async (rawFile, { surveyId, entryId, mediaType }) => {
-    await uploadSurveyMedia(surveyId, [rawFile], { entryId, mediaType });
+    const uploaded = await uploadSurveyMedia(surveyId, [rawFile], { entryId, mediaType });
+    if (mediaType === 'layout' && uploaded?.length) {
+      setPendingAnalysisLayout(uploaded[0]);
+    }
   }, [uploadSurveyMedia]);
 
   const { enqueue, queue, retryAll, totalPending, totalUploading, totalError } = useUploadQueue({ uploadFn });
@@ -396,6 +400,8 @@ export default function SurveyDetailPage() {
   const [surveyCtxOpen, setSurveyCtxOpen] = useState(false);
   const [surveyDrawingTrigger, setSurveyDrawingTrigger] = useState(0);
   const [propertyNotesTrigger, setPropertyNotesTrigger] = useState(0);
+  const [pendingAnalysisLayout, setPendingAnalysisLayout] = useState(null);
+  const [analyzeLayout, setAnalyzeLayout] = useState(null);
   const layoutInputRef = useRef(null);
   // Fallback: fetch directly when survey is not in the active context
   const [directSurvey,   setDirectSurvey]   = useState(null);
@@ -463,6 +469,8 @@ export default function SurveyDetailPage() {
   const canEditPropertyInfo = !isDocLocked && (isKollektivOwner || isOwner || isCollMember || isSharedMember);
   const canDrawings  = !isDocLocked && (isKollektivOwner || isOwner || isCollMember || isSharedMember);
   const canEditEntry = (entry) => !isDocLocked && (isKollektivOwner || entry.created_by === currentUser?.id);
+  // Owner/admin sees X on all files; members only on files they uploaded
+  const canDeleteMediaItem = (item) => canEditMeta || item.uploaded_by === currentUser?.id;
 
   const sharedMembers = (survey.shared_with || []).map(uid => users.find(u => u.id === uid)).filter(Boolean);
 
@@ -666,8 +674,8 @@ export default function SurveyDetailPage() {
         )}
       </div>
 
-      {/* Layouts — hidden on mobile only when empty AND user can't add */}
-      {(!isMobile || layouts.length > 0 || detailLoading || canAdd) && (
+      {/* Layouts — desktop only (mobile sees them inside Ingatlan adatok card) */}
+      {(!isMobile) && (
         <div className="card mb-4" style={{ padding: '1rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -689,7 +697,7 @@ export default function SurveyDetailPage() {
               {canAdd ? 'Nincs alaprajz feltöltve. (Opcionális)' : 'Nincs alaprajz feltöltve.'}
             </div>
           ) : (
-            <MediaGrid media={layouts} onDelete={canEditMeta ? handleDeleteMedia : undefined} />
+            <MediaGrid media={layouts} onDelete={(canEditMeta || isCollMember || isSharedMember) ? handleDeleteMedia : undefined} canDeleteItem={canDeleteMediaItem} />
           )}
         </div>
       )}
@@ -701,6 +709,15 @@ export default function SurveyDetailPage() {
         canEdit={canEditPropertyInfo}
         enqueue={canAdd ? enqueue : undefined}
         triggerNotesAudio={propertyNotesTrigger}
+        layouts={layouts}
+        canAdd={canAdd}
+        surveyDrawings={drawings.filter(d => !d.entry_id)}
+        canDrawings={canDrawings}
+        onSaveDrawing={svg => createSurveyDrawing(id, { svg_data: svg })}
+        onDeleteDrawing={drawingId => deleteSurveyDrawing(id, drawingId)}
+        drawingTrigger={surveyDrawingTrigger}
+        onDeleteMedia={(canEditMeta || isCollMember || isSharedMember) ? handleDeleteMedia : undefined}
+        canDeleteMediaItem={canDeleteMediaItem}
       />
 
       {/* Hidden layout upload input for mobile context menu */}
@@ -734,10 +751,10 @@ export default function SurveyDetailPage() {
         ]}
       />
 
-      {/* Survey-level drawings — hidden on mobile only when empty AND user can't add */}
+      {/* Survey-level drawings — desktop only (mobile sees them inside Ingatlan adatok card) */}
       {(() => {
         const surveyDrawings = drawings.filter(d => !d.entry_id);
-        if (isMobile && surveyDrawings.length === 0 && !canDrawings) return null;
+        if (isMobile) return null;
         return (
           <div className="card mb-4" style={{ padding: '1rem' }}>
             <DrawingsSection
@@ -850,6 +867,7 @@ export default function SurveyDetailPage() {
                     onEdit={() => { setEditingEntry(entry); setShowAddEntry(false); }}
                     onDelete={() => handleDeleteEntry(entry)}
                     handleDeleteMedia={handleDeleteMedia}
+                    canDeleteMediaItem={canDeleteMediaItem}
                     drawings={drawings}
                     createSurveyDrawing={createSurveyDrawing}
                     deleteSurveyDrawing={deleteSurveyDrawing}
@@ -902,6 +920,27 @@ export default function SurveyDetailPage() {
 
       <ConfirmModal isOpen={!!confirmModal} onClose={() => setConfirmModal(null)} onConfirm={() => confirmModal?.onConfirm()} title="Megerősítés" message={confirmModal?.message} />
       <AlertModal isOpen={!!alertModal} onClose={() => setAlertModal(null)} message={alertModal?.message} />
+
+      <ConfirmModal
+        isOpen={!!pendingAnalysisLayout}
+        onClose={() => setPendingAnalysisLayout(null)}
+        onConfirm={() => { setAnalyzeLayout(pendingAnalysisLayout); setPendingAnalysisLayout(null); }}
+        title="Alaprajz elemzése"
+        message="Elemezzük az alaprajzot AI-val és azonosítsuk a helyiségeket, méreteket és nyílásokat?"
+        confirmLabel="Igen, elemzés"
+        cancelLabel="Kihagyás"
+      />
+
+      {analyzeLayout && (
+        <LayoutAnalysisModal
+          surveyId={id}
+          layout={analyzeLayout}
+          existingEntries={entries}
+          onClose={() => setAnalyzeLayout(null)}
+          onCreated={() => setAnalyzeLayout(null)}
+          createSurveyEntry={createSurveyEntry}
+        />
+      )}
       <LockedDocumentModal
         isOpen={lockedModalOpen}
         documentType="survey"

@@ -6,21 +6,21 @@ import { X, AlertTriangle, AlertCircle, CheckCircle2, Loader2 } from 'lucide-rea
 function ModalBase({ isOpen, onClose, children, style, persistent }) {
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
+  const savedScrollY = useRef(0);
 
   useEffect(() => {
     if (isOpen) {
-      const scrollY = window.scrollY;
+      savedScrollY.current = window.scrollY;
       document.body.style.overflow = 'hidden';
       document.body.style.position = 'fixed';
       document.body.style.width = '100%';
-      document.body.style.top = `-${scrollY}px`;
+      document.body.style.top = `-${savedScrollY.current}px`;
     } else {
-      const top = document.body.style.top;
       document.body.style.overflow = '';
       document.body.style.position = '';
       document.body.style.width = '';
       document.body.style.top = '';
-      if (top) window.scrollTo(0, -parseInt(top, 10));
+      window.scrollTo(0, savedScrollY.current);
     }
     return () => {
       document.body.style.overflow = '';

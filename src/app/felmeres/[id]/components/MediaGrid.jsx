@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Play, AlertCircle, Loader2, X } from 'lucide-react';
 import Lightbox from '@/components/Lightbox';
 
-export default function MediaGrid({ media, onDelete, pendingItems = [] }) {
+export default function MediaGrid({ media, onDelete, pendingItems = [], canDeleteItem }) {
   const [lightbox, setLightbox] = useState(null);
   if (!media?.length && !pendingItems.length) return null;
   const sorted = [...(media || [])].sort((a, b) => {
@@ -41,7 +41,7 @@ export default function MediaGrid({ media, onDelete, pendingItems = [] }) {
                     </div>
                   : <img src={item.thumbnail_url || item.drive_view_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
               </button>
-              {onDelete && (
+              {onDelete && (!canDeleteItem || canDeleteItem(item)) && (
                 <button type="button" onClick={() => onDelete(item)}
                   style={{ position: 'absolute', top: 3, right: 3, background: 'rgba(239,68,68,0.85)', border: 'none', borderRadius: '50%', width: 20, height: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#fff' }}>
                   <X size={11} />

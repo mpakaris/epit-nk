@@ -12,7 +12,7 @@ import AreaSummary from './AreaSummary';
 import InlineUpload from './InlineUpload';
 import MediaGrid from './MediaGrid';
 
-export default function SurveyEntryCard({ entry, surveyId, canEditEntry, canAdd, canEditAll = true, onEdit, onDelete, handleDeleteMedia, drawings, createSurveyDrawing, deleteSurveyDrawing, canDrawings, currentUser, pendingUploads = [], enqueue }) {
+export default function SurveyEntryCard({ entry, surveyId, canEditEntry, canAdd, canEditAll = true, onEdit, onDelete, handleDeleteMedia, canDeleteMediaItem, drawings, createSurveyDrawing, deleteSurveyDrawing, canDrawings, currentUser, pendingUploads = [], enqueue }) {
   const [collapsed, setCollapsed] = useState(true);
   const isMobile = useMobile();
   const [ctxOpen, setCtxOpen] = useState(false);
@@ -191,7 +191,7 @@ export default function SurveyEntryCard({ entry, surveyId, canEditEntry, canAdd,
                             </>
                           )}
                         </div>
-                        <MediaGrid media={entry.media} onDelete={canEditEntry ? handleDeleteMedia : undefined} pendingItems={pendingUploads.filter(i => i.status !== 'done')} />
+                        <MediaGrid media={entry.media} onDelete={(canEditEntry || canAdd) ? handleDeleteMedia : undefined} canDeleteItem={canDeleteMediaItem} pendingItems={pendingUploads.filter(i => i.status !== 'done')} />
                       </>
                     ) : (
                       <InlineUpload surveyId={surveyId} entryId={entry.id} mediaType="photo" label="Fotó / videó" enqueue={enqueue} />

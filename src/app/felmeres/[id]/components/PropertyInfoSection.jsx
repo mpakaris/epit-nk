@@ -1,10 +1,11 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Check, Loader2, Zap, Flame, Wind, Thermometer, Building2, ChevronDown, ChevronUp } from 'lucide-react';
+import { Check, Loader2, Zap, Flame, Wind, Thermometer, Building2, ChevronDown, ChevronUp, LayoutPanelLeft, PenLine } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import useMobile from '@/hooks/useMobile';
 import AudioRecorder from '@/components/AudioRecorder';
+import DrawingsSection from '@/components/DrawingsSection';
 import InlineUpload from './InlineUpload';
 import MediaGrid from './MediaGrid';
 
@@ -16,8 +17,8 @@ const UTILITY_CATS = [
   { type: 'floor_heating',   label: 'Padlófűtés elosztó', Icon: Building2 },
 ];
 
-export default function PropertyInfoSection({ survey, surveyId, canEdit, enqueue, triggerNotesAudio = 0 }) {
-  const { updateSurvey, surveyMediaBySurvey, deleteSurveyMedia } = useApp();
+export default function PropertyInfoSection({ survey, surveyId, canEdit, enqueue, triggerNotesAudio = 0, layouts = [], canAdd = false, surveyDrawings = [], canDrawings = false, onSaveDrawing, onDeleteDrawing, drawingTrigger = 0, onDeleteMedia, canDeleteMediaItem }) {
+  const { updateSurvey, surveyMediaBySurvey } = useApp();
   const isMobile = useMobile();
 
   const [collapsed, setCollapsed] = useState(true);
@@ -255,6 +256,55 @@ export default function PropertyInfoSection({ survey, surveyId, canEdit, enqueue
 
           <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
             <div style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.04em' }}>Rendszerfotók</div>
+
+            {/* Alaprajzok + Vázlat — mobile only (desktop has separate cards), always first */}
+            {isMobile && (
+              <>
+                {/* Alaprajzok row — position 1 */}
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: layouts.length ? '0.35rem' : 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                      <LayoutPanelLeft size={13} color="var(--accent)" />
+                      <span style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Alaprajzok</span>
+                      {layouts.length > 0 && <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>({layouts.length})</span>}
+                    </div>
+                    {canAdd && enqueue && <InlineUpload surveyId={surveyId} entryId={null} mediaType="layout" label="Feltöltés" enqueue={enqueue} iconOnly />}
+                  </div>
+                  {layouts.length > 0 && <MediaGrid media={layouts} onDelete={onDeleteMedia} canDeleteItem={canDeleteMediaItem} />}
+                </div>
+
+                {/* Vázlat row — custom header row with "+" trigger, DrawingsSection only renders grid + modal */}
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: surveyDrawings.length ? '0.35rem' : 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                      <PenLine size={13} color="var(--accent)" />
+                      <span style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Vázlat</span>
+                      {surveyDrawings.length > 0 && <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>({surveyDrawings.length})</span>}
+                    </div>
+                    {canDrawings && (
+                      <DrawingsSection
+                        drawings={surveyDrawings}
+                        onSave={onSaveDrawing}
+                        onDelete={onDeleteDrawing}
+                        canEdit={canDrawings}
+                        compact
+                        triggerCount={drawingTrigger}
+                      />
+                    )}
+                  </div>
+                  {surveyDrawings.length > 0 && (
+                    <DrawingsSection
+                      drawings={surveyDrawings}
+                      onSave={onSaveDrawing}
+                      onDelete={onDeleteDrawing}
+                      canEdit={canDrawings}
+                      hideHeader
+                    />
+                  )}
+                </div>
+              </>
+            )}
+
             {UTILITY_CATS.map(({ type, label, Icon }) => {
               const catMedia = allMedia.filter(m => m.media_type === type);
               return (
@@ -267,7 +317,7 @@ export default function PropertyInfoSection({ survey, surveyId, canEdit, enqueue
                     </div>
                     {canEdit && enqueue && <InlineUpload surveyId={surveyId} entryId={null} mediaType={type} label="Fotó" enqueue={enqueue} iconOnly />}
                   </div>
-                  {catMedia.length > 0 && <MediaGrid media={catMedia} onDelete={canEdit ? (item) => deleteSurveyMedia(item.id, surveyId, null, item.media_type) : undefined} />}
+                  {catMedia.length > 0 && <MediaGrid media={catMedia} onDelete={onDeleteMedia} canDeleteItem={canDeleteMediaItem} />}
                 </div>
               );
             })}

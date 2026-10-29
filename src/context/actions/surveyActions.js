@@ -121,7 +121,9 @@ export function makeSurveyActions({
     const isOwner          = survey?.owner_id === uid || survey?.created_by === uid;
     const isShared         = (survey?.shared_with || []).includes(effectiveUser?.id);
     const isKollektivOwner = collectives.some(c => c.collective_id === survey?.collective_id && (c.role === 'owner' || c.role === 'admin'));
-    if (!isAdmin && !isOwner && !isShared && !isKollektivOwner) throw new Error('Nincs jogosultsága!');
+    const isCollMember     = collectives.some(c => c.collective_id === survey?.collective_id);
+    // Allow collective members through — API enforces per-file uploader check
+    if (!isAdmin && !isOwner && !isShared && !isKollektivOwner && !isCollMember) throw new Error('Nincs jogosultsága!');
     const res = await fetch(`/api/surveys/${surveyId}/media/${mediaId}`, { method: 'DELETE' });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Hiba a média törlésekor');
