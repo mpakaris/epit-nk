@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Check, Loader2, Zap, Flame, Wind, Thermometer, Building2 } from 'lucide-react';
+import { Check, Loader2, Zap, Flame, Wind, Thermometer, Building2, ChevronDown, ChevronUp } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import useMobile from '@/hooks/useMobile';
 import AudioRecorder from '@/components/AudioRecorder';
@@ -95,13 +95,7 @@ export default function PropertyInfoSection({ survey, surveyId, canEdit, enqueue
 
   const allMedia = surveyMediaBySurvey[surveyId] || [];
 
-  const summaryParts = [];
-  if (survey.plot_size_m2)        summaryParts.push(`Telek: ${survey.plot_size_m2} m²`);
-  if (survey.garden_size_m2)      summaryParts.push(`Kert: ${survey.garden_size_m2} m²`);
-  if (survey.electrical_phases)   summaryParts.push(`${survey.electrical_phases}F${survey.electrical_ampere ? ` / ${survey.electrical_ampere}A` : ''}`);
-  if (survey.heating_type)        summaryParts.push(survey.heating_type);
   const utilityMediaCount = allMedia.filter(m => UTILITY_CATS.some(c => c.type === m.media_type)).length;
-  if (utilityMediaCount)          summaryParts.push(`${utilityMediaCount} rendszerfotó`);
 
   const headerIndicator = aiStatus === 'filling' ? (
     <span style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.7)', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
@@ -127,22 +121,53 @@ export default function PropertyInfoSection({ survey, surveyId, canEdit, enqueue
     </span>
   ) : null;
 
+  const PILL = {
+    fontSize: '0.68rem', fontWeight: 700,
+    padding: '0.1rem 0.45rem',
+    borderRadius: 'var(--radius-pill)',
+    background: 'rgba(51, 65, 85, 0.08)',
+    border: '1px solid rgba(51, 65, 85, 0.15)',
+    color: '#334155',
+    display: 'inline-flex', alignItems: 'center', gap: '0.2rem',
+  };
+
+  const pills = [
+    survey.plot_size_m2   != null && <span key="plot"    style={PILL}>Telek: {survey.plot_size_m2} m²</span>,
+    survey.garden_size_m2 != null && <span key="garden"  style={PILL}>Kert: {survey.garden_size_m2} m²</span>,
+    survey.electrical_phases      && <span key="elec"    style={PILL}><Zap size={9} />{survey.electrical_phases}F{survey.electrical_ampere ? ` / ${survey.electrical_ampere}A` : ''}</span>,
+    survey.heating_type           && <span key="heat"    style={PILL}><Flame size={9} />{survey.heating_type}</span>,
+    utilityMediaCount > 0         && <span key="media"   style={PILL}>{utilityMediaCount} rendszerfotó</span>,
+  ].filter(Boolean);
+
   return (
     <div className="card mb-4" style={{ padding: 0, overflow: 'hidden' }}>
+
+      {/* ── Row 1: Title + status indicator ── */}
+      <div style={{ background: '#1e3a5f', padding: '0.7rem 1rem', display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+        <span style={{ fontWeight: 800, fontSize: '0.95rem', color: '#fff', flex: 1 }}>Ingatlan adatok</span>
+        {headerIndicator}
+      </div>
+
+      {/* ── Row 2: Pills + collapse toggle ── */}
       <div
         onClick={() => setCollapsed(c => !c)}
-        style={{ background: '#1e3a5f', padding: '0.85rem 1rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.65rem' }}
+        style={{
+          background: '#f1f5f9',
+          padding: '0.4rem 1rem',
+          display: 'flex', alignItems: 'center', gap: '0.5rem',
+          cursor: 'pointer',
+          borderBottom: collapsed ? 'none' : '1px solid #e2e8f0',
+          userSelect: 'none',
+        }}
       >
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <span style={{ fontWeight: 800, fontSize: '0.95rem', color: '#fff' }}>Ingatlan adatok</span>
-            {!collapsed && headerIndicator}
-          </div>
-          {collapsed && summaryParts.length > 0 && (
-            <div style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.6)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {summaryParts.join(' · ')}
-            </div>
-          )}
+        <div style={{ flex: 1, display: 'flex', flexWrap: 'wrap', gap: '0.3rem', alignItems: 'center', minWidth: 0 }}>
+          {pills.length > 0
+            ? pills
+            : <span style={{ fontSize: '0.68rem', color: '#6b7280', fontStyle: 'italic' }}>Nincs adat</span>
+          }
+        </div>
+        <div style={{ flexShrink: 0, color: '#475569', display: 'flex', alignItems: 'center' }}>
+          {collapsed ? <ChevronDown size={15} /> : <ChevronUp size={15} />}
         </div>
       </div>
 
