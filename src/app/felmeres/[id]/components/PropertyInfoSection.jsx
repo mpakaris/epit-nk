@@ -199,6 +199,7 @@ export default function PropertyInfoSection({ survey, surveyId, canEdit, enqueue
                     disabled={aiStatus !== 'idle'}
                     hideTriggerButton={isMobile}
                     externalTrigger={triggerNotesAudio}
+                    hasContent={!!propNotes.trim()}
                     onTranscript={handlePropertyTranscript}
                     onError={() => setAiStatus('idle')}
                     hint="Mesélj az ingatlanról: telekméret, kertméret, elektromos rendszer (fázisok, ampere, feszültség), fűtési mód, bojler, klíma, általános állapot — mindent ami az egész épületre vonatkozik."

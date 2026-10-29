@@ -1,14 +1,13 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
 import {
-  ClipboardList, FileText, Plus, Folder, Contact, X,
-  Ruler, FolderKanban, BookUser,
+  ClipboardList, FileText, Plus, Folder, Contact,
+  Ruler, FolderKanban, BookUser, LayoutGrid,
 } from 'lucide-react';
-import BottomSheet from './BottomSheet';
 
 const HIDDEN_PREFIXES = [
   '/feltoltes', '/clients/', '/szakemberek/',
@@ -45,6 +44,7 @@ export default function FloatingNav() {
   const { currentUser, isSuperAdmin, impersonating, isDemoMode } = useApp();
   const navPrefix = isDemoMode ? '/demo' : '';
 
+  const [expanded, setExpanded]   = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
 
   const hidden =
@@ -52,12 +52,35 @@ export default function FloatingNav() {
     (isSuperAdmin && !impersonating) ||
     HIDDEN_PREFIXES.some(p => pathname.startsWith(p));
 
+  // Collapse on scroll
+  useEffect(() => {
+    const onScroll = () => setExpanded(false);
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
+  // Collapse on route change
+  useEffect(() => {
+    setExpanded(false);
+  }, [pathname]);
+
+  // Collapse on outside tap
+  useEffect(() => {
+    if (!expanded) return;
+    const onOutside = (e) => {
+      if (!e.target.closest('.floating-nav')) setExpanded(false);
+    };
+    document.addEventListener('pointerdown', onOutside);
+    return () => document.removeEventListener('pointerdown', onOutside);
+  }, [expanded]);
+
   if (hidden) return null;
 
-  const activeKey = getActiveKey(pathname);
+  const activeKey  = getActiveKey(pathname);
+  const activeItem = NAV_ITEMS.find(i => i?.key === activeKey);
+  const ToggleIcon = activeItem ? activeItem.icon : LayoutGrid;
 
   const handlePlus = () => {
-    const activeItem = NAV_ITEMS.find(i => i?.key === activeKey);
     if (activeItem) {
       const action = CREATE_ACTIONS.find(a => a.path.startsWith(activeItem.path));
       if (action) {
@@ -70,41 +93,58 @@ export default function FloatingNav() {
 
   return (
     <>
-      <nav className="floating-nav" aria-label="Fő navigáció">
-        {NAV_ITEMS.map((item, idx) => {
-          if (!item) {
+      <nav
+        className={`floating-nav${expanded ? ' nav-expanded' : ''}`}
+        aria-label="Fő navigáció"
+      >
+        {/* Collapsed toggle — shows active-page icon or grid icon */}
+        <button
+          type="button"
+          className="floating-nav-toggle"
+          onClick={() => setExpanded(true)}
+          aria-label="Navigáció megnyitása"
+        >
+          <ToggleIcon size={20} strokeWidth={1.75} />
+        </button>
+
+        {/* Full nav — shown when expanded */}
+        <div className="floating-nav-inner">
+          {NAV_ITEMS.map((item, idx) => {
+            if (!item) {
+              return (
+                <div key="plus" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <button
+                    type="button"
+                    className="floating-nav-plus"
+                    onClick={handlePlus}
+                    aria-label="Új elem létrehozása"
+                  >
+                    <Plus size={24} strokeWidth={2} aria-hidden="true" />
+                  </button>
+                </div>
+              );
+            }
+            const isActive = item.key === activeKey;
+            const Icon = item.icon;
             return (
-              <div key="plus" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <button
-                  type="button"
-                  className="floating-nav-plus"
-                  onClick={handlePlus}
-                  aria-label="Új elem létrehozása"
-                >
-                  <Plus size={26} strokeWidth={2} aria-hidden="true" />
-                </button>
-              </div>
+              <Link
+                key={item.key}
+                href={navPrefix + item.path}
+                className={`floating-nav-item${isActive ? ' active' : ''}`}
+                aria-current={isActive ? 'page' : undefined}
+                onClick={() => setExpanded(false)}
+              >
+                <span className="floating-nav-icon">
+                  <Icon size={22} strokeWidth={1.75} aria-hidden="true" />
+                </span>
+                <span>{item.label}</span>
+              </Link>
             );
-          }
-          const isActive = item.key === activeKey;
-          const Icon = item.icon;
-          return (
-            <Link
-              key={item.key}
-              href={navPrefix + item.path}
-              className={`floating-nav-item${isActive ? ' active' : ''}`}
-              aria-current={isActive ? 'page' : undefined}
-            >
-              <span className="floating-nav-icon">
-                <Icon size={24} strokeWidth={1.75} aria-hidden="true" />
-              </span>
-              <span>{item.label}</span>
-            </Link>
-          );
-        })}
+          })}
+        </div>
       </nav>
 
-      {/* Create type selector bottom sheet */}
+      {/* Create type selector */}
       {createOpen && (
         <>
           <div

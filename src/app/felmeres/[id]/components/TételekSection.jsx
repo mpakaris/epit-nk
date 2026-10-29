@@ -186,6 +186,8 @@ export default function TételekSection({ surveyId, entry, canAdd, canEditAll = 
   const [audioError, setAudioError]             = useState('');
   const [pendingTranscript, setPendingTranscript] = useState('');
   const [pendingFields, setPendingFields]         = useState({});
+  const [pendingMerge, setPendingMerge]           = useState('append'); // 'append' | 'overwrite'
+  const [pendingStep, setPendingStep]             = useState(1);        // 1 = merge choice, 2 = generate choice
   const [aiStatus, setAiStatus]                   = useState('idle');
 
   const doSaveAndGenerate = async (description, extraFields = {}) => {
@@ -205,10 +207,32 @@ export default function TételekSection({ surveyId, entry, canAdd, canEditAll = 
     }
   };
 
+  const doSaveOnly = async (description, extraFields = {}) => {
+    setGenError('');
+    setGenerating(true);
+    try {
+      await updateSurveyEntry(surveyId, entry.id, { description, ...extraFields });
+      setAiStatus('idle');
+    } catch (e) {
+      setGenError(e.message || 'Mentés sikertelen');
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const resolvePendingDescription = () => {
+    const existing = (entry.description || '').trim();
+    if (!existing || pendingMerge === 'overwrite') return pendingTranscript;
+    return existing + '\n\n' + pendingTranscript;
+  };
+
+  const clearPending = () => { setPendingTranscript(''); setPendingFields({}); setPendingMerge('append'); setPendingStep(1); };
+
   const handleAudioTranscript = async (text) => {
     setAudioError('');
     setPendingTranscript('');
     setPendingFields({});
+    setPendingMerge('append');
     setAiStatus('filling');
 
     let description = text;
@@ -233,13 +257,13 @@ export default function TételekSection({ surveyId, entry, canAdd, canEditAll = 
     } catch { /* fall back to raw transcript */ }
 
     setAiStatus('idle');
-    const existing = (entry.description || '').trim();
-    if (existing) {
-      setPendingTranscript(description);
-      setPendingFields(extraFields);
-    } else {
-      doSaveAndGenerate(description, extraFields);
-    }
+    // Always route through pending so user confirms whether to generate items.
+    // Skip the merge step if there's no existing description.
+    const hasExisting = !!(entry.description || '').trim();
+    setPendingStep(hasExisting ? 1 : 2);
+    setPendingMerge('append');
+    setPendingTranscript(description);
+    setPendingFields(extraFields);
   };
 
   const didAutoOpen = useRef(false);
@@ -315,6 +339,7 @@ export default function TételekSection({ surveyId, entry, canAdd, canEditAll = 
               size="sm"
               disabled={generating}
               externalTrigger={triggerAudio}
+              hasContent={!!(entry.description || '').trim()}
               onTranscript={handleAudioTranscript}
               onError={msg => setAudioError(msg)}
               hideTriggerButton={isMobile}
@@ -354,32 +379,75 @@ export default function TételekSection({ surveyId, entry, canAdd, canEditAll = 
 
       {pendingTranscript && aiStatus === 'idle' && (
         <div style={{ background: 'var(--bg-subtle)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: '0.6rem 0.75rem', marginBottom: '0.5rem' }}>
-          <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', fontStyle: 'italic', marginBottom: '0.5rem' }}>
+          {/* Transcript + dims preview — always visible */}
+          <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', fontStyle: 'italic', marginBottom: '0.4rem' }}>
             🎙 &ldquo;{pendingTranscript}&rdquo;
           </div>
           {Object.keys(pendingFields).length > 0 && (
             <div style={{ fontSize: '0.72rem', color: 'var(--accent)', marginBottom: '0.4rem', display: 'flex', flexWrap: 'wrap', gap: '0.3rem' }}>
-              {pendingFields.width_m  != null && <span>Szél: {pendingFields.width_m} m</span>}
-              {pendingFields.length_m != null && <span>Hossz: {pendingFields.length_m} m</span>}
-              {pendingFields.height_m != null && <span>Mag: {pendingFields.height_m} m</span>}
+              {pendingFields.width_m      != null && <span>Szél: {pendingFields.width_m} m</span>}
+              {pendingFields.length_m     != null && <span>Hossz: {pendingFields.length_m} m</span>}
+              {pendingFields.height_m     != null && <span>Mag: {pendingFields.height_m} m</span>}
               {pendingFields.window_count != null && <span>{pendingFields.window_count} ablak</span>}
               {pendingFields.door_count   != null && <span>{pendingFields.door_count} ajtó</span>}
             </div>
           )}
-          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.4rem' }}>Már van megjegyzés. Mit szeretnél?</div>
-          <div style={{ display: 'flex', gap: '0.4rem' }}>
-            <button type="button" className="btn btn-primary btn-sm" style={{ fontSize: '0.75rem' }}
-              onClick={() => { doSaveAndGenerate((entry.description || '').trim() + '\n' + pendingTranscript, pendingFields); setPendingTranscript(''); setPendingFields({}); }}>
-              Hozzáfűzés
-            </button>
-            <button type="button" className="btn btn-secondary btn-sm" style={{ fontSize: '0.75rem' }}
-              onClick={() => { doSaveAndGenerate(pendingTranscript, pendingFields); setPendingTranscript(''); setPendingFields({}); }}>
-              Felülírás
-            </button>
-            <button type="button" className="btn btn-secondary btn-sm" style={{ fontSize: '0.75rem', marginLeft: 'auto' }}
-              onClick={() => { setPendingTranscript(''); setPendingFields({}); }}>
-              <X size={12} /> Mégse
-            </button>
+
+          <div style={{ borderTop: '1px solid var(--border-subtle)', marginTop: '0.4rem', paddingTop: '0.5rem' }}>
+
+            {/* Step 1 — merge choice (only when existing description) */}
+            {pendingStep === 1 && (
+              <>
+                <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.4rem' }}>
+                  Már van leírás — mit szeretnél?
+                </div>
+                <div style={{ display: 'flex', gap: '0.4rem' }}>
+                  <button type="button" className="btn btn-primary btn-sm" style={{ fontSize: '0.75rem' }}
+                    onClick={() => { setPendingMerge('append'); setPendingStep(2); }}>
+                    Hozzáfűzés →
+                  </button>
+                  <button type="button" className="btn btn-secondary btn-sm" style={{ fontSize: '0.75rem' }}
+                    onClick={() => { setPendingMerge('overwrite'); setPendingStep(2); }}>
+                    Felülírás →
+                  </button>
+                  <button type="button" className="btn btn-secondary btn-sm" style={{ fontSize: '0.75rem', marginLeft: 'auto' }}
+                    onClick={clearPending}>
+                    <X size={12} /> Mégse
+                  </button>
+                </div>
+              </>
+            )}
+
+            {/* Step 2 — generate choice */}
+            {pendingStep === 2 && (
+              <>
+                <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.4rem' }}>
+                  Generáljuk a tételeket?
+                </div>
+                <div style={{ display: 'flex', gap: '0.4rem' }}>
+                  <button type="button" className="btn btn-primary btn-sm" style={{ fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}
+                    onClick={() => { doSaveAndGenerate(resolvePendingDescription(), pendingFields); clearPending(); }}>
+                    <Sparkles size={11} /> Igen, generálás
+                  </button>
+                  <button type="button" className="btn btn-secondary btn-sm" style={{ fontSize: '0.75rem' }}
+                    onClick={() => { doSaveOnly(resolvePendingDescription(), pendingFields); clearPending(); }}>
+                    Csak mentés
+                  </button>
+                  {(entry.description || '').trim() ? (
+                    <button type="button" className="btn btn-secondary btn-sm" style={{ fontSize: '0.75rem' }}
+                      onClick={() => setPendingStep(1)}>
+                      ← Vissza
+                    </button>
+                  ) : (
+                    <button type="button" className="btn btn-secondary btn-sm" style={{ fontSize: '0.75rem', marginLeft: 'auto' }}
+                      onClick={clearPending}>
+                      <X size={12} /> Mégse
+                    </button>
+                  )}
+                </div>
+              </>
+            )}
+
           </div>
         </div>
       )}

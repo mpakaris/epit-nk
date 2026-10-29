@@ -18,11 +18,13 @@ export async function POST(request) {
   const userPrompt = `Formázd meg az alábbi hangfelvétel-átiratot olvasható, tömör felmérési megjegyzéssé.
 
 Szabályok:
+- Számokat MINDIG számjegyekkel írd: 5 nem „öt", 30 nem „harminc", 2,5 nem „kettő és fél"
+- Mértékegységeket rövidítsd: négyzetméter → m², folyóméter → fm, méter → m, kilogramm → kg, liter → l, darab → db
+- Ha több különálló megfigyelést, mérést vagy elemet tartalmaz, minden egyes elem kerüljön saját sorba „- " előtaggal
+- Töltelékszavakat távolítsd el (szóval, hát, ugye, tehát, na)
 - Semmit ne hagyj ki és ne találj ki — csak azt tartalmazza, amit a felhasználó mondott
-- Távolítsd el a töltelékszavakat (szóval, hát, ugye, tehát, na)
-- Tördelj bekezdésekre vagy rövid felsorolásra ahol logikus
 - Magyarul maradj
-- Ha egyetlen rövid mondat, hagyd úgy — ne fújd fel
+- Ha egyetlen rövid mondat vagy gondolat, hagyd úgy — ne fújd fel
 
 Átirat: "${transcript}"
 

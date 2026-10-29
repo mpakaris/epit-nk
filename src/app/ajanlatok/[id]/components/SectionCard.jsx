@@ -174,7 +174,18 @@ export default function SectionCard({ section, surveyEntry, surveyId, quoteId, c
         <div className="form-group" style={{ margin: 0 }}><label className="form-label">Kezdés</label><input type="date" className="form-control" value={startDate} onChange={e => setStartDate(e.target.value)} onBlur={saveOnly} /></div>
         <div className="form-group" style={{ margin: 0 }}><label className="form-label">Befejezés</label><input type="date" className="form-control" min={startDate||undefined} value={endDate} onChange={e => setEndDate(e.target.value)} onBlur={saveOnly} /></div>
       </div>
-      <div className="form-group" style={{ marginBottom: '1rem' }}><label className="form-label">Leírás</label><textarea rows={2} className="form-control" value={description} onChange={e => setDescription(e.target.value)} onBlur={saveOnly} placeholder="Elvégzendő munkák, állapot…" /></div>
+      <div className="form-group" style={{ marginBottom: '1rem' }}>
+        <label className="form-label">Leírás</label>
+        <textarea
+          rows={7}
+          className="form-control"
+          value={description}
+          onChange={e => setDescription(e.target.value)}
+          onBlur={saveOnly}
+          placeholder="Elvégzendő munkák, állapot…"
+          style={{ resize: 'vertical' }}
+        />
+      </div>
       <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '0.5rem' }}>
         {saving && <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.3rem' }}><Loader2 size={12} className="animate-spin" />Mentés…</span>}
         {saveStatus === 'saved' && !saving && <span style={{ fontSize: '0.75rem', color: 'var(--success-text)', display: 'flex', alignItems: 'center', gap: '0.3rem' }}><Check size={12} />Mentve</span>}

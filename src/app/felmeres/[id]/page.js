@@ -316,6 +316,7 @@ function MetaDrawer({ survey, clients, isOpen, onClose, onSave }) {
             <AudioRecorder
               size="sm"
               disabled={formatting}
+              hasContent={!!notes.trim()}
               onTranscript={async (text) => {
                 setFormatting(true);
                 try {
@@ -458,6 +459,8 @@ export default function SurveyDetailPage() {
   const isDocLocked  = !!survey.locked_reason;
   const canAdd       = !isDocLocked && (isOwner || isSharedMember || isCollMember);
   const canEditMeta  = !isDocLocked && (isKollektivOwner || isOwner);
+  // General property info (Ingatlan adatok) is open to all participants — any member can enrich it
+  const canEditPropertyInfo = !isDocLocked && (isKollektivOwner || isOwner || isCollMember || isSharedMember);
   const canDrawings  = !isDocLocked && (isKollektivOwner || isOwner);
   const canEditEntry = (entry) => !isDocLocked && (isKollektivOwner || entry.created_by === currentUser?.id);
 
@@ -695,7 +698,7 @@ export default function SurveyDetailPage() {
       <PropertyInfoSection
         survey={survey}
         surveyId={id}
-        canEdit={canEditMeta}
+        canEdit={canEditPropertyInfo}
         enqueue={canAdd ? enqueue : undefined}
         triggerNotesAudio={propertyNotesTrigger}
       />

@@ -8,7 +8,7 @@ import useMobile from '@/hooks/useMobile';
 const MAX_MS    = 180_000; // 3 minutes
 const WARN_AT_S = 10;      // warn when this many seconds remain
 
-export default function AudioRecorder({ onTranscript, onError, disabled = false, size = 'md', externalTrigger = 0, hideTriggerButton = false, hint }) {
+export default function AudioRecorder({ onTranscript, onError, disabled = false, size = 'md', externalTrigger = 0, hideTriggerButton = false, hint, hasContent = false }) {
   const [open, setOpen]     = useState(false);
 
   const prevTriggerRef = useRef(externalTrigger); // initialised to current value so remount doesn't fire
@@ -265,7 +265,7 @@ export default function AudioRecorder({ onTranscript, onError, disabled = false,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             background: disabled ? 'var(--bg-subtle)' : 'var(--accent)',
           }}
-          aria-label="Diktálás"
+          aria-label={hasContent ? 'Átírás hozzáadása' : 'Diktálás'}
         >
           <Mic size={triggerIcon} color={disabled ? 'var(--text-muted)' : '#fff'} />
         </button>
@@ -275,7 +275,7 @@ export default function AudioRecorder({ onTranscript, onError, disabled = false,
       <Modal
         isOpen={open}
         onClose={() => { if (state !== 'recording' && state !== 'processing') setOpen(false); }}
-        title="Diktálás"
+        title={hasContent ? 'Átírás hozzáadása' : 'Diktálás'}
         maxWidth="380px"
         persistent={state === 'recording' || state === 'processing'}
       >
@@ -293,6 +293,13 @@ export default function AudioRecorder({ onTranscript, onError, disabled = false,
           {hint && (
             <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--text-secondary)', textAlign: 'center', lineHeight: 1.55, padding: '0 0.25rem' }}>
               {hint}
+            </p>
+          )}
+
+          {/* Append notice */}
+          {hasContent && !hint && state === 'idle' && (
+            <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-muted)', textAlign: 'center', lineHeight: 1.5 }}>
+              A diktált szöveg a meglévő tartalom után kerül.
             </p>
           )}
 
