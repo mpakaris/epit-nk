@@ -50,7 +50,10 @@ export async function POST(request) {
   if (!res.ok) {
     const errText = await res.text();
     console.error('[transcribe] ElevenLabs error:', res.status, errText.slice(0, 300));
-    return Response.json({ error: `Átírási hiba (${res.status})` }, { status: 502 });
+    const msg = res.status === 429
+      ? 'Az átíró szerver forgalmas, kérjük próbáld újra.'
+      : `Átírási hiba (${res.status})`;
+    return Response.json({ error: msg }, { status: 502 });
   }
 
   const data = await res.json();

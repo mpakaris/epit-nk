@@ -689,6 +689,16 @@ export function AppProvider({ children }) {
   };
 
   const updateInvoice = async (invoiceId, fields) => {
+    const invoice = invoices.find(i => i.id === invoiceId);
+    const proj    = invoice ? projects.find(p => p.id === invoice.project_id) : null;
+    if (proj) {
+      const isOwner          = proj.owner_id === uid || proj.created_by === uid;
+      const isKollektivOwner = collectives.some(c => c.collective_id === proj.collective_id && (c.role === 'owner' || c.role === 'admin'));
+      const isInvoiceCreator = invoice.created_by === uid;
+      const isCollMember     = collectives.some(c => c.collective_id === proj.collective_id);
+      if (!isAdmin && !isOwner && !isKollektivOwner && !(isCollMember && isInvoiceCreator))
+        throw new Error('Nincs jogosultsága!');
+    }
     const res = await fetch(`/api/invoices/${invoiceId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
@@ -701,6 +711,16 @@ export function AppProvider({ children }) {
   };
 
   const deleteInvoice = async (invoiceId) => {
+    const invoice = invoices.find(i => i.id === invoiceId);
+    const proj    = invoice ? projects.find(p => p.id === invoice.project_id) : null;
+    if (proj) {
+      const isOwner          = proj.owner_id === uid || proj.created_by === uid;
+      const isKollektivOwner = collectives.some(c => c.collective_id === proj.collective_id && (c.role === 'owner' || c.role === 'admin'));
+      const isInvoiceCreator = invoice.created_by === uid;
+      const isCollMember     = collectives.some(c => c.collective_id === proj.collective_id);
+      if (!isAdmin && !isOwner && !isKollektivOwner && !(isCollMember && isInvoiceCreator))
+        throw new Error('Nincs jogosultsága!');
+    }
     const res = await fetch(`/api/invoices/${invoiceId}`, { method: 'DELETE' });
     const json = await res.json();
     if (!res.ok) throw new Error(json.error || 'Hiba a törléskor');
@@ -726,6 +746,16 @@ export function AppProvider({ children }) {
   };
 
   const updateLabourEntry = async (entryId, fields) => {
+    const entry = labourEntries.find(e => e.id === entryId);
+    const proj  = entry ? projects.find(p => p.id === entry.project_id) : null;
+    if (proj) {
+      const isOwner          = proj.owner_id === uid || proj.created_by === uid;
+      const isKollektivOwner = collectives.some(c => c.collective_id === proj.collective_id && (c.role === 'owner' || c.role === 'admin'));
+      const isEntryCreator   = entry.created_by === uid;
+      const isCollMember     = collectives.some(c => c.collective_id === proj.collective_id);
+      if (!isAdmin && !isOwner && !isKollektivOwner && !(isCollMember && isEntryCreator))
+        throw new Error('Nincs jogosultsága!');
+    }
     const res = await fetch(`/api/labour-entries/${entryId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
@@ -738,6 +768,16 @@ export function AppProvider({ children }) {
   };
 
   const deleteLabourEntry = async (entryId) => {
+    const entry = labourEntries.find(e => e.id === entryId);
+    const proj  = entry ? projects.find(p => p.id === entry.project_id) : null;
+    if (proj) {
+      const isOwner          = proj.owner_id === uid || proj.created_by === uid;
+      const isKollektivOwner = collectives.some(c => c.collective_id === proj.collective_id && (c.role === 'owner' || c.role === 'admin'));
+      const isEntryCreator   = entry.created_by === uid;
+      const isCollMember     = collectives.some(c => c.collective_id === proj.collective_id);
+      if (!isAdmin && !isOwner && !isKollektivOwner && !(isCollMember && isEntryCreator))
+        throw new Error('Nincs jogosultsága!');
+    }
     const res = await fetch(`/api/labour-entries/${entryId}`, { method: 'DELETE' });
     const json = await res.json();
     if (!res.ok) throw new Error(json.error || 'Hiba a törléskor');
@@ -928,6 +968,14 @@ export function AppProvider({ children }) {
     return data.survey;
   };
 
+  const cacheSurvey = (survey) => {
+    setSurveys(prev => prev.some(s => s.id === survey.id) ? prev : [...prev, survey]);
+  };
+
+  const cacheQuote = (quote) => {
+    setQuotes(prev => prev.some(q => q.id === quote.id) ? prev : [...prev, quote]);
+  };
+
   const updateSurvey = async (surveyId, fields) => {
     const survey = surveys.find(s => s.id === surveyId);
     const isSurveyOwner    = survey?.owner_id === uid || survey?.created_by === uid;
@@ -1067,9 +1115,14 @@ export function AppProvider({ children }) {
 
   const updateSurveyEntry = async (surveyId, entryId, fields) => {
     const survey = surveys.find(s => s.id === surveyId);
-    const isOwner  = survey?.owner_id === uid || survey?.created_by === uid;
-    const isShared = (survey?.shared_with || []).includes(effectiveUser?.id);
-    if (!isAdmin && !isOwner && !isShared) throw new Error('Nincs jogosultsága!');
+    const isOwner          = survey?.owner_id === uid || survey?.created_by === uid;
+    const isShared         = (survey?.shared_with || []).includes(effectiveUser?.id);
+    const isKollektivOwner = collectives.some(c => c.collective_id === survey?.collective_id && (c.role === 'owner' || c.role === 'admin'));
+    const entry            = (surveyEntriesBySurvey[surveyId] || []).find(e => e.id === entryId);
+    const isEntryCreator   = entry?.created_by === uid;
+    const isCollMember     = collectives.some(c => c.collective_id === survey?.collective_id);
+    if (!isAdmin && !isOwner && !isShared && !isKollektivOwner && !(isCollMember && isEntryCreator))
+      throw new Error('Nincs jogosultsága!');
     const res = await fetch(`/api/surveys/${surveyId}/entries/${entryId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
@@ -1088,9 +1141,14 @@ export function AppProvider({ children }) {
 
   const deleteSurveyEntry = async (surveyId, entryId) => {
     const survey = surveys.find(s => s.id === surveyId);
-    const isOwner  = survey?.owner_id === uid || survey?.created_by === uid;
-    const isShared = (survey?.shared_with || []).includes(effectiveUser?.id);
-    if (!isAdmin && !isOwner && !isShared) throw new Error('Nincs jogosultsága!');
+    const isOwner          = survey?.owner_id === uid || survey?.created_by === uid;
+    const isShared         = (survey?.shared_with || []).includes(effectiveUser?.id);
+    const isKollektivOwner = collectives.some(c => c.collective_id === survey?.collective_id && (c.role === 'owner' || c.role === 'admin'));
+    const entry            = (surveyEntriesBySurvey[surveyId] || []).find(e => e.id === entryId);
+    const isEntryCreator   = entry?.created_by === uid;
+    const isCollMember     = collectives.some(c => c.collective_id === survey?.collective_id);
+    if (!isAdmin && !isOwner && !isShared && !isKollektivOwner && !(isCollMember && isEntryCreator))
+      throw new Error('Nincs jogosultsága!');
     const res = await fetch(`/api/surveys/${surveyId}/entries/${entryId}`, { method: 'DELETE' });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Hiba a törléskor');
@@ -1271,6 +1329,17 @@ export function AppProvider({ children }) {
   };
 
   const updateQuoteSection = async (quoteId, sectionId, fields) => {
+    const quote   = quotes.find(q => q.id === quoteId);
+    const section = quoteSections.find(s => s.id === sectionId);
+    if (quote) {
+      const isOwner          = quote.owner_id === uid || quote.created_by === uid;
+      const isShared         = (quote.shared_with || []).includes(effectiveUser?.id);
+      const isKollektivOwner = collectives.some(c => c.collective_id === quote.collective_id && (c.role === 'owner' || c.role === 'admin'));
+      const isSectionCreator = section?.created_by === uid;
+      const isCollMember     = collectives.some(c => c.collective_id === quote.collective_id);
+      if (!isAdmin && !isOwner && !isShared && !isKollektivOwner && !(isCollMember && isSectionCreator))
+        throw new Error('Nincs jogosultsága!');
+    }
     const res = await fetch(`/api/quotes/${quoteId}/sections/${sectionId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
@@ -1283,6 +1352,17 @@ export function AppProvider({ children }) {
   };
 
   const deleteQuoteSection = async (quoteId, sectionId) => {
+    const quote   = quotes.find(q => q.id === quoteId);
+    const section = quoteSections.find(s => s.id === sectionId);
+    if (quote) {
+      const isOwner          = quote.owner_id === uid || quote.created_by === uid;
+      const isShared         = (quote.shared_with || []).includes(effectiveUser?.id);
+      const isKollektivOwner = collectives.some(c => c.collective_id === quote.collective_id && (c.role === 'owner' || c.role === 'admin'));
+      const isSectionCreator = section?.created_by === uid;
+      const isCollMember     = collectives.some(c => c.collective_id === quote.collective_id);
+      if (!isAdmin && !isOwner && !isShared && !isKollektivOwner && !(isCollMember && isSectionCreator))
+        throw new Error('Nincs jogosultsága!');
+    }
     const res = await fetch(`/api/quotes/${quoteId}/sections/${sectionId}`, { method: 'DELETE' });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Hiba a törléskor');
@@ -1343,6 +1423,16 @@ export function AppProvider({ children }) {
   const updateQuoteEntry = async (entryId, fields) => {
     const entry = quoteEntries.find(e => e.id === entryId);
     if (!entry) return;
+    const quote = quotes.find(q => q.id === entry.quote_id);
+    if (quote) {
+      const isOwner          = quote.owner_id === uid || quote.created_by === uid;
+      const isShared         = (quote.shared_with || []).includes(effectiveUser?.id);
+      const isKollektivOwner = collectives.some(c => c.collective_id === quote.collective_id && (c.role === 'owner' || c.role === 'admin'));
+      const isEntryCreator   = entry.created_by === uid;
+      const isCollMember     = collectives.some(c => c.collective_id === quote.collective_id);
+      if (!isAdmin && !isOwner && !isShared && !isKollektivOwner && !(isCollMember && isEntryCreator))
+        throw new Error('Nincs jogosultsága!');
+    }
     const res = await fetch(`/api/quotes/${entry.quote_id}/entries/${entryId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
@@ -1357,6 +1447,16 @@ export function AppProvider({ children }) {
   const deleteQuoteEntry = async (entryId) => {
     const entry = quoteEntries.find(e => e.id === entryId);
     if (!entry) return;
+    const quote = quotes.find(q => q.id === entry.quote_id);
+    if (quote) {
+      const isOwner          = quote.owner_id === uid || quote.created_by === uid;
+      const isShared         = (quote.shared_with || []).includes(effectiveUser?.id);
+      const isKollektivOwner = collectives.some(c => c.collective_id === quote.collective_id && (c.role === 'owner' || c.role === 'admin'));
+      const isEntryCreator   = entry.created_by === uid;
+      const isCollMember     = collectives.some(c => c.collective_id === quote.collective_id);
+      if (!isAdmin && !isOwner && !isShared && !isKollektivOwner && !(isCollMember && isEntryCreator))
+        throw new Error('Nincs jogosultsága!');
+    }
     const res = await fetch(`/api/quotes/${entry.quote_id}/entries/${entryId}`, { method: 'DELETE' });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Hiba a tétel törlésekor');
@@ -1585,6 +1685,8 @@ export function AppProvider({ children }) {
         surveyItemsBySurvey,
         createSurveyDrawing,
         deleteSurveyDrawing,
+        cacheSurvey,
+        cacheQuote,
         createSurvey,
         updateSurvey,
         deleteSurvey,

@@ -825,6 +825,7 @@ export default function QuoteDetailPage() {
   const {
     currentUser, isAdmin, loading, dataReady, activeCollectiveId, collectives,
     quotes, quoteEntries, quoteSections, clients, users, projects, surveys,
+    cacheQuote,
     updateQuote, updateQuoteStatus, deleteQuote, convertQuoteToProject,
     createQuote,
     createQuoteSection, updateQuoteSection, deleteQuoteSection,
@@ -965,6 +966,7 @@ export default function QuoteDetailPage() {
           setFallbackQuote(d.quote);
           setFallbackEntries(d.entries);
           setFallbackSections(d.sections);
+          cacheQuote(d.quote);
         }
       })
       .catch(() => {})

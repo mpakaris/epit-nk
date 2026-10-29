@@ -1003,10 +1003,10 @@ function TételekSection({ surveyId, entry, canAdd, canEditAll = true, triggerAu
                           ? <input type="checkbox" checked={selectedIds.has(item.id)} onChange={() => toggleSelect(item.id)} style={{ width: 16, height: 16, cursor: 'pointer', accentColor: 'var(--accent)', margin: 0 }} />
                           : <span />}
                         <div style={{ minWidth: 0 }}>
-                          <div style={{ fontWeight: 600, fontSize: '0.875rem', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.description}</div>
+                          <div style={{ fontWeight: 600, fontSize: '0.75rem', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.description}</div>
                           {item.notes && <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>{item.notes}</div>}
                         </div>
-                        <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: '0.875rem', color: 'var(--text-secondary)', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                        <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: '0.75rem', color: 'var(--text-secondary)', textAlign: 'right', whiteSpace: 'nowrap' }}>
                           {item.quantity != null ? Number(item.quantity).toLocaleString('hu-HU') : ''}
                         </span>
                         <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{item.unit || ''}</span>
@@ -1038,9 +1038,9 @@ function TételekSection({ surveyId, entry, canAdd, canEditAll = true, triggerAu
                     ? <input type="checkbox" checked={selectedIds.has(item.id)} onChange={() => toggleSelect(item.id)} style={{ width: 16, height: 16, cursor: 'pointer', accentColor: 'var(--accent)', margin: 0 }} />
                     : <span />}
                   <div style={{ minWidth: 0 }}>
-                    <div style={{ fontWeight: 600, fontSize: '0.875rem', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.description}</div>
+                    <div style={{ fontWeight: 600, fontSize: '0.75rem', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.description}</div>
                   </div>
-                  <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: '0.875rem', color: 'var(--text-secondary)', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                  <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: '0.75rem', color: 'var(--text-secondary)', textAlign: 'right', whiteSpace: 'nowrap' }}>
                     {item.quantity != null ? Number(item.quantity).toLocaleString('hu-HU') : ''}
                   </span>
                   <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{item.unit || ''}</span>
@@ -1097,9 +1097,9 @@ function SurveyEntryCard({ entry, surveyId, canEditEntry, canAdd, canEditAll = t
   };
 
   const ctxActions = canAdd ? [
-    { icon: Mic,      label: 'Diktálás',       onClick: () => { setCollapsed(false); setTriggerAudio(n => n + 1); } },
-    { icon: Sparkles, label: 'AI javaslat',    onClick: () => { setCollapsed(false); setTriggerGenerate(n => n + 1); } },
-    { icon: Plus,     label: 'Tétel hozzáadása', onClick: () => { setCollapsed(false); setTriggerAddItem(n => n + 1); } },
+    { icon: Mic,      label: 'Diktálás',       onClick: () => { setCollapsed(false); setTimeout(() => setTriggerAudio(n => n + 1), 0); } },
+    { icon: Sparkles, label: 'AI javaslat',    onClick: () => { setCollapsed(false); setTimeout(() => setTriggerGenerate(n => n + 1), 0); } },
+    { icon: Plus,     label: 'Tétel hozzáadása', onClick: () => { setCollapsed(false); setTimeout(() => setTriggerAddItem(n => n + 1), 0); } },
     { icon: Camera,   label: 'Fotó / videó',   onClick: () => { setCollapsed(false); photoInputRef.current?.click(); } },
     ...(canDrawings ? [{ icon: PenLine, label: 'Vázlat', onClick: () => { setCollapsed(false); setTriggerDrawing(n => n + 1); } }] : []),
     ...(canEditEntry ? [
@@ -1532,7 +1532,7 @@ export default function SurveyDetailPage() {
   const {
     loading, dataReady, surveys, quotes, projects, clients, users,
     isAdmin, currentUser, collectives,
-    deleteSurvey, updateSurvey, deleteSurveyMedia,
+    cacheSurvey, deleteSurvey, updateSurvey, deleteSurveyMedia,
     surveyMediaBySurvey, surveyEntriesBySurvey, surveyLayoutsBySurvey, surveyDrawingsBySurvey,
     fetchSurveyMedia, uploadSurveyMedia,
     createSurveyEntry, updateSurveyEntry, deleteSurveyEntry,
@@ -1587,7 +1587,7 @@ export default function SurveyDetailPage() {
     setDirectFetching(true);
     fetch(`/api/surveys/${id}`)
       .then(r => r.ok ? r.json() : null)
-      .then(d => { if (d?.survey) setDirectSurvey(d.survey); })
+      .then(d => { if (d?.survey) { setDirectSurvey(d.survey); cacheSurvey(d.survey); } })
       .catch(() => {})
       .finally(() => setDirectFetching(false));
   }, [id, dataReady, surveys]);
