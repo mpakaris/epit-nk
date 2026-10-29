@@ -461,7 +461,7 @@ export default function SurveyDetailPage() {
   const canEditMeta  = !isDocLocked && (isKollektivOwner || isOwner);
   // General property info (Ingatlan adatok) is open to all participants — any member can enrich it
   const canEditPropertyInfo = !isDocLocked && (isKollektivOwner || isOwner || isCollMember || isSharedMember);
-  const canDrawings  = !isDocLocked && (isKollektivOwner || isOwner);
+  const canDrawings  = !isDocLocked && (isKollektivOwner || isOwner || isCollMember || isSharedMember);
   const canEditEntry = (entry) => !isDocLocked && (isKollektivOwner || entry.created_by === currentUser?.id);
 
   const sharedMembers = (survey.shared_with || []).map(uid => users.find(u => u.id === uid)).filter(Boolean);
@@ -617,8 +617,8 @@ export default function SurveyDetailPage() {
             </div>
           )}
 
-          {/* Mobile: single ⋮ context menu */}
-          {canEditMeta && (
+          {/* Mobile: single ⋮ context menu — visible to anyone who can do at least one action */}
+          {(canEditMeta || canAdd || canDrawings) && (
             <button type="button" onClick={() => setSurveyCtxOpen(true)}
               className="show-mobile btn btn-secondary btn-sm" style={{ padding: '0.3rem 0.55rem', flexShrink: 0 }}>
               <MoreHorizontal size={16} />
@@ -666,8 +666,8 @@ export default function SurveyDetailPage() {
         )}
       </div>
 
-      {/* Layouts — hidden on mobile when empty */}
-      {(!isMobile || layouts.length > 0 || detailLoading) && (
+      {/* Layouts — hidden on mobile only when empty AND user can't add */}
+      {(!isMobile || layouts.length > 0 || detailLoading || canAdd) && (
         <div className="card mb-4" style={{ padding: '1rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -720,22 +720,24 @@ export default function SurveyDetailPage() {
         onClose={() => setSurveyCtxOpen(false)}
         title={survey.title}
         actions={[
-          { icon: Edit3,        label: 'Általános szerkesztése',  onClick: () => setShowMetaDrawer(true) },
-          { icon: Mic,         label: 'Ingatlan megjegyzés diktálása', onClick: () => { setPropertyNotesTrigger(n => n + 1); } },
-          ...(survey.status === 'done'
-            ? [{ icon: RefreshCw, label: 'Újranyitás', onClick: () => handleStatusChange('reopened') }]
-            : [{ icon: CheckCircle2, label: 'Lezárás', onClick: () => handleStatusChange('done') }]
-          ),
-          { icon: LayoutPanelLeft, label: 'Alaprajz hozzáadása', onClick: () => layoutInputRef.current?.click() },
-          { icon: PenLine, label: 'Általános vázlat', onClick: () => setSurveyDrawingTrigger(n => n + 1) },
-          { icon: Trash2,  label: 'Törlés', danger: true, dividerBefore: true, onClick: handleDeleteSurvey },
+          ...(canEditMeta ? [
+            { icon: Edit3,       label: 'Általános szerkesztése',       onClick: () => setShowMetaDrawer(true) },
+            { icon: Mic,         label: 'Ingatlan megjegyzés diktálása', onClick: () => { setPropertyNotesTrigger(n => n + 1); } },
+            ...(survey.status === 'done'
+              ? [{ icon: RefreshCw,    label: 'Újranyitás', onClick: () => handleStatusChange('reopened') }]
+              : [{ icon: CheckCircle2, label: 'Lezárás',    onClick: () => handleStatusChange('done') }]
+            ),
+          ] : []),
+          ...(canAdd      ? [{ icon: LayoutPanelLeft, label: 'Alaprajz hozzáadása', onClick: () => layoutInputRef.current?.click() }] : []),
+          ...(canDrawings ? [{ icon: PenLine,          label: 'Általános vázlat',    onClick: () => setSurveyDrawingTrigger(n => n + 1) }] : []),
+          ...(canEditMeta ? [{ icon: Trash2, label: 'Törlés', danger: true, dividerBefore: true, onClick: handleDeleteSurvey }] : []),
         ]}
       />
 
-      {/* Survey-level drawings — hidden on mobile when empty */}
+      {/* Survey-level drawings — hidden on mobile only when empty AND user can't add */}
       {(() => {
         const surveyDrawings = drawings.filter(d => !d.entry_id);
-        if (isMobile && surveyDrawings.length === 0) return null;
+        if (isMobile && surveyDrawings.length === 0 && !canDrawings) return null;
         return (
           <div className="card mb-4" style={{ padding: '1rem' }}>
             <DrawingsSection
