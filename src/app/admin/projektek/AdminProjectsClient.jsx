@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
 import { formatDate } from '@/lib/constants';
 import Modal, { ConfirmModal, AlertModal } from '@/components/Modal';
+import ErrorBanner from '@/components/ErrorBanner';
 import EntitySelector from '@/components/EntitySelector';
 import ClientSelect from '@/components/ClientSelect';
 import WorkspaceBadge from '@/components/WorkspaceBadge';
@@ -97,11 +98,7 @@ function CreateProjectModal({ isOpen, onClose, users, clients, currentUser, effe
   return (
     <>
       <Modal isOpen={isOpen} onClose={onClose} title="Új építkezési projekt">
-        {error && (
-          <div style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', color: 'var(--danger-text)', padding: '0.65rem', borderRadius: 'var(--radius-md)', fontSize: '0.825rem', display: 'flex', gap: '0.45rem', marginBottom: '0.85rem' }}>
-            <AlertCircle size={15} style={{ flexShrink: 0 }} /><span>{error}</span>
-          </div>
-        )}
+        <ErrorBanner message={error} style={{ marginBottom: '0.85rem' }} />
         <form onSubmit={handleSubmit}>
           <EntitySelector value={activeEntityId} onChange={setSelectedEntityId} memberships={memberships} />
           <div className="form-group">
@@ -157,7 +154,7 @@ function CreateProjectModal({ isOpen, onClose, users, clients, currentUser, effe
       </Modal>
 
       <Modal isOpen={showNewClient} onClose={() => setShowNewClient(false)} title="Új ügyfél">
-        {clientError && <div style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', color: 'var(--danger-text)', padding: '0.65rem', borderRadius: 'var(--radius-md)', fontSize: '0.825rem', display: 'flex', gap: '0.45rem', marginBottom: '0.85rem' }}><AlertCircle size={15} style={{ flexShrink: 0 }} /><span>{clientError}</span></div>}
+        <ErrorBanner message={clientError} style={{ marginBottom: '0.85rem' }} />
         <form onSubmit={handleCreateClient}>
           <div className="form-group"><label className="form-label" htmlFor="nc-name">Név *</label><input id="nc-name" type="text" required autoFocus className="form-control" value={clientName} onChange={e => setClientName(e.target.value)} placeholder="Horváth Béla" /></div>
           <div className="grid-2col">
@@ -239,7 +236,7 @@ function EditProjectModal({ isOpen, onClose, project, clients, effectiveEntityId
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={`Szerkesztés: ${project.name}`}>
-      {error && <div style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', color: 'var(--danger-text)', padding: '0.65rem', borderRadius: 'var(--radius-md)', fontSize: '0.825rem', display: 'flex', gap: '0.45rem', marginBottom: '0.85rem' }}><AlertCircle size={15} style={{ flexShrink: 0 }} /><span>{error}</span></div>}
+      <ErrorBanner message={error} style={{ marginBottom: '0.85rem' }} />
       <form onSubmit={handleSubmit}>
         <div className="form-group"><label className="form-label" htmlFor="ep-name">Projekt neve *</label><input id="ep-name" type="text" required className="form-control" value={name} onChange={e => setName(e.target.value)} /></div>
         <div className="form-group"><label className="form-label" htmlFor="ep-desc">Leírás</label><textarea id="ep-desc" rows={2} className="form-control" value={desc} onChange={e => setDesc(e.target.value)} /></div>
@@ -262,7 +259,7 @@ function EditProjectModal({ isOpen, onClose, project, clients, effectiveEntityId
         {showNewClient && (
           <div style={{ border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: '0.85rem', marginBottom: '1.25rem', background: 'var(--bg-subtle)' }}>
             <div style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '0.65rem' }}>Új ügyfél</div>
-            {newClientError && <div style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', color: 'var(--danger-text)', padding: '0.5rem 0.65rem', borderRadius: 'var(--radius-md)', fontSize: '0.8rem', marginBottom: '0.65rem' }}>{newClientError}</div>}
+            <ErrorBanner message={newClientError} style={{ marginBottom: '0.65rem' }} />
             <div className="form-group"><label className="form-label">Név *</label><input type="text" className="form-control" value={newClientName} onChange={e => setNewClientName(e.target.value)} placeholder="pl. Horváth Béla" /></div>
             <div className="grid-2col">
               <div className="form-group" style={{ margin: 0 }}><label className="form-label">Telefon</label><input type="tel" className="form-control" value={newClientPhone} onChange={e => setNewClientPhone(e.target.value)} placeholder="+36 70 …" /></div>
@@ -314,7 +311,7 @@ function AssignMembersModal({ isOpen, onClose, project, users, updateProjectMemb
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={`Résztvevők: ${project.name}`}>
-      {error && <div style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', color: 'var(--danger-text)', padding: '0.65rem', borderRadius: 'var(--radius-md)', fontSize: '0.825rem', display: 'flex', gap: '0.45rem', marginBottom: '0.85rem' }}><AlertCircle size={15} style={{ flexShrink: 0 }} /><span>{error}</span></div>}
+      <ErrorBanner message={error} style={{ marginBottom: '0.85rem' }} />
       <form onSubmit={handleSubmit}>
         <p style={{ fontSize: '0.825rem', color: 'var(--text-secondary)', marginBottom: '0.75rem' }}>Jelölje be a projektben részt vevő tagokat:</p>
         <div style={{ maxHeight: '220px', overflowY: 'auto', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: '0.4rem', marginBottom: '1.25rem' }}>

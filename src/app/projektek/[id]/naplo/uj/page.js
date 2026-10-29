@@ -5,13 +5,12 @@ import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
 import { processMediaFile } from '@/lib/mediaGate';
+import { MAX_DIARY_PHOTOS } from '@/lib/constants';
 import { AlertModal } from '@/components/Modal';
 import {
   ArrowLeft, Camera, X, Upload, CheckCircle2, Lock, Eye,
   HardHat, Video, Image, Loader2
 } from 'lucide-react';
-
-const MAX_PHOTOS = 10;
 const today = () => new Date().toISOString().split('T')[0];
 
 const WORK_TYPES = [
@@ -55,7 +54,7 @@ function MediaPreviewGrid({ previews, onRemove, disabled }) {
 }
 
 function MediaButtons({ disabled, count, onCamera, onGallery }) {
-  if (count >= MAX_PHOTOS) return null;
+  if (count >= MAX_DIARY_PHOTOS) return null;
   return (
     <div style={{ display: 'flex', gap: '0.5rem' }}>
       <button type="button" className="btn btn-secondary btn-sm" style={{ gap: '0.35rem' }} disabled={disabled} onClick={onCamera}>
@@ -102,16 +101,16 @@ export default function NewDiaryEntryPage() {
   const makeAddFiles = (files, setFiles, previews, setPreviews) => async (raw) => {
     if (!raw || raw.length === 0) return;
     const converted = await Promise.all(Array.from(raw).map(processMediaFile));
-    const remaining = MAX_PHOTOS - files.length;
+    const remaining = MAX_DIARY_PHOTOS - files.length;
     const toAdd = converted.slice(0, remaining);
-    setFiles(prev => [...prev, ...toAdd].slice(0, MAX_PHOTOS));
+    setFiles(prev => [...prev, ...toAdd].slice(0, MAX_DIARY_PHOTOS));
     const newPreviews = toAdd.map(file => {
       const isVideo = file.type.startsWith('video/');
       return isVideo
         ? { url: null, name: file.name, isVideo: true }
         : { url: URL.createObjectURL(file), name: file.name, isVideo: false };
     });
-    setPreviews(prev => [...prev, ...newPreviews].slice(0, MAX_PHOTOS));
+    setPreviews(prev => [...prev, ...newPreviews].slice(0, MAX_DIARY_PHOTOS));
   };
 
   const addClientFiles = makeAddFiles(clientFiles, setClientFiles, clientPreviews, setClientPreviews);
@@ -276,7 +275,7 @@ export default function NewDiaryEntryPage() {
           <div style={{ marginBottom: '0.85rem' }}>
             <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', marginBottom: '0.5rem' }}>
               <Camera size={13} color="var(--accent)" /> Fotók / videók az ügyfélnek
-              <span style={{ marginLeft: 'auto', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>{clientFiles.length}/{MAX_PHOTOS}</span>
+              <span style={{ marginLeft: 'auto', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>{clientFiles.length}/{MAX_DIARY_PHOTOS}</span>
             </label>
             <MediaPreviewGrid previews={clientPreviews} onRemove={removeClientFile} disabled={isProcessing} />
             <MediaButtons
@@ -333,7 +332,7 @@ export default function NewDiaryEntryPage() {
           <div>
             <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', marginBottom: '0.5rem' }}>
               <Camera size={13} color="var(--text-muted)" /> Privát fotók / videók
-              <span style={{ marginLeft: 'auto', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>{privateFiles.length}/{MAX_PHOTOS}</span>
+              <span style={{ marginLeft: 'auto', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>{privateFiles.length}/{MAX_DIARY_PHOTOS}</span>
             </label>
             <MediaPreviewGrid previews={privatePreviews} onRemove={removePrivateFile} disabled={isProcessing} />
             <MediaButtons

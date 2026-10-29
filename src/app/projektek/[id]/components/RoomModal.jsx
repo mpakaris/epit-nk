@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
 import Modal from '@/components/Modal';
+import ErrorBanner from '@/components/ErrorBanner';
 import WorkTypeSelector from './WorkTypeSelector';
 
 export default function RoomModal({ isOpen, onClose, room, onSave }) {
@@ -38,7 +39,7 @@ export default function RoomModal({ isOpen, onClose, room, onSave }) {
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={room ? 'Szekció szerkesztése' : 'Új szekció'}>
-      {error && <div style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', color: 'var(--danger-text)', padding: '0.65rem', borderRadius: 'var(--radius-md)', fontSize: '0.825rem', marginBottom: '0.85rem' }}>{error}</div>}
+      <ErrorBanner message={error} style={{ marginBottom: '0.85rem' }} />
       <form onSubmit={handleSubmit}>
         <div className="form-group">
           <label className="form-label">Szekció neve *</label>

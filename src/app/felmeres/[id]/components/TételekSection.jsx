@@ -8,6 +8,7 @@ import {
 import { useApp } from '@/context/AppContext';
 import useMobile from '@/hooks/useMobile';
 import AudioRecorder from '@/components/AudioRecorder';
+import ErrorBanner from '@/components/ErrorBanner';
 
 // ── Item type metadata ────────────────────────────────────────────────────────
 
@@ -98,7 +99,7 @@ function ItemDrawer({ initial, surveyId, entryId, onClose, createSurveyItem, upd
           <button type="button" onClick={onClose} style={{ background: 'var(--bg-subtle)', border: 'none', borderRadius: '50%', width: 34, height: 34, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}><X size={16} /></button>
         </div>
 
-        {error && <div style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', color: 'var(--danger-text)', padding: '0.5rem 0.75rem', borderRadius: 'var(--radius-md)', fontSize: '0.82rem', marginBottom: '0.85rem' }}>{error}</div>}
+        <ErrorBanner message={error} style={{ marginBottom: '0.85rem' }} />
 
         <form onSubmit={handleSave}>
           <div style={{ display: 'flex', gap: '0.4rem', marginBottom: '1rem', overflowX: 'auto', paddingBottom: '0.15rem' }}>

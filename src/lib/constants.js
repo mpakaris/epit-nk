@@ -41,3 +41,5 @@ export function formatDate(dateStr) {
     day: 'numeric'
   });
 }
+
+export const MAX_DIARY_PHOTOS = 10;

@@ -40,10 +40,10 @@ Legend: ✅ Done · ⬜ Pending
 
 | # | Issue | Status |
 |---|-------|--------|
-| 16 | `MAX_PHOTOS` and other magic numbers scattered | ⬜ Pending |
-| 17 | `useScrollLock` adoption — 34 inline `document.body.style.overflow` sites | ⬜ Pending (adopt gradually) |
-| 18 | `ErrorBanner`, `Badge`, `EmptyState` adoption across all pages | ⬜ Pending (adopt gradually) |
-| 19 | `fetchJson()` adoption — 69+ fetch calls missing `.ok` check | ⬜ Pending (adopt gradually) |
+| 16 | `MAX_PHOTOS` magic number | `MAX_DIARY_PHOTOS` exported from `src/lib/constants.js`; replaced in 3 diary files | ✅ Done |
+| 17 | `useScrollLock` adoption | Replaced inline overflow logic in BottomSheet, ConfirmDialog, QuickCostSheet (Modal/Sidebar use iOS position:fixed pattern — not replaced) | ✅ Done |
+| 18 | `ErrorBanner` adoption | Replaced 14 inline danger banners across felmeres/uj, ajanlatok/uj, TételekSection, 4 projektek modals, AdminProjectsClient (4×), admin/felhasznalok (2×), otletek | ✅ Done |
+| 19 | `fetchJson()` adoption — missing `.ok` checks | All client-side fetch calls already had `.ok` checks — no changes needed | ✅ Done |
 
 ---
 

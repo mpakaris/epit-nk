@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { AlertCircle, Loader2, Plus, ChevronUp, Check } from 'lucide-react';
 import Modal from '@/components/Modal';
+import ErrorBanner from '@/components/ErrorBanner';
 
 const nextDay  = (d) => { const dt = new Date(d); dt.setDate(dt.getDate() + 1); return dt.toISOString().split('T')[0]; };
 const todayStr = () => new Date().toISOString().split('T')[0];
@@ -83,7 +84,7 @@ export default function ProjectEditModal({ isOpen, onClose, project, clients, on
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Projekt szerkesztése">
-      {error && <div style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', color: 'var(--danger-text)', padding: '0.65rem', borderRadius: 'var(--radius-md)', fontSize: '0.825rem', display: 'flex', gap: '0.45rem', marginBottom: '0.85rem' }}><AlertCircle size={15} /><span>{error}</span></div>}
+      <ErrorBanner message={error} style={{ marginBottom: '0.85rem' }} />
       <form onSubmit={handleSave}>
         <div className="form-group">
           <label className="form-label">Projekt neve *</label>
@@ -124,7 +125,7 @@ export default function ProjectEditModal({ isOpen, onClose, project, clients, on
         {showNewClient && (
           <div style={{ border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: '0.85rem', marginBottom: '0.75rem', background: 'var(--bg-subtle)' }}>
             <div style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '0.65rem' }}>Új ügyfél</div>
-            {newClientError && <div style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', color: 'var(--danger-text)', padding: '0.5rem 0.65rem', borderRadius: 'var(--radius-md)', fontSize: '0.8rem', marginBottom: '0.65rem' }}>{newClientError}</div>}
+            <ErrorBanner message={newClientError} style={{ marginBottom: '0.65rem' }} />
             <div className="form-group"><label className="form-label">Név *</label><input type="text" className="form-control" value={newClientName} onChange={e => setNewClientName(e.target.value)} placeholder="pl. Horváth Béla" /></div>
             <div className="grid-2col">
               <div className="form-group" style={{ margin: 0 }}><label className="form-label">Telefon</label><input type="tel" className="form-control" value={newClientPhone} onChange={e => setNewClientPhone(e.target.value)} /></div>

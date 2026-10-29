@@ -5,8 +5,7 @@ import { AlertCircle, Camera, Plus, Play, X, Lock, Eye, Loader2 } from 'lucide-r
 import Modal from '@/components/Modal';
 import { processMediaFile } from '@/lib/mediaGate';
 import { WORK_TYPES } from './WorkTypeSelector';
-
-const MAX_PHOTOS = 10;
+import { MAX_DIARY_PHOTOS } from '@/lib/constants';
 
 export default function EditDiaryEntryModal({ isOpen, onClose, entry, onSave, onDeletePhoto, rooms = [] }) {
   const [title, setTitle] = useState('');
@@ -49,7 +48,7 @@ export default function EditDiaryEntryModal({ isOpen, onClose, entry, onSave, on
 
   const addFiles = async (files) => {
     if (!files || files.length === 0) return;
-    const remaining = MAX_PHOTOS - totalCount;
+    const remaining = MAX_DIARY_PHOTOS - totalCount;
     if (remaining <= 0) return;
     const raw = Array.from(files).slice(0, remaining);
     const toAdd = await Promise.all(raw.map(processMediaFile));
@@ -151,7 +150,7 @@ export default function EditDiaryEntryModal({ isOpen, onClose, entry, onSave, on
         <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: '0.85rem', marginTop: '0.25rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.65rem' }}>
             <label className="form-label" style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.35rem' }}><Camera size={14} color="var(--accent)" /> Fotók & Videók</label>
-            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{totalCount}/{MAX_PHOTOS}</span>
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{totalCount}/{MAX_DIARY_PHOTOS}</span>
           </div>
           {existingPhotos.length > 0 && (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(76px, 1fr))', gap: '0.4rem', marginBottom: '0.6rem' }}>
@@ -187,7 +186,7 @@ export default function EditDiaryEntryModal({ isOpen, onClose, entry, onSave, on
               ))}
             </div>
           )}
-          {totalCount < MAX_PHOTOS && (
+          {totalCount < MAX_DIARY_PHOTOS && (
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.4rem' }}>
               <button type="button" className="btn btn-secondary btn-sm" style={{ justifyContent: 'center', fontSize: '0.75rem' }} disabled={saving} onClick={() => cameraRef.current?.click()}><Camera size={13} /> Kamera</button>
               <button type="button" className="btn btn-secondary btn-sm" style={{ justifyContent: 'center', fontSize: '0.75rem' }} disabled={saving} onClick={() => galleryRef.current?.click()}><Plus size={13} /> Kép</button>

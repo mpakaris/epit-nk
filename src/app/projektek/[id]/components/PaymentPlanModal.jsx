@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { AlertCircle, Loader2 } from 'lucide-react';
 import Modal from '@/components/Modal';
+import ErrorBanner from '@/components/ErrorBanner';
 
 const ROMAN = ['I','II','III','IV','V','VI','VII','VIII','IX','X','XI','XII','XIII','XIV','XV','XVI','XVII','XVIII','XIX','XX'];
 
@@ -83,7 +84,7 @@ export default function PaymentPlanModal({ isOpen, onClose, onSave, editItem, it
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={editItem ? 'Fizetési tétel szerkesztése' : 'Új fizetési tétel'}>
-      {err && <div style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', color: 'var(--danger-text)', padding: '0.65rem', borderRadius: 'var(--radius-md)', fontSize: '0.825rem', display: 'flex', gap: '0.45rem', marginBottom: '0.85rem' }}><AlertCircle size={15} /><span>{err}</span></div>}
+      <ErrorBanner message={err} style={{ marginBottom: '0.85rem' }} />
       <form onSubmit={handleSubmit}>
         <div className="form-group">
           <label className="form-label">Megnevezés *</label>

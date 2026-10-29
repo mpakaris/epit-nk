@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { AlertCircle, Loader2 } from 'lucide-react';
 import Modal from '@/components/Modal';
+import ErrorBanner from '@/components/ErrorBanner';
 import { formatHUF } from '@/lib/constants';
 
 const LABOUR_UNITS = ['h', 'nap', 'm²', 'm³', 'm', 'fm', 'db', 'l', 'kg'];
@@ -47,7 +48,7 @@ export default function LabourEditModal({ entry, onClose, onSave, rooms = [] }) 
 
   return (
     <Modal isOpen={true} onClose={onClose} title="Munkabejegyzés szerkesztése">
-      {err && <div style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', color: 'var(--danger-text)', padding: '0.65rem', borderRadius: 'var(--radius-md)', fontSize: '0.825rem', display: 'flex', gap: '0.45rem', marginBottom: '0.85rem' }}><AlertCircle size={15} /><span>{err}</span></div>}
+      <ErrorBanner message={err} style={{ marginBottom: '0.85rem' }} />
       <form onSubmit={handleSubmit}>
         <div className="form-group">
           <label className="form-label">Típus *</label>

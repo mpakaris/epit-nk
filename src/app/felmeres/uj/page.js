@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
 import Modal from '@/components/Modal';
+import ErrorBanner from '@/components/ErrorBanner';
 import { ArrowLeft, AlertCircle, Check, Loader2, Plus, User, Users, ChevronDown, MapPin } from 'lucide-react';
 import PageSpinner from '@/components/PageSpinner';
 import CollectiveSelector from '@/components/CollectiveSelector';
@@ -38,7 +39,7 @@ function NewClientModal({ isOpen, onClose, onCreate }) {
   };
   return (
     <Modal isOpen={isOpen} onClose={handleClose} title="Új ügyfél">
-      {error && <div style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', color: 'var(--danger-text)', padding: '0.65rem', borderRadius: 'var(--radius-md)', fontSize: '0.825rem', marginBottom: '0.85rem' }}>{error}</div>}
+      <ErrorBanner message={error} style={{ marginBottom: '0.85rem' }} />
       <form onSubmit={handleSubmit}>
         <div className="form-group"><label className="form-label">Név *</label><input type="text" className="form-control" required autoFocus value={name} onChange={e => setName(e.target.value)} placeholder="Horváth Béla" /></div>
         <div className="grid-2col">
@@ -198,11 +199,7 @@ export default function NewSurveyPage() {
         </div>
       </div>
 
-      {error && (
-        <div style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', color: 'var(--danger-text)', padding: '0.75rem 1rem', borderRadius: 'var(--radius-md)', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
-          <AlertCircle size={18} aria-hidden="true" /><span>{error}</span>
-        </div>
-      )}
+      <ErrorBanner message={error} style={{ marginBottom: '1rem' }} />
 
       <form onSubmit={handleSubmit}>
         {/* Desktop collective selector */}

@@ -1,16 +1,12 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import React from 'react';
+import { useScrollLock } from '@/hooks/useScrollLock';
 
 import { Trash2, Copy, PenLine, ExternalLink, X, ArrowUpRight } from 'lucide-react';
 
 export default function BottomSheet({ isOpen, onClose, title, subtitle, onOpen, onDuplicate, onRename, onTransfer, onDelete, actions }) {
-  useEffect(() => {
-    if (!isOpen) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => { document.body.style.overflow = prev; };
-  }, [isOpen]);
+  useScrollLock(isOpen);
 
   if (!isOpen) return null;
 

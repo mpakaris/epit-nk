@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
+import { useScrollLock } from '@/hooks/useScrollLock';
 import { useApp } from '@/context/AppContext';
 import { processMediaFile } from '@/lib/mediaGate';
 import { INVOICE_CATEGORIES, formatHUF } from '@/lib/constants';
@@ -53,13 +54,7 @@ export default function QuickCostSheet({ isOpen, onClose, projectId, onSuccess }
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
 
-  // Lock body scroll when open
-  useEffect(() => {
-    if (!isOpen) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => { document.body.style.overflow = prev; };
-  }, [isOpen]);
+  useScrollLock(isOpen);
 
   // Reset state when sheet opens
   useEffect(() => {
