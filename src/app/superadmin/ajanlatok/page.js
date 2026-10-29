@@ -6,13 +6,7 @@ import { useApp } from '@/context/AppContext';
 import { formatHUF, formatDate, QUOTE_STATUSES } from '@/lib/constants';
 import { ConfirmModal, AlertModal } from '@/components/Modal';
 import { FileText, ArrowLeft, Building2, Search } from 'lucide-react';
-
-const STATUS_COLORS = {
-  draft:    { bg: 'var(--bg-subtle)',    color: 'var(--text-secondary)', border: 'var(--border-subtle)' },
-  sent:     { bg: 'var(--warning-bg)',  color: 'var(--warning-text)',  border: 'var(--warning-border)' },
-  accepted: { bg: 'var(--success-bg)', color: 'var(--success-text)', border: 'var(--success-border)' },
-  rejected: { bg: 'var(--danger-bg)',  color: 'var(--danger-text)',  border: 'var(--danger-border)' },
-};
+import StatusBadge from '@/components/StatusBadge';
 
 export default function SuperAdminQuotesPage() {
   const { isSuperAdmin, loading, entities, quotes, quoteEntries, clients, deleteQuote } = useApp();
@@ -81,7 +75,6 @@ export default function SuperAdminQuotesPage() {
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
           {filtered.map(q => {
-            const sc = STATUS_COLORS[q.status] || STATUS_COLORS.draft;
             const entity = entityMap[q.entity_id];
             const client = q.client_id ? clientMap[q.client_id] : null;
             const total = getTotal(q.id);
@@ -93,9 +86,7 @@ export default function SuperAdminQuotesPage() {
                     <span style={{ fontWeight: 800, fontSize: '0.95rem', color: 'var(--text-primary)' }}>
                       {q.title}
                     </span>
-                    <span style={{ fontSize: '0.7rem', fontWeight: 700, padding: '0.1rem 0.5rem', borderRadius: 'var(--radius-pill)', background: sc.bg, color: sc.color, border: `1px solid ${sc.border}` }}>
-                      {QUOTE_STATUSES.find(s => s.id === q.status)?.label || q.status}
-                    </span>
+                    <StatusBadge status={q.status} />
                     {entity && (
                       <span style={{ fontSize: '0.7rem', fontWeight: 700, padding: '0.1rem 0.5rem', borderRadius: 'var(--radius-pill)', background: '#ede9fe', color: '#7c3aed', border: '1px solid #c4b5fd', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
                         <Building2 size={10} /> {entity.name}

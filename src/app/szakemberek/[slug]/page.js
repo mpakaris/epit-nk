@@ -3,7 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import { useParams } from 'next/navigation';
-import { Phone, Mail, Award, ChevronDown, ChevronUp, Star, Loader2, CheckCircle2, AlertCircle, ArrowRight, Eye, X as XIcon, Play, ExternalLink } from 'lucide-react';
+import { Phone, Mail, Award, ChevronDown, ChevronUp, Star, Loader2, CheckCircle2, AlertCircle, ArrowRight, Eye, Play, ExternalLink } from 'lucide-react';
+import Lightbox from '@/components/Lightbox';
 
 const TikTokIcon = ({ size = 15 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor">
@@ -447,16 +448,8 @@ function CertificationsSection({ content, T }) {
 
 function GallerySection({ content, T }) {
   const items = (content.items || []).filter(i => i.url);
-  if (!items.length) return null;
   const [lightbox, setLightbox] = useState(null);
-
-  useEffect(() => {
-    if (lightbox !== null) {
-      const prev = document.body.style.overflow;
-      document.body.style.overflow = 'hidden';
-      return () => { document.body.style.overflow = prev; };
-    }
-  }, [lightbox]);
+  if (!items.length) return null;
 
   return (
     <section className="sp-section" style={{ background: T?.slate || C.slate, overflow: 'visible' }} id="galeria">
@@ -503,25 +496,7 @@ function GallerySection({ content, T }) {
       </div>
 
       {lightbox !== null && (
-        <div onClick={() => setLightbox(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.93)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'zoom-out' }}>
-          <button type="button" onClick={e => { e.stopPropagation(); setLightbox(null); }} style={{ position: 'absolute', top: '1rem', right: '1rem', background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: '50%', width: 40, height: 40, cursor: 'pointer', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <XIcon size={18} />
-          </button>
-          {lightbox > 0 && (
-            <button type="button" onClick={e => { e.stopPropagation(); setLightbox(l => l - 1); }} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: '50%', width: 44, height: 44, cursor: 'pointer', color: 'white', fontSize: '1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>‹</button>
-          )}
-          {lightbox < items.length - 1 && (
-            <button type="button" onClick={e => { e.stopPropagation(); setLightbox(l => l + 1); }} style={{ position: 'absolute', right: '1rem', top: '50%', transform: 'translateY(-50%)', background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: '50%', width: 44, height: 44, cursor: 'pointer', color: 'white', fontSize: '1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>›</button>
-          )}
-          {items[lightbox].type === 'video' ? (
-            <video key={items[lightbox].url} src={items[lightbox].url} controls autoPlay onClick={e => e.stopPropagation()} style={{ maxWidth: '92vw', maxHeight: '85vh', borderRadius: 8, display: 'block', cursor: 'default' }} />
-          ) : (
-            <img src={items[lightbox].url} alt={items[lightbox].caption || ''} onClick={e => e.stopPropagation()} style={{ maxWidth: '92vw', maxHeight: '85vh', objectFit: 'contain', borderRadius: 8, display: 'block', cursor: 'default' }} />
-          )}
-          {items[lightbox].caption && (
-            <p style={{ position: 'absolute', bottom: '1.5rem', left: 0, right: 0, textAlign: 'center', color: 'rgba(255,255,255,0.7)', fontSize: '0.875rem', margin: 0, padding: '0 2rem' }}>{items[lightbox].caption}</p>
-          )}
-        </div>
+        <Lightbox media={items} startIndex={lightbox} onClose={() => setLightbox(null)} />
       )}
     </section>
   );

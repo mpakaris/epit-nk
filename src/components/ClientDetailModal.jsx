@@ -10,16 +10,7 @@ import {
   Edit3, Trash2, FileText, FolderKanban, ClipboardList,
   AlertCircle, Loader2, CheckCircle2, AlertTriangle, ExternalLink,
 } from 'lucide-react';
-
-const STATUS_LABELS = {
-  draft: 'Vázlat', sent: 'Kiküldve', accepted: 'Elfogadva', rejected: 'Elutasítva',
-};
-const STATUS_COLORS = {
-  draft:    { bg: 'var(--bg-subtle)',   color: 'var(--text-secondary)', border: 'var(--border-subtle)'  },
-  sent:     { bg: 'var(--warning-bg)',  color: 'var(--warning-text)',   border: 'var(--warning-border)' },
-  accepted: { bg: 'var(--success-bg)',  color: 'var(--success-text)',   border: 'var(--success-border)' },
-  rejected: { bg: 'var(--danger-bg)',   color: 'var(--danger-text)',    border: 'var(--danger-border)'  },
-};
+import StatusBadge from '@/components/StatusBadge';
 
 function Avatar({ name }) {
   const initials = name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
@@ -280,7 +271,6 @@ export default function ClientDetailModal({ clientId, onClose, onDeleted }) {
                 <p style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.825rem', padding: '1.5rem' }}>Nincs ajánlat ehhez az ügyfélhez.</p>
               ) : clientQuotes.map(q => {
                 const total = quoteEntries.filter(e => e.quote_id === q.id).reduce((s, e) => s + Number(e.amount_huf || 0), 0);
-                const sc = STATUS_COLORS[q.status] || STATUS_COLORS.draft;
                 return (
                   <div key={q.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.65rem 0.85rem', background: 'var(--bg-subtle)', borderRadius: 'var(--radius-md)', gap: '0.5rem', flexWrap: 'wrap' }}>
                     <div style={{ flex: 1, minWidth: 0 }}>
@@ -289,9 +279,7 @@ export default function ClientDetailModal({ clientId, onClose, onDeleted }) {
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexShrink: 0 }}>
                       <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, fontSize: '0.875rem' }}>{formatHUF(total)}</span>
-                      <span style={{ fontSize: '0.68rem', fontWeight: 700, padding: '0.15rem 0.45rem', borderRadius: 'var(--radius-pill)', background: sc.bg, color: sc.color, border: `1px solid ${sc.border}` }}>
-                        {STATUS_LABELS[q.status]}
-                      </span>
+                      <StatusBadge status={q.status} />
                       <Link href={`/ajanlatok/${q.id}`} className="btn btn-secondary btn-sm" style={{ padding: '0.25rem 0.5rem' }} onClick={onClose}>
                         <ExternalLink size={12} />
                       </Link>

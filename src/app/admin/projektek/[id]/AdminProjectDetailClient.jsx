@@ -12,44 +12,9 @@ import {
   ArrowLeft, Receipt, ShieldCheck, Coins, AlertCircle,
   CheckCircle2, Plus, Edit3, UserCheck, BookUser, CalendarDays, ChevronDown, ChevronUp,
   Phone, Mail, MapPin, Users, FileText, BarChart3, BookOpen, Camera, Trash2, Link2, Copy, Check,
-  Hammer, Clock, ChevronLeft, ChevronRight, X, Play, ZoomIn, Loader2
+  Hammer, Clock, Play, ZoomIn, Loader2
 } from 'lucide-react';
-
-function MediaLightbox({ media, startIndex, onClose }) {
-  const [idx, setIdx] = React.useState(startIndex);
-  const current = media[idx];
-  const isVideo = current?.mime_type?.startsWith('video/');
-  React.useEffect(() => {
-    const onKey = (e) => {
-      if (e.key === 'Escape') onClose();
-      if (e.key === 'ArrowRight') setIdx(i => Math.min(i + 1, media.length - 1));
-      if (e.key === 'ArrowLeft') setIdx(i => Math.max(i - 1, 0));
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [media.length, onClose]);
-  if (!current) return null;
-  return (
-    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.92)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <button type="button" onClick={onClose} style={{ position: 'absolute', top: 16, right: 16, background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: '50%', width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#fff', zIndex: 10 }}><X size={20} /></button>
-      <div style={{ position: 'absolute', top: 20, left: '50%', transform: 'translateX(-50%)', color: 'rgba(255,255,255,0.7)', fontSize: '0.85rem', fontWeight: 600 }}>{idx + 1} / {media.length}</div>
-      {idx > 0 && <button type="button" onClick={(e) => { e.stopPropagation(); setIdx(i => i - 1); }} style={{ position: 'absolute', left: 12, background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: '50%', width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#fff' }}><ChevronLeft size={22} /></button>}
-      {idx < media.length - 1 && <button type="button" onClick={(e) => { e.stopPropagation(); setIdx(i => i + 1); }} style={{ position: 'absolute', right: 12, background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: '50%', width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#fff' }}><ChevronRight size={22} /></button>}
-      <div onClick={e => e.stopPropagation()} style={{ maxWidth: '90vw', maxHeight: '85vh', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem' }}>
-        {isVideo ? <video src={current.drive_view_url} controls autoPlay style={{ maxWidth: '90vw', maxHeight: '80vh', borderRadius: 8, background: '#000' }} /> : <img src={current.drive_view_url} alt="" style={{ maxWidth: '90vw', maxHeight: '80vh', objectFit: 'contain', borderRadius: 8 }} />}
-        {media.length > 1 && (
-          <div style={{ display: 'flex', gap: '0.4rem', overflowX: 'auto', maxWidth: '90vw', padding: '0.25rem 0' }}>
-            {media.map((m, i) => (
-              <button key={m.id} type="button" onClick={() => setIdx(i)} style={{ flexShrink: 0, width: 52, height: 52, borderRadius: 6, overflow: 'hidden', border: i === idx ? '2px solid var(--accent)' : '2px solid transparent', background: '#222', cursor: 'pointer', padding: 0 }}>
-                {m.mime_type?.startsWith('video/') ? <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }}><Play size={18} /></div> : <img src={m.thumbnail_url || m.drive_view_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
+import Lightbox from '@/components/Lightbox';
 
 function EntryMediaGrid({ photos }) {
   const [lightbox, setLightbox] = React.useState(null);
@@ -67,7 +32,7 @@ function EntryMediaGrid({ photos }) {
           );
         })}
       </div>
-      {lightbox !== null && <MediaLightbox media={photos} startIndex={lightbox} onClose={() => setLightbox(null)} />}
+      {lightbox !== null && <Lightbox media={photos} startIndex={lightbox} onClose={() => setLightbox(null)} />}
     </>
   );
 }

@@ -20,20 +20,7 @@ import {
   ExternalLink
 } from 'lucide-react';
 import PageSpinner from '@/components/PageSpinner';
-
-const STATUS_LABELS = {
-  draft: 'Vázlat',
-  sent: 'Kiküldve',
-  accepted: 'Elfogadva',
-  rejected: 'Elutasítva'
-};
-
-const STATUS_COLORS = {
-  draft: { bg: 'var(--bg-subtle)', color: 'var(--text-secondary)', border: 'var(--border-subtle)' },
-  sent: { bg: 'var(--warning-bg)', color: 'var(--warning-text)', border: 'var(--warning-border)' },
-  accepted: { bg: 'var(--success-bg)', color: 'var(--success-text)', border: 'var(--success-border)' },
-  rejected: { bg: 'var(--danger-bg)', color: 'var(--danger-text)', border: 'var(--danger-border)' }
-};
+import StatusBadge from '@/components/StatusBadge';
 
 export default function ClientDetailPage() {
   const { id } = useParams();
@@ -218,7 +205,6 @@ export default function ClientDetailPage() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '1.5rem' }}>
           {clientQuotes.map(q => {
             const qTotal = quoteEntries.filter(e => e.quote_id === q.id).reduce((s, e) => s + Number(e.amount_huf || 0), 0);
-            const sc = STATUS_COLORS[q.status] || STATUS_COLORS.draft;
             return (
               <div key={q.id} className="card" style={{ padding: '0.85rem 1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
@@ -230,9 +216,7 @@ export default function ClientDetailPage() {
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexShrink: 0 }}>
                   <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, fontSize: '0.95rem' }}>{formatHUF(qTotal)}</span>
-                  <span style={{ fontSize: '0.725rem', fontWeight: 700, padding: '0.15rem 0.5rem', borderRadius: 'var(--radius-pill)', background: sc.bg, color: sc.color, border: `1px solid ${sc.border}` }}>
-                    {STATUS_LABELS[q.status]}
-                  </span>
+                  <StatusBadge status={q.status} />
                   <Link href={`/ajanlatok/${q.id}`} className="btn btn-secondary btn-sm" style={{ padding: '0.3rem 0.6rem', fontSize: '0.775rem' }}>
                     Részletek
                   </Link>
