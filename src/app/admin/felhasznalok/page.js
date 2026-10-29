@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useApp } from '@/context/AppContext';
 import { formatDate } from '@/lib/constants';
 import Modal, { AlertModal } from '@/components/Modal';
+import ErrorBanner from '@/components/ErrorBanner';
 import {
   UserPlus, Lock, CheckCircle2, ArrowLeft, AlertCircle,
   RotateCcw, UserMinus, Users, ShieldCheck, User as UserIcon,
@@ -41,11 +42,7 @@ function CreateUserModal({ isOpen, onClose, createUser, onSuccess }) {
 
   return (
     <Modal isOpen={isOpen} onClose={() => { reset(); onClose(); }} title="Tag meghívása a csoportba">
-      {error && (
-        <div style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', color: 'var(--danger-text)', padding: '0.65rem', borderRadius: 'var(--radius-md)', fontSize: '0.825rem', display: 'flex', alignItems: 'center', gap: '0.45rem', marginBottom: '0.85rem' }}>
-          <AlertCircle size={15} /><span>{error}</span>
-        </div>
-      )}
+      <ErrorBanner message={error} style={{ marginBottom: '0.85rem' }} />
       <form onSubmit={handleSubmit}>
         <div className="form-group">
           <label className="form-label">Név *</label>
@@ -104,7 +101,7 @@ function ResetPasswordModal({ isOpen, onClose, targetUser, resetUserPassword, on
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Jelszó visszaállítása">
-      {error && <div style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', color: 'var(--danger-text)', padding: '0.65rem', borderRadius: 'var(--radius-md)', fontSize: '0.825rem', display: 'flex', gap: '0.45rem', marginBottom: '0.85rem' }}><AlertCircle size={15} /><span>{error}</span></div>}
+      <ErrorBanner message={error} style={{ marginBottom: '0.85rem' }} />
       <form onSubmit={handleSubmit}>
         <div style={{ marginBottom: '1rem', padding: '0.75rem', background: 'var(--bg-subtle)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)' }}>
           <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>Felhasználó</div>

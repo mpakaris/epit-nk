@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { Loader2, LogOut, CheckCircle2, XCircle, ChevronDown, ChevronUp, ArrowLeft } from 'lucide-react';
+import Lightbox from '@/components/Lightbox';
 
 // ── constants ─────────────────────────────────────────────────────────────────
 const BRAND  = '#0f172a';
@@ -24,36 +25,6 @@ function fmt(d) {
   return new Date(d).toLocaleDateString('hu-HU', { year: 'numeric', month: 'long', day: 'numeric' });
 }
 
-// ── lightbox ──────────────────────────────────────────────────────────────────
-function Lightbox({ media, startIndex, onClose }) {
-  const [idx, setIdx] = useState(startIndex);
-  const cur = media[idx];
-  useEffect(() => {
-    const h = (e) => {
-      if (e.key === 'Escape') onClose();
-      if (e.key === 'ArrowRight') setIdx(i => Math.min(i + 1, media.length - 1));
-      if (e.key === 'ArrowLeft')  setIdx(i => Math.max(i - 1, 0));
-    };
-    window.addEventListener('keydown', h);
-    document.body.style.overflow = 'hidden';
-    return () => { window.removeEventListener('keydown', h); document.body.style.overflow = ''; };
-  }, [media.length, onClose]);
-  if (!cur) return null;
-  return (
-    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.95)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <button onClick={onClose} style={{ position: 'absolute', top: 16, right: 16, background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: '50%', width: 44, height: 44, color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.1rem' }}>✕</button>
-      {idx > 0 && <button onClick={e => { e.stopPropagation(); setIdx(i => i - 1); }} style={{ position: 'absolute', left: 10, background: 'rgba(255,255,255,0.08)', border: 'none', borderRadius: '50%', width: 50, height: 50, color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem' }}>‹</button>}
-      {idx < media.length - 1 && <button onClick={e => { e.stopPropagation(); setIdx(i => i + 1); }} style={{ position: 'absolute', right: 10, background: 'rgba(255,255,255,0.08)', border: 'none', borderRadius: '50%', width: 50, height: 50, color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem' }}>›</button>}
-      {media.length > 1 && <div style={{ position: 'absolute', top: 20, left: '50%', transform: 'translateX(-50%)', color: 'rgba(255,255,255,0.55)', fontSize: '0.8rem', fontWeight: 600 }}>{idx + 1} / {media.length}</div>}
-      <div onClick={e => e.stopPropagation()} style={{ maxWidth: '94vw', maxHeight: '88vh' }}>
-        {cur.mime_type?.startsWith('video/')
-          ? <video src={cur.drive_view_url} controls autoPlay playsInline style={{ maxWidth: '94vw', maxHeight: '88vh', borderRadius: 12 }} />
-          : <img src={cur.drive_view_url} alt="" style={{ maxWidth: '94vw', maxHeight: '88vh', objectFit: 'contain', borderRadius: 12 }} />
-        }
-      </div>
-    </div>
-  );
-}
 
 function PhotoGrid({ photos }) {
   const [lb, setLb] = useState(null);

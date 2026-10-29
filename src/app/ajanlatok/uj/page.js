@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
 import Modal from '@/components/Modal';
+import ErrorBanner from '@/components/ErrorBanner';
 import CollectiveSelector from '@/components/CollectiveSelector';
 import ClientSelect from '@/components/ClientSelect';
 import PageSpinner from '@/components/PageSpinner';
@@ -38,7 +39,7 @@ function NewClientModal({ isOpen, onClose, onCreate }) {
   };
   return (
     <Modal isOpen={isOpen} onClose={handleClose} title="Új ügyfél">
-      {error && <div style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', color: 'var(--danger-text)', padding: '0.65rem', borderRadius: 'var(--radius-md)', fontSize: '0.825rem', display: 'flex', gap: '0.45rem', marginBottom: '0.85rem' }}><AlertCircle size={15} style={{ flexShrink: 0 }} /><span>{error}</span></div>}
+      <ErrorBanner message={error} style={{ marginBottom: '0.85rem' }} />
       <div className="form-group"><label className="form-label">Név *</label><input type="text" className="form-control" autoFocus value={name} onChange={e => setName(e.target.value)} placeholder="Horváth Béla" /></div>
       <div className="grid-2col">
         <div className="form-group" style={{ margin: 0 }}><label className="form-label">Telefon</label><input type="tel" className="form-control" value={phone} onChange={e => setPhone(e.target.value)} placeholder="+36 70 …" /></div>
@@ -299,11 +300,7 @@ function NewQuotePageInner() {
         )}
       </div>
 
-      {error && (
-        <div style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', color: 'var(--danger-text)', padding: '0.75rem 1rem', borderRadius: 'var(--radius-md)', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
-          <AlertCircle size={18} /><span>{error}</span>
-        </div>
-      )}
+      <ErrorBanner message={error} style={{ marginBottom: '1rem' }} />
 
       <form onSubmit={handleSubmit}>
         {/* Survey picker — visible on both mobile and desktop */}

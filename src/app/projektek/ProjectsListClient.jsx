@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
+import { useTransferRequests } from '@/hooks/useTransferRequests';
 import { calculateProjectFinancials } from '@/lib/calculations';
 import { formatHUF, formatDate } from '@/lib/constants';
 import {
@@ -64,30 +65,21 @@ export default function ProjectsListClient({
   const [deleteAlert,   setDeleteAlert]     = useState(null);
   const [deletedIds,    setDeletedIds]      = useState(new Set());
   const [alertModal,    setAlertModal]      = useState(null);
-  const [transferModal,    setTransferModal]    = useState(null);
-  const [outgoingTransfers, setOutgoingTransfers] = useState([]);
+  const [transferModal, setTransferModal]   = useState(null);
+  const { outgoingTransfers, addTransfer, retractTransfer } = useTransferRequests({ dataReady, isDemoMode });
 
   const handleRetract = async (requestId) => {
-    const res = await fetch(`/api/transfer-requests/${requestId}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'retract' }),
-    });
-    if (!res.ok) {
-      const { error } = await res.json().catch(() => ({}));
-      setDeleteAlert(error || 'Hiba történt. Kérjük, próbáld újra.');
-      throw new Error(error);
+    try {
+      await retractTransfer(requestId);
+      setAlertModal({ variant: 'success', title: 'Visszavonva', message: 'Az áthelyezési kérelem visszavonva. A dokumentum újra szerkeszthető.' });
+    } catch (err) {
+      setDeleteAlert(err.message);
     }
-    setOutgoingTransfers(prev => prev.filter(r => r.id !== requestId));
-    setAlertModal({ variant: 'success', title: 'Visszavonva', message: 'Az áthelyezési kérelem visszavonva. A dokumentum újra szerkeszthető.' });
   };
 
   const handleTransferSuccess = (result) => {
-    if (result.moved) {
-      refreshSupabaseData();
-    } else if (result.request) {
-      setOutgoingTransfers(prev => [...prev, result.request]);
-    }
+    if (result.moved) refreshSupabaseData();
+    else if (result.request) addTransfer(result.request);
   };
 
   const handleDelete = (project) => {
@@ -130,14 +122,6 @@ export default function ProjectsListClient({
 
   const activeCreateEntityId = projEntityId || activeCollectiveId || null;
   const effectiveCurrentUserId = currentUser?.id;
-
-  useEffect(() => {
-    if (!dataReady || isDemoMode) return;
-    fetch('/api/transfer-requests?outgoing=true')
-      .then(r => r.ok ? r.json() : { requests: [] })
-      .then(d => setOutgoingTransfers(d.requests || []))
-      .catch(() => {});
-  }, [dataReady, isDemoMode]);
 
   // Auto-open create modal when navigated via ?create=1 (e.g. from mobile FAB)
   // useSearchParams keeps this reactive — works even when already on this page

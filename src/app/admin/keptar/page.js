@@ -4,59 +4,15 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useRouter } from 'next/navigation';
 import {
-  Upload, Trash2, X, Loader2, ImageIcon, Filter, Check, AlertCircle,
-  ChevronLeft, ChevronRight, Star,
+  Upload, Trash2, Loader2, ImageIcon, Filter, Check, AlertCircle, Star,
 } from 'lucide-react';
 import PageSpinner from '@/components/PageSpinner';
+import Lightbox from '@/components/Lightbox';
 
 const ORIENTATIONS = [
   { value: 'horizontal', label: 'Horizontal (hero)' },
   { value: 'vertical',   label: 'Vertical (portrait)' },
 ];
-
-function Lightbox({ images, index, onClose, onNav }) {
-  const img = images[index];
-  useEffect(() => {
-    const handler = (e) => {
-      if (e.key === 'Escape') onClose();
-      if (e.key === 'ArrowRight') onNav(1);
-      if (e.key === 'ArrowLeft') onNav(-1);
-    };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [onClose, onNav]);
-
-  return (
-    <div
-      onClick={onClose}
-      style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(0,0,0,0.9)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}
-    >
-      {images.length > 1 && (
-        <button type="button" onClick={e => { e.stopPropagation(); onNav(-1); }}
-          style={{ position: 'absolute', left: '1rem', background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: '50%', width: 44, height: 44, cursor: 'pointer', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <ChevronLeft size={22} />
-        </button>
-      )}
-      <img src={img.url} alt={img.alt_text || ''} onClick={e => e.stopPropagation()}
-        style={{ maxWidth: '90vw', maxHeight: '90vh', objectFit: 'contain', borderRadius: 8, display: 'block' }} />
-      {images.length > 1 && (
-        <button type="button" onClick={e => { e.stopPropagation(); onNav(1); }}
-          style={{ position: 'absolute', right: '1rem', background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: '50%', width: 44, height: 44, cursor: 'pointer', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <ChevronRight size={22} />
-        </button>
-      )}
-      <button type="button" onClick={onClose}
-        style={{ position: 'absolute', top: '1rem', right: '1rem', background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: '50%', width: 36, height: 36, cursor: 'pointer', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <X size={18} />
-      </button>
-      {images.length > 1 && (
-        <p style={{ position: 'absolute', bottom: '1rem', left: '50%', transform: 'translateX(-50%)', color: 'rgba(255,255,255,0.5)', fontSize: '0.8rem', margin: 0 }}>
-          {index + 1} / {images.length}
-        </p>
-      )}
-    </div>
-  );
-}
 
 function ImageGrid({ title, images, aspect, cols, deleting, onDelete, onOpen, onSetHero, settingHero }) {
   if (images.length === 0) return null;
@@ -278,10 +234,9 @@ export default function ImageLibraryPage() {
         <>
           {lightbox && (
             <Lightbox
-              images={lightbox.images}
-              index={lightbox.index}
+              media={lightbox.images}
+              startIndex={lightbox.index}
               onClose={() => setLightbox(null)}
-              onNav={dir => setLightbox(lb => ({ ...lb, index: (lb.index + dir + lb.images.length) % lb.images.length }))}
             />
           )}
           <ImageGrid title="Horizontal (hero)" images={horiz} aspect="16/9" cols="repeat(auto-fill, minmax(220px, 1fr))"

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { PenLine, Plus, Trash2 } from 'lucide-react';
 import Modal from '@/components/Modal';
 import DrawingPad from '@/components/DrawingPad';

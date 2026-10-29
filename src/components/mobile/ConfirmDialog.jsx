@@ -1,14 +1,10 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import React from 'react';
+import { useScrollLock } from '@/hooks/useScrollLock';
 
 export default function ConfirmDialog({ isOpen, onClose, onConfirm, title, body, isShared }) {
-  useEffect(() => {
-    if (!isOpen) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => { document.body.style.overflow = prev; };
-  }, [isOpen]);
+  useScrollLock(isOpen);
 
   if (!isOpen) return null;
 

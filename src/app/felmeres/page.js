@@ -3,6 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useApp } from '@/context/AppContext';
+import { useTransferRequests } from '@/hooks/useTransferRequests';
+import { normalizeHU } from '@/lib/utils';
 import { ConfirmModal, AlertModal } from '@/components/Modal';
 import TransferToCollectiveModal from '@/components/TransferToCollectiveModal';
 import { Ruler, Plus, Search, ChevronLeft, Users } from 'lucide-react';
@@ -33,16 +35,8 @@ export default function SurveyListPage() {
   const [expandShared,   setExpandShared]   = useState({});
   const [confirmModal,   setConfirmModal]   = useState(null);
   const [alertModal,     setAlertModal]     = useState(null);
-  const [transferModal,    setTransferModal]    = useState(null);
-  const [outgoingTransfers, setOutgoingTransfers] = useState([]);
-
-  useEffect(() => {
-    if (!dataReady || isDemoMode) return;
-    fetch('/api/transfer-requests?outgoing=true')
-      .then(r => r.ok ? r.json() : { requests: [] })
-      .then(d => setOutgoingTransfers(d.requests || []))
-      .catch(() => {});
-  }, [dataReady, isDemoMode]);
+  const [transferModal, setTransferModal] = useState(null);
+  const { outgoingTransfers, addTransfer, retractTransfer } = useTransferRequests({ dataReady, isDemoMode });
 
   const fetchCombined = () => {
     fetch('/api/workspace/combined', { cache: 'no-store' })
@@ -58,26 +52,17 @@ export default function SurveyListPage() {
   }, [dataReady]);
 
   const handleTransferSuccess = (result) => {
-    if (result.moved) {
-      fetchCombined();
-    } else if (result.request) {
-      setOutgoingTransfers(prev => [...prev, result.request]);
-    }
+    if (result.moved) fetchCombined();
+    else if (result.request) addTransfer(result.request);
   };
 
   const handleRetract = async (requestId) => {
-    const res = await fetch(`/api/transfer-requests/${requestId}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'retract' }),
-    });
-    if (!res.ok) {
-      const { error } = await res.json().catch(() => ({}));
-      setAlertModal({ message: error || 'Hiba történt. Kérjük, próbáld újra.' });
-      throw new Error(error);
+    try {
+      await retractTransfer(requestId);
+      setAlertModal({ variant: 'success', title: 'Visszavonva', message: 'Az áthelyezési kérelem visszavonva. A dokumentum újra szerkeszthető.' });
+    } catch (err) {
+      setAlertModal({ message: err.message });
     }
-    setOutgoingTransfers(prev => prev.filter(r => r.id !== requestId));
-    setAlertModal({ variant: 'success', title: 'Visszavonva', message: 'Az áthelyezési kérelem visszavonva. A dokumentum újra szerkeszthető.' });
   };
 
   const handleDelete = (survey) => {
@@ -104,14 +89,13 @@ export default function SurveyListPage() {
 
   if (loading || !dataReady || fetching) return <PageSpinner />;
 
-  const norm = s => (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
-  const q = norm(search);
+  const q = normalizeHU(search);
 
   const applySearch = (list) => {
     if (!q) return list;
     return list.filter(s => {
       const client = clients.find(c => c.id === s.client_id);
-      return norm(s.title).includes(q) || norm(client?.name).includes(q) || norm(s.location).includes(q);
+      return normalizeHU(s.title).includes(q) || normalizeHU(client?.name).includes(q) || normalizeHU(s.location).includes(q);
     });
   };
 

@@ -5,13 +5,12 @@ import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
 import { processMediaFile } from '@/lib/mediaGate';
+import { MAX_DIARY_PHOTOS } from '@/lib/constants';
 import { AlertModal } from '@/components/Modal';
 import {
   ArrowLeft, Camera, X, Upload, CheckCircle2, Lock, Eye,
   HardHat, Video, Image, Loader2, Trash2
 } from 'lucide-react';
-
-const MAX_PHOTOS = 10;
 
 const WORK_TYPES = [
   'Alapozás', 'Ácsmunka', 'Ajtócsere', 'Ablakcsere', 'Bontás',
@@ -64,7 +63,7 @@ function NewPhotoGrid({ previews, onRemove, disabled }) {
 }
 
 function MediaButtons({ disabled, count, existing, onCamera, onGallery }) {
-  if (count + existing >= MAX_PHOTOS) return null;
+  if (count + existing >= MAX_DIARY_PHOTOS) return null;
   return (
     <div style={{ display: 'flex', gap: '0.5rem' }}>
       <button type="button" className="btn btn-secondary btn-sm" style={{ gap: '0.35rem' }} disabled={disabled} onClick={onCamera}>
@@ -125,7 +124,7 @@ export default function EditDiaryEntryPage() {
   const makeAddFiles = (setFiles, setPreviews, currentFiles) => async (raw) => {
     if (!raw || raw.length === 0) return;
     const existing = (entry?.photos || []).length;
-    const remaining = MAX_PHOTOS - existing - currentFiles.length;
+    const remaining = MAX_DIARY_PHOTOS - existing - currentFiles.length;
     if (remaining <= 0) return;
     const converted = await Promise.all(Array.from(raw).slice(0, remaining).map(processMediaFile));
     setFiles(prev => [...prev, ...converted]);

@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useApp } from '@/context/AppContext';
 import { ConfirmModal } from '@/components/Modal';
+import ErrorBanner from '@/components/ErrorBanner';
 import { Lightbulb, Plus, Trash2, X, Send, Loader2 } from 'lucide-react';
 import PageSpinner from '@/components/PageSpinner';
 
@@ -93,7 +94,7 @@ export default function IdeasPage() {
             rows={4}
             style={{ width: '100%', resize: 'vertical', padding: '0.6rem 0.75rem', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', fontSize: '0.9rem', background: 'var(--bg-input)', color: 'var(--text-primary)', outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }}
           />
-          {error && <p style={{ color: 'var(--danger)', fontSize: '0.85rem', margin: 0 }}>{error}</p>}
+          <ErrorBanner message={error} style={{ marginTop: '0.35rem' }} />
           <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
             <button type="submit" className="btn btn-primary btn-sm" disabled={submitting || !ideaText.trim()}>
               <Send size={14} />

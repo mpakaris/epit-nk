@@ -74,8 +74,10 @@ export async function PATCH(request, { params }) {
   const isOwner          = ctx.isOwner || ctx.survey.created_by === ctx.user.id;
   const isSuperAdmin     = ctx.profile.role === 'superadmin';
   const isKollektivOwner = ctx.memberRole === 'owner' || ctx.memberRole === 'admin';
+  const isContributor    = ctx.memberRole === 'contributor';
 
-  if (!isOwner && !isSuperAdmin && !isKollektivOwner)
+  // Contributors may only update property info fields — all other mutations require owner/admin
+  if (!isOwner && !isSuperAdmin && !isKollektivOwner && !isContributor)
     return Response.json({ error: 'Csak a tulajdonos módosíthatja a felmérést.' }, { status: 403 });
 
   // Unlock action — clears locked_reason after quota check
@@ -99,10 +101,13 @@ export async function PATCH(request, { params }) {
   if (!isSuperAdmin && !isOwner && await hasPendingTransfer('survey', id))
     return Response.json({ error: 'Ez a dokumentum átadás alatt áll, ezért nem módosítható.' }, { status: 423 });
 
-  const allowed = ['title', 'notes', 'date', 'location', 'client_id', 'shared_with', 'collective_id', 'status', 'done_at', 'reopened_at',
-    'plot_size_m2', 'garden_size_m2', 'electrical_phases', 'electrical_ampere', 'electrical_voltage', 'heating_type', 'property_notes'];
+  // Contributors are restricted to property info fields only
+  const PROPERTY_FIELDS = ['plot_size_m2', 'garden_size_m2', 'electrical_phases', 'electrical_ampere', 'electrical_voltage', 'heating_type', 'property_notes'];
+  const ALL_FIELDS = ['title', 'notes', 'date', 'location', 'client_id', 'shared_with', 'collective_id', 'status', 'done_at', 'reopened_at', ...PROPERTY_FIELDS];
+  const allowedFields = (isContributor && !isKollektivOwner && !isOwner && !isSuperAdmin) ? PROPERTY_FIELDS : ALL_FIELDS;
+
   const update = {};
-  for (const k of allowed) if (k in fields) update[k] = fields[k];
+  for (const k of allowedFields) if (k in fields) update[k] = fields[k];
 
   const { data, error } = await ctx.admin.from('surveys').update(update).eq('id', id).select().single();
   if (error) return Response.json({ error: error.message }, { status: 400 });

@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import Lightbox from '@/components/Lightbox';
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 function fmt(d) {
@@ -36,37 +37,6 @@ function SidebarKiller() {
   return null;
 }
 
-// ── lightbox ──────────────────────────────────────────────────────────────────
-function Lightbox({ media, startIndex, onClose }) {
-  const [idx, setIdx] = React.useState(startIndex);
-  const cur = media[idx];
-  React.useEffect(() => {
-    const h = (e) => {
-      if (e.key === 'Escape') onClose();
-      if (e.key === 'ArrowRight') setIdx(i => Math.min(i + 1, media.length - 1));
-      if (e.key === 'ArrowLeft') setIdx(i => Math.max(i - 1, 0));
-    };
-    window.addEventListener('keydown', h);
-    document.body.style.overflow = 'hidden';
-    return () => { window.removeEventListener('keydown', h); document.body.style.overflow = ''; };
-  }, [media.length, onClose]);
-  if (!cur) return null;
-  const isVideo = cur.mime_type?.startsWith('video/');
-  return (
-    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.95)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <button onClick={onClose} style={{ position: 'absolute', top: 16, right: 16, background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: '50%', width: 44, height: 44, color: '#fff', fontSize: '1.1rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
-      {media.length > 1 && <div style={{ position: 'absolute', top: 20, left: '50%', transform: 'translateX(-50%)', color: 'rgba(255,255,255,0.55)', fontSize: '0.8rem', fontWeight: 600 }}>{idx + 1} / {media.length}</div>}
-      {idx > 0 && <button onClick={e => { e.stopPropagation(); setIdx(i => i - 1); }} style={{ position: 'absolute', left: 10, background: 'rgba(255,255,255,0.08)', border: 'none', borderRadius: '50%', width: 50, height: 50, color: '#fff', fontSize: '1.5rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>‹</button>}
-      {idx < media.length - 1 && <button onClick={e => { e.stopPropagation(); setIdx(i => i + 1); }} style={{ position: 'absolute', right: 10, background: 'rgba(255,255,255,0.08)', border: 'none', borderRadius: '50%', width: 50, height: 50, color: '#fff', fontSize: '1.5rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>›</button>}
-      <div onClick={e => e.stopPropagation()} style={{ maxWidth: '94vw', maxHeight: '88vh' }}>
-        {isVideo
-          ? <video src={cur.drive_view_url} controls autoPlay playsInline style={{ maxWidth: '94vw', maxHeight: '88vh', borderRadius: 12 }} />
-          : <img src={cur.drive_view_url} alt="" style={{ maxWidth: '94vw', maxHeight: '88vh', objectFit: 'contain', borderRadius: 12 }} />
-        }
-      </div>
-    </div>
-  );
-}
 
 function PhotoGrid({ photos }) {
   const [lb, setLb] = React.useState(null);
