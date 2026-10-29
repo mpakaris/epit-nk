@@ -7,15 +7,18 @@ function ModalBase({ isOpen, onClose, children, style, persistent }) {
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
   const savedScrollY = useRef(0);
+  const didLock = useRef(false);
 
   useEffect(() => {
     if (isOpen) {
       savedScrollY.current = window.scrollY;
+      didLock.current = true;
       document.body.style.overflow = 'hidden';
       document.body.style.position = 'fixed';
       document.body.style.width = '100%';
       document.body.style.top = `-${savedScrollY.current}px`;
-    } else {
+    } else if (didLock.current) {
+      didLock.current = false;
       document.body.style.overflow = '';
       document.body.style.position = '';
       document.body.style.width = '';
