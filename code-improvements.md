@@ -24,14 +24,14 @@ Legend: ✅ Done · ⬜ Pending
 
 ---
 
-## Phase 2 — God Component Splits
+## Phase 2 — God Component Splits (Round 1)
 
 | # | File | Before | After | Extracted to `components/` | Status |
 |---|------|--------|-------|----------------------------|--------|
 | 11 | `felmeres/[id]/page.js` | 2,087 | **912** | TételekSection, SurveyEntryCard, PropertyInfoSection, MediaGrid, InlineUpload, AreaSummary | ✅ Done |
 | 12 | `ajanlatok/[id]/page.js` | 2,021 | **1,231** | SectionCard, SectionAddForm, SectionPhotoZone, ClientComments, AreaSummary, constants | ✅ Done |
 | 13 | `ProjectDetailClient.jsx` | 3,020 | **1,541** | BurndownCard, CostBreakdownCard, CombinedStatsCard, EntryMediaGrid, EditDiaryEntryModal, LabourEditModal, InvoiceDetailDrawer, PaymentPlanModal, WorkTypeSelector, RoomModal, ProjectEditModal | ✅ Done |
-| 14 | `weboldalam/page.js` | 2,229 | **754** | HeroEditor, AboutEditor, ServicesEditor, CertificationsEditor, PricingEditor, TestimonialsEditor, FaqEditor, ContactEditor, ListEditor, ImagePickerModal, SlugSetup, TradeSelect, PillToggle, CharCount, ContactPremiumField, GalleryEditor, BannerEditor, ServiceAreaEditor, SectionCard, SectionContentEditor, QrModal + utils (extractSocialHandle, formatHunPhone, buildSuggestions, splitDisplayName, normalisePricingContent, PRICE_UNITS) | ✅ Done |
+| 14 | `weboldalam/page.js` | 2,229 | **754** | HeroEditor, AboutEditor, ServicesEditor, CertificationsEditor, PricingEditor, TestimonialsEditor, FaqEditor, ContactEditor, ListEditor, ImagePickerModal, SlugSetup, TradeSelect, PillToggle, CharCount, ContactPremiumField, GalleryEditor, BannerEditor, ServiceAreaEditor, SectionCard, SectionContentEditor, QrModal + utils | ✅ Done |
 | 15 | `AppContext.jsx` | 1,679 | **474** | Action factories in `src/context/actions/`: authActions, godModeActions, entityUserActions, projectActions, invoiceActions, labourActions, clientActions, surveyActions, quoteActions, diaryActions | ✅ Done |
 
 ---
@@ -47,17 +47,69 @@ Legend: ✅ Done · ⬜ Pending
 
 ---
 
-## Current File Sizes (post-refactor)
+## Phase 4 — God Component Splits (Round 2)
 
-| File | Lines | Notes |
-|------|-------|-------|
-| `src/app/weboldalam/page.js` | 754 | ✅ Extracted 22 components |
-| `src/context/AppContext.jsx` | 474 | ✅ Extracted 10 action factories |
-| `src/app/kollektivak/page.js` | 1,809 | Not yet audited |
-| `src/app/projekte/[id]/ProjectDetailClient.jsx` | 1,541 | ✅ Extracted 11 components |
-| `src/app/ajanlatok/[id]/page.js` | 1,231 | ✅ Extracted 6 components |
-| `src/app/profil/page.js` | 1,356 | Not yet audited |
-| `src/app/felmeres/[id]/page.js` | 912 | ✅ Extracted 6 components |
+All files still above 500 lines after Phase 2. Same rules apply: pure extraction, no logic changes, all UI text stays Hungarian.
+
+### Priority 1 — Untouched god-files (largest wins)
+
+| # | File | Lines | Extractable components | Target |
+|---|------|-------|------------------------|--------|
+| 20 | `kollektivak/page.js` | 1,809 | `CreateCollectiveModal` (multi-step wizard ~300L), `InviteMemberModal` (~80L), `CollectiveCard` (single card with member list, name edit, actions ~250L), `MemberRow` (~60L), `SubscriptionModals` (cancel + upgrade + seatLimit + reactivate grouped ~200L) | **< 500L** |
+| 21 | `profil/page.js` | 1,356 | `UpgradeModal` (already named fn, ~73L), `ProfileEditSection` (display name + avatar ~150L), `PasswordSection` (~80L), `TaxSection` (~60L), `WebsiteSection` (~50L), `SubscriptionSection` (~120L), `GdprSection` (~60L) | **< 400L** |
+| 22 | `szakemberek/[slug]/page.js` | 1,018 | All section renderers already named fns — move to `components/`: `HeroSection` (~115L), `ContactSection` (~160L), `GallerySection` (~55L), `PricingSection` (~40L), `ServicesSection` (~25L), `CertificationsSection` (~30L), `TestimonialsSection` (~30L), `FaqSection` (~50L), `ServiceAreaSection` (~20L), `AboutSection` (~40L), `BannerSection` (~15L), `Footer` (~15L). Move theme helpers + social icons + `makeThemeCss` + `GLOBAL_CSS` to `components/themeHelpers.js`. | **< 250L** |
+
+### Priority 2 — Already partially split (continued)
+
+| # | File | Lines | What's still extractable | Target |
+|---|------|-------|--------------------------|--------|
+| 23 | `ProjectDetailClient.jsx` | 1,541 | The render still has 4 large inline tab sections: `ProjectFinancialsTab` (~200L), `ProjectDiaryTab` (~250L), `ProjectCostTab` (~200L), `ProjectMembersTab` (~100L) | **< 600L** |
+| 24 | `ajanlatok/[id]/page.js` | 1,231 | `QuoteEntryForm` (inline add/edit entry form ~200L), `QuoteTransferBanner` (~50L), `QuoteSendModal` (~80L), `QuoteHeaderBar` (status + action buttons ~100L) | **< 600L** |
+| 25 | `felmeres/[id]/page.js` | 912 | `SurveyHeaderBar` (~60L), `SurveyRoomsPanel` (room list + room add form ~200L), `SurveyDrawingPanel` (~80L) | **< 500L** |
+
+### Priority 3 — Medium files (untouched)
+
+| # | File | Lines | Extractable | Target |
+|---|------|-------|-------------|--------|
+| 26 | `AdminProjectDetailClient.jsx` | 834 | `EntryMediaGrid` (already named fn, ~25L), `EditProjectModal` (already named fn, ~120L), `MembersSection` (~100L), `InvoiceTable` (~120L), `LabourTable` (~100L) | **< 400L** |
+| 27 | `feltoltes/page.js` | 756 | `InvoiceUploadForm` (file pick + OCR + AI + category fields ~350L), `LabourEntryForm` (labour fields ~150L) | **< 200L** |
+| 28 | `DashboardClient.jsx` | 663 | `QuotesWidget` (~100L), `ProjectsWidget` (~100L), `SurveysWidget` (~80L), `MobileQuickCards` (already named fn ~30L) | **< 300L** |
+
+### Priority 4 — Small files (diminishing returns)
+
+| # | File | Lines | Notes |
+|---|------|-------|-------|
+| 29 | `portal/dashboard/page.jsx` | 649 | Client portal — worth splitting if logic is complex, otherwise leave |
+| 30 | `DemoContext.jsx` | 659 | Seed data + mock mutations — `buildSeed()` (~200L) could move to existing `src/context/demo/seed.js` |
+| 31 | `superadmin/page.js` | 578 | Superadmin dashboard — borderline, leave unless actively worked on |
+| 32 | `AdminProjectsClient.jsx` | 588 | Already improved in Phase 3; borderline |
+| 33 | `ProjectsListClient.jsx` | 512 | Borderline — only extract if it causes friction |
+| 34 | `waAssistant/agentTools.js` | 867 | Tool definition data — intentionally large, **skip** |
+
+---
+
+## File Sizes Snapshot (start of Phase 4)
+
+| File | Lines |
+|------|-------|
+| `kollektivak/page.js` | 1,809 |
+| `projektek/[id]/ProjectDetailClient.jsx` | 1,541 |
+| `profil/page.js` | 1,356 |
+| `ajanlatok/[id]/page.js` | 1,231 |
+| `szakemberek/[slug]/page.js` | 1,018 |
+| `felmeres/[id]/page.js` | 912 |
+| `waAssistant/agentTools.js` | 867 (skip) |
+| `AdminProjectDetailClient.jsx` | 834 |
+| `weboldalam/page.js` | 754 |
+| `feltoltes/page.js` | 756 |
+| `DashboardClient.jsx` | 663 |
+| `DemoContext.jsx` | 659 |
+| `portal/dashboard/page.jsx` | 649 |
+| `AdminProjectsClient.jsx` | 588 |
+| `superadmin/page.js` | 578 |
+| `superadmin/entitasok/[id]/page.js` | 532 |
+| `ProjectsListClient.jsx` | 512 |
+| `AppContext.jsx` | 474 ✅ |
 
 ---
 
@@ -108,4 +160,20 @@ src/app/projektek/[id]/components/
   WorkTypeSelector.jsx  + WORK_TYPES export
   RoomModal.jsx
   ProjectEditModal.jsx
+
+src/context/
+  cookieHelpers.js
+  actions/authActions.js
+  actions/godModeActions.js
+  actions/entityUserActions.js
+  actions/projectActions.js
+  actions/invoiceActions.js
+  actions/labourActions.js
+  actions/clientActions.js
+  actions/surveyActions.js
+  actions/quoteActions.js
+  actions/diaryActions.js
+
+src/app/weboldalam/components/
+  (22 files — see Phase 2 item 14)
 ```
