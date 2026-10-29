@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef } from 'react';
-import { Edit3, Trash2, MoreHorizontal, Camera, Plus, PenLine, Ruler, Mic, Sparkles } from 'lucide-react';
+import { Edit3, Trash2, MoreHorizontal, Camera, Plus, PenLine, Ruler, Mic, Sparkles, ChevronDown, ChevronUp } from 'lucide-react';
 import useMobile from '@/hooks/useMobile';
 import BottomSheet from '@/components/mobile/BottomSheet';
 import DrawingsSection from '@/components/DrawingsSection';
@@ -23,7 +23,16 @@ export default function SurveyEntryCard({ entry, surveyId, canEditEntry, canAdd,
   const [triggerDrawing,  setTriggerDrawing]  = useState(0);
   const photoInputRef = useRef(null);
 
-  const PILL_DARK = { fontSize: '0.72rem', fontWeight: 700, padding: '0.15rem 0.5rem', borderRadius: 'var(--radius-pill)', background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.22)', color: 'rgba(255,255,255,0.9)', display: 'inline-flex', alignItems: 'center', gap: '0.2rem' };
+  // Pill style for the light sub-header
+  const PILL = {
+    fontSize: '0.68rem', fontWeight: 700,
+    padding: '0.1rem 0.45rem',
+    borderRadius: 'var(--radius-pill)',
+    background: 'rgba(30, 58, 95, 0.09)',
+    border: '1px solid rgba(30, 58, 95, 0.18)',
+    color: '#1e3a5f',
+    display: 'inline-flex', alignItems: 'center', gap: '0.2rem',
+  };
 
   const handlePhotoFromCtx = (e) => {
     const raw = Array.from(e.target.files || []);
@@ -48,35 +57,23 @@ export default function SurveyEntryCard({ entry, surveyId, canEditEntry, canAdd,
     { icon: Trash2, label: 'Törlés',      danger: true, onClick: onDelete },
   ] : [];
 
+  const pills = [
+    entry.size_m2       != null && <span key="m2"    style={PILL}><Ruler size={10} />{Number(entry.size_m2).toFixed(1).replace('.', ',')} m²</span>,
+    entry.height_m      != null && <span key="h"     style={PILL}>{entry.height_m} m mag.</span>,
+    entry.window_count   > 0    && <span key="win"   style={PILL}>{entry.window_count} ablak</span>,
+    entry.door_count     > 0    && <span key="door"  style={PILL}>{entry.door_count} ajtó</span>,
+    entry.media?.length  > 0    && <span key="media" style={PILL}>{entry.media.length} fotó</span>,
+  ].filter(Boolean);
+
   return (
     <div className="card" style={{ padding: 0, overflow: 'hidden', border: '1.5px solid #cbd5e1' }}>
-      {/* Dark header */}
-      <div
-        style={{ background: '#1e3a5f', padding: '0.85rem 1rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.65rem' }}
-        onClick={() => setCollapsed(c => !c)}
-      >
-        {(() => {
-          const pills = [
-            entry.size_m2      != null && <span key="m2"   style={PILL_DARK}><Ruler size={10} />{Number(entry.size_m2).toFixed(1).replace('.', ',')} m²</span>,
-            entry.height_m     != null && <span key="h"    style={PILL_DARK}>{entry.height_m} m mag.</span>,
-            entry.window_count  > 0    && <span key="win"  style={PILL_DARK}>{entry.window_count} ablak</span>,
-            entry.door_count    > 0    && <span key="door" style={PILL_DARK}>{entry.door_count} ajtó</span>,
-            entry.media?.length > 0    && <span key="media" style={PILL_DARK}>{entry.media.length} fotó</span>,
-          ].filter(Boolean);
 
-          return isMobile ? (
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <span style={{ fontWeight: 800, fontSize: '1rem', color: '#fff', display: 'block' }}>{entry.name}</span>
-              {pills.length > 0 && <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.3rem', marginTop: '0.35rem' }}>{pills}</div>}
-            </div>
-          ) : (
-            <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-              <span style={{ fontWeight: 800, fontSize: '1rem', color: '#fff' }}>{entry.name}</span>
-              {pills}
-            </div>
-          );
-        })()}
-        <div style={{ display: 'flex', gap: '0.3rem', alignItems: 'center', flexShrink: 0 }} onClick={e => e.stopPropagation()}>
+      {/* ── Row 1: Title + Options ── */}
+      <div style={{ background: '#1e3a5f', padding: '0.7rem 1rem', display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+        <span style={{ fontWeight: 800, fontSize: '0.95rem', color: '#fff', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {entry.name}
+        </span>
+        <div style={{ display: 'flex', gap: '0.3rem', alignItems: 'center', flexShrink: 0 }}>
           {(canEditEntry || canAdd) && (
             isMobile ? (
               <button type="button" onClick={() => setCtxOpen(true)}
@@ -85,16 +82,46 @@ export default function SurveyEntryCard({ entry, surveyId, canEditEntry, canAdd,
               </button>
             ) : canEditEntry ? (
               <>
-                <button type="button" onClick={onEdit} style={{ padding: '0.3rem 0.5rem', background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.22)', color: 'rgba(255,255,255,0.9)', borderRadius: 'var(--radius-sm)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}><Edit3 size={13} /></button>
-                <button type="button" onClick={onDelete} style={{ padding: '0.3rem 0.5rem', background: 'rgba(220,38,38,0.25)', border: '1px solid rgba(220,38,38,0.45)', color: '#fca5a5', borderRadius: 'var(--radius-sm)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}><Trash2 size={13} /></button>
+                <button type="button" onClick={onEdit}
+                  style={{ padding: '0.3rem 0.5rem', background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.22)', color: 'rgba(255,255,255,0.9)', borderRadius: 'var(--radius-sm)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}>
+                  <Edit3 size={13} />
+                </button>
+                <button type="button" onClick={onDelete}
+                  style={{ padding: '0.3rem 0.5rem', background: 'rgba(220,38,38,0.25)', border: '1px solid rgba(220,38,38,0.45)', color: '#fca5a5', borderRadius: 'var(--radius-sm)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}>
+                  <Trash2 size={13} />
+                </button>
               </>
             ) : null
           )}
         </div>
       </div>
 
-      <input ref={photoInputRef} type="file" accept="image/*,video/*" multiple onChange={handlePhotoFromCtx} style={{ display: 'none' }} />
+      {/* ── Row 2: Pills + Collapse toggle ── */}
+      <div
+        onClick={() => setCollapsed(c => !c)}
+        style={{
+          background: '#eef2ff',
+          padding: '0.4rem 1rem',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.5rem',
+          cursor: 'pointer',
+          borderBottom: collapsed ? 'none' : '1px solid #dde6f5',
+          userSelect: 'none',
+        }}
+      >
+        <div style={{ flex: 1, display: 'flex', flexWrap: 'wrap', gap: '0.3rem', alignItems: 'center', minWidth: 0 }}>
+          {pills.length > 0
+            ? pills
+            : <span style={{ fontSize: '0.68rem', color: '#6b7280', fontStyle: 'italic' }}>Nincs adat</span>
+          }
+        </div>
+        <div style={{ flexShrink: 0, color: '#4f6696', display: 'flex', alignItems: 'center' }}>
+          {collapsed ? <ChevronDown size={15} /> : <ChevronUp size={15} />}
+        </div>
+      </div>
 
+      <input ref={photoInputRef} type="file" accept="image/*,video/*" multiple onChange={handlePhotoFromCtx} style={{ display: 'none' }} />
       <BottomSheet isOpen={ctxOpen} onClose={() => setCtxOpen(false)} title={entry.name} actions={ctxActions} />
 
       {!collapsed && (
