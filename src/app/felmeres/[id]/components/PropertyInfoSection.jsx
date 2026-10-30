@@ -107,11 +107,11 @@ export default function PropertyInfoSection({ survey, surveyId, canEdit, enqueue
       <Loader2 size={11} className="animate-spin" /> Mentés…
     </span>
   ) : aiStatus === 'done' ? (
-    <span style={{ fontSize: '0.72rem', color: '#86efac', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+    <span style={{ fontSize: '0.72rem', color: 'var(--success-text)', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
       <Check size={11} /> Kész
     </span>
   ) : aiStatus === 'error' ? (
-    <span style={{ fontSize: '0.72rem', color: '#fca5a5' }}>Hiba!</span>
+    <span style={{ fontSize: '0.72rem', color: 'var(--danger-text)' }}>Hiba!</span>
   ) : saveStatus === 'saving' ? (
     <span style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.6)', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
       <Loader2 size={11} className="animate-spin" /> Mentés…
@@ -126,9 +126,9 @@ export default function PropertyInfoSection({ survey, surveyId, canEdit, enqueue
     fontSize: '0.68rem', fontWeight: 700,
     padding: '0.1rem 0.45rem',
     borderRadius: 'var(--radius-pill)',
-    background: 'rgba(51, 65, 85, 0.08)',
-    border: '1px solid rgba(51, 65, 85, 0.15)',
-    color: '#334155',
+    background: 'var(--bg-subtle)',
+    border: '1px solid var(--border-subtle)',
+    color: 'var(--text-secondary)',
     display: 'inline-flex', alignItems: 'center', gap: '0.2rem',
   };
 
@@ -144,7 +144,7 @@ export default function PropertyInfoSection({ survey, surveyId, canEdit, enqueue
     <div className="card mb-4" style={{ padding: 0, overflow: 'hidden' }}>
 
       {/* ── Row 1: Title + status indicator ── */}
-      <div style={{ background: '#1e3a5f', padding: '0.7rem 1rem', display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+      <div style={{ background: 'var(--primary)', padding: '0.7rem 1rem', display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
         <span style={{ fontWeight: 800, fontSize: '0.95rem', color: '#fff', flex: 1 }}>Ingatlan adatok</span>
         {headerIndicator}
       </div>
@@ -153,21 +153,21 @@ export default function PropertyInfoSection({ survey, surveyId, canEdit, enqueue
       <div
         onClick={() => setCollapsed(c => !c)}
         style={{
-          background: '#f1f5f9',
+          background: 'var(--bg-subtle)',
           padding: '0.4rem 1rem',
           display: 'flex', alignItems: 'center', gap: '0.5rem',
           cursor: 'pointer',
-          borderBottom: collapsed ? 'none' : '1px solid #e2e8f0',
+          borderBottom: collapsed ? 'none' : '1px solid var(--border-subtle)',
           userSelect: 'none',
         }}
       >
         <div style={{ flex: 1, display: 'flex', flexWrap: 'wrap', gap: '0.3rem', alignItems: 'center', minWidth: 0 }}>
           {pills.length > 0
             ? pills
-            : <span style={{ fontSize: '0.68rem', color: '#6b7280', fontStyle: 'italic' }}>Nincs adat</span>
+            : <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>Nincs adat</span>
           }
         </div>
-        <div style={{ flexShrink: 0, color: '#475569', display: 'flex', alignItems: 'center' }}>
+        <div style={{ flexShrink: 0, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center' }}>
           {collapsed ? <ChevronDown size={15} /> : <ChevronUp size={15} />}
         </div>
       </div>

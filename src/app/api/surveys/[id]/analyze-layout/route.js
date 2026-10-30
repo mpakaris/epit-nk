@@ -30,6 +30,10 @@ export async function POST(request, { params }) {
 
   const { imageUrl } = await request.json();
   if (!imageUrl) return Response.json({ error: 'imageUrl required' }, { status: 400 });
+  const r2Base = process.env.NEXT_PUBLIC_R2_PUBLIC_URL;
+  if (r2Base && !imageUrl.startsWith(r2Base)) {
+    return Response.json({ error: 'Invalid imageUrl' }, { status: 400 });
+  }
 
   const apiKey = process.env.OPEN_AI_OCR_KEY;
   if (!apiKey) return Response.json({ error: 'OpenAI key not configured' }, { status: 500 });

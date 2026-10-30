@@ -37,9 +37,9 @@ export default function DrawingsSection({ drawings = [], onSave, onDelete, canEd
           type="button"
           onClick={() => setShowPad(true)}
           aria-label="Vázlat rajzolása"
-          style={{ width: 32, height: 32, borderRadius: '50%', background: '#f1f5f9', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
+          style={{ width: 32, height: 32, borderRadius: '50%', background: 'var(--bg-subtle)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
         >
-          <Plus size={16} color="#475569" strokeWidth={1.75} />
+          <Plus size={16} color="var(--text-secondary)" strokeWidth={1.75} />
         </button>
         <Modal isOpen={showPad} onClose={() => !saving && setShowPad(false)} title="Új vázlat" maxWidth="860px" maxHeight="95vh" persistent>
           <DrawingPad onSave={handleSave} onCancel={() => setShowPad(false)} saving={saving} />
@@ -71,7 +71,7 @@ export default function DrawingsSection({ drawings = [], onSave, onDelete, canEd
       {drawings.length > 0 && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(200px, 100%), 1fr))', gap: '0.65rem', marginBottom: '0.5rem' }}>
           {drawings.map(d => (
-            <div key={d.id} style={{ position: 'relative', borderRadius: 'var(--radius-md)', overflow: 'hidden', border: '1px solid var(--border-subtle)', background: '#f8fafc' }}>
+            <div key={d.id} style={{ position: 'relative', borderRadius: 'var(--radius-md)', overflow: 'hidden', border: '1px solid var(--border-subtle)', background: 'var(--bg-subtle)' }}>
               <img
                 src={`data:image/svg+xml;utf8,${encodeURIComponent(d.svg_data)}`}
                 alt="Vázlat"
