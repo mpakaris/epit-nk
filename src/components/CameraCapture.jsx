@@ -35,9 +35,10 @@ export default function CameraCapture({ surveyId, surveyEntryId, onClose }) {
         streamRef.current = stream;
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
-          await videoRef.current.play();
+          // Don't await play() — iOS Safari fires NotAllowedError even for muted video
+          // in async contexts; let autoPlay + onLoadedMetadata handle readiness instead.
+          videoRef.current.play().catch(() => {});
         }
-        if (active) setReady(true);
       } catch {
         if (active) setError('A kamera nem érhető el. Ellenőrizd az alkalmazásengedélyeket a beállításokban.');
       }
@@ -129,6 +130,8 @@ export default function CameraCapture({ surveyId, surveyEntryId, onClose }) {
           autoPlay
           playsInline
           muted
+          onLoadedMetadata={() => setReady(true)}
+          onCanPlay={() => setReady(true)}
           style={{ width: '100%', height: '100%', objectFit: 'cover' }}
         />
 

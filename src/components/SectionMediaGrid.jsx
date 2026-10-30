@@ -15,11 +15,6 @@ export default function SectionMediaGrid({ surveyId, surveyEntryId, isLocked }) 
   const [uploadErr, setUploadErr] = React.useState('');
   const [confirmId, setConfirmId] = React.useState(null);
   const [showCamera, setShowCamera] = React.useState(false);
-  const [hasCameraApi, setHasCameraApi] = React.useState(false);
-
-  React.useEffect(() => {
-    setHasCameraApi(!!navigator.mediaDevices?.getUserMedia);
-  }, []);
 
   const entries = surveyEntriesBySurvey[surveyId] || [];
   const entry = entries.find(e => e.id === surveyEntryId);
@@ -49,17 +44,15 @@ export default function SectionMediaGrid({ surveyId, surveyEntryId, isLocked }) 
         {!isLocked && (
           <div style={{ display: 'flex', gap: '0.35rem', alignItems: 'center' }}>
             <input ref={inputRef} type="file" accept="image/*,video/*" multiple onChange={handleFiles} style={{ display: 'none' }} />
-            {hasCameraApi && (
-              <button
-                type="button"
-                onClick={() => setShowCamera(true)}
-                className="btn btn-secondary btn-sm"
-                style={{ fontSize: '0.72rem' }}
-                title="Kamera"
-              >
-                <Camera size={12} /> Kamera
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={() => setShowCamera(true)}
+              className="btn btn-secondary btn-sm"
+              style={{ fontSize: '0.72rem' }}
+              title="Kamera"
+            >
+              <Camera size={12} /> Kamera
+            </button>
             <button
               type="button"
               onClick={() => inputRef.current?.click()}
