@@ -7,8 +7,6 @@ import { processMediaFile } from '@/lib/mediaGate';
 import Lightbox from '@/components/Lightbox';
 import CameraCapture from '@/components/CameraCapture';
 
-const supportsUserMedia = typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getUserMedia;
-
 export default function SectionMediaGrid({ surveyId, surveyEntryId, isLocked }) {
   const { surveyEntriesBySurvey, uploadSurveyMedia, deleteSurveyMedia } = useApp();
   const inputRef = React.useRef(null);
@@ -17,6 +15,11 @@ export default function SectionMediaGrid({ surveyId, surveyEntryId, isLocked }) 
   const [uploadErr, setUploadErr] = React.useState('');
   const [confirmId, setConfirmId] = React.useState(null);
   const [showCamera, setShowCamera] = React.useState(false);
+  const [hasCameraApi, setHasCameraApi] = React.useState(false);
+
+  React.useEffect(() => {
+    setHasCameraApi(!!navigator.mediaDevices?.getUserMedia);
+  }, []);
 
   const entries = surveyEntriesBySurvey[surveyId] || [];
   const entry = entries.find(e => e.id === surveyEntryId);
@@ -46,7 +49,7 @@ export default function SectionMediaGrid({ surveyId, surveyEntryId, isLocked }) 
         {!isLocked && (
           <div style={{ display: 'flex', gap: '0.35rem', alignItems: 'center' }}>
             <input ref={inputRef} type="file" accept="image/*,video/*" multiple onChange={handleFiles} style={{ display: 'none' }} />
-            {supportsUserMedia && (
+            {hasCameraApi && (
               <button
                 type="button"
                 onClick={() => setShowCamera(true)}
