@@ -7,7 +7,6 @@ import { logAudit } from '@/lib/audit';
 
 export async function POST(request, { params }) {
   const { id } = await params;
-  const cookieHeader = request.headers.get('cookie') || '';
 
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -28,8 +27,22 @@ export async function POST(request, { params }) {
   if (!quote) return Response.json({ error: 'Ajánlat nem található' }, { status: 404 });
 
   const isSuperAdmin = profile.role === 'superadmin';
-  const isOwner = quote.owner_id === user.id || quote.created_by === user.id;
-  if (!isSuperAdmin && !isOwner) return Response.json({ error: 'Nincs hozzáférés' }, { status: 403 });
+  const isOwner      = quote.owner_id === user.id || quote.created_by === user.id;
+
+  let isKollektivOwner = false;
+  if (!isOwner && !isSuperAdmin && quote.collective_id) {
+    const { data: mem } = await admin
+      .from('collective_members')
+      .select('role')
+      .eq('collective_id', quote.collective_id)
+      .eq('user_id', user.id)
+      .eq('status', 'active')
+      .maybeSingle();
+    isKollektivOwner = mem?.role === 'owner' || mem?.role === 'admin';
+  }
+
+  if (!isSuperAdmin && !isOwner && !isKollektivOwner)
+    return Response.json({ error: 'Csak az ajánlat tulajdonosa küldhet ajánlatot az ügyfélnek.' }, { status: 403 });
 
   if (!quote.client_id) return Response.json({ error: 'Nincs ügyfél rendelve az ajánlathoz' }, { status: 400 });
   const { data: client } = await admin.from('clients').select('name, email').eq('id', quote.client_id).single();
@@ -62,15 +75,17 @@ export async function POST(request, { params }) {
   // Generate PDF from the real print page
   let pdfBuffer;
   try {
-    pdfBuffer = await generateOfferPdf(id, cookieHeader);
+    pdfBuffer = await generateOfferPdf(id, user.id);
   } catch (err) {
     return Response.json({ error: `PDF generálási hiba: ${err.message}` }, { status: 500 });
   }
 
-  const safeTitle = quote.title.replace(/[^a-zA-Z0-9áéíóöőúüűÁÉÍÓÖŐÚÜŰ\s-]/g, '').trim().replace(/\s+/g, '_');
+  const safeName = quote.offer_number
+    ? quote.offer_number.replace(/\//g, '-').replace(/[^\w\s-]/g, '').trim()
+    : quote.title.replace(/[^a-zA-Z0-9áéíóöőúüűÁÉÍÓÖŐÚÜŰ\s-]/g, '').trim().replace(/\s+/g, '_');
 
   // Fetch terms PDF if user has one and it's requested
-  const attachments = [{ filename: `Ajanlat_${safeTitle}.pdf`, content: pdfBuffer, contentType: 'application/pdf' }];
+  const attachments = [{ filename: `Ajanlat_${safeName}.pdf`, content: pdfBuffer, contentType: 'application/pdf' }];
   if (attachTerms && profile.terms_pdf_url) {
     try {
       const termRes = await fetch(profile.terms_pdf_url);

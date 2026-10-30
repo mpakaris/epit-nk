@@ -113,7 +113,9 @@ export async function PATCH(request) {
   }
 
   // Letterhead / profile info update
-  const allowed = ['display_name', 'first_name', 'last_name', 'company_name', 'street', 'street_number', 'zip', 'city', 'tax_number', 'default_tax_percent'];
+  const allowed = ['display_name', 'first_name', 'last_name', 'company_name', 'street', 'street_number', 'zip', 'city', 'tax_number', 'default_tax_percent',
+                   'phone', 'bank_account', 'bank_name', 'offer_validity_days', 'offer_terms_text',
+                   'payment_deadline_days', 'payment_method', 'deposit_percent', 'warranty_months'];
   const update = {};
   for (const k of allowed) if (k in body) update[k] = body[k] ?? null;
   if (Object.keys(update).length === 0)

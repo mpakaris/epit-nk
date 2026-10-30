@@ -9,7 +9,7 @@ export async function POST(request) {
   if (authErr || !user) return Response.json({ error: 'Unauthenticated' }, { status: 401 });
 
   const admin = createAdminClient();
-  const { data: profile } = await admin.from('profiles').select('id, role, display_name, active_collective_id, is_subscription_premium, subscription_tier, trial_ends_at').eq('id', user.id).single();
+  const { data: profile } = await admin.from('profiles').select('id, role, display_name, active_collective_id, is_subscription_premium, subscription_tier, trial_ends_at, offer_validity_days, offer_terms_text, payment_deadline_days, payment_method, deposit_percent, warranty_months').eq('id', user.id).single();
   if (!profile) return Response.json({ error: 'Forbidden' }, { status: 403 });
 
   const body = await request.json();
@@ -61,21 +61,30 @@ export async function POST(request) {
     safeSharedWith = (validProfiles || []).map(p => p.id);
   }
 
+  const validityDays = profile.offer_validity_days ?? 30;
+  const validUntil = new Date(Date.now() + validityDays * 86400000).toISOString().split('T')[0];
+
   const { data, error } = await admin.from('quotes').insert([{
-    owner_id:      user.id,
-    collective_id: collectiveId,
-    title:         title.trim(),
-    location:      location      || null,
-    work_type:     work_type     || null,
-    description:   description   || null,
-    start_date:    start_date    || null,
-    end_date:      end_date      || null,
+    owner_id:         user.id,
+    collective_id:    collectiveId,
+    title:            title.trim(),
+    location:         location      || null,
+    work_type:        work_type     || null,
+    description:      description   || null,
+    start_date:       start_date    || null,
+    end_date:         end_date      || null,
     status,
-    client_id:     client_id     || null,
-    created_by:    user.id,
-    shared_with:   safeSharedWith,
-    tax_percent:   Number(tax_percent) || 0,
-    survey_id:     survey_id     || null,
+    client_id:        client_id     || null,
+    created_by:       user.id,
+    shared_with:      safeSharedWith,
+    tax_percent:      Number(tax_percent) || 0,
+    survey_id:        survey_id     || null,
+    valid_until:           validUntil,
+    offer_terms_text:      profile.offer_terms_text      || null,
+    payment_deadline_days: profile.payment_deadline_days ?? 8,
+    payment_method:        profile.payment_method        || 'banki átutalás',
+    deposit_percent:       profile.deposit_percent       ?? 0,
+    warranty_months:       profile.warranty_months       ?? 0,
   }]).select().single();
 
   if (error) return Response.json({ error: error.message }, { status: 400 });

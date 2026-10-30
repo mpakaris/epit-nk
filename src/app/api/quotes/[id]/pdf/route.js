@@ -10,23 +10,37 @@ export async function GET(request, { params }) {
   const { id } = await params;
   const admin = createAdminClient();
 
-  const { data: quote } = await admin.from('quotes').select('title, owner_id, collective_id').eq('id', id).single();
+  const { data: quote } = await admin.from('quotes').select('title, offer_number, owner_id, collective_id').eq('id', id).single();
   if (!quote) return Response.json({ error: 'Not found' }, { status: 404 });
 
-  const { data: profile } = await admin.from('profiles').select('role, active_collective_id').eq('id', user.id).single();
-  const isOwner = quote.owner_id === user.id;
+  const { data: profile } = await admin.from('profiles').select('role').eq('id', user.id).single();
+  const isOwner      = quote.owner_id === user.id;
   const isSuperAdmin = profile?.role === 'superadmin';
-  const isCollMember = quote.collective_id && profile?.active_collective_id === quote.collective_id;
-  if (!isOwner && !isSuperAdmin && !isCollMember) {
+
+  let isKollektivOwner = false;
+  if (!isOwner && !isSuperAdmin && quote.collective_id) {
+    const { data: mem } = await admin
+      .from('collective_members')
+      .select('role')
+      .eq('collective_id', quote.collective_id)
+      .eq('user_id', user.id)
+      .eq('status', 'active')
+      .maybeSingle();
+    isKollektivOwner = mem?.role === 'owner' || mem?.role === 'admin';
+  }
+
+  if (!isOwner && !isSuperAdmin && !isKollektivOwner) {
     return Response.json({ error: 'Forbidden' }, { status: 403 });
   }
 
   try {
-    const cookieHeader = request.headers.get('cookie') || '';
-    const pdfBuffer = await generateOfferPdf(id, cookieHeader);
+    const accent = new URL(request.url).searchParams.get('accent') || '#2563eb';
+    const pdfBuffer = await generateOfferPdf(id, user.id, accent);
 
-    const safe = (quote.title || 'Ajanlat').replace(/[^\w\sÁÉÍÓÖŐÚÜŰáéíóöőúüű]/g, '').trim().replace(/\s+/g, '_');
-    const filename = `Ajanlat_${safe}.pdf`;
+    const safeName = quote.offer_number
+      ? quote.offer_number.replace(/\//g, '-').replace(/[^\w\s-]/g, '').trim()
+      : (quote.title || 'Ajanlat').replace(/[^\w\sÁÉÍÓÖŐÚÜŰáéíóöőúüű]/g, '').trim().replace(/\s+/g, '_');
+    const filename = `Ajanlat_${safeName}.pdf`;
 
     return new Response(pdfBuffer, {
       status: 200,

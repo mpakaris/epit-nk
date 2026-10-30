@@ -16,7 +16,7 @@ import { TYPE_ICONS, TYPE_COLORS, QUOTE_ENTRY_LABELS } from './constants';
 
 export default function SectionCard({ section, surveyEntry, surveyId, quoteId, canEdit, isQuoteOwner, currentUserId, onDelete, onAddEntry, onEditEntry, onDeleteEntry, sectionEntries, quote, onEntriesGenerated, sectionMediaItems = [] }) {
   const { updateQuoteSection, activeCollectiveId, createQuoteEntry, deleteQuoteEntry } = useApp();
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(true);
   const canEditSection   = canEdit && (isQuoteOwner || section.created_by === currentUserId);
   const canEditEntry     = (entry) => canEdit && (isQuoteOwner || entry.user_id === currentUserId);
   const [isEditing, setIsEditing] = useState(false);

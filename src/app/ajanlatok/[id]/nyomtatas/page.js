@@ -4,7 +4,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
 import { formatHUF, formatDate, QUOTE_ENTRY_TYPES } from '@/lib/constants';
-import { Printer, ArrowLeft, Loader2, Download } from 'lucide-react';
+import Link from 'next/link';
+import { ArrowLeft, Loader2, Download, AlertTriangle, ChevronDown, ChevronUp } from 'lucide-react';
 
 const FONT  = `-apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif`;
 const SLATE = '#0f172a';
@@ -87,16 +88,17 @@ const DEMO_PROFILE_PRINT = {
 export default function OfferPrintPage() {
   const { id } = useParams();
   const router  = useRouter();
-  const { quotes, quoteSections, quoteEntries, clients, loading, dataReady, isDemoMode } = useApp();
+  const { quotes, quoteSections, quoteEntries, clients, loading, dataReady, isDemoMode, currentUser, collectives } = useApp();
   const [profile,       setProfile]       = useState(isDemoMode ? DEMO_PROFILE_PRINT : null);
   const [accent,        setAccent]        = useState(PALETTE[0]);
   const [downloading,   setDownloading]   = useState(false);
+  const [checklistOpen, setChecklistOpen] = useState(true);
 
   const handleDownload = async () => {
     if (isDemoMode) { alert('PDF letöltés demo módban nem elérhető.'); return; }
     setDownloading(true);
     try {
-      const res = await fetch(`/api/quotes/${id}/pdf`);
+      const res = await fetch(`/api/quotes/${id}/pdf?accent=${encodeURIComponent(accent.color)}`);
       if (!res.ok) throw new Error('PDF generálás sikertelen');
       const blob = await res.blob();
       const url  = URL.createObjectURL(blob);
@@ -150,6 +152,18 @@ export default function OfferPrintPage() {
     return () => { document.title = prev; };
   }, [id, quotes]);
 
+  // Access guard: only quote owner or collective owner/admin may view the print preview
+  useEffect(() => {
+    if (isDemoMode || !dataReady || !currentUser) return;
+    const q = quotes.find(q => q.id === id);
+    if (!q) return;
+    const isOwner = q.owner_id === currentUser.id || q.created_by === currentUser.id;
+    const isKollektivOwner = collectives?.some(c => c.collective_id === q.collective_id && (c.role === 'owner' || c.role === 'admin'));
+    if (!isOwner && !isKollektivOwner) {
+      router.replace(`/ajanlatok/${id}`);
+    }
+  }, [dataReady, currentUser, id, quotes, collectives, isDemoMode, router]);
+
   const A  = accent.color; // accent background
   const AT = accent.text;  // text on accent background
 
@@ -162,7 +176,10 @@ export default function OfferPrintPage() {
 
   const client   = clients.find(c => c.id === quote.client_id) || null;
   const sections = quoteSections.filter(s => s.quote_id === id).sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
-  const allEntries = quoteEntries.filter(e => e.quote_id === id);
+  const ENTRY_TYPE_ORDER = { material: 0, labour: 1, transport: 2, equipment: 3, other: 4 };
+  const allEntries = quoteEntries
+    .filter(e => e.quote_id === id)
+    .sort((a, b) => (ENTRY_TYPE_ORDER[a.entry_type] ?? 4) - (ENTRY_TYPE_ORDER[b.entry_type] ?? 4));
 
   const netTotal   = allEntries.reduce((s, e) => s + Number(e.amount_huf || 0), 0);
   const taxRate    = Number(quote.tax_percent ?? 27);
@@ -170,6 +187,18 @@ export default function OfferPrintPage() {
   const grossTotal = netTotal + taxAmount;
 
   const senderName = [profile.last_name, profile.first_name].filter(Boolean).join(' ');
+
+  const CHECKLIST = [
+    { ok: !!(profile.company_name || profile.first_name || profile.last_name), label: 'Vállalkozói név / cégnév', href: '/profil', where: 'Profil → Számla fejléc' },
+    { ok: !!profile.tax_number,   label: 'Adószám',              href: '/profil',           where: 'Profil → Számla fejléc' },
+    { ok: !!profile.phone,        label: 'Telefonszám',          href: '/profil',           where: 'Profil → Számla fejléc' },
+    { ok: !!profile.bank_account, label: 'Bankszámlaszám',       href: '/profil',           where: 'Profil → Számla fejléc' },
+    { ok: !!client,               label: 'Megrendelő ügyfél',    href: `/ajanlatok/${id}`,  where: 'Ajánlat → Megrendelő' },
+    { ok: !!quote.offer_number,   label: 'Ajánlat száma',        href: `/ajanlatok/${id}`,  where: 'Ajánlat → Ajánlat száma' },
+    { ok: !!quote.valid_until,    label: 'Érvényesség dátuma',   href: `/ajanlatok/${id}`,  where: 'Ajánlat → Érvényes' },
+    { ok: !!quote.offer_terms_text, label: 'Feltételek szövege', href: `/ajanlatok/${id}`,  where: 'Ajánlat → Feltételek' },
+  ];
+  const missing = CHECKLIST.filter(c => !c.ok);
 
   return (
     <>
@@ -179,6 +208,8 @@ export default function OfferPrintPage() {
           .no-print { display: none !important; }
           body { margin: 0; background: white; }
           .print-root { padding: 0 !important; background: white !important; }
+          .pdf-scale-wrap { width: 100% !important; height: auto !important; position: static !important; }
+          .pdf-scale-doc  { width: 100% !important; position: static !important; transform: none !important; box-shadow: none !important; }
         }
         @page { size: A4; margin: 14mm 14mm; }
         body { margin: 0; background: #f1f5f9; font-family: ${FONT}; }
@@ -189,10 +220,7 @@ export default function OfferPrintPage() {
         <button type="button" onClick={() => router.back()} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.4rem 0.85rem', borderRadius: 8, border: '1px solid #e2e8f0', background: '#fff', cursor: 'pointer', fontSize: '0.82rem', fontWeight: 600, color: '#475569', fontFamily: FONT }}>
           <ArrowLeft size={14} /> Vissza
         </button>
-        <button type="button" onClick={() => window.print()} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.4rem 1rem', borderRadius: 8, border: 'none', background: A, cursor: 'pointer', fontSize: '0.82rem', fontWeight: 700, color: AT, fontFamily: FONT }}>
-          <Printer size={14} /> Nyomtatás / PDF mentés
-        </button>
-        <button type="button" onClick={handleDownload} disabled={downloading} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.4rem 1rem', borderRadius: 8, border: '1px solid #e2e8f0', background: '#fff', cursor: downloading ? 'wait' : 'pointer', fontSize: '0.82rem', fontWeight: 600, color: '#475569', fontFamily: FONT }}>
+        <button type="button" onClick={handleDownload} disabled={downloading} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.4rem 1rem', borderRadius: 8, border: 'none', background: A, cursor: downloading ? 'wait' : 'pointer', fontSize: '0.82rem', fontWeight: 700, color: AT, fontFamily: FONT }}>
           {downloading ? <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> : <Download size={14} />}
           {downloading ? 'Generálás…' : 'PDF letöltés'}
         </button>
@@ -224,6 +252,38 @@ export default function OfferPrintPage() {
           </div>
         </div>
       </div>
+
+      {/* Checklist */}
+      {!isDemoMode && missing.length > 0 && (
+        <div className="no-print" style={{ background: '#fffbeb', borderBottom: '1px solid #fde68a', fontFamily: FONT }}>
+          <button
+            type="button"
+            onClick={() => setChecklistOpen(o => !o)}
+            style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.6rem 1.5rem', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', fontFamily: FONT }}
+          >
+            <AlertTriangle size={14} color="#b45309" style={{ flexShrink: 0 }} />
+            <span style={{ flex: 1, fontSize: '0.8rem', fontWeight: 700, color: '#b45309' }}>
+              {missing.length} hiányzó adat az ajánlatban
+            </span>
+            {checklistOpen ? <ChevronUp size={14} color="#b45309" /> : <ChevronDown size={14} color="#b45309" />}
+          </button>
+          {checklistOpen && (
+            <div style={{ padding: '0 1.5rem 0.75rem', display: 'flex', flexWrap: 'wrap', gap: '0.4rem 1.25rem' }}>
+              {missing.map(item => (
+                <Link
+                  key={item.label}
+                  href={item.href}
+                  style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.76rem', color: '#92400e', textDecoration: 'none', whiteSpace: 'nowrap' }}
+                >
+                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#f59e0b', flexShrink: 0, display: 'inline-block' }} />
+                  <span style={{ fontWeight: 600 }}>{item.label}</span>
+                  <span style={{ color: '#b45309', opacity: 0.7 }}>→ {item.where}</span>
+                </Link>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Page wrapper */}
       <div className="print-root" style={{ padding: '1.5rem 8px', minHeight: '100vh' }}>
@@ -269,6 +329,14 @@ export default function OfferPrintPage() {
                     Adószám: {profile.tax_number}
                   </div>
                 )}
+                {profile.phone && (
+                  <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>{profile.phone}</div>
+                )}
+                {profile.bank_account && (
+                  <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
+                    {profile.bank_account}{profile.bank_name ? ` · ${profile.bank_name}` : ''}
+                  </div>
+                )}
                 {!profile.company_name && !senderName && (
                   <div style={{ fontSize: '0.78rem', color: '#94a3b8', fontStyle: 'italic' }}>— fejléc nincs kitöltve —</div>
                 )}
@@ -278,7 +346,9 @@ export default function OfferPrintPage() {
               <div style={{ textAlign: 'right' }}>
                 <div style={{ fontSize: '1.75rem', fontWeight: 900, letterSpacing: '-0.04em', color: A, lineHeight: 1 }}>AJÁNLAT</div>
                 <div style={{ marginTop: 8, fontSize: '0.78rem', color: '#64748b', lineHeight: 1.8 }}>
+                  {quote.offer_number && <div>Szám: <strong>{quote.offer_number}</strong></div>}
                   <div>Kelt: <strong>{formatDate(quote.created_at?.split('T')[0])}</strong></div>
+                  {quote.valid_until  && <div>Érvényes: <strong>{formatDate(quote.valid_until)}</strong></div>}
                   {quote.start_date && <div>Kezdés: <strong>{formatDate(quote.start_date)}</strong></div>}
                   {quote.end_date   && <div>Befejezés: <strong>{formatDate(quote.end_date)}</strong></div>}
                 </div>
@@ -455,6 +525,40 @@ export default function OfferPrintPage() {
                 </div>
               ))}
             </div>
+
+            {/* ── Footer ── */}
+            {(quote.valid_until || profile.terms_pdf_name || quote.payment_deadline_days > 0 || quote.deposit_percent > 0 || quote.warranty_months > 0 || quote.offer_terms_text) && (
+              <div style={{ marginTop: '2rem', paddingTop: '0.85rem', borderTop: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                {quote.valid_until && (
+                  <div style={{ fontSize: '0.72rem', color: '#94a3b8' }}>
+                    Az ajánlat érvényes: <strong>{formatDate(quote.valid_until)}</strong>
+                  </div>
+                )}
+                {quote.payment_deadline_days > 0 && (
+                  <div style={{ fontSize: '0.72rem', color: '#94a3b8' }}>
+                    Fizetési határidő: <strong>{quote.payment_deadline_days} nap</strong> teljesítéstől{quote.payment_method ? `, ${quote.payment_method}` : ''}
+                  </div>
+                )}
+                {quote.deposit_percent > 0 && (
+                  <div style={{ fontSize: '0.72rem', color: '#94a3b8' }}>
+                    Előleg: <strong>{quote.deposit_percent}%</strong>{grossTotal > 0 ? ` (${formatHUF(Math.round(grossTotal * quote.deposit_percent / 100))})` : ''} az ajánlat elfogadásakor
+                  </div>
+                )}
+                {quote.warranty_months > 0 && (
+                  <div style={{ fontSize: '0.72rem', color: '#94a3b8' }}>
+                    Garancia: <strong>{quote.warranty_months} hónap</strong>
+                  </div>
+                )}
+                {profile.terms_pdf_name && (
+                  <div style={{ fontSize: '0.72rem', color: '#94a3b8' }}>
+                    Mellékelt ÁSZF: <strong>{profile.terms_pdf_name}</strong>
+                  </div>
+                )}
+                {quote.offer_terms_text && (
+                  <div style={{ fontSize: '0.72rem', color: '#94a3b8', whiteSpace: 'pre-wrap' }}>{quote.offer_terms_text}</div>
+                )}
+              </div>
+            )}
 
           </div>{/* end padding div */}
         </div>{/* end white card / scaled doc */}

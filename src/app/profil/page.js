@@ -427,6 +427,15 @@ export default function ProfilPage() {
   const [city,          setCity]          = useState('');
   const [taxNumber,     setTaxNumber]     = useState('');
   const [defaultTaxPct, setDefaultTaxPct] = useState('27');
+  const [phone,             setPhone]             = useState('');
+  const [bankAccount,       setBankAccount]       = useState('');
+  const [bankName,          setBankName]          = useState('');
+  const [offerValidityDays, setOfferValidityDays] = useState('30');
+  const [offerTermsText,    setOfferTermsText]    = useState('');
+  const [paymentDeadlineDays, setPaymentDeadlineDays] = useState('8');
+  const [paymentMethod,       setPaymentMethod]       = useState('banki átutalás');
+  const [depositPercent,      setDepositPercent]      = useState('0');
+  const [warrantyMonths,      setWarrantyMonths]      = useState('0');
   const [loadingProfile, setLoadingProfile] = useState(true);
   const [saving,  setSaving]  = useState(false);
   const [saveOk,  setSaveOk]  = useState(false);
@@ -485,6 +494,15 @@ export default function ProfilPage() {
         setCity(profile.city                      || '');
         setTaxNumber(profile.tax_number           || '');
         setDefaultTaxPct(profile.default_tax_percent != null ? String(profile.default_tax_percent) : '27');
+        setPhone(profile.phone                             || '');
+        setBankAccount(profile.bank_account                || '');
+        setBankName(profile.bank_name                      || '');
+        setOfferValidityDays(profile.offer_validity_days != null ? String(profile.offer_validity_days) : '30');
+        setOfferTermsText(profile.offer_terms_text         || '');
+        setPaymentDeadlineDays(profile.payment_deadline_days != null ? String(profile.payment_deadline_days) : '8');
+        setPaymentMethod(profile.payment_method            || 'banki átutalás');
+        setDepositPercent(profile.deposit_percent != null ? String(profile.deposit_percent) : '0');
+        setWarrantyMonths(profile.warranty_months != null ? String(profile.warranty_months) : '0');
         setTermsPdfUrl(profile.terms_pdf_url               || null);
         setTermsPdfName(profile.terms_pdf_name             || null);
         setTermsPdfUploadedAt(profile.terms_pdf_uploaded_at || null);
@@ -537,6 +555,15 @@ export default function ProfilPage() {
           city:                city.trim()          || null,
           tax_number:          taxNumber.trim()     || null,
           default_tax_percent: defaultTaxPct !== '' ? Number(defaultTaxPct) : 27,
+          phone:               phone.trim()         || null,
+          bank_account:        bankAccount.trim()   || null,
+          bank_name:           bankName.trim()      || null,
+          offer_validity_days:   offerValidityDays !== '' ? Number(offerValidityDays) : 30,
+          offer_terms_text:      offerTermsText.trim() || null,
+          payment_deadline_days: paymentDeadlineDays !== '' ? Number(paymentDeadlineDays) : 8,
+          payment_method:        paymentMethod.trim() || null,
+          deposit_percent:       depositPercent !== '' ? Number(depositPercent) : 0,
+          warranty_months:       warrantyMonths !== '' ? Number(warrantyMonths) : 0,
         }),
       });
       const data = await res.json();
@@ -1119,6 +1146,55 @@ export default function ProfilPage() {
               <label className="form-label">Alapértelmezett ÁFA (%)</label>
               <input type="number" min="0" max="100" step="0.5" className="form-control" value={defaultTaxPct} onChange={e => setDefaultTaxPct(e.target.value)} placeholder="27" />
             </div>
+          </div>
+
+          <div className="grid-2col" style={{ gap: '0.5rem' }}>
+            <div className="form-group" style={{ margin: 0 }}>
+              <label className="form-label">Telefonszám</label>
+              <input type="tel" className="form-control" value={phone} onChange={e => setPhone(e.target.value)} placeholder="pl. +36 30 123 4567" />
+            </div>
+            <div className="form-group" style={{ margin: 0 }}>
+              <label className="form-label">Ajánlat érvényessége <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>(nap)</span></label>
+              <input type="number" min="1" max="365" className="form-control" value={offerValidityDays} onChange={e => setOfferValidityDays(e.target.value)} placeholder="30" />
+            </div>
+          </div>
+
+          <div className="grid-2col" style={{ gap: '0.5rem' }}>
+            <div className="form-group" style={{ margin: 0 }}>
+              <label className="form-label">Bankszámlaszám</label>
+              <input type="text" className="form-control" value={bankAccount} onChange={e => setBankAccount(e.target.value)} placeholder="pl. HU12 1234 5678 9012 3456 7890" />
+            </div>
+            <div className="form-group" style={{ margin: 0 }}>
+              <label className="form-label">Bank neve</label>
+              <input type="text" className="form-control" value={bankName} onChange={e => setBankName(e.target.value)} placeholder="pl. OTP Bank" />
+            </div>
+          </div>
+
+          <div className="grid-2col" style={{ gap: '0.5rem' }}>
+            <div className="form-group" style={{ margin: 0 }}>
+              <label className="form-label">Fizetési határidő <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>(nap teljesítéstől)</span></label>
+              <input type="number" min="0" max="365" className="form-control" value={paymentDeadlineDays} onChange={e => setPaymentDeadlineDays(e.target.value)} placeholder="8" />
+            </div>
+            <div className="form-group" style={{ margin: 0 }}>
+              <label className="form-label">Fizetési mód</label>
+              <input type="text" className="form-control" value={paymentMethod} onChange={e => setPaymentMethod(e.target.value)} placeholder="banki átutalás" />
+            </div>
+          </div>
+
+          <div className="grid-2col" style={{ gap: '0.5rem' }}>
+            <div className="form-group" style={{ margin: 0 }}>
+              <label className="form-label">Előleg <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>(%)</span></label>
+              <input type="number" min="0" max="100" className="form-control" value={depositPercent} onChange={e => setDepositPercent(e.target.value)} placeholder="0" />
+            </div>
+            <div className="form-group" style={{ margin: 0 }}>
+              <label className="form-label">Garancia <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>(hónap)</span></label>
+              <input type="number" min="0" max="120" className="form-control" value={warrantyMonths} onChange={e => setWarrantyMonths(e.target.value)} placeholder="0" />
+            </div>
+          </div>
+
+          <div className="form-group" style={{ margin: 0 }}>
+            <label className="form-label">Egyéb feltételek <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>(lábjegyzet)</span></label>
+            <textarea className="form-control" rows={2} value={offerTermsText} onChange={e => setOfferTermsText(e.target.value)} placeholder="pl. Az ajánlat a vállalkozás mindenkori Általános Szerződési Feltételei mellett érvényes." style={{ resize: 'vertical' }} />
           </div>
 
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '0.25rem' }}>

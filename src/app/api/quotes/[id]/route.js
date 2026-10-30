@@ -89,6 +89,8 @@ export async function PATCH(request, { params }) {
 
   const allowed = ['title', 'location', 'work_type', 'description', 'start_date', 'end_date',
                    'status', 'client_id', 'shared_with', 'tax_percent', 'survey_id',
+                   'valid_until', 'offer_number', 'offer_terms_text',
+                   'payment_deadline_days', 'payment_method', 'deposit_percent', 'warranty_months',
                    'updated_at', 'updated_by_name',
                    ...(isOwner || isSuperAdmin || isKollektivOwner ? ['collective_id'] : [])];
   const update = {};

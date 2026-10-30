@@ -1,72 +1,48 @@
-import puppeteer from 'puppeteer';
+import React from 'react';
+import { renderToBuffer } from '@react-pdf/renderer';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { OfferPdfTemplate } from '@/lib/OfferPdfTemplate';
 
 /**
- * Render the offer print page to PDF using the real Next.js print view.
- * Requires the request cookies so puppeteer can authenticate.
- *
- * A4 at 96 dpi = 794 × 1123 px. We set the viewport to exactly that width
- * so there is a 1:1 mapping — no scaling, no clipping.
+ * Fetch all required data from the DB and render the offer as a PDF buffer.
+ * No Puppeteer, no auth cookies, no AppContext — pure server-side.
  *
  * @param {string} quoteId
- * @param {string} cookieHeader  — raw Cookie header string from the incoming request
+ * @param {string} userId   — used to fetch the contractor's profile
  * @returns {Promise<Buffer>}
  */
-export async function generateOfferPdf(quoteId, cookieHeader) {
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
-  const printUrl = `${baseUrl}/ajanlatok/${quoteId}/nyomtatas`;
+export async function generateOfferPdf(quoteId, userId, accentColor = '#2563eb') {
+  const admin = createAdminClient();
 
-  const browser = await puppeteer.launch({
-    headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox'],
-  });
+  const [quoteRes, profileRes] = await Promise.all([
+    admin
+      .from('quotes')
+      .select('*, quote_sections(*, quote_entries(*))')
+      .eq('id', quoteId)
+      .single(),
+    admin
+      .from('profiles')
+      .select('display_name, first_name, last_name, company_name, street, street_number, zip, city, tax_number')
+      .eq('id', userId)
+      .single(),
+  ]);
 
-  try {
-    const page = await browser.newPage();
+  if (quoteRes.error || !quoteRes.data) throw new Error('Ajánlat nem található');
+  const quote = quoteRes.data;
+  const profile = profileRes.data || {};
 
-    // Pass auth cookies so the page renders as the logged-in user
-    if (cookieHeader) {
-      const cookies = cookieHeader.split(';').map(pair => {
-        const [name, ...rest] = pair.trim().split('=');
-        return { name: name.trim(), value: rest.join('=').trim(), url: baseUrl };
-      }).filter(c => c.name && c.value);
-      if (cookies.length) await page.setCookie(...cookies);
-    }
+  const client = quote.client_id
+    ? (await admin.from('clients').select('name, email, phone, address').eq('id', quote.client_id).single()).data
+    : null;
 
-    // 794px wide = A4 at 96 dpi — 1:1 mapping, no Puppeteer scaling
-    await page.setViewport({ width: 794, height: 1123, deviceScaleFactor: 2 });
-    await page.goto(printUrl, { waitUntil: 'networkidle0', timeout: 30000 });
+  const sections = (quote.quote_sections || [])
+    .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
 
-    // Wait for the offer content to be rendered (not the spinner)
-    await page.waitForSelector('.print-root', { timeout: 15000 });
+  const allEntries = sections.flatMap(s => s.quote_entries || []);
 
-    await page.evaluate(() => {
-      // Hide action bar / floating buttons
-      document.querySelectorAll('.no-print').forEach(el => el.style.display = 'none');
+  const buffer = await renderToBuffer(
+    React.createElement(OfferPdfTemplate, { quote, client, sections, allEntries, profile, accentColor })
+  );
 
-      // Reset mobile scaling wrapper — at 794px viewport docScale=1 so
-      // transform is already none, but be explicit for safety
-      const wrap = document.querySelector('.pdf-scale-wrap');
-      const doc  = document.querySelector('.pdf-scale-doc');
-      if (wrap) { wrap.style.cssText = 'width:794px;height:auto;position:static;margin:0 auto;padding:0;'; }
-      if (doc)  { doc.style.cssText  = 'width:794px;position:static;transform:none;box-shadow:none;border-radius:0;background:white;'; }
-
-      // White background everywhere
-      document.documentElement.style.cssText = 'background:white;height:auto;';
-      document.body.style.cssText = 'background:white;height:auto;min-height:0;margin:0;';
-
-      // Remove min-height from wrapper so no blank page
-      const root = document.querySelector('.print-root');
-      if (root) { root.style.minHeight = '0'; root.style.background = 'white'; root.style.padding = '0'; }
-    });
-
-    const pdf = await page.pdf({
-      format: 'A4',
-      printBackground: true,
-      margin: { top: '0', right: '0', bottom: '0', left: '0' },
-    });
-
-    return Buffer.from(pdf);
-  } finally {
-    await browser.close();
-  }
+  return Buffer.from(buffer);
 }

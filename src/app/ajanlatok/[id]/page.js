@@ -98,6 +98,13 @@ export default function QuoteDetailPage() {
   const [metaEndDate, setMetaEndDate]       = useState('');
   const [metaClientId, setMetaClientId]     = useState('');
   const [metaTaxPercent, setMetaTaxPercent] = useState('27');
+  const [metaOfferNumber,       setMetaOfferNumber]       = useState('');
+  const [metaValidUntil,        setMetaValidUntil]        = useState('');
+  const [metaOfferTerms,        setMetaOfferTerms]        = useState('');
+  const [metaPaymentDays,       setMetaPaymentDays]       = useState('8');
+  const [metaPaymentMethod,     setMetaPaymentMethod]     = useState('banki átutalás');
+  const [metaDepositPercent,    setMetaDepositPercent]    = useState('0');
+  const [metaWarrantyMonths,    setMetaWarrantyMonths]    = useState('0');
   const [metaInitialized, setMetaInitialized] = useState(false);
   const [savingMeta, setSavingMeta]         = useState(false);
   const [linkedSurveyData, setLinkedSurveyData] = useState(null);
@@ -110,6 +117,9 @@ export default function QuoteDetailPage() {
     title: metaTitle, location: metaLocation, workType: metaWorkType,
     description: metaDescription, startDate: metaStartDate, endDate: metaEndDate,
     clientId: metaClientId, taxPercent: metaTaxPercent,
+    offerNumber: metaOfferNumber, validUntil: metaValidUntil, offerTerms: metaOfferTerms,
+    paymentDays: metaPaymentDays, paymentMethod: metaPaymentMethod,
+    depositPercent: metaDepositPercent, warrantyMonths: metaWarrantyMonths,
   };
 
   // Section management
@@ -133,6 +143,7 @@ export default function QuoteDetailPage() {
 
   // Actions bottom sheet
   const [showActionsSheet, setShowActionsSheet] = useState(false);
+  const [showMemberRestriction, setShowMemberRestriction] = useState(null); // 'preview' | 'send'
   // Collapsable meta card (starts collapsed on mobile)
   const [metaCollapsed, setMetaCollapsed]       = useState(true);
   // Duplicate modal
@@ -307,6 +318,13 @@ export default function QuoteDetailPage() {
     setMetaEndDate(quote.end_date || '');
     setMetaClientId(quote.client_id || '');
     setMetaTaxPercent(String(quote.tax_percent ?? 27));
+    setMetaOfferNumber(quote.offer_number || '');
+    setMetaValidUntil(quote.valid_until || '');
+    setMetaOfferTerms(quote.offer_terms_text || '');
+    setMetaPaymentDays(quote.payment_deadline_days != null ? String(quote.payment_deadline_days) : '8');
+    setMetaPaymentMethod(quote.payment_method || 'banki átutalás');
+    setMetaDepositPercent(quote.deposit_percent != null ? String(quote.deposit_percent) : '0');
+    setMetaWarrantyMonths(quote.warranty_months != null ? String(quote.warranty_months) : '0');
     setMetaInitialized(true);
   }, [quote, metaInitialized]);
 
@@ -348,7 +366,14 @@ export default function QuoteDetailPage() {
     metaStartDate   !== (quote.start_date   || '')                ||
     metaEndDate     !== (quote.end_date     || '')                ||
     metaClientId    !== (quote.client_id    || '')                ||
-    metaTaxPercent  !== String(quote.tax_percent ?? 27)
+    metaTaxPercent  !== String(quote.tax_percent ?? 27)           ||
+    metaOfferNumber    !== (quote.offer_number           || '')                     ||
+    metaValidUntil     !== (quote.valid_until             || '')                     ||
+    metaOfferTerms     !== (quote.offer_terms_text        || '')                     ||
+    metaPaymentDays    !== String(quote.payment_deadline_days ?? 8)                  ||
+    metaPaymentMethod  !== (quote.payment_method          || 'banki átutalás')       ||
+    metaDepositPercent !== String(quote.deposit_percent   ?? 0)                      ||
+    metaWarrantyMonths !== String(quote.warranty_months   ?? 0)
   );
 
   const STATUS_LABELS_HU = { draft: 'Tervezet', sent: 'Kiküldve', accepted: 'Elfogadva', rejected: 'Elutasítva' };
@@ -360,6 +385,13 @@ export default function QuoteDetailPage() {
         title: metaTitle.trim(), location: metaLocation.trim(), work_type: metaWorkType.trim(),
         description: metaDescription.trim(), start_date: metaStartDate || null, end_date: metaEndDate || null,
         client_id: metaClientId || null, tax_percent: Number(metaTaxPercent) || 0,
+        offer_number:          metaOfferNumber.trim() || null,
+        valid_until:           metaValidUntil || null,
+        offer_terms_text:      metaOfferTerms.trim() || null,
+        payment_deadline_days: metaPaymentDays !== '' ? Number(metaPaymentDays) : 8,
+        payment_method:        metaPaymentMethod.trim() || null,
+        deposit_percent:       metaDepositPercent !== '' ? Number(metaDepositPercent) : 0,
+        warranty_months:       metaWarrantyMonths !== '' ? Number(metaWarrantyMonths) : 0,
       });
       if (revert) await updateQuoteStatus(id, 'draft');
       setMetaInitialized(false);
@@ -390,7 +422,14 @@ export default function QuoteDetailPage() {
       title: v.title.trim(), location: v.location.trim(), work_type: v.workType.trim(),
       description: v.description.trim(), start_date: v.startDate || null, end_date: v.endDate || null,
       client_id: v.clientId || null, tax_percent: Number(v.taxPercent) || 0,
-    }).then(() => setMetaInitialized(false)).catch(err => setAlertModal({ message: err.message })).finally(() => setSavingMeta(false));
+      offer_number:          v.offerNumber?.trim()    || null,
+      valid_until:           v.validUntil             || null,
+      offer_terms_text:      v.offerTerms?.trim()     || null,
+      payment_deadline_days: v.paymentDays !== '' ? Number(v.paymentDays) : 8,
+      payment_method:        v.paymentMethod?.trim()  || null,
+      deposit_percent:       v.depositPercent !== '' ? Number(v.depositPercent) : 0,
+      warranty_months:       v.warrantyMonths !== '' ? Number(v.warrantyMonths) : 0,
+    }).catch(err => setAlertModal({ message: err.message })).finally(() => setSavingMeta(false));
   };
 
   // ── Status handlers ───────────────────────────────────────────────────────
@@ -696,7 +735,7 @@ export default function QuoteDetailPage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
           <h1 className="page-title" style={{ marginBottom: 0 }}>{metaTitle || quote.title}</h1>
           <StatusBadge status={quote.status} size="md" />
-          {canEdit && isMetaDirty && (
+          {canEdit && isMetaDirty && quote.status !== 'draft' && (
             <button type="button" onClick={handleSaveMeta} disabled={savingMeta} className="btn btn-primary btn-sm">
               {savingMeta ? <><Loader2 size={13} className="animate-spin" />Mentés</> : <><Check size={13} />Mentés</>}
             </button>
@@ -789,6 +828,40 @@ export default function QuoteDetailPage() {
                 </button>
               </div>
             </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', marginTop: '0.75rem' }}>
+              <div className="form-group" style={{ margin: 0 }}>
+                <label className="form-label">Ajánlat száma</label>
+                <input type="text" className="form-control" value={metaOfferNumber} onChange={e => setMetaOfferNumber(e.target.value)} onBlur={autoSaveMeta} placeholder="pl. 2024/001" />
+              </div>
+              <div className="form-group" style={{ margin: 0 }}>
+                <label className="form-label">Érvényes</label>
+                <input type="date" className="form-control" value={metaValidUntil} onChange={e => setMetaValidUntil(e.target.value)} onBlur={autoSaveMeta} />
+              </div>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', marginTop: '0.5rem' }}>
+              <div className="form-group" style={{ margin: 0 }}>
+                <label className="form-label">Fizetési határidő <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>(nap)</span></label>
+                <input type="number" min="0" className="form-control" value={metaPaymentDays} onChange={e => setMetaPaymentDays(e.target.value)} onBlur={autoSaveMeta} placeholder="8" />
+              </div>
+              <div className="form-group" style={{ margin: 0 }}>
+                <label className="form-label">Fizetési mód</label>
+                <input type="text" className="form-control" value={metaPaymentMethod} onChange={e => setMetaPaymentMethod(e.target.value)} onBlur={autoSaveMeta} placeholder="banki átutalás" />
+              </div>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', marginTop: '0.5rem' }}>
+              <div className="form-group" style={{ margin: 0 }}>
+                <label className="form-label">Előleg <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>(%)</span></label>
+                <input type="number" min="0" max="100" className="form-control" value={metaDepositPercent} onChange={e => setMetaDepositPercent(e.target.value)} onBlur={autoSaveMeta} placeholder="0" />
+              </div>
+              <div className="form-group" style={{ margin: 0 }}>
+                <label className="form-label">Garancia <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>(hónap)</span></label>
+                <input type="number" min="0" className="form-control" value={metaWarrantyMonths} onChange={e => setMetaWarrantyMonths(e.target.value)} onBlur={autoSaveMeta} placeholder="0" />
+              </div>
+            </div>
+            <div className="form-group" style={{ marginTop: '0.5rem', marginBottom: 0 }}>
+              <label className="form-label">Egyéb feltételek <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>(lábjegyzet)</span></label>
+              <textarea className="form-control" rows={2} value={metaOfferTerms} onChange={e => setMetaOfferTerms(e.target.value)} onBlur={autoSaveMeta} placeholder="pl. Az ajánlat vállalkozásunk ÁSZF-je mellett érvényes." style={{ resize: 'vertical', fontSize: '0.82rem' }} />
+            </div>
             {creator && <div style={{ marginTop: '0.75rem', fontSize: '0.78rem', color: 'var(--text-muted)' }}>Létrehozta: <strong>{creator.display_name}</strong>{quote.created_at && ` · ${formatDate(quote.created_at)}`}</div>}
           </>
         ) : (
@@ -808,7 +881,7 @@ export default function QuoteDetailPage() {
         )}
         {(linkedSurvey || linkedProject) && (
           <div style={{ borderTop: '1px solid var(--border-subtle)', marginTop: '0.85rem', paddingTop: '0.85rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-            {linkedSurvey && <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}><Ruler size={15} color="var(--accent)" /><Link href={`${navPrefix}/felmeres/${linkedSurvey.id}`} style={{ fontWeight: 700, color: 'var(--accent)', fontSize: '0.875rem' }}>{linkedSurvey.title}</Link>{linkedSurvey.date && <span style={{ color: 'var(--text-muted)', fontSize: '0.82rem' }}>{formatDate(linkedSurvey.date)}</span>}</div>}
+            {linkedSurvey && <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', minWidth: 0 }}><Ruler size={13} color="var(--accent)" style={{ flexShrink: 0 }} /><Link href={`${navPrefix}/felmeres/${linkedSurvey.id}`} style={{ fontWeight: 600, color: 'var(--accent)', fontSize: '0.78rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>{linkedSurvey.title}</Link>{linkedSurvey.date && <span style={{ color: 'var(--text-muted)', fontSize: '0.72rem', whiteSpace: 'nowrap', flexShrink: 0 }}>{formatDate(linkedSurvey.date)}</span>}</div>}
             {linkedProject && <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}><FolderKanban size={15} color="var(--success)" /><Link href={`${navPrefix}/projektek/${linkedProject.id}`} style={{ fontWeight: 700, color: 'var(--success-text)', fontSize: '0.875rem' }}>{linkedProject.name}</Link></div>}
           </div>
         )}
@@ -1187,33 +1260,59 @@ export default function QuoteDetailPage() {
             </div>
 
             {/* PDF Preview */}
-            <Link
-              href={`${navPrefix}/ajanlatok/${id}/nyomtatas`}
-              onClick={() => setShowActionsSheet(false)}
-              style={{ display: 'flex', alignItems: 'center', gap: 14, width: '100%', minHeight: 56, padding: '0 20px', textDecoration: 'none', color: '#0f172a' }}
-            >
-              <div style={{ width: 44, height: 44, borderRadius: 12, background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                <Printer size={20} strokeWidth={1.75} color="#475569" />
-              </div>
-              <span style={{ fontSize: 16, fontWeight: 600 }}>Előnézet / PDF</span>
-            </Link>
-
-            {/* Send email — disabled while transfer is pending */}
-            {canModify && (
-              <button
-                type="button"
-                onClick={() => { setShowActionsSheet(false); openSendConfirm(); }}
-                disabled={!client?.email || isPendingOutgoingTransfer}
-                style={{ display: 'flex', alignItems: 'center', gap: 14, width: '100%', minHeight: 56, padding: '0 20px', background: 'none', border: 'none', cursor: (client?.email && !isPendingOutgoingTransfer) ? 'pointer' : 'default', textAlign: 'left', opacity: (client?.email && !isPendingOutgoingTransfer) ? 1 : 0.45 }}
+            {(isQuoteOwner || isKollektivOwner) ? (
+              <Link
+                href={`${navPrefix}/ajanlatok/${id}/nyomtatas`}
+                onClick={() => setShowActionsSheet(false)}
+                style={{ display: 'flex', alignItems: 'center', gap: 14, width: '100%', minHeight: 56, padding: '0 20px', textDecoration: 'none', color: '#0f172a' }}
               >
                 <div style={{ width: 44, height: 44, borderRadius: 12, background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  <Send size={20} strokeWidth={1.75} color="#475569" />
+                  <Printer size={20} strokeWidth={1.75} color="#475569" />
                 </div>
-                <div>
-                  <div style={{ fontSize: 16, fontWeight: 600, color: '#0f172a' }}>{quote.status === 'sent' ? 'Újraküldés' : 'Küldés'}</div>
-                  {!client?.email && <div style={{ fontSize: 12, color: '#94a3b8' }}>Az ügyfélnek nincs email címe</div>}
+                <span style={{ fontSize: 16, fontWeight: 600 }}>Előnézet / PDF</span>
+              </Link>
+            ) : (
+              <button
+                type="button"
+                onClick={() => { setShowActionsSheet(false); setShowMemberRestriction('preview'); }}
+                style={{ display: 'flex', alignItems: 'center', gap: 14, width: '100%', minHeight: 56, padding: '0 20px', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left' }}
+              >
+                <div style={{ width: 44, height: 44, borderRadius: 12, background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <Printer size={20} strokeWidth={1.75} color="#475569" />
                 </div>
+                <span style={{ fontSize: 16, fontWeight: 600 }}>Előnézet / PDF</span>
               </button>
+            )}
+
+            {/* Send email */}
+            {canModify && (
+              (isQuoteOwner || isKollektivOwner) ? (
+                <button
+                  type="button"
+                  onClick={() => { setShowActionsSheet(false); openSendConfirm(); }}
+                  disabled={!client?.email || isPendingOutgoingTransfer}
+                  style={{ display: 'flex', alignItems: 'center', gap: 14, width: '100%', minHeight: 56, padding: '0 20px', background: 'none', border: 'none', cursor: (client?.email && !isPendingOutgoingTransfer) ? 'pointer' : 'default', textAlign: 'left', opacity: (client?.email && !isPendingOutgoingTransfer) ? 1 : 0.45 }}
+                >
+                  <div style={{ width: 44, height: 44, borderRadius: 12, background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <Send size={20} strokeWidth={1.75} color="#475569" />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 16, fontWeight: 600, color: '#0f172a' }}>{quote.status === 'sent' ? 'Újraküldés' : 'Küldés'}</div>
+                    {!client?.email && <div style={{ fontSize: 12, color: '#94a3b8' }}>Az ügyfélnek nincs email címe</div>}
+                  </div>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => { setShowActionsSheet(false); setShowMemberRestriction('send'); }}
+                  style={{ display: 'flex', alignItems: 'center', gap: 14, width: '100%', minHeight: 56, padding: '0 20px', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left' }}
+                >
+                  <div style={{ width: 44, height: 44, borderRadius: 12, background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <Send size={20} strokeWidth={1.75} color="#475569" />
+                  </div>
+                  <div style={{ fontSize: 16, fontWeight: 600, color: '#0f172a' }}>{quote.status === 'sent' ? 'Újraküldés' : 'Küldés'}</div>
+                </button>
+              )
             )}
 
             {/* Accept → Project */}
@@ -1244,8 +1343,8 @@ export default function QuoteDetailPage() {
               </button>
             )}
 
-            {/* Save (only when dirty) */}
-            {canEdit && isMetaDirty && (
+            {/* Save (only when dirty and non-draft — draft auto-saves on blur) */}
+            {canEdit && isMetaDirty && quote.status !== 'draft' && (
               <button
                 type="button"
                 onClick={() => { setShowActionsSheet(false); handleSaveMeta(); }}
@@ -1300,6 +1399,39 @@ export default function QuoteDetailPage() {
                 <span style={{ fontSize: 16, fontWeight: 600, color: '#ef4444' }}>Ajánlat törlése</span>
               </button>
             )}
+          </div>
+        </>
+      )}
+
+      {/* ── Member restriction sheet ── */}
+      {showMemberRestriction && (
+        <>
+          <div onClick={() => setShowMemberRestriction(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.45)', zIndex: 200 }} aria-hidden="true" />
+          <div role="dialog" aria-modal="true" className="bs-panel" style={{ padding: '0 0 calc(20px + env(safe-area-inset-bottom))' }}>
+            <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 12, marginBottom: 4 }}>
+              <div style={{ width: 36, height: 4, borderRadius: 2, background: '#e2e8f0' }} />
+            </div>
+            <div style={{ padding: '16px 20px 8px', display: 'flex', alignItems: 'center', gap: 14 }}>
+              <div style={{ width: 48, height: 48, borderRadius: 14, background: '#fff7ed', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                {showMemberRestriction === 'send' ? <Send size={22} strokeWidth={1.75} color="#c2410c" /> : <Printer size={22} strokeWidth={1.75} color="#c2410c" />}
+              </div>
+              <div>
+                <div style={{ fontSize: 16, fontWeight: 700, color: '#0f172a', marginBottom: 2 }}>
+                  {showMemberRestriction === 'send' ? 'Ajánlat küldése' : 'Előnézet / PDF'}
+                </div>
+                <div style={{ fontSize: 13, color: '#94a3b8' }}>Csak a tulajdonos számára elérhető</div>
+              </div>
+            </div>
+            <div style={{ margin: '8px 20px 16px', padding: '14px 16px', borderRadius: 12, background: '#fff7ed', border: '1px solid #fed7aa' }}>
+              <p style={{ margin: 0, fontSize: 14, color: '#9a3412', lineHeight: 1.55 }}>
+                {showMemberRestriction === 'send'
+                  ? 'Ajánlatot csak az ajánlat tulajdonosa küldhet az ügyfélnek. Te közreműködőként hozzáadhatsz tételeket, de a végleges ajánlatot a tulajdonos küldi el.'
+                  : 'Az ajánlat előnézetét és PDF letöltését csak a tulajdonos érheti el, mivel az ő fejléce és adatai szerepelnek rajta.'}
+              </p>
+            </div>
+            <div style={{ padding: '0 20px' }}>
+              <button type="button" onClick={() => setShowMemberRestriction(null)} className="btn btn-secondary" style={{ width: '100%' }}>Rendben</button>
+            </div>
           </div>
         </>
       )}
