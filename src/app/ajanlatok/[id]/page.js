@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
@@ -27,6 +27,45 @@ import { TYPE_ICONS, TYPE_COLORS, QUOTE_ENTRY_LABELS, sortEntries } from './comp
 const EMPTY_ENTRY_FORM = { entry_type: 'material', work_description: '', quantity: '', unit: 'db', unit_price: '', flat_amount: '', notes: '', user_id: '' };
 const nextDay = (d) => { const dt = new Date(d); dt.setDate(dt.getDate() + 1); return dt.toISOString().split('T')[0]; };
 
+function NewClientModal({ isOpen, onClose, onCreate }) {
+  const [name, setName]     = useState('');
+  const [phone, setPhone]   = useState('');
+  const [email, setEmail]   = useState('');
+  const [address, setAddress] = useState('');
+  const [gdpr, setGdpr]     = useState(false);
+  const [error, setError]   = useState('');
+  const [saving, setSaving] = useState(false);
+  const reset = () => { setName(''); setPhone(''); setEmail(''); setAddress(''); setGdpr(false); setError(''); };
+  const handleClose = () => { reset(); onClose(); };
+  const handleSave = async () => {
+    if (!name.trim()) { setError('A név megadása kötelező!'); return; }
+    if (!gdpr) { setError('Az ügyfél hozzájárulása szükséges.'); return; }
+    setSaving(true);
+    try { await onCreate({ name: name.trim(), phone: phone.trim(), email: email.trim(), address: address.trim(), gdprConsent: gdpr }); reset(); }
+    catch (err) { setError(err.message || 'Hiba'); }
+    finally { setSaving(false); }
+  };
+  return (
+    <Modal isOpen={isOpen} onClose={handleClose} title="Új ügyfél">
+      {error && <div style={{ marginBottom: '0.85rem', padding: '0.6rem 0.85rem', borderRadius: 'var(--radius-md)', background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', color: 'var(--danger-text)', fontSize: '0.82rem' }}>{error}</div>}
+      <div className="form-group"><label className="form-label">Név *</label><input type="text" className="form-control" autoFocus value={name} onChange={e => setName(e.target.value)} placeholder="Horváth Béla" /></div>
+      <div className="grid-2col">
+        <div className="form-group" style={{ margin: 0 }}><label className="form-label">Telefon</label><input type="tel" className="form-control" value={phone} onChange={e => setPhone(e.target.value)} placeholder="+36 70 …" /></div>
+        <div className="form-group" style={{ margin: 0 }}><label className="form-label">E-mail</label><input type="email" className="form-control" value={email} onChange={e => setEmail(e.target.value)} placeholder="email@…" /></div>
+      </div>
+      <div className="form-group" style={{ marginTop: '0.75rem' }}><label className="form-label">Cím</label><input type="text" className="form-control" value={address} onChange={e => setAddress(e.target.value)} placeholder="Irányítószám, Város, utca" /></div>
+      <label style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', padding: '0.65rem', borderRadius: 'var(--radius-md)', background: 'var(--bg-subtle)', border: `1px solid ${gdpr ? 'var(--success-border)' : 'var(--border-subtle)'}`, cursor: 'pointer', margin: '0.75rem 0' }}>
+        <input type="checkbox" checked={gdpr} onChange={e => setGdpr(e.target.checked)} style={{ marginTop: '0.15rem', flexShrink: 0, accentColor: 'var(--accent)', width: 14, height: 14 }} />
+        <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>Az ügyfél hozzájárult adatainak tárolásához. <span style={{ color: 'var(--danger-text)', fontWeight: 700 }}>*</span></span>
+      </label>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+        <button type="button" className="btn btn-secondary btn-sm" onClick={handleClose}>Mégse</button>
+        <button type="button" className="btn btn-primary btn-sm" disabled={saving || !gdpr} onClick={handleSave}>{saving ? <><Loader2 size={13} className="animate-spin" /> Létrehozás…</> : 'Létrehozás'}</button>
+      </div>
+    </Modal>
+  );
+}
+
 function calcAmount(t, qty, up, flat) {
   if ((t === 'material' || t === 'labour') && qty && up) return Math.round(parseFloat(qty) * parseInt(up, 10));
   return parseInt(flat, 10) || 0;
@@ -40,7 +79,7 @@ export default function QuoteDetailPage() {
     quotes, quoteEntries, quoteSections, clients, users, projects, surveys,
     cacheQuote,
     updateQuote, updateQuoteStatus, deleteQuote, convertQuoteToProject,
-    createQuote,
+    createQuote, createClient,
     createQuoteSection, updateQuoteSection, deleteQuoteSection,
     createQuoteEntry, updateQuoteEntry, deleteQuoteEntry,
     fetchSurveyMedia, surveyEntriesBySurvey,
@@ -61,6 +100,17 @@ export default function QuoteDetailPage() {
   const [metaTaxPercent, setMetaTaxPercent] = useState('27');
   const [metaInitialized, setMetaInitialized] = useState(false);
   const [savingMeta, setSavingMeta]         = useState(false);
+  const [linkedSurveyData, setLinkedSurveyData] = useState(null);
+  const [showNewClientModal, setShowNewClientModal] = useState(false);
+
+  // Ref holds latest meta values so save-on-blur reads current state even if called
+  // synchronously before a React re-render flushes (e.g. tax/client onClick)
+  const metaRef = useRef({});
+  metaRef.current = {
+    title: metaTitle, location: metaLocation, workType: metaWorkType,
+    description: metaDescription, startDate: metaStartDate, endDate: metaEndDate,
+    clientId: metaClientId, taxPercent: metaTaxPercent,
+  };
 
   // Section management
   const [showAddSection, setShowAddSection] = useState(false);
@@ -166,6 +216,7 @@ export default function QuoteDetailPage() {
   const [fallbackEntries,  setFallbackEntries]  = useState(null);
   const [fallbackSections, setFallbackSections] = useState(null);
   const [fallbackFetching, setFallbackFetching] = useState(false);
+  const [sectionMediaItemsMap, setSectionMediaItemsMap] = useState({});
 
   const ctxQuote = quotes.find(q => q.id === id);
 
@@ -181,10 +232,35 @@ export default function QuoteDetailPage() {
           setFallbackSections(d.sections);
           cacheQuote(d.quote);
         }
+        if (d?.mediaItems?.length) {
+          const byOwner = {};
+          for (const m of d.mediaItems) {
+            if (!byOwner[m.owner_id]) byOwner[m.owner_id] = [];
+            byOwner[m.owner_id].push(m);
+          }
+          setSectionMediaItemsMap(byOwner);
+        }
       })
       .catch(() => {})
       .finally(() => setFallbackFetching(false));
   }, [dataReady, ctxQuote, id]);
+
+  // For primary path (ctxQuote), load media_items separately
+  useEffect(() => {
+    if (!ctxQuote || !id || isDemoMode) return;
+    fetch(`/api/quotes/${id}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        if (!d?.mediaItems?.length) return;
+        const byOwner = {};
+        for (const m of d.mediaItems) {
+          if (!byOwner[m.owner_id]) byOwner[m.owner_id] = [];
+          byOwner[m.owner_id].push(m);
+        }
+        setSectionMediaItemsMap(byOwner);
+      })
+      .catch(() => {});
+  }, [id, !!ctxQuote]);
 
   const quote          = ctxQuote || fallbackQuote;
   const resolvedEntries  = ctxQuote ? quoteEntries.filter(e => e.quote_id === id) : (fallbackEntries  || []);
@@ -193,6 +269,19 @@ export default function QuoteDetailPage() {
   useEffect(() => {
     if (quote?.survey_id) fetchSurveyMedia(quote.survey_id).catch(() => {});
   }, [quote?.survey_id]);
+
+  // Linked survey — look up in context first, fetch by ID if not found (cross-workspace)
+  useEffect(() => {
+    if (!quote?.survey_id) { setLinkedSurveyData(null); return; }
+    const inCtx = surveys.find(s => s.id === quote.survey_id);
+    if (inCtx) { setLinkedSurveyData(inCtx); return; }
+    if (!isDemoMode) {
+      fetch(`/api/surveys/${quote.survey_id}`)
+        .then(r => r.ok ? r.json() : null)
+        .then(d => d?.survey && setLinkedSurveyData(d.survey))
+        .catch(() => {});
+    }
+  }, [quote?.survey_id, surveys, isDemoMode]);
 
   // Fetch outgoing transfers so we know pending/rejected state
   useEffect(() => {
@@ -246,7 +335,7 @@ export default function QuoteDetailPage() {
   const isPendingOutgoingTransfer = outgoingTransfers.some(t => t.document_id === id && t.status === 'pending');
   const transferAttemptCount = outgoingTransfers.filter(t => t.document_id === id && (t.status === 'rejected' || t.status === 'transfer_expired')).length;
   const linkedProject = quote.project_id ? projects.find(p => p.id === quote.project_id) : null;
-  const linkedSurvey  = quote.survey_id  ? surveys.find(s => s.id === quote.survey_id)   : null;
+  const linkedSurvey  = linkedSurveyData;
   const sections      = resolvedSections.sort((a, b) => a.sort_order - b.sort_order || new Date(a.created_at) - new Date(b.created_at));
 
   const previewAmount = calcAmount(entryForm.entry_type, entryForm.quantity, entryForm.unit_price, entryForm.flat_amount);
@@ -288,6 +377,20 @@ export default function QuoteDetailPage() {
       onConfirm: () => doSaveMeta(true),
       onClose:   () => doSaveMeta(false),
     });
+  };
+
+  // Auto-save on blur (draft only — non-draft requires explicit confirmation via handleSaveMeta)
+  const autoSaveMeta = (overrides = {}) => {
+    if (!metaInitialized) return;
+    if (!quote || quote.status !== 'draft') return;
+    const v = { ...metaRef.current, ...overrides };
+    if (!v.title.trim()) return;
+    setSavingMeta(true);
+    updateQuote(id, {
+      title: v.title.trim(), location: v.location.trim(), work_type: v.workType.trim(),
+      description: v.description.trim(), start_date: v.startDate || null, end_date: v.endDate || null,
+      client_id: v.clientId || null, tax_percent: Number(v.taxPercent) || 0,
+    }).then(() => setMetaInitialized(false)).catch(err => setAlertModal({ message: err.message })).finally(() => setSavingMeta(false));
   };
 
   // ── Status handlers ───────────────────────────────────────────────────────
@@ -499,6 +602,7 @@ export default function QuoteDetailPage() {
         onEditEntry={(sId, eId) => openEntryModal(sId, eId)}
         onDeleteEntry={handleDeleteEntry}
         sectionEntries={sortEntries(sectionEntries)}
+        sectionMediaItems={sectionMediaItemsMap[section.id] || []}
         quote={quote}
         onEntriesGenerated={() => {}}
       />
@@ -639,44 +743,51 @@ export default function QuoteDetailPage() {
           <>
             <div className="form-group">
               <label className="form-label">Ajánlat neve *</label>
-              <input type="text" className="form-control" value={metaTitle} onChange={e => setMetaTitle(e.target.value)} placeholder="pl. Fürdőszoba felújítás" />
+              <input type="text" className="form-control" value={metaTitle} onChange={e => setMetaTitle(e.target.value)} onBlur={autoSaveMeta} placeholder="pl. Fürdőszoba felújítás" />
             </div>
             <div className="grid-2col">
               <div className="form-group" style={{ margin: 0 }}>
                 <label className="form-label">Helyszín</label>
-                <input type="text" className="form-control" value={metaLocation} onChange={e => setMetaLocation(e.target.value)} placeholder="pl. Budapest, Fő u. 12." />
+                <input type="text" className="form-control" value={metaLocation} onChange={e => setMetaLocation(e.target.value)} onBlur={autoSaveMeta} placeholder="pl. Budapest, Fő u. 12." />
               </div>
               <div className="form-group" style={{ margin: 0 }}>
                 <label className="form-label">Munka típusa</label>
-                <input type="text" className="form-control" value={metaWorkType} onChange={e => setMetaWorkType(e.target.value)} placeholder="pl. Teljes felújítás" />
+                <input type="text" className="form-control" value={metaWorkType} onChange={e => setMetaWorkType(e.target.value)} onBlur={autoSaveMeta} placeholder="pl. Teljes felújítás" />
               </div>
             </div>
             <div className="form-group" style={{ marginTop: '0.75rem' }}>
               <label className="form-label">Leírás</label>
-              <textarea rows={2} className="form-control" value={metaDescription} onChange={e => setMetaDescription(e.target.value)} placeholder="Részletes munkaleírás…" />
+              <textarea rows={2} className="form-control" value={metaDescription} onChange={e => setMetaDescription(e.target.value)} onBlur={autoSaveMeta} placeholder="Részletes munkaleírás…" />
             </div>
-            <div className="grid-2col">
-              <div className="form-group" style={{ margin: 0 }}>
+            <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.75rem' }}>
+              <div className="form-group" style={{ margin: 0, flex: 1, minWidth: 0 }}>
                 <label className="form-label">Tervezett kezdés</label>
-                <input type="date" className="form-control" value={metaStartDate} onChange={e => { const v = e.target.value; setMetaStartDate(v); if (v && (!metaEndDate || metaEndDate <= v)) setMetaEndDate(nextDay(v)); }} />
+                <input type="date" className="form-control" value={metaStartDate} onChange={e => { const v = e.target.value; setMetaStartDate(v); if (v && (!metaEndDate || metaEndDate <= v)) setMetaEndDate(nextDay(v)); }} onBlur={autoSaveMeta} />
               </div>
-              <div className="form-group" style={{ margin: 0 }}>
+              <div className="form-group" style={{ margin: 0, flex: 1, minWidth: 0 }}>
                 <label className="form-label">Tervezett befejezés</label>
-                <input type="date" className="form-control" min={metaStartDate ? nextDay(metaStartDate) : undefined} value={metaEndDate} onChange={e => setMetaEndDate(e.target.value)} />
+                <input type="date" className="form-control" min={metaStartDate ? nextDay(metaStartDate) : undefined} value={metaEndDate} onChange={e => setMetaEndDate(e.target.value)} onBlur={autoSaveMeta} />
               </div>
             </div>
             <div className="form-group" style={{ marginTop: '0.75rem' }}>
               <label className="form-label">ÁFA kulcs</label>
               <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
                 {['0', '5', '18', '27'].map(v => (
-                  <button key={v} type="button" onClick={() => setMetaTaxPercent(v)}
+                  <button key={v} type="button" onClick={() => { setMetaTaxPercent(v); autoSaveMeta({ taxPercent: v }); }}
                     style={{ padding: '0.3rem 0.75rem', borderRadius: 'var(--radius-md)', fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer', background: metaTaxPercent === v ? 'var(--accent)' : 'var(--bg-subtle)', color: metaTaxPercent === v ? '#fff' : 'var(--text-secondary)', border: `1px solid ${metaTaxPercent === v ? 'var(--accent)' : 'var(--border-subtle)'}` }}>{v}%</button>
                 ))}
               </div>
             </div>
             <div className="form-group" style={{ marginBottom: 0 }}>
               <label className="form-label">Ügyfél</label>
-              <ClientSelect value={metaClientId} onChange={e => setMetaClientId(e.target.value)} clients={clients} />
+              <div style={{ display: 'flex', gap: '0.65rem', alignItems: 'center' }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <ClientSelect value={metaClientId} onChange={e => { setMetaClientId(e.target.value); autoSaveMeta({ clientId: e.target.value }); }} clients={clients} />
+                </div>
+                <button type="button" onClick={() => setShowNewClientModal(true)} className="btn btn-secondary btn-sm" style={{ whiteSpace: 'nowrap', flexShrink: 0 }}>
+                  <Plus size={14} /> Új ügyfél
+                </button>
+              </div>
             </div>
             {creator && <div style={{ marginTop: '0.75rem', fontSize: '0.78rem', color: 'var(--text-muted)' }}>Létrehozta: <strong>{creator.display_name}</strong>{quote.created_at && ` · ${formatDate(quote.created_at)}`}</div>}
           </>
@@ -709,7 +820,7 @@ export default function QuoteDetailPage() {
         <h2 style={{ fontSize: '1rem', fontWeight: 800, margin: 0 }}>Tételek</h2>
         {canEdit && (
           <button type="button" onClick={() => { setShowAddSection(true); }} className="btn btn-secondary btn-sm">
-            <Plus size={14} /> Helyiség
+            <Plus size={14} /> Hozzáadás
           </button>
         )}
       </div>
@@ -751,7 +862,7 @@ export default function QuoteDetailPage() {
           <p style={{ marginBottom: canEdit ? '1rem' : 0 }}>Még nincsenek helyiségek.</p>
           {canEdit && (
             <button type="button" onClick={() => { setShowAddSection(true); }} className="btn btn-primary btn-sm">
-              <Plus size={14} /> Helyiség hozzáadása
+              <Plus size={14} /> Hozzáadás
             </button>
           )}
         </div>
@@ -797,7 +908,7 @@ export default function QuoteDetailPage() {
           );
         })()}
 
-        {entryError && <div style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', color: 'var(--danger-text)', padding: '0.6rem 0.85rem', borderRadius: 'var(--radius-md)', fontSize: '0.825rem', display: 'flex', gap: '0.45rem', marginBottom: '0.85rem' }}><AlertCircle size={15} style={{ flexShrink: 0 }} /><span>{entryError}</span></div>}
+        {entryError &&<div style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', color: 'var(--danger-text)', padding: '0.6rem 0.85rem', borderRadius: 'var(--radius-md)', fontSize: '0.825rem', display: 'flex', gap: '0.45rem', marginBottom: '0.85rem' }}><AlertCircle size={15} style={{ flexShrink: 0 }} /><span>{entryError}</span></div>}
 
         <div className="entry-type-grid">
           {QUOTE_ENTRY_TYPES.map(t => { const Icon = TYPE_ICONS[t.id]; const tc = TYPE_COLORS[t.id]; const active = entryForm.entry_type === t.id; return (
@@ -814,25 +925,24 @@ export default function QuoteDetailPage() {
           <input type="text" className="form-control" autoFocus placeholder={entryForm.entry_type === 'material' ? 'pl. Gipszkarton lap 12,5mm' : entryForm.entry_type === 'labour' ? 'pl. Gipszkarton szerelés' : 'pl. Állványzat bérlés'} value={entryForm.work_description} onChange={e => setEntryForm(f => ({ ...f, work_description: e.target.value }))} />
         </div>
         {(entryForm.entry_type === 'material' || entryForm.entry_type === 'labour') && (
-          <>
-            {/* Unit chip row — easier to tap than a <select> on mobile */}
-            <div className="form-group">
+          <div className="qty-grid">
+            <div>
+              <label className="form-label">Mennyiség</label>
+              <input inputMode="decimal" type="number" min="0" step="0.01" className="form-control text-mono" placeholder="0" value={entryForm.quantity} onChange={e => setEntryForm(f => ({ ...f, quantity: e.target.value }))} />
+            </div>
+            <div>
               <label className="form-label">Egység</label>
-              <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
+              <select className="form-control" value={entryForm.unit} onChange={e => setEntryForm(f => ({ ...f, unit: e.target.value }))}>
                 {(entryForm.entry_type === 'labour' ? LABOUR_UNITS : QUANTITY_UNITS).map(u => (
-                  <button key={u} type="button"
-                    onClick={() => setEntryForm(f => ({ ...f, unit: u }))}
-                    style={{ padding: '0.3rem 0.65rem', borderRadius: 'var(--radius-md)', fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer', background: entryForm.unit === u ? 'var(--accent)' : 'var(--bg-subtle)', color: entryForm.unit === u ? '#fff' : 'var(--text-secondary)', border: `1px solid ${entryForm.unit === u ? 'var(--accent)' : 'var(--border-subtle)'}` }}>
-                    {u}
-                  </button>
+                  <option key={u} value={u}>{u}</option>
                 ))}
-              </div>
+              </select>
             </div>
-            <div className="qty-grid">
-              <div><label className="form-label">Mennyiség</label><input inputMode="decimal" type="number" min="0" step="0.01" className="form-control text-mono" placeholder="0" value={entryForm.quantity} onChange={e => setEntryForm(f => ({ ...f, quantity: e.target.value }))} /></div>
-              <div><label className="form-label">Egységár (Ft)</label><input inputMode="decimal" type="number" min="0" className="form-control text-mono" placeholder="0" value={entryForm.unit_price} onChange={e => setEntryForm(f => ({ ...f, unit_price: e.target.value }))} /></div>
+            <div>
+              <label className="form-label">Egységár (Ft)</label>
+              <input inputMode="decimal" type="number" min="0" className="form-control text-mono" placeholder="0" value={entryForm.unit_price} onChange={e => setEntryForm(f => ({ ...f, unit_price: e.target.value }))} />
             </div>
-          </>
+          </div>
         )}
         {(entryForm.entry_type === 'equipment' || entryForm.entry_type === 'transport' || entryForm.entry_type === 'other') && (
           <div className="form-group"><label className="form-label">Összeg (Ft) *</label><input inputMode="decimal" type="number" min="1" className="form-control text-mono" placeholder="0" value={entryForm.flat_amount} onChange={e => setEntryForm(f => ({ ...f, flat_amount: e.target.value }))} /></div>
@@ -851,16 +961,13 @@ export default function QuoteDetailPage() {
           <input type="text" className="form-control" placeholder="pl. Anyaggal együtt, 2. emelet" value={entryForm.notes} onChange={e => setEntryForm(f => ({ ...f, notes: e.target.value }))} />
         </div>
 
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-          <button type="button" className="btn btn-secondary btn-sm" onClick={() => { setShowEntryModal(false); setPendingEntries([]); }}>Mégse</button>
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
-            {!editingEntryId && (
-              <button type="button" className="btn btn-secondary btn-sm" onClick={handleAddAnother}>+ Következő tétel</button>
-            )}
-            <button type="button" className="btn btn-primary btn-sm" onClick={handleSaveEntry} disabled={savingEntry}>
-              {savingEntry ? <><Loader2 size={13} className="animate-spin" />Mentés…</> : editingEntryId ? 'Módosítás' : pendingEntries.length > 0 ? `Mentés (${pendingEntries.length + (entryForm.work_description.trim() ? 1 : 0)} db)` : 'Tétel hozzáadása'}
-            </button>
-          </div>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+          {!editingEntryId && (
+            <button type="button" className="btn btn-secondary btn-sm" onClick={handleAddAnother}>+ Következő</button>
+          )}
+          <button type="button" className="btn btn-primary btn-sm" onClick={handleSaveEntry} disabled={savingEntry}>
+            {savingEntry ? <><Loader2 size={13} className="animate-spin" />Mentés…</> : editingEntryId ? 'Módosítás' : pendingEntries.length > 0 ? `Hozzáadás (${pendingEntries.length + (entryForm.work_description.trim() ? 1 : 0)} db)` : 'Hozzáadás'}
+          </button>
         </div>
       </Modal>
 
@@ -878,7 +985,7 @@ export default function QuoteDetailPage() {
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
           <button type="button" className="btn btn-secondary btn-sm" onClick={() => setShowConvertModal(false)}>Mégse</button>
           <button type="button" onClick={handleConvert} disabled={isConverting} className="btn btn-sm" style={{ background: 'var(--success)', color: '#fff', border: 'none' }}>
-            {isConverting ? <><Loader2 size={14} className="animate-spin" />Átalakítás...</> : <><FolderKanban size={14} />Projekt létrehozása</>}
+            {isConverting ? <><Loader2 size={14} className="animate-spin" />Átalakítás…</> : <><FolderKanban size={14} />Létrehozás</>}
           </button>
         </div>
       </Modal>
@@ -1010,6 +1117,17 @@ export default function QuoteDetailPage() {
 
       <AlertModal isOpen={!!alertModal} onClose={() => setAlertModal(null)} message={alertModal?.message} variant={alertModal?.variant} />
 
+      <NewClientModal
+        isOpen={showNewClientModal}
+        onClose={() => setShowNewClientModal(false)}
+        onCreate={async (fields) => {
+          const c = await createClient({ ...fields });
+          setMetaClientId(c.id);
+          autoSaveMeta({ clientId: c.id });
+          setShowNewClientModal(false);
+        }}
+      />
+
       <LockedDocumentModal
         isOpen={lockedModalOpen}
         documentType="quote"
@@ -1092,7 +1210,7 @@ export default function QuoteDetailPage() {
                   <Send size={20} strokeWidth={1.75} color="#475569" />
                 </div>
                 <div>
-                  <div style={{ fontSize: 16, fontWeight: 600, color: '#0f172a' }}>{quote.status === 'sent' ? 'Újraküldés emailben' : 'Küldés emailben'}</div>
+                  <div style={{ fontSize: 16, fontWeight: 600, color: '#0f172a' }}>{quote.status === 'sent' ? 'Újraküldés' : 'Küldés'}</div>
                   {!client?.email && <div style={{ fontSize: 12, color: '#94a3b8' }}>Az ügyfélnek nincs email címe</div>}
                 </div>
               </button>
@@ -1108,7 +1226,7 @@ export default function QuoteDetailPage() {
                 <div style={{ width: 44, height: 44, borderRadius: 12, background: '#f0fdf4', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                   <CheckCircle2 size={20} strokeWidth={1.75} color="#16a34a" />
                 </div>
-                <span style={{ fontSize: 16, fontWeight: 600, color: '#0f172a' }}>Elfogadva → Projektté</span>
+                <span style={{ fontSize: 16, fontWeight: 600, color: '#0f172a' }}>Elfogadás → Projekt</span>
               </button>
             )}
 
@@ -1137,7 +1255,7 @@ export default function QuoteDetailPage() {
                 <div style={{ width: 44, height: 44, borderRadius: 12, background: '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                   <Check size={20} strokeWidth={1.75} color="#2563eb" />
                 </div>
-                <span style={{ fontSize: 16, fontWeight: 600, color: '#0f172a' }}>Módosítások mentése</span>
+                <span style={{ fontSize: 16, fontWeight: 600, color: '#0f172a' }}>Mentés</span>
               </button>
             )}
 
@@ -1151,7 +1269,7 @@ export default function QuoteDetailPage() {
                 <div style={{ width: 44, height: 44, borderRadius: 12, background: '#f0fdf4', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                   <RotateCcw size={20} strokeWidth={1.75} color="#16a34a" />
                 </div>
-                <span style={{ fontSize: 16, fontWeight: 600, color: '#0f172a' }}>Visszaállítás tervezetre</span>
+                <span style={{ fontSize: 16, fontWeight: 600, color: '#0f172a' }}>Visszaállítás</span>
               </button>
             )}
 
@@ -1165,7 +1283,7 @@ export default function QuoteDetailPage() {
                 <div style={{ width: 44, height: 44, borderRadius: 12, background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                   <Copy size={20} strokeWidth={1.75} color="#475569" />
                 </div>
-                <span style={{ fontSize: 16, fontWeight: 600, color: '#0f172a' }}>Ajánlat másolása</span>
+                <span style={{ fontSize: 16, fontWeight: 600, color: '#0f172a' }}>Másolás</span>
               </button>
             )}
 
@@ -1221,7 +1339,7 @@ export default function QuoteDetailPage() {
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
           <button type="button" className="btn btn-secondary btn-sm" onClick={() => setShowDuplicateModal(false)}>Mégse</button>
           <button type="button" className="btn btn-primary btn-sm" onClick={handleDuplicate} disabled={isDuplicating}>
-            {isDuplicating ? <><Loader2 size={13} className="animate-spin" />Másolás…</> : <><Copy size={13} />Másolat létrehozása</>}
+            {isDuplicating ? <><Loader2 size={13} className="animate-spin" />Másolás…</> : <><Copy size={13} />Másolás</>}
           </button>
         </div>
       </Modal>

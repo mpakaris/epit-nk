@@ -109,6 +109,13 @@ export async function PATCH(request, { params }) {
   const update = {};
   for (const k of allowedFields) if (k in fields) update[k] = fields[k];
 
+  // Contributor tried to edit fields outside their allowed set — all were stripped
+  if (Object.keys(update).length === 0) {
+    if (isContributor && !isOwner && !isSuperAdmin && !isKollektivOwner)
+      return Response.json({ error: 'Csak a tulajdonos módosíthatja a felmérést.' }, { status: 403 });
+    return Response.json({ survey: ctx.survey }); // no-op for owner/admin
+  }
+
   const { data, error } = await ctx.admin.from('surveys').update(update).eq('id', id).select().single();
   if (error) return Response.json({ error: error.message }, { status: 400 });
 

@@ -291,7 +291,7 @@ export default function AudioRecorder({ onTranscript, onError, disabled = false,
 
           {/* Context hint */}
           {hint && (
-            <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--text-secondary)', textAlign: 'center', lineHeight: 1.55, padding: '0 0.25rem' }}>
+            <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--text-secondary)', textAlign: 'center', lineHeight: 1.55, padding: '0 0.25rem', whiteSpace: 'pre-line' }}>
               {hint}
             </p>
           )}

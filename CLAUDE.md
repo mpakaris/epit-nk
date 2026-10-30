@@ -12,6 +12,32 @@ Epitek is a **lightweight SaaS for solo contractors** (Hungarian market). It is 
 1. **Solo contractors** — one person who needs quotes, project tracking, a client list, and a public website, all in one place with minimal clicks.
 2. **Small collectives** — 2–6 contractors who team up for a single project and then part ways. One person is the Owner/Coordinator; the others are subcontractors. The collective is temporary and lightweight, not a company.
 
+**Workspace visibility rules:**
+- **Personal workspace** — all documents (surveys, quotes, projects) are private; visible only to the owner.
+- **Collective workspace** — all documents are visible to every member of the collective.
+
+**Collective Owner role (the de-facto kivitelező):**
+- The Collective Owner acts as the general contractor: organises the work, directs the subcontractors, and is the single point of contact toward the client.
+- The **client** always belongs to the Owner personally (`clients.owner_id` — never shared, GDPR). Contributors never own or manage clients.
+- The Owner controls what the client sees on the **client portal** (`/clients/[id]`). Contributors can add work (sections, entries) to shared documents, but only the Owner/Admin can change quote status (send, accept, reject) or trigger client-facing actions.
+
+**Survey-as-template access rules (applies to /ajanlatok/uj and any future "create from survey" flow):**
+
+A survey is a physical site measurement tied to a specific job context. Template access is determined by the **intended offer destination** (the workspace selected in the picker), not the user's currently active workspace.
+
+| Who | Offer destination | Personal surveys | Same-collective surveys | Other-collective surveys |
+|---|---|---|---|---|
+| Any user | Personal offer | ✅ | ❌ | ❌ |
+| Owner / Admin | Collective offer | ✅ | ✅ | ❌ |
+| Contributor | Collective offer (→ personal + transfer) | ✅ | ✅ | ❌ |
+
+Rules:
+- Personal surveys are always available regardless of offer destination.
+- Collective surveys are only available when creating an offer destined for that same collective.
+- Surveys from other collectives are never available — cross-collective reuse is not supported.
+- When a collective is selected, the survey picker must show personal + same-collective surveys, grouped and labelled, NOT the AppContext `surveys` array (which is scoped to the active workspace and would miss personal surveys in collective context).
+- Always show a contextual explanation in the survey picker so the user understands why they see what they see (e.g. "Csak a [Kollektíva neve] és saját felméréseid láthatók itt").
+
 **Design principles:**
 - Everything shareable with 1–2 clicks (share link, client portal, public website).
 - Speed over completeness — features must be quick to reach, not buried.

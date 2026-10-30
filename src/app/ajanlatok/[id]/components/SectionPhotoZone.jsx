@@ -6,14 +6,23 @@ import { Camera, Loader2 } from 'lucide-react';
 import SectionMediaGrid from '@/components/SectionMediaGrid';
 import { processMediaFile } from '@/lib/mediaGate';
 
-export default function SectionPhotoZone({ quoteId, quoteSurveyId, quoteTitle, quoteClientId, section, onEntryCreated }) {
+export default function SectionPhotoZone({ quoteId, quoteSurveyId, quoteTitle, quoteClientId, section, onEntryCreated, triggerUpload = 0 }) {
   const { createSurvey, createSurveyEntry, uploadSurveyMedia, updateQuote, updateQuoteSection, fetchSurveyMedia } = useApp();
   const [uploading, setUploading] = React.useState(false);
   const [uploadErr, setUploadErr] = React.useState('');
   const fileInputRef = React.useRef(null);
+  const prevTriggerRef = React.useRef(0);
+
+  // Allow parent (BottomSheet context menu) to open the file dialog externally
+  React.useEffect(() => {
+    if (triggerUpload !== prevTriggerRef.current && triggerUpload > 0) {
+      prevTriggerRef.current = triggerUpload;
+      fileInputRef.current?.click();
+    }
+  }, [triggerUpload]);
 
   if (quoteSurveyId && section.survey_entry_id) {
-    return <SectionMediaGrid surveyId={quoteSurveyId} surveyEntryId={section.survey_entry_id} isLocked={false} />;
+    return <SectionMediaGrid surveyId={quoteSurveyId} surveyEntryId={section.survey_entry_id} isLocked={false} triggerUpload={triggerUpload} />;
   }
 
   const handleFiles = async (e) => {

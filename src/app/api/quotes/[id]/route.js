@@ -39,15 +39,17 @@ export async function GET(request, { params }) {
   const ctx = await getCallerAndQuote(id);
   if (ctx.err) return Response.json({ error: ctx.err }, { status: ctx.status });
 
-  const [sectionsRes, entriesRes] = await Promise.all([
+  const [sectionsRes, entriesRes, mediaItemsRes] = await Promise.all([
     ctx.admin.from('quote_sections').select('*').eq('quote_id', id).order('created_at'),
     ctx.admin.from('quote_entries').select('*').eq('quote_id', id).order('created_at'),
+    ctx.admin.from('media_items').select('*').eq('document_type', 'quote').eq('document_id', id).order('sort_order'),
   ]);
 
   return Response.json({
-    quote:    ctx.quote,
-    sections: sectionsRes.data || [],
-    entries:  entriesRes.data  || [],
+    quote:      ctx.quote,
+    sections:   sectionsRes.data    || [],
+    entries:    entriesRes.data     || [],
+    mediaItems: mediaItemsRes.data  || [],
   });
 }
 

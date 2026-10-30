@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { deleteFromR2 } from '@/lib/r2';
+import { checkWhereImageIsUsed } from '@/lib/mediaUsage';
 
 export async function DELETE(request, { params }) {
   const { id: surveyId, mediaId } = await params;
@@ -48,9 +49,13 @@ export async function DELETE(request, { params }) {
     }
   }
 
-  try { await deleteFromR2(media.drive_file_id); } catch {}
-
+  const r2Key = media.drive_file_id;
   const { error } = await admin.from('survey_media').delete().eq('id', mediaId);
   if (error) return Response.json({ error: error.message }, { status: 400 });
+
+  const { total } = await checkWhereImageIsUsed(admin, r2Key);
+  if (total === 0) {
+    try { await deleteFromR2(r2Key); } catch {}
+  }
   return Response.json({ success: true });
 }

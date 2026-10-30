@@ -66,6 +66,7 @@ async function cleanRecords(admin, userIds) {
   await del(admin, 'project_rooms',     'project_id',   projectIds, 'project_rooms')
   await del(admin, 'quote_entries',     'quote_id',     quoteIds,   'quote_entries')
   await del(admin, 'quote_sections',    'quote_id',     quoteIds,   'quote_sections')
+  await del(admin, 'media_items',       'created_by',   userIds,    'media_items')
   await del(admin, 'survey_entries',    'survey_id',    surveyIds,  'survey_entries')
   await del(admin, 'survey_media',      'survey_id',    surveyIds,  'survey_media')
   await del(admin, 'survey_drawings',   'survey_id',    surveyIds,  'survey_drawings')

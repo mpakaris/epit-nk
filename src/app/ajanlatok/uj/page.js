@@ -14,7 +14,7 @@ import SharingBanner from '@/components/mobile/SharingBanner';
 import { formatDate } from '@/lib/constants';
 import {
   ArrowLeft, AlertCircle, Check, Loader2, Plus, Ruler, User, Search, X,
-  ChevronDown, Users,
+  ChevronDown, Users, Info,
 } from 'lucide-react';
 
 const today  = () => new Date().toISOString().split('T')[0];
@@ -78,6 +78,8 @@ function NewQuotePageInner() {
   const [surveyId, setSurveyId]   = useState(searchParams.get('from_survey') || null);
   const [surveySearch, setSurveySearch] = useState('');
   const [showSurveyDropdown, setShowSurveyDropdown] = useState(false);
+  const [templateSurveys, setTemplateSurveys] = useState([]);
+  const [templateSurveysLoading, setTemplateSurveysLoading] = useState(false);
 
   const [title, setTitle]             = useState(searchParams.get('title')       || '');
   const [location, setLocation]       = useState(searchParams.get('location')    || '');
@@ -92,7 +94,7 @@ function NewQuotePageInner() {
   const [isSubmitting, setIsSubmitting]     = useState(false);
   const [showNewClientModal, setShowNewClientModal] = useState(false);
 
-  const selectedSurvey    = surveys.find(s => s.id === surveyId);
+  const selectedSurvey    = templateSurveys.find(s => s.id === surveyId);
   const selectedCollective = collectives.find(c => c.id === collectiveId);
   const isContributorCollective = !!(collectiveId && selectedCollective?.role !== 'owner' && selectedCollective?.role !== 'admin');
 
@@ -100,6 +102,22 @@ function NewQuotePageInner() {
     const last = localStorage.getItem('last_tax_percent');
     if (last) setTaxPercent(last);
   }, []);
+
+  useEffect(() => {
+    if (isDemoMode) {
+      // Demo has no API — tag all context surveys as personal
+      setTemplateSurveys(surveys.map(s => ({ ...s, _source: 'personal' })));
+      return;
+    }
+    setTemplateSurveysLoading(true);
+    const url = collectiveId
+      ? `/api/surveys/for-offer-template?collective_id=${collectiveId}`
+      : '/api/surveys/for-offer-template';
+    fetch(url)
+      .then(r => r.ok ? r.json() : { surveys: [] })
+      .then(d => setTemplateSurveys(d.surveys || []))
+      .finally(() => setTemplateSurveysLoading(false));
+  }, [collectiveId, isDemoMode]);
 
   const handleTaxChange = (v) => {
     setTaxPercent(v);
@@ -121,8 +139,8 @@ function NewQuotePageInner() {
 
   const norm = s => (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
   const filteredSurveys = surveySearch
-    ? surveys.filter(s => norm(s.title).includes(norm(surveySearch)) || norm(s.location).includes(norm(surveySearch)))
-    : surveys;
+    ? templateSurveys.filter(s => norm(s.title).includes(norm(surveySearch)) || norm(s.location).includes(norm(surveySearch)))
+    : templateSurveys;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -156,6 +174,7 @@ function NewQuotePageInner() {
               survey_entry_id: entry.id,
             });
           }
+          fetch(`/api/quotes/${quote.id}/copy-survey-media`, { method: 'POST' }).catch(() => {});
         } catch {}
       }
 
@@ -182,10 +201,32 @@ function NewQuotePageInner() {
     );
   }
 
+  const surveyContextNote = collectiveId
+    ? `Csak a(z) ${selectedCollective?.name || 'kollektíva'} és saját felméréseid láthatók itt.`
+    : 'Csak a saját (személyes) felméréseid láthatók itt.';
+
+  const personalSurveys    = filteredSurveys.filter(s => s._source === 'personal');
+  const collectiveSurveys  = filteredSurveys.filter(s => s._source === 'collective');
+
+  const SurveyPickerRow = ({ s }) => (
+    <button key={s.id} type="button"
+      onMouseDown={() => { setSurveyId(s.id); setSurveySearch(''); setShowSurveyDropdown(false); }}
+      style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '0.1rem', padding: '0.65rem 1rem', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', borderBottom: '1px solid var(--border-subtle)' }}>
+      <span style={{ fontWeight: 700, fontSize: '0.875rem', color: 'var(--text-primary)' }}>{s.title}</span>
+      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+        {[s.location, s.date ? formatDate(s.date) : null].filter(Boolean).join(' · ')}
+      </span>
+    </button>
+  );
+
   const SurveyPicker = () => (
     <div className="card mb-4" style={{ padding: '1.25rem' }}>
-      <div style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.05em', marginBottom: '0.85rem' }}>
+      <div style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>
         Felmérés <span style={{ fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>(opcionális — szekciók automatikusan átvéve)</span>
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.85rem' }}>
+        <Info size={12} color="var(--text-muted)" style={{ flexShrink: 0 }} />
+        <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{surveyContextNote}</span>
       </div>
       {selectedSurvey ? (
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem 1rem', borderRadius: 'var(--radius-md)', background: 'var(--accent-light)', border: '1px solid var(--accent-border)' }}>
@@ -193,6 +234,9 @@ function NewQuotePageInner() {
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontWeight: 700, color: 'var(--accent)' }}>{selectedSurvey.title}</div>
             {selectedSurvey.location && <div style={{ fontSize: '0.78rem', color: 'var(--accent)', opacity: 0.8 }}>{selectedSurvey.location}</div>}
+            {selectedSurvey._source === 'collective' && (
+              <div style={{ fontSize: '0.7rem', color: 'var(--accent)', opacity: 0.7, marginTop: '0.1rem' }}>Kollektíva felmérése</div>
+            )}
           </div>
           <button type="button" onClick={clearSurvey} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--accent)', padding: '0.2rem', display: 'flex' }}>
             <X size={16} />
@@ -203,27 +247,39 @@ function NewQuotePageInner() {
           <Search size={15} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', pointerEvents: 'none' }} />
           <input
             type="text" className="form-control" style={{ paddingLeft: '2.25rem' }}
-            placeholder={surveys.length === 0 ? 'Még nincs felmérés' : 'Keresés a felmérések között…'}
-            disabled={surveys.length === 0}
+            placeholder={templateSurveysLoading ? 'Betöltés…' : templateSurveys.length === 0 ? 'Még nincs elérhető felmérés' : 'Keresés a felmérések között…'}
+            disabled={templateSurveysLoading || templateSurveys.length === 0}
             value={surveySearch}
             onChange={e => { setSurveySearch(e.target.value); setShowSurveyDropdown(true); }}
             onFocus={() => setShowSurveyDropdown(true)}
             onBlur={() => setTimeout(() => setShowSurveyDropdown(false), 150)}
           />
-          {showSurveyDropdown && surveys.length > 0 && (
-            <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 50, background: '#fff', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', boxShadow: '0 4px 16px rgba(0,0,0,0.1)', maxHeight: '220px', overflowY: 'auto', marginTop: '0.25rem' }}>
+          {showSurveyDropdown && templateSurveys.length > 0 && (
+            <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 50, background: 'var(--bg-card)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', boxShadow: '0 4px 16px rgba(0,0,0,0.1)', maxHeight: '260px', overflowY: 'auto', marginTop: '0.25rem' }}>
               {filteredSurveys.length === 0 ? (
                 <div style={{ padding: '0.85rem 1rem', color: 'var(--text-muted)', fontSize: '0.82rem' }}>Nincs találat</div>
-              ) : filteredSurveys.map(s => (
-                <button key={s.id} type="button"
-                  onMouseDown={() => { setSurveyId(s.id); setSurveySearch(''); setShowSurveyDropdown(false); }}
-                  style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '0.1rem', padding: '0.65rem 1rem', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', borderBottom: '1px solid var(--border-subtle)' }}>
-                  <span style={{ fontWeight: 700, fontSize: '0.875rem', color: 'var(--text-primary)' }}>{s.title}</span>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                    {[s.location, s.date ? formatDate(s.date) : null].filter(Boolean).join(' · ')}
-                  </span>
-                </button>
-              ))}
+              ) : (
+                <>
+                  {collectiveId && collectiveSurveys.length > 0 && (
+                    <>
+                      <div style={{ padding: '0.45rem 1rem', fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', background: 'var(--bg-subtle)', borderBottom: '1px solid var(--border-subtle)' }}>
+                        {selectedCollective?.name || 'Kollektíva'}
+                      </div>
+                      {collectiveSurveys.map(s => <SurveyPickerRow key={s.id} s={s} />)}
+                    </>
+                  )}
+                  {personalSurveys.length > 0 && (
+                    <>
+                      {collectiveId && collectiveSurveys.length > 0 && (
+                        <div style={{ padding: '0.45rem 1rem', fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', background: 'var(--bg-subtle)', borderBottom: '1px solid var(--border-subtle)', borderTop: '1px solid var(--border-subtle)' }}>
+                          Saját felmérések
+                        </div>
+                      )}
+                      {personalSurveys.map(s => <SurveyPickerRow key={s.id} s={s} />)}
+                    </>
+                  )}
+                </>
+              )}
             </div>
           )}
         </div>

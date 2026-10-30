@@ -6,22 +6,27 @@ import { formatHUF, formatDate } from '@/lib/constants';
 import SectionMediaGrid from '@/components/SectionMediaGrid';
 import {
   Edit3, Loader2, Check, Trash2, Plus, User, Ruler, Calendar,
-  ChevronDown, ChevronUp, X, MoreHorizontal,
+  ChevronDown, ChevronUp, X, MoreHorizontal, Mic, Camera,
 } from 'lucide-react';
 import AudioRecorder from '@/components/AudioRecorder';
+import BottomSheet from '@/components/mobile/BottomSheet';
 import AreaSummary, { WINDOW_M2, DOOR_M2, PILL_STYLE } from './AreaSummary';
 import SectionPhotoZone from './SectionPhotoZone';
 import { TYPE_ICONS, TYPE_COLORS, QUOTE_ENTRY_LABELS } from './constants';
 
-export default function SectionCard({ section, surveyEntry, surveyId, quoteId, canEdit, isQuoteOwner, currentUserId, onDelete, onAddEntry, onEditEntry, onDeleteEntry, sectionEntries, quote, onEntriesGenerated }) {
-  const { updateQuoteSection, activeCollectiveId, createQuoteEntry } = useApp();
+export default function SectionCard({ section, surveyEntry, surveyId, quoteId, canEdit, isQuoteOwner, currentUserId, onDelete, onAddEntry, onEditEntry, onDeleteEntry, sectionEntries, quote, onEntriesGenerated, sectionMediaItems = [] }) {
+  const { updateQuoteSection, activeCollectiveId, createQuoteEntry, deleteQuoteEntry } = useApp();
   const [collapsed, setCollapsed] = useState(false);
   const canEditSection   = canEdit && (isQuoteOwner || section.created_by === currentUserId);
   const canEditEntry     = (entry) => canEdit && (isQuoteOwner || entry.user_id === currentUserId);
   const [isEditing, setIsEditing] = useState(false);
+  const [ctxOpen, setCtxOpen]           = useState(false);
+  const [triggerAudio, setTriggerAudio] = useState(0);
+  const [triggerPhoto, setTriggerPhoto] = useState(0);
   const [audioGenerating, setAudioGenerating] = useState(false);
   const [audioError, setAudioError]           = useState('');
-  const [pendingEntries, setPendingEntries]   = useState([]); // AI suggestions before commit
+  const [audioAdded, setAudioAdded]           = useState(0);
+  const [selectedEntries, setSelectedEntries] = useState(new Set());
 
   const handleAudioTranscript = async (transcript) => {
     setAudioError('');
@@ -34,8 +39,30 @@ export default function SectionCard({ section, surveyEntry, surveyId, quoteId, c
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'AI generálás sikertelen');
-      setPendingEntries(data.entries.map((e, i) => ({ ...e, _key: `${Date.now()}-${i}`, _accepted: false })));
+      const entries = data.entries || [];
+      let saved = 0;
+      for (const e of entries) {
+        const amount = e.unit_price != null && e.quantity != null
+          ? Math.round(e.quantity * e.unit_price)
+          : (e.flat_amount ?? 0);
+        if (amount <= 0) continue;
+        await createQuoteEntry({
+          quoteId,
+          workDescription: e.work_description,
+          amountHuf: amount,
+          entryType: e.entry_type,
+          quantity:  e.quantity,
+          unit:      e.unit,
+          unitPrice: e.unit_price,
+          notes:     e.notes || '',
+          sectionId: section.id,
+        });
+        saved++;
+      }
       setCollapsed(false);
+      setAudioAdded(saved);
+      setTimeout(() => setAudioAdded(0), 3000);
+      onEntriesGenerated?.();
     } catch (e) {
       setAudioError(e.message || 'Hiba a generáláskor');
     } finally {
@@ -43,44 +70,20 @@ export default function SectionCard({ section, surveyEntry, surveyId, quoteId, c
     }
   };
 
-  const acceptPending = async (entry) => {
-    const amount = entry.unit_price != null && entry.quantity != null
-      ? Math.round(entry.quantity * entry.unit_price)
-      : (entry.flat_amount ?? 0);
-    await createQuoteEntry({
-      quoteId,
-      workDescription: entry.work_description,
-      amountHuf: amount,
-      entryType: entry.entry_type,
-      quantity:  entry.quantity,
-      unit:      entry.unit,
-      unitPrice: entry.unit_price,
-      notes:     entry.notes || '',
-      sectionId: section.id,
-    });
-    setPendingEntries(prev => prev.filter(e => e._key !== entry._key));
-    onEntriesGenerated?.();
-  };
+  useEffect(() => { if (collapsed) setSelectedEntries(new Set()); }, [collapsed]);
 
-  const acceptAllPending = async () => {
-    for (const entry of pendingEntries) {
-      const amount = entry.unit_price != null && entry.quantity != null
-        ? Math.round(entry.quantity * entry.unit_price)
-        : (entry.flat_amount ?? 0);
-      await createQuoteEntry({
-        quoteId,
-        workDescription: entry.work_description,
-        amountHuf: amount,
-        entryType: entry.entry_type,
-        quantity:  entry.quantity,
-        unit:      entry.unit,
-        unitPrice: entry.unit_price,
-        notes:     entry.notes || '',
-        sectionId: section.id,
-      });
+  const toggleEntry = (id) => setSelectedEntries(prev => {
+    const next = new Set(prev);
+    next.has(id) ? next.delete(id) : next.add(id);
+    return next;
+  });
+
+  const handleBatchDelete = async () => {
+    const ids = [...selectedEntries];
+    for (const id of ids) {
+      try { await deleteQuoteEntry(id); } catch {}
     }
-    setPendingEntries([]);
-    onEntriesGenerated?.();
+    setSelectedEntries(new Set());
   };
 
   // Edit form state
@@ -152,8 +155,17 @@ export default function SectionCard({ section, surveyEntry, surveyId, quoteId, c
 
   // ── Edit mode ──────────────────────────────────────────────────────────────
   if (isEditing) return (
-    <div className="card" style={{ padding: '1rem', border: '2px solid var(--accent-border)', background: 'var(--accent-light)' }}>
-      <div style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--accent)', letterSpacing: '0.05em', marginBottom: '0.75rem' }}>Szerkesztés: {section.name}</div>
+    <div className="card compact-form" style={{ padding: '1rem', border: '2px solid var(--accent-border)', background: 'var(--accent-light)', position: 'relative' }}>
+      <button
+        type="button"
+        onClick={() => setIsEditing(false)}
+        disabled={saving}
+        aria-label="Bezár"
+        style={{ position: 'absolute', top: '0.6rem', right: '0.6rem', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: '0.25rem', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 'var(--radius-sm)' }}
+      >
+        <X size={16} />
+      </button>
+      <div style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--accent)', letterSpacing: '0.05em', marginBottom: '0.75rem', paddingRight: '1.5rem' }}>Szerkesztés: {section.name}</div>
       <div className="form-group">
         <label className="form-label">Helyiség neve *</label>
         <input type="text" className="form-control" autoFocus value={name} onChange={e => setName(e.target.value)} onBlur={saveOnly} />
@@ -186,13 +198,12 @@ export default function SectionCard({ section, surveyEntry, surveyId, quoteId, c
           style={{ resize: 'vertical' }}
         />
       </div>
-      <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '0.5rem' }}>
-        {saving && <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.3rem' }}><Loader2 size={12} className="animate-spin" />Mentés…</span>}
-        {saveStatus === 'saved' && !saving && <span style={{ fontSize: '0.75rem', color: 'var(--success-text)', display: 'flex', alignItems: 'center', gap: '0.3rem' }}><Check size={12} />Mentve</span>}
-        <button type="button" className="btn btn-primary btn-sm" onClick={async () => { await saveOnly(); setIsEditing(false); }} disabled={saving}>
-          Kész
-        </button>
-      </div>
+      {(saving || saveStatus === 'saved') && (
+        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+          {saving && <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.3rem' }}><Loader2 size={12} className="animate-spin" />Mentés…</span>}
+          {saveStatus === 'saved' && !saving && <span style={{ fontSize: '0.75rem', color: 'var(--success-text)', display: 'flex', alignItems: 'center', gap: '0.3rem' }}><Check size={12} />Mentve</span>}
+        </div>
+      )}
     </div>
   );
 
@@ -210,7 +221,7 @@ export default function SectionCard({ section, surveyEntry, surveyId, quoteId, c
     ? displayEntry.width_m * displayEntry.length_m
     : displayEntry.size_m2;
   const hasAnyMeasurement = displaySize != null || displayEntry.height_m != null;
-  const hasMedia = !!(quote?.survey_id && section.survey_entry_id);
+  const hasMedia = !!(quote?.survey_id && section.survey_entry_id) || sectionMediaItems.length > 0;
 
   const sectionSubtotalForHeader = sectionEntries.reduce((s, e) => s + Number(e.amount_huf || 0), 0);
   const contributors = [...new Set(sectionEntries.map(e => e.created_by_name).filter(Boolean))];
@@ -219,8 +230,10 @@ export default function SectionCard({ section, surveyEntry, surveyId, quoteId, c
   const SECTION_TOTAL_PILL = { ...SUBTOTAL_PILL, fontSize: '0.875rem', fontWeight: 800 };
 
   // Dark-header pill variants
-  const PILL_DARK = { ...PILL_STYLE, background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.2)', color: 'rgba(255,255,255,0.9)' };
+  const PILL_DARK  = { ...PILL_STYLE, background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.2)', color: 'rgba(255,255,255,0.9)' };
   const TOTAL_PILL_DARK = { display: 'inline-flex', alignItems: 'center', fontFamily: 'var(--font-mono)', fontWeight: 800, fontSize: '0.875rem', background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.22)', color: '#fff', padding: '0.15rem 0.6rem', borderRadius: 'var(--radius-pill)' };
+  const PILL_LIGHT = { fontSize: '0.68rem', fontWeight: 700, padding: '0.1rem 0.45rem', borderRadius: 'var(--radius-pill)', background: 'rgba(30,58,95,0.09)', border: '1px solid rgba(30,58,95,0.18)', color: '#1e3a5f', display: 'inline-flex', alignItems: 'center', gap: '0.2rem' };
+  const TOTAL_PILL_LIGHT = { display: 'inline-flex', alignItems: 'center', fontFamily: 'var(--font-mono)', fontWeight: 800, fontSize: '0.875rem', background: 'rgba(30,58,95,0.09)', border: '1px solid rgba(30,58,95,0.22)', color: '#1e3a5f', padding: '0.15rem 0.6rem', borderRadius: 'var(--radius-pill)' };
 
   const hasMeasurementPills = displaySize != null || displayEntry.height_m != null || displayEntry.window_count > 0 || displayEntry.door_count > 0 || section.start_date || section.end_date;
 
@@ -248,9 +261,6 @@ export default function SectionCard({ section, surveyEntry, surveyId, quoteId, c
         {/* DESKTOP (hidden on mobile) */}
         <div className="hide-mobile">
           <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem' }}>
-            <div style={{ color: 'rgba(255,255,255,0.5)', flexShrink: 0, marginTop: '0.15rem', pointerEvents: 'none' }}>
-              {collapsed ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
-            </div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
                 <span style={{ fontWeight: 800, fontSize: '1rem', color: '#fff' }}>{section.name}</span>
@@ -259,30 +269,26 @@ export default function SectionCard({ section, surveyEntry, surveyId, quoteId, c
             </div>
             {headerEditButtons}
           </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem', marginTop: '0.4rem' }}>
-            <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.35rem' }}>
-              <span style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.5)' }}>{sectionEntries.length} tétel</span>
-              {contributors.map(name => <span key={name} style={{ ...PILL_DARK, fontSize: '0.68rem' }}><User size={10} />{name}</span>)}
-            </div>
-            <span style={TOTAL_PILL_DARK}>{formatHUF(sectionSubtotalForHeader)}</span>
-          </div>
         </div>
 
         {/* MOBILE (hidden on desktop) */}
         <div className="show-mobile">
-          {/* Row 1: title + chevron */}
-          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-            <span style={{ flex: 1, fontWeight: 800, fontSize: '1.05rem', color: '#fff', lineHeight: 1.35 }}>
+          {/* Title + options button */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }} onClick={e => e.stopPropagation()}>
+            <span style={{ flex: 1, fontWeight: 800, fontSize: '1.05rem', color: '#fff', lineHeight: 1.35 }} onClick={() => setCollapsed(c => !c)}>
               {section.name}
             </span>
-            <div style={{ color: 'rgba(255,255,255,0.5)', flexShrink: 0, paddingTop: 2, pointerEvents: 'none' }}>
-              {collapsed ? <ChevronDown size={20} /> : <ChevronUp size={20} />}
-            </div>
+            {(canEditSection || canEdit) && (
+              <button type="button" onClick={() => setCtxOpen(true)} aria-label="Műveletek"
+                style={{ padding: '0.3rem 0.5rem', background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.22)', color: 'rgba(255,255,255,0.9)', borderRadius: 'var(--radius-sm)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', flexShrink: 0 }}>
+                <MoreHorizontal size={16} />
+              </button>
+            )}
           </div>
 
-          {/* Row 2: measurements + creator (collective only) — only when data exists */}
+          {/* Measurements + creator (collective only) — only when data exists */}
           {(hasMeasurementPills || (activeCollectiveId && (section.created_by_name || contributors[0]))) && (
-            <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 6, marginTop: 8 }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 6, marginTop: 8 }} onClick={() => setCollapsed(c => !c)}>
               {measurementPillsDark}
               {activeCollectiveId && (section.created_by_name || contributors[0]) && (
                 <span style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.55)', display: 'flex', alignItems: 'center', gap: 4 }}>
@@ -291,35 +297,60 @@ export default function SectionCard({ section, surveyEntry, surveyId, quoteId, c
               )}
             </div>
           )}
+        </div>
+      </div>
 
-          {/* Divider */}
-          <div style={{ height: 1, background: 'rgba(255,255,255,0.15)', margin: '10px 0 8px' }} />
+      {/* ── Light blue sub-header ── */}
+      <div
+        style={{ background: '#eef2ff', borderBottom: collapsed ? 'none' : '1px solid #dde6f5', cursor: 'pointer' }}
+        onClick={() => setCollapsed(c => !c)}
+      >
+        {/* DESKTOP */}
+        <div className="hide-mobile" style={{ padding: '0.4rem 1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <div style={{ flex: 1, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.35rem' }}>
+            <span style={{ fontSize: '0.72rem', fontWeight: 600, color: '#1e3a5f' }}>{sectionEntries.length} tétel</span>
+            {contributors.map(name => <span key={name} style={PILL_LIGHT}><User size={10} />{name}</span>)}
+          </div>
+          <span style={TOTAL_PILL_LIGHT}>{formatHUF(sectionSubtotalForHeader)}</span>
+          <div style={{ color: '#4b6a91', pointerEvents: 'none', display: 'flex', alignItems: 'center' }}>
+            {collapsed ? <ChevronDown size={15} /> : <ChevronUp size={15} />}
+          </div>
+        </div>
 
-          {/* Row 3: subtotal + entry count + action buttons */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }} onClick={e => e.stopPropagation()}>
+        {/* MOBILE */}
+        <div className="show-mobile">
+          <div style={{ padding: '0.45rem 1rem', display: 'flex', alignItems: 'center', gap: 8 }}>
             <div style={{ flex: 1, display: 'flex', alignItems: 'baseline', gap: 8, minWidth: 0 }}>
-              <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, fontSize: '1.1rem', color: '#fff', flexShrink: 0 }}>
+              <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, fontSize: '1rem', color: '#1e3a5f', flexShrink: 0 }}>
                 {formatHUF(sectionSubtotalForHeader)}
               </span>
-              <span style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.5)', fontWeight: 600, flexShrink: 0 }}>
+              <span style={{ fontSize: '0.72rem', color: '#4b6a91', fontWeight: 600, flexShrink: 0 }}>
                 {sectionEntries.length} tétel
               </span>
             </div>
-            {canEditSection && (
-              <>
-                <button type="button" onClick={() => setIsEditing(true)} aria-label="Szerkesztés"
-                  style={{ width: 44, height: 44, background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.22)', color: '#fff', borderRadius: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  <Edit3 size={18} />
-                </button>
-                <button type="button" onClick={() => onDelete(section)} aria-label="Törlés"
-                  style={{ width: 44, height: 44, background: 'rgba(220,38,38,0.2)', border: '1px solid rgba(220,38,38,0.4)', color: '#fca5a5', borderRadius: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  <Trash2 size={18} />
-                </button>
-              </>
-            )}
+            <div style={{ color: '#4b6a91', pointerEvents: 'none', display: 'flex', alignItems: 'center' }}>
+              {collapsed ? <ChevronDown size={18} /> : <ChevronUp size={18} />}
+            </div>
           </div>
         </div>
       </div>
+
+      <BottomSheet
+        isOpen={ctxOpen}
+        onClose={() => setCtxOpen(false)}
+        title={section.name}
+        actions={[
+          ...(canEdit ? [
+            { icon: Mic,    label: 'Diktálás',        onClick: () => { setCtxOpen(false); setCollapsed(false); setTimeout(() => setTriggerAudio(n => n + 1), 80); } },
+            { icon: Plus,   label: 'Tétel hozzáadása', onClick: () => { setCtxOpen(false); setCollapsed(false); setTimeout(() => onAddEntry(section.id), 80); } },
+          ] : []),
+          ...(canEditSection ? [
+            { icon: Camera, label: 'Fotó / kamera',   onClick: () => { setCtxOpen(false); setCollapsed(false); setTimeout(() => setTriggerPhoto(n => n + 1), 80); } },
+            { icon: Edit3,  label: 'Szerkesztés', dividerBefore: true, onClick: () => { setCtxOpen(false); setIsEditing(true); } },
+            { icon: Trash2, label: 'Törlés',      danger: true,        onClick: () => { setCtxOpen(false); onDelete(section); } },
+          ] : []),
+        ]}
+      />
 
       {/* ── Expanded body ── */}
       {!collapsed && (
@@ -335,24 +366,6 @@ export default function SectionCard({ section, surveyEntry, surveyId, quoteId, c
 
           {hasAnyMeasurement && <AreaSummary entry={displayEntry} />}
 
-          {/* Photos */}
-          <div style={{ marginTop: hasAnyMeasurement ? '0.75rem' : 0 }}>
-            {canEditSection ? (
-              <SectionPhotoZone
-                quoteId={quoteId}
-                quoteSurveyId={quote?.survey_id}
-                quoteTitle={quote?.title}
-                quoteClientId={quote?.client_id}
-                section={{ ...section, survey_entry_id: section.survey_entry_id||null }}
-                onEntryCreated={(sId, svId, eId) => updateQuoteSection(quoteId, sId, { survey_entry_id: eId }).catch(()=>{})}
-              />
-            ) : hasMedia ? (
-              <SectionMediaGrid surveyId={quote.survey_id} surveyEntryId={section.survey_entry_id} isLocked={true} />
-            ) : (
-              <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>Nincs fotó.</div>
-            )}
-          </div>
-
           {/* Items */}
           {(() => {
             const TYPE_ORDER_LIST = ['material', 'labour', 'transport', 'equipment', 'other'];
@@ -362,29 +375,40 @@ export default function SectionCard({ section, surveyEntry, surveyId, quoteId, c
             const sectionSubtotal = sectionEntries.reduce((s, e) => s + Number(e.amount_huf || 0), 0);
 
             return (
-              <div style={{ marginTop: '1rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '0.5rem' }}>
+              <div style={{ marginTop: '0.75rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
                   <span style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.04em' }}>
                     Tételek ({sectionEntries.length})
                   </span>
                   {canEdit && (
-                    <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
-                      <AudioRecorder
-                        size="sm"
-                        disabled={audioGenerating}
-                        onTranscript={handleAudioTranscript}
-                        onError={msg => setAudioError(msg)}
-                      />
-                      <button type="button" onClick={() => onAddEntry(section.id)} className="btn btn-primary btn-sm" style={{ fontSize: '0.75rem' }}>
-                        <Plus size={13} /> Tétel
-                      </button>
-                    </div>
+                    <button type="button" onClick={() => onAddEntry(section.id)} className="btn btn-primary btn-sm" style={{ padding: '0.3rem 0.55rem' }}>
+                      <Plus size={15} />
+                    </button>
                   )}
                 </div>
+
+                {/* AudioRecorder — hidden, triggered only via BottomSheet Diktálás */}
+                {canEdit && (
+                  <AudioRecorder
+                    size="sm"
+                    hideTriggerButton
+                    disabled={audioGenerating}
+                    externalTrigger={triggerAudio}
+                    onTranscript={handleAudioTranscript}
+                    onError={msg => setAudioError(msg)}
+                    hint={`Elmondhatsz általános leírást a helyiségről, vagy konkrét tételeket anyagnévvel, mennyiséggel és egységárral.\n\nPl.: „Tíz négyzetméter padlócsempe, négyezer-ötszáz forint. Csempézés munkadíj tíz négyzetméterre, háromezer forint per négyzetméter."`}
+                  />
+                )}
 
                 {audioGenerating && (
                   <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.5rem' }}>
                     <Loader2 size={14} className="animate-spin" /> AI tételek generálása…
+                  </div>
+                )}
+
+                {audioAdded > 0 && (
+                  <div style={{ fontSize: '0.78rem', color: 'var(--success-text)', background: 'var(--success-bg)', border: '1px solid var(--success-border)', borderRadius: 'var(--radius-sm)', padding: '0.4rem 0.65rem', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                    <Check size={13} /> {audioAdded} tétel hozzáadva
                   </div>
                 )}
 
@@ -394,47 +418,11 @@ export default function SectionCard({ section, surveyEntry, surveyId, quoteId, c
                   </div>
                 )}
 
-                {pendingEntries.length > 0 && (
-                  <div style={{ background: '#f0fdf4', border: '1.5px solid #86efac', borderRadius: 'var(--radius-md)', padding: '0.75rem', marginBottom: '0.75rem' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                      <span style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', color: '#15803d', letterSpacing: '0.04em' }}>
-                        AI javaslat ({pendingEntries.length} tétel)
-                      </span>
-                      <button type="button" onClick={acceptAllPending} className="btn btn-sm" style={{ fontSize: '0.72rem', background: '#16a34a', color: '#fff', border: 'none', padding: '0.25rem 0.6rem' }}>
-                        <Check size={12} /> Összes elfogad
-                      </button>
-                    </div>
-                    {pendingEntries.map(e => {
-                      const tc = TYPE_COLORS[e.entry_type] || TYPE_COLORS.other;
-                      const Icon = TYPE_ICONS[e.entry_type] || MoreHorizontal;
-                      const amount = e.unit_price != null && e.quantity != null
-                        ? Math.round(e.quantity * e.unit_price)
-                        : (e.flat_amount ?? null);
-                      return (
-                        <div key={e._key} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', padding: '0.35rem 0', borderBottom: '1px solid #bbf7d0' }}>
-                          <div style={{ padding: '0.2rem', borderRadius: 'var(--radius-sm)', background: tc.bg, flexShrink: 0, marginTop: 2 }}>
-                            <Icon size={10} color={tc.color} />
-                          </div>
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ fontWeight: 600, fontSize: '0.85rem', color: 'var(--text-primary)' }}>{e.work_description}</div>
-                            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                              {e.quantity != null ? `${e.quantity} ${e.unit || ''}` : (e.unit || '')}
-                              {e.unit_price != null ? ` · ${e.unit_price.toLocaleString('hu-HU')} Ft/${e.unit}` : ''}
-                              {amount != null ? ` · ${amount.toLocaleString('hu-HU')} Ft` : ''}
-                            </div>
-                            {e.notes && <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>{e.notes}</div>}
-                          </div>
-                          <div style={{ display: 'flex', gap: '0.3rem', flexShrink: 0 }}>
-                            <button type="button" onClick={() => acceptPending(e)} style={{ width: 28, height: 28, borderRadius: 'var(--radius-sm)', background: '#16a34a', border: 'none', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }} aria-label="Elfogad">
-                              <Check size={13} />
-                            </button>
-                            <button type="button" onClick={() => setPendingEntries(prev => prev.filter(x => x._key !== e._key))} style={{ width: 28, height: 28, borderRadius: 'var(--radius-sm)', background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', color: 'var(--danger-text)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }} aria-label="Elutasít">
-                              <X size={13} />
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })}
+                {canEdit && selectedEntries.size > 0 && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem', padding: '0.35rem 0.65rem', background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', borderRadius: 'var(--radius-md)' }}>
+                    <span style={{ flex: 1, fontSize: '0.75rem', fontWeight: 700, color: 'var(--danger-text)' }}>{selectedEntries.size} kijelölve</span>
+                    <button type="button" onClick={handleBatchDelete} className="btn btn-danger btn-sm" style={{ padding: '0.2rem 0.55rem', fontSize: '0.72rem' }}>Törlés</button>
+                    <button type="button" onClick={() => setSelectedEntries(new Set())} className="btn btn-secondary btn-sm" style={{ padding: '0.2rem 0.4rem' }}><X size={11} /></button>
                   </div>
                 )}
 
@@ -447,38 +435,40 @@ export default function SectionCard({ section, surveyEntry, surveyId, quoteId, c
                       const tc        = TYPE_COLORS[type]  || TYPE_COLORS.other;
                       const typeTotal = typeEntries.reduce((s, e) => s + Number(e.amount_huf || 0), 0);
                       return (
-                        <div key={type} style={{ background: 'var(--bg-subtle)', borderRadius: 'var(--radius-md)', padding: '0.5rem 0.65rem' }}>
+                        <div key={type} style={{ background: 'var(--bg-subtle)', borderRadius: 'var(--radius-md)', padding: '0.4rem 0.65rem' }}>
                           {/* Type label */}
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', marginBottom: '0.35rem' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', marginBottom: '0.3rem' }}>
                             <div style={{ padding: '0.15rem', borderRadius: 'var(--radius-sm)', background: tc.bg, flexShrink: 0 }}><Icon size={10} color={tc.color} /></div>
-                            <span style={{ fontSize: '0.68rem', fontWeight: 700, color: tc.color, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{QUOTE_ENTRY_LABELS[type]}</span>
+                            <span style={{ fontSize: '0.65rem', fontWeight: 700, color: tc.color, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{QUOTE_ENTRY_LABELS[type]}</span>
                           </div>
-                          {/* Entries — no row borders, just spacing */}
                           {typeEntries.map((entry) => {
                             const useQty = entry.entry_type === 'material' || entry.entry_type === 'labour';
+                            const isSelected = selectedEntries.has(entry.id);
                             return (
-                              <div key={entry.id} style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', padding: '0.3rem 0' }}>
+                              <div key={entry.id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.2rem 0', background: isSelected ? 'var(--danger-bg)' : 'transparent', borderRadius: 'var(--radius-sm)', marginLeft: '-0.25rem', paddingLeft: '0.25rem' }}>
+                                {canEditEntry(entry) && (
+                                  <input type="checkbox" checked={isSelected} onChange={() => toggleEntry(entry.id)}
+                                    style={{ flexShrink: 0, width: 14, height: 14, accentColor: 'var(--danger)', cursor: 'pointer', margin: 0 }} />
+                                )}
                                 <div style={{ flex: 1, minWidth: 0 }}>
-                                  <div style={{ fontWeight: 600, fontSize: '0.875rem', color: 'var(--text-primary)' }}>{entry.work_description}</div>
-                                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginTop: '0.05rem' }}>
+                                  <div style={{ fontWeight: 600, fontSize: '0.8rem', color: 'var(--text-primary)' }}>{entry.work_description}</div>
+                                  <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                                     {useQty && entry.quantity != null && <span>{entry.quantity} {entry.unit||'db'}{entry.unit_price ? ` × ${formatHUF(entry.unit_price)}` : ''}</span>}
                                     {entry.notes && <span style={{ fontStyle: 'italic' }}>{entry.notes}</span>}
                                     {activeCollectiveId && entry.created_by_name && <span style={{ opacity: 0.7 }}>· {entry.created_by_name}</span>}
                                   </div>
                                 </div>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', flexShrink: 0 }}>
-                                  <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, fontSize: '0.875rem' }}>{formatHUF(entry.amount_huf)}</span>
-                                  {canEditEntry(entry) && <>
-                                    <button type="button" onClick={() => onEditEntry(section.id, entry.id)} className="btn btn-secondary btn-sm" style={{ padding: '0.2rem 0.4rem' }}><Edit3 size={11} /></button>
-                                    <button type="button" onClick={() => onDeleteEntry(entry)} className="btn btn-danger btn-sm" style={{ padding: '0.2rem 0.4rem' }}><X size={11} /></button>
-                                  </>}
+                                  <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: '0.8rem' }}>{formatHUF(entry.amount_huf)}</span>
+                                  {canEditEntry(entry) && (
+                                    <button type="button" onClick={() => onEditEntry(section.id, entry.id)} className="btn btn-secondary btn-sm" style={{ padding: '0.15rem 0.35rem' }}><Edit3 size={11} /></button>
+                                  )}
                                 </div>
                               </div>
                             );
                           })}
-                          {/* Type subtotal — no border, right-aligned */}
-                          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '0.25rem' }}>
-                            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)' }}>{formatHUF(typeTotal)}</span>
+                          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '0.2rem' }}>
+                            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)' }}>{formatHUF(typeTotal)}</span>
                           </div>
                         </div>
                       );
@@ -494,6 +484,40 @@ export default function SectionCard({ section, surveyEntry, surveyId, quoteId, c
               </div>
             );
           })()}
+
+          {/* Media gallery — always at the bottom, only shown when photos exist */}
+          {hasMedia && (
+            <div style={{ marginTop: '0.75rem', borderTop: '1px solid var(--border-subtle)', paddingTop: '0.75rem' }}>
+              {canEditSection ? (
+                <SectionPhotoZone
+                  quoteId={quoteId}
+                  quoteSurveyId={quote?.survey_id}
+                  quoteTitle={quote?.title}
+                  quoteClientId={quote?.client_id}
+                  section={{ ...section, survey_entry_id: section.survey_entry_id || null }}
+                  onEntryCreated={(sId, svId, eId) => updateQuoteSection(quoteId, sId, { survey_entry_id: eId }).catch(() => {})}
+                  triggerUpload={triggerPhoto}
+                />
+              ) : (
+                <SectionMediaGrid surveyId={quote.survey_id} surveyEntryId={section.survey_entry_id} isLocked={true} mediaItems={sectionMediaItems.length > 0 ? sectionMediaItems : undefined} />
+              )}
+            </div>
+          )}
+
+          {/* Hidden SectionPhotoZone — upload logic only, no visible UI, triggered via BottomSheet */}
+          {!hasMedia && canEditSection && (
+            <div style={{ display: 'none' }}>
+              <SectionPhotoZone
+                quoteId={quoteId}
+                quoteSurveyId={quote?.survey_id}
+                quoteTitle={quote?.title}
+                quoteClientId={quote?.client_id}
+                section={{ ...section, survey_entry_id: section.survey_entry_id || null }}
+                onEntryCreated={(sId, svId, eId) => updateQuoteSection(quoteId, sId, { survey_entry_id: eId }).catch(() => {})}
+                triggerUpload={triggerPhoto}
+              />
+            </div>
+          )}
         </div>
       )}
     </div>

@@ -32,8 +32,8 @@ export default function Lightbox({ media, startIndex = 0, onClose }) {
 
   if (!cur) return null;
 
-  const src    = cur.url || cur.drive_view_url;
-  const thumb  = (m) => m.thumbnailUrl || m.thumbnail_url || m.url || m.drive_view_url;
+  const src    = cur.url || cur.cdn_url || cur.drive_view_url;
+  const thumb  = (m) => m.thumbnailUrl || m.thumbnail_url || m.url || m.cdn_url || m.drive_view_url;
   const isVid  = (m) => m.mime_type?.startsWith('video/') || m.type === 'video';
   const showThumbs = media.length > 1;
 
