@@ -1,10 +1,13 @@
 'use client';
 
 import React from 'react';
-import { Camera, Loader2, Play, X } from 'lucide-react';
+import { Camera, ImageIcon, Loader2, Play, X } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { processMediaFile } from '@/lib/mediaGate';
 import Lightbox from '@/components/Lightbox';
+import CameraCapture from '@/components/CameraCapture';
+
+const supportsUserMedia = typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getUserMedia;
 
 export default function SectionMediaGrid({ surveyId, surveyEntryId, isLocked }) {
   const { surveyEntriesBySurvey, uploadSurveyMedia, deleteSurveyMedia } = useApp();
@@ -13,6 +16,7 @@ export default function SectionMediaGrid({ surveyId, surveyEntryId, isLocked }) 
   const [uploading, setUploading] = React.useState(false);
   const [uploadErr, setUploadErr] = React.useState('');
   const [confirmId, setConfirmId] = React.useState(null);
+  const [showCamera, setShowCamera] = React.useState(false);
 
   const entries = surveyEntriesBySurvey[surveyId] || [];
   const entry = entries.find(e => e.id === surveyEntryId);
@@ -40,12 +44,30 @@ export default function SectionMediaGrid({ surveyId, surveyEntryId, isLocked }) 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: media.length > 0 ? '0.5rem' : 0 }}>
         <span style={{ fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.04em' }}>Fotók ({media.length})</span>
         {!isLocked && (
-          <>
+          <div style={{ display: 'flex', gap: '0.35rem', alignItems: 'center' }}>
             <input ref={inputRef} type="file" accept="image/*,video/*" multiple onChange={handleFiles} style={{ display: 'none' }} />
-            <button type="button" onClick={() => inputRef.current?.click()} disabled={uploading} className="btn btn-secondary btn-sm" style={{ fontSize: '0.72rem' }}>
-              {uploading ? <><Loader2 size={12} className="animate-spin" />Feltöltés…</> : <><Camera size={12} /> Fotó hozzáadása</>}
+            {supportsUserMedia && (
+              <button
+                type="button"
+                onClick={() => setShowCamera(true)}
+                className="btn btn-secondary btn-sm"
+                style={{ fontSize: '0.72rem' }}
+                title="Kamera"
+              >
+                <Camera size={12} /> Kamera
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => inputRef.current?.click()}
+              disabled={uploading}
+              className="btn btn-secondary btn-sm"
+              style={{ fontSize: '0.72rem' }}
+              title="Galériából"
+            >
+              {uploading ? <><Loader2 size={12} className="animate-spin" />Feltöltés…</> : <><ImageIcon size={12} /> Galéria</>}
             </button>
-          </>
+          </div>
         )}
       </div>
       {uploadErr && <p style={{ fontSize: '0.72rem', color: 'var(--danger-text)', margin: '0 0 0.35rem' }}>{uploadErr}</p>}
@@ -72,6 +94,13 @@ export default function SectionMediaGrid({ surveyId, surveyEntryId, isLocked }) 
         </div>
       )}
       {lightbox !== null && <Lightbox media={media} startIndex={lightbox} onClose={() => setLightbox(null)} />}
+      {showCamera && (
+        <CameraCapture
+          surveyId={surveyId}
+          surveyEntryId={surveyEntryId}
+          onClose={() => setShowCamera(false)}
+        />
+      )}
     </div>
   );
 }
