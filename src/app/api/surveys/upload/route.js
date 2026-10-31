@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { uploadToR2, r2PublicUrl, diaryMediaKey } from '@/lib/r2';
+import { checkSurveyAccess } from '@/lib/surveyAccess';
 
 const MAX_FILES = 10;
 const MAX_IMAGE_BYTES = 4 * 1024 * 1024;   // 4 MB — client compresses to ~400 KB, headroom for WebP
@@ -27,13 +28,8 @@ export async function POST(request) {
   const { data: survey } = await admin.from('surveys').select('owner_id, collective_id, shared_with, created_by').eq('id', surveyId).single();
   if (!survey) return Response.json({ error: 'Felmérés nem található' }, { status: 404 });
   if (profile.role !== 'superadmin') {
-    const isOwner  = survey.owner_id === user.id || survey.created_by === user.id;
-    const isShared = (survey.shared_with || []).includes(user.id);
-    if (!isOwner && !isShared) {
-      if (!survey.collective_id) return Response.json({ error: 'Forbidden' }, { status: 403 });
-      const { data: mem } = await admin.from('collective_members').select('collective_id').eq('collective_id', survey.collective_id).eq('user_id', user.id).eq('status', 'active').maybeSingle();
-      if (!mem) return Response.json({ error: 'Forbidden' }, { status: 403 });
-    }
+    const access = await checkSurveyAccess(admin, survey, user.id, surveyId);
+    if (!access.allowed) return Response.json({ error: 'Forbidden' }, { status: 403 });
   }
 
   const entityId = survey.collective_id || user.id;

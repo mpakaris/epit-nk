@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { deleteFromR2 } from '@/lib/r2';
 import { checkWhereImageIsUsed } from '@/lib/mediaUsage';
+import { checkSurveyAccess } from '@/lib/surveyAccess';
 
 export async function DELETE(request, { params }) {
   const { id: surveyId, mediaId } = await params;
@@ -30,14 +31,10 @@ export async function DELETE(request, { params }) {
     const isShared = (survey.shared_with || []).includes(user.id);
 
     if (!isOwner && !isShared) {
-      if (!survey.collective_id) return Response.json({ error: 'Forbidden' }, { status: 403 });
+      const access = await checkSurveyAccess(admin, survey, user.id, surveyId);
+      if (!access.allowed) return Response.json({ error: 'Forbidden' }, { status: 403 });
 
-      const { data: mem } = await admin.from('collective_members')
-        .select('role').eq('collective_id', survey.collective_id)
-        .eq('user_id', user.id).eq('status', 'active').maybeSingle();
-      if (!mem) return Response.json({ error: 'Forbidden' }, { status: 403 });
-
-      const isKollektivOwner = mem.role === 'owner' || mem.role === 'admin';
+      const isKollektivOwner = access.memberRole === 'owner' || access.memberRole === 'admin';
       if (!isKollektivOwner) {
         // Contributor: can only delete files they personally uploaded
         if (media.uploaded_by !== user.id) {

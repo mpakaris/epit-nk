@@ -12,13 +12,24 @@ export async function GET(request, { params }) {
 
   // Verify caller can access this quote (owner, shared, or superadmin)
   const { data: profile } = await admin.from('profiles').select('role').eq('id', user.id).single();
-  const { data: quote }   = await admin.from('quotes').select('owner_id, shared_with').eq('id', id).single();
+  const { data: quote }   = await admin.from('quotes').select('owner_id, created_by, collective_id, shared_with').eq('id', id).single();
 
   if (!quote) return Response.json({ error: 'Not found' }, { status: 404 });
 
-  const canAccess = profile?.role === 'superadmin'
-    || quote.owner_id === user.id
-    || (quote.shared_with || []).includes(user.id);
+  const isOwner = quote.owner_id === user.id || quote.created_by === user.id;
+  const isShared = (quote.shared_with || []).includes(user.id);
+  let canAccess = profile?.role === 'superadmin' || isOwner || isShared;
+
+  if (!canAccess && quote.collective_id) {
+    const { data: mem } = await admin
+      .from('collective_members')
+      .select('role')
+      .eq('collective_id', quote.collective_id)
+      .eq('user_id', user.id)
+      .eq('status', 'active')
+      .maybeSingle();
+    canAccess = !!mem;
+  }
 
   if (!canAccess) return Response.json({ error: 'Forbidden' }, { status: 403 });
 

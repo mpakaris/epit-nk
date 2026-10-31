@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { logAudit } from '@/lib/audit';
 import { hasPendingTransfer, canUnlockToPersonal } from '@/lib/transferLock';
+import { checkSurveyAccess } from '@/lib/surveyAccess';
 
 async function getCallerAndSurvey(id) {
   const supabase = await createClient();
@@ -24,39 +25,9 @@ async function getCallerAndSurvey(id) {
 
   if (isOwner || isShared) return { user, profile, admin, survey, isOwner };
 
-  // Direct collective check: survey itself belongs to a collective
-  if (survey.collective_id) {
-    const { data: mem } = await admin
-      .from('collective_members')
-      .select('role')
-      .eq('collective_id', survey.collective_id)
-      .eq('user_id', user.id)
-      .eq('status', 'active')
-      .maybeSingle();
-    if (mem) return { user, profile, admin, survey, isOwner: false, memberRole: mem.role };
-  }
-
-  // Fallback: survey is personal but referenced by a collective quote (transferred quote scenario).
-  // Grant read access to members of that collective.
-  const { data: linkedQuote } = await admin
-    .from('quotes')
-    .select('collective_id')
-    .eq('survey_id', id)
-    .not('collective_id', 'is', null)
-    .maybeSingle();
-
-  if (linkedQuote?.collective_id) {
-    const { data: mem } = await admin
-      .from('collective_members')
-      .select('role')
-      .eq('collective_id', linkedQuote.collective_id)
-      .eq('user_id', user.id)
-      .eq('status', 'active')
-      .maybeSingle();
-    if (mem) return { user, profile, admin, survey, isOwner: false, memberRole: mem.role };
-  }
-
-  return { err: 'Forbidden', status: 403 };
+  const access = await checkSurveyAccess(admin, survey, user.id, id);
+  if (!access.allowed) return { err: 'Forbidden', status: 403 };
+  return { user, profile, admin, survey, isOwner: false, memberRole: access.memberRole };
 }
 
 export async function GET(request, { params }) {

@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { checkSurveyAccess } from '@/lib/surveyAccess';
 
 async function getCtx(surveyId) {
   const supabase = await createClient();
@@ -11,13 +12,8 @@ async function getCtx(surveyId) {
   const { data: survey } = await admin.from('surveys').select('*').eq('id', surveyId).single();
   if (!survey) return { err: 'Not found', status: 404 };
   if (profile.role !== 'superadmin') {
-    const isOwner  = survey.owner_id === user.id || survey.created_by === user.id;
-    const isShared = (survey.shared_with || []).includes(user.id);
-    if (!isOwner && !isShared) {
-      if (!survey.collective_id) return { err: 'Forbidden', status: 403 };
-      const { data: mem } = await admin.from('collective_members').select('collective_id').eq('collective_id', survey.collective_id).eq('user_id', user.id).eq('status', 'active').maybeSingle();
-      if (!mem) return { err: 'Forbidden', status: 403 };
-    }
+    const access = await checkSurveyAccess(admin, survey, user.id, surveyId);
+    if (!access.allowed) return { err: 'Forbidden', status: 403 };
   }
   return { profile, admin };
 }

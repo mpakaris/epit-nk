@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { logOpenAiUsage } from '@/lib/waAssistant/logAiUsage';
 import { logAiCall } from '@/lib/waAssistant/logAiCall';
+import { checkSurveyAccess } from '@/lib/surveyAccess';
 
 const MODEL = 'gpt-4o';
 
@@ -17,13 +18,8 @@ export async function POST(request, { params }) {
     .select('owner_id, created_by, collective_id').eq('id', surveyId).single();
   if (!survey) return Response.json({ error: 'Not found' }, { status: 404 });
 
-  const isOwner = survey.owner_id === user.id || survey.created_by === user.id;
-  if (!isOwner) {
-    if (!survey.collective_id) return Response.json({ error: 'Forbidden' }, { status: 403 });
-    const { data: mem } = await admin.from('collective_members')
-      .select('role').eq('collective_id', survey.collective_id).eq('user_id', user.id).eq('status', 'active').maybeSingle();
-    if (!mem) return Response.json({ error: 'Forbidden' }, { status: 403 });
-  }
+  const access = await checkSurveyAccess(admin, survey, user.id, surveyId);
+  if (!access.allowed) return Response.json({ error: 'Forbidden' }, { status: 403 });
 
   const { transcript } = await request.json();
   if (!transcript?.trim()) return Response.json({ error: 'Nincs szöveg' }, { status: 400 });

@@ -274,8 +274,11 @@ export default function QuoteDetailPage() {
   }, [id, !!ctxQuote]);
 
   const quote          = ctxQuote || fallbackQuote;
-  const resolvedEntries  = ctxQuote ? quoteEntries.filter(e => e.quote_id === id) : (fallbackEntries  || []);
-  const resolvedSections = ctxQuote ? quoteSections.filter(s => s.quote_id === id) : (fallbackSections || []);
+  // Prefer fallback data when it has already been fetched — cacheQuote() makes ctxQuote
+  // truthy but does NOT populate quoteSections/quoteEntries in AppContext, so switching
+  // to the AppContext path would silently drop the sections.
+  const resolvedEntries  = fallbackEntries  !== null ? fallbackEntries  : quoteEntries.filter(e => e.quote_id === id);
+  const resolvedSections = fallbackSections !== null ? fallbackSections : quoteSections.filter(s => s.quote_id === id);
 
   useEffect(() => {
     if (quote?.survey_id) fetchSurveyMedia(quote.survey_id).catch(() => {});
