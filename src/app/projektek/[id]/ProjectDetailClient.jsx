@@ -13,6 +13,7 @@ import StatCard from '@/components/StatCard';
 import Modal, { ConfirmModal, AlertModal } from '@/components/Modal';
 import LockedDocumentModal from '@/components/LockedDocumentModal';
 import QuickCostSheet from '@/components/mobile/QuickCostSheet';
+import QuickDiarySheet from '@/components/mobile/QuickDiarySheet';
 import useMobile from '@/hooks/useMobile';
 import {
   ArrowLeft, Plus, Receipt, Coins, Users, TrendingUp, TrendingDown,
@@ -21,6 +22,7 @@ import {
   Phone, Mail, MapPin, ChevronUp, Link2, Copy, Check, AlertCircle, Lock,
   FileText, Ruler, Home, Calendar, User,
   Sparkles, Loader2, Settings, ChevronDown, Download, PencilLine, Paperclip, EyeOff, Eye,
+  MoreHorizontal, CircleDot, History,
 } from 'lucide-react';
 import Lightbox from '@/components/Lightbox';
 import BurndownCard from './components/BurndownCard';
@@ -44,7 +46,6 @@ export default function ProjectDetailClient({
   client,
   clients,
   currentUser,
-  isAdmin,
   initialDiaryCount = 0,
   initialRooms = [],
   initialPaymentPlan = [],
@@ -55,8 +56,7 @@ export default function ProjectDetailClient({
     deleteInvoice: ctxDeleteInvoice,
     deleteLabourEntry: ctxDeleteLabourEntry,
     deleteProject: ctxDeleteProject,
-    closeProject: ctxCloseProject,
-    reopenProject: ctxReopenProject,
+    setProjectStatus: ctxSetProjectStatus,
     updateInvoice: ctxUpdateInvoice,
     updateLabourEntry: ctxUpdateLabourEntry,
     quotes,
@@ -76,6 +76,8 @@ export default function ProjectDetailClient({
     quoteSections,
     activeCollectiveId,
     loading: ctxLoading,
+    labourEntries: ctxLabourEntries,
+    invoices: ctxInvoices,
     updateProject,
     createClient,
     clients: ctxClients,
@@ -85,6 +87,7 @@ export default function ProjectDetailClient({
   } = useApp();
 
   const navPrefix = isDemoMode ? '/demo' : '';
+  const isMobile = useMobile();
 
   const projectRooms = React.useMemo(() => {
     const sort = arr => [...arr].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0) || (a.created_at || '').localeCompare(b.created_at || ''));
@@ -106,9 +109,14 @@ export default function ProjectDetailClient({
   const [activeTab, setActiveTab] = useState('invoices');
   const [confirmModal, setConfirmModal] = useState(null);
   const [alertModal, setAlertModal] = useState(null);
-  const [archiveConfirm, setArchiveConfirm] = useState(false);
-  const [memberArchiveModal, setMemberArchiveModal] = useState(false);
   const [lockedModalOpen, setLockedModalOpen] = useState(() => !!project?.locked_reason);
+
+  // History
+  const [showHistoryModal,   setShowHistoryModal]   = useState(false);
+  const [history,            setHistory]            = useState(null);
+  const [historyTotal,       setHistoryTotal]       = useState(0);
+  const [historyLoading,     setHistoryLoading]     = useState(false);
+  const [historyLoadingMore, setHistoryLoadingMore] = useState(false);
   const [transferAttemptCount, setTransferAttemptCount] = useState(0);
 
   useEffect(() => {
@@ -125,6 +133,7 @@ export default function ProjectDetailClient({
   const [successMsg, setSuccessMsg] = useState('');
   const [toast, setToast] = useState('');
   const [showQuickCostSheet, setShowQuickCostSheet] = useState(false);
+  const [showQuickDiarySheet, setShowQuickDiarySheet] = useState(false);
   const [editingDiaryEntry, setEditingDiaryEntry] = useState(null);
   const [editingLabour, setEditingLabour] = useState(null);
   const [detailInvoice, setDetailInvoice] = useState(null);
@@ -152,7 +161,7 @@ export default function ProjectDetailClient({
       setDiaryLoading(true);
       fetchDiaryEntries(project.id).catch(() => {}).finally(() => setDiaryLoading(false));
     }
-    if (isAdmin && activeTab === 'naplo' && project && shareTokens.length === 0 && !shareLoading) {
+    if (canManageProject && activeTab === 'naplo' && project && shareTokens.length === 0 && !shareLoading) {
       setShareLoading(true);
       fetch(`/api/diary/share?project_id=${project.id}`)
         .then(r => r.json())
@@ -168,9 +177,13 @@ export default function ProjectDetailClient({
     // Personal projects: only those explicitly in project_members
     return initialUsers.filter(u => (project.members || []).includes(u.id));
   }, [initialUsers, project]);
+  // Prefer live context data (updated immediately on create/edit/delete) over server-side props
+  const liveLabour   = React.useMemo(() => ctxLabourEntries?.filter(e => e.project_id === project.id) ?? initialLabourEntries, [ctxLabourEntries, project.id, initialLabourEntries]);
+  const liveInvoices = React.useMemo(() => ctxInvoices?.filter(i => i.project_id === project.id)     ?? initialInvoices,      [ctxInvoices,      project.id, initialInvoices]);
+
   const fin = React.useMemo(
-    () => calculateProjectFinancials(project, initialInvoices, initialLabourEntries, projectMemberUsers, currentUser?.id),
-    [project, initialInvoices, initialLabourEntries, projectMemberUsers, currentUser]
+    () => calculateProjectFinancials(project, liveInvoices, liveLabour, projectMemberUsers, currentUser?.id),
+    [project, liveInvoices, liveLabour, projectMemberUsers, currentUser]
   );
 
   const filteredInvoices = fin.projectInvoices.filter(inv => {
@@ -200,6 +213,7 @@ export default function ProjectDetailClient({
   const isKollektivOwner = collectives?.some(c => c.collective_id === project.collective_id && (c.role === 'owner' || c.role === 'admin'));
   const canManageProject = !isDocLocked && (isKollektivOwner || project.created_by === currentUser?.id || project.owner_id === currentUser?.id);
 
+  const [showActionsSheet, setShowActionsSheet] = useState(false);
   const [showOptionsMenu, setShowOptionsMenu] = useState(false);
   const optionsRef = React.useRef(null);
   React.useEffect(() => {
@@ -223,43 +237,52 @@ export default function ProjectDetailClient({
     });
   };
 
-  const isClosed = !!project.closed_at;
+  const projectStatus = project.status || 'active';
+  const isClosed      = projectStatus === 'closed';
+  const isOwner       = project.owner_id === currentUser?.id || project.created_by === currentUser?.id;
 
-  const handleCloseProject = () => {
+  const STATUS_LABELS = { active: 'Aktív', paused: 'Szüneteltetett', closed: 'Lezárt' };
+  const STATUS_NEXT = [
+    { key: 'active', label: 'Aktívra állítás',  show: projectStatus !== 'active' },
+    { key: 'paused', label: 'Szüneteltetés',     show: projectStatus !== 'paused' },
+    { key: 'closed', label: 'Lezárás',           show: projectStatus !== 'closed' },
+  ];
+
+  const handleSetStatus = (newStatus) => {
+    const label = STATUS_LABELS[newStatus];
     setConfirmModal({
-      message: `Lezárja a(z) „${project.name}" projektet? A lezárt projekt újra megnyitható.`,
+      message: `„${project.name}" állapota: ${label}. Biztosan módosítod?`,
       onConfirm: async () => {
-        try { await ctxCloseProject(project.id); }
-        catch (err) { setAlertModal({ message: err.message || 'Hiba a lezáráskor' }); }
+        try { await ctxSetProjectStatus(project.id, newStatus); }
+        catch (err) { setAlertModal({ message: err.message || 'Hiba az állapot mentésekor' }); }
       }
     });
   };
 
-  const handleReopenProject = async () => {
-    try { await ctxReopenProject(project.id); }
-    catch (err) { setAlertModal({ message: err.message || 'Hiba a megnyitáskor' }); }
-  };
-
-  const isOwner = project.owner_id === currentUser?.id || project.created_by === currentUser?.id;
-
-  const handleArchiveToggle = () => {
-    if (!isOwner && !isKollektivOwner) { setMemberArchiveModal(true); return; }
-    setArchiveConfirm(true);
-  };
-
-  const doArchiveToggle = async () => {
-    const val = project.archived_at ? null : new Date().toISOString();
+  const openHistory = async () => {
+    setShowHistoryModal(true);
+    if (history !== null) return;
+    setHistoryLoading(true);
     try {
-      const res = await fetch(`/api/projects/${project.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ archived_at: val }),
-      });
-      if (!res.ok) throw new Error((await res.json()).error || 'Hiba');
-      router.refresh();
-    } catch (err) {
-      setAlertModal({ message: err.message });
-    }
+      const res = await fetch(`/api/projects/${project.id}/history?limit=15&offset=0`);
+      if (!res.ok) { setHistory([]); return; }
+      const data = await res.json();
+      setHistory(data.history || []);
+      setHistoryTotal(data.total || 0);
+    } catch { setHistory([]); }
+    finally { setHistoryLoading(false); }
+  };
+
+  const loadMoreHistory = async () => {
+    if (!history || historyLoadingMore) return;
+    setHistoryLoadingMore(true);
+    try {
+      const res = await fetch(`/api/projects/${project.id}/history?limit=15&offset=${history.length}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      setHistory(prev => [...(prev || []), ...(data.history || [])]);
+      setHistoryTotal(data.total || 0);
+    } catch {} finally { setHistoryLoadingMore(false); }
   };
 
   const handleDeleteInvoice = (invId) => {
@@ -423,27 +446,30 @@ export default function ProjectDetailClient({
       <div className="page-header" style={{ padding: '0.5rem 0 1rem' }}>
         <div className="page-header-row">
           <div>
-            {isAdmin && (
+            {currentUser?.role === 'superadmin' && (
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', color: 'var(--warning-text)', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', marginBottom: '0.15rem' }}>
                 <ShieldCheck size={15} /> Adminisztrátori nézet
               </div>
             )}
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
               <h1 className="page-title" style={{ margin: 0 }}>{project.name}</h1>
-              {isClosed && (
-                <span style={{ fontSize: '0.72rem', fontWeight: 700, background: 'var(--bg-subtle)', color: 'var(--text-muted)', border: '1px solid var(--border-subtle)', padding: '0.2rem 0.55rem', borderRadius: 'var(--radius-pill)', whiteSpace: 'nowrap' }}>
-                  Lezárt
-                </span>
+              {projectStatus === 'closed' && (
+                <span style={{ fontSize: '0.72rem', fontWeight: 700, background: 'var(--bg-subtle)', color: 'var(--text-muted)', border: '1px solid var(--border-subtle)', padding: '0.2rem 0.55rem', borderRadius: 'var(--radius-pill)', whiteSpace: 'nowrap' }}>Lezárt</span>
+              )}
+              {projectStatus === 'paused' && (
+                <span style={{ fontSize: '0.72rem', fontWeight: 700, background: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe', padding: '0.2rem 0.55rem', borderRadius: 'var(--radius-pill)', whiteSpace: 'nowrap' }}>Szünetel</span>
               )}
             </div>
             <p className="page-subtitle">{project.description || 'Nincs megadott leírás'}</p>
           </div>
           <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexShrink: 0 }}>
-            <Link href={`${navPrefix}/projektek/${project.id}/feltoltes`} className="btn btn-primary btn-sm">
-              <Camera size={15} /> <span>Bejegyzés</span>
-            </Link>
+            {!isMobile && (
+              <Link href={`${navPrefix}/projektek/${project.id}/feltoltes`} className="btn btn-primary btn-sm">
+                <Camera size={15} /> <span>Bejegyzés</span>
+              </Link>
+            )}
 
-            {canManageProject && (
+            {canManageProject && !isMobile && (
               <div ref={optionsRef} style={{ position: 'relative' }}>
                 <button
                   type="button"
@@ -457,49 +483,31 @@ export default function ProjectDetailClient({
                 </button>
 
                 {showOptionsMenu && (
-                  <div style={{ position: 'absolute', top: 'calc(100% + 6px)', right: 0, background: 'var(--bg-card, #fff)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', boxShadow: '0 6px 24px rgba(0,0,0,0.12)', zIndex: 200, minWidth: '170px', padding: '0.3rem', overflow: 'hidden' }}>
-                    <button
-                      type="button"
-                      onClick={() => { setShowOptionsMenu(false); setEditProjectOpen(true); }}
-                      style={{ display: 'flex', width: '100%', alignItems: 'center', gap: '0.55rem', padding: '0.55rem 0.75rem', borderRadius: 'var(--radius-sm)', background: 'none', border: 'none', color: 'var(--text-primary)', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', textAlign: 'left' }}
-                      onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-subtle)'}
-                      onMouseLeave={e => e.currentTarget.style.background = ''}
-                    >
-                      <Edit3 size={14} color="var(--text-muted)" /> Szerkesztés
-                    </button>
+                  <div style={{ position: 'absolute', top: 'calc(100% + 6px)', right: 0, background: 'var(--bg-card, #fff)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', boxShadow: '0 6px 24px rgba(0,0,0,0.12)', zIndex: 200, minWidth: '190px', padding: '0.3rem', overflow: 'hidden' }}>
+                    {/* Edit */}
+                    {[{ icon: Edit3, label: 'Szerkesztés', onClick: () => setEditProjectOpen(true) }].map(item => (
+                      <button key={item.label} type="button" onClick={() => { setShowOptionsMenu(false); item.onClick(); }} style={{ display: 'flex', width: '100%', alignItems: 'center', gap: '0.55rem', padding: '0.55rem 0.75rem', borderRadius: 'var(--radius-sm)', background: 'none', border: 'none', color: 'var(--text-primary)', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', textAlign: 'left' }} onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-subtle)'} onMouseLeave={e => e.currentTarget.style.background = ''}>
+                        <item.icon size={14} color="var(--text-muted)" /> {item.label}
+                      </button>
+                    ))}
 
-                    <button
-                      type="button"
-                      onClick={() => { setShowOptionsMenu(false); isClosed ? handleReopenProject() : handleCloseProject(); }}
-                      style={{ display: 'flex', width: '100%', alignItems: 'center', gap: '0.55rem', padding: '0.55rem 0.75rem', borderRadius: 'var(--radius-sm)', background: 'none', border: 'none', color: 'var(--text-primary)', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', textAlign: 'left' }}
-                      onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-subtle)'}
-                      onMouseLeave={e => e.currentTarget.style.background = ''}
-                    >
-                      <Lock size={14} color="var(--text-muted)" /> {isClosed ? 'Megnyitás' : 'Lezárás'}
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => { setShowOptionsMenu(false); handleArchiveToggle(); }}
-                      style={{ display: 'flex', width: '100%', alignItems: 'center', gap: '0.55rem', padding: '0.55rem 0.75rem', borderRadius: 'var(--radius-sm)', background: 'none', border: 'none', color: 'var(--text-primary)', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', textAlign: 'left' }}
-                      onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-subtle)'}
-                      onMouseLeave={e => e.currentTarget.style.background = ''}
-                    >
-                      {project.archived_at
-                        ? <Eye size={14} color="var(--text-muted)" />
-                        : <EyeOff size={14} color="var(--text-muted)" />}
-                      {project.archived_at ? 'Visszaállítás aktívra' : 'Inaktiválás'}
-                    </button>
-
+                    {/* Status options */}
                     <div style={{ height: '1px', background: 'var(--border-subtle)', margin: '0.25rem 0.3rem' }} />
+                    {STATUS_NEXT.filter(s => s.show).map(s => (
+                      <button key={s.key} type="button" onClick={() => { setShowOptionsMenu(false); handleSetStatus(s.key); }} style={{ display: 'flex', width: '100%', alignItems: 'center', gap: '0.55rem', padding: '0.55rem 0.75rem', borderRadius: 'var(--radius-sm)', background: 'none', border: 'none', color: 'var(--text-primary)', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', textAlign: 'left' }} onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-subtle)'} onMouseLeave={e => e.currentTarget.style.background = ''}>
+                        <CircleDot size={14} color="var(--text-muted)" /> {s.label}
+                      </button>
+                    ))}
 
-                    <button
-                      type="button"
-                      onClick={() => { setShowOptionsMenu(false); handleDeleteProject(); }}
-                      style={{ display: 'flex', width: '100%', alignItems: 'center', gap: '0.55rem', padding: '0.55rem 0.75rem', borderRadius: 'var(--radius-sm)', background: 'none', border: 'none', color: 'var(--danger-text)', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', textAlign: 'left' }}
-                      onMouseEnter={e => e.currentTarget.style.background = 'var(--danger-bg)'}
-                      onMouseLeave={e => e.currentTarget.style.background = ''}
-                    >
+                    {/* History */}
+                    <div style={{ height: '1px', background: 'var(--border-subtle)', margin: '0.25rem 0.3rem' }} />
+                    <button type="button" onClick={() => { setShowOptionsMenu(false); openHistory(); }} style={{ display: 'flex', width: '100%', alignItems: 'center', gap: '0.55rem', padding: '0.55rem 0.75rem', borderRadius: 'var(--radius-sm)', background: 'none', border: 'none', color: 'var(--text-primary)', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', textAlign: 'left' }} onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-subtle)'} onMouseLeave={e => e.currentTarget.style.background = ''}>
+                      <History size={14} color="var(--text-muted)" /> Előzmények
+                    </button>
+
+                    {/* Delete */}
+                    <div style={{ height: '1px', background: 'var(--border-subtle)', margin: '0.25rem 0.3rem' }} />
+                    <button type="button" onClick={() => { setShowOptionsMenu(false); handleDeleteProject(); }} style={{ display: 'flex', width: '100%', alignItems: 'center', gap: '0.55rem', padding: '0.55rem 0.75rem', borderRadius: 'var(--radius-sm)', background: 'none', border: 'none', color: 'var(--danger-text)', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', textAlign: 'left' }} onMouseEnter={e => e.currentTarget.style.background = 'var(--danger-bg)'} onMouseLeave={e => e.currentTarget.style.background = ''}>
                       <Trash2 size={14} /> Törlés
                     </button>
                   </div>
@@ -509,6 +517,7 @@ export default function ProjectDetailClient({
           </div>
         </div>
       </div>
+
 
       {successMsg && (
         <div style={{ background: 'var(--success-bg)', border: '1px solid var(--success-border)', color: 'var(--success-text)', padding: '0.65rem 0.85rem', borderRadius: 'var(--radius-md)', fontSize: '0.825rem', display: 'flex', alignItems: 'center', gap: '0.45rem', marginBottom: '1rem' }}>
@@ -589,7 +598,8 @@ export default function ProjectDetailClient({
         </div>
       </div>
 
-      {/* Chart row: bar chart (40%) + burndown (60%) */}
+      {/* Chart row: bar chart (40%) + burndown (60%) — hidden on mobile until there is cost */}
+      {(!isMobile || fin.totalCost > 0 || fin.totalLabourValue > 0) && (
       <div className="grid-chart" style={{ marginBottom: '1.5rem' }}>
         <CostBreakdownCard
           invoices={fin.projectInvoices}
@@ -603,6 +613,7 @@ export default function ProjectDetailClient({
           endDate={project.end_date}
         />
       </div>
+      )}
 
       {/* Sections */}
       {(() => {
@@ -658,69 +669,75 @@ export default function ProjectDetailClient({
             )}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(280px, 100%), 1fr))', gap: '0.65rem' }}>
               {projectRooms.map(room => {
-                const actual = roomCost(room.id);
-                const quoted = room.quoted_amount_net;
-                const invCount = (invoicesByRoom[room.id] || []).length;
-                const labCount = (labourByRoom[room.id] || []).length;
+                const actual    = roomCost(room.id);
+                const quoted    = room.quoted_amount_net;
+                const invCount  = (invoicesByRoom[room.id] || []).length;
+                const labCount  = (labourByRoom[room.id] || []).length;
+                const overBudget = quoted != null && actual > quoted;
                 return (
-                  <div key={room.id} className="card" style={{ padding: '0.85rem 1rem' }}>
-                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '0.5rem', marginBottom: '0.35rem' }}>
-                      <div>
-                        <div style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-primary)' }}>{room.name}</div>
-                        {room.size_m2 != null && (
-                          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.1rem' }}>
-                            <Ruler size={11} style={{ verticalAlign: 'middle', marginRight: 2 }} />{room.size_m2} m²
-                          </div>
-                        )}
-                      </div>
-                      {actual > 0 && (
-                        <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                          <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, fontSize: '0.9rem', color: 'var(--text-primary)' }}>{formatHUF(actual)}</div>
-                          {quoted != null && (
-                            <div style={{ fontSize: '0.68rem', color: actual > quoted ? 'var(--danger-text)' : 'var(--success-text)', fontWeight: 600 }}>
-                              {actual > quoted ? '↑' : '↓'} terv: {formatHUF(quoted)}
+                  <div key={room.id} style={{ borderRadius: 'var(--radius-md)', overflow: 'hidden', border: '1.5px solid #cbd5e1' }}>
+                    {/* Dark header */}
+                    <div style={{ background: '#1e3a5f', padding: '0.75rem 1rem' }}>
+                      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '0.5rem' }}>
+                        <div style={{ minWidth: 0, flex: 1 }}>
+                          <div style={{ fontWeight: 800, fontSize: '1.05rem', color: '#fff', lineHeight: 1.2 }}>{room.name}</div>
+                          {room.size_m2 != null && (
+                            <div style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.6)', marginTop: '0.15rem', display: 'flex', alignItems: 'center', gap: 3 }}>
+                              <Ruler size={10} />{room.size_m2} m²
                             </div>
                           )}
                         </div>
-                      )}
-                      {actual === 0 && quoted != null && (
                         <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                          <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontWeight: 600 }}>terv: {formatHUF(quoted)}</div>
+                          {actual > 0 && (
+                            <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 900, fontSize: '1.1rem', color: '#fff' }}>{formatHUF(actual)}</div>
+                          )}
+                          {quoted != null && (
+                            <div style={{ fontSize: '0.68rem', fontWeight: 700, color: overBudget ? '#fca5a5' : '#86efac', marginTop: '0.1rem' }}>
+                              {actual > 0 ? (overBudget ? '↑' : '↓') + ' ' : ''}terv: {formatHUF(quoted)}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    {/* Light body */}
+                    <div style={{ background: '#f0f4f8', padding: '0.65rem 1rem' }}>
+                      {room.work_types && room.work_types.length > 0 && (
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem', marginBottom: '0.45rem' }}>
+                          {room.work_types.map(t => (
+                            <span key={t} style={{ fontSize: '0.67rem', fontWeight: 700, padding: '0.1rem 0.4rem', borderRadius: 999, background: '#e2e8f0', border: '1px solid #cbd5e1', color: '#475569' }}>{t}</span>
+                          ))}
                         </div>
                       )}
-                    </div>
-                    {room.work_types && room.work_types.length > 0 && (
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem', marginBottom: '0.35rem' }}>
-                        {room.work_types.map(t => (
-                          <span key={t} style={{ fontSize: '0.67rem', fontWeight: 700, padding: '0.1rem 0.4rem', borderRadius: 'var(--radius-pill)', background: 'var(--bg-subtle)', border: '1px solid var(--border-subtle)', color: 'var(--text-secondary)' }}>{t}</span>
-                        ))}
+                      {(invCount > 0 || labCount > 0) && (
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', gap: '0.65rem' }}>
+                          {invCount > 0 && <span>{invCount} számla</span>}
+                          {labCount > 0 && <span>{labCount} munka</span>}
+                        </div>
+                      )}
+                      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.35rem', marginTop: '0.55rem', paddingTop: '0.55rem', borderTop: '1px solid #cbd5e1' }}>
+                        <button type="button" className="btn btn-secondary btn-sm" title="Szerkesztés" onClick={() => { setEditingRoom(room); setRoomModalOpen(true); }}>
+                          <Edit3 size={13} />
+                        </button>
+                        <button type="button" className="btn btn-danger btn-sm" title="Törlés" onClick={() => handleDeleteRoom(room)}>
+                          <Trash2 size={13} />
+                        </button>
                       </div>
-                    )}
-                    {(invCount > 0 || labCount > 0) && (
-                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', gap: '0.65rem', marginTop: '0.25rem' }}>
-                        {invCount > 0 && <span>{invCount} számla</span>}
-                        {labCount > 0 && <span>{labCount} munka</span>}
-                      </div>
-                    )}
-                    <div style={{ display: 'flex', gap: '0.3rem', marginTop: '0.5rem', borderTop: '1px solid var(--border-subtle)', paddingTop: '0.5rem' }}>
-                      <button type="button" className="btn btn-secondary btn-sm" style={{ padding: '0.2rem 0.45rem', fontSize: '0.72rem' }} onClick={() => { setEditingRoom(room); setRoomModalOpen(true); }}>
-                        <Edit3 size={11} /> Szerkesztés
-                      </button>
-                      <button type="button" className="btn btn-danger btn-sm" style={{ padding: '0.2rem 0.45rem', fontSize: '0.72rem' }} onClick={() => handleDeleteRoom(room)}>
-                        <Trash2 size={11} /> Törlés
-                      </button>
                     </div>
                   </div>
                 );
               })}
               {/* General (unassigned) costs */}
               {(invoicesByRoom['general']?.length > 0 || labourByRoom['general']?.length > 0) && (
-                <div className="card" style={{ padding: '0.85rem 1rem', borderStyle: 'dashed' }}>
-                  <div style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: '0.35rem' }}>Általános (szekció nélkül)</div>
-                  <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, fontSize: '0.9rem' }}>{formatHUF(roomCost('general'))}</div>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', gap: '0.65rem', marginTop: '0.25rem' }}>
-                    {(invoicesByRoom['general']?.length || 0) > 0 && <span>{invoicesByRoom['general'].length} számla</span>}
-                    {(labourByRoom['general']?.length || 0) > 0 && <span>{labourByRoom['general'].length} munka</span>}
+                <div style={{ borderRadius: 'var(--radius-md)', overflow: 'hidden', border: '1.5px dashed #cbd5e1' }}>
+                  <div style={{ background: '#475569', padding: '0.75rem 1rem' }}>
+                    <div style={{ fontWeight: 800, fontSize: '1.05rem', color: '#fff' }}>Általános</div>
+                    <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 900, fontSize: '1.1rem', color: '#fff', marginTop: '0.15rem' }}>{formatHUF(roomCost('general'))}</div>
+                  </div>
+                  <div style={{ background: '#f8fafc', padding: '0.65rem 1rem' }}>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', gap: '0.65rem' }}>
+                      {(invoicesByRoom['general']?.length || 0) > 0 && <span>{invoicesByRoom['general'].length} számla</span>}
+                      {(labourByRoom['general']?.length || 0) > 0 && <span>{labourByRoom['general'].length} munka</span>}
+                    </div>
                   </div>
                 </div>
               )}
@@ -888,10 +905,12 @@ export default function ProjectDetailClient({
               <option value="ALL">Minden kategória</option>
               {INVOICE_CATEGORIES.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
             </select>
-            <select value={uploaderFilter} onChange={e => setUploaderFilter(e.target.value)} className="form-control" style={{ padding: '0.4rem 0.75rem', minHeight: '38px' }}>
-              <option value="ALL">Minden feltöltő</option>
-              {projectMemberUsers.map(u => <option key={u.id} value={u.id}>{u.display_name}</option>)}
-            </select>
+            {projectMemberUsers.length > 1 && (
+              <select value={uploaderFilter} onChange={e => setUploaderFilter(e.target.value)} className="form-control" style={{ padding: '0.4rem 0.75rem', minHeight: '38px' }}>
+                <option value="ALL">Minden feltöltő</option>
+                {projectMemberUsers.map(u => <option key={u.id} value={u.id}>{u.display_name}</option>)}
+              </select>
+            )}
             {projectRooms.length > 0 && (
               <select value={roomFilter} onChange={e => setRoomFilter(e.target.value)} className="form-control" style={{ padding: '0.4rem 0.75rem', minHeight: '38px' }}>
                 <option value="ALL">Minden szekció</option>
@@ -899,7 +918,9 @@ export default function ProjectDetailClient({
                 {projectRooms.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
               </select>
             )}
-            <Link href={`${navPrefix}/projektek/${project.id}/feltoltes`} className="btn btn-primary btn-sm" style={{ marginLeft: 'auto', whiteSpace: 'nowrap' }}><Plus size={15} /> Új bejegyzés</Link>
+            {!isMobile && (
+              <Link href={`${navPrefix}/projektek/${project.id}/feltoltes`} className="btn btn-primary btn-sm" style={{ marginLeft: 'auto', whiteSpace: 'nowrap' }}><Plus size={15} /> Új bejegyzés</Link>
+            )}
           </div>
           {filteredInvoices.length === 0 ? (
             <div className="card" style={{ textAlign: 'center', padding: '2.5rem 1.5rem' }}>
@@ -911,7 +932,14 @@ export default function ProjectDetailClient({
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(300px, 100%), 1fr))', gap: '0.85rem' }}>
               {filteredInvoices.map(inv => (
-                <InvoiceCard key={inv.id} invoice={inv} room={projectRooms.find(r => r.id === inv.room_id) || null} onClick={() => setDetailInvoice(inv)} />
+                <InvoiceCard
+                  key={inv.id}
+                  invoice={inv}
+                  room={projectRooms.find(r => r.id === inv.room_id) || null}
+                  onClick={() => setDetailInvoice(inv)}
+                  canEdit={canManageProject || inv.uploaded_by === currentUser?.id}
+                  onDelete={canManageProject || inv.uploaded_by === currentUser?.id ? () => handleDeleteInvoice(inv.id) : undefined}
+                />
               ))}
             </div>
           )}
@@ -929,10 +957,12 @@ export default function ProjectDetailClient({
               onChange={e => setLabourTypeFilter(e.target.value)}
               style={{ padding: '0.4rem 0.75rem', minHeight: '38px' }}
             />
-            <select value={labourUploaderFilter} onChange={e => setLabourUploaderFilter(e.target.value)} className="form-control" style={{ padding: '0.4rem 0.75rem', minHeight: '38px' }}>
-              <option value="ALL">Minden feltöltő</option>
-              {projectMemberUsers.map(u => <option key={u.id} value={u.id}>{u.display_name}</option>)}
-            </select>
+            {projectMemberUsers.length > 1 && (
+              <select value={labourUploaderFilter} onChange={e => setLabourUploaderFilter(e.target.value)} className="form-control" style={{ padding: '0.4rem 0.75rem', minHeight: '38px' }}>
+                <option value="ALL">Minden feltöltő</option>
+                {projectMemberUsers.map(u => <option key={u.id} value={u.id}>{u.display_name}</option>)}
+              </select>
+            )}
             {projectRooms.length > 0 && (
               <select value={roomFilter} onChange={e => setRoomFilter(e.target.value)} className="form-control" style={{ padding: '0.4rem 0.75rem', minHeight: '38px' }}>
                 <option value="ALL">Minden szekció</option>
@@ -940,7 +970,9 @@ export default function ProjectDetailClient({
                 {projectRooms.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
               </select>
             )}
-            <Link href={`${navPrefix}/projektek/${project.id}/feltoltes`} className="btn btn-primary btn-sm" style={{ marginLeft: 'auto', whiteSpace: 'nowrap' }}><Plus size={15} /> Új bejegyzés</Link>
+            {!isMobile && (
+              <Link href={`${navPrefix}/projektek/${project.id}/feltoltes`} className="btn btn-primary btn-sm" style={{ marginLeft: 'auto', whiteSpace: 'nowrap' }}><Plus size={15} /> Új bejegyzés</Link>
+            )}
           </div>
 
           {filteredLabour.length === 0 ? (
@@ -953,76 +985,72 @@ export default function ProjectDetailClient({
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(300px, 100%), 1fr))', gap: '0.85rem' }}>
               {filteredLabour.map((entry) => {
-                const uploader = initialUsers.find(u => u.id === entry.uploaded_by);
+                const uploader     = initialUsers.find(u => u.id === entry.uploaded_by);
                 const canManageEntry = canManageProject || entry.uploaded_by === currentUser?.id;
-                const entryRoom = projectRooms.find(r => r.id === entry.room_id) || null;
+                const entryRoom    = projectRooms.find(r => r.id === entry.room_id) || null;
                 return (
-                  <div key={entry.id} className="card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: '0.85rem' }}>
-                    <div>
-                      {/* Top row: type badge + amount — mirrors InvoiceCard */}
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem', gap: '0.5rem' }}>
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.2rem 0.6rem', borderRadius: 'var(--radius-pill)', background: 'var(--success-bg)', border: '1px solid var(--success-border)', color: 'var(--success-text)', fontSize: '0.72rem', fontWeight: 700, flexShrink: 0 }}>
-                          <Hammer size={11} /> Munkadíj
-                        </span>
-                        <span style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--success-text)', fontFamily: 'var(--font-mono)', textAlign: 'right' }}>
-                          +{formatHUF(entry.value_huf)}
-                        </span>
+                  <div key={entry.id} style={{ borderRadius: 'var(--radius-md)', overflow: 'hidden', border: '1.5px solid #cbd5e1' }}>
+                    {/* Dark header */}
+                    <div style={{ background: '#1e3a5f', padding: '0.75rem 1rem' }}>
+                      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '0.5rem' }}>
+                        <div style={{ minWidth: 0, flex: 1 }}>
+                          <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'rgba(255,255,255,0.7)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.2rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                            <Hammer size={11} /> Munkadíj
+                          </div>
+                          <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 900, fontSize: '1.35rem', color: '#fff', lineHeight: 1.1 }}>
+                            +{formatHUF(entry.value_huf)}
+                          </div>
+                        </div>
+                        <div style={{ fontSize: '0.68rem', fontWeight: 700, padding: '0.12rem 0.45rem', borderRadius: 999, background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.25)', color: '#fff', flexShrink: 0 }}>
+                          {entry.hours} {entry.unit || 'h'}
+                        </div>
                       </div>
+                    </div>
 
-                      {/* Labour type — mirrors InvoiceCard description h4 */}
-                      <h4 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.4rem', lineHeight: 1.3 }}>
+                    {/* Light body */}
+                    <div style={{ background: '#f0f4f8', padding: '0.65rem 1rem' }}>
+                      <div style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.4rem', lineHeight: 1.3 }}>
                         {entry.labour_type}
-                      </h4>
-
-                      {/* Metadata row — same structure as InvoiceCard */}
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', fontSize: '0.775rem', color: 'var(--text-muted)', alignItems: 'center' }}>
-                        <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                          <User size={13} color="var(--accent)" />
+                      </div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', fontSize: '0.75rem', color: 'var(--text-muted)', alignItems: 'center' }}>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                          <User size={12} color="var(--accent)" />
                           <strong style={{ color: 'var(--text-secondary)' }}>{uploader?.display_name || 'Ismeretlen'}</strong>
                         </span>
-                        <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                          <Calendar size={13} />
-                          {formatDate(entry.date)}
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                          <Calendar size={12} />{formatDate(entry.date)}
                         </span>
-                        <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                          <Clock size={12} />
-                          {entry.hours} {entry.unit || 'h'} × {formatHUF(entry.hourly_rate)}
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                          <Clock size={12} />{entry.hours} {entry.unit || 'h'} × {formatHUF(entry.hourly_rate)}
                         </span>
                         {entryRoom ? (
-                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', padding: '0.15rem 0.5rem', borderRadius: 'var(--radius-pill)', background: 'var(--accent-light)', border: '1px solid var(--accent-border)', color: 'var(--accent)', fontWeight: 700, fontSize: '0.72rem' }}>
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', padding: '0.1rem 0.45rem', borderRadius: 999, background: 'var(--accent-light)', border: '1px solid var(--accent-border)', color: 'var(--accent)', fontWeight: 700, fontSize: '0.68rem' }}>
                             <Home size={10} />{entryRoom.name}
                           </span>
                         ) : (
-                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', padding: '0.15rem 0.5rem', borderRadius: 'var(--radius-pill)', background: 'var(--bg-subtle)', border: '1px solid var(--border-subtle)', color: 'var(--text-muted)', fontWeight: 600, fontSize: '0.72rem' }}>
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', padding: '0.1rem 0.45rem', borderRadius: 999, background: 'var(--bg-subtle)', border: '1px solid var(--border-subtle)', color: 'var(--text-muted)', fontWeight: 600, fontSize: '0.68rem' }}>
                             <Home size={10} />Általános
                           </span>
                         )}
                       </div>
-
                       {entry.description && (
-                        <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.4rem' }}>{entry.description}</div>
+                        <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '0.35rem' }}>{entry.description}</div>
                       )}
-
-                      {/* Last-edit audit */}
                       {entry.updated_at && (
-                        <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.35rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                          <PencilLine size={10} />
+                        <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', marginTop: '0.3rem', display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
+                          <PencilLine size={9} />
                           {entry.updated_by_name ? `${entry.updated_by_name} · ` : ''}{formatDate(entry.updated_at)}
                         </div>
                       )}
-                    </div>
-
-                    {/* Actions */}
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', paddingTop: '0.65rem', borderTop: '1px solid var(--border-subtle)', gap: '0.35rem' }}>
                       {canManageEntry && (
-                        <button type="button" onClick={() => setEditingLabour(entry)} className="btn btn-secondary btn-sm" title="Szerkesztés">
-                          <Edit3 size={13} />
-                        </button>
-                      )}
-                      {canManageEntry && (
-                        <button type="button" onClick={() => handleDeleteLabour(entry.id)} className="btn btn-danger btn-sm" title="Törlés">
-                          <Trash2 size={13} />
-                        </button>
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.35rem', marginTop: '0.55rem', paddingTop: '0.55rem', borderTop: '1px solid #cbd5e1' }}>
+                          <button type="button" onClick={() => setEditingLabour(entry)} className="btn btn-secondary btn-sm" title="Szerkesztés">
+                            <Edit3 size={13} />
+                          </button>
+                          <button type="button" onClick={() => handleDeleteLabour(entry.id)} className="btn btn-danger btn-sm" title="Törlés">
+                            <Trash2 size={13} />
+                          </button>
+                        </div>
                       )}
                     </div>
                   </div>
@@ -1131,7 +1159,7 @@ export default function ProjectDetailClient({
                   )}
                 </div>
               )}
-              {isAdmin && (
+              {canManageProject && (
                 <button
                   type="button"
                   className="btn btn-primary btn-sm"
@@ -1150,7 +1178,7 @@ export default function ProjectDetailClient({
                 <p style={{ color: 'var(--text-secondary)', fontSize: '0.825rem', marginBottom: '1rem' }}>
                   Add meg a projekt részletfizetéseit — az ügyfél a portálján látni fogja ezeket.
                 </p>
-                {isAdmin && (
+                {canManageProject && (
                   <button type="button" className="btn btn-primary btn-sm" onClick={() => { setEditingPayment(null); setShowPaymentModal(true); }}>
                     <Plus size={15} /> Első tétel hozzáadása
                   </button>
@@ -1209,10 +1237,10 @@ export default function ProjectDetailClient({
                           )}
 
                           {/* Files */}
-                          {((item.files || []).length > 0 || isAdmin) && (
+                          {((item.files || []).length > 0 || canManageProject) && (
                             <div style={{ marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid var(--border-subtle)' }}>
                               {(item.files || []).length > 0 && (
-                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(80px, 1fr))', gap: '0.5rem', marginBottom: isAdmin ? '0.55rem' : 0 }}>
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(80px, 1fr))', gap: '0.5rem', marginBottom: canManageProject ? '0.55rem' : 0 }}>
                                   {(item.files || []).map(f => {
                                     const isImg = f.mime_type?.startsWith('image/');
                                     const isPdf = f.mime_type === 'application/pdf' || f.file_name?.toLowerCase().endsWith('.pdf');
@@ -1245,7 +1273,7 @@ export default function ProjectDetailClient({
                                         <div style={{ marginTop: '0.2rem', fontSize: '0.65rem', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: 'center', maxWidth: '100%' }} title={f.file_name}>
                                           {f.file_name || 'fájl'}
                                         </div>
-                                        {isAdmin && (
+                                        {canManageProject && (
                                           <button
                                             type="button"
                                             onClick={() => handleFileDelete(item.id, f.id)}
@@ -1260,7 +1288,7 @@ export default function ProjectDetailClient({
                                   })}
                                 </div>
                               )}
-                              {isAdmin && (
+                              {canManageProject && (
                                 <>
                                   <input
                                     type="file"
@@ -1289,7 +1317,7 @@ export default function ProjectDetailClient({
                           <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 900, fontSize: '1rem', color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
                             {Number(item.amount_huf).toLocaleString('hu-HU')} Ft
                           </div>
-                          {isAdmin && (
+                          {canManageProject && (
                             <div style={{ display: 'flex', gap: '0.3rem' }}>
                               {item.status === 'pending' && (
                                 <button
@@ -1354,7 +1382,7 @@ export default function ProjectDetailClient({
             >
               <Copy size={14} /> Ügyfél link
             </button>
-            <Link href={`${navPrefix}/projektek/${project.id}/naplo/uj`} className="btn btn-primary btn-sm"><Plus size={15} /> Új bejegyzés</Link>
+            <button type="button" onClick={() => setShowQuickDiarySheet(true)} className="btn btn-primary btn-sm"><Plus size={15} /> Új bejegyzés</button>
           </div>
           {diaryLoading ? (
             <div className="card" style={{ textAlign: 'center', padding: '2.5rem 1.5rem', color: 'var(--text-muted)' }}>Betöltés...</div>
@@ -1363,7 +1391,7 @@ export default function ProjectDetailClient({
               <BookOpen size={36} color="var(--text-muted)" style={{ margin: '0 auto 0.5rem' }} />
               <h4 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '0.25rem' }}>Még nincs bejegyzés ebben a naplóban</h4>
               <p style={{ color: 'var(--text-secondary)', fontSize: '0.825rem', marginBottom: '1rem' }}>Az első fotós bejegyzéssel kezd el dokumentálni a munkát.</p>
-              <Link href={`${navPrefix}/projektek/${project.id}/naplo/uj`} className="btn btn-primary btn-sm"><Plus size={15} /> Első bejegyzés</Link>
+              <button type="button" onClick={() => setShowQuickDiarySheet(true)} className="btn btn-primary btn-sm"><Plus size={15} /> Első bejegyzés</button>
             </div>
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(320px, 100%), 1fr))', gap: '0.85rem' }}>
@@ -1371,78 +1399,101 @@ export default function ProjectDetailClient({
                 const entryDateStr = entry.entry_date ? new Date(entry.entry_date).toLocaleDateString('hu-HU', { year: 'numeric', month: 'long', day: 'numeric' }) : null;
                 const author = initialUsers.find(u => u.id === entry.created_by);
                 const canDelete = entry.created_by === currentUser?.id || canManageProject;
+                const entryRoom = projectRooms.find(r => r.id === entry.room_id);
                 return (
-                  <div key={entry.id} className="card" style={{ padding: '1rem' }}>
-                    {/* Header row: badges + actions */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.5rem', marginBottom: '0.6rem' }}>
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem', alignItems: 'center' }}>
-                        {entryDateStr && <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--accent)', background: 'var(--accent-light)', padding: '0.15rem 0.55rem', borderRadius: 'var(--radius-pill)' }}>{entryDateStr}</span>}
-                        {entry.work_type && <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-secondary)', background: 'var(--bg-subtle)', border: '1px solid var(--border-subtle)', padding: '0.12rem 0.5rem', borderRadius: 'var(--radius-pill)' }}>{entry.work_type}</span>}
-                        {(() => { const r = projectRooms.find(r => r.id === entry.room_id); return r ? <span style={{ fontSize: '0.68rem', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '0.25rem', padding: '0.12rem 0.5rem', borderRadius: 'var(--radius-pill)', background: 'var(--accent-light)', border: '1px solid var(--accent-border)', color: 'var(--accent)' }}><Home size={10} />{r.name}</span> : null; })()}
-                        {/* Public/private pill */}
-                        {canManageProject || entry.created_by === currentUser?.id ? (
-                          <button
-                            type="button"
-                            onClick={async () => {
-                              try { await ctxUpdateDiaryEntry(entry.id, { title: entry.title, body: entry.body, work_type: entry.work_type, internal_note: entry.internal_note, client_note: entry.client_note, entry_date: entry.entry_date, is_public: !entry.is_public }); }
-                              catch (err) { setAlertModal({ message: err.message }); }
-                            }}
-                            style={{ fontSize: '0.68rem', fontWeight: 700, padding: '0.1rem 0.5rem', borderRadius: 'var(--radius-pill)', border: entry.is_public ? '1px solid var(--success-border)' : '1px solid var(--border-subtle)', background: entry.is_public ? 'var(--success-bg)' : 'var(--bg-subtle)', color: entry.is_public ? 'var(--success-text)' : 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
-                          >
-                            {entry.is_public ? <><Eye size={10} /> Nyilvános</> : <><Lock size={10} /> Privát</>}
-                          </button>
-                        ) : (
-                          <span style={{ fontSize: '0.68rem', fontWeight: 700, padding: '0.1rem 0.5rem', borderRadius: 'var(--radius-pill)', border: entry.is_public ? '1px solid var(--success-border)' : '1px solid var(--border-subtle)', background: entry.is_public ? 'var(--success-bg)' : 'var(--bg-subtle)', color: entry.is_public ? 'var(--success-text)' : 'var(--text-muted)', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
-                            {entry.is_public ? <><Eye size={10} /> Nyilvános</> : <><Lock size={10} /> Privát</>}
+                  <div key={entry.id} style={{ borderRadius: 'var(--radius-md)', overflow: 'hidden', border: '1.5px solid #cbd5e1' }}>
+
+                    {/* ── Dark header ── */}
+                    <div style={{ background: '#334155', padding: '0.75rem 1rem' }}>
+                      {/* Top: pills + public toggle */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexWrap: 'wrap', marginBottom: '0.45rem' }}>
+                        {entryDateStr && (
+                          <span style={{ fontSize: '0.68rem', fontWeight: 700, padding: '0.1rem 0.45rem', borderRadius: 999, background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.25)', color: '#fff', display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                            <Calendar size={10} />{entryDateStr}
                           </span>
                         )}
-                      </div>
-                      <div style={{ display: 'flex', gap: '0.35rem', flexShrink: 0 }}>
-                        {(canManageProject || entry.created_by === currentUser?.id) && (
-                          <Link href={`${navPrefix}/projektek/${project.id}/naplo/${entry.id}`} className="btn btn-secondary btn-sm" style={{ padding: '0.25rem 0.5rem' }}>
-                            <Edit3 size={13} />
-                          </Link>
+                        {entry.work_type && (
+                          <span style={{ fontSize: '0.68rem', fontWeight: 700, padding: '0.1rem 0.45rem', borderRadius: 999, background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.25)', color: '#fff' }}>
+                            {entry.work_type}
+                          </span>
                         )}
-                        {canDelete && (
-                          <button type="button" className="btn btn-danger btn-sm" style={{ padding: '0.25rem 0.5rem' }} onClick={() => setConfirmModal({ message: 'Biztosan törölni kívánja ezt a naplóbejegyzést?', onConfirm: async () => { try { await ctxDeleteDiaryEntry(entry.id, project.id); } catch (err) { setAlertModal({ message: err.message || 'Hiba a törléskor' }); } } })}>
-                            <Trash2 size={13} />
-                          </button>
+                        {entryRoom && (
+                          <span style={{ fontSize: '0.68rem', fontWeight: 700, padding: '0.1rem 0.45rem', borderRadius: 999, background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.25)', color: '#fff', display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                            <Home size={10} />{entryRoom.name}
+                          </span>
                         )}
+                        {/* Public/private toggle — right side */}
+                        <div style={{ marginLeft: 'auto', flexShrink: 0 }}>
+                          {canManageProject || entry.created_by === currentUser?.id ? (
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                try { await ctxUpdateDiaryEntry(entry.id, { title: entry.title, body: entry.body, work_type: entry.work_type, internal_note: entry.internal_note, client_note: entry.client_note, entry_date: entry.entry_date, is_public: !entry.is_public }); }
+                                catch (err) { setAlertModal({ message: err.message }); }
+                              }}
+                              style={{ fontSize: '0.68rem', fontWeight: 700, padding: '0.1rem 0.5rem', borderRadius: 999, border: entry.is_public ? '1px solid #86efac' : '1px solid rgba(255,255,255,0.25)', background: entry.is_public ? 'rgba(134,239,172,0.2)' : 'rgba(255,255,255,0.1)', color: entry.is_public ? '#86efac' : 'rgba(255,255,255,0.6)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 3 }}
+                            >
+                              {entry.is_public ? <><Eye size={10} /> Nyilvános</> : <><Lock size={10} /> Privát</>}
+                            </button>
+                          ) : (
+                            <span style={{ fontSize: '0.68rem', fontWeight: 700, padding: '0.1rem 0.5rem', borderRadius: 999, border: entry.is_public ? '1px solid #86efac' : '1px solid rgba(255,255,255,0.25)', background: entry.is_public ? 'rgba(134,239,172,0.2)' : 'rgba(255,255,255,0.1)', color: entry.is_public ? '#86efac' : 'rgba(255,255,255,0.6)', display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                              {entry.is_public ? <><Eye size={10} /> Nyilvános</> : <><Lock size={10} /> Privát</>}
+                            </span>
+                          )}
+                        </div>
                       </div>
+                      {/* Title */}
+                      <div style={{ fontWeight: 800, fontSize: '1.05rem', color: '#fff', lineHeight: 1.25 }}>{entry.title}</div>
                     </div>
 
-                    {/* Title + author */}
-                    <h4 style={{ fontSize: '0.95rem', fontWeight: 800, margin: '0 0 0.3rem' }}>{entry.title}</h4>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.6rem' }}>
-                      <div style={{ width: 22, height: 22, borderRadius: '50%', background: 'var(--accent-light)', border: '1px solid var(--accent-border)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.65rem', fontWeight: 800, color: 'var(--accent)', flexShrink: 0 }}>
-                        {(author?.display_name || '?').charAt(0).toUpperCase()}
+                    {/* ── Light body ── */}
+                    <div style={{ background: '#f8fafc', padding: '0.75rem 1rem' }}>
+                      {/* Author */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: entry.body || entry.internal_note || entry.client_note ? '0.65rem' : '0' }}>
+                        <div style={{ width: 22, height: 22, borderRadius: '50%', background: 'var(--accent-light)', border: '1px solid var(--accent-border)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.65rem', fontWeight: 800, color: 'var(--accent)', flexShrink: 0 }}>
+                          {(author?.display_name || '?').charAt(0).toUpperCase()}
+                        </div>
+                        <span style={{ fontSize: '0.775rem', fontWeight: 600, color: 'var(--text-secondary)' }}>{author?.display_name || 'Ismeretlen'}</span>
                       </div>
-                      <span style={{ fontSize: '0.775rem', fontWeight: 600, color: 'var(--text-secondary)' }}>{author?.display_name || 'Ismeretlen'}</span>
+
+                      {entry.body && <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.55, margin: '0 0 0.65rem', whiteSpace: 'pre-wrap' }}>{entry.body}</p>}
+
+                      {entry.internal_note && (
+                        <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: 'var(--radius-md)', padding: '0.5rem 0.75rem', marginBottom: '0.5rem' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '0.2rem' }}>
+                            <Lock size={10} /> Belső megjegyzés
+                          </div>
+                          {entry.internal_note}
+                        </div>
+                      )}
+
+                      {entry.client_note && (
+                        <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', background: 'var(--accent-light)', border: '1px solid var(--accent-border)', borderRadius: 'var(--radius-md)', padding: '0.5rem 0.75rem', marginBottom: '0.5rem' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--accent)', marginBottom: '0.2rem' }}>
+                            <Eye size={10} /> Ügyfélnek
+                          </div>
+                          {entry.client_note}
+                        </div>
+                      )}
+
+                      <EntryMediaGrid photos={entry.photos} />
+
+                      {/* Actions */}
+                      {(canManageProject || entry.created_by === currentUser?.id || canDelete) && (
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.35rem', marginTop: '0.6rem', paddingTop: '0.6rem', borderTop: '1px solid #e2e8f0' }}>
+                          {(canManageProject || entry.created_by === currentUser?.id) && (
+                            <Link href={`${navPrefix}/projektek/${project.id}/naplo/${entry.id}`} className="btn btn-secondary btn-sm" style={{ padding: '0.25rem 0.5rem' }}>
+                              <Edit3 size={13} />
+                            </Link>
+                          )}
+                          {canDelete && (
+                            <button type="button" className="btn btn-danger btn-sm" style={{ padding: '0.25rem 0.5rem' }} onClick={() => setConfirmModal({ message: 'Biztosan törölni kívánja ezt a naplóbejegyzést?', onConfirm: async () => { try { await ctxDeleteDiaryEntry(entry.id, project.id); } catch (err) { setAlertModal({ message: err.message || 'Hiba a törléskor' }); } } })}>
+                              <Trash2 size={13} />
+                            </button>
+                          )}
+                        </div>
+                      )}
                     </div>
-
-                    {entry.body && <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.55, margin: '0 0 0.65rem', whiteSpace: 'pre-wrap' }}>{entry.body}</p>}
-
-                    {/* Internal note — team only */}
-                    {entry.internal_note && (
-                      <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', background: 'var(--bg-subtle)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: '0.55rem 0.75rem', marginBottom: '0.5rem' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '0.25rem' }}>
-                          <Lock size={11} /> Belső megjegyzés
-                        </div>
-                        {entry.internal_note}
-                      </div>
-                    )}
-
-                    {/* Client note */}
-                    {entry.client_note && (
-                      <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', background: 'var(--accent-light)', border: '1px solid var(--accent-border)', borderRadius: 'var(--radius-md)', padding: '0.55rem 0.75rem', marginBottom: '0.5rem' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--accent)', marginBottom: '0.25rem' }}>
-                          <Eye size={11} /> Ügyfélnek szóló üzenet
-                        </div>
-                        {entry.client_note}
-                      </div>
-                    )}
-
-                    <EntryMediaGrid photos={entry.photos} />
                   </div>
                 );
               })}
@@ -1459,9 +1510,6 @@ export default function ProjectDetailClient({
           onClose={() => setEditingLabour(null)}
           onSave={async (fields) => {
             await ctxUpdateLabourEntry(editingLabour.id, fields);
-            router.refresh();
-            setEditingLabour(null);
-            setSuccessMsg('Munkabejegyzés frissítve.');
           }}
         />
       )}
@@ -1471,33 +1519,83 @@ export default function ProjectDetailClient({
         onClose={() => setEditProjectOpen(false)}
         project={project}
         clients={ctxClients}
-        collectives={collectives}
-        activeCollectiveId={activeCollectiveId}
         onSave={async (fields) => { await updateProject(project.id, fields); router.refresh(); }}
         onCreateClient={async (fields) => createClient(fields)}
-        onMove={async (collectiveId) => { await updateProject(project.id, { collective_id: collectiveId }); router.refresh(); }}
       />
       <RoomModal isOpen={roomModalOpen} onClose={() => setRoomModalOpen(false)} room={editingRoom} onSave={handleSaveRoom} />
       <ConfirmModal isOpen={!!confirmModal} onClose={() => setConfirmModal(null)} onConfirm={() => confirmModal?.onConfirm()} title="Megerősítés" message={confirmModal?.message} />
       <AlertModal isOpen={!!alertModal} onClose={() => setAlertModal(null)} message={alertModal?.message} />
 
-      <ConfirmModal
-        isOpen={archiveConfirm}
-        onClose={() => setArchiveConfirm(false)}
-        onConfirm={() => { setArchiveConfirm(false); doArchiveToggle(); }}
-        title={project.archived_at ? 'Visszaállítás aktívra' : 'Inaktiválás'}
-        message={project.archived_at
-          ? 'Biztosan visszaállítod aktív állapotba? A projekt ismét elérhető és szerkeszthető lesz.'
-          : 'Biztosan inaktiválod ezt a projektet? Az állapotot később bármikor visszaállíthatod, ha meggondolod magad.'}
-        confirmLabel={project.archived_at ? 'Visszaállítás' : 'Inaktiválás'}
-      />
-      <AlertModal
-        isOpen={memberArchiveModal}
-        onClose={() => setMemberArchiveModal(false)}
-        variant="warning"
-        title="Csak a tulajdonos módosíthatja"
-        message="A dokumentum inaktiválását és visszaállítását csak a kollektíva tulajdonosa végezheti el, mivel az inaktív dokumentumok később visszaállíthatók, ha az ügyfél meggondolja magát."
-      />
+      {/* History modal */}
+      <Modal isOpen={showHistoryModal} onClose={() => setShowHistoryModal(false)} title="Projekt előzményei">
+        {historyLoading ? (
+          <div style={{ display: 'flex', justifyContent: 'center', padding: '2rem 0' }}><Loader2 size={22} className="animate-spin" color="var(--text-muted)" /></div>
+        ) : !history || history.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '2rem 0', color: 'var(--text-muted)', fontSize: '0.875rem' }}>Még nincs rögzített esemény.</div>
+        ) : (
+          <div style={{ maxHeight: '60vh', overflowY: 'auto' }}>
+            {history.map((entry, idx) => {
+              const a  = entry.action || '';
+              const d  = entry.details || {};
+              const isInvoiceAdd    = a === 'Számla rögzítve';
+              const isInvoiceEdit   = a === 'Számla módosítva';
+              const isInvoiceDel    = a === 'Számla törölve';
+              const isLabourAdd     = a === 'Munkabejegyzés rögzítve';
+              const isLabourEdit    = a === 'Munkabejegyzés módosítva';
+              const isLabourDel     = a === 'Munkabejegyzés törölve';
+              const isProjectCreate = a.includes('létrehozva');
+              const isProjectEdit   = a === 'Projekt módosítva';
+              const isStatusChange  = a.includes('Státusz módosítva');
+              const isDeleted       = a.includes('törölve');
+              const isLabour        = isLabourAdd || isLabourEdit || isLabourDel;
+              const isInvoice       = isInvoiceAdd || isInvoiceEdit || isInvoiceDel;
+
+              const iconColor = isProjectCreate ? '#16a34a' : isLabourAdd ? '#16a34a' : isInvoiceAdd ? '#2563eb'
+                              : isDeleted ? '#ef4444' : isStatusChange ? '#7c3aed' : '#d97706';
+              const iconBg    = isProjectCreate ? '#f0fdf4' : isLabourAdd ? '#f0fdf4' : isInvoiceAdd ? '#eff6ff'
+                              : isDeleted ? '#fff1f2' : isStatusChange ? '#f5f3ff' : '#fffbeb';
+              const Icon = isProjectCreate ? Plus
+                         : isLabour ? Hammer
+                         : isInvoice ? Receipt
+                         : isStatusChange ? CircleDot
+                         : isDeleted ? Trash2
+                         : Edit3;
+
+              const sub = [];
+              if (entry.user_name) sub.push(entry.user_name);
+              if (d.value_huf)     sub.push(formatHUF(d.value_huf));
+              if (d.category)      sub.push(d.category);
+              if (d.labour_type)   sub.push(d.labour_type);
+              if (d.hours != null && d.unit) sub.push(`${d.hours} ${d.unit}`);
+              if (d.description)   sub.push(d.description);
+              if (d.changed_fields?.length) sub.push(d.changed_fields.join(', '));
+
+              return (
+                <div key={entry.id} style={{ display: 'flex', gap: '0.85rem', padding: '0.75rem 0', borderBottom: idx < history.length - 1 ? '1px solid var(--border-subtle)' : 'none', alignItems: 'flex-start' }}>
+                  <div style={{ width: 34, height: 34, borderRadius: '50%', background: iconBg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 2 }}>
+                    <Icon size={15} color={iconColor} strokeWidth={2} />
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: 600, fontSize: '0.875rem', color: 'var(--text-primary)', marginBottom: '0.15rem' }}>{entry.action}</div>
+                    {sub.length > 0 && <div style={{ fontSize: '0.775rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>{sub.join(' · ')}</div>}
+                  </div>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', flexShrink: 0, textAlign: 'right', marginTop: 2 }}>
+                    {formatDate(entry.created_at)}<br />
+                    <span style={{ fontSize: '0.68rem' }}>{new Date(entry.created_at).toLocaleTimeString('hu-HU', { hour: '2-digit', minute: '2-digit' })}</span>
+                  </div>
+                </div>
+              );
+            })}
+            {history.length < historyTotal && (
+              <div style={{ paddingTop: '0.75rem', textAlign: 'center' }}>
+                <button type="button" onClick={loadMoreHistory} disabled={historyLoadingMore} className="btn btn-secondary btn-sm">
+                  {historyLoadingMore ? <><Loader2 size={13} className="animate-spin" />Betöltés…</> : `Még ${historyTotal - history.length} esemény betöltése`}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+      </Modal>
       <LockedDocumentModal
         isOpen={lockedModalOpen}
         documentType="project"
@@ -1535,7 +1633,7 @@ export default function ProjectDetailClient({
       {detailInvoice && (
         <InvoiceDetailDrawer
           invoice={detailInvoice}
-          isAdmin={isAdmin || canManageProject || detailInvoice?.uploaded_by === currentUser?.id}
+          isAdmin={canManageProject || detailInvoice?.uploaded_by === currentUser?.id}
           rooms={projectRooms}
           splits={invoiceSplits.filter(s => s.invoice_id === detailInvoice.id)}
           onClose={() => setDetailInvoice(null)}
@@ -1559,11 +1657,93 @@ export default function ProjectDetailClient({
         </div>
       )}
 
-      {/* Mobile floating action button — opens QuickCostSheet */}
+      {/* Mobile floating options button */}
+      {canManageProject && isMobile && (
+        <button
+          type="button"
+          onClick={() => setShowActionsSheet(true)}
+          aria-label="Műveletek"
+          style={{
+            position: 'fixed',
+            bottom: 'calc(162px + env(safe-area-inset-bottom))',
+            right: 20,
+            width: 52, height: 52,
+            borderRadius: '50%',
+            background: '#0f172a',
+            border: 'none', color: '#fff',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            boxShadow: '0 4px 16px rgba(15,23,42,0.35)',
+            cursor: 'pointer', zIndex: 50,
+          }}
+        >
+          <MoreHorizontal size={22} strokeWidth={1.75} />
+        </button>
+      )}
+
+      {/* Mobile options BottomSheet */}
+      {showActionsSheet && (
+        <>
+          <div
+            onClick={() => setShowActionsSheet(false)}
+            style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.45)', zIndex: 200 }}
+            aria-hidden="true"
+          />
+          <div role="dialog" aria-modal="true" aria-label="Műveletek" className="bs-panel" style={{ padding: '0 0 calc(8px + env(safe-area-inset-bottom))' }}>
+            <div className="bs-handle" style={{ display: 'flex', justifyContent: 'center', paddingTop: 12, marginBottom: 4 }}>
+              <div style={{ width: 36, height: 4, borderRadius: 2, background: '#e2e8f0' }} />
+            </div>
+            <div style={{ padding: '0 20px 12px', fontSize: 13, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#64748b' }}>
+              Műveletek
+            </div>
+
+            <button
+              type="button"
+              onClick={() => { setShowActionsSheet(false); setEditProjectOpen(true); }}
+              style={{ display: 'flex', alignItems: 'center', gap: 14, width: '100%', minHeight: 56, padding: '0 20px', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left' }}
+            >
+              <div style={{ width: 44, height: 44, borderRadius: 12, background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <Edit3 size={20} strokeWidth={1.75} color="#475569" />
+              </div>
+              <span style={{ fontSize: 16, fontWeight: 600 }}>Szerkesztés</span>
+            </button>
+
+            {/* Status options */}
+            <div style={{ height: 1, background: '#e2e8f0', margin: '4px 20px' }} />
+            {STATUS_NEXT.filter(s => s.show).map(s => (
+              <button key={s.key} type="button" onClick={() => { setShowActionsSheet(false); handleSetStatus(s.key); }} style={{ display: 'flex', alignItems: 'center', gap: 14, width: '100%', minHeight: 56, padding: '0 20px', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left' }}>
+                <div style={{ width: 44, height: 44, borderRadius: 12, background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <CircleDot size={20} strokeWidth={1.75} color="#475569" />
+                </div>
+                <span style={{ fontSize: 16, fontWeight: 600 }}>{s.label}</span>
+              </button>
+            ))}
+
+            {/* History */}
+            <div style={{ height: 1, background: '#e2e8f0', margin: '4px 20px' }} />
+            <button type="button" onClick={() => { setShowActionsSheet(false); openHistory(); }} style={{ display: 'flex', alignItems: 'center', gap: 14, width: '100%', minHeight: 56, padding: '0 20px', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left' }}>
+              <div style={{ width: 44, height: 44, borderRadius: 12, background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <History size={20} strokeWidth={1.75} color="#475569" />
+              </div>
+              <span style={{ fontSize: 16, fontWeight: 600 }}>Előzmények</span>
+            </button>
+
+            {/* Delete */}
+            <div style={{ height: 1, background: '#e2e8f0', margin: '4px 20px' }} />
+            <button type="button" onClick={() => { setShowActionsSheet(false); handleDeleteProject(); }} style={{ display: 'flex', alignItems: 'center', gap: 14, width: '100%', minHeight: 56, padding: '0 20px', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left' }}>
+              <div style={{ width: 44, height: 44, borderRadius: 12, background: '#fef2f2', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <Trash2 size={20} strokeWidth={1.75} color="#b91c1c" />
+              </div>
+              <span style={{ fontSize: 16, fontWeight: 600, color: '#b91c1c' }}>Törlés</span>
+            </button>
+          </div>
+        </>
+      )}
+
+      {/* Mobile floating action button — opens QuickDiarySheet on napló tab, QuickCostSheet otherwise */}
       <button
         type="button"
         className="show-mobile"
-        onClick={() => setShowQuickCostSheet(true)}
+        onClick={() => activeTab === 'naplo' ? setShowQuickDiarySheet(true) : setShowQuickCostSheet(true)}
         aria-label="Bejegyzés hozzáadása"
         style={{
           position: 'fixed',
@@ -1588,6 +1768,17 @@ export default function ProjectDetailClient({
         onSuccess={() => {
           refreshSupabaseData();
           setToast('Bejegyzés mentve');
+          setTimeout(() => setToast(''), 2500);
+        }}
+      />
+
+      <QuickDiarySheet
+        isOpen={showQuickDiarySheet}
+        onClose={() => setShowQuickDiarySheet(false)}
+        projectId={project.id}
+        onSuccess={() => {
+          fetchDiaryEntries(project.id);
+          setToast('Napló bejegyzés mentve');
           setTimeout(() => setToast(''), 2500);
         }}
       />

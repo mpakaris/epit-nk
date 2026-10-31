@@ -129,7 +129,7 @@ export async function PATCH(request, { params }) {
   if (!isSuperAdmin && !isOwner && await hasPendingTransfer('project', id))
     return Response.json({ error: 'Ez a dokumentum átadás alatt áll, ezért nem módosítható.' }, { status: 423 });
 
-  const allowed = ['name', 'description', 'start_date', 'end_date', 'client_id', 'closed_at', 'archived_at',
+  const allowed = ['name', 'description', 'start_date', 'end_date', 'client_id', 'closed_at', 'archived_at', 'status',
                    ...(isOwner || isSuperAdmin || isKollektivOwner ? ['collective_id'] : [])];
   const update = {};
   for (const k of allowed) if (k in fields) update[k] = fields[k];
@@ -142,11 +142,15 @@ export async function PATCH(request, { params }) {
     return Response.json({ error: error.message }, { status: 400 });
   }
 
+  const statusLabels = { active: 'Aktív', paused: 'Szüneteltetett', closed: 'Lezárt' };
+  const auditAction = fields.status
+    ? `Státusz módosítva: ${statusLabels[fields.status] || fields.status}`
+    : 'Projekt módosítva';
   logAudit({
     entityId: ctx.project.collective_id || ctx.user.id,
     userId: ctx.user.id,
     userName: ctx.profile.display_name || ctx.user.email,
-    action: 'Projekt módosítva',
+    action: auditAction,
     targetType: 'project',
     targetId: id,
     targetName: data.name,

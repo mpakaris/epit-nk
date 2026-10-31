@@ -1,58 +1,81 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { AlertCircle, Loader2, Plus, ChevronUp, Check } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Loader2, Plus, ChevronUp, Check } from 'lucide-react';
 import Modal from '@/components/Modal';
 import ErrorBanner from '@/components/ErrorBanner';
 
 const nextDay  = (d) => { const dt = new Date(d); dt.setDate(dt.getDate() + 1); return dt.toISOString().split('T')[0]; };
 const todayStr = () => new Date().toISOString().split('T')[0];
 
-export default function ProjectEditModal({ isOpen, onClose, project, clients, onSave, onCreateClient, collectives, activeCollectiveId, onMove }) {
-  const [name, setName] = useState('');
-  const [desc, setDesc] = useState('');
+export default function ProjectEditModal({ isOpen, onClose, project, clients, onSave, onCreateClient }) {
+  const [name,      setName]      = useState('');
+  const [desc,      setDesc]      = useState('');
   const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
-  const [clientId, setClientId] = useState('');
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
+  const [endDate,   setEndDate]   = useState('');
+  const [clientId,  setClientId]  = useState('');
+  const [error,     setError]     = useState('');
 
-  const [showNewClient, setShowNewClient] = useState(false);
-  const [newClientName, setNewClientName] = useState('');
-  const [newClientPhone, setNewClientPhone] = useState('');
-  const [newClientEmail, setNewClientEmail] = useState('');
+  // 'idle' | 'pending' | 'saving' | 'saved'
+  const [saveStatus, setSaveStatus] = useState('idle');
+
+  const [showNewClient,    setShowNewClient]    = useState(false);
+  const [newClientName,    setNewClientName]    = useState('');
+  const [newClientPhone,   setNewClientPhone]   = useState('');
+  const [newClientEmail,   setNewClientEmail]   = useState('');
   const [newClientAddress, setNewClientAddress] = useState('');
-  const [newClientError, setNewClientError] = useState('');
-  const [creatingClient, setCreatingClient] = useState(false);
+  const [newClientError,   setNewClientError]   = useState('');
+  const [creatingClient,   setCreatingClient]   = useState(false);
 
-  const [moveTarget, setMoveTarget] = useState('');
-  const [moveConfirm, setMoveConfirm] = useState(false);
-  const [moving, setMoving] = useState(false);
-  const [moveError, setMoveError] = useState('');
-  const [moveDone, setMoveDone] = useState(null);
+  const savedRef   = useRef(null);
+  const timerRef   = useRef(null);
+  const savedTimer = useRef(null);
 
   useEffect(() => {
-    if (isOpen && project) {
-      setName(project.name || '');
-      setDesc(project.description || '');
-      setStartDate(project.start_date || '');
-      setEndDate(project.end_date || '');
-      setClientId(project.client_id || '');
-      setError('');
-      setShowNewClient(false);
-      setMoveTarget(''); setMoveConfirm(false); setMoveDone(null); setMoveError('');
-    }
+    if (!isOpen || !project) return;
+    setName(project.name || '');
+    setDesc(project.description || '');
+    setStartDate(project.start_date || '');
+    setEndDate(project.end_date || '');
+    setClientId(project.client_id || '');
+    setError(''); setSaveStatus('idle');
+    setShowNewClient(false);
+    savedRef.current = snap(project.name || '', project.description || '', project.start_date || '', project.end_date || '', project.client_id || '');
   }, [isOpen, project?.id]);
 
-  const handleSave = async (e) => {
-    e.preventDefault();
-    setSaving(true); setError('');
-    try {
-      await onSave({ name: name.trim(), description: desc.trim() || null, start_date: startDate || null, end_date: endDate || null, client_id: clientId || null });
-      onClose();
-    } catch (err) { setError(err.message || 'Hiba a mentésnél'); }
-    finally { setSaving(false); }
-  };
+  const snap = (n, d, s, e, c) => JSON.stringify({ n, d, s, e, c });
+
+  useEffect(() => {
+    if (!isOpen || savedRef.current === null) return;
+    const current = snap(name, desc, startDate, endDate, clientId);
+    if (current === savedRef.current) return;
+    if (!name.trim()) return;
+
+    clearTimeout(timerRef.current);
+    clearTimeout(savedTimer.current);
+    setSaveStatus('pending');
+
+    timerRef.current = setTimeout(async () => {
+      setSaveStatus('saving');
+      try {
+        await onSave({
+          name:        name.trim(),
+          description: desc.trim() || null,
+          start_date:  startDate || null,
+          end_date:    endDate || null,
+          client_id:   clientId || null,
+        });
+        savedRef.current = current;
+        setSaveStatus('saved');
+        savedTimer.current = setTimeout(() => setSaveStatus('idle'), 2500);
+      } catch (err) {
+        setError(err.message || 'Hiba a mentésnél');
+        setSaveStatus('idle');
+      }
+    }, 700);
+
+    return () => { clearTimeout(timerRef.current); clearTimeout(savedTimer.current); };
+  }, [name, desc, startDate, endDate, clientId]);
 
   const handleCreateClient = async (e) => {
     e.preventDefault();
@@ -67,34 +90,36 @@ export default function ProjectEditModal({ isOpen, onClose, project, clients, on
     finally { setCreatingClient(false); }
   };
 
-  const handleMove = async () => {
-    if (!moveTarget) return;
-    setMoving(true); setMoveError('');
-    try {
-      await onMove(moveTarget);
-      const moveName = collectives.find(c => c.collective_id === moveTarget)?.name || 'Kollektíva';
-      setMoveDone({ collectiveId: moveTarget, name: moveName });
-      setMoveConfirm(false);
-    } catch (err) { setMoveError(err.message || 'Hiba az áthelyezéskor'); }
-    finally { setMoving(false); }
+  const selectedClient = (clients || []).find(c => c.id === clientId);
+
+  const SaveIndicator = () => {
+    if (saveStatus === 'idle') return null;
+    if (saveStatus === 'pending' || saveStatus === 'saving') return (
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 12, color: 'var(--text-muted)', fontWeight: 600 }}>
+        <Loader2 size={12} className="animate-spin" /> Mentés...
+      </span>
+    );
+    if (saveStatus === 'saved') return (
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 12, color: 'var(--success-text)', fontWeight: 700 }}>
+        <Check size={12} /> Mentve
+      </span>
+    );
+    return null;
   };
 
-  const selectedClient  = (clients || []).find(c => c.id === clientId);
-  const showMoveCard    = !activeCollectiveId && !project?.collective_id && collectives?.length > 0;
-
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Projekt szerkesztése">
+    <Modal isOpen={isOpen} onClose={onClose} title="Projekt szerkesztése" headerRight={<SaveIndicator />}>
       <ErrorBanner message={error} style={{ marginBottom: '0.85rem' }} />
-      <form onSubmit={handleSave}>
+      <div>
         <div className="form-group">
           <label className="form-label">Projekt neve *</label>
-          <input type="text" required className="form-control" value={name} onChange={e => setName(e.target.value)} />
+          <input type="text" className="form-control" value={name} onChange={e => setName(e.target.value)} />
         </div>
         <div className="form-group">
           <label className="form-label">Leírás</label>
           <textarea rows={2} className="form-control" value={desc} onChange={e => setDesc(e.target.value)} />
         </div>
-        <div className="grid-2col">
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
           <div className="form-group" style={{ marginBottom: 0 }}>
             <label className="form-label">Kezdés</label>
             <input type="date" className="form-control" value={startDate} onChange={e => { const v = e.target.value; setStartDate(v); if (v && (!endDate || endDate <= v)) setEndDate(nextDay(v)); }} />
@@ -138,40 +163,7 @@ export default function ProjectEditModal({ isOpen, onClose, project, clients, on
             </div>
           </div>
         )}
-        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '0.5rem' }}>
-          <button type="submit" className="btn btn-primary btn-sm" disabled={saving}>{saving ? <><Loader2 size={13} className="animate-spin" />Mentés</> : 'Adatok mentése'}</button>
-        </div>
-      </form>
-
-      {showMoveCard && (
-        <div style={{ marginTop: '1.25rem', borderTop: '1px solid var(--border-subtle)', paddingTop: '1.25rem' }}>
-          <div style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '0.75rem' }}>Projekt áthelyezése kollektívába</div>
-          {moveDone ? (
-            <div style={{ background: 'var(--success-bg)', border: '1px solid var(--success-border)', color: 'var(--success-text)', padding: '0.75rem 1rem', borderRadius: 'var(--radius-md)', fontSize: '0.875rem', fontWeight: 600 }}>
-              <Check size={14} style={{ verticalAlign: 'middle', marginRight: '0.35rem' }} />Áthelyezve: <strong>{moveDone.name}</strong>
-            </div>
-          ) : (
-            <>
-              <select className="form-control" value={moveTarget} onChange={e => { setMoveTarget(e.target.value); setMoveConfirm(false); }} style={{ marginBottom: '0.65rem' }}>
-                <option value="">– Válassz kollektívát –</option>
-                {collectives.map(c => <option key={c.collective_id} value={c.collective_id}>{c.name}</option>)}
-              </select>
-              {moveTarget && !moveConfirm && <button type="button" className="btn btn-secondary btn-sm" onClick={() => setMoveConfirm(true)}>Áthelyezés</button>}
-              {moveConfirm && (
-                <div style={{ background: 'var(--warning-bg)', border: '1px solid var(--warning-border)', borderRadius: 'var(--radius-md)', padding: '0.85rem' }}>
-                  <div style={{ fontWeight: 700, marginBottom: '0.4rem', color: 'var(--warning-text)', fontSize: '0.875rem' }}>Figyelem!</div>
-                  <p style={{ fontSize: '0.85rem', marginBottom: '0.65rem', color: 'var(--text-primary)' }}>A projekt adatai az összes kollektíva tag számára láthatóvá válnak. <strong>Ez a lépés nem vonható vissza.</strong></p>
-                  {moveError && <div style={{ color: 'var(--danger-text)', fontSize: '0.82rem', marginBottom: '0.5rem' }}>{moveError}</div>}
-                  <div style={{ display: 'flex', gap: '0.5rem' }}>
-                    <button type="button" className="btn btn-secondary btn-sm" onClick={() => setMoveConfirm(false)} disabled={moving}>Mégse</button>
-                    <button type="button" className="btn btn-danger btn-sm" onClick={handleMove} disabled={moving}>{moving ? 'Áthelyezés...' : 'Igen, áthelyezem'}</button>
-                  </div>
-                </div>
-              )}
-            </>
-          )}
-        </div>
-      )}
+      </div>
     </Modal>
   );
 }

@@ -67,11 +67,11 @@ export async function POST(request) {
     entityId:   project.collective_id || user.id,
     userId:     user.id,
     userName:   callerProfile?.display_name || user.email,
-    action:     'Számla feltöltve',
-    targetType: 'invoice',
-    targetId:   data.id,
+    action:     'Számla rögzítve',
+    targetType: 'project',
+    targetId:   projectId,
     targetName: project.name,
-    details:    { value_huf: Math.round(Number(valueHuf)), category },
+    details:    { value_huf: Math.round(Number(valueHuf)), category, description: description || null },
   });
 
   return Response.json({ invoice: data }, { status: 201 });

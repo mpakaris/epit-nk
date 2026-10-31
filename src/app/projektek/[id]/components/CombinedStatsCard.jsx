@@ -12,12 +12,26 @@ export default function CombinedStatsCard({ totalCost, invoiceCount, totalLabour
       <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, fontSize: '0.95rem', color: color || 'var(--text-primary)' }}>{value}</div>
     </div>
   );
+
+  const hasInvoices = invoiceCount > 0;
+  const hasLabour   = labourCount > 0;
+
+  if (!hasInvoices && !hasLabour && !collective) {
+    return (
+      <div className="stat-card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+        <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontStyle: 'italic', textAlign: 'center', padding: '0.5rem 0' }}>
+          Még nincs rögzített kiadás.
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="stat-card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-      {row('Összes kiadás', formatHUF(totalCost), `${invoiceCount} db számla`)}
-      {row('Munkadíj', formatHUF(totalLabour), `${labourCount} bejegyzés`, 'var(--success-text)')}
-      {collective && row('Általad fizetve', formatHUF(ownPaid), 'saját számlák')}
-      {collective && row('Egyenleg', balance > 0 ? `+${formatHUF(balance)}` : formatHUF(balance), balance > 0 ? 'követelés' : balance < 0 ? 'tartozás' : 'rendezett', balance > 0 ? 'var(--success-text)' : balance < 0 ? 'var(--danger-text)' : undefined)}
+      {hasInvoices && row('Összes kiadás', formatHUF(totalCost), `${invoiceCount} db számla`)}
+      {hasLabour   && row('Munkadíj', formatHUF(totalLabour), `${labourCount} bejegyzés`, 'var(--success-text)')}
+      {collective  && row('Általad fizetve', formatHUF(ownPaid), 'saját számlák')}
+      {collective  && row('Egyenleg', balance > 0 ? `+${formatHUF(balance)}` : formatHUF(balance), balance > 0 ? 'követelés' : balance < 0 ? 'tartozás' : 'rendezett', balance > 0 ? 'var(--success-text)' : balance < 0 ? 'var(--danger-text)' : undefined)}
     </div>
   );
 }

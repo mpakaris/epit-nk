@@ -57,8 +57,7 @@ export default function RoomModal({ isOpen, onClose, room, onSave }) {
           <label className="form-label">Leírás / Megjegyzés</label>
           <textarea rows={2} className="form-control" value={description} onChange={e => setDescription(e.target.value)} />
         </div>
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
-          <button type="button" className="btn btn-secondary btn-sm" onClick={onClose} disabled={saving}>Mégse</button>
+        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
           <button type="submit" className="btn btn-primary btn-sm" disabled={saving}>{saving ? <><Loader2 size={13} className="animate-spin" />Mentés</> : 'Mentés'}</button>
         </div>
       </form>

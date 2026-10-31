@@ -233,7 +233,7 @@ export default function ProjectsListClient({
         title={project.name}
         clientName={client?.name}
         date={project.start_date || project.created_at}
-        status={project.archived_at ? 'inactive' : isDone ? 'kesz' : 'folyamatban'}
+        status={project.archived_at ? 'inactive' : (project.status === 'closed' || isDone) ? 'kesz' : project.status === 'paused' ? 'paused' : 'folyamatban'}
         photoUrls={project._preview_urls || []}
         isShared={!!project.collective_id}
         role={project.collective_id ? (isOwner ? 'owner' : 'member') : undefined}

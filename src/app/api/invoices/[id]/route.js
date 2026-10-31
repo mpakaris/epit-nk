@@ -6,7 +6,7 @@ async function resolveAccess(user, invoiceId) {
   const admin = createAdminClient();
   const [{ data: profile }, { data: invoice }] = await Promise.all([
     admin.from('profiles').select('role, display_name').eq('id', user.id).single(),
-    admin.from('invoices').select('id, project_id, uploaded_by').eq('id', invoiceId).single(),
+    admin.from('invoices').select('id, project_id, uploaded_by, value_huf, category').eq('id', invoiceId).single(),
   ]);
   if (!profile || !invoice) return null;
 
@@ -49,8 +49,8 @@ export async function PATCH(request, { params }) {
     userId:     user.id,
     userName:   profile.display_name || user.email,
     action:     'Számla módosítva',
-    targetType: 'invoice',
-    targetId:   id,
+    targetType: 'project',
+    targetId:   project.id,
     targetName: project.name,
     details:    { value_huf: update.value_huf, category: update.category },
   });
@@ -79,9 +79,10 @@ export async function DELETE(request, { params }) {
     userId:     user.id,
     userName:   profile.display_name || user.email,
     action:     'Számla törölve',
-    targetType: 'invoice',
-    targetId:   id,
+    targetType: 'project',
+    targetId:   project.id,
     targetName: project.name,
+    details:    { value_huf: ctx.invoice.value_huf, category: ctx.invoice.category },
   });
 
   return Response.json({ ok: true });

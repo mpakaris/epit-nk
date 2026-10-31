@@ -52,8 +52,12 @@ export function makeProjectActions({
     setProjects(prev => prev.map(p => p.id === projectId ? { ...p, members: memberIds } : p));
   };
 
-  const closeProject  = (projectId) => updateProject(projectId, { closed_at: new Date().toISOString() });
-  const reopenProject = (projectId) => updateProject(projectId, { closed_at: null });
+  const closeProject     = (projectId) => updateProject(projectId, { status: 'closed', closed_at: new Date().toISOString() });
+  const reopenProject    = (projectId) => updateProject(projectId, { status: 'active', closed_at: null });
+  const setProjectStatus = (projectId, status) => {
+    const extra = status === 'closed' ? { closed_at: new Date().toISOString() } : status === 'active' ? { closed_at: null } : {};
+    return updateProject(projectId, { status, ...extra });
+  };
 
   const deleteProject = async (projectId, projectData = null) => {
     const project = projectData || projects.find(p => p.id === projectId);
@@ -123,7 +127,7 @@ export function makeProjectActions({
   };
 
   return {
-    createProject, updateProject, updateProjectMembers, closeProject, reopenProject, deleteProject,
+    createProject, updateProject, updateProjectMembers, closeProject, reopenProject, setProjectStatus, deleteProject,
     createProjectRoom, updateProjectRoom, deleteProjectRoom, syncRoomsFromQuote,
   };
 }

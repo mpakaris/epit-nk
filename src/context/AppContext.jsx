@@ -302,7 +302,7 @@ export function AppProvider({ children }) {
   const { createEntity, updateEntity, deleteEntity, createUser, deleteUser, resetUserPassword } =
     makeEntityUserActions({ isSuperAdmin, isAdmin, entities, projects, users, setEntities, setProjects, setQuotes, setInvoices, setUsers, effectiveEntityId, supabase });
 
-  const { createProject, updateProject, updateProjectMembers, closeProject, reopenProject, deleteProject, createProjectRoom, updateProjectRoom, deleteProjectRoom, syncRoomsFromQuote } =
+  const { createProject, updateProject, updateProjectMembers, closeProject, reopenProject, setProjectStatus, deleteProject, createProjectRoom, updateProjectRoom, deleteProjectRoom, syncRoomsFromQuote } =
     makeProjectActions({ projects, invoices, labourEntries, projectRooms, setProjects, setInvoices, setLabourEntries, setProjectRooms, uid, isAdmin, collectives, effectiveEntityId, effectiveUser });
 
   const { uploadInvoiceImage, createInvoice, updateInvoice, deleteInvoice } =
@@ -395,6 +395,7 @@ export function AppProvider({ children }) {
         updateProject,
         closeProject,
         reopenProject,
+        setProjectStatus,
         updateProjectMembers,
         deleteProject,
         // Clients

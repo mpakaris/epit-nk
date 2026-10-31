@@ -6,7 +6,7 @@ async function resolveAccess(user, entryId) {
   const admin = createAdminClient();
   const [{ data: profile }, { data: entry }] = await Promise.all([
     admin.from('profiles').select('role, display_name').eq('id', user.id).single(),
-    admin.from('labour_entries').select('id, project_id, uploaded_by').eq('id', entryId).single(),
+    admin.from('labour_entries').select('id, project_id, uploaded_by, labour_type, hours, unit, value_huf').eq('id', entryId).single(),
   ]);
   if (!profile || !entry) return null;
 
@@ -55,10 +55,10 @@ export async function PATCH(request, { params }) {
     userId:     user.id,
     userName:   profile.display_name || user.email,
     action:     'Munkabejegyzés módosítva',
-    targetType: 'labour_entry',
-    targetId:   id,
+    targetType: 'project',
+    targetId:   project.id,
     targetName: project.name,
-    details:    { labour_type: update.labour_type, value_huf: update.value_huf },
+    details:    { labour_type: update.labour_type ?? entry.labour_type, hours: update.hours ?? entry.hours, unit: update.unit ?? entry.unit, value_huf: update.value_huf ?? entry.value_huf },
   });
 
   return Response.json({ labourEntry: data });
@@ -82,9 +82,10 @@ export async function DELETE(request, { params }) {
     userId:     user.id,
     userName:   profile.display_name || user.email,
     action:     'Munkabejegyzés törölve',
-    targetType: 'labour_entry',
-    targetId:   id,
+    targetType: 'project',
+    targetId:   project.id,
     targetName: project.name,
+    details:    { labour_type: ctx.entry.labour_type, hours: ctx.entry.hours, unit: ctx.entry.unit, value_huf: ctx.entry.value_huf },
   });
 
   return Response.json({ ok: true });

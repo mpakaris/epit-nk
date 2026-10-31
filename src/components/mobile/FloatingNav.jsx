@@ -5,8 +5,8 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
 import {
-  ClipboardList, FileText, Plus, Folder, Contact,
-  Ruler, FolderKanban, BookUser, LayoutGrid,
+  Ruler, Euro, Plus, Folder, Contact,
+  FolderKanban, BookUser, LayoutGrid,
 } from 'lucide-react';
 
 const HIDDEN_PREFIXES = [
@@ -16,16 +16,16 @@ const HIDDEN_PREFIXES = [
 ];
 
 const NAV_ITEMS = [
-  { key: 'felmeres', label: 'Felmérés', icon: ClipboardList, path: '/felmeres' },
-  { key: 'ajanlatok', label: 'Ajánlat',  icon: FileText,      path: '/ajanlatok' },
+  { key: 'felmeres', label: 'Felmérés', icon: Ruler, path: '/felmeres' },
+  { key: 'ajanlatok', label: 'Ajánlat',  icon: Euro, path: '/ajanlatok' },
   null, // center + placeholder
   { key: 'projektek', label: 'Projekt',  icon: Folder,        path: '/projektek' },
   { key: 'ugyfelek',  label: 'Ügyfél',   icon: Contact,       path: '/ugyfelek' },
 ];
 
 const CREATE_ACTIONS = [
-  { label: 'Új felmérés', path: '/felmeres/uj', icon: ClipboardList },
-  { label: 'Új ajánlat',  path: '/ajanlatok/uj', icon: FileText },
+  { label: 'Új felmérés', path: '/felmeres/uj', icon: Ruler },
+  { label: 'Új ajánlat',  path: '/ajanlatok/uj', icon: Euro },
   { label: 'Új projekt',  path: '/projektek/uj', icon: FolderKanban },
   { label: 'Új ügyfél',   path: '/ugyfelek/uj',  icon: BookUser },
 ];

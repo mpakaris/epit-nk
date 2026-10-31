@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { AlertCircle, Loader2 } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Loader2, Check } from 'lucide-react';
 import Modal from '@/components/Modal';
 import ErrorBanner from '@/components/ErrorBanner';
 import { formatHUF } from '@/lib/constants';
@@ -9,50 +9,98 @@ import { formatHUF } from '@/lib/constants';
 const LABOUR_UNITS = ['h', 'nap', 'm²', 'm³', 'm', 'fm', 'db', 'l', 'kg'];
 
 export default function LabourEditModal({ entry, onClose, onSave, rooms = [] }) {
-  const [labourType, setLabourType] = useState('');
-  const [date, setDate] = useState('');
-  const [hours, setHours] = useState('');
-  const [unit, setUnit] = useState('h');
-  const [hourlyRate, setHourlyRate] = useState('');
+  const [labourType,  setLabourType]  = useState('');
+  const [date,        setDate]        = useState('');
+  const [hours,       setHours]       = useState('');
+  const [unit,        setUnit]        = useState('h');
+  const [hourlyRate,  setHourlyRate]  = useState('');
   const [description, setDescription] = useState('');
-  const [roomId, setRoomId] = useState('');
-  const [saving, setSaving] = useState(false);
-  const [err, setErr] = useState('');
+  const [roomId,      setRoomId]      = useState('');
+  const [error,       setError]       = useState('');
+
+  // 'idle' | 'pending' | 'saving' | 'saved'
+  const [saveStatus, setSaveStatus] = useState('idle');
+
+  const savedRef   = useRef(null);
+  const timerRef   = useRef(null);
+  const savedTimer = useRef(null);
+
+  const snap = (lt, d, h, u, r, desc, rm) => JSON.stringify({ lt, d, h, u, r, desc, rm });
 
   useEffect(() => {
-    if (entry) {
-      setLabourType(entry.labour_type || '');
-      setDate(entry.date || '');
-      setHours(entry.hours != null ? String(entry.hours) : '');
-      setUnit(entry.unit || 'h');
-      setHourlyRate(entry.hourly_rate != null ? String(entry.hourly_rate) : '');
-      setDescription(entry.description || '');
-      setRoomId(entry.room_id || '');
-      setErr('');
-    }
+    if (!entry) return;
+    setLabourType(entry.labour_type || '');
+    setDate(entry.date || '');
+    setHours(entry.hours != null ? String(entry.hours) : '');
+    setUnit(entry.unit || 'h');
+    setHourlyRate(entry.hourly_rate != null ? String(entry.hourly_rate) : '');
+    setDescription(entry.description || '');
+    setRoomId(entry.room_id || '');
+    setError(''); setSaveStatus('idle');
+    savedRef.current = snap(entry.labour_type || '', entry.date || '', String(entry.hours ?? ''), entry.unit || 'h', String(entry.hourly_rate ?? ''), entry.description || '', entry.room_id || '');
   }, [entry?.id]);
+
+  // Auto-save on any field change (debounced)
+  useEffect(() => {
+    if (savedRef.current === null) return;
+    const current = snap(labourType, date, hours, unit, hourlyRate, description, roomId);
+    if (current === savedRef.current) return;
+    if (!labourType.trim()) return;
+    if (!(parseFloat(hours) > 0)) return;
+    if (!(parseInt(hourlyRate, 10) > 0)) return;
+
+    clearTimeout(timerRef.current);
+    clearTimeout(savedTimer.current);
+    setSaveStatus('pending');
+
+    timerRef.current = setTimeout(async () => {
+      setSaveStatus('saving');
+      try {
+        await onSave({
+          labour_type:  labourType.trim(),
+          date,
+          hours:        parseFloat(hours),
+          hourly_rate:  parseInt(hourlyRate, 10),
+          unit,
+          description:  description.trim() || null,
+          room_id:      roomId || null,
+        });
+        savedRef.current = current;
+        setSaveStatus('saved');
+        savedTimer.current = setTimeout(() => setSaveStatus('idle'), 2500);
+      } catch (err) {
+        setError(err.message || 'Hiba a mentésnél');
+        setSaveStatus('idle');
+      }
+    }, 700);
+
+    return () => { clearTimeout(timerRef.current); clearTimeout(savedTimer.current); };
+  }, [labourType, date, hours, unit, hourlyRate, description, roomId]);
 
   const preview = Math.round((parseFloat(hours) || 0) * (parseInt(hourlyRate, 10) || 0));
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!labourType.trim()) { setErr('A típus megadása kötelező'); return; }
-    setSaving(true); setErr('');
-    try {
-      await onSave({ labour_type: labourType.trim(), date, hours: parseFloat(hours), hourly_rate: parseInt(hourlyRate, 10), unit, description: description.trim() || null, room_id: roomId || null });
-    } catch (error) {
-      setErr(error.message || 'Hiba a mentésnél');
-      setSaving(false);
-    }
+  const SaveIndicator = () => {
+    if (saveStatus === 'idle') return null;
+    if (saveStatus === 'pending' || saveStatus === 'saving') return (
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 12, color: 'var(--text-muted)', fontWeight: 600 }}>
+        <Loader2 size={12} className="animate-spin" /> Mentés...
+      </span>
+    );
+    if (saveStatus === 'saved') return (
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 12, color: 'var(--success-text)', fontWeight: 700 }}>
+        <Check size={12} /> Mentve
+      </span>
+    );
+    return null;
   };
 
   return (
-    <Modal isOpen={true} onClose={onClose} title="Munkabejegyzés szerkesztése">
-      <ErrorBanner message={err} style={{ marginBottom: '0.85rem' }} />
-      <form onSubmit={handleSubmit}>
+    <Modal isOpen={true} onClose={onClose} title="Munkabejegyzés szerkesztése" headerRight={<SaveIndicator />}>
+      <ErrorBanner message={error} style={{ marginBottom: '0.85rem' }} />
+      <div>
         <div className="form-group">
           <label className="form-label">Típus *</label>
-          <input type="text" required className="form-control" value={labourType} onChange={e => setLabourType(e.target.value)} />
+          <input type="text" className="form-control" value={labourType} onChange={e => setLabourType(e.target.value)} />
         </div>
         <div className="form-group">
           <label className="form-label">Dátum</label>
@@ -60,23 +108,18 @@ export default function LabourEditModal({ entry, onClose, onSave, rooms = [] }) 
         </div>
         <div className="form-group">
           <label className="form-label">Mértékegység</label>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.3rem' }}>
-            {LABOUR_UNITS.map(u => (
-              <button key={u} type="button" onClick={() => setUnit(u)}
-                style={{ padding: '0.25rem 0.65rem', borderRadius: 'var(--radius-md)', border: unit === u ? '2px solid var(--accent)' : '1px solid var(--border-subtle)', background: unit === u ? 'var(--accent)' : 'var(--bg-subtle)', color: unit === u ? '#fff' : 'var(--text-secondary)', fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer', fontFamily: 'var(--font-mono)' }}>
-                {u}
-              </button>
-            ))}
-          </div>
+          <select className="form-control" value={unit} onChange={e => setUnit(e.target.value)} style={{ fontFamily: 'var(--font-mono)', fontWeight: 700 }}>
+            {LABOUR_UNITS.map(u => <option key={u} value={u}>{u}</option>)}
+          </select>
         </div>
         <div className="grid-2col">
           <div className="form-group" style={{ margin: 0 }}>
             <label className="form-label">Mennyiség ({unit}) *</label>
-            <input type="number" required min="0.01" step="0.01" className="form-control text-mono" value={hours} onChange={e => setHours(e.target.value)} />
+            <input type="number" min="0.01" step="0.01" className="form-control text-mono" value={hours} onChange={e => setHours(e.target.value)} />
           </div>
           <div className="form-group" style={{ margin: 0 }}>
             <label className="form-label">Egységár (Ft/{unit}) *</label>
-            <input type="number" required min="1" className="form-control text-mono" value={hourlyRate} onChange={e => setHourlyRate(e.target.value)} />
+            <input type="number" min="1" className="form-control text-mono" value={hourlyRate} onChange={e => setHourlyRate(e.target.value)} />
           </div>
         </div>
         {preview > 0 && (
@@ -97,11 +140,7 @@ export default function LabourEditModal({ entry, onClose, onSave, rooms = [] }) 
             </select>
           </div>
         )}
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '1.25rem' }}>
-          <button type="button" className="btn btn-secondary btn-sm" onClick={onClose} disabled={saving}>Mégse</button>
-          <button type="submit" className="btn btn-primary btn-sm" disabled={saving}>{saving ? <><Loader2 size={13} className="animate-spin" />Mentés</> : 'Mentés'}</button>
-        </div>
-      </form>
+      </div>
     </Modal>
   );
 }

@@ -17,6 +17,7 @@ const BADGE_MAP = {
   // Project derived
   folyamatban: { label: 'Folyamatban', bg: '#fffbeb', color: '#92400e', icon: false },
   kesz:        { label: 'Kész',        bg: '#e2e8f0', color: '#0f172a', icon: true },
+  paused:      { label: 'Szünetel',    bg: '#eff6ff', color: '#1d4ed8', icon: false },
 };
 
 export default function StatusBadge({ status }) {

@@ -61,7 +61,7 @@ function ModalBase({ isOpen, onClose, children, style, persistent }) {
   );
 }
 
-export default function Modal({ isOpen, onClose, title, children, maxWidth, maxHeight, persistent }) {
+export default function Modal({ isOpen, onClose, title, children, maxWidth, maxHeight, persistent, headerRight }) {
   const style = (maxWidth || maxHeight) ? { ...(maxWidth && { maxWidth }), ...(maxHeight && { maxHeight }) } : undefined;
   return (
     <ModalBase isOpen={isOpen} onClose={onClose} style={style} persistent={persistent}>
@@ -69,12 +69,15 @@ export default function Modal({ isOpen, onClose, title, children, maxWidth, maxH
         <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-primary)' }}>
           {title}
         </h3>
-        <button
-          onClick={onClose}
-          style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', padding: '0.25rem' }}
-        >
-          <X size={20} />
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+          {headerRight}
+          <button
+            onClick={onClose}
+            style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', padding: '0.25rem' }}
+          >
+            <X size={20} />
+          </button>
+        </div>
       </div>
       {children}
     </ModalBase>

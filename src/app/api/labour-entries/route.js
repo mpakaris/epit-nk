@@ -64,10 +64,10 @@ export async function POST(request) {
     userId:     user.id,
     userName:   callerProfile?.display_name || user.email,
     action:     'Munkabejegyzés rögzítve',
-    targetType: 'labour_entry',
-    targetId:   data.id,
+    targetType: 'project',
+    targetId:   projectId,
     targetName: project.name,
-    details:    { labour_type: labourType, hours: Number(hours), value_huf: valueHuf },
+    details:    { labour_type: labourType, hours: Number(hours), unit: unit || 'h', value_huf: valueHuf },
   });
 
   return Response.json({ labourEntry: data }, { status: 201 });
