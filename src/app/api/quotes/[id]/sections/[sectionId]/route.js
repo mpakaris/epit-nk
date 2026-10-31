@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { logAudit } from '@/lib/audit';
 
 async function getCtx(quoteId, sectionId) {
   const supabase = await createClient();
@@ -7,7 +8,7 @@ async function getCtx(quoteId, sectionId) {
   if (error || !user) return { err: 'Unauthenticated', status: 401 };
 
   const admin = createAdminClient();
-  const { data: profile } = await admin.from('profiles').select('id, role').eq('id', user.id).single();
+  const { data: profile } = await admin.from('profiles').select('id, role, display_name').eq('id', user.id).single();
   if (!profile) return { err: 'Forbidden', status: 403 };
 
   const { data: quote } = await admin
@@ -19,7 +20,7 @@ async function getCtx(quoteId, sectionId) {
 
   const { data: section } = await admin
     .from('quote_sections')
-    .select('id, created_by')
+    .select('id, created_by, name')
     .eq('id', sectionId)
     .eq('quote_id', quoteId)
     .single();
@@ -90,8 +91,17 @@ export async function DELETE(request, { params }) {
   if (!ctx.isSuperAdmin && !ctx.isQuoteOwner && !ctx.isKollektivOwner && !ctx.isSectionOwner)
     return Response.json({ error: 'Csak a saját szekciót törölheted.' }, { status: 403 });
 
+  const sectionName = ctx.section.name;
   await ctx.admin.from('quote_entries').update({ section_id: null }).eq('section_id', sectionId);
   const { error } = await ctx.admin.from('quote_sections').delete().eq('id', sectionId).eq('quote_id', quoteId);
   if (error) return Response.json({ error: error.message }, { status: 400 });
+
+  logAudit({
+    entityId: ctx.quote?.collective_id || ctx.user.id, userId: ctx.user.id,
+    userName: ctx.profile?.display_name || ctx.user.email,
+    action: 'Szekció törölve', targetType: 'quote', targetId: quoteId,
+    details: { name: sectionName },
+  });
+
   return Response.json({ success: true });
 }

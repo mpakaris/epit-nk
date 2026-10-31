@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { generateOfferPdf } from '@/lib/generateOfferPdf';
+import { logAudit } from '@/lib/audit';
 
 export async function GET(request, { params }) {
   const supabase = await createClient();
@@ -10,11 +11,11 @@ export async function GET(request, { params }) {
   const { id } = await params;
   const admin = createAdminClient();
 
-  const { data: quote } = await admin.from('quotes').select('title, offer_number, owner_id, collective_id').eq('id', id).single();
+  const { data: quote } = await admin.from('quotes').select('title, offer_number, owner_id, created_by, collective_id').eq('id', id).single();
   if (!quote) return Response.json({ error: 'Not found' }, { status: 404 });
 
   const { data: profile } = await admin.from('profiles').select('role').eq('id', user.id).single();
-  const isOwner      = quote.owner_id === user.id;
+  const isOwner      = quote.owner_id === user.id || quote.created_by === user.id;
   const isSuperAdmin = profile?.role === 'superadmin';
 
   let isKollektivOwner = false;
@@ -36,6 +37,17 @@ export async function GET(request, { params }) {
   try {
     const accent = new URL(request.url).searchParams.get('accent') || '#2563eb';
     const pdfBuffer = await generateOfferPdf(id, user.id, accent);
+
+    const { data: dlProfile } = await admin.from('profiles').select('display_name').eq('id', user.id).single();
+    logAudit({
+      entityId:   quote.collective_id || user.id,
+      userId:     user.id,
+      userName:   dlProfile?.display_name || user.email,
+      action:     'PDF letöltve',
+      targetType: 'quote',
+      targetId:   id,
+      targetName: quote.title,
+    });
 
     const safeName = quote.offer_number
       ? quote.offer_number.replace(/\//g, '-').replace(/[^\w\s-]/g, '').trim()

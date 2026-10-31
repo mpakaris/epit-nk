@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { logAudit } from '@/lib/audit';
 
 async function getCtx(quoteId) {
   const supabase = await createClient();
@@ -56,5 +57,13 @@ export async function POST(request, { params }) {
   }]).select().single();
 
   if (error) return Response.json({ error: error.message }, { status: 500 });
+
+  logAudit({
+    entityId: ctx.quote.collective_id || ctx.user.id, userId: ctx.user.id,
+    userName: ctx.profile.display_name || ctx.user.email,
+    action: 'Szekció hozzáadva', targetType: 'quote', targetId: quoteId,
+    details: { name: section.name },
+  });
+
   return Response.json({ section }, { status: 201 });
 }

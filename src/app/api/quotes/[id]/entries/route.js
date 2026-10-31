@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { logAudit } from '@/lib/audit';
 
 export async function POST(request, { params }) {
   const { id: quoteId } = await params;
@@ -38,5 +39,14 @@ export async function POST(request, { params }) {
   }]).select().single();
 
   if (error) return Response.json({ error: error.message }, { status: 500 });
+
+  const { data: userName } = await admin.from('profiles').select('display_name').eq('id', user.id).single();
+  logAudit({
+    entityId: quote.collective_id || user.id, userId: user.id,
+    userName: userName?.display_name || user.email,
+    action: 'Tétel hozzáadva', targetType: 'quote', targetId: quoteId,
+    details: { work_description: data.work_description, amount_huf: data.amount_huf, entry_type: data.entry_type },
+  });
+
   return Response.json({ entry: data }, { status: 201 });
 }

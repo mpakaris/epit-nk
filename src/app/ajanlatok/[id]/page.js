@@ -145,6 +145,12 @@ export default function QuoteDetailPage() {
   // Actions bottom sheet
   const [showActionsSheet, setShowActionsSheet] = useState(false);
   const [showMemberRestriction, setShowMemberRestriction] = useState(null); // 'preview' | 'send' | 'archive'
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
+  const [showHistoryModal, setShowHistoryModal] = useState(false);
+  const [history, setHistory] = useState(null);
+  const [historyTotal, setHistoryTotal] = useState(0);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyLoadingMore, setHistoryLoadingMore] = useState(false);
   // Collapsable meta card (starts collapsed on mobile)
   const [metaCollapsed, setMetaCollapsed]       = useState(true);
   // Duplicate modal
@@ -363,6 +369,52 @@ export default function QuoteDetailPage() {
   const sections      = resolvedSections.sort((a, b) => a.sort_order - b.sort_order || new Date(a.created_at) - new Date(b.created_at));
 
   const previewAmount = calcAmount(entryForm.entry_type, entryForm.quantity, entryForm.unit_price, entryForm.flat_amount);
+
+  const openHistory = async () => {
+    setShowActionsSheet(false);
+    setShowHistoryModal(true);
+    if (history !== null) return;
+    setHistoryLoading(true);
+    try {
+      const res = await fetch(`/api/quotes/${id}/history?limit=10&offset=0`);
+      const data = await res.json();
+      setHistory(data.history || []);
+      setHistoryTotal(data.total || 0);
+    } catch { setHistory([]); }
+    finally { setHistoryLoading(false); }
+  };
+
+  const loadMoreHistory = async () => {
+    if (!history || historyLoadingMore) return;
+    setHistoryLoadingMore(true);
+    try {
+      const res = await fetch(`/api/quotes/${id}/history?limit=10&offset=${history.length}`);
+      const data = await res.json();
+      setHistory(prev => [...(prev || []), ...(data.history || [])]);
+      setHistoryTotal(data.total || 0);
+    } catch {}
+    finally { setHistoryLoadingMore(false); }
+  };
+
+  const handleDownloadPdf = async () => {
+    setDownloadingPdf(true);
+    setShowActionsSheet(false);
+    try {
+      const res = await fetch(`/api/quotes/${id}/pdf`);
+      if (!res.ok) throw new Error('PDF generálás sikertelen');
+      const blob = await res.blob();
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a');
+      a.href     = url;
+      a.download = res.headers.get('content-disposition')?.match(/filename="(.+)"/)?.[1] || 'Ajanlat.pdf';
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setAlertModal({ message: err.message });
+    } finally {
+      setDownloadingPdf(false);
+    }
+  };
 
   const isMetaDirty = canEdit && metaInitialized && (
     metaTitle       !== (quote.title        || '')                ||
@@ -1311,18 +1363,32 @@ export default function QuoteDetailPage() {
               Műveletek
             </div>
 
-            {/* PDF Preview */}
+            {/* PDF Preview / Download */}
             {(isQuoteOwner || isKollektivOwner) ? (
-              <Link
-                href={`${navPrefix}/ajanlatok/${id}/nyomtatas`}
-                onClick={() => setShowActionsSheet(false)}
-                style={{ display: 'flex', alignItems: 'center', gap: 14, width: '100%', minHeight: 56, padding: '0 20px', textDecoration: 'none', color: '#0f172a' }}
-              >
-                <div style={{ width: 44, height: 44, borderRadius: 12, background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  <Printer size={20} strokeWidth={1.75} color="#475569" />
-                </div>
-                <span style={{ fontSize: 16, fontWeight: 600 }}>Előnézet / PDF</span>
-              </Link>
+              quote.status === 'accepted' ? (
+                <button
+                  type="button"
+                  onClick={handleDownloadPdf}
+                  disabled={downloadingPdf}
+                  style={{ display: 'flex', alignItems: 'center', gap: 14, width: '100%', minHeight: 56, padding: '0 20px', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', opacity: downloadingPdf ? 0.6 : 1 }}
+                >
+                  <div style={{ width: 44, height: 44, borderRadius: 12, background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    {downloadingPdf ? <Loader2 size={20} strokeWidth={1.75} color="#475569" className="animate-spin" /> : <Printer size={20} strokeWidth={1.75} color="#475569" />}
+                  </div>
+                  <span style={{ fontSize: 16, fontWeight: 600 }}>{downloadingPdf ? 'PDF generálás…' : 'PDF letöltés'}</span>
+                </button>
+              ) : (
+                <Link
+                  href={`${navPrefix}/ajanlatok/${id}/nyomtatas`}
+                  onClick={() => setShowActionsSheet(false)}
+                  style={{ display: 'flex', alignItems: 'center', gap: 14, width: '100%', minHeight: 56, padding: '0 20px', textDecoration: 'none', color: '#0f172a' }}
+                >
+                  <div style={{ width: 44, height: 44, borderRadius: 12, background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <Printer size={20} strokeWidth={1.75} color="#475569" />
+                  </div>
+                  <span style={{ fontSize: 16, fontWeight: 600 }}>Előnézet / PDF</span>
+                </Link>
+              )
             ) : (
               <button
                 type="button"
@@ -1438,6 +1504,20 @@ export default function QuoteDetailPage() {
               </button>
             )}
 
+            {/* History — visible to all who can access the document */}
+            {canModify && (
+              <button
+                type="button"
+                onClick={openHistory}
+                style={{ display: 'flex', alignItems: 'center', gap: 14, width: '100%', minHeight: 56, padding: '0 20px', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left' }}
+              >
+                <div style={{ width: 44, height: 44, borderRadius: 12, background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <MessageSquare size={20} strokeWidth={1.75} color="#475569" />
+                </div>
+                <span style={{ fontSize: 16, fontWeight: 600, color: '#0f172a' }}>Előzmények</span>
+              </button>
+            )}
+
             {/* Delete */}
             {canModify && (
               <button
@@ -1525,6 +1605,68 @@ export default function QuoteDetailPage() {
             {isDuplicating ? <><Loader2 size={13} className="animate-spin" />Másolás…</> : <><Copy size={13} />Másolás</>}
           </button>
         </div>
+      </Modal>
+
+      {/* ── History modal ── */}
+      <Modal isOpen={showHistoryModal} onClose={() => setShowHistoryModal(false)} title="Ajánlat előzményei">
+        {historyLoading ? (
+          <div style={{ display: 'flex', justifyContent: 'center', padding: '2rem 0' }}><Loader2 size={22} className="animate-spin" color="var(--text-muted)" /></div>
+        ) : !history || history.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '2rem 0', color: 'var(--text-muted)', fontSize: '0.875rem' }}>Még nincs rögzített esemény.</div>
+        ) : (
+          <div style={{ maxHeight: '60vh', overflowY: 'auto', marginRight: '-0.25rem', paddingRight: '0.25rem' }}>
+            {history.map((entry, idx) => {
+              const a = entry.action || '';
+              const isCreate   = a.includes('létrehozva');
+              const isSent     = a.includes('elküldve');
+              const isAccepted = a.includes('elfogadva');
+              const isRejected = a.includes('Elutasítva') || a.includes('rejected');
+              const isDeleted  = a.includes('törölve');
+              const isPdf      = a.includes('PDF');
+              const isDraft    = a.includes('draft') || a.includes('Tervezet');
+              const isEdit     = a.includes('módosítva') && !a.includes('Státusz');
+
+              const iconColor = isCreate ? '#16a34a' : isAccepted ? '#16a34a' : isRejected ? '#ef4444' : isDeleted ? '#ef4444' : isSent ? '#2563eb' : isPdf ? '#475569' : isDraft ? '#94a3b8' : isEdit ? '#d97706' : '#2563eb';
+              const iconBg    = isCreate ? '#f0fdf4' : isAccepted ? '#f0fdf4' : isRejected ? '#fff1f2' : isDeleted ? '#fff1f2' : isSent ? '#eff6ff' : isPdf ? '#f1f5f9' : isDraft ? '#f8fafc' : isEdit ? '#fffbeb' : '#eff6ff';
+              const Icon = isCreate ? Plus : isAccepted ? CheckCircle2 : isRejected ? XCircle : isDeleted ? Trash2 : isSent ? Send : isPdf ? Printer : isDraft ? RotateCcw : isEdit ? Edit3 : MessageSquare;
+
+              const sub = [];
+              if (entry.user_name) sub.push(entry.user_name);
+              if (entry.details?.to) sub.push(`→ ${entry.details.to}`);
+              if (entry.details?.project_name) sub.push(`Projekt: ${entry.details.project_name}`);
+              if (entry.details?.work_description) sub.push(entry.details.work_description);
+              if (entry.details?.amount_huf) sub.push(formatHUF(entry.details.amount_huf));
+              if (entry.details?.name) sub.push(`„${entry.details.name}"`);
+              if (entry.details?.changed_fields?.length) sub.push(entry.details.changed_fields.join(', '));
+
+              return (
+                <div key={entry.id} style={{ display: 'flex', gap: '0.85rem', padding: '0.75rem 0', borderBottom: idx < history.length - 1 ? '1px solid var(--border-subtle)' : 'none', alignItems: 'flex-start' }}>
+                  <div style={{ width: 34, height: 34, borderRadius: '50%', background: iconBg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 2 }}>
+                    <Icon size={15} color={iconColor} strokeWidth={2} />
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: 600, fontSize: '0.875rem', color: 'var(--text-primary)', marginBottom: '0.15rem' }}>{entry.action}</div>
+                    {sub.length > 0 && (
+                      <div style={{ fontSize: '0.775rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>{sub.join(' · ')}</div>
+                    )}
+                  </div>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', flexShrink: 0, textAlign: 'right', marginTop: 2 }}>
+                    {formatDate(entry.created_at)}<br />
+                    <span style={{ fontSize: '0.68rem' }}>{new Date(entry.created_at).toLocaleTimeString('hu-HU', { hour: '2-digit', minute: '2-digit' })}</span>
+                  </div>
+                </div>
+              );
+            })}
+
+            {history.length < historyTotal && (
+              <div style={{ paddingTop: '0.75rem', textAlign: 'center' }}>
+                <button type="button" onClick={loadMoreHistory} disabled={historyLoadingMore} className="btn btn-secondary btn-sm">
+                  {historyLoadingMore ? <><Loader2 size={13} className="animate-spin" />Betöltés…</> : `Még ${historyTotal - history.length} esemény betöltése`}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
       </Modal>
 
     </div>

@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { logAudit } from '@/lib/audit';
 
 export async function POST(request, { params }) {
   const { id } = await params;
@@ -69,6 +70,18 @@ export async function POST(request, { params }) {
     console.error('accept: quote status update failed', quoteErr);
     return Response.json({ error: 'A projekt létrejött, de az ajánlat státusza nem frissült. Kérjük, próbáld újra.' }, { status: 500 });
   }
+
+  const { data: profile } = await admin.from('profiles').select('display_name').eq('id', user.id).single();
+  logAudit({
+    entityId:   quote.collective_id || user.id,
+    userId:     user.id,
+    userName:   profile?.display_name || user.email,
+    action:     'Ajánlat elfogadva, projekt létrehozva',
+    targetType: 'quote',
+    targetId:   id,
+    targetName: quote.title,
+    details:    { project_id: proj.id, project_name: proj.name },
+  });
 
   return Response.json({ project: proj });
 }

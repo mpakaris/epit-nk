@@ -111,15 +111,34 @@ export async function PATCH(request, { params }) {
   const { data, error } = await ctx.admin.from('quotes').update(update).eq('id', id).select().single();
   if (error) return Response.json({ error: error.message }, { status: 400 });
 
+  const FIELD_LABELS = {
+    title: 'Ajánlat neve', location: 'Helyszín', work_type: 'Munka típusa',
+    description: 'Leírás', start_date: 'Kezdés', end_date: 'Befejezés',
+    client_id: 'Ügyfél', tax_percent: 'ÁFA kulcs', offer_number: 'Ajánlat száma',
+    valid_until: 'Érvényesség', offer_terms_text: 'Feltételek',
+    payment_deadline_days: 'Fizetési határidő', payment_method: 'Fizetési mód',
+    deposit_percent: 'Előleg', warranty_months: 'Garancia',
+  };
+  const changedFields = update.status ? null : Object.keys(update)
+    .filter(k => !['updated_at', 'updated_by_name'].includes(k) && update[k] !== ctx.quote[k])
+    .map(k => FIELD_LABELS[k])
+    .filter(Boolean);
+
+  const statusLabels = { draft: 'Tervezet', sent: 'Kiküldve', accepted: 'Elfogadva', rejected: 'Elutasítva' };
+
   logAudit({
     entityId: ctx.quote.collective_id || ctx.user.id,
     userId:   ctx.user.id,
     userName: ctx.profile.display_name || ctx.user.email,
-    action:   update.status ? `Ajánlat státusza módosítva: ${update.status}` : 'Ajánlat módosítva',
+    action:   update.status
+      ? `Státusz: ${statusLabels[update.status] || update.status}`
+      : 'Ajánlat módosítva',
     targetType: 'quote',
     targetId:   id,
     targetName: ctx.quote.title,
-    details: update.status ? { status: update.status } : null,
+    details: update.status
+      ? { status: update.status }
+      : (changedFields?.length ? { changed_fields: changedFields } : null),
   });
 
   return Response.json({ quote: data });

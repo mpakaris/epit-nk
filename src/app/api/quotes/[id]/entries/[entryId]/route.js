@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { logAudit } from '@/lib/audit';
 
 async function getCtx(quoteId, entryId) {
   const supabase = await createClient();
@@ -42,6 +43,16 @@ export async function PATCH(request, { params }) {
 
   const { data, error } = await ctx.admin.from('quote_entries').update(update).eq('id', entryId).select().single();
   if (error) return Response.json({ error: error.message }, { status: 400 });
+
+  const { data: prof } = await ctx.admin.from('profiles').select('display_name').eq('id', ctx.user.id).single();
+  const { data: quote } = await ctx.admin.from('quotes').select('collective_id').eq('id', quoteId).single();
+  logAudit({
+    entityId: quote?.collective_id || ctx.user.id, userId: ctx.user.id,
+    userName: prof?.display_name || ctx.user.email,
+    action: 'Tétel módosítva', targetType: 'quote', targetId: quoteId,
+    details: { work_description: data.work_description, amount_huf: data.amount_huf },
+  });
+
   return Response.json({ entry: data });
 }
 
@@ -50,7 +61,19 @@ export async function DELETE(request, { params }) {
   const ctx = await getCtx(quoteId, entryId);
   if (ctx.err) return Response.json({ error: ctx.err }, { status: ctx.status });
 
+  const entryName = ctx.entry.work_description;
+  const entryAmt  = ctx.entry.amount_huf;
   const { error } = await ctx.admin.from('quote_entries').delete().eq('id', entryId);
   if (error) return Response.json({ error: error.message }, { status: 400 });
+
+  const { data: prof } = await ctx.admin.from('profiles').select('display_name').eq('id', ctx.user.id).single();
+  const { data: quote } = await ctx.admin.from('quotes').select('collective_id').eq('id', quoteId).single();
+  logAudit({
+    entityId: quote?.collective_id || ctx.user.id, userId: ctx.user.id,
+    userName: prof?.display_name || ctx.user.email,
+    action: 'Tétel törölve', targetType: 'quote', targetId: quoteId,
+    details: { work_description: entryName, amount_huf: entryAmt },
+  });
+
   return Response.json({ success: true });
 }
