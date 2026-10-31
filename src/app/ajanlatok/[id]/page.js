@@ -377,6 +377,7 @@ export default function QuoteDetailPage() {
     setHistoryLoading(true);
     try {
       const res = await fetch(`/api/quotes/${id}/history?limit=10&offset=0`);
+      if (!res.ok) { setHistory([]); return; }
       const data = await res.json();
       setHistory(data.history || []);
       setHistoryTotal(data.total || 0);
@@ -1323,7 +1324,7 @@ export default function QuoteDetailPage() {
       />
 
       {/* ── Floating actions button ── */}
-      {canModify && (
+      {(isQuoteOwner || isKollektivOwner || isCollMember) && (
         <button
           type="button"
           onClick={() => setShowActionsSheet(true)}
@@ -1504,19 +1505,17 @@ export default function QuoteDetailPage() {
               </button>
             )}
 
-            {/* History — visible to all who can access the document */}
-            {canModify && (
-              <button
-                type="button"
-                onClick={openHistory}
-                style={{ display: 'flex', alignItems: 'center', gap: 14, width: '100%', minHeight: 56, padding: '0 20px', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left' }}
-              >
-                <div style={{ width: 44, height: 44, borderRadius: 12, background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  <MessageSquare size={20} strokeWidth={1.75} color="#475569" />
-                </div>
-                <span style={{ fontSize: 16, fontWeight: 600, color: '#0f172a' }}>Előzmények</span>
-              </button>
-            )}
+            {/* History — read-only, visible to owner and all collective members */}
+            <button
+              type="button"
+              onClick={openHistory}
+              style={{ display: 'flex', alignItems: 'center', gap: 14, width: '100%', minHeight: 56, padding: '0 20px', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left' }}
+            >
+              <div style={{ width: 44, height: 44, borderRadius: 12, background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <MessageSquare size={20} strokeWidth={1.75} color="#475569" />
+              </div>
+              <span style={{ fontSize: 16, fontWeight: 600, color: '#0f172a' }}>Előzmények</span>
+            </button>
 
             {/* Delete */}
             {canModify && (
