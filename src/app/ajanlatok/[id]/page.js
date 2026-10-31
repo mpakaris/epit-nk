@@ -136,8 +136,9 @@ export default function QuoteDetailPage() {
 
   // Convert to project modal
   const [showConvertModal, setShowConvertModal] = useState(false);
-  const [convertMembers, setConvertMembers]     = useState([]);
   const [isConverting, setIsConverting]         = useState(false);
+  const [convertedProject, setConvertedProject] = useState(null);
+  const [convertError, setConvertError]         = useState(null);
 
   const [showSendConfirm, setShowSendConfirm]       = useState(false);
 
@@ -349,7 +350,8 @@ export default function QuoteDetailPage() {
   const grossTotal    = netTotal + taxAmount;
   const isQuoteOwner     = quote.created_by === currentUser?.id || quote.owner_id === currentUser?.id;
   const isKollektivOwner = collectives?.some(c => c.collective_id === quote.collective_id && (c.role === 'owner' || c.role === 'admin'));
-  const isCollMember     = !!(activeCollectiveId && quote.collective_id === activeCollectiveId);
+  const convertCollectiveName = collectives?.find(c => c.collective_id === quote.collective_id)?.name || null;
+  const isCollMember     = !!(quote.collective_id && collectives?.some(c => c.collective_id === quote.collective_id));
   const isDocLocked   = !!quote.locked_reason;
   const canModify     = !isDocLocked && (isQuoteOwner || isKollektivOwner || (quote.shared_with || []).includes(currentUser?.id) || isCollMember);
   const isLocked      = quote.status === 'accepted' || quote.status === 'rejected';
@@ -439,7 +441,7 @@ export default function QuoteDetailPage() {
 
   // ── Status handlers ───────────────────────────────────────────────────────
   const handleStatusChange = async (newStatus) => {
-    if (newStatus === 'accepted') { setConvertMembers(currentUser ? [currentUser.id] : []); setShowConvertModal(true); return; }
+    if (newStatus === 'accepted') { setConvertedProject(null); setConvertError(null); setShowConvertModal(true); return; }
     try {
       const updated = await updateQuoteStatus(id, newStatus);
       if (fallbackQuote && updated) setFallbackQuote(updated);
@@ -449,8 +451,12 @@ export default function QuoteDetailPage() {
 
   const handleConvert = async () => {
     setIsConverting(true);
-    try { const proj = await convertQuoteToProject(id, convertMembers); setShowConvertModal(false); router.push(`${navPrefix}/projektek/${proj.id}`); }
-    catch (err) { setAlertModal({ message: err.message }); }
+    setConvertError(null);
+    try {
+      const proj = await convertQuoteToProject(id);
+      setConvertedProject(proj);
+    }
+    catch (err) { setConvertError(err.message || 'Hiba történt. Kérjük, próbáld újra.'); }
     finally { setIsConverting(false); }
   };
 
@@ -1056,22 +1062,57 @@ export default function QuoteDetailPage() {
       </Modal>
 
       {/* Convert to project modal */}
-      <Modal isOpen={showConvertModal} onClose={() => setShowConvertModal(false)} title="Projektté alakítás">
-        <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>Válassza ki a projekt tagjait. A cím és dátumok az ajánlatból kerülnek át.</p>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', marginBottom: '1.25rem' }}>
-          {[...(currentUser && !users.find(u => u.id === currentUser.id) ? [{ id: currentUser.id, display_name: `${currentUser.display_name} (Ön)` }] : []), ...users].map(u => (
-            <label key={u.id} style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', padding: '0.5rem 0.75rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)', cursor: 'pointer', background: convertMembers.includes(u.id) ? 'var(--accent-light)' : '#fff' }}>
-              <input type="checkbox" checked={convertMembers.includes(u.id)} onChange={e => setConvertMembers(prev => e.target.checked ? [...prev, u.id] : prev.filter(x => x !== u.id))} />
-              <span style={{ fontWeight: 600, fontSize: '0.875rem' }}>{u.display_name}</span>
-            </label>
-          ))}
-        </div>
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
-          <button type="button" className="btn btn-secondary btn-sm" onClick={() => setShowConvertModal(false)}>Mégse</button>
-          <button type="button" onClick={handleConvert} disabled={isConverting} className="btn btn-sm" style={{ background: 'var(--success)', color: '#fff', border: 'none' }}>
-            {isConverting ? <><Loader2 size={14} className="animate-spin" />Átalakítás…</> : <><FolderKanban size={14} />Létrehozás</>}
-          </button>
-        </div>
+      <Modal
+        isOpen={showConvertModal}
+        onClose={() => { setShowConvertModal(false); setConvertedProject(null); setConvertError(null); }}
+        title="Ajánlat elfogadása"
+      >
+        {convertedProject ? (
+          <>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem', padding: '0.5rem 0 1rem' }}>
+              <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'var(--success-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <CheckCircle2 size={24} color="var(--success)" />
+              </div>
+              <p style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)', margin: 0, textAlign: 'center' }}>A projekt sikeresen létrejött!</p>
+              <p style={{ fontSize: '0.825rem', color: 'var(--text-secondary)', margin: 0, textAlign: 'center' }}>Az ajánlat elfogadva, a projekt elérhető a Projektek menüpontban.</p>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '0.5rem' }}>
+              <button type="button" className="btn btn-secondary btn-sm" onClick={() => { setShowConvertModal(false); setConvertedProject(null); }}>Bezárás</button>
+              <button type="button" className="btn btn-sm" style={{ background: 'var(--success)', color: '#fff', border: 'none' }} onClick={() => router.push(`${navPrefix}/projektek/${convertedProject.id}`)}>
+                <FolderKanban size={14} />Projekt megtekintése
+              </button>
+            </div>
+          </>
+        ) : convertError ? (
+          <>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem', padding: '0.5rem 0 1rem' }}>
+              <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'var(--danger-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <XCircle size={24} color="var(--danger)" />
+              </div>
+              <p style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)', margin: 0, textAlign: 'center' }}>Hiba történt</p>
+              <p style={{ fontSize: '0.825rem', color: 'var(--text-secondary)', margin: 0, textAlign: 'center' }}>{convertError}</p>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '0.5rem' }}>
+              <button type="button" className="btn btn-secondary btn-sm" onClick={() => { setShowConvertModal(false); setConvertError(null); }}>Bezárás</button>
+              <button type="button" className="btn btn-sm" style={{ background: 'var(--accent)', color: '#fff', border: 'none' }} onClick={handleConvert} disabled={isConverting}>
+                {isConverting ? <><Loader2 size={14} className="animate-spin" />Folyamatban…</> : 'Újra'}
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '1.25rem' }}>
+              {quote.collective_id
+                ? <>Az ajánlat elfogadásával automatikusan létrejön egy projekt a <strong>{convertCollectiveName || 'kollektíva'}</strong> munkaterületen. A kollektíva minden tagja hozzáférhet.</>
+                : 'Biztosan elfogadja az ajánlatot? Automatikusan létrehozunk egy projektet, hogy nyomon tudd követni a költségeket.'}
+            </p>
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <button type="button" onClick={handleConvert} disabled={isConverting} className="btn btn-sm" style={{ background: 'var(--success)', color: '#fff', border: 'none' }}>
+                {isConverting ? <><Loader2 size={14} className="animate-spin" />Folyamatban…</> : <><CheckCircle2 size={14} />Rendben</>}
+              </button>
+            </div>
+          </>
+        )}
       </Modal>
 
       <ConfirmModal
@@ -1330,7 +1371,7 @@ export default function QuoteDetailPage() {
             {canModify && !isLocked && (
               <button
                 type="button"
-                onClick={() => { setShowActionsSheet(false); handleStatusChange('accepted'); }}
+                onClick={() => { setShowActionsSheet(false); if (!isQuoteOwner && !isKollektivOwner) { setShowMemberRestriction('accept'); return; } handleStatusChange('accepted'); }}
                 style={{ display: 'flex', alignItems: 'center', gap: 14, width: '100%', minHeight: 56, padding: '0 20px', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left' }}
               >
                 <div style={{ width: 44, height: 44, borderRadius: 12, background: '#f0fdf4', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
@@ -1344,7 +1385,7 @@ export default function QuoteDetailPage() {
             {canModify && !isLocked && (
               <button
                 type="button"
-                onClick={() => { setShowActionsSheet(false); handleStatusChange('rejected'); }}
+                onClick={() => { setShowActionsSheet(false); if (!isQuoteOwner && !isKollektivOwner) { setShowMemberRestriction('reject'); return; } handleStatusChange('rejected'); }}
                 style={{ display: 'flex', alignItems: 'center', gap: 14, width: '100%', minHeight: 56, padding: '0 20px', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left' }}
               >
                 <div style={{ width: 44, height: 44, borderRadius: 12, background: '#fff1f2', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
@@ -1373,7 +1414,7 @@ export default function QuoteDetailPage() {
             {quote.status === 'rejected' && canModify && (
               <button
                 type="button"
-                onClick={() => { setShowActionsSheet(false); handleResetToDraft(); }}
+                onClick={() => { setShowActionsSheet(false); if (!isQuoteOwner && !isKollektivOwner) { setShowMemberRestriction('reset'); return; } handleResetToDraft(); }}
                 style={{ display: 'flex', alignItems: 'center', gap: 14, width: '100%', minHeight: 56, padding: '0 20px', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left' }}
               >
                 <div style={{ width: 44, height: 44, borderRadius: 12, background: '#f0fdf4', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
@@ -1387,7 +1428,7 @@ export default function QuoteDetailPage() {
             {canModify && (
               <button
                 type="button"
-                onClick={() => { setShowActionsSheet(false); setDuplicateTitle(`${quote.title} – Másolat`); setDuplicateWithClient(true); setDuplicateWithSections(true); setShowDuplicateModal(true); }}
+                onClick={() => { setShowActionsSheet(false); if (!isQuoteOwner && !isKollektivOwner) { setShowMemberRestriction('duplicate'); return; } setDuplicateTitle(`${quote.title} – Másolat`); setDuplicateWithClient(true); setDuplicateWithSections(true); setShowDuplicateModal(true); }}
                 style={{ display: 'flex', alignItems: 'center', gap: 14, width: '100%', minHeight: 56, padding: '0 20px', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left' }}
               >
                 <div style={{ width: 44, height: 44, borderRadius: 12, background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
@@ -1401,7 +1442,7 @@ export default function QuoteDetailPage() {
             {canModify && (
               <button
                 type="button"
-                onClick={() => { setShowActionsSheet(false); handleDeleteQuote(); }}
+                onClick={() => { setShowActionsSheet(false); if (!isQuoteOwner && !isKollektivOwner) { setShowMemberRestriction('delete'); return; } handleDeleteQuote(); }}
                 style={{ display: 'flex', alignItems: 'center', gap: 14, width: '100%', minHeight: 56, padding: '0 20px', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left' }}
               >
                 <div style={{ width: 44, height: 44, borderRadius: 12, background: '#fff1f2', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
@@ -1418,32 +1459,29 @@ export default function QuoteDetailPage() {
       {showMemberRestriction && (
         <>
           <div onClick={() => setShowMemberRestriction(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.45)', zIndex: 200 }} aria-hidden="true" />
-          <div role="dialog" aria-modal="true" className="bs-panel" style={{ padding: '0 0 calc(20px + env(safe-area-inset-bottom))' }}>
-            <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 12, marginBottom: 4 }}>
-              <div style={{ width: 36, height: 4, borderRadius: 2, background: '#e2e8f0' }} />
+          <div role="dialog" aria-modal="true" className="bs-panel" style={{ padding: 0 }}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '12px 16px 0' }}>
+              <button type="button" onClick={() => setShowMemberRestriction(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, color: '#94a3b8', display: 'flex' }}><X size={20} /></button>
             </div>
-            <div style={{ padding: '16px 20px 8px', display: 'flex', alignItems: 'center', gap: 14 }}>
+            <div style={{ padding: '8px 20px 16px', display: 'flex', alignItems: 'center', gap: 14 }}>
               <div style={{ width: 48, height: 48, borderRadius: 14, background: '#fff7ed', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                {showMemberRestriction === 'send' ? <Send size={22} strokeWidth={1.75} color="#c2410c" /> : showMemberRestriction === 'archive' ? <EyeOff size={22} strokeWidth={1.75} color="#c2410c" /> : <Printer size={22} strokeWidth={1.75} color="#c2410c" />}
+                {showMemberRestriction === 'send' ? <Send size={22} strokeWidth={1.75} color="#c2410c" /> : showMemberRestriction === 'accept' ? <CheckCircle2 size={22} strokeWidth={1.75} color="#c2410c" /> : showMemberRestriction === 'reject' ? <XCircle size={22} strokeWidth={1.75} color="#c2410c" /> : showMemberRestriction === 'reset' ? <RotateCcw size={22} strokeWidth={1.75} color="#c2410c" /> : showMemberRestriction === 'duplicate' ? <Copy size={22} strokeWidth={1.75} color="#c2410c" /> : showMemberRestriction === 'delete' ? <Trash2 size={22} strokeWidth={1.75} color="#c2410c" /> : <Printer size={22} strokeWidth={1.75} color="#c2410c" />}
               </div>
               <div>
                 <div style={{ fontSize: 16, fontWeight: 700, color: '#0f172a', marginBottom: 2 }}>
-                  {showMemberRestriction === 'send' ? 'Ajánlat küldése' : showMemberRestriction === 'archive' ? 'Inaktiválás / Visszaállítás' : 'Előnézet / PDF'}
+                  {showMemberRestriction === 'send' ? 'Ajánlat küldése' : showMemberRestriction === 'accept' ? 'Elfogadás → Projekt' : showMemberRestriction === 'reject' ? 'Elutasítás' : showMemberRestriction === 'reset' ? 'Visszaállítás' : showMemberRestriction === 'duplicate' ? 'Másolás' : showMemberRestriction === 'delete' ? 'Törlés' : 'Előnézet / PDF'}
                 </div>
                 <div style={{ fontSize: 13, color: '#94a3b8' }}>Csak a tulajdonos számára elérhető</div>
               </div>
             </div>
-            <div style={{ margin: '8px 20px 16px', padding: '14px 16px', borderRadius: 12, background: '#fff7ed', border: '1px solid #fed7aa' }}>
+            <div style={{ margin: '0 20px calc(20px + env(safe-area-inset-bottom))', padding: '14px 16px', borderRadius: 12, background: '#fff7ed', border: '1px solid #fed7aa' }}>
               <p style={{ margin: 0, fontSize: 14, color: '#9a3412', lineHeight: 1.55 }}>
                 {showMemberRestriction === 'send'
                   ? 'Ajánlatot csak az ajánlat tulajdonosa küldhet az ügyfélnek. Te közreműködőként hozzáadhatsz tételeket, de a végleges ajánlatot a tulajdonos küldi el.'
-                  : showMemberRestriction === 'archive'
-                  ? 'A dokumentum inaktiválását és visszaállítását csak a kollektíva tulajdonosa végezheti el, mivel az inaktív dokumentumok később visszaállíthatók, ha az ügyfél meggondolja magát.'
-                  : 'Az ajánlat előnézetét és PDF letöltését csak a tulajdonos érheti el, mivel az ő fejléce és adatai szerepelnek rajta.'}
+                  : showMemberRestriction === 'preview'
+                  ? 'Az ajánlat előnézetét és PDF letöltését csak a tulajdonos érheti el, mivel az ő fejléce és adatai szerepelnek rajta.'
+                  : `Nem te vagy a dokumentum tulajdonosa. Ezt a műveletet — ${showMemberRestriction === 'accept' ? 'Elfogadás → Projekt' : showMemberRestriction === 'reject' ? 'Elutasítás' : showMemberRestriction === 'reset' ? 'Visszaállítás' : showMemberRestriction === 'duplicate' ? 'Másolás' : 'Törlés'} — csak az ajánlat tulajdonosa hajthatja végre.`}
               </p>
-            </div>
-            <div style={{ padding: '0 20px' }}>
-              <button type="button" onClick={() => setShowMemberRestriction(null)} className="btn btn-secondary" style={{ width: '100%' }}>Rendben</button>
             </div>
           </div>
         </>

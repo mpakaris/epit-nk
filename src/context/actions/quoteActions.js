@@ -182,38 +182,13 @@ export function makeQuoteActions({
     setQuoteEntries(prev => prev.filter(e => e.id !== entryId));
   };
 
-  const convertQuoteToProject = async (quoteId, memberIds) => {
-    const quote = quotes.find(q => q.id === quoteId);
-    if (!quote) throw new Error('Az ajánlat nem található!');
-    if (!isAdmin && quote.created_by !== effectiveUser?.id) throw new Error('Nincs jogosultsága!');
+  const convertQuoteToProject = async (quoteId) => {
+    const res = await fetch(`/api/quotes/${quoteId}/accept`, { method: 'POST' });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(body.error || 'Hiba történt. Kérjük, próbáld újra.');
 
-    const projDescription = [quote.work_type, quote.description].filter(Boolean).join(' – ');
-
-    const { data: proj, error: projErr } = await supabase
-      .from('projects')
-      .insert([{
-        owner_id:      effectiveUser.id,
-        collective_id: quote.collective_id || null,
-        name: quote.title,
-        description: projDescription,
-        created_by: effectiveUser.id,
-        start_date: quote.start_date,
-        end_date: quote.end_date,
-        client_id: quote.client_id || null,
-        survey_id: quote.survey_id || null,
-      }])
-      .select()
-      .single();
-
-    if (projErr) throw projErr;
-
-    if (memberIds.length > 0) {
-      const rows = memberIds.map(uId => ({ project_id: proj.id, user_id: uId }));
-      await supabase.from('project_members').insert(rows);
-    }
-
-    await supabase.from('quotes').update({ status: 'accepted', project_id: proj.id }).eq('id', quoteId);
-    setProjects(prev => [{ ...proj, members: memberIds }, ...prev]);
+    const proj = body.project;
+    setProjects(prev => [{ ...proj, members: [] }, ...prev]);
     setQuotes(prev => prev.map(q => q.id === quoteId ? { ...q, status: 'accepted', project_id: proj.id } : q));
     return proj;
   };
