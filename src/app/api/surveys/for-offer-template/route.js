@@ -21,7 +21,8 @@ export async function GET(request) {
 
   const admin = createAdminClient();
   const { searchParams } = new URL(request.url);
-  const collectiveId = searchParams.get('collective_id') || null;
+  const collectiveId    = searchParams.get('collective_id')    || null;
+  const includeInactive = searchParams.get('include_inactive') === 'true';
 
   // Verify membership when a collective is requested
   if (collectiveId) {
@@ -35,13 +36,16 @@ export async function GET(request) {
     if (!mem) return Response.json({ error: 'Nem vagy tagja ennek a kollektívának.' }, { status: 403 });
   }
 
-  const baseQuery = () =>
-    admin
+  const baseQuery = () => {
+    let q = admin
       .from('surveys')
-      .select('id, title, location, date, client_id, notes, collective_id, owner_id')
+      .select('id, title, location, date, client_id, notes, collective_id, owner_id, archived_at')
       .is('deleted_at', null)
       .order('date', { ascending: false, nullsFirst: false })
       .order('created_at', { ascending: false });
+    if (!includeInactive) q = q.is('archived_at', null);
+    return q;
+  };
 
   // Always fetch personal surveys
   const { data: personalSurveys } = await baseQuery()

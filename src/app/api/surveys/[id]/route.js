@@ -95,7 +95,7 @@ export async function PATCH(request, { params }) {
 
   // Contributors are restricted to property info fields only
   const PROPERTY_FIELDS = ['plot_size_m2', 'garden_size_m2', 'electrical_phases', 'electrical_ampere', 'electrical_voltage', 'heating_type', 'property_notes'];
-  const ALL_FIELDS = ['title', 'notes', 'date', 'location', 'client_id', 'shared_with', 'collective_id', 'status', 'done_at', 'reopened_at', ...PROPERTY_FIELDS];
+  const ALL_FIELDS = ['title', 'notes', 'date', 'location', 'client_id', 'shared_with', 'collective_id', 'status', 'done_at', 'reopened_at', 'archived_at', ...PROPERTY_FIELDS];
   const allowedFields = (isContributor && !isKollektivOwner && !isOwner && !isSuperAdmin) ? PROPERTY_FIELDS : ALL_FIELDS;
 
   const update = {};

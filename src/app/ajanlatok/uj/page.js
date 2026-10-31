@@ -80,6 +80,7 @@ function NewQuotePageInner() {
   const [showSurveyDropdown, setShowSurveyDropdown] = useState(false);
   const [templateSurveys, setTemplateSurveys] = useState([]);
   const [templateSurveysLoading, setTemplateSurveysLoading] = useState(false);
+  const [includeInactive, setIncludeInactive] = useState(false);
 
   const [title, setTitle]             = useState(searchParams.get('title')       || '');
   const [location, setLocation]       = useState(searchParams.get('location')    || '');
@@ -110,14 +111,14 @@ function NewQuotePageInner() {
       return;
     }
     setTemplateSurveysLoading(true);
-    const url = collectiveId
-      ? `/api/surveys/for-offer-template?collective_id=${collectiveId}`
-      : '/api/surveys/for-offer-template';
-    fetch(url)
+    const params = new URLSearchParams();
+    if (collectiveId)    params.set('collective_id',    collectiveId);
+    if (includeInactive) params.set('include_inactive', 'true');
+    fetch(`/api/surveys/for-offer-template?${params}`)
       .then(r => r.ok ? r.json() : { surveys: [] })
       .then(d => setTemplateSurveys(d.surveys || []))
       .finally(() => setTemplateSurveysLoading(false));
-  }, [collectiveId, isDemoMode]);
+  }, [collectiveId, includeInactive, isDemoMode]);
 
   const handleTaxChange = (v) => {
     setTaxPercent(v);
@@ -211,8 +212,11 @@ function NewQuotePageInner() {
   const SurveyPickerRow = ({ s }) => (
     <button key={s.id} type="button"
       onMouseDown={() => { setSurveyId(s.id); setSurveySearch(''); setShowSurveyDropdown(false); }}
-      style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '0.1rem', padding: '0.65rem 1rem', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', borderBottom: '1px solid var(--border-subtle)' }}>
-      <span style={{ fontWeight: 700, fontSize: '0.875rem', color: 'var(--text-primary)' }}>{s.title}</span>
+      style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '0.1rem', padding: '0.65rem 1rem', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', borderBottom: '1px solid var(--border-subtle)', opacity: s.archived_at ? 0.6 : 1 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+        <span style={{ fontWeight: 700, fontSize: '0.875rem', color: 'var(--text-primary)' }}>{s.title}</span>
+        {s.archived_at && <span style={{ fontSize: '0.62rem', fontWeight: 700, padding: '0.1rem 0.35rem', borderRadius: 999, background: 'var(--bg-subtle)', color: 'var(--text-muted)', border: '1px solid var(--border-subtle)', whiteSpace: 'nowrap' }}>Inaktív</span>}
+      </div>
       <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
         {[s.location, s.date ? formatDate(s.date) : null].filter(Boolean).join(' · ')}
       </span>
@@ -256,8 +260,10 @@ function NewQuotePageInner() {
           />
           {showSurveyDropdown && templateSurveys.length > 0 && (
             <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 50, background: 'var(--bg-card)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', boxShadow: '0 4px 16px rgba(0,0,0,0.1)', maxHeight: '260px', overflowY: 'auto', marginTop: '0.25rem' }}>
-              {filteredSurveys.length === 0 ? (
-                <div style={{ padding: '0.85rem 1rem', color: 'var(--text-muted)', fontSize: '0.82rem' }}>Nincs találat</div>
+              {filteredSurveys.length === 0 && !templateSurveysLoading ? (
+                <div style={{ padding: '0.85rem 1rem', color: 'var(--text-muted)', fontSize: '0.82rem' }}>
+                  {includeInactive ? 'Nincs találat' : 'Nincs aktív felmérés'}
+                </div>
               ) : (
                 <>
                   {collectiveId && collectiveSurveys.length > 0 && (
@@ -280,6 +286,14 @@ function NewQuotePageInner() {
                   )}
                 </>
               )}
+              {/* Toggle inactive surveys */}
+              <button
+                type="button"
+                onMouseDown={e => { e.preventDefault(); setIncludeInactive(v => !v); }}
+                style={{ width: '100%', padding: '0.6rem 1rem', background: 'var(--bg-subtle)', border: 'none', borderTop: '1px solid var(--border-subtle)', cursor: 'pointer', textAlign: 'left', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.4rem' }}
+              >
+                {includeInactive ? '✓ Inaktív felmérések elrejtése' : 'Inaktív felmérések megjelenítése'}
+              </button>
             </div>
           )}
         </div>

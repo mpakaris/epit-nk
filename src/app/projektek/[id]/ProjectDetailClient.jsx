@@ -20,7 +20,7 @@ import {
   Edit3, UserCheck, CalendarDays, BookUser, BarChart3, ShieldCheck,
   Phone, Mail, MapPin, ChevronUp, Link2, Copy, Check, AlertCircle, Lock,
   FileText, Ruler, Home, Calendar, User,
-  Sparkles, Loader2, Settings, ChevronDown, Download, PencilLine, Paperclip
+  Sparkles, Loader2, Settings, ChevronDown, Download, PencilLine, Paperclip, EyeOff, Eye,
 } from 'lucide-react';
 import Lightbox from '@/components/Lightbox';
 import BurndownCard from './components/BurndownCard';
@@ -106,6 +106,8 @@ export default function ProjectDetailClient({
   const [activeTab, setActiveTab] = useState('invoices');
   const [confirmModal, setConfirmModal] = useState(null);
   const [alertModal, setAlertModal] = useState(null);
+  const [archiveConfirm, setArchiveConfirm] = useState(false);
+  const [memberArchiveModal, setMemberArchiveModal] = useState(false);
   const [lockedModalOpen, setLockedModalOpen] = useState(() => !!project?.locked_reason);
   const [transferAttemptCount, setTransferAttemptCount] = useState(0);
 
@@ -236,6 +238,28 @@ export default function ProjectDetailClient({
   const handleReopenProject = async () => {
     try { await ctxReopenProject(project.id); }
     catch (err) { setAlertModal({ message: err.message || 'Hiba a megnyitáskor' }); }
+  };
+
+  const isOwner = project.owner_id === currentUser?.id || project.created_by === currentUser?.id;
+
+  const handleArchiveToggle = () => {
+    if (!isOwner && !isKollektivOwner) { setMemberArchiveModal(true); return; }
+    setArchiveConfirm(true);
+  };
+
+  const doArchiveToggle = async () => {
+    const val = project.archived_at ? null : new Date().toISOString();
+    try {
+      const res = await fetch(`/api/projects/${project.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ archived_at: val }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error || 'Hiba');
+      router.refresh();
+    } catch (err) {
+      setAlertModal({ message: err.message });
+    }
   };
 
   const handleDeleteInvoice = (invId) => {
@@ -452,6 +476,19 @@ export default function ProjectDetailClient({
                       onMouseLeave={e => e.currentTarget.style.background = ''}
                     >
                       <Lock size={14} color="var(--text-muted)" /> {isClosed ? 'Megnyitás' : 'Lezárás'}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => { setShowOptionsMenu(false); handleArchiveToggle(); }}
+                      style={{ display: 'flex', width: '100%', alignItems: 'center', gap: '0.55rem', padding: '0.55rem 0.75rem', borderRadius: 'var(--radius-sm)', background: 'none', border: 'none', color: 'var(--text-primary)', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', textAlign: 'left' }}
+                      onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-subtle)'}
+                      onMouseLeave={e => e.currentTarget.style.background = ''}
+                    >
+                      {project.archived_at
+                        ? <Eye size={14} color="var(--text-muted)" />
+                        : <EyeOff size={14} color="var(--text-muted)" />}
+                      {project.archived_at ? 'Visszaállítás aktívra' : 'Inaktiválás'}
                     </button>
 
                     <div style={{ height: '1px', background: 'var(--border-subtle)', margin: '0.25rem 0.3rem' }} />
@@ -1443,6 +1480,24 @@ export default function ProjectDetailClient({
       <RoomModal isOpen={roomModalOpen} onClose={() => setRoomModalOpen(false)} room={editingRoom} onSave={handleSaveRoom} />
       <ConfirmModal isOpen={!!confirmModal} onClose={() => setConfirmModal(null)} onConfirm={() => confirmModal?.onConfirm()} title="Megerősítés" message={confirmModal?.message} />
       <AlertModal isOpen={!!alertModal} onClose={() => setAlertModal(null)} message={alertModal?.message} />
+
+      <ConfirmModal
+        isOpen={archiveConfirm}
+        onClose={() => setArchiveConfirm(false)}
+        onConfirm={() => { setArchiveConfirm(false); doArchiveToggle(); }}
+        title={project.archived_at ? 'Visszaállítás aktívra' : 'Inaktiválás'}
+        message={project.archived_at
+          ? 'Biztosan visszaállítod aktív állapotba? A projekt ismét elérhető és szerkeszthető lesz.'
+          : 'Biztosan inaktiválod ezt a projektet? Az állapotot később bármikor visszaállíthatod, ha meggondolod magad.'}
+        confirmLabel={project.archived_at ? 'Visszaállítás' : 'Inaktiválás'}
+      />
+      <AlertModal
+        isOpen={memberArchiveModal}
+        onClose={() => setMemberArchiveModal(false)}
+        variant="warning"
+        title="Csak a tulajdonos módosíthatja"
+        message="A dokumentum inaktiválását és visszaállítását csak a kollektíva tulajdonosa végezheti el, mivel az inaktív dokumentumok később visszaállíthatók, ha az ügyfél meggondolja magát."
+      />
       <LockedDocumentModal
         isOpen={lockedModalOpen}
         documentType="project"

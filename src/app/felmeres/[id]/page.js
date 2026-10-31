@@ -15,7 +15,7 @@ import {
   FileText, FolderKanban, Home, Ruler, LayoutPanelLeft,
   Camera, Plus, AlertCircle, List,
   MoreHorizontal,
-  CheckCircle2, RefreshCw, Send, Mic, PenLine, Sparkles,
+  CheckCircle2, RefreshCw, Send, Mic, PenLine, Sparkles, EyeOff, Eye,
 } from 'lucide-react';
 import PageSpinner from '@/components/PageSpinner';
 import { processMediaFile } from '@/lib/mediaGate';
@@ -398,6 +398,8 @@ export default function SurveyDetailPage() {
   const [editingEntry, setEditingEntry]   = useState(null);
   const [statusSaving, setStatusSaving]   = useState(false);
   const [surveyCtxOpen, setSurveyCtxOpen] = useState(false);
+  const [archiveConfirm, setArchiveConfirm] = useState(false);
+  const [memberArchiveModal, setMemberArchiveModal] = useState(false);
   const [surveyDrawingTrigger, setSurveyDrawingTrigger] = useState(0);
   const [propertyNotesTrigger, setPropertyNotesTrigger] = useState(0);
   const [pendingAnalysisLayout, setPendingAnalysisLayout] = useState(null);
@@ -493,6 +495,25 @@ export default function SurveyDetailPage() {
       setAlertModal({ message: 'Állapot mentése sikertelen.' });
     } finally {
       setStatusSaving(false);
+    }
+  };
+
+  const handleArchiveToggle = () => {
+    if (!isOwner && !isKollektivOwner) { setMemberArchiveModal(true); return; }
+    setArchiveConfirm(true);
+  };
+
+  const doArchiveToggle = async () => {
+    const val = survey.archived_at ? null : new Date().toISOString();
+    try {
+      await fetch(`/api/surveys/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ archived_at: val }),
+      });
+      await updateSurvey?.(id, { archived_at: val });
+    } catch {
+      setAlertModal({ message: 'Állapot mentése sikertelen.' });
     }
   };
 
@@ -747,6 +768,7 @@ export default function SurveyDetailPage() {
           ] : []),
           ...(canAdd      ? [{ icon: LayoutPanelLeft, label: 'Alaprajz hozzáadása', onClick: () => layoutInputRef.current?.click() }] : []),
           ...(canDrawings ? [{ icon: PenLine,          label: 'Általános vázlat',    onClick: () => setSurveyDrawingTrigger(n => n + 1) }] : []),
+          { icon: survey.archived_at ? Eye : EyeOff, label: survey.archived_at ? 'Visszaállítás aktívra' : 'Inaktiválás', dividerBefore: !canEditMeta, onClick: handleArchiveToggle },
           ...(canEditMeta ? [{ icon: Trash2, label: 'Törlés', danger: true, dividerBefore: true, onClick: handleDeleteSurvey }] : []),
         ]}
       />
@@ -920,6 +942,24 @@ export default function SurveyDetailPage() {
 
       <ConfirmModal isOpen={!!confirmModal} onClose={() => setConfirmModal(null)} onConfirm={() => confirmModal?.onConfirm()} title="Megerősítés" message={confirmModal?.message} />
       <AlertModal isOpen={!!alertModal} onClose={() => setAlertModal(null)} message={alertModal?.message} />
+
+      <ConfirmModal
+        isOpen={archiveConfirm}
+        onClose={() => setArchiveConfirm(false)}
+        onConfirm={() => { setArchiveConfirm(false); doArchiveToggle(); }}
+        title={survey.archived_at ? 'Visszaállítás aktívra' : 'Inaktiválás'}
+        message={survey.archived_at
+          ? 'Biztosan visszaállítod aktív állapotba? A felmérés ismét látható és szerkeszthető lesz.'
+          : 'Biztosan inaktiválod ezt a felmérést? Az állapotot később bármikor visszaállíthatod, ha meggondolod magad.'}
+        confirmLabel={survey.archived_at ? 'Visszaállítás' : 'Inaktiválás'}
+      />
+      <AlertModal
+        isOpen={memberArchiveModal}
+        onClose={() => setMemberArchiveModal(false)}
+        variant="warning"
+        title="Csak a tulajdonos módosíthatja"
+        message="A dokumentum inaktiválását és visszaállítását csak a kollektíva tulajdonosa végezheti el, mivel az inaktív dokumentumok később visszaállíthatók, ha az ügyfél meggondolja magát."
+      />
 
       <ConfirmModal
         isOpen={!!pendingAnalysisLayout}

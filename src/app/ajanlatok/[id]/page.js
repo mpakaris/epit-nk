@@ -143,7 +143,7 @@ export default function QuoteDetailPage() {
 
   // Actions bottom sheet
   const [showActionsSheet, setShowActionsSheet] = useState(false);
-  const [showMemberRestriction, setShowMemberRestriction] = useState(null); // 'preview' | 'send'
+  const [showMemberRestriction, setShowMemberRestriction] = useState(null); // 'preview' | 'send' | 'archive'
   // Collapsable meta card (starts collapsed on mobile)
   const [metaCollapsed, setMetaCollapsed]       = useState(true);
   // Duplicate modal
@@ -1416,11 +1416,11 @@ export default function QuoteDetailPage() {
             </div>
             <div style={{ padding: '16px 20px 8px', display: 'flex', alignItems: 'center', gap: 14 }}>
               <div style={{ width: 48, height: 48, borderRadius: 14, background: '#fff7ed', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                {showMemberRestriction === 'send' ? <Send size={22} strokeWidth={1.75} color="#c2410c" /> : <Printer size={22} strokeWidth={1.75} color="#c2410c" />}
+                {showMemberRestriction === 'send' ? <Send size={22} strokeWidth={1.75} color="#c2410c" /> : showMemberRestriction === 'archive' ? <EyeOff size={22} strokeWidth={1.75} color="#c2410c" /> : <Printer size={22} strokeWidth={1.75} color="#c2410c" />}
               </div>
               <div>
                 <div style={{ fontSize: 16, fontWeight: 700, color: '#0f172a', marginBottom: 2 }}>
-                  {showMemberRestriction === 'send' ? 'Ajánlat küldése' : 'Előnézet / PDF'}
+                  {showMemberRestriction === 'send' ? 'Ajánlat küldése' : showMemberRestriction === 'archive' ? 'Inaktiválás / Visszaállítás' : 'Előnézet / PDF'}
                 </div>
                 <div style={{ fontSize: 13, color: '#94a3b8' }}>Csak a tulajdonos számára elérhető</div>
               </div>
@@ -1429,6 +1429,8 @@ export default function QuoteDetailPage() {
               <p style={{ margin: 0, fontSize: 14, color: '#9a3412', lineHeight: 1.55 }}>
                 {showMemberRestriction === 'send'
                   ? 'Ajánlatot csak az ajánlat tulajdonosa küldhet az ügyfélnek. Te közreműködőként hozzáadhatsz tételeket, de a végleges ajánlatot a tulajdonos küldi el.'
+                  : showMemberRestriction === 'archive'
+                  ? 'A dokumentum inaktiválását és visszaállítását csak a kollektíva tulajdonosa végezheti el, mivel az inaktív dokumentumok később visszaállíthatók, ha az ügyfél meggondolja magát.'
                   : 'Az ajánlat előnézetét és PDF letöltését csak a tulajdonos érheti el, mivel az ő fejléce és adatai szerepelnek rajta.'}
               </p>
             </div>
