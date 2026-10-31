@@ -207,7 +207,8 @@ export default function QuoteDetailPage() {
       const data = await res.json();
       timers.forEach(clearTimeout);
       if (!res.ok) throw new Error(data.error || 'Ismeretlen hiba');
-      await updateQuoteStatus(id, 'sent');
+      const sentUpdated = await updateQuoteStatus(id, 'sent');
+      if (fallbackQuote && sentUpdated) setFallbackQuote(sentUpdated);
       setSendProgress({ step: SEND_STEPS.length - 1, done: true, error: null, sentTo: data.sentTo });
     } catch (err) {
       timers.forEach(clearTimeout);
@@ -384,7 +385,7 @@ export default function QuoteDetailPage() {
   const doSaveMeta = async (revert) => {
     setSavingMeta(true);
     try {
-      await updateQuote(id, {
+      const metaUpdated = await updateQuote(id, {
         title: metaTitle.trim(), location: metaLocation.trim(), work_type: metaWorkType.trim(),
         description: metaDescription.trim(), start_date: metaStartDate || null, end_date: metaEndDate || null,
         client_id: metaClientId || null, tax_percent: Number(metaTaxPercent) || 0,
@@ -396,7 +397,8 @@ export default function QuoteDetailPage() {
         deposit_percent:       metaDepositPercent !== '' ? Number(metaDepositPercent) : 0,
         warranty_months:       metaWarrantyMonths !== '' ? Number(metaWarrantyMonths) : 0,
       });
-      if (revert) await updateQuoteStatus(id, 'draft');
+      const reverted = revert ? await updateQuoteStatus(id, 'draft') : null;
+      if (fallbackQuote) setFallbackQuote(reverted || metaUpdated);
       setMetaInitialized(false);
     } catch (err) { setAlertModal({ message: err.message }); }
     finally { setSavingMeta(false); }
@@ -438,7 +440,10 @@ export default function QuoteDetailPage() {
   // ── Status handlers ───────────────────────────────────────────────────────
   const handleStatusChange = async (newStatus) => {
     if (newStatus === 'accepted') { setConvertMembers(currentUser ? [currentUser.id] : []); setShowConvertModal(true); return; }
-    try { await updateQuoteStatus(id, newStatus); }
+    try {
+      const updated = await updateQuoteStatus(id, newStatus);
+      if (fallbackQuote && updated) setFallbackQuote(updated);
+    }
     catch (err) { setAlertModal({ message: err.message }); }
   };
 
@@ -460,7 +465,10 @@ export default function QuoteDetailPage() {
   };
 
   const handleResetToDraft = async () => {
-    try { await updateQuoteStatus(id, 'draft'); }
+    try {
+      const updated = await updateQuoteStatus(id, 'draft');
+      if (fallbackQuote && updated) setFallbackQuote(updated);
+    }
     catch (err) { setAlertModal({ message: err.message }); }
   };
 
@@ -748,7 +756,7 @@ export default function QuoteDetailPage() {
 
 
       {/* Client portal link */}
-      {quote.status !== 'draft' && client && (
+      {quote.status !== 'draft' && quote.status !== 'rejected' && client && (
         <div style={{ marginBottom: '1rem', padding: '0.75rem 1rem', borderRadius: 'var(--radius-md)', background: 'var(--accent-light)', border: '1px solid var(--accent-border)', display: 'flex', alignItems: 'flex-start', gap: '0.65rem', flexWrap: 'wrap' }}>
           <ExternalLink size={15} color="var(--accent)" style={{ flexShrink: 0, marginTop: '0.15rem' }} />
           <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '0.55rem' }}>

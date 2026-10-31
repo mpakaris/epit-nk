@@ -1444,7 +1444,7 @@ input[type="month"] {
 
 @media (min-width: 769px) {
   .card-grid {
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(2, 1fr);
     gap: 0 16px;
   }
 }
@@ -1454,9 +1454,9 @@ input[type="month"] {
 .item-card-meta  { font-size: 13px; }
 
 @media (min-width: 769px) {
-  .card-grid .item-card-title { font-size: 13px; }
-  .card-grid .item-card-meta  { font-size: 11px; }
-  .card-grid .item-card-strip { height: 120px !important; }
+  .card-grid .item-card-title { font-size: 14px; }
+  .card-grid .item-card-meta  { font-size: 12px; }
+  .card-grid .item-card-strip { height: 140px !important; }
 }
 
 /* Member breakdown — desktop table, mobile card list */

@@ -11,7 +11,7 @@ import CollectiveBanner from '@/components/CollectiveBanner';
 import DrawingsSection from '@/components/DrawingsSection';
 import {
   ArrowLeft, MapPin, Calendar, Clock, User, Edit3, Trash2,
-  ChevronDown, Check, Loader2,
+  ChevronDown, Check, Loader2, X,
   FileText, FolderKanban, Home, Ruler, LayoutPanelLeft,
   Camera, Plus, AlertCircle, List,
   MoreHorizontal,
@@ -646,13 +646,6 @@ export default function SurveyDetailPage() {
             </div>
           )}
 
-          {/* Mobile: single ⋮ context menu — visible to anyone who can do at least one action */}
-          {(canEditMeta || canAdd || canDrawings) && (
-            <button type="button" onClick={() => setSurveyCtxOpen(true)}
-              className="show-mobile btn btn-secondary btn-sm" style={{ padding: '0.3rem 0.55rem', flexShrink: 0 }}>
-              <MoreHorizontal size={16} />
-            </button>
-          )}
         </div>
       </div>
 
@@ -670,6 +663,23 @@ export default function SurveyDetailPage() {
             {survey.date && <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}><Calendar size={14} color="var(--accent)" />{formatDate(survey.date)}</span>}
             {creator && <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', color: 'var(--text-muted)', fontSize: '0.8rem' }}><User size={13} />Rögzítette: {creator.display_name}</span>}
             {survey.created_at && <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', color: 'var(--text-muted)', fontSize: '0.8rem' }}><Clock size={13} />{new Date(survey.created_at).toLocaleDateString('hu-HU', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>}
+            {survey.archived_at ? (
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.8rem', fontWeight: 700, padding: '0.15rem 0.55rem', borderRadius: 'var(--radius-pill)', background: 'var(--danger-bg)', color: 'var(--danger-text)', border: '1px solid var(--danger-border)' }}>
+                <EyeOff size={12} /> Inaktív
+              </span>
+            ) : survey.status === 'done' ? (
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.8rem', fontWeight: 700, padding: '0.15rem 0.55rem', borderRadius: 'var(--radius-pill)', background: 'var(--success-bg)', color: 'var(--success-text)', border: '1px solid var(--success-border)' }}>
+                <CheckCircle2 size={12} /> Lezárt
+              </span>
+            ) : survey.status === 'reopened' ? (
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.8rem', fontWeight: 700, padding: '0.15rem 0.55rem', borderRadius: 'var(--radius-pill)', background: 'var(--warning-bg)', color: 'var(--warning-text)', border: '1px solid var(--warning-border)' }}>
+                <RefreshCw size={12} /> Újranyitva
+              </span>
+            ) : (
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.8rem', fontWeight: 700, padding: '0.15rem 0.55rem', borderRadius: 'var(--radius-pill)', background: 'var(--success-bg)', color: 'var(--success-text)', border: '1px solid var(--success-border)' }}>
+                Aktív
+              </span>
+            )}
           </div>
           {canEditMeta && !isMobile && (
             <button type="button" onClick={() => setShowMetaDrawer(true)} className="btn btn-secondary btn-sm" style={{ padding: '0.3rem 0.5rem', flexShrink: 0 }}>
@@ -751,6 +761,25 @@ export default function SurveyDetailPage() {
           if (raw.length && enqueue) enqueue(raw, { surveyId: id, entryId: null, mediaType: 'layout' });
         }}
       />
+
+      {/* Floating context menu button — mobile only */}
+      {isMobile && (canEditMeta || canAdd || canDrawings) && (
+        <button
+          type="button"
+          onClick={() => setSurveyCtxOpen(true)}
+          aria-label="Műveletek"
+          style={{
+            position: 'fixed', bottom: 'calc(96px + env(safe-area-inset-bottom))', right: 20,
+            width: 52, height: 52, borderRadius: '50%',
+            background: '#0f172a', border: 'none', color: '#fff',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            boxShadow: '0 4px 16px rgba(15,23,42,0.35)',
+            cursor: 'pointer', zIndex: 50,
+          }}
+        >
+          <MoreHorizontal size={22} strokeWidth={1.75} />
+        </button>
+      )}
 
       {/* Mobile survey-level context menu */}
       <BottomSheet

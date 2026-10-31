@@ -233,9 +233,10 @@ export default function ProjectsListClient({
         title={project.name}
         clientName={client?.name}
         date={project.start_date || project.created_at}
-        status={isDone ? 'kesz' : 'folyamatban'}
+        status={project.archived_at ? 'inactive' : isDone ? 'kesz' : 'folyamatban'}
         photoUrls={project._preview_urls || []}
         isShared={!!project.collective_id}
+        role={project.collective_id ? (isOwner ? 'owner' : 'member') : undefined}
         onDelete={isOwner && !pendingReq ? () => handleDelete(project) : undefined}
         onTransfer={canTransfer && !pendingReq ? () => setTransferModal({ documentId: project.id, documentTitle: project.name }) : undefined}
         isPendingTransfer={!!pendingReq}

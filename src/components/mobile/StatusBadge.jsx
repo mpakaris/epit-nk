@@ -5,9 +5,10 @@ import { Check } from 'lucide-react';
 
 const BADGE_MAP = {
   // Survey statuses
-  done:     { label: 'Kész',       bg: '#e2e8f0', color: '#0f172a', icon: true },
+  done:     { label: 'Kész',     bg: '#e2e8f0', color: '#0f172a', icon: true },
   reopened: { label: 'Újranyitva', bg: '#fffbeb', color: '#92400e', icon: false },
-  active:   { label: 'Aktív',      bg: '#eff6ff', color: '#2563eb', icon: false },
+  active:   { label: 'Aktív',    bg: '#dcfce7', color: '#166534', icon: false },
+  inactive: { label: 'Inaktív',  bg: '#fef2f2', color: '#991b1b', icon: false },
   // Quote statuses
   draft:    { label: 'Piszkozat',  bg: '#f1f5f9', color: '#475569', icon: false },
   sent:     { label: 'Elküldve',   bg: '#f5f3ff', color: '#5b21b6', icon: false },

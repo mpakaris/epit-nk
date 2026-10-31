@@ -57,6 +57,7 @@ export default function ItemCard({
   type,
   photoUrls = [],
   isShared = false,
+  role,
   stripHeight = 72,
   onDelete,
   onDuplicate,
@@ -180,6 +181,21 @@ export default function ItemCard({
             </div>
           )}
 
+          {/* Role badge — owner vs member, only shown on collective docs */}
+          {isShared && role && (
+            <div style={{ position: 'absolute', top: 8, right: 8 }}>
+              <span style={{
+                fontSize: 9, fontWeight: 800, padding: '2px 7px',
+                borderRadius: 999, letterSpacing: '0.04em', whiteSpace: 'nowrap',
+                background: role === 'owner' ? 'rgba(37,99,235,0.85)' : 'rgba(5,150,105,0.85)',
+                color: '#fff',
+                backdropFilter: 'blur(4px)',
+              }}>
+                {role === 'owner' ? 'TULAJDONOS' : 'KÖZREMŰKÖDŐ'}
+              </span>
+            </div>
+          )}
+
           {/* Photo count */}
           {photoCount > 0 && (
             <div style={{
@@ -194,12 +210,13 @@ export default function ItemCard({
           )}
         </div>
 
-        {/* Body */}
-        <div style={{ padding: '14px 16px 16px' }}>
+        {/* Body — position:relative so ⋯ button anchors to the white area */}
+        <div style={{ position: 'relative', padding: '14px 16px 16px' }}>
           <div className="item-card-title" style={{
             fontWeight: 700, color: '#0f172a',
             lineHeight: '1.35', overflow: 'hidden', textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap', paddingRight: 44,
+            display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
+            paddingRight: 44,
           }}>
             {title}
           </div>
@@ -221,6 +238,22 @@ export default function ItemCard({
             </span>
             <StatusBadge status={status} />
           </div>
+
+          {/* ⋯ button anchored to the top-right of the white body, always visible */}
+          <button
+            type="button"
+            onClick={() => isPendingTransfer ? setLockOpen(true) : setSheetOpen(true)}
+            aria-label="További műveletek"
+            style={{
+              position: 'absolute', right: 4, top: 4,
+              width: 44, height: 44,
+              background: 'transparent', border: 'none', cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              zIndex: 2, borderRadius: 10,
+            }}
+          >
+            <Ellipsis size={20} color="#94a3b8" strokeWidth={1.75} aria-hidden="true" />
+          </button>
         </div>
 
         {/* Whole-card tap target */}
@@ -229,22 +262,6 @@ export default function ItemCard({
           style={{ position: 'absolute', inset: 0, zIndex: 1 }}
           aria-label={`Megnyitás: ${title}`}
         />
-
-        {/* ⋯ menu button — above the card link in z-order */}
-        <button
-          type="button"
-          onClick={() => isPendingTransfer ? setLockOpen(true) : setSheetOpen(true)}
-          aria-label="További műveletek"
-          style={{
-            position: 'absolute', right: 4, top: stripHeight + 4,
-            width: 48, height: 48,
-            background: 'transparent', border: 'none', cursor: 'pointer',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            zIndex: 2, borderRadius: 12,
-          }}
-        >
-          <Ellipsis size={20} color="#475569" strokeWidth={1.75} aria-hidden="true" />
-        </button>
       </div>
 
       <BottomSheet
