@@ -108,7 +108,7 @@ export default function ProjectEditModal({ isOpen, onClose, project, clients, on
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Projekt szerkesztése" headerRight={<SaveIndicator />}>
+    <Modal isOpen={isOpen} onClose={onClose} title="Projekt szerkesztése">
       <ErrorBanner message={error} style={{ marginBottom: '0.85rem' }} />
       <div>
         <div className="form-group">
@@ -157,12 +157,14 @@ export default function ProjectEditModal({ isOpen, onClose, project, clients, on
               <div className="form-group" style={{ margin: 0 }}><label className="form-label">E-mail</label><input type="email" className="form-control" value={newClientEmail} onChange={e => setNewClientEmail(e.target.value)} /></div>
             </div>
             <div className="form-group" style={{ marginTop: '0.65rem', marginBottom: '0.65rem' }}><label className="form-label">Cím</label><input type="text" className="form-control" value={newClientAddress} onChange={e => setNewClientAddress(e.target.value)} /></div>
-            <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
-              <button type="button" className="btn btn-secondary btn-sm" onClick={() => { setShowNewClient(false); setNewClientError(''); }}>Mégse</button>
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
               <button type="button" className="btn btn-primary btn-sm" disabled={creatingClient} onClick={handleCreateClient}>{creatingClient ? <><Loader2 size={13} className="animate-spin" />Létrehozás</> : 'Ügyfél létrehozása'}</button>
             </div>
           </div>
         )}
+        <div style={{ marginTop: '1.25rem', paddingTop: '1rem', borderTop: '1px solid var(--border-subtle)', display: 'flex' }}>
+          <SaveIndicator />
+        </div>
       </div>
     </Modal>
   );

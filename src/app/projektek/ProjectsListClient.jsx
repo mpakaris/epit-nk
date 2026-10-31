@@ -441,8 +441,7 @@ export default function ProjectsListClient({
                   <input type="checkbox" checked={newClientGdpr} onChange={e => setNewClientGdpr(e.target.checked)} style={{ marginTop: '0.15rem', flexShrink: 0, accentColor: 'var(--accent)', width: 14, height: 14 }} />
                   <span style={{ fontSize: '0.76rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>Az ügyfél hozzájárult adatainak tárolásához. <span style={{ color: 'var(--danger-text)', fontWeight: 700 }}>*</span></span>
                 </label>
-                <div style={{ display: 'flex', gap: '0.4rem', justifyContent: 'flex-end' }}>
-                  <button type="button" className="btn btn-secondary btn-sm" onClick={() => { setShowNewClient(false); setNewClientError(''); }}>Mégse</button>
+                <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
                   <button type="button" className="btn btn-primary btn-sm" disabled={creatingClient || !newClientGdpr} onClick={handleCreateClient}>{creatingClient ? <><Loader2 size={13} className="animate-spin" />Létrehozás</> : 'Ügyfél létrehozása'}</button>
                 </div>
               </div>
@@ -472,8 +471,7 @@ export default function ProjectsListClient({
               </div>
             </div>
           )}
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
-            <button type="button" className="btn btn-secondary btn-sm" onClick={() => setShowCreate(false)}>Mégse</button>
+          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
             <button type="submit" className="btn btn-primary btn-sm" disabled={isSubmitting}>{isSubmitting ? <><Loader2 size={13} className="animate-spin" />Létrehozás</> : 'Projekt létrehozása'}</button>
           </div>
         </form>

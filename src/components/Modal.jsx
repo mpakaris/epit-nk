@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { X, AlertTriangle, AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
 
 function ModalBase({ isOpen, onClose, children, style, persistent }) {
@@ -9,7 +9,7 @@ function ModalBase({ isOpen, onClose, children, style, persistent }) {
   const savedScrollY = useRef(0);
   const didLock = useRef(false);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (isOpen) {
       savedScrollY.current = window.scrollY;
       didLock.current = true;
@@ -26,10 +26,14 @@ function ModalBase({ isOpen, onClose, children, style, persistent }) {
       window.scrollTo(0, savedScrollY.current);
     }
     return () => {
-      document.body.style.overflow = '';
-      document.body.style.position = '';
-      document.body.style.width = '';
-      document.body.style.top = '';
+      if (didLock.current) {
+        document.body.style.overflow = '';
+        document.body.style.position = '';
+        document.body.style.width = '';
+        document.body.style.top = '';
+        window.scrollTo(0, savedScrollY.current);
+        didLock.current = false;
+      }
     };
   }, [isOpen]);
 

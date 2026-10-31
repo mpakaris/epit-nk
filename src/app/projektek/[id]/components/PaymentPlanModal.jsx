@@ -1,8 +1,10 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useScrollLock } from '@/hooks/useScrollLock';
-import { AlertCircle, Loader2, Check, ChevronLeft, ChevronRight, Calendar, Flag, Play, Square } from 'lucide-react';
+import { AlertCircle, Loader2, Check, ChevronLeft, ChevronRight, Calendar, Flag, Play, Square, X, Trash2 } from 'lucide-react';
+import Modal from '@/components/Modal';
+import ErrorBanner from '@/components/ErrorBanner';
 import { formatHUF } from '@/lib/constants';
 
 const ROMAN = ['I','II','III','IV','V','VI','VII','VIII','IX','X','XI','XII','XIII','XIV','XV','XVI','XVII','XVIII','XIX','XX'];
@@ -51,13 +53,20 @@ export default function PaymentPlanModal({ isOpen, onClose, onSave, editItem, it
   const [label,         setLabel]         = useState('');
   const [note,          setNote]          = useState('');
   const [saving,        setSaving]        = useState(false);
+  const [saveStatus,    setSaveStatus]    = useState('idle');
   const [error,         setError]         = useState('');
+
+  const savedRef   = useRef(null);
+  const timerRef   = useRef(null);
+  const savedTimer = useRef(null);
+
+  const snap = (a, t, m, d, l, n) => JSON.stringify({ a, t, m, d, l, n });
 
   useScrollLock(isOpen);
 
   useEffect(() => {
     if (!isOpen) return;
-    setStep(1); setError(''); setSaving(false);
+    setStep(1); setError(''); setSaving(false); setSaveStatus('idle');
     if (editItem) {
       setAmountHuf(editItem.amount_huf?.toString() || '');
       setTriggerType(editItem.trigger_type || 'milestone');
@@ -65,6 +74,14 @@ export default function PaymentPlanModal({ isOpen, onClose, onSave, editItem, it
       setDueDate(editItem.due_date || '');
       setLabel(editItem.label || '');
       setNote(editItem.note || '');
+      savedRef.current = snap(
+        editItem.amount_huf?.toString() || '',
+        editItem.trigger_type || 'milestone',
+        editItem.milestone_name || '',
+        editItem.due_date || '',
+        editItem.label || '',
+        editItem.note || '',
+      );
     } else {
       setAmountHuf('');
       setTriggerType('milestone');
@@ -72,8 +89,44 @@ export default function PaymentPlanModal({ isOpen, onClose, onSave, editItem, it
       setDueDate('');
       setLabel(`Fizetés ${ROMAN[itemCount] ?? (itemCount + 1)}`);
       setNote('');
+      savedRef.current = null;
     }
   }, [isOpen, editItem?.id, itemCount]);
+
+  // Auto-save for edit mode
+  useEffect(() => {
+    if (!editItem || savedRef.current === null) return;
+    const current = snap(amountHuf, triggerType, milestoneName, dueDate, label, note);
+    if (current === savedRef.current) return;
+    const amt = Math.round(Number(amountHuf));
+    if (!amt || amt <= 0 || !label.trim()) return;
+
+    clearTimeout(timerRef.current);
+    clearTimeout(savedTimer.current);
+    setSaveStatus('pending');
+
+    timerRef.current = setTimeout(async () => {
+      setSaveStatus('saving');
+      try {
+        await onSave({
+          label:          label.trim(),
+          trigger_type:   triggerType,
+          milestone_name: triggerType === 'milestone' ? milestoneName.trim() || null : null,
+          amount_huf:     amt,
+          due_date:       dueDate || null,
+          note:           note.trim() || null,
+        });
+        savedRef.current = current;
+        setSaveStatus('saved');
+        savedTimer.current = setTimeout(() => setSaveStatus('idle'), 2500);
+      } catch (e) {
+        setError(e.message || 'Hiba a mentésnél');
+        setSaveStatus('idle');
+      }
+    }, 700);
+
+    return () => { clearTimeout(timerRef.current); clearTimeout(savedTimer.current); };
+  }, [amountHuf, triggerType, milestoneName, dueDate, label, note]);
 
   const validate = () => {
     if (step === 1) {
@@ -89,6 +142,9 @@ export default function PaymentPlanModal({ isOpen, onClose, onSave, editItem, it
     if (err) { setError(err); return; }
     setError('');
     if (step < TOTAL) { setStep(s => s + 1); return; }
+    // Edit mode: auto-save is handling changes; just close
+    if (editItem) { onClose(); return; }
+    // Create mode: persist now
     setSaving(true);
     try {
       const amt = Math.round(Number(amountHuf));
@@ -109,11 +165,68 @@ export default function PaymentPlanModal({ isOpen, onClose, onSave, editItem, it
 
   if (!isOpen) return null;
 
+  // ── Edit mode: flat single-screen modal ──
+  if (editItem) {
+    const SaveIndicator = () => {
+      if (saveStatus === 'idle') return null;
+      if (saveStatus === 'pending' || saveStatus === 'saving') return (
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 12, color: 'var(--text-muted)', fontWeight: 600 }}>
+          <Loader2 size={12} className="animate-spin" /> Mentés...
+        </span>
+      );
+      return <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 12, color: 'var(--success-text)', fontWeight: 700 }}><Check size={12} /> Mentve</span>;
+    };
+
+    return (
+      <Modal isOpen={true} onClose={onClose} title="Fizetési tétel szerkesztése">
+        <ErrorBanner message={error} style={{ marginBottom: '0.85rem' }} />
+        <div>
+          <div className="form-group">
+            <label className="form-label">Megnevezés</label>
+            <input type="text" className="form-control" value={label} onChange={e => setLabel(e.target.value)} placeholder="pl. Fizetés I" />
+          </div>
+          <div className="form-group">
+            <label className="form-label">Összeg</label>
+            <div style={{ position: 'relative' }}>
+              <input type="number" min="1" className="form-control text-mono" value={amountHuf} onChange={e => setAmountHuf(e.target.value)} style={{ fontWeight: 800, fontSize: '1.1rem', paddingRight: '2.5rem' }} />
+              <span style={{ position: 'absolute', right: '0.6rem', top: '50%', transform: 'translateY(-50%)', fontWeight: 700, color: 'var(--text-muted)', fontSize: '0.85rem', pointerEvents: 'none' }}>Ft</span>
+            </div>
+          </div>
+          <div className="form-group">
+            <label className="form-label">Esedékesség</label>
+            <select className="form-control" value={triggerType} onChange={e => setTriggerType(e.target.value)}>
+              {TRIGGER_TYPES.map(t => <option key={t.key} value={t.key}>{t.label}</option>)}
+            </select>
+          </div>
+          {triggerType === 'milestone' && (
+            <div className="form-group">
+              <label className="form-label">Mérföldkő neve</label>
+              <input type="text" className="form-control" list="milestone-sugg-edit" value={milestoneName} onChange={e => setMilestoneName(e.target.value)} placeholder="pl. Anyag helyszínen" />
+              <datalist id="milestone-sugg-edit">{MILESTONE_SUGGESTIONS.map(s => <option key={s} value={s} />)}</datalist>
+            </div>
+          )}
+          {triggerType === 'date' && (
+            <div className="form-group">
+              <label className="form-label">Határidő</label>
+              <input type="date" className="form-control" value={dueDate} onChange={e => setDueDate(e.target.value)} />
+            </div>
+          )}
+          <div className="form-group" style={{ marginBottom: 0 }}>
+            <label className="form-label">Megjegyzés</label>
+            <textarea rows={2} className="form-control" value={note} onChange={e => setNote(e.target.value)} placeholder="Belső megjegyzés…" />
+          </div>
+          <div style={{ marginTop: '1.25rem', paddingTop: '1rem', borderTop: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center' }}>
+            <SaveIndicator />
+          </div>
+        </div>
+      </Modal>
+    );
+  }
+
+  // ── Create mode: stepper ──
   const isLast = step === TOTAL;
   const stepLabels = ['Összeg', 'Mikor?', 'Részletek'];
   const numVal = Math.round(Number(amountHuf)) || 0;
-
-  // ── Step renderers (called as functions to avoid remount/focus loss) ──
 
   const StepAmount = () => (
     <>
@@ -121,21 +234,11 @@ export default function PaymentPlanModal({ isOpen, onClose, onSave, editItem, it
       <p style={S.sub}>Add meg, mennyit kell fizetni ennél a részletnél.</p>
       <label style={S.label}>Összeg (HUF) *</label>
       <div style={{ position: 'relative', marginBottom: 16 }}>
-        <input
-          type="number" inputMode="numeric" min="1"
-          className="form-control text-mono"
-          placeholder="0"
-          value={amountHuf}
-          onChange={e => setAmountHuf(e.target.value)}
-          style={{ fontSize: 30, fontWeight: 800, height: 68, paddingRight: '3.2rem', letterSpacing: '-0.02em' }}
-        />
+        <input type="number" inputMode="numeric" min="1" className="form-control text-mono" placeholder="0" value={amountHuf} onChange={e => setAmountHuf(e.target.value)}
+          style={{ fontSize: 30, fontWeight: 800, height: 68, paddingRight: '3.2rem', letterSpacing: '-0.02em' }} />
         <span style={{ position: 'absolute', right: '1rem', top: '50%', transform: 'translateY(-50%)', fontWeight: 700, fontSize: '1.1rem', color: 'var(--text-muted)' }}>Ft</span>
       </div>
-      {numVal > 0 && (
-        <div style={{ fontSize: 13, color: 'var(--text-muted)', fontWeight: 600 }}>
-          {numVal.toLocaleString('hu-HU')} Ft
-        </div>
-      )}
+      {numVal > 0 && <div style={{ fontSize: 13, color: 'var(--text-muted)', fontWeight: 600 }}>{numVal.toLocaleString('hu-HU')} Ft</div>}
     </>
   );
 
@@ -202,27 +305,21 @@ export default function PaymentPlanModal({ isOpen, onClose, onSave, editItem, it
   return (
     <>
       <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,.45)', zIndex: 200 }} aria-hidden="true" />
-      <div role="dialog" aria-modal="true" aria-label={editItem ? 'Fizetési tétel szerkesztése' : 'Új fizetési tétel'}
+      <div role="dialog" aria-modal="true" aria-label="Új fizetési tétel"
         style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: '#fff', borderRadius: '24px 24px 0 0', zIndex: 201, maxHeight: '92dvh', display: 'flex', flexDirection: 'column' }}>
-
-        {/* Handle */}
         <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 12, paddingBottom: 4, flexShrink: 0 }}>
           <div style={{ width: 36, height: 4, borderRadius: 2, background: '#e2e8f0' }} />
         </div>
-
-        {/* Header */}
-        <div style={{ padding: '6px 20px 12px', flexShrink: 0, borderBottom: '1px solid #f1f5f9' }}>
-          <div style={{ fontSize: 16, fontWeight: 700, color: '#0f172a' }}>
-            {editItem ? 'Fizetési tétel szerkesztése' : 'Új fizetési tétel'}
-          </div>
+        <div style={{ display: 'flex', alignItems: 'center', padding: '6px 16px 12px', flexShrink: 0, borderBottom: '1px solid #f1f5f9', gap: 10 }}>
+          <span style={{ flex: 1, fontSize: 16, fontWeight: 700, color: '#0f172a' }}>Új fizetési tétel</span>
+          <button type="button" onClick={onClose} disabled={saving}
+            style={{ width: 36, height: 36, borderRadius: '50%', border: 'none', background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#64748b', flexShrink: 0 }}>
+            <X size={16} />
+          </button>
         </div>
-
-        {/* Step indicator */}
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '14px 20px 10px', flexShrink: 0 }}>
           {stepLabels.map((lbl, i) => {
-            const idx = i + 1;
-            const done = idx < step;
-            const curr = idx === step;
+            const idx = i + 1; const done = idx < step; const curr = idx === step;
             return (
               <React.Fragment key={i}>
                 {i > 0 && <div style={{ flex: 1, height: 2, background: done ? '#0f172a' : '#e2e8f0', borderRadius: 1, marginTop: 13, transition: 'background 0.2s' }} />}
@@ -236,8 +333,6 @@ export default function PaymentPlanModal({ isOpen, onClose, onSave, editItem, it
             );
           })}
         </div>
-
-        {/* Content */}
         <div style={{ flex: 1, overflowY: 'auto', padding: '4px 20px 8px', WebkitOverflowScrolling: 'touch' }}>
           {error && (
             <div style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', color: 'var(--danger-text)', padding: '0.55rem 0.75rem', borderRadius: 10, fontSize: 13, display: 'flex', gap: 6, marginBottom: 16, alignItems: 'flex-start' }}>
@@ -247,8 +342,6 @@ export default function PaymentPlanModal({ isOpen, onClose, onSave, editItem, it
           {renderStep()}
           <div style={{ height: 8 }} />
         </div>
-
-        {/* Navigation */}
         <div style={{ padding: '12px 16px', paddingBottom: 'calc(12px + env(safe-area-inset-bottom))', flexShrink: 0, borderTop: '1px solid #f1f5f9', display: 'flex', gap: 10 }}>
           {step > 1 && (
             <button type="button" onClick={() => { setError(''); setStep(s => s - 1); }} disabled={saving}
@@ -258,12 +351,7 @@ export default function PaymentPlanModal({ isOpen, onClose, onSave, editItem, it
           )}
           <button type="button" onClick={handleNext} disabled={saving}
             style={{ flex: 1, height: 54, borderRadius: 14, border: 'none', background: isLast ? '#16a34a' : '#0f172a', color: '#fff', fontSize: 16, fontWeight: 700, cursor: saving ? 'default' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, opacity: saving ? 0.75 : 1, transition: 'background 0.2s' }}>
-            {saving
-              ? <><Loader2 size={18} className="animate-spin" /> Mentés...</>
-              : isLast
-                ? <><Check size={18} /> {editItem ? 'Módosítás mentése' : 'Tétel hozzáadása'}</>
-                : <>Következő <ChevronRight size={18} /></>
-            }
+            {saving ? <><Loader2 size={18} className="animate-spin" /> Hozzáadás...</> : isLast ? <><Check size={18} /> Tétel hozzáadása</> : <>Következő <ChevronRight size={18} /></>}
           </button>
         </div>
       </div>
