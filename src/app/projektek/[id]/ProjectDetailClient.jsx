@@ -39,6 +39,8 @@ import RoomModal from './components/RoomModal';
 import ProjectEditModal from './components/ProjectEditModal';
 
 
+const TAB_COLORS = { invoices: '#fb923c', labour: '#34d399', naplo: '#a78bfa', payment: '#fbbf24' };
+
 export default function ProjectDetailClient({
   project,
   initialUsers,
@@ -884,18 +886,37 @@ export default function ProjectDetailClient({
       )}
 
       {/* Tabs */}
-      <div style={{ display: 'flex', gap: 0, marginBottom: '1rem', borderBottom: '2px solid var(--border-subtle)', paddingBottom: 0, overflowX: 'auto', WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-        {[
-          { key: 'invoices', label: `Számlák (${fin.projectInvoices.length})`, icon: Receipt },
-          { key: 'labour', label: `Munka (${fin.projectLabour.length})`, icon: Hammer },
-          { key: 'naplo', label: `Napló (${diaryEntriesByProject[project.id]?.length ?? initialDiaryCount})`, icon: BookOpen },
-          { key: 'payment', label: `Fizetési terv (${paymentPlan.length})`, icon: Wallet },
-        ].map(tab => (
-          <button key={tab.key} type="button" onClick={() => setActiveTab(tab.key)} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.65rem 1rem', borderRadius: 0, border: 'none', borderBottom: activeTab === tab.key ? '2px solid var(--accent)' : '2px solid transparent', marginBottom: '-2px', background: 'transparent', cursor: 'pointer', fontWeight: activeTab === tab.key ? 800 : 600, color: activeTab === tab.key ? 'var(--accent)' : 'var(--text-secondary)', fontSize: '0.875rem', transition: 'all 0.15s ease', flexShrink: 0, whiteSpace: 'nowrap' }}>
-            <tab.icon size={15} />{tab.label}
-          </button>
-        ))}
-      </div>
+      {(() => {
+        return (
+          <div style={{ marginLeft: isMobile ? '-0.85rem' : 0, marginRight: isMobile ? '-0.85rem' : 0, marginBottom: '1rem', background: '#18181b', borderRadius: '15px 0 15px 0' }}>
+            <div style={{ display: 'flex', overflowX: 'auto', WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none', msOverflowStyle: 'none', paddingLeft: isMobile ? '0.85rem' : 0, paddingRight: isMobile ? '0.85rem' : 0 }}>
+              {[
+                { key: 'invoices', label: `Számlák (${fin.projectInvoices.length})`, icon: Receipt },
+                { key: 'labour',   label: `Munka (${fin.projectLabour.length})`, icon: Hammer },
+                { key: 'naplo',    label: `Napló (${diaryEntriesByProject[project.id]?.length ?? initialDiaryCount})`, icon: BookOpen },
+                { key: 'payment',  label: `Fizetési terv (${paymentPlan.length})`, icon: Wallet },
+              ].map(tab => {
+                const isActive = activeTab === tab.key;
+                const tabColor = TAB_COLORS[tab.key];
+                return (
+                  <button key={tab.key} type="button" onClick={() => setActiveTab(tab.key)} style={{
+                    display: 'flex', alignItems: 'center', gap: '0.4rem',
+                    padding: '1.5rem 1rem', border: 'none', borderBottom: `3px solid ${isActive ? tabColor : 'transparent'}`,
+                    background: 'transparent', cursor: 'pointer', flexShrink: 0, whiteSpace: 'nowrap',
+                    fontWeight: isActive ? 800 : 500, fontSize: '1.15rem',
+                    color: isActive ? tabColor : 'rgba(255,255,255,0.45)',
+                    transition: 'all 0.15s ease',
+                  }}>
+                    <tab.icon size={15} />{tab.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })()}
+
+      <div style={{ background: '#f8fafc', borderRadius: '15px 0 15px 0', padding: '1.25rem', marginBottom: '1rem' }}>
 
       {activeTab === 'invoices' && (
         <>
@@ -1338,6 +1359,8 @@ export default function ProjectDetailClient({
 
         </>
       )}
+
+      </div>
 
       {editingLabour && (
         <LabourEditModal

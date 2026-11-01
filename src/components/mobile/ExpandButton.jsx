@@ -3,7 +3,7 @@
 import React from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 
-export default function ExpandButton({ total, showing, expanded, onToggle }) {
+export default function ExpandButton({ total, showing, expanded, onToggle, light = false }) {
   if (total <= showing) return null;
   const remaining = total - showing;
   return (
@@ -13,9 +13,11 @@ export default function ExpandButton({ total, showing, expanded, onToggle }) {
       style={{
         display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
         width: '100%', height: 52,
-        background: 'transparent', border: '1px solid #cbd5e1',
+        background: 'transparent',
+        border: `1px solid ${light ? 'rgba(255,255,255,0.25)' : '#cbd5e1'}`,
         borderRadius: 999, cursor: 'pointer',
-        fontSize: 15, fontWeight: 700, color: '#475569',
+        fontSize: 15, fontWeight: 700,
+        color: light ? 'rgba(255,255,255,0.75)' : '#475569',
         marginTop: 8,
       }}
     >

@@ -106,6 +106,8 @@ export default function QuotesListPage() {
       onDeleteItem={onDeleteItem}
       renderDesktopFilterBar={renderDesktopFilterBar}
       isFiltered={statusFilter !== 'all'}
+      accentColor="#7c3aed"
+      accentGradient="linear-gradient(135deg, #a78bfa 0%, #4c1d95 100%)"
     />
   );
 }

@@ -108,6 +108,8 @@ export default function SurveyListPage() {
       buildDeleteMessage={buildDeleteMessage}
       onDeleteItem={onDeleteItem}
       renderDesktopFilterBar={renderDesktopFilterBar}
+      accentColor="#2563eb"
+      accentGradient="linear-gradient(135deg, #3b82f6 0%, #1e3a8a 100%)"
     />
   );
 }

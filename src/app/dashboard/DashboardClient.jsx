@@ -18,6 +18,7 @@ import CompactRow from '@/components/mobile/CompactRow';
 import WorkspaceSectionHeader from '@/components/mobile/WorkspaceSectionHeader';
 import ItemCard from '@/components/mobile/ItemCard';
 import useMobile from '@/hooks/useMobile';
+import { collectiveColor } from '@/lib/collectiveColor';
 
 const QUOTE_STATUS = { draft: 'Tervezet', sent: 'Kiküldve', accepted: 'Elfogadva', rejected: 'Elutasítva' };
 const QUOTE_STATUS_COLOR = { draft: 'var(--text-muted)', sent: 'var(--warning-text)', accepted: 'var(--success-text)', rejected: 'var(--danger-text)' };
@@ -366,8 +367,8 @@ export default function DashboardClient({
 
         {/* Most recently touched item */}
         {mostRecent && (
-          <div style={{ marginBottom: 24 }}>
-            <div style={{ fontSize: 13, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#64748b', marginBottom: 8 }}>
+          <div style={{ marginLeft: '-0.85rem', marginRight: '-0.85rem', padding: '1.25rem 0.85rem 1.5rem', background: 'linear-gradient(135deg, #450a0a 0%, #881337 100%)', borderRadius: '25px 0 25px 0', marginBottom: 24 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'rgba(255,255,255,0.5)', marginBottom: 8 }}>
               Folytasd
             </div>
             {recentItemCard(mostRecent)}
@@ -400,7 +401,7 @@ export default function DashboardClient({
         </div>
 
         {/* Collectives — last survey, offer, project per collective */}
-        {collectiveMeta.map(col => {
+        {collectiveMeta.map((col) => {
           const byDate = (a, b) => new Date(b.updated_at || b.created_at) - new Date(a.updated_at || a.created_at);
           const colSurveys  = sharedSurveys.filter(s => s.collective_id === col.id).sort(byDate);
           const colQuotes   = sharedQuotes.filter(q => q.collective_id === col.id).sort(byDate);
@@ -415,7 +416,7 @@ export default function DashboardClient({
           const total = colSurveys.length + colQuotes.length + colProjects.length;
 
           return (
-            <div key={col.id} style={{ marginLeft: '-0.85rem', marginRight: '-0.85rem', padding: '1.25rem 0.85rem 1.5rem', background: '#0f172a', borderRadius: '25px 0 25px 0', marginBottom: 24 }}>
+            <div key={col.id} style={{ marginLeft: '-0.85rem', marginRight: '-0.85rem', padding: '1.25rem 0.85rem 1.5rem', background: collectiveColor(col.id), borderRadius: '25px 0 25px 0', marginBottom: 24 }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <WorkspaceSectionHeader type="collective" name={col.name} count={total} light />
                 <Link href={p(`/osszes?workspace=${col.id}`)} style={{ fontSize: 14, fontWeight: 700, color: 'rgba(255,255,255,0.85)', textDecoration: 'none', flexShrink: 0, marginLeft: 12, marginBottom: 12 }}>Mind</Link>

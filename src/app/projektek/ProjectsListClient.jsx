@@ -19,6 +19,8 @@ import CollectiveSelector from '@/components/CollectiveSelector';
 import ItemCard from '@/components/mobile/ItemCard';
 import WorkspaceSectionHeader from '@/components/mobile/WorkspaceSectionHeader';
 import ExpandButton from '@/components/mobile/ExpandButton';
+import useMobile from '@/hooks/useMobile';
+import { collectiveColor } from '@/lib/collectiveColor';
 
 const PREVIEW_COUNT = 3;
 
@@ -52,6 +54,7 @@ export default function ProjectsListClient({
   } = useApp();
 
   const navPrefix = isDemoMode ? '/demo' : '';
+  const isMobile  = useMobile();
 
   const quotes        = dataReady ? _ctxQuotes        : (initialQuotes || []);
   const invoices      = dataReady ? _ctxInvoices      : initialInvoices;
@@ -260,20 +263,18 @@ export default function ProjectsListClient({
 
       {/* ── Mobile-only header ── */}
       <div className="list-page-mobile-header" style={{ marginBottom: 20 }}>
-        <Link
-          href={`${navPrefix}/dashboard`}
-          style={{
-            display: 'inline-flex', alignItems: 'center', gap: 4,
-            fontSize: 15, fontWeight: 600, color: '#475569',
-            textDecoration: 'none', height: 44, marginBottom: 4,
-          }}
-        >
-          <ChevronLeft size={18} strokeWidth={1.75} aria-hidden="true" />
-          Kezdőlap
-        </Link>
-        <h1 style={{ fontSize: 32, fontWeight: 800, color: '#0f172a', letterSpacing: '-0.025em', lineHeight: '38px' }}>
-          Projektek
-        </h1>
+        <div style={{ background: 'linear-gradient(135deg, #34d399 0%, #065f46 100%)', marginLeft: '-0.85rem', marginRight: '-0.85rem', padding: '0.35rem 0.85rem 0.5rem', borderRadius: 0, marginBottom: 16 }}>
+          <Link
+            href={`${navPrefix}/dashboard`}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,0.65)', textDecoration: 'none', height: 36, marginBottom: 2 }}
+          >
+            <ChevronLeft size={16} strokeWidth={1.75} aria-hidden="true" />
+            Kezdőlap
+          </Link>
+          <h1 style={{ fontSize: 32, fontWeight: 800, color: '#e5e7eb', letterSpacing: '-0.025em', lineHeight: '38px', margin: 0 }}>
+            Projektek
+          </h1>
+        </div>
       </div>
 
       {/* ── Desktop header ── */}
@@ -320,26 +321,45 @@ export default function ProjectsListClient({
             </>
           )}
 
-          {sharedByCollective.map(col => (
-            <div key={col.id} className="collective-inset-panel" style={{ marginTop: 24 }}>
-              <WorkspaceSectionHeader type="collective" name={col.name} count={col.projects.length} />
-              {col.projects.length === 0 ? (
-                <p style={{ fontSize: '0.825rem', color: 'var(--text-muted)', marginBottom: 8 }}>Nincsenek közös projektek.</p>
-              ) : (
-                <>
-                  <div className="card-grid">
-                    {(expandShared[col.id] ? col.projects : col.projects.slice(0, PREVIEW_COUNT)).map(p => renderCard(p))}
-                  </div>
-                  <ExpandButton
-                    total={col.projects.length}
-                    showing={PREVIEW_COUNT}
-                    expanded={!!expandShared[col.id]}
-                    onToggle={() => setExpandShared(v => ({ ...v, [col.id]: !v[col.id] }))}
-                  />
-                </>
-              )}
-            </div>
-          ))}
+          {sharedByCollective.map((col, colIdx) => {
+            const colBg = collectiveColor(col.id);
+            const mobileStyle = {
+              marginLeft: '-0.85rem', marginRight: '-0.85rem',
+              padding: '1.25rem 0.85rem 1.5rem',
+              background: colBg,
+              borderRadius: '25px 0 25px 0',
+              marginTop: 24, marginBottom: 0,
+            };
+            const desktopStyle = {
+              marginTop: 24,
+              padding: '1.25rem',
+              borderRadius: 'var(--radius-lg)',
+              borderLeft: `4px solid ${colBg}`,
+              boxShadow: `0 4px 16px ${colBg}28, 0 1px 4px rgba(0,0,0,0.06)`,
+              background: '#fff',
+            };
+            return (
+              <div key={col.id} style={isMobile ? mobileStyle : desktopStyle}>
+                <WorkspaceSectionHeader type="collective" name={col.name} count={col.projects.length} light={isMobile} />
+                {col.projects.length === 0 ? (
+                  <p style={{ fontSize: '0.825rem', color: isMobile ? 'rgba(255,255,255,0.6)' : 'var(--text-muted)', marginBottom: 8 }}>Nincsenek közös projektek.</p>
+                ) : (
+                  <>
+                    <div className="card-grid">
+                      {(expandShared[col.id] ? col.projects : col.projects.slice(0, PREVIEW_COUNT)).map(p => renderCard(p))}
+                    </div>
+                    <ExpandButton
+                      total={col.projects.length}
+                      showing={PREVIEW_COUNT}
+                      expanded={!!expandShared[col.id]}
+                      onToggle={() => setExpandShared(v => ({ ...v, [col.id]: !v[col.id] }))}
+                      light={isMobile}
+                    />
+                  </>
+                )}
+              </div>
+            );
+          })}
 
           {!hasCollectives && (
             <div style={{ marginTop: '2rem', padding: '1rem 1.25rem', borderRadius: 'var(--radius-md)', background: 'var(--bg-subtle)', border: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>

@@ -26,6 +26,8 @@ import { Plus, Search, ChevronLeft, Users } from 'lucide-react';
 import PageSpinner from '@/components/PageSpinner';
 import WorkspaceSectionHeader from '@/components/mobile/WorkspaceSectionHeader';
 import ExpandButton from '@/components/mobile/ExpandButton';
+import useMobile from '@/hooks/useMobile';
+import { collectiveColor } from '@/lib/collectiveColor';
 
 const PREVIEW_COUNT = 3;
 
@@ -63,8 +65,13 @@ export default function DocumentListPage({
 
   // Whether there's an active non-search filter (e.g. status !== 'all')
   isFiltered = false,
+
+  // Module gradient (blue for surveys, violet for offers, green for projects)
+  accentColor,
+  accentGradient,
 }) {
   const { loading, dataReady, isDemoMode, collectives: userMemberships } = useApp();
+  const isMobile = useMobile();
   const navPrefix = isDemoMode ? '/demo' : '';
 
   const [search,         setSearch]         = useState('');
@@ -166,16 +173,18 @@ export default function DocumentListPage({
 
       {/* ── Mobile header ── */}
       <div className="list-page-mobile-header" style={{ marginBottom: 20 }}>
-        <Link
-          href={`${navPrefix}/dashboard`}
-          style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 15, fontWeight: 600, color: '#475569', textDecoration: 'none', height: 44, marginBottom: 4 }}
-        >
-          <ChevronLeft size={18} strokeWidth={1.75} aria-hidden="true" />
-          Kezdőlap
-        </Link>
-        <h1 style={{ fontSize: 32, fontWeight: 800, color: '#0f172a', letterSpacing: '-0.025em', lineHeight: '38px', marginBottom: 16 }}>
-          {pageTitle}
-        </h1>
+        <div style={{ background: accentGradient || accentColor || 'transparent', marginLeft: '-0.85rem', marginRight: '-0.85rem', padding: '0.35rem 0.85rem 0.5rem', borderRadius: 0, marginBottom: 16 }}>
+          <Link
+            href={`${navPrefix}/dashboard`}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,0.65)', textDecoration: 'none', height: 36, marginBottom: 2 }}
+          >
+            <ChevronLeft size={16} strokeWidth={1.75} aria-hidden="true" />
+            Kezdőlap
+          </Link>
+          <h1 style={{ fontSize: 32, fontWeight: 800, color: '#e5e7eb', letterSpacing: '-0.025em', lineHeight: '38px', margin: 0 }}>
+            {pageTitle}
+          </h1>
+        </div>
         <div className="mobile-search-wrap">
           <Search size={18} className="search-icon" aria-hidden="true" />
           <input
@@ -247,13 +256,29 @@ export default function DocumentListPage({
           )}
 
           {/* Collective sections */}
-          {sharedByColl.map(col => {
-            const items = col[documentKey] || [];
+          {sharedByColl.map((col, colIdx) => {
+            const items   = col[documentKey] || [];
+            const colBg   = collectiveColor(col.id);
+            const mobileStyle = {
+              marginLeft: '-0.85rem', marginRight: '-0.85rem',
+              padding: '1.25rem 0.85rem 1.5rem',
+              background: colBg,
+              borderRadius: '25px 0 25px 0',
+              marginTop: 24, marginBottom: 0,
+            };
+            const desktopStyle = {
+              marginTop: 24,
+              padding: '1.25rem',
+              borderRadius: 'var(--radius-lg)',
+              borderLeft: `4px solid ${colBg}`,
+              boxShadow: `0 4px 16px ${colBg}28, 0 1px 4px rgba(0,0,0,0.06)`,
+              background: '#fff',
+            };
             return (
-              <div key={col.id} className="collective-inset-panel" style={{ marginTop: 24 }}>
-                <WorkspaceSectionHeader type="collective" name={col.name} count={items.length} />
+              <div key={col.id} style={isMobile ? mobileStyle : desktopStyle}>
+                <WorkspaceSectionHeader type="collective" name={col.name} count={items.length} light={isMobile} />
                 {items.length === 0 ? (
-                  <p style={{ fontSize: '0.825rem', color: 'var(--text-muted)', marginBottom: 8 }}>
+                  <p style={{ fontSize: '0.825rem', color: isMobile ? 'rgba(255,255,255,0.6)' : 'var(--text-muted)', marginBottom: 8 }}>
                     Nincs megosztott {pageTitle.replace(/k$/, '').toLowerCase()} ebben a kollektívában.
                   </p>
                 ) : (
@@ -267,6 +292,7 @@ export default function DocumentListPage({
                       showing={PREVIEW_COUNT}
                       expanded={!!expandShared[col.id]}
                       onToggle={() => setExpandShared(v => ({ ...v, [col.id]: !v[col.id] }))}
+                      light={isMobile}
                     />
                   </>
                 )}
