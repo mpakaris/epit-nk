@@ -21,7 +21,7 @@ export default function CostBreakdownCard({ invoices, labourTotal }) {
   const fmtHuf = (v) => new Intl.NumberFormat('hu-HU', { notation: 'compact', maximumFractionDigits: 1 }).format(v) + ' Ft';
 
   return (
-    <div className="stat-card" style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+    <div className="stat-card" style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', borderLeft: '4px solid #4338ca', boxShadow: '0 4px 16px rgba(67,56,202,0.15), 0 1px 4px rgba(0,0,0,0.06)' }}>
       <div className="stat-label">Költségek megoszlása</div>
       <div style={{ height: 180, marginTop: '0.35rem' }}>
         <ResponsiveContainer width="100%" height="100%">

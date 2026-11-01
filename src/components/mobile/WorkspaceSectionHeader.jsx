@@ -3,12 +3,14 @@
 import React from 'react';
 import { User, Users } from 'lucide-react';
 
-export default function WorkspaceSectionHeader({ type = 'personal', name, count, members = [] }) {
+export default function WorkspaceSectionHeader({ type = 'personal', name, count, members = [], light = false }) {
   const isPersonal = type === 'personal';
 
-  const chipBg    = isPersonal ? '#eff6ff' : '#dcfce7';
-  const iconColor = isPersonal ? '#2563eb' : '#16a34a';
-  const hairline  = isPersonal ? '#e2e8f0' : '#cbd5e1';
+  const chipBg    = light ? 'rgba(255,255,255,0.15)' : isPersonal ? '#eff6ff' : '#dcfce7';
+  const iconColor = light ? '#fff'                   : isPersonal ? '#2563eb' : '#16a34a';
+  const hairline  = light ? 'rgba(255,255,255,0.2)'  : isPersonal ? '#e2e8f0' : '#cbd5e1';
+  const labelColor= light ? '#fff'                   : '#0f172a';
+  const countColor= light ? 'rgba(255,255,255,0.65)' : '#475569';
   const label     = isPersonal ? 'Személyes' : name;
 
   return (
@@ -25,13 +27,13 @@ export default function WorkspaceSectionHeader({ type = 'personal', name, count,
       </div>
 
       {/* Label */}
-      <span style={{ fontSize: 17, fontWeight: 800, color: '#0f172a', lineHeight: '22px', whiteSpace: 'nowrap' }}>
+      <span style={{ fontSize: 17, fontWeight: 800, color: labelColor, lineHeight: '22px', whiteSpace: 'nowrap' }}>
         {label}
       </span>
 
       {/* Count */}
       {count !== undefined && (
-        <span style={{ fontSize: 14, fontWeight: 700, color: '#475569' }}>
+        <span style={{ fontSize: 14, fontWeight: 700, color: countColor }}>
           {count}
         </span>
       )}
@@ -49,7 +51,7 @@ export default function WorkspaceSectionHeader({ type = 'personal', name, count,
               style={{
                 width: 26, height: 26, borderRadius: '50%',
                 background: 'linear-gradient(135deg, #0f172a, #475569)',
-                border: '2px solid #f1f5f9',
+                border: `2px solid ${light ? '#0f172a' : '#f1f5f9'}`,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 fontSize: 10, fontWeight: 700, color: '#fff',
                 marginLeft: i === 0 ? 0 : -9, zIndex: members.length - i,

@@ -329,14 +329,16 @@ export default function DashboardClient({
         {/* ─────────────────────────────────────── */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginBottom: 24, marginTop: 16 }}>
           {[
-            { label: 'Felmérés', href: p('/felmeres'), personal: personalSurveys.length, shared: sharedSurveys.length },
-            { label: 'Ajánlat',  href: p('/ajanlatok'), personal: personalQuotes.length,  shared: sharedQuotes.length  },
-            { label: 'Projekt',  href: p('/projektek'), personal: personalProjects.length, shared: sharedProjects.length },
+            { label: 'Felmérés', href: p('/felmeres'), personal: personalSurveys.length, shared: sharedSurveys.length,  color: '#2563eb' },
+            { label: 'Ajánlat',  href: p('/ajanlatok'), personal: personalQuotes.length,  shared: sharedQuotes.length,   color: '#7c3aed' },
+            { label: 'Projekt',  href: p('/projektek'), personal: personalProjects.length, shared: sharedProjects.length, color: '#059669' },
           ].map(tile => (
             <Link key={tile.label} href={tile.href} style={{ textDecoration: 'none' }}>
               <div style={{
                 background: '#fff', borderRadius: 16, padding: '14px 12px',
-                boxShadow: 'var(--shadow-card)', minHeight: 140,
+                borderLeft: `4px solid ${tile.color}`,
+                boxShadow: `0 4px 16px ${tile.color}28, 0 1px 4px rgba(0,0,0,0.06)`,
+                minHeight: 140,
                 display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
               }}>
                 <div style={{ fontSize: 28, fontWeight: 800, color: '#0f172a', lineHeight: 1 }}>
@@ -413,10 +415,10 @@ export default function DashboardClient({
           const total = colSurveys.length + colQuotes.length + colProjects.length;
 
           return (
-            <div key={col.id} className="collective-inset-panel">
+            <div key={col.id} style={{ marginLeft: '-0.85rem', marginRight: '-0.85rem', padding: '1.25rem 0.85rem 1.5rem', background: '#0f172a', borderRadius: '25px 0 25px 0', marginBottom: 24 }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <WorkspaceSectionHeader type="collective" name={col.name} count={total} />
-                <Link href={p(`/osszes?workspace=${col.id}`)} style={{ fontSize: 14, fontWeight: 700, color: '#2563eb', textDecoration: 'none', flexShrink: 0, marginLeft: 12, marginBottom: 12 }}>Mind</Link>
+                <WorkspaceSectionHeader type="collective" name={col.name} count={total} light />
+                <Link href={p(`/osszes?workspace=${col.id}`)} style={{ fontSize: 14, fontWeight: 700, color: 'rgba(255,255,255,0.85)', textDecoration: 'none', flexShrink: 0, marginLeft: 12, marginBottom: 12 }}>Mind</Link>
               </div>
               {lastSurvey && (
                 <CompactRow
@@ -475,9 +477,9 @@ export default function DashboardClient({
       {/* Stat cards */}
       {!(isSuperAdmin && !impersonating) && (
         <div className="stat-grid" style={{ marginBottom: '1.5rem' }}>
-          <StatCard label="Összesített kiadás" value={formatHUF(allActiveInvoices.reduce((s, i) => s + Number(i.value_huf || 0), 0))} sub="Összes projekt forgalma" icon={Coins} href={p('/projektek')} />
-          <StatCard label="Aktív projektek" value={projects.length} sub="Építkezések száma" icon={FolderKanban} href={p('/projektek')} />
-          <StatCard label="Rögzített számlák" value={allActiveInvoices.length} sub="Bizonylatok száma" icon={Receipt} href={p('/projektek')} />
+          <StatCard label="Összesített kiadás" value={formatHUF(allActiveInvoices.reduce((s, i) => s + Number(i.value_huf || 0), 0))} sub="Összes projekt forgalma" icon={Coins} href={p('/projektek')} accentColor="#065f46" />
+          <StatCard label="Aktív projektek" value={projects.length} sub="Építkezések száma" icon={FolderKanban} href={p('/projektek')} accentColor="#0e7490" />
+          <StatCard label="Rögzített számlák" value={allActiveInvoices.length} sub="Bizonylatok száma" icon={Receipt} href={p('/projektek')} accentColor="#4338ca" />
         </div>
       )}
 
@@ -497,7 +499,7 @@ export default function DashboardClient({
             Még nincs aktivitás.
           </div>
         ) : (
-          <div className="card" style={{ padding: '0.35rem 0' }}>
+          <div className="card" style={{ padding: '0.35rem 0', borderLeft: '4px solid #475569', boxShadow: '0 4px 16px #47556928, 0 1px 4px rgba(0,0,0,0.06)' }}>
             {activityItems.map((item, idx) => {
               const project = projects.find(p => p.id === item.project_id);
               const isLast = idx === activityItems.length - 1;
@@ -573,7 +575,7 @@ export default function DashboardClient({
               const projectMemberUsers = users.filter(u => (project.members || []).includes(u.id));
               const fin = calculateProjectFinancials(project, invoices, labourEntries, projectMemberUsers, currentUser?.id);
               return (
-                <div key={project.id} className="card card-interactive" onClick={() => router.push(p(`/projektek/${project.id}`))} style={{ cursor: 'pointer' }}>
+                <div key={project.id} className="card card-interactive" onClick={() => router.push(p(`/projektek/${project.id}`))} style={{ cursor: 'pointer', borderLeft: '4px solid #059669', boxShadow: '0 4px 16px #05996928, 0 1px 4px rgba(0,0,0,0.06)' }}>
                   <div style={{ fontWeight: 800, fontSize: '1rem', marginBottom: '0.35rem' }}>{project.name}</div>
                   {project.description && <p style={{ fontSize: '0.825rem', color: 'var(--text-secondary)', marginBottom: '0.5rem', lineHeight: 1.4 }}>{project.description}</p>}
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: 'var(--text-muted)', borderTop: '1px solid var(--border-subtle)', paddingTop: '0.5rem', marginTop: '0.5rem' }}>
@@ -589,7 +591,7 @@ export default function DashboardClient({
 
       {/* Surveys + Quotes */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(320px, 100%), 1fr))', gap: '1rem', marginBottom: '1.75rem' }}>
-        <div className="card">
+        <div className="card" style={{ borderLeft: '4px solid #2563eb', boxShadow: '0 4px 16px #2563eb28, 0 1px 4px rgba(0,0,0,0.06)' }}>
           <SectionHeader icon={Ruler} title="Legújabb felmérések" href={p('/felmeres')} />
           {recentSurveys.length === 0 ? (
             <button onClick={() => router.push(p('/felmeres/uj'))} style={{
@@ -620,7 +622,7 @@ export default function DashboardClient({
           )}
         </div>
 
-        <div className="card">
+        <div className="card" style={{ borderLeft: '4px solid #7c3aed', boxShadow: '0 4px 16px #7c3aed28, 0 1px 4px rgba(0,0,0,0.06)' }}>
           <SectionHeader icon={FileText} title="Legújabb ajánlatok" href={p('/ajanlatok')} />
           {recentQuotes.length === 0 ? (
             <button onClick={() => router.push(p('/ajanlatok/uj'))} style={{

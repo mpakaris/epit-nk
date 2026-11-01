@@ -2,13 +2,13 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { ChevronRight, ClipboardList, FileText, Folder, Contact } from 'lucide-react';
+import { ChevronRight, Ruler, Euro, FolderKanban, Contact } from 'lucide-react';
 import TeamBadge from './TeamBadge';
 
 const TYPE_ICONS = {
-  felmeres:  ClipboardList,
-  ajanlat:   FileText,
-  projekt:   Folder,
+  felmeres:  Ruler,
+  ajanlat:   Euro,
+  projekt:   FolderKanban,
   ugyfel:    Contact,
 };
 
@@ -30,7 +30,8 @@ export default function CompactRow({ href, title, meta, type, isShared, isPendin
         display: 'flex', alignItems: 'center', gap: 12,
         minHeight: 72, padding: '12px 16px',
         background: '#fff', borderRadius: 16,
-        boxShadow: 'var(--shadow-card)',
+        borderLeft: `4px solid ${typeMeta?.color || '#94a3b8'}`,
+        boxShadow: `0 4px 16px ${typeMeta?.color || '#94a3b8'}28, 0 1px 4px rgba(0,0,0,0.06)`,
         textDecoration: 'none', color: 'inherit',
         marginBottom: 8,
       }}
@@ -47,25 +48,23 @@ export default function CompactRow({ href, title, meta, type, isShared, isPendin
       {/* Text */}
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{
-          fontSize: 16, fontWeight: 700, color: '#0f172a',
+          fontSize: 14, fontWeight: 700, color: '#0f172a',
           lineHeight: '22px', overflow: 'hidden',
           textOverflow: 'ellipsis', whiteSpace: 'nowrap',
         }}>
           {title}
         </div>
-        <div style={{
-          display: 'flex', alignItems: 'center', gap: 6, marginTop: 2,
-        }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2, flexWrap: 'nowrap', overflow: 'hidden' }}>
           {typeMeta && (
             <span style={{
               fontSize: 11, fontWeight: 700, lineHeight: 1,
               color: typeMeta.color, background: typeMeta.bg,
-              padding: '2px 7px', borderRadius: 999,
-              flexShrink: 0,
+              padding: '2px 7px', borderRadius: 999, flexShrink: 0,
             }}>
               {typeMeta.label}
             </span>
           )}
+          {isShared && <TeamBadge />}
           {isPendingTransfer && (
             <span style={{
               fontSize: 10, fontWeight: 800, lineHeight: 1,
@@ -88,11 +87,7 @@ export default function CompactRow({ href, title, meta, type, isShared, isPendin
         </div>
       </div>
 
-      {/* Team badge + chevron */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-        {isShared && <TeamBadge />}
-        <ChevronRight size={18} color="#94a3b8" strokeWidth={1.75} aria-hidden="true" />
-      </div>
+      <ChevronRight size={18} color="#94a3b8" strokeWidth={1.75} style={{ flexShrink: 0 }} aria-hidden="true" />
     </Link>
   );
 }

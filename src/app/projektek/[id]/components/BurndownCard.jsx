@@ -18,7 +18,7 @@ export default function BurndownCard({ invoices, labourEntries, projectRooms, st
 
   if (!quotedTotal && events.length === 0) {
     return (
-      <div className="stat-card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+      <div className="stat-card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', borderLeft: '4px solid #be185d', boxShadow: '0 4px 16px rgba(190,24,93,0.15), 0 1px 4px rgba(0,0,0,0.06)' }}>
         <div className="stat-label">Elköltés az ajánlathoz</div>
         <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.35rem' }}>Nincs kapcsolt ajánlat</div>
       </div>
@@ -40,7 +40,7 @@ export default function BurndownCard({ invoices, labourEntries, projectRooms, st
   const fmtHuf = (v) => new Intl.NumberFormat('hu-HU', { notation: 'compact', maximumFractionDigits: 1 }).format(v) + ' Ft';
 
   return (
-    <div className="stat-card" style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+    <div className="stat-card" style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', borderLeft: '4px solid #be185d', boxShadow: '0 4px 16px rgba(190,24,93,0.15), 0 1px 4px rgba(0,0,0,0.06)' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
         <div className="stat-label">Elköltés az ajánlathoz</div>
         {pct !== null && <span style={{ fontSize: '0.72rem', fontWeight: 800, color: lineColor }}>{pct}%</span>}

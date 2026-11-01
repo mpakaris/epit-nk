@@ -534,8 +534,9 @@ export default function ProjectDetailClient({
 
       {/* Info row: client, members, dates — always rendered */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(280px, 100%), 1fr))', gap: '0.85rem', marginBottom: '0.85rem' }}>
-        <div className="card">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: '0.6rem' }}>
+        {/* Megrendelő */}
+        <div className="card" style={{ borderLeft: '4px solid #0e7490', boxShadow: '0 4px 16px rgba(14,116,144,0.18), 0 1px 4px rgba(0,0,0,0.06)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#0e7490', marginBottom: '0.6rem' }}>
             <BookUser size={13} /> Megrendelő
           </div>
           {client ? (
@@ -550,9 +551,10 @@ export default function ProjectDetailClient({
           )}
         </div>
 
+        {/* Résztvevők */}
         {(activeCollectiveId || projectMemberUsers.length > 0) && (
-        <div className="card">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: '0.6rem' }}>
+        <div className="card" style={{ borderLeft: '4px solid #6d28d9', boxShadow: '0 4px 16px rgba(109,40,217,0.18), 0 1px 4px rgba(0,0,0,0.06)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#6d28d9', marginBottom: '0.6rem' }}>
             <Users size={13} /> Résztvevők
           </div>
           {projectMemberUsers.length > 0 ? (
@@ -584,8 +586,9 @@ export default function ProjectDetailClient({
           balance={fin.balance}
         />
 
-        <div className="card">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: '0.6rem' }}>
+        {/* Adatok */}
+        <div className="card" style={{ borderLeft: '4px solid #b45309', boxShadow: '0 4px 16px rgba(180,83,9,0.18), 0 1px 4px rgba(0,0,0,0.06)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#b45309', marginBottom: '0.6rem' }}>
             <CalendarDays size={13} /> Adatok
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
@@ -815,14 +818,11 @@ export default function ProjectDetailClient({
               const memberUser     = projectMemberUsers.find(u => u.id === member.userId);
               const isCollectiveOwner = memberUser?.collective_role === 'owner';
 
-              const cardBorder = isCollectiveOwner
-                ? '2px solid #7c3aed'
-                : isSelf
-                  ? '2px solid var(--accent-border)'
-                  : undefined;
+              const memberAccent = isCollectiveOwner ? '#7c3aed' : isSelf ? '#2563eb' : '#0f766e';
+              const memberShadowRgb = isCollectiveOwner ? '124,58,237' : isSelf ? '37,99,235' : '15,118,110';
 
               return (
-                <div key={member.userId} className="card" style={{ padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem', border: cardBorder }}>
+                <div key={member.userId} className="card" style={{ padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem', borderLeft: `4px solid ${memberAccent}`, boxShadow: `0 4px 16px rgba(${memberShadowRgb},0.18), 0 1px 4px rgba(0,0,0,0.06)` }}>
                   {/* Header */}
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>

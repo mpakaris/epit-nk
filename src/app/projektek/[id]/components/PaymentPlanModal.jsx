@@ -165,18 +165,13 @@ export default function PaymentPlanModal({ isOpen, onClose, onSave, editItem, it
 
   if (!isOpen) return null;
 
+  const saveIndicator = saveStatus === 'idle' ? null
+    : saveStatus === 'saved'
+      ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 12, color: 'var(--success-text)', fontWeight: 700 }}><Check size={12} /> Mentve</span>
+      : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 12, color: 'var(--text-muted)', fontWeight: 600 }}><Loader2 size={12} className="animate-spin" /> Mentés...</span>;
+
   // ── Edit mode: flat single-screen modal ──
   if (editItem) {
-    const SaveIndicator = () => {
-      if (saveStatus === 'idle') return null;
-      if (saveStatus === 'pending' || saveStatus === 'saving') return (
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 12, color: 'var(--text-muted)', fontWeight: 600 }}>
-          <Loader2 size={12} className="animate-spin" /> Mentés...
-        </span>
-      );
-      return <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 12, color: 'var(--success-text)', fontWeight: 700 }}><Check size={12} /> Mentve</span>;
-    };
-
     return (
       <Modal isOpen={true} onClose={onClose} title="Fizetési tétel szerkesztése">
         <ErrorBanner message={error} style={{ marginBottom: '0.85rem' }} />
@@ -216,7 +211,7 @@ export default function PaymentPlanModal({ isOpen, onClose, onSave, editItem, it
             <textarea rows={2} className="form-control" value={note} onChange={e => setNote(e.target.value)} placeholder="Belső megjegyzés…" />
           </div>
           <div style={{ marginTop: '1.25rem', paddingTop: '1rem', borderTop: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center' }}>
-            <SaveIndicator />
+            {saveIndicator}
           </div>
         </div>
       </Modal>
