@@ -209,6 +209,101 @@ export const EMAIL_TEMPLATES = {
   },
 
   /**
+   * Collective created — confirmation to the owner.
+   * Vars: owner_name, collective_name, manage_url
+   */
+  collective_created: {
+    id: 'collective_created',
+    name: 'Collective created',
+    subject: 'Kollektívád létrejött: {{collective_name}}',
+    bodyHtml: `
+<p style="margin:0 0 16px;font-size:15px;color:#334155;line-height:1.6;">
+  Szia <strong>{{owner_name}}</strong>!
+</p>
+<p style="margin:0 0 20px;font-size:14px;color:#64748b;line-height:1.7;">
+  Sikeresen létrehoztad a(z) <strong style="color:#1e293b;">{{collective_name}}</strong> kollektívát.
+  Már meghívhatod a csapattagjaidat, és közösen dolgozhattok a projektjeiteken.
+</p>
+<a href="{{manage_url}}"
+   style="display:inline-block;padding:12px 24px;background:#1e293b;color:#fff;font-size:14px;font-weight:800;border-radius:8px;text-decoration:none;margin-bottom:20px;">
+  Kollektíva kezelése →
+</a>
+`,
+  },
+
+  /**
+   * Collective renamed — notify all active members.
+   * Vars: old_name, new_name, manager_name
+   */
+  collective_renamed: {
+    id: 'collective_renamed',
+    name: 'Collective renamed',
+    subject: 'A kollektíva neve megváltozott: {{new_name}}',
+    bodyHtml: `
+<p style="margin:0 0 16px;font-size:15px;color:#334155;line-height:1.6;">
+  <strong>{{manager_name}}</strong> átnevezte a kollektívát.
+</p>
+<table style="border-collapse:collapse;margin-bottom:20px;width:100%;">
+  <tr>
+    <td style="padding:10px 14px;background:#f8fafc;border:1px solid #e2e8f0;font-size:13px;color:#64748b;border-radius:6px 0 0 6px;">Régi név</td>
+    <td style="padding:10px 14px;background:#f8fafc;border:1px solid #e2e8f0;border-left:none;font-size:14px;color:#64748b;text-decoration:line-through;">{{old_name}}</td>
+  </tr>
+  <tr>
+    <td style="padding:10px 14px;background:#f0fdf4;border:1px solid #bbf7d0;font-size:13px;color:#15803d;font-weight:700;">Új név</td>
+    <td style="padding:10px 14px;background:#f0fdf4;border:1px solid #bbf7d0;border-left:none;font-size:15px;color:#15803d;font-weight:800;">{{new_name}}</td>
+  </tr>
+</table>
+<p style="margin:0;font-size:13px;color:#94a3b8;">Az alkalmazásban a változás azonnal érvényes.</p>
+`,
+  },
+
+  /**
+   * Collective deleted — notify all active members.
+   * Vars: collective_name, owner_name
+   */
+  collective_deleted: {
+    id: 'collective_deleted',
+    name: 'Collective deleted',
+    subject: 'Kollektíva törölve: {{collective_name}}',
+    bodyHtml: `
+<p style="margin:0 0 16px;font-size:15px;color:#334155;line-height:1.6;">
+  <strong>{{owner_name}}</strong> törölte a(z)
+  <strong style="color:#1e293b;">{{collective_name}}</strong> kollektívát.
+</p>
+<p style="margin:0 0 16px;font-size:14px;color:#64748b;line-height:1.7;">
+  Többé nem férsz hozzá a kollektíva közös munkaterületéhez.<br>
+  A saját személyes fiókod és adataid érintetlenek maradnak.
+</p>
+<p style="margin:0;font-size:13px;color:#94a3b8;line-height:1.6;">
+  Ha úgy gondolod, hogy ez tévedés volt, vedd fel a kapcsolatot a kollektíva korábbi tulajdonosával.
+</p>
+`,
+  },
+
+  /**
+   * Member unblocked — notify the affected member.
+   * Vars: owner_name, collective_name, app_url
+   */
+  member_unblocked: {
+    id: 'member_unblocked',
+    name: 'Member unblocked',
+    subject: 'Újra hozzáférésed van: {{collective_name}}',
+    bodyHtml: `
+<p style="margin:0 0 16px;font-size:15px;color:#334155;line-height:1.6;">
+  <strong>{{owner_name}}</strong> feloldotta a hozzáférésedet a(z)
+  <strong style="color:#1e293b;">{{collective_name}}</strong> kollektívához.
+</p>
+<p style="margin:0 0 20px;font-size:14px;color:#64748b;line-height:1.7;">
+  Újra hozzáférhetsz a kollektíva projektjeihez és dokumentumaihoz.
+</p>
+<a href="{{app_url}}"
+   style="display:inline-block;padding:12px 24px;background:#16a34a;color:#fff;font-size:14px;font-weight:800;border-radius:8px;text-decoration:none;">
+  Belépés az alkalmazásba →
+</a>
+`,
+  },
+
+  /**
    * Offer sent to client.
    * Vars: client_name, offer_title, offer_summary_html, offer_url, sender_name
    */

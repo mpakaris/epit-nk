@@ -3,7 +3,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { logAudit } from '@/lib/audit';
 import { isEffectivePremium } from '@/lib/subscriptionLimits';
 import { sendEmail } from '@/lib/email';
-import { wrapEmail } from '@/lib/emailTemplates';
+import { fillTemplate, wrapEmail, EMAIL_TEMPLATES } from '@/lib/emailTemplates';
 
 export const dynamic = 'force-dynamic';
 
@@ -267,6 +267,18 @@ export async function POST(req) {
     targetId:   collective.id,
     targetName: collective.name,
   });
+
+  // Confirm to owner (non-critical)
+  if (user.email) {
+    const tpl  = EMAIL_TEMPLATES.collective_created;
+    const vars = {
+      owner_name:     profile.display_name || user.email,
+      collective_name: collective.name,
+      manage_url:     `${APP_URL}/kollektivak`,
+    };
+    sendEmail({ to: user.email, subject: fillTemplate(tpl.subject, vars), html: wrapEmail(fillTemplate(tpl.bodyHtml, vars)) })
+      .catch(err => console.error('[collective_created email]', err.message));
+  }
 
   return Response.json({ collective });
 }

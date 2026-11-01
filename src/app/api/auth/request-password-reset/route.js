@@ -67,8 +67,8 @@ export async function POST(request) {
     </p>
   `, 'Jelszó visszaállítása – OkosSzaki');
 
-  if (!process.env.RESEND_API_KEY) {
-    console.error('[password-reset] RESEND_API_KEY env var is missing');
+  if (!process.env.BREVO_SMTP_USER || !process.env.BREVO_SMTP_PASS) {
+    console.error('[password-reset] BREVO_SMTP_USER or BREVO_SMTP_PASS env var is missing');
     return Response.json({ error: 'Az e-mail küldés nincs beállítva. Kérjük, lépj kapcsolatba az üzemeltetővel.' }, { status: 503 });
   }
 

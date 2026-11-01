@@ -1,28 +1,33 @@
-import { Resend } from 'resend';
+import nodemailer from 'nodemailer';
 
-const FROM = 'OkosSzaki <noreply@okosszaki.hu>';
+const FROM = `OkosSzaki <${process.env.SMTP_FROM_EMAIL || 'noreply@okosszaki.hu'}>`;
 
-function getClient() {
-  if (!process.env.RESEND_API_KEY) {
-    throw new Error('RESEND_API_KEY env var is missing');
+function createTransporter() {
+  const user = process.env.BREVO_SMTP_USER;
+  const pass = process.env.BREVO_SMTP_PASS;
+  if (!user || !pass) {
+    throw new Error('BREVO_SMTP_USER or BREVO_SMTP_PASS env var is missing');
   }
-  return new Resend(process.env.RESEND_API_KEY);
+  return nodemailer.createTransport({
+    host: 'smtp-relay.brevo.com',
+    port: 587,
+    secure: false,
+    auth: { user, pass },
+  });
 }
 
 /**
- * Verify Resend is configured.
+ * Verify SMTP connection is working.
  * Returns { ok: true, from: string } or throws.
  */
 export async function pingSmtp() {
-  const resend = getClient();
-  // Lightweight check — list domains to confirm the key works
-  const { error } = await resend.domains.list();
-  if (error) throw new Error(error.message);
+  const transporter = createTransporter();
+  await transporter.verify();
   return { ok: true, from: FROM };
 }
 
 /**
- * Send an email via Resend.
+ * Send an email via SendPulse SMTP.
  * @param {object} opts
  * @param {string|string[]} opts.to
  * @param {string} [opts.cc]
@@ -33,19 +38,22 @@ export async function pingSmtp() {
  * @param {Array<{filename: string, content: Buffer|string, contentType?: string}>} [opts.attachments]
  */
 export async function sendEmail({ to, cc, subject, html, text, replyTo, attachments }) {
-  const resend = getClient();
+  const transporter = createTransporter();
 
-  const { data, error } = await resend.emails.send({
+  const info = await transporter.sendMail({
     from:        FROM,
-    to:          Array.isArray(to) ? to : [to],
-    cc:          cc ? (Array.isArray(cc) ? cc : [cc]) : undefined,
-    reply_to:    replyTo || undefined,
+    to:          Array.isArray(to) ? to.join(', ') : to,
+    cc:          cc || undefined,
+    replyTo:     replyTo || undefined,
     subject,
     html,
     text:        text || html.replace(/<[^>]+>/g, ''),
-    attachments: attachments || [],
+    attachments: attachments?.map(a => ({
+      filename:    a.filename,
+      content:     a.content,
+      contentType: a.contentType,
+    })) || [],
   });
 
-  if (error) throw new Error(error.message);
-  return { messageId: data.id };
+  return { messageId: info.messageId };
 }

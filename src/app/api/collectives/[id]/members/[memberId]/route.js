@@ -69,11 +69,15 @@ export async function PATCH(req, { params }) {
     const tpl = EMAIL_TEMPLATES.member_blocked;
     const vars = { owner_name: ownerName, collective_name: collectiveName };
     try {
-      await sendEmail({
-        to: memberEmail,
-        subject: fillTemplate(tpl.subject, vars),
-        html: wrapEmail(fillTemplate(tpl.bodyHtml, vars)),
-      });
+      await sendEmail({ to: memberEmail, subject: fillTemplate(tpl.subject, vars), html: wrapEmail(fillTemplate(tpl.bodyHtml, vars)) });
+    } catch { /* non-critical */ }
+  }
+
+  if (memberEmail && action === 'unblock') {
+    const tpl  = EMAIL_TEMPLATES.member_unblocked;
+    const vars = { owner_name: ownerName, collective_name: collectiveName, app_url: process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000' };
+    try {
+      await sendEmail({ to: memberEmail, subject: fillTemplate(tpl.subject, vars), html: wrapEmail(fillTemplate(tpl.bodyHtml, vars)) });
     } catch { /* non-critical */ }
   }
 

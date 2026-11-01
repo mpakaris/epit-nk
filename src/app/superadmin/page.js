@@ -23,6 +23,7 @@ const NAV_CARDS = [
   { title: 'Image Library',    desc: 'Platform hero and trade images',           icon: Image,         href: '/superadmin/image-library',   color: '#9333ea' },
   { title: 'About Photo',      desc: 'Portrait photo for the /about page',       icon: Camera,        href: '/superadmin/about',           color: '#64748b' },
   { title: 'Client Portals',   desc: 'All client portal links',                  icon: Users,         href: '/superadmin/portals',         color: '#059669' },
+  { title: 'Email Tests',      desc: 'Send test emails for all templates',        icon: Mail,          href: '/superadmin/email-test',      color: '#0369a1' },
 ];
 
 export default function SuperAdminPage() {
@@ -465,7 +466,7 @@ export default function SuperAdminPage() {
               {smtpPinging ? <><Loader2 size={13} className="animate-spin" /> Testing…</> : 'Test Connection'}
             </button>
           </div>
-          {!smtpStatus && <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: 0 }}>Gmail SMTP · smtp.gmail.com:587</p>}
+          {!smtpStatus && <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: 0 }}>Brevo SMTP · smtp-relay.brevo.com:587</p>}
           {smtpStatus && (
             <div style={{ padding: '0.55rem 0.75rem', borderRadius: 'var(--radius-md)', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.4rem', background: smtpStatus.ok ? 'var(--success-bg)' : 'var(--danger-bg)', border: `1px solid ${smtpStatus.ok ? 'var(--success-border)' : 'var(--danger-border)'}`, color: smtpStatus.ok ? 'var(--success-text)' : 'var(--danger-text)' }}>
               {smtpStatus.ok ? <><CheckCircle2 size={14} /> Connected — sending from <strong>{smtpStatus.from}</strong></> : <><AlertCircle size={14} /> {smtpStatus.error}</>}
@@ -480,7 +481,7 @@ export default function SuperAdminPage() {
             <h3 style={{ fontSize: '0.875rem', fontWeight: 800, margin: 0 }}>WhatsApp</h3>
           </div>
           <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: '0 0 0.65rem', lineHeight: 1.5 }}>
-            Küld egy teszt üzenetet hogy ellenőrizd az asszisztenst. Bot: <code style={{ fontSize: '0.75rem' }}>{process.env.NEXT_PUBLIC_WHINSELF_BOT_PHONE || 'nincs beállítva'}</code>
+            Send a test message to verify the assistant. Bot: <code style={{ fontSize: '0.75rem' }}>{process.env.NEXT_PUBLIC_WHINSELF_BOT_PHONE || 'not configured'}</code>
           </p>
           <button
             type="button"
@@ -488,12 +489,12 @@ export default function SuperAdminPage() {
             onClick={handleWaTest}
             disabled={waSending}
           >
-            {waSending ? <Loader2 size={13} className="animate-spin" /> : 'Teszt küldése'}
+            {waSending ? <Loader2 size={13} className="animate-spin" /> : 'Send test'}
           </button>
           {waResult && (
             <div style={{ marginTop: '0.55rem', padding: '0.55rem 0.75rem', borderRadius: 'var(--radius-md)', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.4rem', background: waResult.ok ? 'var(--success-bg)' : 'var(--danger-bg)', border: `1px solid ${waResult.ok ? 'var(--success-border)' : 'var(--danger-border)'}`, color: waResult.ok ? 'var(--success-text)' : 'var(--danger-text)' }}>
               {waResult.ok
-                ? <><CheckCircle2 size={14} /> Elküldve → {waResult.chatId}</>
+                ? <><CheckCircle2 size={14} /> Sent → {waResult.chatId}</>
                 : <><AlertCircle size={14} /> {waResult.error || JSON.stringify(waResult.detail)}</>}
             </div>
           )}
