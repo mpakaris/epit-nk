@@ -1,13 +1,14 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { X, Plus, Sparkles, Check, Trash2, Download, User, Calendar, Loader2 } from 'lucide-react';
+import { X, Plus, Sparkles, Check, Trash2, Download, User, Calendar, Loader2, Paperclip, FileText } from 'lucide-react';
+import { processMediaFile } from '@/lib/mediaGate';
 import Modal from '@/components/Modal';
 import Lightbox from '@/components/Lightbox';
 import ErrorBanner from '@/components/ErrorBanner';
 import { formatHUF, formatDate, INVOICE_CATEGORIES } from '@/lib/constants';
 
-export default function InvoiceDetailDrawer({ invoice, isAdmin, rooms, splits = [], onClose, onDelete, onSave, onSaveSplits }) {
+export default function InvoiceDetailDrawer({ invoice, isAdmin, rooms, splits = [], onClose, onDelete, onSave, onSaveSplits, onUploadImage, invoiceMedia = [], onMediaAdded, onMediaDeleted }) {
   const [editValue,    setEditValue]    = useState(invoice.value_huf?.toString() ?? '');
   const [editCategory, setEditCategory] = useState(invoice.category ?? '');
   const [editDesc,     setEditDesc]     = useState(invoice.description ?? '');
@@ -16,6 +17,14 @@ export default function InvoiceDetailDrawer({ invoice, isAdmin, rooms, splits = 
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [error,        setError]        = useState('');
   const [saveStatus,   setSaveStatus]   = useState('idle');
+  const [mediaItems,    setMediaItems]    = useState(() => {
+    if (invoiceMedia.length > 0) return invoiceMedia;
+    if (invoice.image_url) return [{ id: 'legacy', image_url: invoice.image_url }];
+    return [];
+  });
+  const [lightboxIndex, setLightboxIndex] = useState(0);
+  const [uploading,     setUploading]     = useState(false);
+  const imageInputRef = useRef(null);
 
   const savedFieldsRef = useRef(null);
   const savedSplitsRef = useRef(null);
@@ -97,6 +106,47 @@ export default function InvoiceDetailDrawer({ invoice, isAdmin, rooms, splits = 
   const removeItem = (idx) => setLineItems(prev => prev.filter((_, i) => i !== idx));
   const addItem    = () => setLineItems(prev => [...prev, { name: '', quantity: 1, unitPrice: 0, total: 0, currency }]);
 
+  const isPdfItem = (item) =>
+    (item.image_url || '').toLowerCase().endsWith('.pdf') ||
+    (item.storage_path || '').toLowerCase().endsWith('.pdf');
+
+  const handleImageUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file || !onUploadImage) return;
+    setUploading(true);
+    try {
+      // PDFs pass through uncompressed; images get compressed
+      const processed = file.type === 'application/pdf' ? file : await processMediaFile(file);
+      const { imageUrl, storagePath } = await onUploadImage(processed);
+      const res = await fetch(`/api/invoices/${invoice.id}/media`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image_url: imageUrl, storage_path: storagePath, sort_order: mediaItems.length }),
+      });
+      if (!res.ok) throw new Error('Hiba a mentésnél');
+      const { media } = await res.json();
+      setMediaItems(prev => [...prev, media]);
+      onMediaAdded?.(media);
+    } catch (err) {
+      setError(err.message || 'Hiba a feltöltéskor');
+    } finally {
+      setUploading(false);
+      e.target.value = '';
+    }
+  };
+
+  const handleDeleteMedia = async (item) => {
+    if (item.id === 'legacy') return;
+    try {
+      const res = await fetch(`/api/invoices/${invoice.id}/media/${item.id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Hiba a törléskor');
+      setMediaItems(prev => prev.filter(m => m.id !== item.id));
+      onMediaDeleted?.(item.id);
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
   const splitsTotal     = editSplits.reduce((sum, s) => sum + Number(s.amount_huf || 0), 0);
   const splitsRemaining = Number(invoice.value_huf) - splitsTotal;
 
@@ -146,8 +196,9 @@ export default function InvoiceDetailDrawer({ invoice, isAdmin, rooms, splits = 
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
                 <label className="form-label" style={{ margin: 0 }}>Szekciók</label>
                 {isAdmin && (
-                  <button type="button" onClick={addSplit} style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', background: 'none', border: '1px dashed var(--border-subtle)', borderRadius: 'var(--radius-sm)', padding: '0.15rem 0.5rem', cursor: 'pointer', color: 'var(--accent)', fontSize: '0.72rem', fontWeight: 700 }}>
-                    <Plus size={11} /> Szekció
+                  <button type="button" onClick={addSplit} aria-label="Szekció hozzáadása"
+                    style={{ width: 26, height: 26, borderRadius: '50%', background: 'var(--primary)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <Plus size={14} color="#fff" strokeWidth={2.5} />
                   </button>
                 )}
               </div>
@@ -197,7 +248,13 @@ export default function InvoiceDetailDrawer({ invoice, isAdmin, rooms, splits = 
             <div style={{ marginTop: '1rem', paddingTop: '0.85rem', borderTop: '1px solid var(--border-subtle)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.65rem' }}>
                 <Sparkles size={14} color="var(--accent)" />
-                <label className="form-label" style={{ margin: 0 }}>Tételek{currency !== 'HUF' && <span style={{ marginLeft: '0.35rem', fontSize: '0.72rem', fontWeight: 700, background: 'var(--accent)', color: '#fff', borderRadius: 'var(--radius-sm)', padding: '0.1rem 0.35rem' }}>{currency}</span>}</label>
+                <label className="form-label" style={{ margin: 0, flex: 1 }}>Tételek{currency !== 'HUF' && <span style={{ marginLeft: '0.35rem', fontSize: '0.72rem', fontWeight: 700, background: 'var(--accent)', color: '#fff', borderRadius: 'var(--radius-sm)', padding: '0.1rem 0.35rem' }}>{currency}</span>}</label>
+                {isAdmin && (
+                  <button type="button" onClick={addItem} aria-label="Tétel hozzáadása"
+                    style={{ width: 26, height: 26, borderRadius: '50%', background: 'var(--accent)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <Plus size={14} color="#fff" strokeWidth={2.5} />
+                  </button>
+                )}
               </div>
               {lineItems.length === 0 && !isAdmin && <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', margin: 0 }}>Az AI nem talált tételeket.</p>}
               {lineItems.length > 0 && (
@@ -231,11 +288,7 @@ export default function InvoiceDetailDrawer({ invoice, isAdmin, rooms, splits = 
                   </div>
                 </>
               )}
-              {isAdmin && (
-                <button type="button" onClick={addItem} style={{ marginTop: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.35rem', background: 'none', border: '1px dashed var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: '0.35rem 0.75rem', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '0.78rem', fontWeight: 600, width: '100%', justifyContent: 'center' }}>
-                  <Plus size={13} /> Tétel hozzáadása
-                </button>
-              )}
+
             </div>
           )}
 
@@ -245,19 +298,57 @@ export default function InvoiceDetailDrawer({ invoice, isAdmin, rooms, splits = 
             <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}><Calendar size={12} />{formatDate(invoice.created_at)}</span>
           </div>
 
-          {/* Bizonylat preview */}
-          {invoice.image_url && (
-            <button type="button" onClick={() => setLightboxOpen(true)} style={{ display: 'block', width: '100%', marginTop: '0.85rem', padding: 0, border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', overflow: 'hidden', background: 'var(--bg-subtle)', cursor: 'zoom-in' }}>
-              <img src={invoice.image_url} alt="Bizonylat" style={{ width: '100%', maxHeight: '220px', objectFit: 'cover', display: 'block' }} />
-            </button>
-          )}
+          {/* Bizonylat media */}
+          <input ref={imageInputRef} type="file" accept="image/*,application/pdf" style={{ display: 'none' }} onChange={handleImageUpload} />
+          <div style={{ marginTop: '0.85rem' }}>
+            {mediaItems.length > 0 && (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                {mediaItems.map((item, idx) => {
+                  const isPdf = isPdfItem(item);
+                  return isPdf ? (
+                    /* PDF tile — download on click, no lightbox */
+                    <a key={item.id} href={item.image_url} download target="_blank" rel="noopener noreferrer"
+                      title="PDF letöltése"
+                      style={{ position: 'relative', width: 80, height: 80, borderRadius: 8, overflow: 'hidden', flexShrink: 0, background: 'var(--bg-subtle)', border: '1px solid var(--border-subtle)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4, textDecoration: 'none', cursor: 'pointer' }}>
+                      <FileText size={28} color="var(--accent)" strokeWidth={1.5} />
+                      <span style={{ fontSize: '0.58rem', fontWeight: 800, color: 'var(--accent)', letterSpacing: '0.05em' }}>PDF</span>
+                      {isAdmin && item.id !== 'legacy' && (
+                        <button type="button" onClick={e => { e.preventDefault(); e.stopPropagation(); handleDeleteMedia(item); }}
+                          style={{ position: 'absolute', top: 3, right: 3, width: 20, height: 20, borderRadius: '50%', background: 'rgba(15,23,42,0.72)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <X size={10} color="#fff" />
+                        </button>
+                      )}
+                    </a>
+                  ) : (
+                    /* Image tile — zoom into lightbox */
+                    <div key={item.id} style={{ position: 'relative', width: 80, height: 80, borderRadius: 8, overflow: 'hidden', flexShrink: 0, cursor: 'zoom-in' }}
+                      onClick={() => { setLightboxIndex(idx); setLightboxOpen(true); }}>
+                      <img src={item.image_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      {isAdmin && item.id !== 'legacy' && (
+                        <button type="button" onClick={e => { e.stopPropagation(); handleDeleteMedia(item); }}
+                          style={{ position: 'absolute', top: 3, right: 3, width: 20, height: 20, borderRadius: '50%', background: 'rgba(15,23,42,0.72)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <X size={10} color="#fff" />
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            {isAdmin && onUploadImage && (
+              <button type="button" onClick={() => imageInputRef.current?.click()} disabled={uploading}
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', width: '100%', padding: '0.65rem', border: '1.5px dashed var(--border-subtle)', borderRadius: 'var(--radius-md)', background: 'var(--bg-subtle)', color: 'var(--text-muted)', fontWeight: 600, fontSize: '0.82rem', cursor: 'pointer' }}>
+                {uploading ? <><Loader2 size={14} className="animate-spin" />Feltöltés...</> : <><Paperclip size={14} />Bizonylat hozzáadása</>}
+              </button>
+            )}
+          </div>
 
           {/* Bottom actions */}
           <div style={{ marginTop: '1.25rem', paddingTop: '1rem', borderTop: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <span style={{ marginRight: 'auto' }}><SaveIndicator /></span>
             <div style={{ display: 'flex', gap: '0.5rem' }}>
-              {invoice.image_url && (
-                <a href={invoice.image_url} download target="_blank" rel="noopener noreferrer" className="btn btn-secondary btn-sm">
+              {mediaItems.length > 0 && mediaItems[0].id !== 'legacy' && (
+                <a href={mediaItems[0].image_url} download target="_blank" rel="noopener noreferrer" className="btn btn-secondary btn-sm">
                   <Download size={13} /> Letöltés
                 </a>
               )}
@@ -271,13 +362,17 @@ export default function InvoiceDetailDrawer({ invoice, isAdmin, rooms, splits = 
         </div>
       </Modal>
 
-      {lightboxOpen && invoice.image_url && (
-        <Lightbox
-          media={[{ url: invoice.image_url, alt: invoice.description || 'Bizonylat' }]}
-          startIndex={0}
-          onClose={() => setLightboxOpen(false)}
-        />
-      )}
+      {lightboxOpen && mediaItems.length > 0 && (() => {
+        const imageOnlyItems = mediaItems.filter(m => !isPdfItem(m));
+        if (!imageOnlyItems.length) return null;
+        return (
+          <Lightbox
+            media={imageOnlyItems.map(m => ({ url: m.image_url, alt: invoice.description || 'Bizonylat' }))}
+            startIndex={Math.min(lightboxIndex, imageOnlyItems.length - 1)}
+            onClose={() => setLightboxOpen(false)}
+          />
+        );
+      })()}
     </>
   );
 }

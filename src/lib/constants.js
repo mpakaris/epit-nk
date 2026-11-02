@@ -1,9 +1,19 @@
+export const INVOICE_CATEGORY_COLORS = {
+  'Anyag':            { bg: '#eff6ff', color: '#1d4ed8', border: '#bfdbfe' },
+  'Munka':            { bg: '#ecfdf5', color: '#047857', border: '#a7f3d0' },
+  'Szerszám/Eszköz':  { bg: '#fffbeb', color: '#b45309', border: '#fde68a' },
+  'Szállítás':        { bg: '#faf5ff', color: '#7e22ce', border: '#e9d5ff' },
+  'Engedély/Hatóság': { bg: '#fff1f2', color: '#be123c', border: '#fecdd3' },
+  'Egyéb':            { bg: '#f1f5f9', color: '#475569', border: '#cbd5e1' },
+};
+
 export const INVOICE_CATEGORIES = [
-  { id: 'Anyag', label: 'Anyag', desc: 'Építőanyagok, fa, cement, burkolat', color: 'anyag' },
-  { id: 'Szerszám/Eszköz', label: 'Szerszám/Eszköz', desc: 'Gépbérlés, szerszámok, állványzat', color: 'eszkoz' },
-  { id: 'Szállítás', label: 'Szállítás', desc: 'Teherfuvarozás, konténer, üzemanyag', color: 'szallitas' },
-  { id: 'Engedély/Hatóság', label: 'Engedély/Hatóság', desc: 'Tervezés, illetékek, földhivatal', color: 'hatosag' },
-  { id: 'Egyéb', label: 'Egyéb', desc: 'Vállalkozói munkadíj, étkezés, egyéb', color: 'egyeb' }
+  { id: 'Anyag',             label: 'Anyag',             desc: 'Építőanyagok, fa, cement, burkolat',    color: 'anyag'    },
+  { id: 'Munka',             label: 'Munka',             desc: 'Alvállalkozói munkadíj, számla',         color: 'munka'    },
+  { id: 'Szerszám/Eszköz',   label: 'Szerszám/Eszköz',   desc: 'Gépbérlés, szerszámok, állványzat',     color: 'eszkoz'   },
+  { id: 'Szállítás',         label: 'Szállítás',         desc: 'Teherfuvarozás, konténer, üzemanyag',   color: 'szallitas' },
+  { id: 'Engedély/Hatóság',  label: 'Engedély/Hatóság',  desc: 'Tervezés, illetékek, földhivatal',      color: 'hatosag'  },
+  { id: 'Egyéb',             label: 'Egyéb',             desc: 'Étkezés, vegyes kiadás',                color: 'egyeb'    },
 ];
 
 export const QUOTE_ENTRY_TYPES = [

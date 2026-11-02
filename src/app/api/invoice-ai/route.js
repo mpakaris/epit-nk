@@ -116,7 +116,7 @@ Hungarian invoice terms for reference:
 
     let parsed;
     try { parsed = JSON.parse(content); }
-    catch { return NextResponse.json({ currency: 'HUF', lineItems: [], grandTotal: 0 }); }
+    catch { return NextResponse.json({ vendor: '', currency: 'HUF', lineItems: [], grandTotal: 0 }); }
 
     // Validate and sanitize — never trust external API responses
     const VALID_CURRENCIES = new Set(['HUF', 'EUR', 'USD', 'GBP', 'CHF', 'CZK', 'PLN', 'RON']);
@@ -126,10 +126,10 @@ Hungarian invoice terms for reference:
       : 0;
     const rawItems  = Array.isArray(parsed.lineItems) ? parsed.lineItems.slice(0, 100) : [];
     const lineItems = rawItems.map(item => ({
-      description: String(item?.description ?? '').substring(0, 500),
-      quantity:    typeof item?.quantity === 'number' && isFinite(item.quantity) ? item.quantity : 1,
-      unitPrice:   typeof item?.unitPrice === 'number' && isFinite(item.unitPrice) ? Math.round(item.unitPrice) : 0,
-      total:       typeof item?.total === 'number' && isFinite(item.total) ? Math.round(item.total) : 0,
+      name:      String(item?.name ?? '').substring(0, 500),
+      quantity:  typeof item?.quantity === 'number' && isFinite(item.quantity) ? item.quantity : 1,
+      unitPrice: typeof item?.unitPrice === 'number' && isFinite(item.unitPrice) ? Math.round(item.unitPrice) : 0,
+      total:     typeof item?.total === 'number' && isFinite(item.total) ? Math.round(item.total) : 0,
     }));
 
     return NextResponse.json({ currency, lineItems, grandTotal });

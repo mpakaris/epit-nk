@@ -1,59 +1,55 @@
-import nodemailer from 'nodemailer';
-
 const FROM = `OkosSzaki <${process.env.SMTP_FROM_EMAIL || 'noreply@okosszaki.hu'}>`;
 
-function createTransporter() {
-  const user = process.env.BREVO_SMTP_USER;
-  const pass = process.env.BREVO_SMTP_PASS;
-  if (!user || !pass) {
-    throw new Error('BREVO_SMTP_USER or BREVO_SMTP_PASS env var is missing');
-  }
-  return nodemailer.createTransport({
-    host: 'smtp-relay.brevo.com',
-    port: 587,
-    secure: false,
-    auth: { user, pass },
-  });
-}
-
 /**
- * Verify SMTP connection is working.
- * Returns { ok: true, from: string } or throws.
- */
-export async function pingSmtp() {
-  const transporter = createTransporter();
-  await transporter.verify();
-  return { ok: true, from: FROM };
-}
-
-/**
- * Send an email via SendPulse SMTP.
+ * Send an email via Resend (API-key auth, no IP restrictions).
  * @param {object} opts
  * @param {string|string[]} opts.to
- * @param {string} [opts.cc]
  * @param {string} opts.subject
  * @param {string} opts.html
  * @param {string} [opts.text]
  * @param {string} [opts.replyTo]
- * @param {Array<{filename: string, content: Buffer|string, contentType?: string}>} [opts.attachments]
+ * @param {Array<{filename: string, content: string, contentType?: string}>} [opts.attachments]
  */
-export async function sendEmail({ to, cc, subject, html, text, replyTo, attachments }) {
-  const transporter = createTransporter();
+export async function sendEmail({ to, subject, html, text, replyTo, attachments }) {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) throw new Error('RESEND_API_KEY env var is missing');
 
-  const info = await transporter.sendMail({
-    from:        FROM,
-    to:          Array.isArray(to) ? to.join(', ') : to,
-    cc:          cc || undefined,
-    replyTo:     replyTo || undefined,
+  const body = {
+    from:    FROM,
+    to:      Array.isArray(to) ? to : [to],
     subject,
     html,
-    text:        text || html.replace(/<[^>]+>/g, ''),
-    attachments: attachments?.map(a => ({
-      filename:    a.filename,
-      content:     a.content,
-      contentType: a.contentType,
-    })) || [],
+    ...(text     ? { text }                  : {}),
+    ...(replyTo  ? { reply_to: replyTo }     : {}),
+    ...(attachments?.length ? {
+      attachments: attachments.map(a => ({
+        filename:    a.filename,
+        content:     Buffer.isBuffer(a.content) ? a.content.toString('base64') : a.content,
+        content_type: a.contentType,
+      })),
+    } : {}),
+  };
+
+  const res = await fetch('https://api.resend.com/emails', {
+    method:  'POST',
+    headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+    body:    JSON.stringify(body),
   });
 
-  return { messageId: info.messageId };
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.message || `Resend error ${res.status}`);
+  return { messageId: data.id };
+}
+
+export async function pingSmtp() {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) return { ok: false, error: 'RESEND_API_KEY nincs beállítva' };
+  const res = await fetch('https://api.resend.com/domains', {
+    headers: { Authorization: `Bearer ${apiKey}` },
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    return { ok: false, error: data.message || `Resend API error ${res.status}` };
+  }
+  return { ok: true, provider: 'resend' };
 }

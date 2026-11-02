@@ -39,7 +39,7 @@ import RoomModal from './components/RoomModal';
 import ProjectEditModal from './components/ProjectEditModal';
 
 
-const TAB_COLORS = { invoices: '#fb923c', labour: '#34d399', naplo: '#a78bfa', payment: '#fbbf24' };
+const CARD_HEADER_BG = '#334155';
 
 export default function ProjectDetailClient({
   project,
@@ -82,6 +82,7 @@ export default function ProjectDetailClient({
     labourEntries: ctxLabourEntries,
     invoices: ctxInvoices,
     updateProject,
+    uploadInvoiceImage,
     createClient,
     clients: ctxClients,
     collectives,
@@ -109,8 +110,6 @@ export default function ProjectDetailClient({
   const [categoryFilter, setCategoryFilter] = useState('ALL');
   const [invoiceSearch, setInvoiceSearch] = useState('');
   const [uploaderFilter, setUploaderFilter] = useState('ALL');
-  const [labourUploaderFilter, setLabourUploaderFilter] = useState('ALL');
-  const [labourTypeFilter, setLabourTypeFilter] = useState('');
   const [activeTab, setActiveTab] = useState('invoices');
   const [confirmModal, setConfirmModal] = useState(null);
   const [alertModal, setAlertModal] = useState(null);
@@ -148,6 +147,7 @@ export default function ProjectDetailClient({
   const [roomModalOpen, setRoomModalOpen] = useState(false);
   const [editingRoom, setEditingRoom] = useState(null);
   const [invoiceSplits, setInvoiceSplits] = useState(initialInvoiceSplits);
+  const [invoiceMediaByInvoice, setInvoiceMediaByInvoice] = useState({});
   const [paymentPlan, setPaymentPlan] = useState(
     initialPaymentPlan.map(item => ({ ...item, files: item.payment_item_files || [] }))
   );
@@ -161,6 +161,26 @@ export default function ProjectDetailClient({
   const [newTokenExpiry, setNewTokenExpiry] = useState('');
   const [tokenSaving, setTokenSaving] = useState(false);
   const [copiedTokenId, setCopiedTokenId] = useState(null);
+
+  // Pre-fetch invoice media for all invoices in this project
+  React.useEffect(() => {
+    fetch(`/api/projects/${project.id}/invoice-media`)
+      .then(r => r.ok ? r.json() : { media: [] })
+      .then(d => {
+        const byInvoice = {};
+        for (const m of d.media || []) {
+          if (!byInvoice[m.invoice_id]) byInvoice[m.invoice_id] = [];
+          byInvoice[m.invoice_id].push(m);
+        }
+        setInvoiceMediaByInvoice(byInvoice);
+      })
+      .catch(() => {});
+  }, [project.id]);
+
+  const handleMediaAdded = (invoiceId, media) =>
+    setInvoiceMediaByInvoice(prev => ({ ...prev, [invoiceId]: [...(prev[invoiceId] || []), media] }));
+  const handleMediaDeleted = (invoiceId, mediaId) =>
+    setInvoiceMediaByInvoice(prev => ({ ...prev, [invoiceId]: (prev[invoiceId] || []).filter(m => m.id !== mediaId) }));
 
   // Pre-fetch diary entries on mount so the napló tab is instant, same as invoices/labour.
   React.useEffect(() => {
@@ -217,12 +237,6 @@ export default function ProjectDetailClient({
     return true;
   });
 
-  const filteredLabour = fin.projectLabour.filter(entry => {
-    if (roomFilter !== 'ALL' && entry.room_id !== (roomFilter === 'GENERAL' ? null : roomFilter)) return false;
-    if (labourUploaderFilter !== 'ALL' && entry.uploaded_by !== labourUploaderFilter) return false;
-    if (labourTypeFilter.trim() && !entry.labour_type?.toLowerCase().includes(labourTypeFilter.toLowerCase())) return false;
-    return true;
-  });
 
   const isDocLocked      = !!project.locked_reason;
   const isKollektivOwner = collectives?.some(c => c.collective_id === project.collective_id && (c.role === 'owner' || c.role === 'admin'));
@@ -570,8 +584,8 @@ export default function ProjectDetailClient({
       {/* Info row: client, members, dates — always rendered */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(280px, 100%), 1fr))', gap: '0.85rem', marginBottom: '0.85rem' }}>
         {/* Megrendelő */}
-        <div className="card" style={{ borderLeft: '4px solid #0e7490', boxShadow: '0 4px 16px rgba(14,116,144,0.18), 0 1px 4px rgba(0,0,0,0.06)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#0e7490', marginBottom: '0.6rem' }}>
+        <div className="card" style={{ borderLeft: '4px solid #334155', boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#475569', marginBottom: '0.6rem' }}>
             <BookUser size={13} /> Megrendelő
           </div>
           {client ? (
@@ -588,8 +602,8 @@ export default function ProjectDetailClient({
 
         {/* Résztvevők */}
         {(activeCollectiveId || projectMemberUsers.length > 0) && (
-        <div className="card" style={{ borderLeft: '4px solid #6d28d9', boxShadow: '0 4px 16px rgba(109,40,217,0.18), 0 1px 4px rgba(0,0,0,0.06)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#6d28d9', marginBottom: '0.6rem' }}>
+        <div className="card" style={{ borderLeft: '4px solid #334155', boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#475569', marginBottom: '0.6rem' }}>
             <Users size={13} /> Résztvevők
           </div>
           {projectMemberUsers.length > 0 ? (
@@ -689,9 +703,9 @@ export default function ProjectDetailClient({
           return invTotal + splitTotal + labTotal;
         };
         return (
-          <div style={{ marginBottom: '0.85rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem', gap: '0.5rem', flexWrap: 'wrap' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)' }}>
+          <div style={{ background: '#1e293b', borderRadius: '15px 0 15px 0', padding: '1.1rem 1.25rem', marginBottom: '1rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'rgba(255,255,255,0.5)' }}>
                 <Ruler size={13} /> Szekciók ({projectRooms.length})
               </div>
               <div style={{ display: 'flex', gap: '0.4rem' }}>
@@ -701,18 +715,33 @@ export default function ProjectDetailClient({
                     Import ({unimportedSections.length})
                   </button>
                 )}
-                <button type="button" className="btn btn-primary btn-sm" style={{ fontSize: '0.75rem' }} onClick={() => { setEditingRoom(null); setRoomModalOpen(true); }} aria-label="Új szekció">
-                  <Plus size={13} />
+                <button type="button" onClick={() => { setEditingRoom(null); setRoomModalOpen(true); }} aria-label="Új szekció" style={{ width: 32, height: 32, borderRadius: '50%', background: '#fff', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <Plus size={16} color="#1e293b" strokeWidth={2.5} />
                 </button>
               </div>
             </div>
             {projectRooms.length === 0 && (
-              <div style={{ textAlign: 'center', padding: '1.5rem 1rem', color: 'var(--text-muted)', fontSize: '0.85rem', borderRadius: 'var(--radius-md)', background: 'var(--bg-subtle)' }}>
+              <div style={{ textAlign: 'center', padding: '1.5rem 1rem', color: 'rgba(255,255,255,0.4)', fontSize: '0.85rem', borderRadius: 'var(--radius-md)', background: 'rgba(255,255,255,0.06)' }}>
                 <Home size={24} style={{ margin: '0 auto 0.35rem', display: 'block', opacity: 0.4 }} />
                 Még nincsenek szekciók. Adj hozzá egyet, vagy importáld az ajánlatból.
               </div>
             )}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(280px, 100%), 1fr))', gap: '0.65rem' }}>
+              {/* General (unassigned) costs — always first */}
+              {(invoicesByRoom['general']?.length > 0 || labourByRoom['general']?.length > 0) && (
+                <div style={{ borderRadius: 'var(--radius-md)', overflow: 'hidden', border: '1.5px solid #cbd5e1' }}>
+                  <div style={{ background: '#475569', padding: '0.75rem 1rem' }}>
+                    <div style={{ fontWeight: 800, fontSize: '1.05rem', color: '#fff' }}>Általános</div>
+                    <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 900, fontSize: '1.1rem', color: '#fff', marginTop: '0.15rem' }}>{formatHUF(roomCost('general'))}</div>
+                  </div>
+                  <div style={{ background: '#f8fafc', padding: '0.65rem 1rem' }}>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', gap: '0.65rem' }}>
+                      {(invoicesByRoom['general']?.length || 0) > 0 && <span>{invoicesByRoom['general'].length} számla</span>}
+                      {(labourByRoom['general']?.length || 0) > 0 && <span>{labourByRoom['general'].length} munka</span>}
+                    </div>
+                  </div>
+                </div>
+              )}
               {projectRooms.map(room => {
                 const actual    = roomCost(room.id);
                 const quoted    = room.quoted_amount_net;
@@ -763,21 +792,6 @@ export default function ProjectDetailClient({
                   </button>
                 );
               })}
-              {/* General (unassigned) costs */}
-              {(invoicesByRoom['general']?.length > 0 || labourByRoom['general']?.length > 0) && (
-                <div style={{ borderRadius: 'var(--radius-md)', overflow: 'hidden', border: '1.5px dashed #cbd5e1' }}>
-                  <div style={{ background: '#475569', padding: '0.75rem 1rem' }}>
-                    <div style={{ fontWeight: 800, fontSize: '1.05rem', color: '#fff' }}>Általános</div>
-                    <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 900, fontSize: '1.1rem', color: '#fff', marginTop: '0.15rem' }}>{formatHUF(roomCost('general'))}</div>
-                  </div>
-                  <div style={{ background: '#f8fafc', padding: '0.65rem 1rem' }}>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', gap: '0.65rem' }}>
-                      {(invoicesByRoom['general']?.length || 0) > 0 && <span>{invoicesByRoom['general'].length} számla</span>}
-                      {(labourByRoom['general']?.length || 0) > 0 && <span>{labourByRoom['general'].length} munka</span>}
-                    </div>
-                  </div>
-                </div>
-              )}
             </div>
           </div>
         );
@@ -921,23 +935,21 @@ export default function ProjectDetailClient({
       {/* Tabs */}
       {(() => {
         return (
-          <div style={{ marginLeft: isMobile ? '-0.85rem' : 0, marginRight: isMobile ? '-0.85rem' : 0, marginBottom: '1rem', background: '#18181b', borderRadius: '15px 0 15px 0' }}>
-            <div style={{ display: 'flex', overflowX: 'auto', WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none', msOverflowStyle: 'none', paddingLeft: isMobile ? '0.85rem' : 0, paddingRight: isMobile ? '0.85rem' : 0 }}>
+          <div style={{ marginBottom: '1.25rem', background: '#1e293b', borderRadius: '15px 0 15px 0' }}>
+            <div style={{ display: 'flex', overflowX: 'auto', WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
               {[
-                { key: 'invoices', label: `Számlák (${fin.projectInvoices.length})`, icon: Receipt },
-                { key: 'labour',   label: `Munka (${fin.projectLabour.length})`, icon: Hammer },
+                { key: 'invoices', label: `Kiadások (${fin.projectInvoices.length})`, icon: Receipt },
                 { key: 'naplo',    label: `Napló (${diaryEntriesByProject[project.id]?.length ?? initialDiaryCount})`, icon: BookOpen },
                 { key: 'payment',  label: `Fizetési terv (${paymentPlan.length})`, icon: Wallet },
               ].map(tab => {
                 const isActive = activeTab === tab.key;
-                const tabColor = TAB_COLORS[tab.key];
                 return (
                   <button key={tab.key} type="button" onClick={() => setActiveTab(tab.key)} style={{
                     display: 'flex', alignItems: 'center', gap: '0.4rem',
-                    padding: '1.5rem 1rem', border: 'none', borderBottom: `3px solid ${isActive ? tabColor : 'transparent'}`,
+                    padding: '1.5rem 1rem', border: 'none', borderBottom: `3px solid ${isActive ? '#fff' : 'transparent'}`,
                     background: 'transparent', cursor: 'pointer', flexShrink: 0, whiteSpace: 'nowrap',
-                    fontWeight: isActive ? 800 : 500, fontSize: '1.15rem',
-                    color: isActive ? tabColor : 'rgba(255,255,255,0.45)',
+                    fontWeight: isActive ? 700 : 400, fontSize: '1.15rem',
+                    color: isActive ? '#fff' : 'rgba(255,255,255,0.45)',
                     transition: 'all 0.15s ease',
                   }}>
                     <tab.icon size={15} />{tab.label}
@@ -988,9 +1000,9 @@ export default function ProjectDetailClient({
           {filteredInvoices.length === 0 ? (
             <div className="card" style={{ textAlign: 'center', padding: '2.5rem 1.5rem' }}>
               <Receipt size={36} color="var(--text-muted)" style={{ margin: '0 auto 0.5rem' }} />
-              <h4 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '0.25rem' }}>Nincs megjeleníthető számla</h4>
-              <p style={{ color: 'var(--text-secondary)', fontSize: '0.825rem', marginBottom: '1rem' }}>Ehhez a szűréshez még nem rögzítettek számlát.</p>
-              <Link href={`${navPrefix}/projektek/${project.id}/feltoltes`} className="btn btn-primary btn-sm"><Plus size={15} /> Számla hozzáadása</Link>
+              <h4 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '0.25rem' }}>Nincs megjeleníthető kiadás</h4>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.825rem', marginBottom: '1rem' }}>Ehhez a szűréshez még nem rögzítettek kiadást.</p>
+              <Link href={`${navPrefix}/projektek/${project.id}/feltoltes`} className="btn btn-primary btn-sm"><Plus size={15} /> Kiadás hozzáadása</Link>
             </div>
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(300px, 100%), 1fr))', gap: '0.85rem' }}>
@@ -999,113 +1011,10 @@ export default function ProjectDetailClient({
                   key={inv.id}
                   invoice={inv}
                   room={projectRooms.find(r => r.id === inv.room_id) || null}
+                  media={invoiceMediaByInvoice[inv.id] || []}
                   onClick={() => setDetailInvoice(inv)}
                 />
               ))}
-            </div>
-          )}
-        </>
-      )}
-
-      {activeTab === 'labour' && (
-        <>
-          <div className="invoice-filters">
-            <input
-              type="text"
-              className="form-control"
-              placeholder="Szűrés típus szerint…"
-              value={labourTypeFilter}
-              onChange={e => setLabourTypeFilter(e.target.value)}
-              style={{ padding: '0.4rem 0.75rem', minHeight: '38px' }}
-            />
-            {projectMemberUsers.length > 1 && (
-              <select value={labourUploaderFilter} onChange={e => setLabourUploaderFilter(e.target.value)} className="form-control" style={{ padding: '0.4rem 0.75rem', minHeight: '38px' }}>
-                <option value="ALL">Minden feltöltő</option>
-                {projectMemberUsers.map(u => <option key={u.id} value={u.id}>{u.display_name}</option>)}
-              </select>
-            )}
-            {projectRooms.length > 0 && (
-              <select value={roomFilter} onChange={e => setRoomFilter(e.target.value)} className="form-control" style={{ padding: '0.4rem 0.75rem', minHeight: '38px' }}>
-                <option value="ALL">Minden szekció</option>
-                <option value="GENERAL">Általános (szekció nélkül)</option>
-                {projectRooms.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
-              </select>
-            )}
-            {!isMobile && (
-              <Link href={`${navPrefix}/projektek/${project.id}/feltoltes`} className="btn btn-primary btn-sm" style={{ marginLeft: 'auto', whiteSpace: 'nowrap' }}><Plus size={15} /> Új bejegyzés</Link>
-            )}
-          </div>
-
-          {filteredLabour.length === 0 ? (
-            <div className="card" style={{ textAlign: 'center', padding: '2.5rem 1.5rem' }}>
-              <Hammer size={36} color="var(--text-muted)" style={{ margin: '0 auto 0.5rem' }} />
-              <h4 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '0.25rem' }}>Nincs rögzített munka</h4>
-              <p style={{ color: 'var(--text-secondary)', fontSize: '0.825rem', marginBottom: '1rem' }}>A saját elvégzett munkák itt jelennek meg.</p>
-              <Link href={`${navPrefix}/projektek/${project.id}/feltoltes`} className="btn btn-primary btn-sm"><Plus size={15} /> Munkabejegyzés hozzáadása</Link>
-            </div>
-          ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(300px, 100%), 1fr))', gap: '0.85rem' }}>
-              {filteredLabour.map((entry) => {
-                const uploader   = initialUsers.find(u => u.id === entry.uploaded_by);
-                const entryRoom  = projectRooms.find(r => r.id === entry.room_id) || null;
-                return (
-                  <button key={entry.id} type="button" onClick={() => setEditingLabour(entry)}
-                    style={{ borderRadius: 'var(--radius-md)', overflow: 'hidden', border: '1.5px solid #cbd5e1', width: '100%', textAlign: 'left', cursor: 'pointer', background: 'none' }}>
-                    {/* Dark header */}
-                    <div style={{ background: '#1e3a5f', padding: '0.75rem 1rem' }}>
-                      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '0.5rem' }}>
-                        <div style={{ minWidth: 0, flex: 1 }}>
-                          <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'rgba(255,255,255,0.7)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.2rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                            <Hammer size={11} /> Munkadíj
-                          </div>
-                          <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 900, fontSize: '1.35rem', color: '#fff', lineHeight: 1.1 }}>
-                            +{formatHUF(entry.value_huf)}
-                          </div>
-                        </div>
-                        <div style={{ fontSize: '0.68rem', fontWeight: 700, padding: '0.12rem 0.45rem', borderRadius: 999, background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.25)', color: '#fff', flexShrink: 0 }}>
-                          {entry.hours} {entry.unit || 'h'}
-                        </div>
-                      </div>
-                    </div>
-                    {/* Light body */}
-                    <div style={{ background: '#f0f4f8', padding: '0.65rem 1rem' }}>
-                      <div style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.4rem', lineHeight: 1.3 }}>
-                        {entry.labour_type}
-                      </div>
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', fontSize: '0.75rem', color: 'var(--text-muted)', alignItems: 'center' }}>
-                        <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                          <User size={12} color="var(--accent)" />
-                          <strong style={{ color: 'var(--text-secondary)' }}>{uploader?.display_name || 'Ismeretlen'}</strong>
-                        </span>
-                        <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                          <Calendar size={12} />{formatDate(entry.date)}
-                        </span>
-                        <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                          <Clock size={12} />{entry.hours} {entry.unit || 'h'} × {formatHUF(entry.hourly_rate)}
-                        </span>
-                        {entryRoom ? (
-                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', padding: '0.1rem 0.45rem', borderRadius: 999, background: 'var(--accent-light)', border: '1px solid var(--accent-border)', color: 'var(--accent)', fontWeight: 700, fontSize: '0.68rem' }}>
-                            <Home size={10} />{entryRoom.name}
-                          </span>
-                        ) : (
-                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', padding: '0.1rem 0.45rem', borderRadius: 999, background: 'var(--bg-subtle)', border: '1px solid var(--border-subtle)', color: 'var(--text-muted)', fontWeight: 600, fontSize: '0.68rem' }}>
-                            <Home size={10} />Általános
-                          </span>
-                        )}
-                      </div>
-                      {entry.description && (
-                        <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '0.35rem' }}>{entry.description}</div>
-                      )}
-                      {entry.updated_at && (
-                        <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', marginTop: '0.3rem', display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
-                          <PencilLine size={9} />
-                          {entry.updated_by_name ? `${entry.updated_by_name} · ` : ''}{formatDate(entry.updated_at)}
-                        </div>
-                      )}
-                    </div>
-                  </button>
-                );
-              })}
             </div>
           )}
         </>
@@ -1242,7 +1151,7 @@ export default function ProjectDetailClient({
                     ? { label: 'Lejárt', bg: '#fef2f2', color: '#b91c1c', border: '#fecaca' }
                     : (STATUS_DISPLAY[item.status] || STATUS_DISPLAY.pending);
                   const triggerDisplay = TRIGGER_DISPLAY[item.trigger_type] || TRIGGER_DISPLAY.milestone;
-                  const TRIGGER_HEADER_BG = { start: '#1d4ed8', end: '#15803d', milestone: '#92400e', date: '#6d28d9' };
+                  const TRIGGER_HEADER_BG = { start: '#334155', end: '#334155', milestone: '#334155', date: '#334155' };
                   const headerBg = TRIGGER_HEADER_BG[item.trigger_type] || TRIGGER_HEADER_BG.milestone;
                   const PILL = { fontSize: '0.68rem', fontWeight: 700, padding: '0.12rem 0.45rem', borderRadius: 999, background: 'rgba(255,255,255,0.18)', border: '1px solid rgba(255,255,255,0.28)', color: '#fff' };
 
@@ -1350,9 +1259,9 @@ export default function ProjectDetailClient({
                 const entryRoom = projectRooms.find(r => r.id === entry.room_id);
                 return (
                   <button key={entry.id} type="button" onClick={() => setDiaryDetailEntry(entry)}
-                    style={{ borderRadius: 'var(--radius-md)', overflow: 'hidden', border: '1.5px solid #cbd5e1', width: '100%', textAlign: 'left', cursor: 'pointer', background: 'none' }}>
+                    style={{ borderRadius: 'var(--radius-md)', overflow: 'hidden', border: '1.5px solid #e2e8f0', width: '100%', textAlign: 'left', cursor: 'pointer', background: 'none' }}>
                     {/* Dark header */}
-                    <div style={{ background: '#334155', padding: '0.75rem 1rem' }}>
+                    <div style={{ background: CARD_HEADER_BG, padding: '0.75rem 1rem' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexWrap: 'wrap', marginBottom: '0.45rem' }}>
                         {entryDateStr && (
                           <span style={{ fontSize: '0.68rem', fontWeight: 700, padding: '0.1rem 0.45rem', borderRadius: 999, background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.25)', color: '#fff', display: 'inline-flex', alignItems: 'center', gap: 3 }}>
@@ -1599,6 +1508,10 @@ export default function ProjectDetailClient({
           onDelete={handleDeleteInvoice}
           onSave={handleSaveInvoice}
           onSaveSplits={handleSaveSplits}
+          onUploadImage={uploadInvoiceImage}
+          invoiceMedia={invoiceMediaByInvoice[detailInvoice?.id] || []}
+          onMediaAdded={media => handleMediaAdded(detailInvoice.id, media)}
+          onMediaDeleted={mediaId => handleMediaDeleted(detailInvoice.id, mediaId)}
         />
       )}
 
