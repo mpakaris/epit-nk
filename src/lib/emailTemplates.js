@@ -452,3 +452,33 @@ ${validUntil ? `<p style="margin:12px 0 0;font-size:12px;color:#94a3b8;text-alig
 export function buildOfferSummaryHtml({ netTotal, taxRate, taxAmount, grossTotal, validUntil }) {
   return buildOfferDetailHtml({ sections: [], allEntries: [], netTotal, taxRate, taxAmount, grossTotal, validUntil });
 }
+
+/**
+ * Project status change notification email body.
+ * Vars: projectName, newStatusLabel, actorName, reason (optional), projectUrl
+ */
+export function buildProjectStatusEmailHtml({ projectName, newStatusLabel, actorName, reason, projectUrl }) {
+  const STATUS_COLORS = {
+    'Aktív':           { bg: '#dcfce7', text: '#166534', border: '#bbf7d0' },
+    'Szüneteltetett':  { bg: '#fff7ed', text: '#c2410c', border: '#fed7aa' },
+    'Lezárt':          { bg: '#f1f5f9', text: '#475569', border: '#cbd5e1' },
+  };
+  const c = STATUS_COLORS[newStatusLabel] || STATUS_COLORS['Aktív'];
+
+  return `
+<h2 style="margin:0 0 16px;font-size:20px;font-weight:800;color:#1e293b;">Projekt állapotváltozás</h2>
+<p style="margin:0 0 20px;font-size:15px;color:#334155;line-height:1.6;">
+  <strong>${actorName}</strong> megváltoztatta a <strong>${projectName}</strong> projekt állapotát.
+</p>
+<div style="margin:0 0 20px;padding:12px 18px;background:${c.bg};border:1px solid ${c.border};border-radius:8px;display:inline-block;">
+  <span style="font-size:15px;font-weight:800;color:${c.text};">${newStatusLabel}</span>
+</div>
+${reason ? `
+<div style="margin:0 0 24px;padding:14px 18px;background:#f8fafc;border-left:3px solid #94a3b8;border-radius:0 6px 6px 0;">
+  <p style="margin:0 0 4px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#94a3b8;">Indoklás</p>
+  <p style="margin:0;font-size:14px;color:#334155;line-height:1.6;">${reason}</p>
+</div>` : ''}
+<a href="${projectUrl}" style="display:inline-block;margin-top:8px;padding:12px 24px;background:#1e293b;color:#fff;font-size:14px;font-weight:700;border-radius:8px;text-decoration:none;">
+  Projekt megtekintése →
+</a>`;
+}

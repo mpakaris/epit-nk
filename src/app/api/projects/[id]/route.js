@@ -2,6 +2,8 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { logAudit } from '@/lib/audit';
 import { hasPendingTransfer, canUnlockToPersonal } from '@/lib/transferLock';
+import { sendEmail } from '@/lib/email';
+import { wrapEmail, buildProjectStatusEmailHtml } from '@/lib/emailTemplates';
 
 async function getCallerAndProject(id) {
   const supabase = await createClient();
@@ -129,6 +131,8 @@ export async function PATCH(request, { params }) {
   if (!isSuperAdmin && !isOwner && await hasPendingTransfer('project', id))
     return Response.json({ error: 'Ez a dokumentum átadás alatt áll, ezért nem módosítható.' }, { status: 423 });
 
+  const statusReason = typeof fields.status_reason === 'string' ? fields.status_reason.trim() : null;
+
   const allowed = ['name', 'description', 'start_date', 'end_date', 'client_id', 'closed_at', 'archived_at', 'status',
                    ...(isOwner || isSuperAdmin || isKollektivOwner ? ['collective_id'] : [])];
   const update = {};
@@ -154,7 +158,54 @@ export async function PATCH(request, { params }) {
     targetType: 'project',
     targetId: id,
     targetName: data.name,
+    details: statusReason ? { status_reason: statusReason } : null,
   });
+
+  // Fire-and-forget email notifications to all project members (except the actor)
+  if (fields.status) {
+    const newStatusLabel = statusLabels[fields.status] || fields.status;
+    const actorName      = ctx.profile.display_name || ctx.user.email;
+    const projectUrl     = `${process.env.NEXT_PUBLIC_APP_URL}/projektek/${id}`;
+
+    (async () => {
+      try {
+        let memberEmails = [];
+        if (ctx.project.collective_id) {
+          const { data: members } = await ctx.admin
+            .from('collective_members')
+            .select('profiles(email)')
+            .eq('collective_id', ctx.project.collective_id)
+            .eq('status', 'active')
+            .neq('user_id', ctx.user.id);
+          memberEmails = (members || []).map(m => m.profiles?.email).filter(Boolean);
+        } else {
+          const { data: rows } = await ctx.admin
+            .from('project_members')
+            .select('profiles(email)')
+            .eq('project_id', id)
+            .neq('user_id', ctx.user.id);
+          memberEmails = (rows || []).map(r => r.profiles?.email).filter(Boolean);
+          // Also notify the owner if they are not the actor
+          if (ctx.project.owner_id && ctx.project.owner_id !== ctx.user.id) {
+            const { data: ownerProfile } = await ctx.admin
+              .from('profiles').select('email').eq('id', ctx.project.owner_id).single();
+            if (ownerProfile?.email && !memberEmails.includes(ownerProfile.email)) {
+              memberEmails.push(ownerProfile.email);
+            }
+          }
+        }
+        if (memberEmails.length === 0) return;
+        const html = wrapEmail(
+          buildProjectStatusEmailHtml({ projectName: data.name, newStatusLabel, actorName, reason: statusReason, projectUrl }),
+          `${data.name}: ${newStatusLabel}`
+        );
+        await sendEmail({ to: memberEmails, subject: `${data.name}: állapot → ${newStatusLabel}`, html });
+      } catch (err) {
+        console.error('Project status email failed (non-fatal):', err.message);
+      }
+    })();
+  }
+
   return Response.json({ project: data });
 }
 

@@ -87,6 +87,7 @@ export default function ProjectDetailClient({
     collectives,
     isDemoMode,
     refreshSupabaseData,
+    projects: ctxProjects,
   } = useApp();
 
   const navPrefix = isDemoMode ? '/demo' : '';
@@ -217,6 +218,7 @@ export default function ProjectDetailClient({
   const isKollektivOwner = collectives?.some(c => c.collective_id === project.collective_id && (c.role === 'owner' || c.role === 'admin'));
   const canManageProject = !isDocLocked && (isKollektivOwner || project.created_by === currentUser?.id || project.owner_id === currentUser?.id);
 
+  const [statusReasonModal, setStatusReasonModal] = useState({ open: false, status: null, title: '', prompt: '', reason: '' });
   const [showActionsSheet, setShowActionsSheet] = useState(false);
   const [showOptionsMenu, setShowOptionsMenu] = useState(false);
   const optionsRef = React.useRef(null);
@@ -241,7 +243,7 @@ export default function ProjectDetailClient({
     });
   };
 
-  const projectStatus = project.status || 'active';
+  const projectStatus = (ctxProjects?.find(p => p.id === project.id)?.status) || project.status || 'active';
   const isClosed      = projectStatus === 'closed';
   const isOwner       = project.owner_id === currentUser?.id || project.created_by === currentUser?.id;
 
@@ -252,15 +254,33 @@ export default function ProjectDetailClient({
     { key: 'closed', label: 'Lezárás',           show: projectStatus !== 'closed' },
   ];
 
+  const STATUS_REASON_META = {
+    paused: { title: 'Projekt szüneteltetése',  prompt: 'Miért szüneteltetjük a projektet?',              btnColor: '#ea580c' },
+    closed: { title: 'Projekt lezárása',         prompt: 'Miért zárjuk le a projektet?',                   btnColor: '#475569' },
+    active: {
+      title:    projectStatus === 'closed' ? 'Projekt újranyitása'   : 'Projekt folytatása',
+      prompt:   projectStatus === 'closed' ? 'Miért nyitjuk újra a projektet?' : 'Mi történt? Miért folytatjuk?',
+      btnColor: '#16a34a',
+    },
+  };
+
   const handleSetStatus = (newStatus) => {
-    const label = STATUS_LABELS[newStatus];
-    setConfirmModal({
-      message: `„${project.name}" állapota: ${label}. Biztosan módosítod?`,
-      onConfirm: async () => {
-        try { await ctxSetProjectStatus(project.id, newStatus); }
-        catch (err) { setAlertModal({ message: err.message || 'Hiba az állapot mentésekor' }); }
-      }
-    });
+    const meta = STATUS_REASON_META[newStatus];
+    setStatusReasonModal({ open: true, status: newStatus, title: meta.title, prompt: meta.prompt, reason: '' });
+  };
+
+  const handleStatusReasonSubmit = async () => {
+    const { status: newStatus, reason } = statusReasonModal;
+    if (!reason.trim()) return;
+    const extra = newStatus === 'closed' ? { closed_at: new Date().toISOString() } : newStatus === 'active' ? { closed_at: null } : {};
+    try {
+      await updateProject(project.id, { status: newStatus, status_reason: reason.trim() || null, ...extra });
+      setStatusReasonModal({ open: false, status: null, title: '', prompt: '', reason: '' });
+      setToast(`Állapot módosítva: ${STATUS_LABELS[newStatus]}`);
+      setTimeout(() => setToast(''), 3000);
+    } catch (err) {
+      setAlertModal({ message: err.message || 'Hiba az állapot mentésekor' });
+    }
   };
 
   const openHistory = async () => {
@@ -462,11 +482,14 @@ export default function ProjectDetailClient({
             )}
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
               <h1 className="page-title" style={{ margin: 0 }}>{project.name}</h1>
-              {projectStatus === 'closed' && (
-                <span style={{ fontSize: '0.72rem', fontWeight: 700, background: 'var(--bg-subtle)', color: 'var(--text-muted)', border: '1px solid var(--border-subtle)', padding: '0.2rem 0.55rem', borderRadius: 'var(--radius-pill)', whiteSpace: 'nowrap' }}>Lezárt</span>
+              {projectStatus === 'active' && (
+                <span style={{ fontSize: '0.72rem', fontWeight: 700, background: '#dcfce7', color: '#166534', border: '1px solid #bbf7d0', padding: '0.2rem 0.55rem', borderRadius: 'var(--radius-pill)', whiteSpace: 'nowrap' }}>Aktív</span>
               )}
               {projectStatus === 'paused' && (
-                <span style={{ fontSize: '0.72rem', fontWeight: 700, background: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe', padding: '0.2rem 0.55rem', borderRadius: 'var(--radius-pill)', whiteSpace: 'nowrap' }}>Szünetel</span>
+                <span style={{ fontSize: '0.72rem', fontWeight: 700, background: '#fff7ed', color: '#c2410c', border: '1px solid #fed7aa', padding: '0.2rem 0.55rem', borderRadius: 'var(--radius-pill)', whiteSpace: 'nowrap' }}>Szünetel</span>
+              )}
+              {projectStatus === 'closed' && (
+                <span style={{ fontSize: '0.72rem', fontWeight: 700, background: 'var(--bg-subtle)', color: 'var(--text-muted)', border: '1px solid var(--border-subtle)', padding: '0.2rem 0.55rem', borderRadius: 'var(--radius-pill)', whiteSpace: 'nowrap' }}>Lezárt</span>
               )}
             </div>
             <p className="page-subtitle">{project.description || 'Nincs megadott leírás'}</p>
@@ -1402,6 +1425,46 @@ export default function ProjectDetailClient({
       <ConfirmModal isOpen={!!confirmModal} onClose={() => setConfirmModal(null)} onConfirm={() => confirmModal?.onConfirm()} title="Megerősítés" message={confirmModal?.message} />
       <AlertModal isOpen={!!alertModal} onClose={() => setAlertModal(null)} message={alertModal?.message} />
 
+      {/* Status reason modal */}
+      <Modal isOpen={statusReasonModal.open} onClose={() => setStatusReasonModal({ open: false, status: null, title: '', prompt: '', reason: '' })} title={statusReasonModal.title}>
+        <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '0.85rem' }}>
+          {statusReasonModal.prompt}
+        </p>
+        <textarea
+          className="form-control"
+          placeholder="Kötelező megadni az indoklást…"
+          rows={3}
+          value={statusReasonModal.reason}
+          onChange={e => setStatusReasonModal(prev => ({ ...prev, reason: e.target.value }))}
+          style={{ width: '100%', resize: 'vertical', borderColor: statusReasonModal.reason.trim() ? undefined : 'var(--danger-border)' }}
+          autoFocus
+        />
+        {!statusReasonModal.reason.trim() && (
+          <p style={{ fontSize: '0.775rem', color: 'var(--danger-text)', marginTop: '0.35rem', fontWeight: 600 }}>
+            Az indoklás megadása kötelező.
+          </p>
+        )}
+        {project.collective_id && (
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', marginTop: '0.85rem', padding: '0.65rem 0.85rem', background: 'var(--warning-bg)', border: '1px solid var(--warning-border)', borderRadius: 'var(--radius-md)' }}>
+            <AlertCircle size={15} style={{ flexShrink: 0, marginTop: 1 }} color="var(--warning-text)" />
+            <span style={{ fontSize: '0.8rem', color: 'var(--warning-text)', fontWeight: 600, lineHeight: 1.4 }}>
+              A kollektíva összes tagja értesítést kap az állapotváltozásról.
+            </span>
+          </div>
+        )}
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1rem' }}>
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={handleStatusReasonSubmit}
+            disabled={!statusReasonModal.reason.trim()}
+            style={{ background: STATUS_REASON_META[statusReasonModal.status]?.btnColor, borderColor: STATUS_REASON_META[statusReasonModal.status]?.btnColor, opacity: statusReasonModal.reason.trim() ? 1 : 0.45, cursor: statusReasonModal.reason.trim() ? 'pointer' : 'not-allowed' }}
+          >
+            {statusReasonModal.title}
+          </button>
+        </div>
+      </Modal>
+
       {/* History modal */}
       <Modal isOpen={showHistoryModal} onClose={() => setShowHistoryModal(false)} title="Projekt előzményei">
         {historyLoading ? (
@@ -1445,6 +1508,7 @@ export default function ProjectDetailClient({
               if (d.hours != null && d.unit) sub.push(`${d.hours} ${d.unit}`);
               if (d.description)   sub.push(d.description);
               if (d.changed_fields?.length) sub.push(d.changed_fields.join(', '));
+              if (d.status_reason)          sub.push(`Oka: ${d.status_reason}`);
 
               return (
                 <div key={entry.id} style={{ display: 'flex', gap: '0.85rem', padding: '0.75rem 0', borderBottom: idx < history.length - 1 ? '1px solid var(--border-subtle)' : 'none', alignItems: 'flex-start' }}>
