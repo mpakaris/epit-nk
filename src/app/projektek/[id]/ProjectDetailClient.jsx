@@ -107,6 +107,7 @@ export default function ProjectDetailClient({
 
   const [editProjectOpen, setEditProjectOpen] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState('ALL');
+  const [invoiceSearch, setInvoiceSearch] = useState('');
   const [uploaderFilter, setUploaderFilter] = useState('ALL');
   const [labourUploaderFilter, setLabourUploaderFilter] = useState('ALL');
   const [labourTypeFilter, setLabourTypeFilter] = useState('');
@@ -161,11 +162,15 @@ export default function ProjectDetailClient({
   const [tokenSaving, setTokenSaving] = useState(false);
   const [copiedTokenId, setCopiedTokenId] = useState(null);
 
+  // Pre-fetch diary entries on mount so the napló tab is instant, same as invoices/labour.
   React.useEffect(() => {
-    if (activeTab === 'naplo' && project && !diaryEntriesByProject[project.id]) {
-      setDiaryLoading(true);
-      fetchDiaryEntries(project.id).catch(() => {}).finally(() => setDiaryLoading(false));
-    }
+    if (!project?.id || diaryEntriesByProject[project.id]) return;
+    setDiaryLoading(true);
+    fetchDiaryEntries(project.id).catch(() => {}).finally(() => setDiaryLoading(false));
+  }, [project?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Lazy-load share tokens only when the user actually opens the napló tab.
+  React.useEffect(() => {
     if (canManageProject && activeTab === 'naplo' && project && shareTokens.length === 0 && !shareLoading) {
       setShareLoading(true);
       fetch(`/api/diary/share?project_id=${project.id}`)
@@ -196,13 +201,18 @@ export default function ProjectDetailClient({
     if (uploaderFilter !== 'ALL' && inv.uploaded_by !== uploaderFilter) return false;
     if (roomFilter !== 'ALL') {
       if (roomFilter === 'GENERAL') {
-        // Show invoices with no room and no splits
         const hasSplits = invoiceSplits.some(s => s.invoice_id === inv.id);
         if (hasSplits || inv.room_id) return false;
       } else {
         const hasSplit = invoiceSplits.some(s => s.invoice_id === inv.id && s.room_id === roomFilter);
         if (!hasSplit && inv.room_id !== roomFilter) return false;
       }
+    }
+    if (invoiceSearch.trim()) {
+      const q = invoiceSearch.trim().toLowerCase();
+      const catLabel      = INVOICE_CATEGORIES.find(c => c.id === inv.category)?.label || '';
+      const uploaderName  = initialUsers.find(u => u.id === inv.uploaded_by)?.display_name || '';
+      if (!(inv.description?.toLowerCase().includes(q) || catLabel.toLowerCase().includes(q) || uploaderName.toLowerCase().includes(q))) return false;
     }
     return true;
   });
@@ -944,21 +954,31 @@ export default function ProjectDetailClient({
       {activeTab === 'invoices' && (
         <>
           <div className="invoice-filters">
-            <select value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)} className="form-control" style={{ padding: '0.4rem 0.75rem', minHeight: '38px' }}>
-              <option value="ALL">Minden kategória</option>
-              {INVOICE_CATEGORIES.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
-            </select>
+            <input
+              type="text"
+              className="form-control"
+              placeholder="Keresés leírás szerint…"
+              value={invoiceSearch}
+              onChange={e => setInvoiceSearch(e.target.value)}
+              style={{ padding: '0.4rem 0.75rem', minHeight: '38px', width: '100%' }}
+            />
+            <div style={{ display: 'flex', gap: '0.5rem', width: '100%' }}>
+              <select value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)} className="form-control" style={{ padding: '0.4rem 0.75rem', minHeight: '38px', flex: 1 }}>
+                <option value="ALL">Minden kategória</option>
+                {INVOICE_CATEGORIES.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
+              </select>
+              {projectRooms.length > 0 && (
+                <select value={roomFilter} onChange={e => setRoomFilter(e.target.value)} className="form-control" style={{ padding: '0.4rem 0.75rem', minHeight: '38px', flex: 1 }}>
+                  <option value="ALL">Minden szekció</option>
+                  <option value="GENERAL">Általános</option>
+                  {projectRooms.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+                </select>
+              )}
+            </div>
             {projectMemberUsers.length > 1 && (
               <select value={uploaderFilter} onChange={e => setUploaderFilter(e.target.value)} className="form-control" style={{ padding: '0.4rem 0.75rem', minHeight: '38px' }}>
                 <option value="ALL">Minden feltöltő</option>
                 {projectMemberUsers.map(u => <option key={u.id} value={u.id}>{u.display_name}</option>)}
-              </select>
-            )}
-            {projectRooms.length > 0 && (
-              <select value={roomFilter} onChange={e => setRoomFilter(e.target.value)} className="form-control" style={{ padding: '0.4rem 0.75rem', minHeight: '38px' }}>
-                <option value="ALL">Minden szekció</option>
-                <option value="GENERAL">Általános (szekció nélkül)</option>
-                {projectRooms.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
               </select>
             )}
             {!isMobile && (
