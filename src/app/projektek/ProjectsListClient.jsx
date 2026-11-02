@@ -263,7 +263,7 @@ export default function ProjectsListClient({
 
       {/* ── Mobile-only header ── */}
       <div className="list-page-mobile-header" style={{ marginBottom: 20 }}>
-        <div style={{ background: 'linear-gradient(135deg, #34d399 0%, #065f46 100%)', marginLeft: '-0.85rem', marginRight: '-0.85rem', padding: '0.35rem 0.85rem 0.5rem', borderRadius: 0, marginBottom: 16 }}>
+        <div style={{ background: 'linear-gradient(135deg, #34d399 0%, #065f46 100%)', marginLeft: '0.5px', marginRight: '0.5px', padding: '0.35rem 0.85rem 0.5rem', borderRadius: 0, marginBottom: 16 }}>
           <Link
             href={`${navPrefix}/dashboard`}
             style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,0.65)', textDecoration: 'none', height: 36, marginBottom: 2 }}
@@ -324,7 +324,7 @@ export default function ProjectsListClient({
           {sharedByCollective.map((col, colIdx) => {
             const colBg = collectiveColor(col.id);
             const mobileStyle = {
-              marginLeft: '-0.85rem', marginRight: '-0.85rem',
+              marginLeft: '0.5px', marginRight: '0.5px',
               padding: '1.25rem 0.85rem 1.5rem',
               background: colBg,
               borderRadius: '25px 0 25px 0',

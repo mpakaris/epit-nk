@@ -204,14 +204,9 @@ export default function CalendarWidget({ projects: propProjects, quotes: propQuo
               <ChevronRight size={18} />
             </button>
           </div>
-          <button type="button" onClick={() => setNewApptOpen(true)}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 4,
-              padding: '5px 10px', borderRadius: 'var(--radius-md)',
-              background: 'var(--accent)', color: '#fff', border: 'none',
-              fontSize: '0.78rem', fontWeight: 700, cursor: 'pointer',
-            }}>
-            <Plus size={13} /> Időpont
+          <button type="button" onClick={() => setNewApptOpen(true)} aria-label="Új időpont"
+            style={{ width: 28, height: 28, borderRadius: '50%', background: 'var(--primary)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <Plus size={15} color="#fff" strokeWidth={2.5} />
           </button>
         </div>
 
@@ -311,17 +306,9 @@ export default function CalendarWidget({ projects: propProjects, quotes: propQuo
           {MONTHS_HU[month]} {year}
         </h3>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <button
-            type="button"
-            onClick={() => setNewApptOpen(true)}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 4,
-              padding: '0.3rem 0.65rem', borderRadius: 'var(--radius-md)',
-              background: 'var(--accent)', color: '#fff', border: 'none',
-              fontSize: '0.78rem', fontWeight: 700, cursor: 'pointer',
-            }}
-          >
-            <Plus size={13} /> Időpont
+          <button type="button" onClick={() => setNewApptOpen(true)} aria-label="Új időpont"
+            style={{ width: 28, height: 28, borderRadius: '50%', background: 'var(--primary)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <Plus size={15} color="#fff" strokeWidth={2.5} />
           </button>
           <Link href="/naptar" style={{ fontSize: '0.78rem', color: 'var(--accent)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.2rem', textDecoration: 'none' }}>
             Teljes naptár <ArrowUpRight size={13} />
