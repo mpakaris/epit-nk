@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { useRouter } from '@/navigation';
 import { useTranslations } from 'next-intl';
 import { useApp } from '@/context/AppContext';
 import {
@@ -116,7 +115,7 @@ const DEMO_PROFILE = {
 
 export default function ProfilPage() {
   const { currentUser, logout, changePassword, isDemoMode, refreshSupabaseData, collectives, updateDisplayName } = useApp();
-  const router = useRouter();
+
   const t = useTranslations('profile');
   const tc = useTranslations('common');
   const navPrefix = isDemoMode ? '/demo' : '';
@@ -629,14 +628,12 @@ export default function ProfilPage() {
         setAlertModal({ variant: 'error', title: tc('error'), message: error || t('saveError') });
         return;
       }
-      // Set cookie first so the navigation request carries the new locale.
+      // Set cookie then hard-reload. With localePrefix:'never' the locale lives
+      // entirely in the NEXT_LOCALE cookie — next-intl's router methods all produce
+      // wrong URLs (prefix injection, nxtPlocale param, wrong page). A plain reload
+      // sends the updated cookie to the server and the middleware picks it up.
       document.cookie = `NEXT_LOCALE=${newLocale};path=/;max-age=31536000;SameSite=Lax`;
-      // Navigate to the canonical path WITHOUT a { locale } option — passing { locale }
-      // causes next-intl to set forcePrefix:true which injects /hu/ even with
-      // localePrefix:'never'. The cookie above is the sole locale signal to the server.
-      router.replace('/profil');
-      setLocaleOk(true);
-      setTimeout(() => setLocaleOk(false), 2500);
+      window.location.reload();
     } finally {
       setSavingLocale(false);
     }
