@@ -1,8 +1,11 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
+import { useTranslations } from 'next-intl';
 import Link from 'next/link';
+import { Link as LocaleLink } from '@/navigation';
 import { usePathname, useRouter } from 'next/navigation';
+import { routing } from '@/i18n/routing';
 import { useApp } from '@/context/AppContext';
 import {
   Building2, LayoutDashboard, FolderKanban, Users, BookUser,
@@ -12,7 +15,32 @@ import {
 } from 'lucide-react';
 import FloatingNav from './mobile/FloatingNav';
 
-function buildNavItems(isSuperAdmin, isAdmin, impersonating, websiteUnread = 0, prefix = '', invitationCount = 0, counts = {}) {
+// Build a reverse map of localized-first-segment → canonical-first-segment
+// so we can highlight the correct nav item regardless of the user's locale.
+const reverseSlugMap = {};
+for (const [canonical, localeMap] of Object.entries(routing.pathnames)) {
+  if (typeof localeMap === 'string') continue;
+  for (const [locale, localizedPath] of Object.entries(localeMap)) {
+    if (locale === routing.defaultLocale) continue;
+    const localizedSeg = localizedPath.split('/')[1];
+    const canonicalSeg = canonical.split('/')[1];
+    if (localizedSeg && !localizedSeg.startsWith('[') && canonicalSeg) {
+      reverseSlugMap[localizedSeg] = canonicalSeg;
+    }
+  }
+}
+
+function toCanonicalPathname(pathname) {
+  const parts = pathname.split('/');
+  const firstSeg = parts[1];
+  if (firstSeg && reverseSlugMap[firstSeg]) {
+    parts[1] = reverseSlugMap[firstSeg];
+    return parts.join('/');
+  }
+  return pathname;
+}
+
+function buildNavItems(isSuperAdmin, isAdmin, impersonating, websiteUnread = 0, prefix = '', invitationCount = 0, counts = {}, t) {
   if (isSuperAdmin && !impersonating) {
     return [
       { key: 'sa-entitasok',  href: '/superadmin',              label: 'Entities',  icon: Building2,    exact: true },
@@ -23,28 +51,28 @@ function buildNavItems(isSuperAdmin, isAdmin, impersonating, websiteUnread = 0, 
     ];
   }
   const commonNav = [
-    { href: prefix + '/dashboard',    label: 'Dashboard',    icon: LayoutDashboard, exact: true },
-    { divider: true, key: 'd-munka',  group: 'Munka' },
-    { href: prefix + '/felmeres',     label: 'Felmérések',   icon: Ruler,        count: counts.surveys  },
-    { href: prefix + '/ajanlatok',    label: 'Ajánlatok',    icon: FileText,     count: counts.quotes   },
-    { href: prefix + '/projektek',    label: 'Projektek',    icon: FolderKanban, count: counts.projects },
-    { href: prefix + '/katalogus',    label: 'Árkatalógus',  icon: Package },
-    { divider: true, key: 'd-kapcs',  group: 'Kapcsolatok' },
-    { href: prefix + '/ugyfelek',     label: 'Ügyfelek',     icon: BookUser,  count: counts.clients },
-    { href: prefix + '/kollektivak',  label: 'Kollektívák',  icon: UsersRound, count: counts.collectives, badge: invitationCount },
-    { divider: true, key: 'd-egyeb',  group: 'Egyéb' },
-    { href: prefix + '/naptar',       label: 'Naptár',       icon: Calendar },
-    { href: prefix + '/otletek',      label: 'Ötletek',      icon: Lightbulb },
-    { href: prefix + '/weboldalam',   label: 'Weboldalom',   icon: Globe, badge: websiteUnread },
+    { href: prefix + '/dashboard',    label: t('nav.dashboard'),      icon: LayoutDashboard, exact: true },
+    { divider: true, key: 'd-munka',  group: t('groups.work') },
+    { href: prefix + '/felmeres',     label: t('nav.surveys'),        icon: Ruler,        count: counts.surveys  },
+    { href: prefix + '/ajanlatok',    label: t('nav.quotes'),         icon: FileText,     count: counts.quotes   },
+    { href: prefix + '/projektek',    label: t('nav.projects'),       icon: FolderKanban, count: counts.projects },
+    { href: prefix + '/katalogus',    label: t('nav.catalogue'),      icon: Package },
+    { divider: true, key: 'd-kapcs',  group: t('groups.contacts') },
+    { href: prefix + '/ugyfelek',     label: t('nav.clients'),        icon: BookUser,  count: counts.clients },
+    { href: prefix + '/kollektivak',  label: t('nav.collectives'),    icon: UsersRound, count: counts.collectives, badge: invitationCount },
+    { divider: true, key: 'd-egyeb',  group: t('groups.other') },
+    { href: prefix + '/naptar',       label: t('nav.calendar'),       icon: Calendar },
+    { href: prefix + '/otletek',      label: t('nav.ideas'),          icon: Lightbulb },
+    { href: prefix + '/weboldalam',   label: t('nav.website'),        icon: Globe, badge: websiteUnread },
     { divider: true, key: 'd-profil' },
-    { href: prefix + '/profil',              label: 'Profilom',      icon: User },
-    { href: prefix + '/profil#elofizetes',   label: 'Előfizetés',    icon: CreditCard,  sub: true },
-    { href: prefix + '/profil#szamla',       label: 'Céges adatok',  icon: Building2,   sub: true },
+    { href: prefix + '/profil',              label: t('nav.myProfile'),      icon: User },
+    { href: prefix + '/profil#elofizetes',   label: t('nav.subscription'),   icon: CreditCard,  sub: true },
+    { href: prefix + '/profil#szamla',       label: t('nav.companyDetails'), icon: Building2,   sub: true },
   ];
   if (isAdmin) {
     return [
       ...commonNav,
-      { href: '/admin/felhasznalok', label: 'Felhasználók', icon: Users, exact: true },
+      { href: '/admin/felhasznalok', label: t('nav.users'), icon: Users, exact: true },
     ];
   }
   return commonNav;
@@ -57,17 +85,25 @@ function isActive(item, pathname) {
 }
 
 export default function Sidebar() {
-  const pathname = usePathname();
+  const rawPathname = usePathname();
   const router = useRouter();
+  const t = useTranslations('sidebar');
+  const tc = useTranslations('common');
   const { currentUser, isSuperAdmin, isAdmin, impersonating, stopImpersonation, logout, collectives, effectiveCollectives, isDemoMode, surveys, quotes, projects, clients } = useApp();
   const effectiveUser = impersonating || currentUser;
   const navPrefix = isDemoMode ? '/demo' : '';
+  // For non-demo: map the localized browser URL back to the canonical internal path
+  // so active-state checks work regardless of locale (e.g. /angebote → /ajanlatok).
+  const pathname = isDemoMode ? rawPathname : toCanonicalPathname(rawPathname);
+  // In demo mode use plain next/link (no NextIntlClientProvider); outside demo use locale-aware Link.
+  const AppLink = isDemoMode ? Link : LocaleLink;
 
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [headerVisible, setHeaderVisible] = useState(true);
   const [websiteUnread, setWebsiteUnread] = useState(0);
   const [invitationCount, setInvitationCount] = useState(0);
+  const [totalCounts, setTotalCounts] = useState(null);
   const lastScrollY = React.useRef(0);
 
   useEffect(() => {
@@ -92,6 +128,15 @@ export default function Sidebar() {
       .then(d => setInvitationCount((d.invitations || []).length))
       .catch(() => {});
   }, [currentUser, isSuperAdmin, impersonating, isDemoMode, pathname]);
+
+  // Fetch cross-workspace aggregate counts (personal + all collectives)
+  useEffect(() => {
+    if (!currentUser || (isSuperAdmin && !impersonating) || isDemoMode) return;
+    fetch('/api/counts')
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d) setTotalCounts(d); })
+      .catch(() => {});
+  }, [currentUser, isSuperAdmin, impersonating, isDemoMode]);
 
   useEffect(() => {
     document.documentElement.style.setProperty('--sidebar-w', collapsed ? '60px' : '240px');
@@ -157,14 +202,14 @@ export default function Sidebar() {
   if (pathname.startsWith('/naplo/') || pathname.startsWith('/clients/') || pathname.startsWith('/szakemberek/') || pathname.startsWith('/demo/szakemberek/') || pathname.startsWith('/invitations/') || pathname.startsWith('/impressum') || pathname.startsWith('/adatkezeles') || pathname.startsWith('/aszf') || pathname.startsWith('/about')) return null;
 
   const counts = (!isSuperAdmin || impersonating) ? {
-    surveys:     (surveys  || []).filter(s => s.status !== 'done').length,
-    quotes:      (quotes   || []).filter(q => q.status !== 'deleted').length,
-    projects:    (projects || []).filter(p => !p.closed_at).length,
-    clients:     (clients  || []).length,
+    surveys:     totalCounts ? totalCounts.surveys  : (surveys  || []).filter(s => s.status !== 'done').length,
+    quotes:      totalCounts ? totalCounts.quotes   : (quotes   || []).filter(q => !q.deleted_at).length,
+    projects:    totalCounts ? totalCounts.projects : (projects || []).filter(p => !p.closed_at).length,
+    clients:     totalCounts ? totalCounts.clients  : (clients  || []).length,
     collectives: (effectiveCollectives || []).length,
   } : {};
 
-  const navItems = buildNavItems(isSuperAdmin, isAdmin, impersonating, websiteUnread, navPrefix, invitationCount, counts);
+  const navItems = buildNavItems(isSuperAdmin, isAdmin, impersonating, websiteUnread, navPrefix, invitationCount, counts, t);
   const homeHref = isSuperAdmin && !impersonating ? '/superadmin' : (navPrefix + '/dashboard');
 
   const initials = (effectiveUser?.display_name || '?')
@@ -176,19 +221,19 @@ export default function Sidebar() {
       <aside className="app-sidebar" style={{ width: collapsed ? '60px' : '240px' }}>
         {/* Brand + collapse toggle */}
         <div className="sidebar-header">
-          <Link href={homeHref} className="sidebar-brand" style={{ opacity: collapsed ? 0 : 1, pointerEvents: collapsed ? 'none' : 'auto', transition: 'opacity 0.15s ease', textDecoration: 'none', gap: 0 }}>
+          <AppLink href={homeHref} className="sidebar-brand" style={{ opacity: collapsed ? 0 : 1, pointerEvents: collapsed ? 'none' : 'auto', transition: 'opacity 0.15s ease', textDecoration: 'none', gap: 0 }}>
             <span style={{ fontFamily: "'Orbitron', sans-serif", fontWeight: 800, fontSize: '0.9rem', letterSpacing: '0.01em', color: 'var(--primary)', lineHeight: 1 }}>OKOS</span><span style={{ fontFamily: "'Orbitron', sans-serif", fontWeight: 800, fontSize: '0.9rem', letterSpacing: '0.01em', color: '#f97316', lineHeight: 1 }}>SZAKI.hu</span>
-          </Link>
+          </AppLink>
           {collapsed && (
-            <Link href={homeHref} style={{ margin: '0 auto', textDecoration: 'none', display: 'flex', alignItems: 'center' }}>
+            <AppLink href={homeHref} style={{ margin: '0 auto', textDecoration: 'none', display: 'flex', alignItems: 'center' }}>
               <span style={{ fontFamily: "'Orbitron', sans-serif", fontWeight: 900, fontSize: '0.75rem', color: '#f97316', lineHeight: 1 }}>OS</span>
-            </Link>
+            </AppLink>
           )}
           <button
             type="button"
             className="sidebar-toggle"
             onClick={() => setCollapsed(c => !c)}
-            title={collapsed ? 'Kibontás' : 'Összecsukás'}
+            title={collapsed ? t('expand') : t('collapse')}
           >
             {collapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
           </button>
@@ -219,7 +264,7 @@ export default function Sidebar() {
                 {item.group && !collapsed && <span className="sidebar-group-label">{item.group}</span>}
               </div>
             ) : item.sub ? (
-              <Link
+              <AppLink
                 key={item.href}
                 href={item.href}
                 className={`sidebar-link ${isActive(item, pathname) ? 'active' : ''}`}
@@ -235,9 +280,9 @@ export default function Sidebar() {
                     <span>{item.label}</span>
                   </>
                 )}
-              </Link>
+              </AppLink>
             ) : (
-              <Link
+              <AppLink
                 key={item.key || item.href}
                 href={item.href}
                 className={`sidebar-link ${isActive(item, pathname) ? 'active' : ''}`}
@@ -260,14 +305,15 @@ export default function Sidebar() {
                     </span>
                   )
                 )}
-              </Link>
+              </AppLink>
             )
           )}
         </nav>
 
+
         {/* User section — avatar + name links to /profil, logout icon stays */}
         <div className="sidebar-user" style={{ padding: '0.6rem 0.5rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-          <Link
+          <AppLink
             href={`${navPrefix}/profil`}
             style={{
               flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: '0.6rem',
@@ -306,7 +352,7 @@ export default function Sidebar() {
                       : isOnTrial
                       ? { background: '#fff7ed', color: '#c2410c', border: '1px solid #fed7aa' }
                       : { background: 'var(--bg-subtle)', color: 'var(--text-muted)', border: '1px solid var(--border-subtle)' };
-                    const label = isPremium ? '⭐ Prémium' : isOnTrial ? '🎁 Próba' : 'Bázis';
+                    const label = isPremium ? t('tiers.premium') : isOnTrial ? t('tiers.trial') : t('tiers.basic');
                     return (
                       <span style={{ fontWeight: 700, fontSize: '0.6rem', textTransform: 'uppercase', letterSpacing: '0.03em', padding: '0.05rem 0.35rem', borderRadius: 'var(--radius-pill)', ...styles }}>
                         {label}
@@ -316,12 +362,12 @@ export default function Sidebar() {
                 </div>
               </div>
             )}
-          </Link>
+          </AppLink>
           {!collapsed && (
             <button
               type="button"
               onClick={logout}
-              title="Kijelentkezés"
+              title={t('logout')}
               style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0.35rem', borderRadius: 'var(--radius-sm)', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', flexShrink: 0, transition: 'color 0.15s' }}
               onMouseEnter={e => e.currentTarget.style.color = 'var(--danger)'}
               onMouseLeave={e => e.currentTarget.style.color = 'var(--text-muted)'}
@@ -334,13 +380,13 @@ export default function Sidebar() {
 
       {/* ===== MOBILE HEADER ===== */}
       <header className="mobile-header" style={{ transform: headerVisible ? 'translateY(0)' : 'translateY(-100%)', transition: 'transform 0.25s ease' }}>
-        <Link href={homeHref} style={{ flexShrink: 0, textDecoration: 'none', lineHeight: 1, display: 'flex', alignItems: 'baseline', gap: 0 }}>
+        <AppLink href={homeHref} style={{ flexShrink: 0, textDecoration: 'none', lineHeight: 1, display: 'flex', alignItems: 'baseline', gap: 0 }}>
           <span style={{ fontFamily: "'Orbitron', sans-serif", fontWeight: 800, fontSize: '1.05rem', letterSpacing: '0.01em', color: 'var(--primary)' }}>OKOS</span><span style={{ fontFamily: "'Orbitron', sans-serif", fontWeight: 800, fontSize: '1.05rem', letterSpacing: '0.01em', color: '#f97316' }}>SZAKI.hu</span>
-        </Link>
+        </AppLink>
 
         {impersonating && <Eye size={15} style={{ flexShrink: 0, color: '#7c3aed' }} />}
 
-        <button type="button" className="mobile-menu-btn" onClick={() => setMobileOpen(true)} aria-label="Menü" style={{ flexShrink: 0 }}>
+        <button type="button" className="mobile-menu-btn" onClick={() => setMobileOpen(true)} aria-label={t('menu')} style={{ flexShrink: 0 }}>
           <Menu size={20} />
         </button>
       </header>
@@ -356,7 +402,7 @@ export default function Sidebar() {
                 type="button"
                 onClick={() => setMobileOpen(false)}
                 style={{ background: 'var(--bg-subtle)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--text-muted)' }}
-                aria-label="Bezárás"
+                aria-label={tc('close')}
               >
                 <X size={16} />
               </button>
@@ -371,7 +417,7 @@ export default function Sidebar() {
                   onClick={() => { stopImpersonation(); setMobileOpen(false); }}
                   style={{ background: '#7c3aed20', border: '1px solid #7c3aed40', color: '#7c3aed', borderRadius: 'var(--radius-pill)', padding: '0.2rem 0.6rem', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer' }}
                 >
-                  <X size={11} /> Kilépés
+                  <X size={11} /> {t('exitGodMode')}
                 </button>
               </div>
             )}
@@ -383,7 +429,7 @@ export default function Sidebar() {
                     {item.group && <span className="sidebar-group-label">{item.group}</span>}
                   </div>
                 ) : item.sub ? (
-                  <Link
+                  <AppLink
                     key={item.href}
                     href={item.href}
                     className={`drawer-link ${isActive(item, pathname) ? 'active' : ''}`}
@@ -393,9 +439,9 @@ export default function Sidebar() {
                     <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem', lineHeight: 1, flexShrink: 0, marginRight: '-0.25rem' }}>└</span>
                     <item.icon size={18} />
                     <span>{item.label}</span>
-                  </Link>
+                  </AppLink>
                 ) : (
-                  <Link
+                  <AppLink
                     key={item.key || item.href}
                     href={item.href}
                     className={`drawer-link ${isActive(item, pathname) ? 'active' : ''}`}
@@ -413,7 +459,7 @@ export default function Sidebar() {
                         {item.badge}
                       </span>
                     )}
-                  </Link>
+                  </AppLink>
                 )
               )}
             </nav>
@@ -426,23 +472,24 @@ export default function Sidebar() {
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontWeight: 700, fontSize: '0.9rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{effectiveUser.display_name}</div>
                 <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                  {effectiveUser.role === 'superadmin' ? 'Superadmin' : effectiveUser.role === 'admin' ? 'Admin' : 'Tag'}
+                  {effectiveUser.role === 'superadmin' ? 'Superadmin' : effectiveUser.role === 'admin' ? 'Admin' : t('member')}
                   {(!isSuperAdmin || impersonating) && (
                     <span style={{ marginLeft: '0.4rem', fontWeight: 700, ...(effectiveUser.is_subscription_premium ? { color: '#854d0e' } : {}) }}>
-                      · {effectiveUser.is_subscription_premium ? '⭐ Prémium' : (effectiveUser.subscription_tier === 'trial' && effectiveUser.trial_ends_at && new Date(effectiveUser.trial_ends_at) > new Date()) ? '🎁 Próba' : 'Bázis'}
+                      · {effectiveUser.is_subscription_premium ? t('tiers.premium') : (effectiveUser.subscription_tier === 'trial' && effectiveUser.trial_ends_at && new Date(effectiveUser.trial_ends_at) > new Date()) ? t('tiers.trial') : t('tiers.basic')}
                     </span>
                   )}
                 </div>
               </div>
               <div style={{ display: 'flex', gap: '0.4rem', flexShrink: 0 }}>
-                <Link href={`${navPrefix}/profil`} className="btn btn-secondary btn-sm" onClick={() => setMobileOpen(false)} style={{ padding: '0.35rem 0.6rem', display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.8rem' }}>
-                  <User size={14} /> Profil
-                </Link>
-                <button type="button" onClick={logout} className="btn btn-secondary btn-sm" style={{ padding: '0.35rem 0.5rem', color: 'var(--danger-text)', borderColor: 'var(--danger-border)' }} title="Kijelentkezés">
+                <AppLink href={`${navPrefix}/profil`} className="btn btn-secondary btn-sm" onClick={() => setMobileOpen(false)} style={{ padding: '0.35rem 0.6rem', display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.8rem' }}>
+                  <User size={14} /> {t('profile')}
+                </AppLink>
+                <button type="button" onClick={logout} className="btn btn-secondary btn-sm" style={{ padding: '0.35rem 0.5rem', color: 'var(--danger-text)', borderColor: 'var(--danger-border)' }} title={t('logout')}>
                   <LogOut size={14} />
                 </button>
               </div>
             </div>
+
           </div>
         </>
       )}
