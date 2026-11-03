@@ -25,6 +25,7 @@ import {
   Hammer, ChevronRight,
 } from 'lucide-react';
 import ProjectsListPreview from './ProjectsListPreview';
+import { LANDING_I18N } from '@/lib/landingI18n';
 
 // ─── Design tokens (mirror globals.css) ─────────────────────────────────────
 const T = {
@@ -381,89 +382,19 @@ function ClientPortalPreview() {
   );
 }
 
-// ─── Feature row data ─────────────────────────────────────────────────────────
-const FEATURES = [
-  {
-    id: 'survey',
-    overline: '01 · Felmérés',
-    title: 'Minden méret rögzítve, mielőtt elhagyod a helyszínt',
-    desc: 'Szobák, méretek, fotók, megjegyzések azonnal a telefonon. Nincs elveszett papír, nincs kézzel rajzolt vázlat. Az ügyfél még jelen van, te már kész vagy a dokumentációval.',
-    bullets: [
-      'Szobák és méretek felvitele a helyszínen',
-      'Fotók és vázlatok közvetlenül a projekthez rendelve',
-      'Felmérésből árajánlat egyetlen gombnyomásra',
-    ],
-    collectiveBullet: 'Csapatban végzett felmérés: minden tag látja a szobákat és a fotókat',
-    Preview: SurveyPreview,
-    imageFirst: true,
-    demoHref: '/demo/felmeresek',
-  },
-  {
-    id: 'offer',
-    overline: '02 · Árajánlat',
-    title: 'Profi ajánlat percek alatt, nem órák alatt',
-    desc: 'Tételes, helyiségekre bontott árajánlat, amit az ügyfél e-mailben kap meg és egyetlen kattintással elfogad. Vége az Excel-táblázatoknak és a kézzel kitöltött nyomtatványoknak.',
-    bullets: [
-      'Tételek helyiségekre és munkafázisokra bontva',
-      'PDF generálás és közvetlen e-mail küldés',
-      'Ügyfél jóváhagyás online, papír nélkül',
-    ],
-    collectiveBullet: 'Közös ajánlat: minden alvállalkozó hozzáadja a saját tételeit',
-    Preview: OfferPreview,
-    imageFirst: false,
-    demoHref: '/demo/ajanlatok',
-  },
-  {
-    id: 'projects',
-    overline: '03 · Projektek',
-    title: 'Projekt és pénz, mindig kéz alatt',
-    desc: 'Számlák, munkadíjak, fotók egy helyen. Pontosan látod, melyik projekten mennyit költöttél, ki mennyit dolgozott, és hol állsz a büdzsével szemben.',
-    bullets: [
-      'Számlák és munkadíjak rögzítése fotóval',
-      'AI-alapú számlafelismerés (OCR)',
-      'Kategóriákra és szekciókra bontott kimutatás',
-    ],
-    collectiveBullet: 'Résztvevők hozzájárulása: ki mennyit fizetett és végzett el',
-    Preview: () => <ProjectsListPreview />,
-    imageFirst: true,
-    demoHref: '/demo/projektek',
-  },
-  {
-    id: 'website',
-    overline: '04 · Weboldal',
-    title: 'Saját weboldal, minden fiókhoz ingyen',
-    desc: 'Nincs szükség webfejlesztőre vagy havi tárhelydíjra. Az OkosSzaki automatikusan létrehoz egy letisztult weblapot a vállalkozásodnak. Az ügyfeleid megtalálnak és ajánlatot kérhetnek.',
-    bullets: [
-      'Saját alcím: neved.okosszaki.hu',
-      'Galéria, szolgáltatások, elérhetőség',
-      'Beérkező ajánlatkérések közvetlenül a telefonodra',
-    ],
-    collectiveBullet: 'Közös csapatoldal: a cégetek egységes arculattal jelenik meg',
-    Preview: WebsitePreview,
-    imageFirst: false,
-    demoHref: '/demo/weboldalam',
-  },
-  {
-    id: 'portal',
-    overline: '05 · Ügyfélportál',
-    title: 'Az ügyfeled mindig képben van, és nem zavarnak folyton',
-    desc: 'Nincs több "Hol tart a munkával?" telefonhívás. Az ügyfeled saját portálon követi a projektet, jóváhagyja az ajánlatot, látja a fotókat és a fizetési tervet.',
-    bullets: [
-      'Valós idejű projekt státusz az ügyfélnek',
-      'Ajánlat elfogadás és fizetési mérföldkövek',
-      'Naplóbejegyzések és fotók megosztása',
-    ],
-    collectiveBullet: 'Az ügyfél látja az összes résztvevőt és azok munkáját',
-    Preview: ClientPortalPreview,
-    imageFirst: true,
-    comingSoon: true,
-    demoHref: '/clients/demo',
-  },
+// Static (non-translated) parts per feature slot
+const FEATURE_STATICS = [
+  { id: 'survey',   Preview: SurveyPreview,              imageFirst: true,  demoHref: '/demo/felmeresek' },
+  { id: 'offer',    Preview: OfferPreview,               imageFirst: false, demoHref: '/demo/ajanlatok'  },
+  { id: 'projects', Preview: () => <ProjectsListPreview />, imageFirst: true, demoHref: '/demo/projektek' },
+  { id: 'website',  Preview: WebsitePreview,             imageFirst: false, demoHref: '/demo/weboldalam' },
+  { id: 'portal',   Preview: ClientPortalPreview,        imageFirst: true,  demoHref: '/clients/demo', comingSoon: true },
 ];
 
 // ─── Single feature row ───────────────────────────────────────────────────────
-function FeatureRow({ feature, onRegister }) {
-  const { Preview, imageFirst, overline, title, desc, bullets, collectiveBullet, comingSoon, demoHref } = feature;
+function FeatureRow({ staticData, i18nItem, comingSoonLabel, registerBtn, demoBtn, onRegister }) {
+  const { Preview, imageFirst, demoHref } = staticData;
+  const { overline, title, desc, bullets, collectiveBullet } = i18nItem;
 
   const previewCol = (
     <div className="feature-preview-col" style={{ display: 'flex', justifyContent: imageFirst ? 'flex-start' : 'flex-end' }}>
@@ -478,8 +409,8 @@ function FeatureRow({ feature, onRegister }) {
         <h3 style={{ fontSize: 'clamp(1.2rem,2.5vw,1.6rem)', fontWeight: 800, color: T.textPrimary, letterSpacing: '-0.03em', lineHeight: 1.2, margin: 0 }}>
           {title}
         </h3>
-        {comingSoon && (
-          <span style={{ display: 'inline-block', marginTop: '0.5rem', fontSize: '0.68rem', fontWeight: 700, background: '#fef3c7', color: '#92400e', border: '1px solid #fde68a', padding: '0.15rem 0.6rem', borderRadius: 999 }}>Hamarosan</span>
+        {staticData.comingSoon && (
+          <span style={{ display: 'inline-block', marginTop: '0.5rem', fontSize: '0.68rem', fontWeight: 700, background: '#fef3c7', color: '#92400e', border: '1px solid #fde68a', padding: '0.15rem 0.6rem', borderRadius: 999 }}>{comingSoonLabel}</span>
         )}
       </div>
 
@@ -503,7 +434,7 @@ function FeatureRow({ feature, onRegister }) {
           onClick={onRegister}
           style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', padding: '0.65rem 1.25rem', background: T.accent, color: '#fff', fontWeight: 700, fontSize: '0.875rem', borderRadius: 10, border: 'none', cursor: 'pointer', fontFamily: T.font }}
         >
-          Regisztráció <ArrowRight size={15} />
+          {registerBtn} <ArrowRight size={15} />
         </button>
         <a
           href={demoHref}
@@ -511,7 +442,7 @@ function FeatureRow({ feature, onRegister }) {
           rel="noopener noreferrer"
           style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', padding: '0.65rem 1.25rem', background: T.bgSubtle, color: T.textSecondary, fontWeight: 700, fontSize: '0.875rem', borderRadius: 10, border: `1px solid ${T.border}`, textDecoration: 'none', fontFamily: T.font }}
         >
-          Demo megtekintése
+          {demoBtn}
         </a>
       </div>
     </div>
@@ -526,7 +457,9 @@ function FeatureRow({ feature, onRegister }) {
 }
 
 // ─── Main export ──────────────────────────────────────────────────────────────
-export default function FeatureShowcase({ onRegister }) {
+export default function FeatureShowcase({ onRegister, locale = 'hu' }) {
+  const tf = (LANDING_I18N[locale] || LANDING_I18N.hu).features;
+
   return (
     <section className="feature-section" style={{ padding: '4rem 0', borderBottom: `1px solid ${T.border}` }}>
       <style>{`
@@ -550,19 +483,27 @@ export default function FeatureShowcase({ onRegister }) {
         {/* Section header */}
         <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.2rem 0.75rem', borderRadius: 999, background: T.accentLight, border: `1px solid ${T.accentBorder}`, color: T.accent, fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: '0.75rem' }}>
-            Hogyan működik?
+            {tf.sectionPill}
           </span>
           <h2 style={{ fontSize: 'clamp(1.5rem,3vw,2rem)', fontWeight: 800, color: T.textPrimary, letterSpacing: '-0.03em', margin: '0 0 0.5rem', fontFamily: T.font }}>
-            Minden funkció, egy helyen
+            {tf.sectionHeading}
           </h2>
           <p style={{ color: T.textSecondary, fontSize: '0.9rem', maxWidth: 540, margin: '0 auto', fontFamily: T.font }}>
-            Egyedül és csapatban is tökéletesen működik. A <span style={{ color: T.purple, fontWeight: 700 }}>lila kiemelések</span> a kollektív előnyöket jelzik.
+            {tf.sectionSubtitle}
           </p>
         </div>
 
         {/* Feature rows */}
-        {FEATURES.map(f => (
-          <FeatureRow key={f.id} feature={f} onRegister={onRegister} />
+        {FEATURE_STATICS.map((staticData, i) => (
+          <FeatureRow
+            key={staticData.id}
+            staticData={staticData}
+            i18nItem={tf.items[i]}
+            comingSoonLabel={tf.comingSoon}
+            registerBtn={tf.registerBtn}
+            demoBtn={tf.demoBtn}
+            onRegister={onRegister}
+          />
         ))}
       </div>
     </section>

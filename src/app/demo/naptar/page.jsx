@@ -1,2 +1,2 @@
 'use client';
-export { default } from '@/app/naptar/page.js';
+export { default } from '@/app/[locale]/naptar/page.js';

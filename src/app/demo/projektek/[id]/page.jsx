@@ -2,7 +2,7 @@
 
 import { useParams } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
-import ProjectDetailClient from '@/app/projektek/[id]/ProjectDetailClient';
+import ProjectDetailClient from '@/app/[locale]/projektek/[id]/ProjectDetailClient';
 
 export default function DemoProjectDetailPage() {
   const { id } = useParams();

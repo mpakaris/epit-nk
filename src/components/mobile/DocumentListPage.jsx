@@ -17,7 +17,9 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import { useTranslations } from 'next-intl';
 import Link from 'next/link';
+import { Link as LocaleLink } from '@/navigation';
 import { useApp } from '@/context/AppContext';
 import { useTransferRequests } from '@/hooks/useTransferRequests';
 import { ConfirmModal, AlertModal } from '@/components/Modal';
@@ -71,6 +73,8 @@ export default function DocumentListPage({
   accentGradient,
 }) {
   const { loading, dataReady, isDemoMode, collectives: userMemberships } = useApp();
+  const tDoc    = useTranslations('mobile.docList');
+  const AppLink = isDemoMode ? Link : LocaleLink;
   const isMobile = useMobile();
   const navPrefix = isDemoMode ? '/demo' : '';
 
@@ -120,7 +124,7 @@ export default function DocumentListPage({
   const handleRetract = async (requestId) => {
     try {
       await retractTransfer(requestId);
-      setAlertModal({ variant: 'success', title: 'Visszavonva', message: 'Az áthelyezési kérelem visszavonva. A dokumentum újra szerkeszthető.' });
+      setAlertModal({ variant: 'success', title: tDoc('retractedTitle'), message: tDoc('retractedMessage') });
     } catch (err) {
       setAlertModal({ message: err.message });
     }
@@ -144,7 +148,7 @@ export default function DocumentListPage({
           });
           setAlertModal({ variant: 'success', title: `${pageTitle.replace(/k$/, '')} törölve`, message: `„${item.title || item.name}" sikeresen törölve.` });
         } catch (err) {
-          setAlertModal({ message: err.message || 'Hiba a törléskor' });
+          setAlertModal({ message: err.message || tDoc('deleteError') });
         }
       },
     });
@@ -174,13 +178,13 @@ export default function DocumentListPage({
       {/* ── Mobile header ── */}
       <div className="list-page-mobile-header" style={{ marginBottom: 20 }}>
         <div style={{ background: accentGradient || accentColor || 'transparent', marginLeft: '0.5px', marginRight: '0.5px', padding: '0.35rem 0.85rem 0.5rem', borderRadius: 0, marginBottom: 16 }}>
-          <Link
+          <AppLink
             href={`${navPrefix}/dashboard`}
             style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,0.65)', textDecoration: 'none', height: 36, marginBottom: 2 }}
           >
             <ChevronLeft size={16} strokeWidth={1.75} aria-hidden="true" />
-            Kezdőlap
-          </Link>
+            {tDoc('home')}
+          </AppLink>
           <h1 style={{ fontSize: 32, fontWeight: 800, color: '#e5e7eb', letterSpacing: '-0.025em', lineHeight: '38px', margin: 0 }}>
             {pageTitle}
           </h1>
@@ -203,9 +207,18 @@ export default function DocumentListPage({
             <h1 className="page-title">{pageTitle}</h1>
             <p className="page-subtitle">{pageSubtitle}</p>
           </div>
-          <Link href={`${navPrefix}${newHref}`} className="btn btn-primary btn-sm">
-            <Plus size={15} /> Új {pageTitle.replace(/k$/, '').toLowerCase()}
-          </Link>
+          <AppLink
+            href={`${navPrefix}${newHref}`}
+            aria-label={tDoc('newItemAriaLabel')}
+            style={{
+              width: 36, height: 36, borderRadius: '50%',
+              background: 'var(--primary)', color: '#fff',
+              display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+              textDecoration: 'none', flexShrink: 0,
+            }}
+          >
+            <Plus size={18} strokeWidth={2.5} aria-hidden="true" />
+          </AppLink>
         </div>
       </div>
 
@@ -227,9 +240,18 @@ export default function DocumentListPage({
             {activeFilter ? emptyTextFiltered : emptyText}
           </p>
           {!activeFilter && (
-            <Link href={`${navPrefix}${newHref}`} className="btn btn-primary btn-sm">
-              <Plus size={15} /> Új {pageTitle.replace(/k$/, '').toLowerCase()}
-            </Link>
+            <AppLink
+              href={`${navPrefix}${newHref}`}
+              aria-label={tDoc('newItemAriaLabel')}
+              style={{
+                width: 40, height: 40, borderRadius: '50%',
+                background: 'var(--primary)', color: '#fff',
+                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                textDecoration: 'none',
+              }}
+            >
+              <Plus size={22} strokeWidth={2.5} aria-hidden="true" />
+            </AppLink>
           )}
         </div>
       ) : (
@@ -238,7 +260,7 @@ export default function DocumentListPage({
           <WorkspaceSectionHeader type="personal" count={filteredPersonal.length} />
           {filteredPersonal.length === 0 ? (
             <p style={{ fontSize: '0.825rem', color: 'var(--text-muted)', marginBottom: '1.25rem' }}>
-              Nincs személyes {pageTitle.replace(/k$/, '').toLowerCase()}.
+              {tDoc('noPersonalItems')}
             </p>
           ) : (
             <>
@@ -279,7 +301,7 @@ export default function DocumentListPage({
                 <WorkspaceSectionHeader type="collective" name={col.name} count={items.length} light={isMobile} />
                 {items.length === 0 ? (
                   <p style={{ fontSize: '0.825rem', color: isMobile ? 'rgba(255,255,255,0.6)' : 'var(--text-muted)', marginBottom: 8 }}>
-                    Nincs megosztott {pageTitle.replace(/k$/, '').toLowerCase()} ebben a kollektívában.
+                    {tDoc('noSharedItems')}
                   </p>
                 ) : (
                   <>
@@ -305,10 +327,10 @@ export default function DocumentListPage({
             <div style={{ marginTop: '2rem', padding: '1rem 1.25rem', borderRadius: 'var(--radius-md)', background: 'var(--bg-subtle)', border: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
               <Users size={18} color="var(--text-muted)" style={{ flexShrink: 0 }} aria-hidden="true" />
               <div>
-                <div style={{ fontWeight: 700, fontSize: '0.825rem', marginBottom: '0.15rem' }}>Csapatban is dolgozol?</div>
+                <div style={{ fontWeight: 700, fontSize: '0.825rem', marginBottom: '0.15rem' }}>{tDoc('teamNudge')}</div>
                 <div style={{ fontSize: '0.775rem', color: 'var(--text-secondary)' }}>
                   {nudgeText}{' '}
-                  <Link href={`${navPrefix}/kollektivak`} style={{ color: 'var(--accent)', fontWeight: 700 }}>Kollektívák →</Link>
+                  <AppLink href={`${navPrefix}/kollektivak`} style={{ color: 'var(--accent)', fontWeight: 700 }}>{tDoc('collectivesLink')}</AppLink>
                 </div>
               </div>
             </div>

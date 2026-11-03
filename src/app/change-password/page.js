@@ -4,12 +4,17 @@ import React, { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
 import { KeyRound, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { useLandingLocale } from '@/hooks/useLandingLocale';
+import { CHANGE_PASSWORD_I18N } from '@/lib/landingI18n';
 
 function ChangePasswordInner() {
   const { currentUser, changePassword } = useApp();
   const router = useRouter();
   const searchParams = useSearchParams();
   const resetToken = searchParams.get('token');
+
+  const locale = useLandingLocale();
+  const T = CHANGE_PASSWORD_I18N[locale] || CHANGE_PASSWORD_I18N.hu;
 
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -24,11 +29,11 @@ function ChangePasswordInner() {
     setError('');
 
     if (password.length < 8) {
-      setError('A jelszónak legalább 8 karakterből kell állnia.');
+      setError(T.errLen);
       return;
     }
     if (password !== confirmPassword) {
-      setError('A megadott jelszavak nem egyeznek meg.');
+      setError(T.errMatch);
       return;
     }
 
@@ -41,14 +46,14 @@ function ChangePasswordInner() {
           body: JSON.stringify({ token: resetToken, password }),
         });
         const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Hiba történt.');
+        if (!res.ok) throw new Error(data.error || T.errGeneric);
         setSuccess(true);
         setTimeout(() => router.push('/'), 2500);
       } else {
         await changePassword(password);
       }
     } catch (err) {
-      setError(err.message || 'Hiba történt a jelszó megváltoztatásakor.');
+      setError(err.message || T.errGeneric);
     } finally {
       setLoading(false);
     }
@@ -66,15 +71,15 @@ function ChangePasswordInner() {
             <KeyRound size={26} color="var(--accent)" />
           </div>
           <h1 style={{ fontSize: '1.5rem', fontWeight: 800, marginBottom: '0.35rem' }}>
-            Jelszó módosítása
+            {T.title}
           </h1>
           {!isResetFlow && currentUser?.must_change_password ? (
             <p style={{ color: 'var(--warning)', fontSize: '0.85rem', fontWeight: 600 }}>
-              Biztonsági okokból első belépéskor új jelszót kell beállítania!
+              {T.forceNote}
             </p>
           ) : (
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
-              Adja meg új hozzáférési jelszavát.
+              {T.subtitle}
             </p>
           )}
         </div>
@@ -82,8 +87,8 @@ function ChangePasswordInner() {
         {success ? (
           <div style={{ textAlign: 'center', padding: '1rem 0' }}>
             <CheckCircle2 size={40} color="var(--success)" style={{ margin: '0 auto 0.75rem', display: 'block' }} />
-            <p style={{ fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.25rem' }}>Jelszó sikeresen megváltoztatva!</p>
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Átirányítás a bejelentkezési oldalra…</p>
+            <p style={{ fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.25rem' }}>{T.successTitle}</p>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>{T.successText}</p>
           </div>
         ) : (
           <>
@@ -99,32 +104,32 @@ function ChangePasswordInner() {
 
             <form onSubmit={handleSubmit}>
               <div className="form-group">
-                <label className="form-label" htmlFor="new-password">Új jelszó</label>
+                <label className="form-label" htmlFor="new-password">{T.newPasswordLabel}</label>
                 <input
                   id="new-password"
                   type="password"
                   required
                   autoFocus
                   className="form-control"
-                  placeholder="Legalább 8 karakter"
+                  placeholder={T.newPasswordPh}
                   value={password}
                   onChange={e => setPassword(e.target.value)}
                 />
               </div>
               <div className="form-group" style={{ marginBottom: '1.75rem' }}>
-                <label className="form-label" htmlFor="confirm-password">Jelszó megerősítése</label>
+                <label className="form-label" htmlFor="confirm-password">{T.confirmLabel}</label>
                 <input
                   id="confirm-password"
                   type="password"
                   required
                   className="form-control"
-                  placeholder="Ismételje meg a jelszót"
+                  placeholder={T.confirmPh}
                   value={confirmPassword}
                   onChange={e => setConfirmPassword(e.target.value)}
                 />
               </div>
               <button type="submit" className="btn btn-primary w-full btn-lg" disabled={loading}>
-                {loading ? 'Mentés…' : 'Jelszó mentése'}
+                {loading ? T.submitBtnBusy : T.submitBtn}
               </button>
             </form>
           </>

@@ -1,7 +1,5 @@
 import './globals.css';
 import { AppProvider } from '@/context/AppContext';
-import Sidebar from '@/components/Sidebar';
-import LoadingGate from '@/components/LoadingGate';
 
 export const metadata = {
   title: 'Epitünk – Közösségi Koordináció',
@@ -22,14 +20,7 @@ export default function RootLayout({ children }) {
       </head>
       <body>
         <AppProvider>
-          <LoadingGate>
-            <div className="app-layout">
-              <Sidebar />
-              <main className="app-main">
-                {children}
-              </main>
-            </div>
-          </LoadingGate>
+          {children}
         </AppProvider>
       </body>
     </html>

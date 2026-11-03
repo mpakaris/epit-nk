@@ -1,6 +1,6 @@
 'use client';
 
-import { BuilderEditor } from '@/app/weboldalam/page.js';
+import { BuilderEditor } from '@/app/[locale]/weboldalam/page.js';
 
 const DEMO_WEBSITE = {
   slug:         'nemes-peter-felujito',

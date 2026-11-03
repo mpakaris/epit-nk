@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { useTranslations } from 'next-intl';
 import { User, Users, Check, X, Info } from 'lucide-react';
 import SharingBanner from './SharingBanner';
 
@@ -10,9 +11,11 @@ export default function WorkspacePicker({
   onChange,
   onClose,
   onNext,
-  typeLabel = 'felmérés',
+  typeLabel = '',
   personalOnly = false,
 }) {
+  const t = useTranslations('mobile.workspace');
+
   if (!personalOnly && collectives.length === 0) return null;
 
   const selectedCol = collectives.find(c => c.id === selected);
@@ -39,7 +42,7 @@ export default function WorkspacePicker({
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             boxShadow: 'var(--shadow-card)',
           }}
-          aria-label="Bezárás"
+          aria-label={t('personal')}
         >
           <X size={22} color="#0f172a" strokeWidth={1.75} aria-hidden="true" />
         </button>
@@ -49,10 +52,10 @@ export default function WorkspacePicker({
       {/* Content */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '24px 16px 32px' }}>
         <h1 style={{ fontSize: 32, fontWeight: 800, color: '#0f172a', letterSpacing: '-0.025em', lineHeight: '38px', marginBottom: 6 }}>
-          Új {typeLabel}
+          {typeLabel}
         </h1>
         <p style={{ fontSize: 17, fontWeight: 500, color: '#475569', marginBottom: 28, lineHeight: '24px' }}>
-          Hova kerüljön?
+          {t('whereToGo')}
         </p>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -60,14 +63,15 @@ export default function WorkspacePicker({
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             <WorkspaceOption
               type="personal"
-              label="Személyes"
-              description={personalOnly ? 'Az ügyféladatok mindig személyesek (GDPR).' : 'Csak te látod ezt a munkát.'}
+              label={t('personal')}
+              description={personalOnly ? t('personalGdprDesc') : t('personalDesc')}
               isSelected={selected === null}
               onSelect={personalOnly ? undefined : () => onChange(null)}
+              t={t}
             />
           </div>
 
-          {/* Collective options — each with its inline banner */}
+          {/* Collective options */}
           {!personalOnly && collectives.map(col => {
             const isOwned = col.role === 'owner' || col.role === 'admin';
             const isThisSelected = selected === col.id;
@@ -76,13 +80,10 @@ export default function WorkspacePicker({
                 <WorkspaceOption
                   type={isOwned ? 'collective' : 'member'}
                   label={col.name}
-                  description={
-                    isOwned
-                      ? 'Saját kollektíva · a csapat minden tagja látja.'
-                      : 'Tag vagy · beküldheted jóváhagyásra.'
-                  }
+                  description={isOwned ? t('ownedColDesc') : t('memberColDesc')}
                   isSelected={isThisSelected}
                   onSelect={() => onChange(col.id)}
+                  t={t}
                 />
                 {isThisSelected && isOwned && (
                   <SharingBanner collectiveName={col.name} />
@@ -97,7 +98,8 @@ export default function WorkspacePicker({
                   }}>
                     <Info size={16} color="#ea580c" style={{ flexShrink: 0, marginTop: 2 }} aria-hidden="true" />
                     <p style={{ fontSize: 14, color: '#9a3412', lineHeight: 1.55, margin: 0 }}>
-                      <strong>Jóváhagyás szükséges.</strong> Addig ez a {typeLabel} a <strong>személyes munkaterületeden</strong> él és szerkeszthető. Amikor a tulajdonos elfogadja, átkerül a csapathoz.
+                      <strong>{t('approvalRequired')}</strong>{' '}
+                      {t('approvalInfo', { typeLabel })}
                     </p>
                   </div>
                 )}
@@ -119,21 +121,21 @@ export default function WorkspacePicker({
             fontSize: 17, fontWeight: 700, cursor: 'pointer',
           }}
         >
-          {isContributor ? 'Létrehozás és beküldés →' : 'Tovább →'}
+          {isContributor ? t('createAndSubmit') : t('continue')}
         </button>
       </div>
     </div>
   );
 }
 
-function WorkspaceOption({ type, label, description, isSelected, onSelect }) {
+function WorkspaceOption({ type, label, description, isSelected, onSelect, t }) {
   const isPersonal  = type === 'personal';
   const isMember    = type === 'member';
   const chipBg      = isPersonal ? '#eff6ff' : isMember ? '#fff7ed' : '#dcfce7';
   const iconColor   = isPersonal ? '#2563eb' : isMember ? '#ea580c' : '#16a34a';
   const ringColor   = isPersonal ? '#2563eb' : isMember ? '#ea580c' : '#16a34a';
 
-  const badgeLabel = isPersonal ? 'Privát' : isMember ? 'Tag' : 'Tulajdonos';
+  const badgeLabel = isPersonal ? t('private') : isMember ? t('member') : t('owner');
   const badgeBg    = isPersonal ? '#2563eb' : isMember ? '#ea580c' : '#16a34a';
 
   return (
@@ -152,7 +154,6 @@ function WorkspaceOption({ type, label, description, isSelected, onSelect }) {
         width: '100%',
       }}
     >
-      {/* Role badge — top-right corner of the card */}
       <span style={{
         position: 'absolute', top: 14, right: 52,
         fontSize: 10, fontWeight: 800, lineHeight: 1,
@@ -163,7 +164,6 @@ function WorkspaceOption({ type, label, description, isSelected, onSelect }) {
         {badgeLabel}
       </span>
 
-      {/* Icon — clean, no badge */}
       <div style={{
         width: 56, height: 56, borderRadius: '50%',
         background: chipBg, flexShrink: 0,

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
+import { useTranslations } from 'next-intl';
 import { useScrollLock } from '@/hooks/useScrollLock';
 import { useApp } from '@/context/AppContext';
 import { processMediaFile } from '@/lib/mediaGate';
@@ -30,12 +31,9 @@ const S = {
   roomBtnActive: { border: '2px solid #0f172a', background: '#f1f5f9' },
 };
 
-/**
- * Cost entry stepper — one flow for all cost types.
- * Steps: 1 Fotó (optional) → 2 Kategória → 3 Összeg → [4 Szekció]
- */
 export default function QuickCostSheet({ isOpen, onClose, projectId, onSuccess }) {
   const { createInvoice, uploadInvoiceImage, projectRooms } = useApp();
+  const t     = useTranslations('mobile.quickCost');
   const rooms = (projectRooms || []).filter(r => r.project_id === projectId);
 
   const [step, setStep] = useState(1);
@@ -59,11 +57,11 @@ export default function QuickCostSheet({ isOpen, onClose, projectId, onSuccess }
 
   useScrollLock(isOpen);
 
-  const totalSteps  = rooms.length > 0 ? 4 : 3;
-  const isLast      = step === totalSteps;
-  const stepLabels  = rooms.length > 0
-    ? ['Fotó', 'Kategória', 'Összeg', 'Szekció']
-    : ['Fotó', 'Kategória', 'Összeg'];
+  const totalSteps = rooms.length > 0 ? 4 : 3;
+  const isLast     = step === totalSteps;
+  const stepLabels = rooms.length > 0
+    ? [t('stepPhoto'), t('stepCategory'), t('stepAmount'), t('stepSection')]
+    : [t('stepPhoto'), t('stepCategory'), t('stepAmount')];
 
   useEffect(() => {
     if (!isOpen) return;
@@ -73,8 +71,6 @@ export default function QuickCostSheet({ isOpen, onClose, projectId, onSuccess }
     setCategory('Anyag'); setAmount(''); setInvDesc(''); setInvRoom('');
     setSubmitting(false); setError('');
   }, [isOpen]);
-
-  // ── File + OCR + AI ────────────────────────────────────────────────────────
 
   const processFile = async (raw) => {
     if (!raw) return;
@@ -131,8 +127,6 @@ export default function QuickCostSheet({ isOpen, onClose, projectId, onSuccess }
     setAiItems(null); setAiTotal(null); setAmount('');
   };
 
-  // ── Line item editing ──────────────────────────────────────────────────────
-
   const updateAiItem = (idx, field, val) => {
     setAiItems(prev => {
       const next = prev.map((item, i) => {
@@ -160,10 +154,8 @@ export default function QuickCostSheet({ isOpen, onClose, projectId, onSuccess }
     });
   };
 
-  // ── Validation + submit ────────────────────────────────────────────────────
-
   const validate = () => {
-    if (step === 3 && !(parseInt(amount, 10) > 0)) return 'Adja meg a kiadás összegét!';
+    if (step === 3 && !(parseInt(amount, 10) > 0)) return t('amountRequired');
     return null;
   };
 
@@ -191,17 +183,15 @@ export default function QuickCostSheet({ isOpen, onClose, projectId, onSuccess }
       onSuccess?.();
       onClose();
     } catch (e) {
-      setError(e.message || 'Hiba történt');
+      setError(e.message || t('errorSaving'));
       setSubmitting(false);
     }
   };
 
-  // ── Step renderers ─────────────────────────────────────────────────────────
-
   const StepPhoto = () => (
     <>
-      <h2 style={S.heading}>Bizonylat fotója</h2>
-      <p style={S.sub}>Opcionális — fotó nélkül is folytatható.</p>
+      <h2 style={S.heading}>{t('photoHeading')}</h2>
+      <p style={S.sub}>{t('photoSub')}</p>
 
       <input ref={cameraRef}  type="file" accept="image/*" capture="environment" onChange={handleFileChange} style={{ display: 'none' }} />
       <input ref={galleryRef} type="file" accept="image/*,application/pdf" onChange={handleFileChange} style={{ display: 'none' }} />
@@ -210,11 +200,11 @@ export default function QuickCostSheet({ isOpen, onClose, projectId, onSuccess }
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           <button type="button" onClick={() => cameraRef.current?.click()} style={S.photoPrimary}>
             <Camera size={26} color="#fff" />
-            <span style={{ fontSize: 16, fontWeight: 700, color: '#fff' }}>Fotó készítése kamerával</span>
+            <span style={{ fontSize: 16, fontWeight: 700, color: '#fff' }}>{t('cameraButton')}</span>
           </button>
           <button type="button" onClick={() => galleryRef.current?.click()} style={S.photoSecondary}>
             <ImageIcon size={20} color="#475569" />
-            <span style={{ fontSize: 15, fontWeight: 600, color: '#475569' }}>Fájl kiválasztása</span>
+            <span style={{ fontSize: 15, fontWeight: 600, color: '#475569' }}>{t('fileButton')}</span>
           </button>
         </div>
       ) : (
@@ -227,13 +217,13 @@ export default function QuickCostSheet({ isOpen, onClose, projectId, onSuccess }
             {(scanning || aiLoading) && (
               <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '8px 12px', background: 'rgba(37,99,235,0.88)', display: 'flex', alignItems: 'center', gap: 8 }}>
                 <Loader2 size={14} color="#fff" className="animate-spin" />
-                <span style={{ fontSize: 13, color: '#fff', fontWeight: 600 }}>Feldolgozás...</span>
+                <span style={{ fontSize: 13, color: '#fff', fontWeight: 600 }}>{t('processing')}</span>
               </div>
             )}
           </div>
           <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
-            <button type="button" onClick={() => cameraRef.current?.click()}  style={S.photoRetake}><Camera    size={15} /> Újrafotó</button>
-            <button type="button" onClick={() => galleryRef.current?.click()} style={S.photoRetake}><ImageIcon size={15} /> Más fájl</button>
+            <button type="button" onClick={() => cameraRef.current?.click()}  style={S.photoRetake}><Camera    size={15} /> {t('retakePhoto')}</button>
+            <button type="button" onClick={() => galleryRef.current?.click()} style={S.photoRetake}><ImageIcon size={15} /> {t('changeFile')}</button>
           </div>
         </>
       )}
@@ -242,7 +232,7 @@ export default function QuickCostSheet({ isOpen, onClose, projectId, onSuccess }
 
   const StepCategory = () => (
     <>
-      <h2 style={S.heading}>Milyen típusú kiadás?</h2>
+      <h2 style={S.heading}>{t('catHeading')}</h2>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
         {INVOICE_CATEGORIES.map(c => {
           const active = category === c.id;
@@ -260,10 +250,10 @@ export default function QuickCostSheet({ isOpen, onClose, projectId, onSuccess }
 
   const StepAmount = () => (
     <>
-      <h2 style={S.heading}>Összeg és leírás</h2>
+      <h2 style={S.heading}>{t('amountHeading')}</h2>
 
       <div style={{ marginBottom: 20 }}>
-        <label style={S.label}>Összeg (HUF) *</label>
+        <label style={S.label}>{t('amountLabel')}</label>
         <div style={{ position: 'relative' }}>
           <input
             type="number" inputMode="numeric" min="1"
@@ -277,22 +267,21 @@ export default function QuickCostSheet({ isOpen, onClose, projectId, onSuccess }
         </div>
       </div>
 
-      {/* Line items — editable */}
       {!aiLoading && aiItems && aiItems.length > 0 && (
         <div style={{ marginBottom: 20 }}>
           <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', marginBottom: 8 }}>
-            Tételek{aiCurr !== 'HUF' && <span style={{ marginLeft: 6, background: 'var(--accent)', color: '#fff', borderRadius: 4, padding: '1px 5px', fontSize: 10 }}>{aiCurr}</span>}
+            {t('itemsLabel')}{aiCurr !== 'HUF' && <span style={{ marginLeft: 6, background: 'var(--accent)', color: '#fff', borderRadius: 4, padding: '1px 5px', fontSize: 10 }}>{aiCurr}</span>}
           </div>
           <div style={{ borderRadius: 10, overflow: 'hidden', border: '1px solid var(--border-subtle)' }}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 48px 76px 28px', gap: 4, padding: '5px 8px', background: 'var(--bg-subtle)', borderBottom: '1px solid var(--border-subtle)' }}>
-              {['Megnevezés', 'Db', 'Összeg', ''].map((h, i) => (
+              {[t('nameHeader'), t('qtyHeader'), t('totalHeader'), ''].map((h, i) => (
                 <span key={i} style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>{h}</span>
               ))}
             </div>
             <div style={{ maxHeight: 220, overflowY: 'auto' }}>
               {aiItems.map((item, i) => (
                 <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 48px 76px 28px', gap: 4, padding: '5px 8px', borderBottom: i < aiItems.length - 1 ? '1px solid var(--border-subtle)' : 'none', background: '#fff', alignItems: 'center' }}>
-                  <input type="text" value={item.name || ''} onChange={e => updateAiItem(i, 'name', e.target.value)} placeholder="Megnevezés"
+                  <input type="text" value={item.name || ''} onChange={e => updateAiItem(i, 'name', e.target.value)} placeholder={t('namePh')}
                     style={{ fontSize: 12, padding: '3px 5px', border: '1px solid var(--border-subtle)', borderRadius: 5, background: 'var(--bg-subtle)', color: 'var(--text-primary)', width: '100%', minWidth: 0 }} />
                   <input type="number" value={item.quantity ?? 1} onChange={e => updateAiItem(i, 'quantity', e.target.value)} min="0" step="0.01"
                     style={{ fontSize: 12, padding: '3px 4px', border: '1px solid var(--border-subtle)', borderRadius: 5, background: 'var(--bg-subtle)', color: 'var(--text-primary)', width: '100%', fontFamily: 'var(--font-mono)', textAlign: 'right' }} />
@@ -306,7 +295,7 @@ export default function QuickCostSheet({ isOpen, onClose, projectId, onSuccess }
               ))}
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', padding: '7px 10px', background: 'var(--bg-subtle)', borderTop: '2px solid var(--border-subtle)' }}>
-              <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)' }}>Végösszeg</span>
+              <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)' }}>{t('grandTotal')}</span>
               <span style={{ fontSize: 14, fontWeight: 800, color: 'var(--accent)', fontFamily: 'var(--font-mono)' }}>
                 {Number(aiTotal || 0).toLocaleString('hu-HU')} {aiCurr}
               </span>
@@ -316,9 +305,9 @@ export default function QuickCostSheet({ isOpen, onClose, projectId, onSuccess }
       )}
 
       <div>
-        <label style={S.label}>Leírás / megjegyzés</label>
+        <label style={S.label}>{t('descLabel')}</label>
         <div style={{ position: 'relative' }}>
-          <input type="text" className="form-control" placeholder="pl. Tetőcsavarok, gipszkarton, festék" value={invDesc} onChange={e => setInvDesc(e.target.value)} style={{ paddingRight: invDesc ? '2rem' : undefined }} />
+          <input type="text" className="form-control" placeholder={t('descPh')} value={invDesc} onChange={e => setInvDesc(e.target.value)} style={{ paddingRight: invDesc ? '2rem' : undefined }} />
           {invDesc && (
             <button type="button" onClick={() => setInvDesc('')}
               style={{ position: 'absolute', right: '0.5rem', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: '2px', display: 'flex', alignItems: 'center' }}>
@@ -332,10 +321,10 @@ export default function QuickCostSheet({ isOpen, onClose, projectId, onSuccess }
 
   const StepSection = () => (
     <>
-      <h2 style={S.heading}>Melyik szekcióhoz tartozik?</h2>
-      <p style={S.sub}>Opcionális — ha nem számít, maradhat Általános.</p>
+      <h2 style={S.heading}>{t('sectionHeading')}</h2>
+      <p style={S.sub}>{t('sectionSub')}</p>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        {[{ id: '', name: 'Általános', sub: 'Nincs szekcióhoz rendelve' }, ...rooms.map(r => ({ id: r.id, name: r.name, sub: r.size_m2 ? `${r.size_m2} m²` : null }))].map(r => {
+        {[{ id: '', name: t('generalSection'), sub: t('noSection') }, ...rooms.map(r => ({ id: r.id, name: r.name, sub: r.size_m2 ? `${r.size_m2} m²` : null }))].map(r => {
           const active = invRoom === r.id;
           return (
             <button key={r.id} type="button" onClick={() => setInvRoom(r.id)} style={{ ...S.roomBtn, ...(active ? S.roomBtnActive : {}) }}>
@@ -367,17 +356,15 @@ export default function QuickCostSheet({ isOpen, onClose, projectId, onSuccess }
     <>
       <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,.45)', zIndex: 200 }} aria-hidden="true" />
       <div
-        role="dialog" aria-modal="true" aria-label="Kiadás rögzítése"
+        role="dialog" aria-modal="true" aria-label={t('ariaLabel')}
         style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: '#fff', borderRadius: '24px 24px 0 0', zIndex: 201, maxHeight: '92dvh', display: 'flex', flexDirection: 'column' }}
       >
-        {/* Drag handle */}
         <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 12, paddingBottom: 4, flexShrink: 0 }}>
           <div style={{ width: 36, height: 4, borderRadius: 2, background: '#e2e8f0' }} />
         </div>
 
-        {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', padding: '6px 16px 12px', flexShrink: 0, borderBottom: '1px solid #f1f5f9' }}>
-          <span style={{ flex: 1, fontWeight: 800, fontSize: 17, color: '#0f172a' }}>Kiadás rögzítése</span>
+          <span style={{ flex: 1, fontWeight: 800, fontSize: 17, color: '#0f172a' }}>{t('sheetTitle')}</span>
           <button type="button" onClick={onClose} disabled={submitting} style={{ width: 36, height: 36, borderRadius: '50%', border: 'none', background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#64748b' }}>
             <X size={16} />
           </button>
@@ -403,7 +390,6 @@ export default function QuickCostSheet({ isOpen, onClose, projectId, onSuccess }
           })}
         </div>
 
-        {/* Scrollable content */}
         <div style={{ flex: 1, overflowY: 'auto', padding: '4px 20px 8px', WebkitOverflowScrolling: 'touch' }}>
           {error && (
             <div style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', color: 'var(--danger-text)', padding: '0.55rem 0.75rem', borderRadius: 10, fontSize: 13, display: 'flex', gap: 6, marginBottom: 16, alignItems: 'flex-start' }}>
@@ -414,7 +400,6 @@ export default function QuickCostSheet({ isOpen, onClose, projectId, onSuccess }
           <div style={{ height: 8 }} />
         </div>
 
-        {/* Navigation */}
         <div style={{ padding: '12px 16px', paddingBottom: 'calc(12px + env(safe-area-inset-bottom))', flexShrink: 0, borderTop: '1px solid #f1f5f9', display: 'flex', gap: 10 }}>
           {step > 1 && (
             <button type="button" onClick={() => { setError(''); setStep(s => s - 1); }} disabled={submitting}
@@ -425,10 +410,10 @@ export default function QuickCostSheet({ isOpen, onClose, projectId, onSuccess }
           <button type="button" onClick={handleNext} disabled={submitting}
             style={{ flex: 1, height: 54, borderRadius: 14, border: 'none', background: isLast ? '#16a34a' : '#0f172a', color: '#fff', fontSize: 16, fontWeight: 700, cursor: submitting ? 'default' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, opacity: submitting ? 0.75 : 1, transition: 'background 0.2s' }}>
             {submitting
-              ? <><Loader2 size={18} className="animate-spin" /> Mentés...</>
+              ? <><Loader2 size={18} className="animate-spin" /> {t('savingBtn')}</>
               : isLast
-                ? <><Check size={18} /> Kiadás mentése</>
-                : <>Következő <ChevronRight size={18} /></>}
+                ? <><Check size={18} /> {t('saveExpenseBtn')}</>
+                : <>{t('nextBtn')} <ChevronRight size={18} /></>}
           </button>
         </div>
       </div>

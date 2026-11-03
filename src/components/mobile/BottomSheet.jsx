@@ -1,11 +1,13 @@
 'use client';
 
 import React from 'react';
+import { useTranslations } from 'next-intl';
 import { useScrollLock } from '@/hooks/useScrollLock';
 
 import { Trash2, Copy, PenLine, ExternalLink, X, ArrowUpRight } from 'lucide-react';
 
 export default function BottomSheet({ isOpen, onClose, title, subtitle, onOpen, onDuplicate, onRename, onTransfer, onDelete, actions }) {
+  const t = useTranslations('bottomSheet');
   useScrollLock(isOpen);
 
   if (!isOpen) return null;
@@ -46,10 +48,10 @@ export default function BottomSheet({ isOpen, onClose, title, subtitle, onOpen, 
           {subtitle && <div style={{ fontSize: 15, color: 'var(--text-secondary)', lineHeight: '20px', marginTop: 2 }}>{subtitle}</div>}
         </div>
 
-        {onOpen && <Row icon={ExternalLink} label="Megnyitás" onClick={onOpen} />}
-        {onDuplicate && <Row icon={Copy} label="Duplikálás" onClick={onDuplicate} />}
-        {onRename && <Row icon={PenLine} label="Átnevezés" onClick={onRename} />}
-        {onTransfer && <Row icon={ArrowUpRight} label="Áthelyezés kollektívába" onClick={onTransfer} />}
+        {onOpen && <Row icon={ExternalLink} label={t('open')} onClick={onOpen} />}
+        {onDuplicate && <Row icon={Copy} label={t('duplicate')} onClick={onDuplicate} />}
+        {onRename && <Row icon={PenLine} label={t('rename')} onClick={onRename} />}
+        {onTransfer && <Row icon={ArrowUpRight} label={t('transfer')} onClick={onTransfer} />}
 
         {actions?.map((a, i) => (
           <React.Fragment key={i}>
@@ -61,7 +63,7 @@ export default function BottomSheet({ isOpen, onClose, title, subtitle, onOpen, 
         {onDelete && (
           <>
             <div style={{ height: 1, background: 'var(--border-subtle)', margin: '4px 0' }} />
-            <Row icon={Trash2} label="Törlés" onClick={onDelete} danger />
+            <Row icon={Trash2} label={t('delete')} onClick={onDelete} danger />
           </>
         )}
       </div>

@@ -1,7 +1,8 @@
 'use client';
 
 import React from 'react';
-import Link from 'next/link';
+import { useTranslations } from 'next-intl';
+import { Link } from '@/navigation';
 import { ChevronRight, Ruler, Euro, FolderKanban, Contact } from 'lucide-react';
 import TeamBadge from './TeamBadge';
 
@@ -12,16 +13,23 @@ const TYPE_ICONS = {
   ugyfel:    Contact,
 };
 
-const TYPE_META = {
-  felmeres: { label: 'Felmérés', color: '#2563eb', bg: '#eff6ff' },
-  ajanlat:  { label: 'Ajánlat',  color: '#7c3aed', bg: '#f5f3ff' },
-  projekt:  { label: 'Projekt',  color: '#059669', bg: '#ecfdf5' },
-  ugyfel:   { label: 'Ügyfél',   color: '#d97706', bg: '#fffbeb' },
+const TYPE_COLORS = {
+  felmeres: { color: '#2563eb', bg: '#eff6ff' },
+  ajanlat:  { color: '#7c3aed', bg: '#f5f3ff' },
+  projekt:  { color: '#059669', bg: '#ecfdf5' },
+  ugyfel:   { color: '#d97706', bg: '#fffbeb' },
 };
 
 export default function CompactRow({ href, title, meta, type, isShared, isPendingTransfer }) {
-  const Icon = TYPE_ICONS[type] || Folder;
-  const typeMeta = TYPE_META[type];
+  const t = useTranslations('mobile.itemCard');
+  const TYPE_LABELS = {
+    felmeres: t('typeSurvey'),
+    ajanlat:  t('typeQuote'),
+    projekt:  t('typeProject'),
+  };
+  const Icon      = TYPE_ICONS[type];
+  const typeColor = TYPE_COLORS[type];
+  const typeLabel = TYPE_LABELS[type];
 
   return (
     <Link
@@ -30,8 +38,8 @@ export default function CompactRow({ href, title, meta, type, isShared, isPendin
         display: 'flex', alignItems: 'center', gap: 12,
         minHeight: 72, padding: '12px 16px',
         background: '#fff', borderRadius: 16,
-        borderLeft: `4px solid ${typeMeta?.color || '#94a3b8'}`,
-        boxShadow: `0 4px 16px ${typeMeta?.color || '#94a3b8'}28, 0 1px 4px rgba(0,0,0,0.06)`,
+        borderLeft: `4px solid ${typeColor?.color || '#94a3b8'}`,
+        boxShadow: `0 4px 16px ${typeColor?.color || '#94a3b8'}28, 0 1px 4px rgba(0,0,0,0.06)`,
         textDecoration: 'none', color: 'inherit',
         marginBottom: 8,
       }}
@@ -39,10 +47,10 @@ export default function CompactRow({ href, title, meta, type, isShared, isPendin
       {/* Icon chip — colored per type */}
       <div style={{
         width: 44, height: 44, borderRadius: 12,
-        background: typeMeta?.bg || '#f1f5f9', flexShrink: 0,
+        background: typeColor?.bg || '#f1f5f9', flexShrink: 0,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
       }}>
-        <Icon size={22} color={typeMeta?.color || '#475569'} strokeWidth={1.75} aria-hidden="true" />
+        {Icon && <Icon size={22} color={typeColor?.color || '#475569'} strokeWidth={1.75} aria-hidden="true" />}
       </div>
 
       {/* Text */}
@@ -55,13 +63,13 @@ export default function CompactRow({ href, title, meta, type, isShared, isPendin
           {title}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2, flexWrap: 'nowrap', overflow: 'hidden' }}>
-          {typeMeta && (
+          {typeLabel && typeColor && (
             <span style={{
               fontSize: 11, fontWeight: 700, lineHeight: 1,
-              color: typeMeta.color, background: typeMeta.bg,
+              color: typeColor.color, background: typeColor.bg,
               padding: '2px 7px', borderRadius: 999, flexShrink: 0,
             }}>
-              {typeMeta.label}
+              {typeLabel}
             </span>
           )}
           {isShared && <TeamBadge />}

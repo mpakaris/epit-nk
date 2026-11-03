@@ -1,7 +1,7 @@
 'use client';
 
 import { useApp } from '@/context/AppContext';
-import DashboardClient from '@/app/dashboard/DashboardClient';
+import DashboardClient from '@/app/[locale]/dashboard/DashboardClient';
 
 export default function DemoDashboardPage() {
   const { currentUser, activeCollectiveId } = useApp();

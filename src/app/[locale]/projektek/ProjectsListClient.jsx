@@ -1,0 +1,557 @@
+'use client';
+
+import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
+import { Link as LocaleLink } from '@/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { useTranslations } from 'next-intl';
+import { useApp } from '@/context/AppContext';
+import { useTransferRequests } from '@/hooks/useTransferRequests';
+import { calculateProjectFinancials } from '@/lib/calculations';
+import { formatHUF, formatDate } from '@/lib/constants';
+import {
+  FolderKanban, Users, TrendingUp, TrendingDown, CheckCircle2,
+  Plus, AlertCircle, Loader2, Search, X, FileText,
+  User, Clock, PencilLine, ChevronDown, ChevronUp, ChevronLeft,
+} from 'lucide-react';
+import Modal, { ConfirmModal, AlertModal } from '@/components/Modal';
+import TransferToCollectiveModal from '@/components/TransferToCollectiveModal';
+import ClientSelect from '@/components/ClientSelect';
+import CollectiveSelector from '@/components/CollectiveSelector';
+import ItemCard from '@/components/mobile/ItemCard';
+import WorkspaceSectionHeader from '@/components/mobile/WorkspaceSectionHeader';
+import ExpandButton from '@/components/mobile/ExpandButton';
+import useMobile from '@/hooks/useMobile';
+import { collectiveColor } from '@/lib/collectiveColor';
+
+const PREVIEW_COUNT = 3;
+
+export default function ProjectsListClient({
+  personalProjects,
+  sharedProjects,
+  collectives,
+  initialInvoices,
+  initialLabourEntries,
+  initialUsers,
+  initialClients,
+  initialQuotes,
+  currentUser,
+  isAdmin,
+  isSuperAdmin,
+}) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const t = useTranslations('projects');
+  const tForms = useTranslations('forms');
+  const {
+    createClient: ctxCreateClient,
+    deleteProject,
+    quotes: _ctxQuotes,
+    invoices: _ctxInvoices,
+    labourEntries: _ctxLabourEntries,
+    clients: _ctxClients,
+    users: _ctxUsers,
+    activeCollectiveId,
+    dataReady,
+    refreshSupabaseData,
+    isDemoMode,
+  } = useApp();
+
+  const navPrefix = isDemoMode ? '/demo' : '';
+  const AppLink  = isDemoMode ? Link : LocaleLink;
+  const isMobile = useMobile();
+
+  const quotes        = dataReady ? _ctxQuotes        : (initialQuotes || []);
+  const invoices      = dataReady ? _ctxInvoices      : initialInvoices;
+  const labourEntries = dataReady ? _ctxLabourEntries : initialLabourEntries;
+  const clients       = dataReady ? _ctxClients       : (initialClients || []);
+  const users         = dataReady ? _ctxUsers         : initialUsers;
+
+  const [expandPersonal, setExpandPersonal] = useState(false);
+  const [expandShared, setExpandShared]     = useState({});
+  const [confirmDelete, setConfirmDelete]   = useState(null);
+  const [deleteAlert,   setDeleteAlert]     = useState(null);
+  const [deletedIds,    setDeletedIds]      = useState(new Set());
+  const [alertModal,    setAlertModal]      = useState(null);
+  const [transferModal, setTransferModal]   = useState(null);
+  const { outgoingTransfers, addTransfer, retractTransfer } = useTransferRequests({ dataReady, isDemoMode });
+
+  const handleRetract = async (requestId) => {
+    try {
+      await retractTransfer(requestId);
+      setAlertModal({ variant: 'success', title: t('retractedTitle'), message: t('retractedMsg') });
+    } catch (err) {
+      setDeleteAlert(err.message);
+    }
+  };
+
+  const handleTransferSuccess = (result) => {
+    if (result.moved) refreshSupabaseData();
+    else if (result.request) addTransfer(result.request);
+  };
+
+  const handleDelete = (project) => {
+    setConfirmDelete({
+      message: t('deleteConfirmFull', { name: project.name }),
+      onConfirm: async () => {
+        try {
+          await deleteProject(project.id, project);
+          setDeletedIds(prev => new Set([...prev, project.id]));
+          setAlertModal({ variant: 'success', title: t('deleteSuccessTitle'), message: t('deleteSuccessMsg', { name: project.name }) });
+        } catch (err) { setDeleteAlert(err.message || t('deleteError')); }
+      },
+    });
+  };
+
+  // Create modal state
+  const [showCreate, setShowCreate] = useState(false);
+  const [projName, setProjName] = useState('');
+  const [projDesc, setProjDesc] = useState('');
+  const [projStart, setProjStart] = useState('');
+  const [projEnd, setProjEnd] = useState('');
+  const [projClientId, setProjClientId] = useState('');
+  const [projLinkedQuoteId, setProjLinkedQuoteId] = useState('');
+  const [projEntityId, setProjEntityId] = useState(null);
+  const [memberIds, setMemberIds] = useState([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState('');
+
+  const [quoteSearch, setQuoteSearch] = useState('');
+  const [showQuoteDropdown, setShowQuoteDropdown] = useState(false);
+
+  const [showNewClient, setShowNewClient] = useState(false);
+  const [newClientName, setNewClientName] = useState('');
+  const [newClientPhone, setNewClientPhone] = useState('');
+  const [newClientEmail, setNewClientEmail] = useState('');
+  const [newClientAddr, setNewClientAddr] = useState('');
+  const [newClientGdpr, setNewClientGdpr] = useState(false);
+  const [newClientError, setNewClientError] = useState('');
+  const [creatingClient, setCreatingClient] = useState(false);
+
+  const activeCreateEntityId = projEntityId || activeCollectiveId || null;
+  const effectiveCurrentUserId = currentUser?.id;
+
+  useEffect(() => {
+    if (searchParams.get('create') === '1') openCreate();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+
+  const openCreate = () => {
+    setProjName(''); setProjDesc(''); setProjStart(''); setProjEnd('');
+    setProjClientId(''); setProjLinkedQuoteId(''); setProjEntityId(null);
+    setMemberIds(effectiveCurrentUserId ? [effectiveCurrentUserId] : []);
+    setQuoteSearch(''); setShowQuoteDropdown(false);
+    setError('');
+    setShowNewClient(false);
+    setShowCreate(true);
+  };
+
+  const handleQuoteLink = (quoteId) => {
+    setProjLinkedQuoteId(quoteId);
+    if (!quoteId) return;
+    const q = (quotes || []).find(x => x.id === quoteId);
+    if (!q) return;
+    if (q.collective_id) setProjEntityId(q.collective_id);
+    const seed = [...new Set([
+      ...(effectiveCurrentUserId ? [effectiveCurrentUserId] : []),
+      ...(q.shared_with || []),
+    ])];
+    setMemberIds(seed);
+    if (q.title       && !projName)     setProjName(q.title);
+    if (q.description && !projDesc)     setProjDesc(q.description);
+    if (q.start_date  && !projStart)    setProjStart(q.start_date);
+    if (q.end_date    && !projEnd)      setProjEnd(q.end_date);
+    if (q.client_id   && !projClientId) setProjClientId(q.client_id);
+  };
+
+  const clearQuote = () => {
+    setProjLinkedQuoteId('');
+    setQuoteSearch('');
+    setProjName('');
+    setProjDesc('');
+    setProjStart('');
+    setProjEnd('');
+    setProjClientId('');
+  };
+
+  const norm = s => (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+  const filteredQuotes = quoteSearch
+    ? (quotes || []).filter(q => norm(q.title).includes(norm(quoteSearch)) || norm(q.location || '').includes(norm(quoteSearch)))
+    : (quotes || []);
+
+  const handleCreateClient = async (e) => {
+    e.preventDefault();
+    setNewClientError('');
+    if (!newClientName.trim()) { setNewClientError(t('clientNameRequired')); return; }
+    setCreatingClient(true);
+    try {
+      const c = await ctxCreateClient({ name: newClientName.trim(), phone: newClientPhone.trim(), email: newClientEmail.trim(), address: newClientAddr.trim(), entityId: activeCreateEntityId, gdprConsent: newClientGdpr });
+      setProjClientId(c.id);
+      setShowNewClient(false);
+      setNewClientName(''); setNewClientPhone(''); setNewClientEmail(''); setNewClientAddr(''); setNewClientGdpr(false);
+    } catch (err) {
+      setNewClientError(err.message || t('createClientError'));
+    } finally {
+      setCreatingClient(false);
+    }
+  };
+
+  const handleCreate = async (e) => {
+    e.preventDefault();
+    setError('');
+    if (!projClientId) { setError(t('clientRequired')); return; }
+    setIsSubmitting(true);
+    try {
+      const res = await fetch('/api/projects', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: projName, description: projDesc, memberIds, startDate: projStart || null, endDate: projEnd || null, clientId: projClientId || null, collectiveId: activeCreateEntityId, quoteId: projLinkedQuoteId || null }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || t('createError'));
+      await refreshSupabaseData();
+      router.push(`${navPrefix}/projektek/${data.project.id}`);
+    } catch (err) {
+      setError(err.message || t('createError'));
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const toggleMember = (uid) => setMemberIds(prev =>
+    prev.includes(uid) ? prev.filter(id => id !== uid) : [...prev, uid]
+  );
+
+  const canCreate = !!currentUser;
+  const hasCollectives = (collectives || []).length > 0;
+
+  const renderCard = (project) => {
+    const client      = clients.find(c => c.id === project.client_id);
+    const isDone      = !!(project.done_at || project.closed_at);
+    const isOwner     = project.owner_id === currentUser?.id || project.created_by === currentUser?.id;
+    const canTransfer = isOwner && !project.collective_id && hasCollectives && !isDemoMode;
+    const pendingReq  = outgoingTransfers.find(r => r.document_id === project.id);
+    return (
+      <ItemCard
+        key={project.id}
+        href={`${navPrefix}/projektek/${project.id}`}
+        title={project.name}
+        clientName={client?.name}
+        date={project.start_date || project.created_at}
+        status={project.archived_at ? 'inactive' : (project.status === 'closed' || isDone) ? 'kesz' : project.status === 'paused' ? 'paused' : 'folyamatban'}
+        photoUrls={project._preview_urls || []}
+        isShared={!!project.collective_id}
+        role={project.collective_id ? (isOwner ? 'owner' : 'member') : undefined}
+        onDelete={isOwner && !pendingReq ? () => handleDelete(project) : undefined}
+        onTransfer={canTransfer && !pendingReq ? () => setTransferModal({ documentId: project.id, documentTitle: project.name }) : undefined}
+        isPendingTransfer={!!pendingReq}
+        onRetractTransfer={pendingReq ? () => handleRetract(pendingReq.id) : undefined}
+        lockedReason={project.locked_reason || undefined}
+      />
+    );
+  };
+
+  const visiblePersonal = (personalProjects || []).filter(p => !deletedIds.has(p.id));
+  const visibleShared   = (sharedProjects   || []).filter(p => !deletedIds.has(p.id));
+  const allProjects     = [...visiblePersonal, ...visibleShared];
+
+  const sharedByCollective = (collectives || []).map(col => ({
+    ...col,
+    projects: visibleShared.filter(p => p.collective_id === col.id),
+  }));
+
+  return (
+    <div className="container page-body">
+
+      {/* ── Mobile-only header ── */}
+      <div className="list-page-mobile-header" style={{ marginBottom: 20 }}>
+        <div style={{ background: 'linear-gradient(135deg, #34d399 0%, #065f46 100%)', marginLeft: '0.5px', marginRight: '0.5px', padding: '0.35rem 0.85rem 0.5rem', borderRadius: 0, marginBottom: 16 }}>
+          <AppLink
+            href={`${navPrefix}/dashboard`}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,0.65)', textDecoration: 'none', height: 36, marginBottom: 2 }}
+          >
+            <ChevronLeft size={16} strokeWidth={1.75} aria-hidden="true" />
+            {t('homeLink')}
+          </AppLink>
+          <h1 style={{ fontSize: 32, fontWeight: 800, color: '#e5e7eb', letterSpacing: '-0.025em', lineHeight: '38px', margin: 0 }}>
+            {t('pageTitle')}
+          </h1>
+        </div>
+      </div>
+
+      {/* ── Desktop header ── */}
+      <div className="page-header list-page-header">
+        <div className="page-header-row">
+          <h1 className="page-title">{t('pageTitle')}</h1>
+          {canCreate && (
+            <button
+              type="button"
+              onClick={openCreate}
+              aria-label={t('newBtnAriaLabel')}
+              style={{
+                width: 40, height: 40, borderRadius: '50%',
+                background: 'var(--accent)', color: '#fff', border: 'none',
+                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                cursor: 'pointer', flexShrink: 0,
+              }}
+            >
+              <Plus size={22} strokeWidth={2.5} aria-hidden="true" />
+            </button>
+          )}
+        </div>
+      </div>
+
+      {allProjects.length === 0 ? (
+        <div className="card" style={{ textAlign: 'center', padding: '3rem 1.5rem' }}>
+          <FolderKanban size={44} color="var(--text-muted)" style={{ margin: '0 auto 0.75rem' }} aria-hidden="true" />
+          <h3 style={{ fontSize: '1.05rem', fontWeight: 800, marginBottom: '0.35rem' }}>{t('emptyTitle')}</h3>
+          <p style={{ color: 'var(--text-secondary)', maxWidth: '400px', margin: '0 auto 1.25rem', fontSize: '0.875rem' }}>
+            {t('emptyNoProjects')}
+          </p>
+          {canCreate && (
+            <button
+              type="button"
+              onClick={openCreate}
+              aria-label={t('newBtnAriaLabel')}
+              style={{
+                width: 48, height: 48, borderRadius: '50%',
+                background: 'var(--accent)', color: '#fff', border: 'none',
+                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                cursor: 'pointer',
+              }}
+            >
+              <Plus size={24} strokeWidth={2.5} aria-hidden="true" />
+            </button>
+          )}
+        </div>
+      ) : (
+        <>
+          <WorkspaceSectionHeader type="personal" count={visiblePersonal.length} />
+          {visiblePersonal.length === 0 ? (
+            <p style={{ fontSize: '0.825rem', color: 'var(--text-muted)', marginBottom: '1.25rem' }}>{t('noPersonal')}</p>
+          ) : (
+            <>
+              <div className="card-grid">
+                {(expandPersonal ? visiblePersonal : visiblePersonal.slice(0, PREVIEW_COUNT)).map(p => renderCard(p))}
+              </div>
+              <ExpandButton
+                total={visiblePersonal.length}
+                showing={PREVIEW_COUNT}
+                expanded={expandPersonal}
+                onToggle={() => setExpandPersonal(v => !v)}
+              />
+            </>
+          )}
+
+          {sharedByCollective.map((col) => {
+            const colBg = collectiveColor(col.id);
+            const mobileStyle = {
+              marginLeft: '0.5px', marginRight: '0.5px',
+              padding: '1.25rem 0.85rem 1.5rem',
+              background: colBg,
+              borderRadius: '25px 0 25px 0',
+              marginTop: 24, marginBottom: 0,
+            };
+            const desktopStyle = {
+              marginTop: 24,
+              padding: '1.25rem',
+              borderRadius: 'var(--radius-lg)',
+              borderLeft: `4px solid ${colBg}`,
+              boxShadow: `0 4px 16px ${colBg}28, 0 1px 4px rgba(0,0,0,0.06)`,
+              background: '#fff',
+            };
+            return (
+              <div key={col.id} style={isMobile ? mobileStyle : desktopStyle}>
+                <WorkspaceSectionHeader type="collective" name={col.name} count={col.projects.length} light={isMobile} />
+                {col.projects.length === 0 ? (
+                  <p style={{ fontSize: '0.825rem', color: isMobile ? 'rgba(255,255,255,0.6)' : 'var(--text-muted)', marginBottom: 8 }}>{t('noShared')}</p>
+                ) : (
+                  <>
+                    <div className="card-grid">
+                      {(expandShared[col.id] ? col.projects : col.projects.slice(0, PREVIEW_COUNT)).map(p => renderCard(p))}
+                    </div>
+                    <ExpandButton
+                      total={col.projects.length}
+                      showing={PREVIEW_COUNT}
+                      expanded={!!expandShared[col.id]}
+                      onToggle={() => setExpandShared(v => ({ ...v, [col.id]: !v[col.id] }))}
+                      light={isMobile}
+                    />
+                  </>
+                )}
+              </div>
+            );
+          })}
+
+          {!hasCollectives && (
+            <div style={{ marginTop: '2rem', padding: '1rem 1.25rem', borderRadius: 'var(--radius-md)', background: 'var(--bg-subtle)', border: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <Users size={18} color="var(--text-muted)" style={{ flexShrink: 0 }} aria-hidden="true" />
+              <div>
+                <div style={{ fontWeight: 700, fontSize: '0.825rem', marginBottom: '0.15rem' }}>{t('teamNudge')}</div>
+                <div style={{ fontSize: '0.775rem', color: 'var(--text-secondary)' }}>
+                  {t('teamNudgeText')}{' '}
+                  <AppLink href={`${navPrefix}/kollektivak`} style={{ color: 'var(--accent)', fontWeight: 700 }}>{t('collectivesLink')}</AppLink>
+                </div>
+              </div>
+            </div>
+          )}
+        </>
+      )}
+
+      {/* Create project modal */}
+      <Modal isOpen={showCreate} onClose={() => setShowCreate(false)} title={t('newModalTitle')}>
+        {error && (
+          <div style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', color: 'var(--danger-text)', padding: '0.65rem', borderRadius: 'var(--radius-md)', fontSize: '0.825rem', display: 'flex', gap: '0.45rem', marginBottom: '0.85rem' }}>
+            <AlertCircle size={15} style={{ flexShrink: 0 }} /><span>{error}</span>
+          </div>
+        )}
+        <form onSubmit={handleCreate}>
+          <CollectiveSelector value={projEntityId} onChange={setProjEntityId} />
+          <div className="form-group">
+            <label className="form-label">{t('linkedQuoteLabel')} <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>{t('linkedQuoteOptional')}</span></label>
+            {projLinkedQuoteId ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.65rem 1rem', borderRadius: 'var(--radius-md)', background: 'var(--accent-light)', border: '1px solid var(--accent-border)' }}>
+                <FileText size={15} color="var(--accent)" style={{ flexShrink: 0 }} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 700, fontSize: '0.875rem', color: 'var(--accent)' }}>{(quotes || []).find(q => q.id === projLinkedQuoteId)?.title}</div>
+                </div>
+                <button type="button" onClick={clearQuote} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--accent)', padding: '0.2rem', display: 'flex' }}>
+                  <X size={15} />
+                </button>
+              </div>
+            ) : (
+              <div style={{ position: 'relative' }}>
+                <Search size={14} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', pointerEvents: 'none' }} />
+                <input
+                  type="text"
+                  className="form-control"
+                  style={{ paddingLeft: '2.25rem' }}
+                  placeholder={(quotes || []).length === 0 ? t('noQuotesPh') : t('searchQuotesPh')}
+                  disabled={(quotes || []).length === 0}
+                  value={quoteSearch}
+                  onChange={e => { setQuoteSearch(e.target.value); setShowQuoteDropdown(true); }}
+                  onFocus={() => setShowQuoteDropdown(true)}
+                  onBlur={() => setTimeout(() => setShowQuoteDropdown(false), 150)}
+                />
+                {showQuoteDropdown && (quotes || []).length > 0 && (
+                  <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 50, background: '#fff', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', boxShadow: '0 4px 16px rgba(0,0,0,0.1)', maxHeight: '200px', overflowY: 'auto', marginTop: '0.25rem' }}>
+                    {filteredQuotes.length === 0 ? (
+                      <div style={{ padding: '0.85rem 1rem', color: 'var(--text-muted)', fontSize: '0.82rem' }}>{t('noQuoteResults')}</div>
+                    ) : filteredQuotes.map(q => (
+                      <button key={q.id} type="button"
+                        onMouseDown={() => { handleQuoteLink(q.id); setQuoteSearch(''); setShowQuoteDropdown(false); }}
+                        style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '0.1rem', padding: '0.65rem 1rem', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', borderBottom: '1px solid var(--border-subtle)' }}>
+                        <span style={{ fontWeight: 700, fontSize: '0.875rem', color: 'var(--text-primary)' }}>{q.title}</span>
+                        {q.location && <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{q.location}</span>}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+          <div className="form-group">
+            <label className="form-label" htmlFor="mp-name">{t('name')}</label>
+            <input id="mp-name" type="text" className="form-control" required autoFocus value={projName} onChange={e => setProjName(e.target.value)} placeholder={t('namePlaceholder')} />
+          </div>
+          <div className="form-group">
+            <label className="form-label" htmlFor="mp-desc">{t('descLabel')}</label>
+            <textarea id="mp-desc" rows={2} className="form-control" value={projDesc} onChange={e => setProjDesc(e.target.value)} placeholder={t('descPh')} />
+          </div>
+          <div className="form-group">
+            <label className="form-label">{t('clientLabel')}</label>
+            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+              <ClientSelect value={projClientId} onChange={e => setProjClientId(e.target.value)} clients={clients || []} style={{ flex: 1, borderColor: !projClientId ? 'var(--warning-border)' : undefined }} />
+              <button type="button" className="btn btn-secondary btn-sm" style={{ whiteSpace: 'nowrap' }} onClick={() => { setNewClientError(''); setShowNewClient(v => !v); }}>
+                <Plus size={14} /> {t('newClientBtn')}
+              </button>
+            </div>
+            {projClientId && <div style={{ fontSize: '0.78rem', color: 'var(--accent)', fontWeight: 600, marginTop: '0.25rem' }}>✓ {(clients || []).find(c => c.id === projClientId)?.name}</div>}
+          </div>
+          {showNewClient && (
+            <div style={{ border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: '0.85rem', marginBottom: '0.75rem', background: 'var(--bg-subtle)' }}>
+              <div style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '0.65rem' }}>{t('newClientSection')}</div>
+              {newClientError && <div style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', color: 'var(--danger-text)', padding: '0.45rem 0.65rem', borderRadius: 'var(--radius-md)', fontSize: '0.8rem', marginBottom: '0.55rem' }}>{newClientError}</div>}
+              <div>
+                <div className="form-group"><label className="form-label">{tForms('nameLabel')}</label><input type="text" className="form-control" value={newClientName} onChange={e => setNewClientName(e.target.value)} placeholder="Horváth Béla" autoFocus /></div>
+                <div className="grid-2col">
+                  <div className="form-group" style={{ margin: 0 }}><label className="form-label">{tForms('phone')}</label><input type="tel" className="form-control" value={newClientPhone} onChange={e => setNewClientPhone(e.target.value)} /></div>
+                  <div className="form-group" style={{ margin: 0 }}><label className="form-label">{tForms('emailRequired')}</label><input type="email" className="form-control" value={newClientEmail} onChange={e => setNewClientEmail(e.target.value)} /></div>
+                </div>
+                <div className="form-group" style={{ marginTop: '0.65rem' }}><label className="form-label">{tForms('address')}</label><input type="text" className="form-control" value={newClientAddr} onChange={e => setNewClientAddr(e.target.value)} /></div>
+                <label style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', padding: '0.6rem', borderRadius: 'var(--radius-md)', background: '#fff', border: `1px solid ${newClientGdpr ? 'var(--success-border)' : 'var(--border-subtle)'}`, cursor: 'pointer', marginBottom: '0.65rem' }}>
+                  <input type="checkbox" checked={newClientGdpr} onChange={e => setNewClientGdpr(e.target.checked)} style={{ marginTop: '0.15rem', flexShrink: 0, accentColor: 'var(--accent)', width: 14, height: 14 }} />
+                  <span style={{ fontSize: '0.76rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>{t('gdprConsentText')} <span style={{ color: 'var(--danger-text)', fontWeight: 700 }}>*</span></span>
+                </label>
+                <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                  <button type="button" className="btn btn-primary btn-sm" disabled={creatingClient || !newClientGdpr} onClick={handleCreateClient}>
+                    {creatingClient ? <><Loader2 size={13} className="animate-spin" />{t('creatingClientBtn')}</> : t('createClientBtn')}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+          <div className="grid-2col" style={{ marginBottom: '1.25rem' }}>
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label className="form-label" htmlFor="mp-start">{t('startLabel')}</label>
+              <input id="mp-start" type="date" className="form-control" value={projStart} onChange={e => setProjStart(e.target.value)} />
+            </div>
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label className="form-label" htmlFor="mp-end">{t('endLabel')}</label>
+              <input id="mp-end" type="date" className="form-control" min={projStart || undefined} value={projEnd} onChange={e => setProjEnd(e.target.value)} />
+            </div>
+          </div>
+          {activeCreateEntityId && !activeCollectiveId && (
+            <div className="form-group" style={{ marginTop: '0.75rem', marginBottom: '1.25rem' }}>
+              <label className="form-label">{t('membersLabel')}</label>
+              <div style={{ maxHeight: '150px', overflowY: 'auto', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: '0.4rem' }}>
+                {users.map(u => (
+                  <label key={u.id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.35rem 0.45rem', borderRadius: 'var(--radius-sm)', cursor: u.id === currentUser?.id ? 'default' : 'pointer', fontSize: '0.825rem' }}>
+                    <input type="checkbox" checked={memberIds.includes(u.id)} disabled={u.id === currentUser?.id} onChange={() => toggleMember(u.id)} />
+                    <span style={{ fontWeight: 600 }}>{u.display_name}</span>
+                    {u.id === currentUser?.id && <span style={{ fontSize: '0.7rem', color: 'var(--accent)', background: 'var(--accent-light)', borderRadius: 'var(--radius-pill)', padding: '0.05rem 0.4rem', fontWeight: 700 }}>{t('meBadge')}</span>}
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
+          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+            <button type="submit" className="btn btn-primary btn-sm" disabled={isSubmitting}>
+              {isSubmitting ? <><Loader2 size={13} className="animate-spin" />{t('creatingBtn')}</> : t('createBtn')}
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      <ConfirmModal
+        isOpen={!!confirmDelete}
+        onClose={() => setConfirmDelete(null)}
+        onConfirm={() => { confirmDelete?.onConfirm(); setConfirmDelete(null); }}
+        title={t('deleteConfirmTitle')}
+        message={confirmDelete?.message}
+        confirmLabel={t('confirmDeleteLabel')}
+      />
+      <AlertModal
+        isOpen={!!deleteAlert}
+        onClose={() => setDeleteAlert(null)}
+        title={t('errorTitle')}
+        message={deleteAlert}
+      />
+      <AlertModal
+        isOpen={!!alertModal}
+        onClose={() => setAlertModal(null)}
+        variant={alertModal?.variant || 'error'}
+        title={alertModal?.title}
+        message={alertModal?.message}
+      />
+      <TransferToCollectiveModal
+        isOpen={!!transferModal}
+        onClose={() => setTransferModal(null)}
+        documentType="project"
+        documentId={transferModal?.documentId}
+        documentTitle={transferModal?.documentTitle}
+        onSuccess={handleTransferSuccess}
+      />
+    </div>
+  );
+}

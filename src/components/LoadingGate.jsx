@@ -3,14 +3,11 @@
 import { useApp } from '@/context/AppContext';
 import { usePathname } from 'next/navigation';
 import WelcomeModal from '@/components/WelcomeModal';
-
-// Routes that are public — gate is skipped so server-rendered content shows immediately
-// and unauthenticated users don't get stuck on an infinite spinner.
-const PUBLIC_PREFIXES = ['/p/', '/clients/', '/naplo/', '/login', '/change-password', '/szakemberek/', '/invitations/', '/demo', '/portal', '/impressum', '/adatkezeles', '/aszf', '/about', '/checkout-popup-success'];
-const PUBLIC_EXACT = ['/'];
+import OnboardingModal from '@/components/OnboardingModal';
+import { PUBLIC_PREFIXES, PUBLIC_EXACT } from '@/lib/publicRoutes';
 
 export default function LoadingGate({ children }) {
-  const { loading, dataReady, showWelcome } = useApp();
+  const { loading, dataReady, showWelcome, needsOnboarding } = useApp();
   const pathname = usePathname();
   const isPublic = PUBLIC_EXACT.includes(pathname) || PUBLIC_PREFIXES.some(prefix => pathname.startsWith(prefix));
 
@@ -36,7 +33,7 @@ export default function LoadingGate({ children }) {
   return (
     <>
       {children}
-      {showWelcome && <WelcomeModal />}
+      {needsOnboarding ? <OnboardingModal /> : showWelcome ? <WelcomeModal /> : null}
     </>
   );
 }

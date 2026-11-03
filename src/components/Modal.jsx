@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { X, AlertTriangle, AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
 
 function ModalBase({ isOpen, onClose, children, style, persistent }) {
@@ -65,7 +66,7 @@ function ModalBase({ isOpen, onClose, children, style, persistent }) {
   );
 }
 
-export default function Modal({ isOpen, onClose, title, children, maxWidth, maxHeight, persistent, headerRight }) {
+export default function Modal({ isOpen, onClose, title, children, maxWidth, maxHeight, persistent, headerRight, hideClose }) {
   const style = (maxWidth || maxHeight) ? { ...(maxWidth && { maxWidth }), ...(maxHeight && { maxHeight }) } : undefined;
   return (
     <ModalBase isOpen={isOpen} onClose={onClose} style={style} persistent={persistent}>
@@ -75,12 +76,14 @@ export default function Modal({ isOpen, onClose, title, children, maxWidth, maxH
         </h3>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
           {headerRight}
-          <button
-            onClick={onClose}
-            style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', padding: '0.25rem' }}
-          >
-            <X size={20} />
-          </button>
+          {!hideClose && (
+            <button
+              onClick={onClose}
+              style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', padding: '0.25rem' }}
+            >
+              <X size={20} />
+            </button>
+          )}
         </div>
       </div>
       {children}
@@ -88,7 +91,11 @@ export default function Modal({ isOpen, onClose, title, children, maxWidth, maxH
   );
 }
 
-export function ConfirmModal({ isOpen, onClose, onConfirm, title = 'Megerősítés', message, confirmLabel = 'Törlés', cancelLabel = 'Mégse', confirmStyle }) {
+export function ConfirmModal({ isOpen, onClose, onConfirm, title, message, confirmLabel, cancelLabel, confirmStyle }) {
+  const t = useTranslations('common');
+  const effectiveTitle = title ?? t('confirm');
+  const effectiveConfirmLabel = confirmLabel ?? t('delete');
+  const effectiveCancelLabel = cancelLabel ?? t('cancel');
   const [loading, setLoading] = useState(false);
 
   useEffect(() => { if (!isOpen) setLoading(false); }, [isOpen]);
@@ -113,7 +120,7 @@ export function ConfirmModal({ isOpen, onClose, onConfirm, title = 'Megerősít�
         </div>
         <div>
           <h3 style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '0.35rem' }}>
-            {title}
+            {effectiveTitle}
           </h3>
           <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
             {message}
@@ -122,7 +129,7 @@ export function ConfirmModal({ isOpen, onClose, onConfirm, title = 'Megerősít�
       </div>
       <div style={{ display: 'flex', gap: '0.65rem', justifyContent: 'flex-end' }}>
         <button className="btn btn-secondary btn-sm" onClick={onClose} disabled={loading}>
-          {cancelLabel}
+          {effectiveCancelLabel}
         </button>
         <button
           className="btn btn-sm"
@@ -131,8 +138,8 @@ export function ConfirmModal({ isOpen, onClose, onConfirm, title = 'Megerősít�
           disabled={loading}
         >
           {loading
-            ? <><Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> {confirmLabel}…</>
-            : confirmLabel}
+            ? <><Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> {effectiveConfirmLabel}…</>
+            : effectiveConfirmLabel}
         </button>
       </div>
     </ModalBase>
@@ -140,13 +147,14 @@ export function ConfirmModal({ isOpen, onClose, onConfirm, title = 'Megerősít�
 }
 
 export function AlertModal({ isOpen, onClose, title, message, variant = 'error', action }) {
+  const t = useTranslations('common');
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
 
   useEffect(() => {
     if (!isOpen || action) return; // don't auto-dismiss if there's an action button
-    const t = setTimeout(() => onCloseRef.current(), 5000);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => onCloseRef.current(), 5000);
+    return () => clearTimeout(timer);
   }, [isOpen, action]);
 
   const isSuccess = variant === 'success';
@@ -154,7 +162,7 @@ export function AlertModal({ isOpen, onClose, title, message, variant = 'error',
   const Icon = isSuccess ? CheckCircle2 : isWarning ? AlertTriangle : AlertCircle;
   const iconColor = isSuccess ? 'var(--success-text)' : isWarning ? 'var(--warning-text)' : 'var(--danger-text)';
   const iconBg   = isSuccess ? 'var(--success-bg)'   : isWarning ? 'var(--warning-bg)'   : 'var(--danger-bg)';
-  const defaultTitle = isSuccess ? 'Sikeres művelet' : isWarning ? 'Figyelem' : 'Hiba történt';
+  const defaultTitle = isSuccess ? t('success') : isWarning ? t('warning') : t('error');
 
   return (
     <ModalBase isOpen={isOpen} onClose={onClose} style={{ maxWidth: '420px' }}>
@@ -173,7 +181,7 @@ export function AlertModal({ isOpen, onClose, title, message, variant = 'error',
       </div>
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
         <button className="btn btn-secondary btn-sm" onClick={onClose}>
-          OK
+          {t('ok')}
         </button>
         {action && (
           action.onClick

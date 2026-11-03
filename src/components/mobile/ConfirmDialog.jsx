@@ -1,9 +1,11 @@
 'use client';
 
 import React from 'react';
+import { useTranslations } from 'next-intl';
 import { useScrollLock } from '@/hooks/useScrollLock';
 
 export default function ConfirmDialog({ isOpen, onClose, onConfirm, title, body, isShared }) {
+  const t = useTranslations('mobile.confirmDialog');
   useScrollLock(isOpen);
 
   if (!isOpen) return null;
@@ -32,7 +34,7 @@ export default function ConfirmDialog({ isOpen, onClose, onConfirm, title, body,
           {body}
           {isShared && (
             <span style={{ display: 'block', marginTop: 8, fontWeight: 600, color: '#92400e' }}>
-              Ez az egész csapat számára törlődik.
+              {t('isShared')}
             </span>
           )}
         </div>
@@ -46,7 +48,7 @@ export default function ConfirmDialog({ isOpen, onClose, onConfirm, title, body,
               fontSize: 17, fontWeight: 700, cursor: 'pointer',
             }}
           >
-            Igen, törlés
+            {t('confirm')}
           </button>
           <button
             type="button"
@@ -57,7 +59,7 @@ export default function ConfirmDialog({ isOpen, onClose, onConfirm, title, body,
               fontSize: 17, fontWeight: 700, cursor: 'pointer',
             }}
           >
-            Mégse
+            {t('cancel')}
           </button>
         </div>
       </div>

@@ -1,9 +1,11 @@
 'use client';
 
 import React, { useEffect } from 'react';
+import { NextIntlClientProvider } from 'next-intl';
 import { DemoProvider } from '@/context/DemoContext';
 import DemoBanner from '@/components/demo/DemoBanner';
 import Sidebar from '@/components/Sidebar';
+import huMessages from '../../../messages/hu.json';
 
 const BANNER_H = 40; // px — matches DemoBanner's rendered height
 
@@ -58,8 +60,10 @@ function DemoShell({ children }) {
 
 export default function DemoLayout({ children }) {
   return (
-    <DemoProvider>
-      <DemoShell>{children}</DemoShell>
-    </DemoProvider>
+    <NextIntlClientProvider locale="hu" messages={huMessages}>
+      <DemoProvider>
+        <DemoShell>{children}</DemoShell>
+      </DemoProvider>
+    </NextIntlClientProvider>
   );
 }

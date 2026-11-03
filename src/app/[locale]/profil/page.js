@@ -1,0 +1,1531 @@
+'use client';
+
+import React, { useState, useEffect, useRef } from 'react';
+import { useRouter } from '@/navigation';
+import { useTranslations } from 'next-intl';
+import { useApp } from '@/context/AppContext';
+import {
+  User, KeyRound, LogOut, CheckCircle2, AlertCircle, Loader2,
+  FileText, Upload, Trash2, Check, Zap, Star, Clock, Building2, X,
+  ShieldCheck, Mail, ChevronRight, AlertTriangle, RefreshCw, CreditCard,
+  Globe, Lock,
+} from 'lucide-react';
+import Link from 'next/link';
+import { Link as LocaleLink } from '@/navigation';
+import { isEffectivePremium } from '@/lib/subscriptionLimits';
+import Modal, { AlertModal } from '@/components/Modal';
+import useMobile from '@/hooks/useMobile';
+
+// ── Pricing plans ─────────────────────────────────────────────────────────────
+// PLANS is built inside the component via getPlans(t) so strings are translated
+
+function UpgradeModal({ status, onClose, t, tc }) {
+  const canvasRef = useRef(null);
+
+  useEffect(() => {
+    if (status !== 'success' || !canvasRef.current) return;
+    const colors = ['#2563eb', '#b45309', '#16a34a', '#9333ea'];
+    import('canvas-confetti').then(m => {
+      const fire = m.default.create(canvasRef.current, { resize: true });
+      fire({ particleCount: 80, spread: 90, origin: { y: 0.55 }, colors });
+      setTimeout(() => {
+        fire({ particleCount: 50, angle: 60, spread: 60, origin: { x: 0, y: 0.6 }, colors });
+        fire({ particleCount: 50, angle: 120, spread: 60, origin: { x: 1, y: 0.6 }, colors });
+      }, 300);
+      setTimeout(() => {
+        fire({ particleCount: 30, spread: 100, origin: { y: 0.5 }, colors });
+      }, 700);
+    });
+  }, [status]);
+
+  if (!status) return null;
+  const isSuccess = status === 'success';
+
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 9999,
+      background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem',
+    }}>
+      {isSuccess && (
+        <canvas ref={canvasRef} style={{
+          position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none',
+        }} />
+      )}
+      <div style={{
+        position: 'relative', zIndex: 1,
+        background: 'var(--bg-card, #fff)', borderRadius: 'var(--radius-lg)', padding: '2.5rem 2rem',
+        maxWidth: 440, width: '100%', textAlign: 'center',
+        boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
+      }}>
+        <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>
+          {isSuccess ? '🎉' : '😔'}
+        </div>
+        <h2 style={{ margin: '0 0 0.6rem', fontSize: '1.25rem', fontWeight: 900, color: 'var(--text-primary)' }}>
+          {isSuccess ? t('upgradeSuccessTitle') : t('upgradeErrorTitle')}
+        </h2>
+        <p style={{ margin: '0 0 1.75rem', fontSize: '0.9rem', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+          {isSuccess ? t('upgradeSuccessDesc') : t('upgradeErrorDesc')}
+        </p>
+        <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+          {isSuccess ? (
+            <button className="btn btn-primary" onClick={onClose}>
+              {t('continueBtn')}
+            </button>
+          ) : (
+            <>
+              <button className="btn btn-secondary" onClick={onClose}>
+                {tc('back')}
+              </button>
+              <a href="mailto:info@epitunk.hu" className="btn btn-primary">
+                {t('contactBtn')}
+              </a>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SectionHeader({ title, subtitle }) {
+  return (
+    <div style={{ marginBottom: '0.75rem' }}>
+      <h2 style={{ fontSize: '0.95rem', fontWeight: 800, margin: 0 }}>{title}</h2>
+      {subtitle && <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '0.2rem 0 0' }}>{subtitle}</p>}
+    </div>
+  );
+}
+
+function getInitials(name) {
+  return (name || '?').split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase();
+}
+
+const DEMO_PROFILE = {
+  display_name:        'Nemes Péter',
+  first_name:          'Péter',
+  last_name:           'Nemes',
+  company_name:        'Nemes Renováló Kft.',
+  street:              'Alkotás utca',
+  street_number:       '15',
+  zip:                 '1124',
+  city:                'Budapest',
+  tax_number:          '99887766-2-43',
+  default_tax_percent: 27,
+};
+
+export default function ProfilPage() {
+  const { currentUser, logout, changePassword, isDemoMode, refreshSupabaseData, collectives, updateDisplayName } = useApp();
+  const router = useRouter();
+  const t = useTranslations('profile');
+  const tc = useTranslations('common');
+  const navPrefix = isDemoMode ? '/demo' : '';
+
+  const PLANS = [
+    {
+      key: 'basic',
+      name: t('planBasicName'),
+      price: t('planFree'),
+      priceNote: t('planFreeNote'),
+      icon: Zap,
+      color: 'var(--text-muted)',
+      features: t.raw('planBasicFeatures'),
+    },
+    {
+      key: 'premium',
+      name: t('planPremiumName'),
+      price: '€17.50',
+      priceHuf: '≈ 6 999 Ft',
+      priceNote: t('subPerMonthVat'),
+      icon: Star,
+      color: '#b45309',
+      highlight: true,
+      productId: process.env.NEXT_PUBLIC_CREEM_PREMIUM_PRODUCT_ID,
+      features: t.raw('planPremiumFeatures'),
+      cta: t('planPremiumCta'),
+    },
+  ];
+  const AppLink = isDemoMode ? Link : LocaleLink;
+  const isMobile = useMobile();
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    // Step 2: clean page after reload — read result but DON'T clear yet (StrictMode safe)
+    const stored = sessionStorage.getItem('creem_upgrade_result');
+    if (stored) {
+      try { setUpgradeModal(JSON.parse(stored)); } catch {}
+      return;
+    }
+
+    // Step 1: Creem redirected here with ?upgraded=1 params
+    const params = new URLSearchParams(window.location.search);
+    if (!params.has('upgraded')) return;
+
+    // Clean URL immediately so StrictMode's second run finds nothing and exits
+    window.history.replaceState({}, '', '/profil');
+
+    const subscriptionId = params.get('subscription_id');
+    const customerId = params.get('customer_id');
+    const productId = params.get('product_id');
+
+    const finish = (status) => {
+      sessionStorage.setItem('creem_upgrade_result', JSON.stringify({ status, productId: productId ?? null }));
+      window.location.replace('/profil');
+    };
+
+    if (subscriptionId) {
+      fetch('/api/checkout/activate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ subscriptionId, customerId }),
+      })
+        .then(res => finish(res.ok ? 'success' : 'error'))
+        .catch(() => finish('error'));
+    } else {
+      finish('error');
+    }
+  }, []);
+
+  const [upgradeModal, setUpgradeModal] = useState(null);
+  const [checkoutIframeUrl, setCheckoutIframeUrl] = useState(null);
+
+  const isPremium = currentUser?.is_subscription_premium ?? false;
+  const isOnTrial = !isPremium
+    && currentUser?.subscription_tier === 'trial'
+    && currentUser?.trial_ends_at
+    && new Date(currentUser.trial_ends_at) > new Date();
+  const effectivePremium = isEffectivePremium(currentUser ?? {});
+  const trialDaysLeft = isOnTrial
+    ? Math.max(0, Math.ceil((new Date(currentUser.trial_ends_at) - new Date()) / 86400000))
+    : 0;
+
+  const [loadingPlan, setLoadingPlan] = useState(null);
+  const [checkoutError, setCheckoutError] = useState('');
+  const [portalLoading, setPortalLoading] = useState(false);
+  const [portalError, setPortalError] = useState('');
+  const [premiumSubId, setPremiumSubId] = useState(null);
+  const [collectiveSubs, setCollectiveSubs] = useState([]); // owned paid collective subs
+  const [cancelCollectiveModal, setCancelCollectiveModal] = useState(null); // { collective_id, name, creem_subscription_id, members_count }
+  const [cancelingCollective, setCancelingCollective] = useState(false);
+  const [premiumIsScheduledCancel, setPremiumIsScheduledCancel] = useState(false);
+  const [premiumCancelAt,  setPremiumCancelAt]  = useState(null); // ISO — set when scheduled_cancel
+  const [premiumRenewalAt, setPremiumRenewalAt] = useState(null); // ISO — set when active
+  const [cancelPremiumModal, setCancelPremiumModal] = useState(false);
+  const [cancelingPremium, setCancelingPremium] = useState(false);
+  const [resumingPremium, setResumingPremium] = useState(false);
+  const [alertModal, setAlertModal] = useState(null); // { title, message, variant }
+  const [cancelSuccessModal, setCancelSuccessModal] = useState(null); // { premiumPeriodEnd, canceledCollectives }
+
+  const [scheduledDeletionAt, setScheduledDeletionAt] = useState(null);
+  const [cancelingDeletion, setCancelingDeletion] = useState(false);
+
+  const doOpenPortal = async () => {
+    setPortalLoading(true);
+    setPortalError('');
+    try {
+      const res = await fetch('/api/billing/portal');
+      const data = await res.json();
+      if (data.portalUrl) {
+        window.open(data.portalUrl, '_blank', 'noopener,noreferrer');
+      } else {
+        setPortalError(data.error || 'Nem sikerült megnyitni az előfizetés-kezelő felületet.');
+      }
+    } catch {
+      setPortalError('Hiba a kapcsolódás során. Kérjük, próbáld újra.');
+    } finally {
+      setPortalLoading(false);
+    }
+  };
+
+  const handleOpenPortal = () => doOpenPortal();
+
+  const handleCancelPremium = async () => {
+    if (!premiumSubId) {
+      setAlertModal({ variant: 'error', title: 'Hiba', message: 'Nem található előfizetés-azonosító. Kérjük, vedd fel a kapcsolatot az üzemeltetővel.' });
+      return;
+    }
+    setCancelingPremium(true);
+    try {
+      const res = await fetch('/api/subscriptions/cancel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ subscriptionId: premiumSubId }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setCancelPremiumModal(false);
+        const periodEnd = data.subscription_period_end ?? null;
+        setPremiumIsScheduledCancel(true);
+        setPremiumCancelAt(periodEnd);
+        setCancelSuccessModal({
+          premiumPeriodEnd: periodEnd,
+          canceledCollectives: data.canceled_collectives ?? [],
+        });
+      } else {
+        setAlertModal({ variant: 'error', title: 'Hiba', message: data.error || 'Lemondás sikertelen.' });
+      }
+    } catch {
+      alert('Hiba a kapcsolódás során.');
+    } finally {
+      setCancelingPremium(false);
+    }
+  };
+
+  const handleResumePremium = async () => {
+    if (!premiumSubId) {
+      setAlertModal({ variant: 'error', title: 'Hiba', message: 'Nem található előfizetés-azonosító. Kérjük, vedd fel a kapcsolatot az üzemeltetővel.' });
+      return;
+    }
+    setResumingPremium(true);
+    try {
+      const res = await fetch('/api/subscriptions/resume', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ subscriptionId: premiumSubId }),
+      });
+      if (res.ok) {
+        setPremiumIsScheduledCancel(false);
+        setPremiumCancelAt(null);
+        setAlertModal({
+          variant: 'success',
+          title: t('resumeSuccessTitle'),
+          message: t('resumeSuccessMsg'),
+        });
+      } else {
+        const data = await res.json();
+        setAlertModal({ variant: 'error', title: tc('error'), message: data.error || t('resumeErrorMsg') });
+      }
+    } catch {
+      alert('Hiba a kapcsolódás során.');
+    } finally {
+      setResumingPremium(false);
+    }
+  };
+
+  const handleCancelCollective = async () => {
+    if (!cancelCollectiveModal) return;
+    setCancelingCollective(true);
+    try {
+      const res = await fetch('/api/subscriptions/cancel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          subscriptionId: cancelCollectiveModal.creem_subscription_id,
+          collectiveId:   cancelCollectiveModal.collective_id,
+        }),
+      });
+      const data = await res.json();
+      setCancelCollectiveModal(null);
+      if (res.ok) {
+        const periodEnd = data.subscription_period_end ?? null;
+        setCollectiveSubs(prev => prev.map(c =>
+          c.collective_id === cancelCollectiveModal.collective_id
+            ? { ...c, subscription_status: 'scheduled_cancel', subscription_period_end: periodEnd }
+            : c
+        ));
+        const endStr = periodEnd
+          ? new Date(periodEnd).toLocaleDateString('en-GB', { year: 'numeric', month: 'long', day: 'numeric' })
+          : null;
+        setAlertModal({ variant: 'success', title: 'Subscription canceled', message: endStr ? `"${cancelCollectiveModal.name}" remains active until ${endStr}.` : `"${cancelCollectiveModal.name}" subscription canceled.` });
+      } else {
+        setAlertModal({ variant: 'error', title: 'Error', message: data.error || 'Cancellation failed.' });
+      }
+    } catch {
+      setAlertModal({ variant: 'error', title: 'Error', message: 'Network error. Please try again.' });
+    } finally {
+      setCancelingCollective(false);
+    }
+  };
+
+  const handleCheckout = async (plan) => {
+    if (!plan.productId) return;
+    setLoadingPlan(plan.key);
+    setCheckoutError('');
+
+    let checkoutUrl;
+    try {
+      const res = await fetch('/api/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ productId: plan.productId, successUrl: isMobile ? '/checkout-popup-success?checkout_type=premium' : '/profil' }),
+      });
+      const data = await res.json();
+      if (!data.checkoutUrl) {
+        setCheckoutError(data.error || 'Hiba történt a fizetési folyamat indításakor. Kérjük, próbáld újra.');
+        setLoadingPlan(null);
+        return;
+      }
+      checkoutUrl = data.checkoutUrl;
+    } catch {
+      setCheckoutError('Hiba történt a fizetési folyamat indításakor. Kérjük, próbáld újra.');
+      setLoadingPlan(null);
+      return;
+    }
+
+    const productId = plan.productId;
+
+    if (isMobile) {
+      // Mobile: bottom sheet drawer with iframe, result via storage event
+      const handleSuccess = async (data) => {
+        window.removeEventListener('storage', onStorage);
+        window.removeEventListener('message', onMessage);
+        setCheckoutIframeUrl(null);
+        localStorage.removeItem('creem_checkout_done');
+        try {
+          const res = await fetch('/api/checkout/activate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ subscriptionId: data.subscriptionId, customerId: data.customerId }),
+          });
+          setUpgradeModal({ status: res.ok ? 'success' : 'error', productId: data.productId ?? productId });
+          if (res.ok) refreshSupabaseData();
+        } catch {
+          setUpgradeModal({ status: 'error', productId });
+        }
+        setLoadingPlan(null);
+      };
+      const onStorage = (e) => {
+        if (e.key !== 'creem_checkout_done') return;
+        let data; try { data = JSON.parse(e.newValue); } catch { return; }
+        if (data?.checkoutType !== 'premium') return;
+        handleSuccess(data);
+      };
+      const onMessage = (e) => {
+        if (e.origin !== window.location.origin) return;
+        if (e.data?.type !== 'creem_checkout_success') return;
+        if (e.data?.checkoutType !== 'premium') return;
+        handleSuccess(e.data);
+      };
+      window.addEventListener('storage', onStorage);
+      window.addEventListener('message', onMessage);
+      setCheckoutIframeUrl(checkoutUrl);
+    } else {
+      // Desktop: open new tab, Creem redirects back to /profil?upgraded=1
+      // The existing useEffect handles activation automatically
+      window.open(checkoutUrl, '_blank', 'noopener,noreferrer');
+      setLoadingPlan(null);
+    }
+  };
+
+  // ── Profile form ────────────────────────────────────────────────────────────
+  const [displayName,   setDisplayName]   = useState('');
+  const [firstName,     setFirstName]     = useState('');
+  const [lastName,      setLastName]      = useState('');
+  const [companyName,   setCompanyName]   = useState('');
+  const [street,        setStreet]        = useState('');
+  const [streetNumber,  setStreetNumber]  = useState('');
+  const [zip,           setZip]           = useState('');
+  const [city,          setCity]          = useState('');
+  const [taxNumber,     setTaxNumber]     = useState('');
+  const [defaultTaxPct, setDefaultTaxPct] = useState('27');
+  const [phone,             setPhone]             = useState('');
+  const [bankAccount,       setBankAccount]       = useState('');
+  const [bankName,          setBankName]          = useState('');
+  const [offerValidityDays, setOfferValidityDays] = useState('30');
+  const [offerTermsText,    setOfferTermsText]    = useState('');
+  const [paymentDeadlineDays, setPaymentDeadlineDays] = useState('8');
+  const [paymentMethod,       setPaymentMethod]       = useState('banki átutalás');
+  const [depositPercent,      setDepositPercent]      = useState('0');
+  const [warrantyMonths,      setWarrantyMonths]      = useState('0');
+  const [loadingProfile, setLoadingProfile] = useState(true);
+  const [saving,  setSaving]  = useState(false);
+  const [saveOk,  setSaveOk]  = useState(false);
+  const [saveErr, setSaveErr] = useState('');
+
+  // ── Password form ───────────────────────────────────────────────────────────
+  const [pwOpen,    setPwOpen]    = useState(false);
+  const [pw,        setPw]        = useState('');
+  const [pwConfirm, setPwConfirm] = useState('');
+  const [pwSaving,  setPwSaving]  = useState(false);
+  const [pwOk,      setPwOk]      = useState(false);
+  const [pwErr,     setPwErr]     = useState('');
+
+  // ── Terms PDF ───────────────────────────────────────────────────────────────
+  const [termsPdfUrl,        setTermsPdfUrl]        = useState(null);
+  const [termsPdfName,       setTermsPdfName]       = useState(null);
+  const [termsPdfUploadedAt, setTermsPdfUploadedAt] = useState(null);
+  const [uploadingPdf,       setUploadingPdf]       = useState(false);
+  const [pdfError,           setPdfError]           = useState('');
+  const pdfInputRef = useRef(null);
+
+  // ── Language preference ──────────────────────────────────────────────────────
+  const [savingLocale,  setSavingLocale]  = useState(false);
+  const [localeOk,      setLocaleOk]      = useState(false);
+
+  // ── Account deletion ────────────────────────────────────────────────────────
+  const [deleteOpen,    setDeleteOpen]    = useState(false);
+  const [deleteText,    setDeleteText]    = useState('');
+  const [deleteErr,     setDeleteErr]     = useState('');
+  const [deleting,      setDeleting]      = useState(false);
+
+  useEffect(() => {
+    if (isDemoMode) {
+      const p = DEMO_PROFILE;
+      setDisplayName(p.display_name);
+      setFirstName(p.first_name);
+      setLastName(p.last_name);
+      setCompanyName(p.company_name);
+      setStreet(p.street);
+      setStreetNumber(p.street_number);
+      setZip(p.zip);
+      setCity(p.city);
+      setTaxNumber(p.tax_number);
+      setDefaultTaxPct(String(p.default_tax_percent));
+      setLoadingProfile(false);
+      return;
+    }
+    fetch('/api/auth/profile')
+      .then(r => r.json())
+      .then(({ profile, premiumSub, ownedCollectiveSubs }) => {
+        if (!profile) return;
+        setCollectiveSubs(ownedCollectiveSubs ?? []);
+        setDisplayName(profile.display_name       || '');
+        setFirstName(profile.first_name           || '');
+        setLastName(profile.last_name             || '');
+        setCompanyName(profile.company_name       || '');
+        setStreet(profile.street                  || '');
+        setStreetNumber(profile.street_number     || '');
+        setZip(profile.zip                        || '');
+        setCity(profile.city                      || '');
+        setTaxNumber(profile.tax_number           || '');
+        setDefaultTaxPct(profile.default_tax_percent != null ? String(profile.default_tax_percent) : '27');
+        setPhone(profile.phone                             || '');
+        setBankAccount(profile.bank_account                || '');
+        setBankName(profile.bank_name                      || '');
+        setOfferValidityDays(profile.offer_validity_days != null ? String(profile.offer_validity_days) : '30');
+        setOfferTermsText(profile.offer_terms_text         || '');
+        setPaymentDeadlineDays(profile.payment_deadline_days != null ? String(profile.payment_deadline_days) : '8');
+        setPaymentMethod(profile.payment_method            || 'banki átutalás');
+        setDepositPercent(profile.deposit_percent != null ? String(profile.deposit_percent) : '0');
+        setWarrantyMonths(profile.warranty_months != null ? String(profile.warranty_months) : '0');
+        setTermsPdfUrl(profile.terms_pdf_url               || null);
+        setTermsPdfName(profile.terms_pdf_name             || null);
+        setTermsPdfUploadedAt(profile.terms_pdf_uploaded_at || null);
+        setScheduledDeletionAt(profile.scheduled_deletion_at || null);
+        setPremiumSubId(premiumSub?.creem_subscription_id || null);
+        setPremiumIsScheduledCancel(premiumSub?.status === 'scheduled_cancel');
+        setPremiumCancelAt(premiumSub?.status === 'scheduled_cancel' ? (premiumSub.period_end || null) : null);
+        setPremiumRenewalAt(premiumSub?.status !== 'scheduled_cancel' ? (premiumSub?.period_end || null) : null);
+      })
+      .finally(() => setLoadingProfile(false));
+  }, [isDemoMode]);
+
+  const [nameSaving, setNameSaving] = useState(false);
+  const [nameOk, setNameOk] = useState(false);
+  const [nameErr, setNameErr] = useState('');
+
+  const handleSaveName = async () => {
+    if (!displayName.trim()) { setNameErr('A megjelenítési név nem lehet üres.'); return; }
+    setNameSaving(true); setNameErr(''); setNameOk(false);
+    try {
+      const res = await fetch('/api/auth/profile', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ display_name: displayName.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Hiba a mentéskor');
+      updateDisplayName(displayName.trim());
+      setNameOk(true);
+      setTimeout(() => setNameOk(false), 3000);
+    } catch (err) { setNameErr(err.message); }
+    finally { setNameSaving(false); }
+  };
+
+  const handleSaveProfile = async (e) => {
+    e.preventDefault();
+    setSaving(true); setSaveErr(''); setSaveOk(false);
+    try {
+      const res = await fetch('/api/auth/profile', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          display_name:        displayName.trim()   || null,
+          first_name:          firstName.trim()     || null,
+          last_name:           lastName.trim()      || null,
+          company_name:        companyName.trim()   || null,
+          street:              street.trim()        || null,
+          street_number:       streetNumber.trim()  || null,
+          zip:                 zip.trim()           || null,
+          city:                city.trim()          || null,
+          tax_number:          taxNumber.trim()     || null,
+          default_tax_percent: defaultTaxPct !== '' ? Number(defaultTaxPct) : 27,
+          phone:               phone.trim()         || null,
+          bank_account:        bankAccount.trim()   || null,
+          bank_name:           bankName.trim()      || null,
+          offer_validity_days:   offerValidityDays !== '' ? Number(offerValidityDays) : 30,
+          offer_terms_text:      offerTermsText.trim() || null,
+          payment_deadline_days: paymentDeadlineDays !== '' ? Number(paymentDeadlineDays) : 8,
+          payment_method:        paymentMethod.trim() || null,
+          deposit_percent:       depositPercent !== '' ? Number(depositPercent) : 0,
+          warranty_months:       warrantyMonths !== '' ? Number(warrantyMonths) : 0,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Hiba a mentéskor');
+      setSaveOk(true);
+      setTimeout(() => setSaveOk(false), 3000);
+    } catch (err) { setSaveErr(err.message); }
+    finally { setSaving(false); }
+  };
+
+  const handleChangePassword = async (e) => {
+    e.preventDefault();
+    setPwErr(''); setPwOk(false);
+    if (pw.length < 8) { setPwErr('A jelszónak legalább 8 karakterből kell állnia!'); return; }
+    if (!/[A-Z]/.test(pw)) { setPwErr('A jelszónak tartalmaznia kell legalább 1 nagybetűt!'); return; }
+    if (!/[0-9]/.test(pw)) { setPwErr('A jelszónak tartalmaznia kell legalább 1 számot!'); return; }
+    if (!/[^A-Za-z0-9]/.test(pw)) { setPwErr('A jelszónak tartalmaznia kell legalább 1 speciális karaktert!'); return; }
+    if (pw !== pwConfirm) { setPwErr('A jelszavak nem egyeznek!'); return; }
+    setPwSaving(true);
+    try {
+      await changePassword(pw);
+      setPwOk(true);
+      setPw(''); setPwConfirm('');
+      setTimeout(() => { setPwOk(false); setPwOpen(false); }, 2500);
+    } catch (err) { setPwErr(err.message || 'Hiba a jelszóváltoztatáskor'); }
+    finally { setPwSaving(false); }
+  };
+
+  const handlePdfUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setPdfError(''); setUploadingPdf(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const res = await fetch('/api/auth/profile/terms-pdf', { method: 'POST', body: fd });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Hiba a feltöltéskor');
+      setTermsPdfUrl(data.terms_pdf_url);
+      setTermsPdfName(data.terms_pdf_name);
+      setTermsPdfUploadedAt(data.terms_pdf_uploaded_at || null);
+    } catch (err) { setPdfError(err.message); }
+    finally { setUploadingPdf(false); e.target.value = ''; }
+  };
+
+  const handlePdfDelete = async () => {
+    setPdfError(''); setUploadingPdf(true);
+    try {
+      const res = await fetch('/api/auth/profile/terms-pdf', { method: 'DELETE' });
+      if (!res.ok) throw new Error('Hiba a törléskor');
+      setTermsPdfUrl(null); setTermsPdfName(null); setTermsPdfUploadedAt(null);
+    } catch (err) { setPdfError(err.message); }
+    finally { setUploadingPdf(false); }
+  };
+
+  const handleSaveLocale = async (newLocale) => {
+    if (savingLocale || newLocale === currentUser?.locale) return;
+    setSavingLocale(true);
+    try {
+      const res = await fetch('/api/auth/profile', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ locale: newLocale }),
+      });
+      if (!res.ok) return;
+      // Sync cookie so next-intl picks up the change on next navigation
+      document.cookie = `NEXT_LOCALE=${newLocale};path=/;max-age=31536000;SameSite=Lax`;
+      // Switch app locale via next-intl router (re-renders with new messages)
+      router.replace('/profil', { locale: newLocale });
+      setLocaleOk(true);
+      setTimeout(() => setLocaleOk(false), 2500);
+    } finally {
+      setSavingLocale(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    setDeleting(true); setDeleteErr('');
+    try {
+      const res = await fetch('/api/auth/account', { method: 'DELETE' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setDeleteOpen(false);
+      setDeleteText('');
+      logout();
+    } catch (err) { setDeleteErr(err.message || 'Hiba történt.'); }
+    finally { setDeleting(false); }
+  };
+
+  const handleCancelDeletion = async () => {
+    setCancelingDeletion(true);
+    try {
+      const res = await fetch('/api/auth/account', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cancel_deletion: true }),
+      });
+      if (res.ok) {
+        setScheduledDeletionAt(null);
+      } else {
+        const data = await res.json();
+        setDeleteErr(data.error || 'Hiba a visszavonáskor.');
+      }
+    } catch {
+      setDeleteErr('Hiba a kapcsolódás során.');
+    } finally {
+      setCancelingDeletion(false);
+    }
+  };
+
+  if (loadingProfile) return (
+    <div className="container" style={{ padding: '2rem' }}>
+      <Loader2 size={20} className="animate-spin" />
+    </div>
+  );
+
+  const initials = getInitials(displayName || currentUser?.display_name);
+
+  return (
+    <div className="container" style={{ maxWidth: 900, paddingBottom: '3rem' }}>
+
+      <UpgradeModal
+        status={upgradeModal?.status ?? null}
+        onClose={() => {
+          sessionStorage.removeItem('creem_upgrade_result');
+          setUpgradeModal(null);
+        }}
+        t={t}
+        tc={tc}
+      />
+
+      <AlertModal
+        isOpen={!!alertModal}
+        onClose={() => setAlertModal(null)}
+        variant={alertModal?.variant ?? 'success'}
+        title={alertModal?.title}
+        message={alertModal?.message}
+      />
+
+      {/* ── ACCOUNT CARD ── */}
+      <div style={{ padding: '1.5rem 0 1rem' }}>
+        <h1 className="page-title" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <User size={20} /> {t('pageTitle')}
+        </h1>
+      </div>
+
+      <div className="card" style={{ padding: '1.5rem', marginBottom: '1.25rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1.1rem', marginBottom: '1.25rem' }}>
+          {/* Avatar */}
+          <div style={{
+            width: 56, height: 56, borderRadius: '50%', flexShrink: 0,
+            background: 'linear-gradient(135deg, var(--primary), var(--accent, #6366f1))',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: '1.25rem', fontWeight: 800, color: '#fff', letterSpacing: '-0.03em',
+          }}>
+            {initials}
+          </div>
+          <div>
+            <div style={{ fontSize: '1.1rem', fontWeight: 800 }}>{displayName || currentUser?.display_name || '—'}</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.25rem', flexWrap: 'wrap' }}>
+              <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                <Mail size={12} /> {currentUser?.email}
+              </span>
+              <span style={{
+                fontSize: '0.68rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.04em',
+                padding: '0.15rem 0.55rem', borderRadius: 'var(--radius-pill)',
+                ...(isPremium
+                  ? { background: '#fef9c3', color: '#854d0e', border: '1px solid #fde047' }
+                  : isOnTrial
+                  ? { background: '#fff7ed', color: '#c2410c', border: '1px solid #fed7aa' }
+                  : { background: 'var(--bg-subtle)', color: 'var(--text-muted)', border: '1px solid var(--border-subtle)' }
+                ),
+              }}>
+                {isPremium ? t('subscriptionBadgePremium') : isOnTrial ? t('subscriptionBadgeTrial') : t('subscriptionBadgeBasic')}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Display name field */}
+        <div className="form-group" style={{ margin: 0 }}>
+          <label className="form-label">{t('displayName')}</label>
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+            <input
+              type="text" className="form-control"
+              value={displayName}
+              onChange={e => { setDisplayName(e.target.value); setNameErr(''); setNameOk(false); }}
+              placeholder={currentUser?.display_name || 'pl. Kovács János'}
+              onKeyDown={e => e.key === 'Enter' && handleSaveName()}
+            />
+            <button
+              type="button"
+              className="btn btn-primary btn-sm"
+              onClick={handleSaveName}
+              disabled={nameSaving}
+              style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: '0.3rem' }}
+            >
+              {nameSaving ? <Loader2 size={13} className="animate-spin" /> : nameOk ? <CheckCircle2 size={13} /> : <Check size={13} />}
+              {nameSaving ? t('saving') : nameOk ? t('saved') : t('save')}
+            </button>
+          </div>
+          {nameErr && <div style={{ fontSize: '0.75rem', color: 'var(--danger-text)', marginTop: '0.3rem' }}>{nameErr}</div>}
+          {!nameErr && <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.3rem' }}>
+            {t('displayNameHint')}
+          </div>}
+        </div>
+      </div>
+
+      {/* ── SECURITY ── */}
+      <div className="card" style={{ padding: '1.25rem', marginBottom: '1.25rem' }}>
+        <SectionHeader title={t('security')} />
+
+        {!pwOpen ? (
+          <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              onClick={() => setPwOpen(true)}
+              style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}
+            >
+              <KeyRound size={14} /> {t('passwordChange')}
+            </button>
+            <button
+              type="button"
+              onClick={logout}
+              className="btn btn-secondary btn-sm"
+              style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--danger-text)', borderColor: 'var(--danger-border)' }}
+            >
+              <LogOut size={14} /> {t('logout')}
+            </button>
+          </div>
+        ) : (
+          <form onSubmit={handleChangePassword} style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', maxWidth: 360 }}>
+            {pwErr && (
+              <div style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', color: 'var(--danger-text)', padding: '0.55rem 0.75rem', borderRadius: 'var(--radius-md)', fontSize: '0.825rem', display: 'flex', gap: '0.4rem' }}>
+                <AlertCircle size={14} style={{ flexShrink: 0, marginTop: 1 }} />{pwErr}
+              </div>
+            )}
+            {pwOk && (
+              <div style={{ background: 'var(--success-bg)', border: '1px solid var(--success-border)', color: 'var(--success-text)', padding: '0.55rem 0.75rem', borderRadius: 'var(--radius-md)', fontSize: '0.825rem', display: 'flex', gap: '0.4rem' }}>
+                <CheckCircle2 size={14} style={{ flexShrink: 0 }} /> {t('passwordSaved')}
+              </div>
+            )}
+            <div className="form-group" style={{ margin: 0 }}>
+              <label className="form-label">{t('newPassword')}</label>
+              <input type="password" className="form-control" value={pw} onChange={e => setPw(e.target.value)} placeholder={t('newPasswordPlaceholder')} autoFocus />
+            </div>
+            <div className="form-group" style={{ margin: 0 }}>
+              <label className="form-label">{t('passwordConfirm')}</label>
+              <input type="password" className="form-control" value={pwConfirm} onChange={e => setPwConfirm(e.target.value)} placeholder={t('passwordRepeatPlaceholder')} />
+            </div>
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <button type="button" className="btn btn-secondary btn-sm" onClick={() => { setPwOpen(false); setPw(''); setPwConfirm(''); setPwErr(''); }}>
+                {tc('cancel')}
+              </button>
+              <button type="submit" className="btn btn-primary btn-sm" disabled={pwSaving} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                {pwSaving ? <><Loader2 size={13} className="animate-spin" /> {tc('saving')}</> : <><ShieldCheck size={13} /> {t('passwordSave')}</>}
+              </button>
+            </div>
+          </form>
+        )}
+      </div>
+
+      {/* ── SUBSCRIPTION ── */}
+      <div id="elofizetes" style={{ marginBottom: '1.25rem', scrollMarginTop: '5rem' }}>
+        <SectionHeader
+          title={t('subscription')}
+          subtitle={t('subscriptionSubtitle')}
+        />
+
+        {/* Checkout error */}
+        {checkoutError && (
+          <div style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', color: 'var(--danger-text)', borderRadius: 'var(--radius-md)', padding: '0.7rem 1rem', marginBottom: '0.85rem', display: 'flex', alignItems: 'flex-start', gap: '0.5rem', fontSize: '0.825rem' }}>
+            <AlertCircle size={14} style={{ flexShrink: 0, marginTop: 1 }} />
+            {checkoutError}
+          </div>
+        )}
+
+        {/* Portal error */}
+        {portalError && (
+          <div style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', color: 'var(--danger-text)', borderRadius: 'var(--radius-md)', padding: '0.7rem 1rem', marginBottom: '0.85rem', display: 'flex', alignItems: 'flex-start', gap: '0.5rem', fontSize: '0.825rem' }}>
+            <AlertCircle size={14} style={{ flexShrink: 0, marginTop: 1 }} />
+            {portalError}
+          </div>
+        )}
+
+        {/* Trial banner */}
+        {isOnTrial && (
+          <div style={{ background: '#fef9c3', border: '1px solid #fde047', borderRadius: 'var(--radius-md)', padding: '0.75rem 1rem', marginBottom: '0.85rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', flexWrap: 'wrap', fontSize: '0.825rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <Clock size={14} color="#854d0e" style={{ flexShrink: 0 }} />
+              <span style={{ color: '#78350f' }}>
+                {t('trialBannerText', { days: trialDaysLeft })}
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => handleCheckout(PLANS.find(p => p.key === 'premium'))}
+              style={{ background: '#b45309', color: '#fff', border: 'none', borderRadius: 'var(--radius-md)', padding: '0.35rem 0.8rem', fontWeight: 700, fontSize: '0.78rem', cursor: 'pointer', flexShrink: 0 }}
+            >
+              {t('upgradeToPremium')}
+            </button>
+          </div>
+        )}
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(200px,100%), 1fr))', gap: '0.85rem' }}>
+          {PLANS.map(plan => {
+            const Icon = plan.icon;
+            // isCurrent = truly subscribed to this tier (trial users can still upgrade to paid premium)
+            const isCurrent = (plan.key === 'basic' && !effectivePremium) || (plan.key === 'premium' && isPremium);
+            const isTrialOnPremium = plan.key === 'premium' && isOnTrial && !isPremium;
+            const isLoading = loadingPlan === plan.key;
+            return (
+              <div key={plan.key} className="card" style={{
+                padding: '1.1rem', display: 'flex', flexDirection: 'column', gap: '0.85rem',
+                border: (isCurrent || isTrialOnPremium) ? `2px solid ${plan.color}` : undefined, position: 'relative',
+              }}>
+                {(isCurrent || isTrialOnPremium) && (
+                  <span style={{ position: 'absolute', top: -11, left: '50%', transform: 'translateX(-50%)', background: isTrialOnPremium ? '#b45309' : plan.color, color: 'white', fontSize: '0.6rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', padding: '0.18rem 0.65rem', borderRadius: 'var(--radius-pill)', whiteSpace: 'nowrap' }}>
+                    {isTrialOnPremium ? t('trialActiveBadge') : t('currentPlanBadge')}
+                  </span>
+                )}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <Icon size={16} color={plan.color} />
+                  <div style={{ fontWeight: 800, fontSize: '0.9rem' }}>{plan.name}</div>
+                </div>
+                <div>
+                  <span style={{ fontSize: '1.35rem', fontWeight: 900, fontFamily: 'var(--font-mono, monospace)' }}>{plan.price}</span>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginLeft: '0.25rem' }}>{plan.priceNote}</span>
+                  {plan.priceHuf && (
+                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.1rem' }}>{plan.priceHuf}</div>
+                  )}
+                </div>
+                <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '0.4rem', flex: 1 }}>
+                  {plan.features.map(f => (
+                    <li key={f} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.4rem', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                      <Check size={12} color="var(--success-text)" style={{ flexShrink: 0, marginTop: 2 }} /> {f}
+                    </li>
+                  ))}
+                </ul>
+                {plan.cta && (
+                  <button
+                    type="button"
+                    disabled={isCurrent || isLoading}
+                    onClick={() => !isCurrent && handleCheckout(plan)}
+                    style={{
+                      width: '100%', padding: '0.5rem', borderRadius: 'var(--radius-md)',
+                      fontWeight: 700, fontSize: '0.8rem',
+                      cursor: isCurrent || isLoading ? 'default' : 'pointer',
+                      border: 'none',
+                      background: isCurrent ? 'var(--bg-subtle)' : plan.highlight ? plan.color : 'var(--accent)',
+                      color: isCurrent ? 'var(--text-muted)' : 'white',
+                      opacity: isCurrent || isLoading ? 0.6 : 1,
+                    }}
+                  >
+                    {isCurrent ? t('planActive') : isLoading ? t('planRedirecting') : isTrialOnPremium ? t('upgradeToPremiumNow') : plan.cta}
+                  </button>
+                )}
+                {plan.key === 'premium' && isPremium && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                    {premiumIsScheduledCancel ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                        <div style={{ fontSize: '0.72rem', color: 'var(--warning-text)', background: 'var(--warning-bg)', border: '1px solid var(--warning-border)', borderRadius: 'var(--radius-md)', padding: '0.35rem 0.6rem', textAlign: 'center' }}>
+                          {premiumCancelAt
+                            ? t('scheduledCancelNote', { date: new Date(premiumCancelAt).toLocaleDateString('hu-HU', { year: 'numeric', month: 'long', day: 'numeric' }) })
+                            : t('scheduledCancelNoDate')}
+                        </div>
+                        <button type="button" onClick={handleResumePremium} disabled={resumingPremium}
+                          style={{ width: '100%', padding: '0.4rem 0.5rem', borderRadius: 'var(--radius-md)', fontWeight: 600, fontSize: '0.75rem', border: '1px solid var(--success-border)', background: 'var(--success-bg)', color: 'var(--success-text)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.3rem', cursor: resumingPremium ? 'default' : 'pointer' }}>
+                          {resumingPremium ? <><Loader2 size={12} className="animate-spin" /> {t('subResumingBtn')}</> : <><RefreshCw size={12} /> {t('premiumRestore')}</>}
+                        </button>
+                      </div>
+                    ) : (
+                      <button type="button" onClick={() => setCancelPremiumModal(true)}
+                        style={{ width: '100%', padding: '0.4rem 0.5rem', borderRadius: 'var(--radius-md)', fontWeight: 600, fontSize: '0.75rem', border: '1px solid var(--danger-border)', background: 'transparent', color: 'var(--danger-text)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.3rem', cursor: 'pointer' }}>
+                        {t('premiumCancel')}
+                      </button>
+                    )}
+                    <button type="button" onClick={handleOpenPortal} disabled={portalLoading}
+                      style={{ width: '100%', padding: '0.4rem 0.5rem', borderRadius: 'var(--radius-md)', fontWeight: 600, fontSize: '0.75rem', border: '1px solid var(--border-subtle)', background: 'transparent', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.3rem', cursor: portalLoading ? 'default' : 'pointer', opacity: portalLoading ? 0.6 : 1 }}>
+                      {portalLoading ? <><Loader2 size={12} className="animate-spin" /> {t('portalOpening')}</> : <>{t('managePayment')} <ChevronRight size={12} /></>}
+                    </button>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+        {/* ── Active Subscriptions ── */}
+        {(() => {
+          const TIER_INFO = {
+            small:  { label: t('collectiveSmall'),  price: '€15',   priceHuf: '≈ 5 999 Ft' },
+            medium: { label: t('collectiveMedium'), price: '€30',   priceHuf: '≈ 11 999 Ft' },
+            large:  { label: t('collectiveLarge'),  price: '€45',   priceHuf: '≈ 17 999 Ft' },
+          };
+
+          const fmtDate = iso => iso
+            ? new Date(iso).toLocaleDateString('hu-HU', { year: 'numeric', month: 'long', day: 'numeric' })
+            : null;
+
+          const activeSubs = [];
+
+          // Premium row
+          if (isPremium && premiumSubId) {
+            const periodEnd = fmtDate(premiumIsScheduledCancel ? premiumCancelAt : premiumRenewalAt);
+            const isScheduled = premiumIsScheduledCancel;
+            activeSubs.push(
+              <div key="premium" className="card" style={{ padding: '1rem', display: 'flex', flexWrap: 'wrap', gap: '0.75rem', alignItems: 'center' }}>
+                <div style={{ flex: '1 1 200px', minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+                    <Star size={14} color="#b45309" />
+                    <span style={{ fontWeight: 800, fontSize: '0.9rem' }}>{t('planPremiumName')}</span>
+                    <span style={{ fontSize: '0.65rem', fontWeight: 700, padding: '0.1rem 0.45rem', borderRadius: 'var(--radius-pill)',
+                      background: isScheduled ? '#fef9c3' : 'var(--success-bg)',
+                      color: isScheduled ? '#854d0e' : 'var(--success-text)',
+                      border: `1px solid ${isScheduled ? '#fde047' : 'var(--success-border)'}` }}>
+                      {isScheduled ? t('subCancels') : t('subActive')}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: '0.825rem', color: 'var(--text-secondary)' }}>
+                    <strong style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-primary)' }}>€17.50</strong>
+                    {' '}{t('subPerMonthVat')}{' '}
+                    <span style={{ color: 'var(--text-muted)' }}>(≈ 6 999 Ft)</span>
+                  </div>
+                  <div style={{ fontSize: '0.775rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
+                    {isScheduled
+                      ? periodEnd
+                        ? <span style={{ color: '#854d0e' }}>{t('subActiveUntil', { date: periodEnd })}</span>
+                        : <span style={{ color: '#854d0e' }}>{t('subActiveUntilPeriod')}</span>
+                      : periodEnd
+                        ? <>{t('subNextRenewal', { date: periodEnd })}</>
+                        : t('subRenewsMonthly')}
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: '0.4rem', flexShrink: 0 }}>
+                  {isScheduled ? (
+                    <button type="button" onClick={handleResumePremium} disabled={resumingPremium}
+                      style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', padding: '0.4rem 0.85rem', border: '1px solid var(--success-border)', borderRadius: 'var(--radius-md)', background: 'var(--success-bg)', color: 'var(--success-text)', fontWeight: 700, fontSize: '0.78rem', cursor: resumingPremium ? 'default' : 'pointer' }}>
+                      {resumingPremium ? <><Loader2 size={12} className="animate-spin" /> {t('subResumingBtn')}</> : <><RefreshCw size={12} /> {t('subResumeBtn')}</>}
+                    </button>
+                  ) : (
+                    <button type="button" onClick={() => setCancelPremiumModal(true)}
+                      style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', padding: '0.4rem 0.85rem', border: '1px solid var(--danger-border)', borderRadius: 'var(--radius-md)', background: 'transparent', color: 'var(--danger-text)', fontWeight: 700, fontSize: '0.78rem', cursor: 'pointer' }}>
+                      {t('premiumCancel')}
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          }
+
+          // Collective addon rows
+          for (const col of collectiveSubs) {
+            const tier = TIER_INFO[col.collective_tier] ?? { label: col.collective_tier, price: '—', priceHuf: '' };
+            const isScheduled = col.subscription_status === 'scheduled_cancel';
+            const periodEnd = fmtDate(col.subscription_period_end);
+            activeSubs.push(
+              <div key={col.collective_id} className="card" style={{ padding: '1rem', display: 'flex', flexWrap: 'wrap', gap: '0.75rem', alignItems: 'center' }}>
+                <div style={{ flex: '1 1 200px', minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem', flexWrap: 'wrap' }}>
+                    <Building2 size={14} color="var(--accent)" />
+                    <span style={{ fontWeight: 800, fontSize: '0.9rem' }}>{col.name}</span>
+                    <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 600 }}>{tier.label}</span>
+                    <span style={{ fontSize: '0.65rem', fontWeight: 700, padding: '0.1rem 0.45rem', borderRadius: 'var(--radius-pill)',
+                      background: isScheduled ? '#fef9c3' : 'var(--success-bg)',
+                      color: isScheduled ? '#854d0e' : 'var(--success-text)',
+                      border: `1px solid ${isScheduled ? '#fde047' : 'var(--success-border)'}` }}>
+                      {isScheduled ? t('subCancels') : t('subActive')}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: '0.825rem', color: 'var(--text-secondary)' }}>
+                    <strong style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-primary)' }}>{tier.price}</strong>
+                    {' '}{t('subPerMonthVat')}{' '}
+                    <span style={{ color: 'var(--text-muted)' }}>({tier.priceHuf})</span>
+                  </div>
+                  <div style={{ fontSize: '0.775rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
+                    {isScheduled
+                      ? periodEnd
+                        ? <span style={{ color: '#854d0e' }}>{t('subActiveUntil', { date: periodEnd })}</span>
+                        : <span style={{ color: '#854d0e' }}>{t('subActiveUntilPeriod')}</span>
+                      : periodEnd
+                        ? <>{t('subNextRenewal', { date: periodEnd })}</>
+                        : t('subRenewsMonthly')}
+                  </div>
+                </div>
+                {!isScheduled && (
+                  <button type="button"
+                    onClick={() => setCancelCollectiveModal({ collective_id: col.collective_id, name: col.name, creem_subscription_id: col.creem_subscription_id })}
+                    style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', padding: '0.4rem 0.85rem', border: '1px solid var(--danger-border)', borderRadius: 'var(--radius-md)', background: 'transparent', color: 'var(--danger-text)', fontWeight: 700, fontSize: '0.78rem', cursor: 'pointer', flexShrink: 0 }}>
+                    {t('cancelSubscriptionBtn')}
+                  </button>
+                )}
+              </div>
+            );
+          }
+
+          if (activeSubs.length === 0) return null;
+
+          return (
+            <div style={{ marginTop: '1.75rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
+                <CreditCard size={15} color="var(--accent)" />
+                <span style={{ fontSize: '0.9rem', fontWeight: 800 }}>{t('activeSubs')}</span>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+                {activeSubs}
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* ── Collective packages callout ── */}
+        <div style={{ marginTop: '1.75rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.35rem' }}>
+            <Building2 size={15} color="var(--accent)" />
+            <span style={{ fontSize: '0.9rem', fontWeight: 800 }}>{t('collectiveWorkspacesTitle')}</span>
+          </div>
+          <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: '0 0 0.85rem', lineHeight: 1.6 }}>
+            {t('collectiveWorkspacesDesc')}
+          </p>
+          <div className="card" style={{ padding: '1rem', display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
+            <Building2 size={22} color="var(--accent)" style={{ flexShrink: 0 }} />
+            <div style={{ flex: 1, fontSize: '0.825rem', color: 'var(--text-secondary)' }}>
+              {t('collectiveWorkspacesNote')}
+            </div>
+            <AppLink
+              href={`${navPrefix}/kollektivak`}
+              className="btn btn-primary btn-sm"
+              style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: '0.35rem', textDecoration: 'none' }}
+            >
+              {t('collectiveManageBtn')} <ChevronRight size={13} />
+            </AppLink>
+          </div>
+        </div>
+
+        <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '0.75rem', textAlign: 'center' }}>
+          {t('contactQuestion')} <a href="mailto:info@epitunk.hu" style={{ color: 'var(--accent)' }}>info@epitunk.hu</a>
+        </p>
+      </div>
+
+      {/* ── INVOICE HEADER ── */}
+      <form id="szamla" onSubmit={handleSaveProfile} style={{ scrollMarginTop: '5rem' }}>
+        <SectionHeader
+          title={t('invoiceHeader')}
+          subtitle={t('invoiceHeaderSubtitle')}
+        />
+        <div className="card" style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '1.25rem' }}>
+          {saveErr && (
+            <div style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', color: 'var(--danger-text)', padding: '0.65rem', borderRadius: 'var(--radius-md)', fontSize: '0.825rem', display: 'flex', gap: '0.45rem' }}>
+              <AlertCircle size={15} style={{ flexShrink: 0 }} />{saveErr}
+            </div>
+          )}
+          {saveOk && (
+            <div style={{ background: 'var(--success-bg, #f0fdf4)', border: '1px solid var(--success-border, #86efac)', color: 'var(--success-text, #166534)', padding: '0.65rem', borderRadius: 'var(--radius-md)', fontSize: '0.825rem', display: 'flex', gap: '0.45rem' }}>
+              <CheckCircle2 size={15} style={{ flexShrink: 0 }} /> {t('invoiceSaved')}
+            </div>
+          )}
+
+          <div className="form-group" style={{ margin: 0 }}>
+            <label className="form-label">{t('companyName')} <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>{t('companyNameOptional')}</span></label>
+            <input type="text" className="form-control" value={companyName} onChange={e => setCompanyName(e.target.value)} placeholder="pl. Kovács Építő Kft." />
+          </div>
+
+          <div className="grid-2col" style={{ gap: '0.5rem' }}>
+            <div className="form-group" style={{ margin: 0 }}>
+              <label className="form-label">{t('firstName')}</label>
+              <input type="text" className="form-control" value={firstName} onChange={e => setFirstName(e.target.value)} placeholder="pl. János" />
+            </div>
+            <div className="form-group" style={{ margin: 0 }}>
+              <label className="form-label">{t('lastName')}</label>
+              <input type="text" className="form-control" value={lastName} onChange={e => setLastName(e.target.value)} placeholder="pl. Kovács" />
+            </div>
+          </div>
+
+          <div className="grid-2col" style={{ gap: '0.5rem' }}>
+            <div className="form-group" style={{ margin: 0 }}>
+              <label className="form-label">{t('street')}</label>
+              <input type="text" className="form-control" value={street} onChange={e => setStreet(e.target.value)} placeholder="pl. Fő utca" />
+            </div>
+            <div className="form-group" style={{ margin: 0 }}>
+              <label className="form-label">{t('streetNumber')}</label>
+              <input type="text" className="form-control" value={streetNumber} onChange={e => setStreetNumber(e.target.value)} placeholder="pl. 12/A" />
+            </div>
+          </div>
+
+          <div className="grid-2col" style={{ gap: '0.5rem' }}>
+            <div className="form-group" style={{ margin: 0 }}>
+              <label className="form-label">{t('zip')}</label>
+              <input type="text" className="form-control" value={zip} onChange={e => setZip(e.target.value)} placeholder="pl. 1234" />
+            </div>
+            <div className="form-group" style={{ margin: 0 }}>
+              <label className="form-label">{t('city')}</label>
+              <input type="text" className="form-control" value={city} onChange={e => setCity(e.target.value)} placeholder="pl. Budapest" />
+            </div>
+          </div>
+
+          <div className="grid-2col" style={{ gap: '0.5rem' }}>
+            <div className="form-group" style={{ margin: 0 }}>
+              <label className="form-label">{t('taxNumber')}</label>
+              <input type="text" className="form-control" value={taxNumber} onChange={e => setTaxNumber(e.target.value)} placeholder="pl. 12345678-2-41" />
+            </div>
+            <div className="form-group" style={{ margin: 0 }}>
+              <label className="form-label">{t('defaultVat')}</label>
+              <input type="number" min="0" max="100" step="0.5" className="form-control" value={defaultTaxPct} onChange={e => setDefaultTaxPct(e.target.value)} placeholder="27" />
+            </div>
+          </div>
+
+          <div className="grid-2col" style={{ gap: '0.5rem' }}>
+            <div className="form-group" style={{ margin: 0 }}>
+              <label className="form-label">{t('phone')}</label>
+              <input type="tel" className="form-control" value={phone} onChange={e => setPhone(e.target.value)} placeholder="pl. +36 30 123 4567" />
+            </div>
+            <div className="form-group" style={{ margin: 0 }}>
+              <label className="form-label">{t('offerValidity')} <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>{t('offerValidityUnit')}</span></label>
+              <input type="number" min="1" max="365" className="form-control" value={offerValidityDays} onChange={e => setOfferValidityDays(e.target.value)} placeholder="30" />
+            </div>
+          </div>
+
+          <div className="grid-2col" style={{ gap: '0.5rem' }}>
+            <div className="form-group" style={{ margin: 0 }}>
+              <label className="form-label">{t('bankAccount')}</label>
+              <input type="text" className="form-control" value={bankAccount} onChange={e => setBankAccount(e.target.value)} placeholder="pl. HU12 1234 5678 9012 3456 7890" />
+            </div>
+            <div className="form-group" style={{ margin: 0 }}>
+              <label className="form-label">{t('bankName')}</label>
+              <input type="text" className="form-control" value={bankName} onChange={e => setBankName(e.target.value)} placeholder="pl. OTP Bank" />
+            </div>
+          </div>
+
+          <div className="grid-2col" style={{ gap: '0.5rem' }}>
+            <div className="form-group" style={{ margin: 0 }}>
+              <label className="form-label">{t('paymentDeadline')} <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>{t('paymentDeadlineUnit')}</span></label>
+              <input type="number" min="0" max="365" className="form-control" value={paymentDeadlineDays} onChange={e => setPaymentDeadlineDays(e.target.value)} placeholder="8" />
+            </div>
+            <div className="form-group" style={{ margin: 0 }}>
+              <label className="form-label">{t('paymentMethod')}</label>
+              <input type="text" className="form-control" value={paymentMethod} onChange={e => setPaymentMethod(e.target.value)} placeholder="banki átutalás" />
+            </div>
+          </div>
+
+          <div className="grid-2col" style={{ gap: '0.5rem' }}>
+            <div className="form-group" style={{ margin: 0 }}>
+              <label className="form-label">{t('deposit')} <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>{t('depositUnit')}</span></label>
+              <input type="number" min="0" max="100" className="form-control" value={depositPercent} onChange={e => setDepositPercent(e.target.value)} placeholder="0" />
+            </div>
+            <div className="form-group" style={{ margin: 0 }}>
+              <label className="form-label">{t('warranty')} <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>{t('warrantyUnit')}</span></label>
+              <input type="number" min="0" max="120" className="form-control" value={warrantyMonths} onChange={e => setWarrantyMonths(e.target.value)} placeholder="0" />
+            </div>
+          </div>
+
+          <div className="form-group" style={{ margin: 0 }}>
+            <label className="form-label">{t('otherTerms')} <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>{t('otherTermsUnit')}</span></label>
+            <textarea className="form-control" rows={2} value={offerTermsText} onChange={e => setOfferTermsText(e.target.value)} placeholder="pl. Az ajánlat a vállalkozás mindenkori Általános Szerződési Feltételei mellett érvényes." style={{ resize: 'vertical' }} />
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '0.25rem' }}>
+            <button type="submit" className="btn btn-primary" disabled={saving} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+              {saving ? <><Loader2 size={14} className="animate-spin" /> {tc('saving')}</> : <><Check size={14} /> {tc('save')}</>}
+            </button>
+          </div>
+        </div>
+      </form>
+
+      {/* ── TERMS PDF ── */}
+      <div id="aszf" style={{ marginBottom: '1.25rem', scrollMarginTop: '5rem' }}>
+        <SectionHeader
+          title={t('termsTitle')}
+          subtitle={t('termsSubtitle')}
+        />
+        <div className="card" style={{ padding: '1rem' }}>
+          {pdfError && (
+            <div style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', color: 'var(--danger-text)', padding: '0.55rem 0.75rem', borderRadius: 'var(--radius-md)', fontSize: '0.825rem', marginBottom: '0.75rem', display: 'flex', gap: '0.4rem' }}>
+              <AlertCircle size={14} style={{ flexShrink: 0, marginTop: 1 }} />{pdfError}
+            </div>
+          )}
+          {termsPdfUrl ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'var(--bg-subtle)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: '0.6rem 0.85rem', minWidth: 0 }}>
+                <FileText size={16} color="var(--accent)" style={{ flexShrink: 0 }} />
+                <div style={{ minWidth: 0 }}>
+                  <a href={termsPdfUrl} target="_blank" rel="noopener noreferrer" style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--accent)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block' }}>
+                    {termsPdfName || 'aszf.pdf'}
+                  </a>
+                  {termsPdfUploadedAt && (
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 1 }}>
+                      {t('uploadedAt')} {new Date(termsPdfUploadedAt).toLocaleString('hu-HU', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                    </div>
+                  )}
+                </div>
+              </div>
+              <button type="button" className="btn btn-secondary btn-sm" onClick={() => pdfInputRef.current?.click()} disabled={uploadingPdf}>
+                <Upload size={13} /> {t('replacePdf')}
+              </button>
+              <button type="button" className="btn btn-danger btn-sm" onClick={handlePdfDelete} disabled={uploadingPdf}>
+                {uploadingPdf ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
+              </button>
+            </div>
+          ) : (
+            <button type="button" className="btn btn-secondary" onClick={() => pdfInputRef.current?.click()} disabled={uploadingPdf} style={{ width: '100%', justifyContent: 'center', gap: '0.5rem' }}>
+              {uploadingPdf ? <><Loader2 size={15} className="animate-spin" /> {t('uploading')}</> : <><Upload size={15} /> {t('uploadPdf')}</>}
+            </button>
+          )}
+          <input ref={pdfInputRef} type="file" accept="application/pdf" style={{ display: 'none' }} onChange={handlePdfUpload} />
+        </div>
+      </div>
+
+      {/* ── LANGUAGE & CURRENCY ── */}
+      {!isDemoMode && (
+        <div id="preferences" style={{ marginBottom: '1.25rem', scrollMarginTop: '5rem' }}>
+          <SectionHeader title={t('preferencesTitle')} subtitle={t('preferencesSubtitle')} />
+          <div className="card" style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+
+            {/* Language */}
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.6rem' }}>
+                <label style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                  <Globe size={14} color="var(--accent)" /> {t('languageLabel')}
+                </label>
+                {localeOk && (
+                  <span style={{ fontSize: '0.75rem', color: 'var(--success-text)', display: 'flex', alignItems: 'center', gap: '0.3rem', fontWeight: 600 }}>
+                    <CheckCircle2 size={13} /> {t('languageSaved')}
+                  </span>
+                )}
+              </div>
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                {[{ code: 'hu', label: 'Magyar' }, { code: 'de', label: 'Deutsch' }, { code: 'en', label: 'English' }].map(lang => {
+                  const isActive = (currentUser?.locale || 'hu') === lang.code;
+                  return (
+                    <button
+                      key={lang.code}
+                      type="button"
+                      disabled={savingLocale}
+                      onClick={() => handleSaveLocale(lang.code)}
+                      style={{
+                        flex: 1, padding: '0.6rem 0.5rem', borderRadius: 'var(--radius-md)', cursor: isActive ? 'default' : 'pointer',
+                        border: `1.5px solid ${isActive ? 'var(--accent)' : 'var(--border-subtle)'}`,
+                        background: isActive ? 'var(--accent-bg, #eff6ff)' : 'var(--bg-base)',
+                        fontWeight: 700, fontSize: '0.85rem', fontFamily: 'inherit',
+                        color: isActive ? 'var(--accent)' : 'var(--text-secondary)',
+                        transition: 'all 0.15s',
+                      }}
+                    >
+                      {lang.label}
+                    </button>
+                  );
+                })}
+              </div>
+              <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: '0.5rem 0 0', lineHeight: 1.5 }}>
+                {t('languageNote')}
+              </p>
+            </div>
+
+            {/* Currency — read-only after onboarding */}
+            <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: '1.1rem' }}>
+              <label style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.6rem' }}>
+                <Lock size={14} color="var(--text-muted)" /> {t('currencyLabel')}
+              </label>
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                {[
+                  { code: 'HUF', sub: 'Forint' }, { code: 'EUR', sub: 'Euro' },
+                  { code: 'GBP', sub: 'Pound'  }, { code: 'USD', sub: 'Dollar' },
+                ].map(cur => {
+                  const isActive = (currentUser?.currency || 'HUF') === cur.code;
+                  return (
+                    <div
+                      key={cur.code}
+                      style={{
+                        flex: 1, padding: '0.6rem 0.5rem', borderRadius: 'var(--radius-md)',
+                        border: `1.5px solid ${isActive ? 'var(--accent)' : 'var(--border-subtle)'}`,
+                        background: isActive ? 'var(--accent-bg, #eff6ff)' : 'var(--bg-subtle)',
+                        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
+                        opacity: isActive ? 1 : 0.5,
+                      }}
+                    >
+                      <span style={{ fontWeight: 800, fontSize: '0.85rem', color: isActive ? 'var(--accent)' : 'var(--text-muted)' }}>{cur.code}</span>
+                      <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>{cur.sub}</span>
+                    </div>
+                  );
+                })}
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', marginTop: '0.55rem', padding: '0.45rem 0.65rem', background: '#fef9c3', border: '1px solid #fde047', borderRadius: 'var(--radius-sm)' }}>
+                <Lock size={11} color="#854d0e" style={{ flexShrink: 0 }} />
+                <span style={{ fontSize: '0.72rem', color: '#854d0e', fontWeight: 600 }}>{t('currencyNote')}</span>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* ── DANGER ZONE ── */}
+      <div className="card" style={{ border: '1px solid var(--danger-border)', padding: '1.25rem' }}>
+        <h3 style={{ fontWeight: 800, fontSize: '0.95rem', color: 'var(--danger)', marginBottom: '0.25rem' }}>{t('dangerZone')}</h3>
+
+        {(() => {
+          const warningText = isPremium ? t('dangerWarningPremium') : t('dangerWarningBasic');
+          return (
+          <div>
+            <p style={{ fontSize: '0.825rem', color: 'var(--text-secondary)', marginBottom: '1.25rem', lineHeight: 1.6 }}>
+              {warningText}
+            </p>
+            {!deleteOpen ? (
+              <button type="button" className="btn btn-danger btn-sm" onClick={() => setDeleteOpen(true)}>
+                <Trash2 size={14} /> {t('deleteAccount')}
+              </button>
+            ) : (
+              <div>
+                <p style={{ fontSize: '0.825rem', color: 'var(--danger)', fontWeight: 700, marginBottom: '0.5rem' }}>
+                  {t('deleteConfirmPrompt')} <strong>{t('deleteConfirmWord')}</strong>
+                </p>
+                <input type="text" className="form-control" placeholder={t('deleteConfirmWord')} value={deleteText} onChange={e => setDeleteText(e.target.value)} style={{ marginBottom: '0.75rem' }} />
+                {deleteErr && (
+                  <div style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', color: 'var(--danger)', padding: '0.5rem 0.75rem', borderRadius: 'var(--radius-md)', fontSize: '0.8rem', marginBottom: '0.75rem' }}>
+                    {deleteErr}
+                  </div>
+                )}
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <button type="button" className="btn btn-secondary btn-sm" onClick={() => { setDeleteOpen(false); setDeleteText(''); setDeleteErr(''); }}>
+                    {tc('cancel')}
+                  </button>
+                  <button type="button" className="btn btn-danger btn-sm" disabled={deleteText !== t('deleteConfirmWord') || deleting} onClick={handleDeleteAccount}>
+                    {deleting ? <><Loader2 size={13} className="animate-spin" /> {t('deleting')}</> : t('deleteAccountFinal')}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+          );
+        })()}
+      </div>
+
+      {/* ── Premium cancel success modal ── */}
+      <Modal isOpen={!!cancelSuccessModal} onClose={() => setCancelSuccessModal(null)} title={t('cancelSuccessModalTitle')}>
+        {cancelSuccessModal && (() => {
+          const fmt = (iso) => iso
+            ? new Date(iso).toLocaleDateString('hu-HU', { year: 'numeric', month: 'long', day: 'numeric' })
+            : null;
+          const premiumDate = fmt(cancelSuccessModal.premiumPeriodEnd);
+          const cols = cancelSuccessModal.canceledCollectives || [];
+          return (
+            <div>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem', marginBottom: '1rem' }}>
+                <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'var(--success-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <CheckCircle2 size={20} color="var(--success-text)" />
+                </div>
+                <div>
+                  <div style={{ fontWeight: 800, fontSize: '1rem', marginBottom: '0.25rem' }}>{t('premiumCanceledTitle')}</div>
+                  <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                    {premiumDate
+                      ? t('premiumActiveUntilDate', { date: premiumDate })
+                      : t('premiumActiveUntilPeriod')}
+                  </div>
+                </div>
+              </div>
+
+              {cols.length > 0 && (
+                <div style={{ background: 'var(--bg-subtle)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: '0.75rem 1rem', marginBottom: '1rem' }}>
+                  <div style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
+                    {t('canceledCollectivesTitle')}
+                  </div>
+                  {cols.map((c, i) => (
+                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.85rem', padding: '0.3rem 0', borderBottom: i < cols.length - 1 ? '1px solid var(--border-subtle)' : 'none' }}>
+                      <span style={{ fontWeight: 600 }}>{c.name}</span>
+                      <span style={{ color: 'var(--text-muted)', fontSize: '0.78rem' }}>
+                        {fmt(c.period_end) ? t('activeUntilDateLabel', { date: fmt(c.period_end) }) : t('activeUntilPeriodLabel')}
+                      </span>
+                    </div>
+                  ))}
+                  <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '0.5rem' }}>
+                    {t('membersNotified')}
+                  </div>
+                </div>
+              )}
+
+              <p style={{ fontSize: '0.825rem', color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: '1.25rem' }}>
+                {t('canRestoreAnytime')}
+              </p>
+              <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                <button type="button" className="btn btn-primary btn-sm" onClick={() => setCancelSuccessModal(null)}>{t('ok')}</button>
+              </div>
+            </div>
+          );
+        })()}
+      </Modal>
+
+      {/* ── Premium cancel confirm modal ── */}
+      <Modal isOpen={cancelPremiumModal} onClose={() => !cancelingPremium && setCancelPremiumModal(false)} title={t('premiumCancelTitle')}>
+        {(() => {
+          const ownedNames = (collectives || []).filter(c => c.role === 'owner').map(c => c.name);
+          return (
+            <div>
+              {ownedNames.length > 0 && (
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem', background: 'var(--warning-bg)', border: '1px solid var(--warning-border)', borderRadius: 'var(--radius-md)', padding: '0.85rem 1rem', marginBottom: '1rem' }}>
+                  <AlertTriangle size={18} color="var(--warning-text)" style={{ flexShrink: 0, marginTop: 1 }} />
+                  <div style={{ fontSize: '0.825rem', color: 'var(--warning-text)', lineHeight: 1.5 }}>
+                    <strong>{t('premiumCancelOwnedWarning', { count: ownedNames.length })}</strong>
+                    <ul style={{ margin: '0.4rem 0 0 1rem', padding: 0 }}>
+                      {ownedNames.map(n => <li key={n}>{n}</li>)}
+                    </ul>
+                    <div style={{ marginTop: '0.4rem' }}>{t('premiumCancelFreezeNote')}</div>
+                  </div>
+                </div>
+              )}
+              <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: '1.25rem' }}>
+                {t('premiumCancelContent')}
+              </p>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+                <button type="button" className="btn btn-secondary btn-sm" disabled={cancelingPremium} onClick={() => setCancelPremiumModal(false)}>{tc('cancel')}</button>
+                <button type="button" className="btn btn-danger btn-sm" disabled={cancelingPremium} onClick={handleCancelPremium}>
+                  {cancelingPremium ? <><Loader2 size={13} className="animate-spin" /> {t('cancelingBtn')}</> : t('premiumCancel')}
+                </button>
+              </div>
+            </div>
+          );
+        })()}
+      </Modal>
+
+      {/* ── Collective cancel confirmation modal ── */}
+      <Modal isOpen={!!cancelCollectiveModal} onClose={() => !cancelingCollective && setCancelCollectiveModal(null)} title={t('cancelCollectiveTitle')}>
+        {cancelCollectiveModal && (
+          <div>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem', background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: 'var(--radius-md)', padding: '0.85rem 1rem', marginBottom: '1rem' }}>
+              <AlertTriangle size={18} color="#c2410c" style={{ flexShrink: 0, marginTop: 1 }} />
+              <div style={{ fontSize: '0.825rem', color: '#7c2d12', lineHeight: 1.55 }}>
+                {t('cancelCollectiveWarning')}
+              </div>
+            </div>
+            <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: '1.25rem' }}>
+              {t('cancelCollectiveConfirmText', { name: cancelCollectiveModal.name })}
+            </p>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+              <button type="button" className="btn btn-secondary btn-sm" onClick={() => setCancelCollectiveModal(null)} disabled={cancelingCollective}>
+                {t('keepSubscriptionBtn')}
+              </button>
+              <button type="button" className="btn btn-danger btn-sm" onClick={handleCancelCollective} disabled={cancelingCollective}>
+                {cancelingCollective ? <><Loader2 size={13} className="animate-spin" /> {t('cancelingBtn')}</> : t('cancelSubscriptionBtn')}
+              </button>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* ── Creem checkout — mobile bottom sheet ── */}
+      {checkoutIframeUrl && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(3px)' }}>
+          <div style={{ position: 'absolute', inset: 0 }} onClick={() => { setCheckoutIframeUrl(null); localStorage.removeItem('creem_checkout_done'); setLoadingPlan(null); }} />
+          <div style={{
+            position: 'absolute', bottom: 0, left: 0, right: 0,
+            height: '92vh',
+            borderRadius: '16px 16px 0 0',
+            overflow: 'hidden',
+            boxShadow: '0 -8px 40px rgba(0,0,0,0.25)',
+            background: '#fff',
+            display: 'flex', flexDirection: 'column',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.6rem 1rem 0.5rem', borderBottom: '1px solid var(--border-subtle)', background: 'var(--bg-subtle)', flexShrink: 0 }}>
+              <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)' }}>{t('securePayment')}</span>
+              <button type="button" onClick={() => { setCheckoutIframeUrl(null); localStorage.removeItem('creem_checkout_done'); setLoadingPlan(null); }} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0.25rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center' }}>
+                <X size={18} />
+              </button>
+            </div>
+            <iframe src={checkoutIframeUrl} style={{ flex: 1, border: 'none', width: '100%' }} title={t('securePayment')} />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

@@ -1,7 +1,7 @@
 'use client';
 import { Suspense } from 'react';
 import { useApp } from '@/context/AppContext';
-import ProjectsListClient from '@/app/projektek/ProjectsListClient';
+import ProjectsListClient from '@/app/[locale]/projektek/ProjectsListClient';
 import PageSpinner from '@/components/PageSpinner';
 
 export default function DemoProjectenPage() {

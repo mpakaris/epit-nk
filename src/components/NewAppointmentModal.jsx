@@ -2,15 +2,9 @@
 
 import React, { useState, useEffect } from 'react';
 import { useApp } from '@/context/AppContext';
+import { useTranslations } from 'next-intl';
 import Modal, { AlertModal } from '@/components/Modal';
 import { Ruler, FileText, FolderKanban, CalendarDays, Plus, Loader2 } from 'lucide-react';
-
-const LINK_TYPES = [
-  { id: null,        label: 'Semmi',    icon: null          },
-  { id: 'felmeres',  label: 'Felmérés', icon: Ruler,        color: '#2563eb' },
-  { id: 'ajanlat',   label: 'Ajánlat',  icon: FileText,     color: '#7c3aed' },
-  { id: 'projekt',   label: 'Projekt',  icon: FolderKanban, color: '#059669' },
-];
 
 function todayStr() {
   return new Date().toISOString().split('T')[0];
@@ -19,6 +13,7 @@ function todayStr() {
 // Inline new-client sub-form
 function NewClientInline({ onCreated, onCancel }) {
   const { createClient } = useApp();
+  const t = useTranslations('calendar');
   const [name,  setName]  = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
@@ -27,14 +22,14 @@ function NewClientInline({ onCreated, onCancel }) {
   const [err,   setErr]   = useState('');
 
   async function handleCreate() {
-    if (!name.trim()) { setErr('A név kötelező.'); return; }
-    if (!gdpr)        { setErr('GDPR hozzájárulás szükséges.'); return; }
+    if (!name.trim()) { setErr(t('clientNameRequired')); return; }
+    if (!gdpr)        { setErr(t('gdprRequired')); return; }
     setBusy(true);
     try {
       const client = await createClient({ name: name.trim(), phone, email, gdprConsent: true });
       onCreated(client);
     } catch (e) {
-      setErr(e.message || 'Hiba történt.');
+      setErr(e.message || t('genericError'));
     } finally {
       setBusy(false);
     }
@@ -47,10 +42,10 @@ function NewClientInline({ onCreated, onCancel }) {
       display: 'flex', flexDirection: 'column', gap: 10,
     }}>
       {err && <div style={{ fontSize: 12, color: 'var(--danger-text)' }}>{err}</div>}
-      <input className="form-control" autoFocus placeholder="Név *" value={name} onChange={e => setName(e.target.value)} />
+      <input className="form-control" autoFocus placeholder={t('clientNamePh')} value={name} onChange={e => setName(e.target.value)} />
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-        <input className="form-control" type="tel"   placeholder="Telefon" value={phone} onChange={e => setPhone(e.target.value)} />
-        <input className="form-control" type="email" placeholder="E-mail"  value={email} onChange={e => setEmail(e.target.value)} />
+        <input className="form-control" type="tel"   placeholder={t('phonePh')} value={phone} onChange={e => setPhone(e.target.value)} />
+        <input className="form-control" type="email" placeholder={t('emailPh')}  value={email} onChange={e => setEmail(e.target.value)} />
       </div>
       <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, cursor: 'pointer',
         padding: '8px 10px', borderRadius: 'var(--radius-md)',
@@ -60,13 +55,13 @@ function NewClientInline({ onCreated, onCancel }) {
         <input type="checkbox" checked={gdpr} onChange={e => setGdpr(e.target.checked)}
           style={{ marginTop: 2, accentColor: 'var(--accent)', flexShrink: 0 }} />
         <span style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.4 }}>
-          Az ügyfél hozzájárult adatainak tárolásához. <span style={{ color: 'var(--danger-text)' }}>*</span>
+          {t('gdprConsent')} <span style={{ color: 'var(--danger-text)' }}>*</span>
         </span>
       </label>
       <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-        <button type="button" className="btn btn-secondary btn-sm" onClick={onCancel}>Mégse</button>
+        <button type="button" className="btn btn-secondary btn-sm" onClick={onCancel}>{t('cancel')}</button>
         <button type="button" className="btn btn-primary btn-sm" onClick={handleCreate} disabled={busy || !gdpr}>
-          {busy ? <Loader2 size={13} className="animate-spin" /> : null} Létrehozás
+          {busy ? <Loader2 size={13} className="animate-spin" /> : null} {t('create')}
         </button>
       </div>
     </div>
@@ -75,6 +70,13 @@ function NewClientInline({ onCreated, onCancel }) {
 
 export default function NewAppointmentModal({ isOpen, onClose, defaultDate }) {
   const { clients } = useApp();
+  const t = useTranslations('calendar');
+  const LINK_TYPES = [
+    { id: null,       label: t('linkNone'),    icon: null          },
+    { id: 'felmeres', label: t('linkSurvey'),  icon: Ruler,        color: '#2563eb' },
+    { id: 'ajanlat',  label: t('linkQuote'),   icon: FileText,     color: '#7c3aed' },
+    { id: 'projekt',  label: t('linkProject'), icon: FolderKanban, color: '#059669' },
+  ];
 
   const [title,         setTitle]         = useState('');
   const [date,          setDate]          = useState(defaultDate || todayStr());
@@ -100,7 +102,7 @@ export default function NewAppointmentModal({ isOpen, onClose, defaultDate }) {
   }, [isOpen, defaultDate]);
 
   async function handleSave() {
-    if (!title.trim()) { setAlert('A cím kötelező.'); return; }
+    if (!title.trim()) { setAlert(t('titleRequired')); return; }
     setSaving(true);
 
     const res = await fetch('/api/appointments', {
@@ -111,7 +113,7 @@ export default function NewAppointmentModal({ isOpen, onClose, defaultDate }) {
 
     if (!res.ok) {
       const { error } = await res.json().catch(() => ({}));
-      setAlert(error || 'Hiba történt. Kérjük, próbáld újra.');
+      setAlert(error || t('genericError'));
       setSaving(false);
       return;
     }
@@ -120,8 +122,8 @@ export default function NewAppointmentModal({ isOpen, onClose, defaultDate }) {
     setSaving(false);
 
     if (linkedDoc && linkedType) {
-      const typeLabel = linkedType === 'felmeres' ? 'Felmérés' : linkedType === 'ajanlat' ? 'Ajánlat' : 'Projekt';
-      setSuccessMsg(`${typeLabel} „${linkedDoc.title || linkedDoc.name}" létrehozva és elmentve.`);
+      const typeLabel = linkedType === 'felmeres' ? t('linkSurvey') : linkedType === 'ajanlat' ? t('linkQuote') : t('linkProject');
+      setSuccessMsg(t('docCreatedMsg', { typeLabel, docName: linkedDoc.title || linkedDoc.name }));
     } else {
       onClose();
     }
@@ -129,7 +131,7 @@ export default function NewAppointmentModal({ isOpen, onClose, defaultDate }) {
 
   if (successMsg) {
     return (
-      <Modal isOpen={isOpen} onClose={onClose} title="Időpont mentve">
+      <Modal isOpen={isOpen} onClose={onClose} title={t('appointmentSaved')}>
         <div style={{ textAlign: 'center', padding: '8px 0 16px' }}>
           <div style={{
             width: 52, height: 52, borderRadius: '50%',
@@ -139,14 +141,14 @@ export default function NewAppointmentModal({ isOpen, onClose, defaultDate }) {
             <CalendarDays size={24} color="var(--success-text)" />
           </div>
           <p style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: 6 }}>
-            Időpont rögzítve!
+            {t('appointmentRecorded')}
           </p>
           <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
             {successMsg}
           </p>
         </div>
         <button className="btn btn-primary" style={{ width: '100%' }} onClick={onClose}>
-          Bezárás
+          {t('close')}
         </button>
       </Modal>
     );
@@ -154,16 +156,16 @@ export default function NewAppointmentModal({ isOpen, onClose, defaultDate }) {
 
   return (
     <>
-      <Modal isOpen={isOpen} onClose={onClose} title="Új időpont">
+      <Modal isOpen={isOpen} onClose={onClose} title={t('newAppointment')}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
 
           {/* Title */}
           <div>
-            <label className="form-label">Cím</label>
+            <label className="form-label">{t('titleLabel')}</label>
             <input
               className="form-control"
               autoFocus
-              placeholder="pl. Felmérés Kiskunháza"
+              placeholder={t('titlePlaceholder')}
               value={title}
               onChange={e => setTitle(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && !showNewClient && handleSave()}
@@ -173,11 +175,11 @@ export default function NewAppointmentModal({ isOpen, onClose, defaultDate }) {
           {/* Date + Time */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
             <div>
-              <label className="form-label">Dátum</label>
+              <label className="form-label">{t('dateLabel')}</label>
               <input className="form-control" type="date" value={date} onChange={e => setDate(e.target.value)} />
             </div>
             <div>
-              <label className="form-label">Időpont</label>
+              <label className="form-label">{t('timeLabel')}</label>
               <input className="form-control" type="time" value={time} onChange={e => setTime(e.target.value)} />
             </div>
           </div>
@@ -185,7 +187,7 @@ export default function NewAppointmentModal({ isOpen, onClose, defaultDate }) {
           {/* Client */}
           <div>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
-              <label className="form-label" style={{ margin: 0 }}>Ügyfél</label>
+              <label className="form-label" style={{ margin: 0 }}>{t('clientLabel')}</label>
               {!showNewClient && (
                 <button
                   type="button"
@@ -193,7 +195,7 @@ export default function NewAppointmentModal({ isOpen, onClose, defaultDate }) {
                   style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'none', border: 'none',
                     color: 'var(--accent)', fontSize: 12, fontWeight: 700, cursor: 'pointer', padding: 0 }}
                 >
-                  <Plus size={13} /> Új ügyfél
+                  <Plus size={13} /> {t('newClientBtn')}
                 </button>
               )}
             </div>
@@ -204,7 +206,7 @@ export default function NewAppointmentModal({ isOpen, onClose, defaultDate }) {
               />
             ) : (
               <select className="form-control" value={clientId} onChange={e => setClientId(e.target.value)}>
-                <option value="">— Nincs ügyfél —</option>
+                <option value="">{t('noClientOption')}</option>
                 {(clients || []).map(c => (
                   <option key={c.id} value={c.id}>{c.name}</option>
                 ))}
@@ -214,7 +216,7 @@ export default function NewAppointmentModal({ isOpen, onClose, defaultDate }) {
 
           {/* Link type */}
           <div>
-            <label className="form-label">Dokumentum létrehozása</label>
+            <label className="form-label">{t('createDocumentLabel')}</label>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6 }}>
               {LINK_TYPES.map(({ id, label, icon: Icon, color }) => {
                 const active = linkType === id;
@@ -250,7 +252,7 @@ export default function NewAppointmentModal({ isOpen, onClose, defaultDate }) {
             disabled={saving || showNewClient}
             style={{ width: '100%', marginTop: 4 }}
           >
-            {saving ? 'Mentés…' : 'Mentés'}
+            {saving ? t('saving') : t('save')}
           </button>
 
         </div>
@@ -259,7 +261,7 @@ export default function NewAppointmentModal({ isOpen, onClose, defaultDate }) {
       <AlertModal
         isOpen={!!alert}
         onClose={() => setAlert(null)}
-        title="Hiba"
+        title={t('errorTitle')}
         message={alert}
       />
     </>

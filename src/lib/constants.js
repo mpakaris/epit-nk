@@ -42,10 +42,30 @@ export function formatHUF(amount) {
   }).format(Math.round(amount)) + ' Ft';
 }
 
-export function formatDate(dateStr) {
+const CURRENCY_FMT = {
+  HUF: null,                    // delegate to formatHUF
+  EUR: ['de-DE', 2, 'EUR'],
+  GBP: ['en-GB', 2, 'GBP'],
+  USD: ['en-US', 2, 'USD'],
+};
+
+export function formatMoney(amount, currency = 'HUF') {
+  if (!currency || currency === 'HUF') return formatHUF(amount);
+  if (amount === null || amount === undefined || isNaN(amount)) return '0';
+  const cfg = CURRENCY_FMT[currency];
+  if (!cfg) return formatHUF(amount);
+  return new Intl.NumberFormat(cfg[0], {
+    style: 'currency',
+    currency: cfg[2],
+    maximumFractionDigits: cfg[1],
+    minimumFractionDigits: cfg[1],
+  }).format(Number(amount));
+}
+
+export function formatDate(dateStr, locale = 'hu-HU') {
   if (!dateStr) return '';
   const d = new Date(dateStr);
-  return d.toLocaleDateString('hu-HU', {
+  return d.toLocaleDateString(locale, {
     year: 'numeric',
     month: 'short',
     day: 'numeric'

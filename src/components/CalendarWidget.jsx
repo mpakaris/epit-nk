@@ -4,13 +4,11 @@ import React, { useMemo, useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useApp } from '@/context/AppContext';
 import { formatDate } from '@/lib/constants';
+import { useTranslations } from 'next-intl';
 import { Calendar, FolderKanban, FileText, ArrowUpRight, Plus, Clock, ChevronLeft, ChevronRight } from 'lucide-react';
 import NewAppointmentModal from '@/components/NewAppointmentModal';
 import AppointmentDetailModal from '@/components/AppointmentDetailModal';
 import useMobile from '@/hooks/useMobile';
-
-const DAYS_HU       = ['H', 'K', 'Sze', 'Cs', 'P', 'Szo', 'V'];
-const MONTHS_SHORT  = ['Jan','Feb','Már','Ápr','Máj','Jún','Júl','Aug','Sze','Okt','Nov','Dec'];
 
 function toDay(d) {
   const r = new Date(d);
@@ -42,6 +40,10 @@ const EVENT_H  = 20;
 const DAY_NUM_H = 28;
 
 export default function CalendarWidget({ projects: propProjects, quotes: propQuotes, clients: propClients } = {}) {
+  const t = useTranslations('calendar');
+  const DAYS        = t.raw('days');
+  const MONTHS_SHORT = t.raw('monthsShort');
+  const MONTHS_HU   = t.raw('monthsLong');
   const ctx = useApp();
   const projects = propProjects ?? ctx.projects;
   const quotes = propQuotes ?? ctx.quotes;
@@ -180,8 +182,6 @@ export default function CalendarWidget({ projects: propProjects, quotes: propQuo
     });
   }, [weeks, events]);
 
-  const MONTHS_HU = ['Január','Február','Március','Április','Május','Június','Július','Augusztus','Szeptember','Október','November','December'];
-
   // ── Mobile weekly render ─────────────────────────────────────────────────
   if (isMobile) {
     const eventColor = (type) =>
@@ -204,7 +204,7 @@ export default function CalendarWidget({ projects: propProjects, quotes: propQuo
               <ChevronRight size={18} />
             </button>
           </div>
-          <button type="button" onClick={() => setNewApptOpen(true)} aria-label="Új időpont"
+          <button type="button" onClick={() => setNewApptOpen(true)} aria-label={t('newApptAria')}
             style={{ width: 28, height: 28, borderRadius: '50%', background: 'var(--primary)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
             <Plus size={15} color="#fff" strokeWidth={2.5} />
           </button>
@@ -219,7 +219,7 @@ export default function CalendarWidget({ projects: propProjects, quotes: propQuo
             return (
               <div key={i} style={{ textAlign: 'center' }}>
                 <div style={{ fontSize: 10, fontWeight: 700, color: isWeekend ? 'var(--danger-text)' : 'var(--text-muted)', marginBottom: 3, textTransform: 'uppercase' }}>
-                  {DAYS_HU[i]}
+                  {DAYS[i]}
                 </div>
                 <div style={{
                   width: 28, height: 28, borderRadius: '50%', margin: '0 auto 4px',
@@ -243,7 +243,7 @@ export default function CalendarWidget({ projects: propProjects, quotes: propQuo
         {/* Event list for the week */}
         {weekEvents.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '0.75rem 0 0.25rem', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
-            Ezen a héten nincs esemény.
+            {t('noEventsThisWeek')}
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -306,19 +306,19 @@ export default function CalendarWidget({ projects: propProjects, quotes: propQuo
           {MONTHS_HU[month]} {year}
         </h3>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <button type="button" onClick={() => setNewApptOpen(true)} aria-label="Új időpont"
+          <button type="button" onClick={() => setNewApptOpen(true)} aria-label={t('newApptAria')}
             style={{ width: 28, height: 28, borderRadius: '50%', background: 'var(--primary)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
             <Plus size={15} color="#fff" strokeWidth={2.5} />
           </button>
           <Link href="/naptar" style={{ fontSize: '0.78rem', color: 'var(--accent)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.2rem', textDecoration: 'none' }}>
-            Teljes naptár <ArrowUpRight size={13} />
+            {t('fullCalendar')} <ArrowUpRight size={13} />
           </Link>
         </div>
       </div>
 
       {/* Day-of-week headers */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', borderBottom: '1px solid var(--border-subtle)', marginBottom: 0 }}>
-        {DAYS_HU.map((d, i) => (
+        {DAYS.map((d, i) => (
           <div key={d} style={{
             textAlign: 'center', fontSize: '0.65rem', fontWeight: 700,
             color: i >= 5 ? 'var(--danger-text)' : 'var(--text-muted)',
@@ -431,13 +431,13 @@ export default function CalendarWidget({ projects: propProjects, quotes: propQuo
       {/* Legend */}
       <div style={{ display: 'flex', gap: '0.9rem', marginTop: '0.65rem', fontSize: '0.7rem', fontWeight: 600, color: 'var(--text-muted)' }}>
         <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-          <span style={{ width: 20, height: 8, borderRadius: 2, background: 'var(--success)', display: 'inline-block' }} /> Projekt
+          <span style={{ width: 20, height: 8, borderRadius: 2, background: 'var(--success)', display: 'inline-block' }} /> {t('project')}
         </span>
         <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-          <span style={{ width: 20, height: 8, borderRadius: 2, background: 'var(--warning)', display: 'inline-block' }} /> Ajánlat
+          <span style={{ width: 20, height: 8, borderRadius: 2, background: 'var(--warning)', display: 'inline-block' }} /> {t('quote')}
         </span>
         <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-          <span style={{ width: 20, height: 8, borderRadius: 2, background: 'var(--accent)', display: 'inline-block' }} /> Időpont
+          <span style={{ width: 20, height: 8, borderRadius: 2, background: 'var(--accent)', display: 'inline-block' }} /> {t('appointment')}
         </span>
       </div>
 

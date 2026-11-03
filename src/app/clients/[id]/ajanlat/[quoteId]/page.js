@@ -1,6 +1,6 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import { notFound } from 'next/navigation';
-import PrintQuote from '@/app/naplo/[id]/ajanlat/PrintQuote';
+import PrintQuote from '@/app/[locale]/naplo/[id]/ajanlat/PrintQuote';
 
 export default async function ClientQuotePrintPage({ params }) {
   const { id: clientId, quoteId } = await params;

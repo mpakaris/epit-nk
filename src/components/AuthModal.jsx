@@ -3,6 +3,8 @@
 import React, { useState } from 'react';
 import { useApp } from '@/context/AppContext';
 import { Mail, Lock, AlertCircle, X, User, ArrowLeft, Check } from 'lucide-react';
+import { useLandingLocale } from '@/hooks/useLandingLocale';
+import { AUTH_I18N } from '@/lib/landingI18n';
 
 const GoogleIcon = () => (
   <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
@@ -20,11 +22,13 @@ const GoogleIcon = () => (
  *  onClose      — called when the user dismisses the modal
  *  initialView  — 'login' | 'register' (default 'login')
  *  onSuccess    — optional callback(data) called after successful auth
- *                 when provided, AppContext will NOT redirect automatically
  *  initialEmail — pre-fill the email field
  */
 export default function AuthModal({ onClose, initialView = 'login', onSuccess, initialEmail = '' }) {
   const { login, loginWithOAuth, registerWithEmail, resetPasswordEmail } = useApp();
+  const locale = useLandingLocale();
+  const T = AUTH_I18N[locale] || AUTH_I18N.hu;
+
   const [view, setView] = useState(initialView);
 
   const [lEmail, setLEmail]       = useState(initialEmail);
@@ -52,7 +56,7 @@ export default function AuthModal({ onClose, initialView = 'login', onSuccess, i
       const data = await login(lEmail, lPassword, { noRedirect: !!onSuccess });
       if (onSuccess) onSuccess(data);
     } catch (err) {
-      setError(err.message || 'Hibás e-mail vagy jelszó.');
+      setError(err.message || T.errBadCreds);
       setSubmitting(false);
     }
   };
@@ -60,19 +64,19 @@ export default function AuthModal({ onClose, initialView = 'login', onSuccess, i
   const handleRegister = async (e) => {
     e.preventDefault();
     setError('');
-    if (rPassword !== rPassword2)           { setError('A két jelszó nem egyezik.'); return; }
-    if (rPassword.length < 8)               { setError('A jelszó legalább 8 karakter legyen.'); return; }
-    if (!/[A-Z]/.test(rPassword))           { setError('A jelszónak tartalmaznia kell legalább egy nagybetűt.'); return; }
-    if (!/[0-9]/.test(rPassword))           { setError('A jelszónak tartalmaznia kell legalább egy számot.'); return; }
-    if (!/[^A-Za-z0-9]/.test(rPassword))   { setError('A jelszónak tartalmaznia kell legalább egy speciális karaktert (!@#$%...).'); return; }
-    if (!rGdpr || !rAszf)                   { setError('Az adatkezelési tájékoztató és az ÁSZF elfogadása kötelező.'); return; }
+    if (rPassword !== rPassword2)           { setError(T.errPwdMatch); return; }
+    if (rPassword.length < 8)               { setError(T.errPwdLen); return; }
+    if (!/[A-Z]/.test(rPassword))           { setError(T.errPwdUpper); return; }
+    if (!/[0-9]/.test(rPassword))           { setError(T.errPwdNum); return; }
+    if (!/[^A-Za-z0-9]/.test(rPassword))   { setError(T.errPwdSpec); return; }
+    if (!rGdpr || !rAszf)                   { setError(T.errConsents); return; }
     setSubmitting(true);
     try {
       const data = await registerWithEmail(rName.trim(), rEmail.trim(), rPassword, new Date().toISOString(), { noRedirect: !!onSuccess });
       if (!data.session) { switchView('confirm'); setSubmitting(false); return; }
       if (onSuccess) onSuccess(data);
     } catch (err) {
-      setError(err.message || 'Hiba a regisztráció során.');
+      setError(err.message || T.errRegister);
       setSubmitting(false);
     }
   };
@@ -81,17 +85,15 @@ export default function AuthModal({ onClose, initialView = 'login', onSuccess, i
     e.preventDefault();
     setError(''); setSubmitting(true);
     try { await resetPasswordEmail(fEmail.trim()); setFSent(true); }
-    catch (err) { setError(err.message || 'Hiba történt.'); }
+    catch (err) { setError(err.message || T.errForgot); }
     finally { setSubmitting(false); }
   };
 
   const handleGoogle = async () => {
     setError('');
     try { await loginWithOAuth('google'); }
-    catch (err) { setError(err.message || 'Google bejelentkezés sikertelen.'); }
+    catch (err) { setError(err.message || T.errGoogle); }
   };
-
-  const titles = { login: 'Bejelentkezés', register: 'Regisztráció', forgot: 'Elfelejtett jelszó', confirm: 'E-mail megerősítés' };
 
   return (
     <>
@@ -127,8 +129,8 @@ export default function AuthModal({ onClose, initialView = 'login', onSuccess, i
                 </button>
               )}
               <div>
-                <h2 style={{ fontSize:'1.2rem', fontWeight:800, color:'#0f172a', letterSpacing:'-0.03em', margin:0 }}>{titles[view]}</h2>
-                <p style={{ fontSize:'0.78rem', color:'#94a3b8', margin:'0.15rem 0 0' }}>OkosSzaki fiók</p>
+                <h2 style={{ fontSize:'1.2rem', fontWeight:800, color:'#0f172a', letterSpacing:'-0.03em', margin:0 }}>{T.titles[view]}</h2>
+                <p style={{ fontSize:'0.78rem', color:'#94a3b8', margin:'0.15rem 0 0' }}>{T.subtitle}</p>
               </div>
             </div>
             <button onClick={onClose} style={{ background:'#f1f5f9', border:'none', borderRadius:'8px', width:'32px', height:'32px', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer' }}>
@@ -144,78 +146,78 @@ export default function AuthModal({ onClose, initialView = 'login', onSuccess, i
 
           {view === 'login' && (
             <>
-              <button className="auth-social" onClick={handleGoogle}><GoogleIcon /> Folytatás Google-lel</button>
-              <div className="auth-divider">vagy</div>
+              <button className="auth-social" onClick={handleGoogle}><GoogleIcon /> {T.google}</button>
+              <div className="auth-divider">{T.or}</div>
               <form onSubmit={handleLogin}>
                 <div style={{ marginBottom:'0.75rem' }}>
-                  <label style={{ display:'block', fontSize:'0.78rem', fontWeight:700, color:'#374151', marginBottom:'0.3rem' }}>E-mail cím</label>
+                  <label style={{ display:'block', fontSize:'0.78rem', fontWeight:700, color:'#374151', marginBottom:'0.3rem' }}>{T.emailLabel}</label>
                   <div style={{ position:'relative' }}>
-                    <input type="email" required autoFocus placeholder="pelda@email.hu" value={lEmail} onChange={e => setLEmail(e.target.value)} className="auth-input" />
+                    <input type="email" required autoFocus placeholder={T.emailPh} value={lEmail} onChange={e => setLEmail(e.target.value)} className="auth-input" />
                     <Mail size={14} color="#94a3b8" style={{ position:'absolute', left:'0.85rem', top:'50%', transform:'translateY(-50%)', pointerEvents:'none' }} />
                   </div>
                 </div>
                 <div style={{ marginBottom:'0.5rem' }}>
-                  <label style={{ display:'block', fontSize:'0.78rem', fontWeight:700, color:'#374151', marginBottom:'0.3rem' }}>Jelszó</label>
+                  <label style={{ display:'block', fontSize:'0.78rem', fontWeight:700, color:'#374151', marginBottom:'0.3rem' }}>{T.passwordLabel}</label>
                   <div style={{ position:'relative' }}>
                     <input type="password" required placeholder="••••••••" value={lPassword} onChange={e => setLPassword(e.target.value)} className="auth-input" />
                     <Lock size={14} color="#94a3b8" style={{ position:'absolute', left:'0.85rem', top:'50%', transform:'translateY(-50%)', pointerEvents:'none' }} />
                   </div>
                 </div>
                 <div style={{ textAlign:'right', marginBottom:'1.25rem' }}>
-                  <button type="button" className="auth-link" onClick={() => switchView('forgot')}>Elfelejtett jelszó?</button>
+                  <button type="button" className="auth-link" onClick={() => switchView('forgot')}>{T.forgotLink}</button>
                 </div>
                 <button type="submit" disabled={submitting} style={{ width:'100%', padding:'0.8rem', background: submitting ? '#334155' : '#0f172a', color:'#fff', fontWeight:800, fontSize:'0.9rem', border:'none', borderRadius:'9px', cursor: submitting ? 'not-allowed' : 'pointer', fontFamily:'inherit' }}>
-                  {submitting ? 'Belépés…' : 'Belépés'}
+                  {submitting ? T.loginBtnBusy : T.loginBtn}
                 </button>
               </form>
               <p style={{ textAlign:'center', fontSize:'0.82rem', color:'#94a3b8', marginTop:'1.25rem', marginBottom:0 }}>
-                Még nincs fiókod?{' '}
-                <button className="auth-link" style={{ color:'#0f172a', fontWeight:700 }} onClick={() => switchView('register')}>Regisztrálj</button>
+                {T.noAccount}{' '}
+                <button className="auth-link" style={{ color:'#0f172a', fontWeight:700 }} onClick={() => switchView('register')}>{T.noAccountLink}</button>
               </p>
             </>
           )}
 
           {view === 'register' && (
             <>
-              <button className="auth-social" onClick={handleGoogle}><GoogleIcon /> Folytatás Google-lel</button>
-              <div className="auth-divider">vagy</div>
+              <button className="auth-social" onClick={handleGoogle}><GoogleIcon /> {T.google}</button>
+              <div className="auth-divider">{T.or}</div>
               <form onSubmit={handleRegister}>
                 <div style={{ marginBottom:'0.75rem' }}>
-                  <label style={{ display:'block', fontSize:'0.78rem', fontWeight:700, color:'#374151', marginBottom:'0.3rem' }}>Teljes név</label>
+                  <label style={{ display:'block', fontSize:'0.78rem', fontWeight:700, color:'#374151', marginBottom:'0.3rem' }}>{T.nameLabel}</label>
                   <div style={{ position:'relative' }}>
-                    <input type="text" required autoFocus placeholder="Kovács János" value={rName} onChange={e => setRName(e.target.value)} className="auth-input" />
+                    <input type="text" required autoFocus placeholder={T.namePh} value={rName} onChange={e => setRName(e.target.value)} className="auth-input" />
                     <User size={14} color="#94a3b8" style={{ position:'absolute', left:'0.85rem', top:'50%', transform:'translateY(-50%)', pointerEvents:'none' }} />
                   </div>
                 </div>
                 <div style={{ marginBottom:'0.75rem' }}>
-                  <label style={{ display:'block', fontSize:'0.78rem', fontWeight:700, color:'#374151', marginBottom:'0.3rem' }}>E-mail cím</label>
+                  <label style={{ display:'block', fontSize:'0.78rem', fontWeight:700, color:'#374151', marginBottom:'0.3rem' }}>{T.emailLabel}</label>
                   <div style={{ position:'relative' }}>
-                    <input type="email" required placeholder="pelda@email.hu" value={rEmail} onChange={e => setREmail(e.target.value)} className="auth-input" />
+                    <input type="email" required placeholder={T.emailPh} value={rEmail} onChange={e => setREmail(e.target.value)} className="auth-input" />
                     <Mail size={14} color="#94a3b8" style={{ position:'absolute', left:'0.85rem', top:'50%', transform:'translateY(-50%)', pointerEvents:'none' }} />
                   </div>
                 </div>
                 <div style={{ marginBottom:'0.75rem' }}>
-                  <label style={{ display:'block', fontSize:'0.78rem', fontWeight:700, color:'#374151', marginBottom:'0.3rem' }}>Jelszó</label>
+                  <label style={{ display:'block', fontSize:'0.78rem', fontWeight:700, color:'#374151', marginBottom:'0.3rem' }}>{T.passwordLabel}</label>
                   <div style={{ position:'relative' }}>
-                    <input type="password" required placeholder="min. 8 kar., nagybetű, szám, spec. karakter" value={rPassword} onChange={e => setRPassword(e.target.value)} className="auth-input" />
+                    <input type="password" required placeholder={T.pwdPh} value={rPassword} onChange={e => setRPassword(e.target.value)} className="auth-input" />
                     <Lock size={14} color="#94a3b8" style={{ position:'absolute', left:'0.85rem', top:'50%', transform:'translateY(-50%)', pointerEvents:'none' }} />
                   </div>
                 </div>
                 <div style={{ marginBottom:'0.75rem' }}>
-                  <label style={{ display:'block', fontSize:'0.78rem', fontWeight:700, color:'#374151', marginBottom:'0.3rem' }}>Jelszó megerősítése</label>
+                  <label style={{ display:'block', fontSize:'0.78rem', fontWeight:700, color:'#374151', marginBottom:'0.3rem' }}>{T.password2Label}</label>
                   <div style={{ position:'relative' }}>
-                    <input type="password" required placeholder="••••••••" value={rPassword2} onChange={e => setRPassword2(e.target.value)} className="auth-input" />
+                    <input type="password" required placeholder={T.pwd2Ph} value={rPassword2} onChange={e => setRPassword2(e.target.value)} className="auth-input" />
                     <Lock size={14} color="#94a3b8" style={{ position:'absolute', left:'0.85rem', top:'50%', transform:'translateY(-50%)', pointerEvents:'none' }} />
                   </div>
                 </div>
                 <div style={{ display:'flex', flexDirection:'column', gap:'0.5rem', marginBottom:'1.25rem' }}>
                   <label style={{ display:'flex', alignItems:'flex-start', gap:'0.5rem', cursor:'pointer', fontSize:'0.8rem', color:'#374151', lineHeight:1.5 }}>
                     <input type="checkbox" checked={rGdpr} onChange={e => setRGdpr(e.target.checked)} style={{ marginTop:'2px', flexShrink:0 }} />
-                    <span>Elolvastam és elfogadom az <a href="/adatkezeles" target="_blank" style={{ color:'#0f172a', fontWeight:700 }}>Adatkezelési Tájékoztatót</a>.</span>
+                    <span>{T.gdprText} <a href="/adatkezeles" target="_blank" style={{ color:'#0f172a', fontWeight:700 }}>{T.gdprLink}</a>.</span>
                   </label>
                   <label style={{ display:'flex', alignItems:'flex-start', gap:'0.5rem', cursor:'pointer', fontSize:'0.8rem', color:'#374151', lineHeight:1.5 }}>
                     <input type="checkbox" checked={rAszf} onChange={e => setRAszf(e.target.checked)} style={{ marginTop:'2px', flexShrink:0 }} />
-                    <span>Elfogadom az <a href="/aszf" target="_blank" style={{ color:'#0f172a', fontWeight:700 }}>Általános Szerződési Feltételeket</a>.</span>
+                    <span>{T.aszfText} <a href="/aszf" target="_blank" style={{ color:'#0f172a', fontWeight:700 }}>{T.aszfLink}</a>.</span>
                   </label>
                 </div>
                 {(() => {
@@ -225,14 +227,14 @@ export default function AuthModal({ onClose, initialView = 'login', onSuccess, i
                     && rPassword === rPassword2 && rGdpr && rAszf;
                   return (
                     <button type="submit" disabled={submitting || !valid} style={{ width:'100%', padding:'0.8rem', background: submitting ? '#334155' : valid ? '#0f172a' : '#cbd5e1', color: valid ? '#fff' : '#94a3b8', fontWeight:800, fontSize:'0.9rem', border:'none', borderRadius:'9px', cursor: (submitting || !valid) ? 'not-allowed' : 'pointer', fontFamily:'inherit', transition:'background .2s,color .2s' }}>
-                      {submitting ? 'Regisztráció…' : 'Regisztráció'}
+                      {submitting ? T.registerBtnBusy : T.registerBtn}
                     </button>
                   );
                 })()}
               </form>
               <p style={{ textAlign:'center', fontSize:'0.82rem', color:'#94a3b8', marginTop:'1.25rem', marginBottom:0 }}>
-                Már van fiókod?{' '}
-                <button className="auth-link" style={{ color:'#0f172a', fontWeight:700 }} onClick={() => switchView('login')}>Jelentkezz be</button>
+                {T.hasAccount}{' '}
+                <button className="auth-link" style={{ color:'#0f172a', fontWeight:700 }} onClick={() => switchView('login')}>{T.hasAccountLink}</button>
               </p>
             </>
           )}
@@ -240,17 +242,17 @@ export default function AuthModal({ onClose, initialView = 'login', onSuccess, i
           {view === 'forgot' && !fSent && (
             <form onSubmit={handleForgot}>
               <p style={{ fontSize:'0.85rem', color:'#64748b', marginBottom:'1.25rem', lineHeight:1.55 }}>
-                Add meg a fiókodhoz tartozó e-mail címet, és küldünk egy visszaállítási linket.
+                {T.forgotDesc}
               </p>
               <div style={{ marginBottom:'1.25rem' }}>
-                <label style={{ display:'block', fontSize:'0.78rem', fontWeight:700, color:'#374151', marginBottom:'0.3rem' }}>E-mail cím</label>
+                <label style={{ display:'block', fontSize:'0.78rem', fontWeight:700, color:'#374151', marginBottom:'0.3rem' }}>{T.emailLabel}</label>
                 <div style={{ position:'relative' }}>
-                  <input type="email" required autoFocus placeholder="pelda@email.hu" value={fEmail} onChange={e => setFEmail(e.target.value)} className="auth-input" />
+                  <input type="email" required autoFocus placeholder={T.emailPh} value={fEmail} onChange={e => setFEmail(e.target.value)} className="auth-input" />
                   <Mail size={14} color="#94a3b8" style={{ position:'absolute', left:'0.85rem', top:'50%', transform:'translateY(-50%)', pointerEvents:'none' }} />
                 </div>
               </div>
               <button type="submit" disabled={submitting} style={{ width:'100%', padding:'0.8rem', background: submitting ? '#334155' : '#0f172a', color:'#fff', fontWeight:800, fontSize:'0.9rem', border:'none', borderRadius:'9px', cursor: submitting ? 'not-allowed' : 'pointer', fontFamily:'inherit' }}>
-                {submitting ? 'Küldés…' : 'Link küldése'}
+                {submitting ? T.sendBtnBusy : T.sendBtn}
               </button>
             </form>
           )}
@@ -260,9 +262,9 @@ export default function AuthModal({ onClose, initialView = 'login', onSuccess, i
               <div style={{ width:'48px', height:'48px', background:'#f0fdf4', borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 1rem' }}>
                 <Check size={22} color="#16a34a" />
               </div>
-              <h3 style={{ fontWeight:800, color:'#0f172a', marginBottom:'0.5rem' }}>E-mail elküldve</h3>
-              <p style={{ fontSize:'0.85rem', color:'#64748b', lineHeight:1.55 }}>Ellenőrizd a postafiókod, és kattints a visszaállítási linkre.</p>
-              <button className="auth-link" style={{ marginTop:'1.25rem', display:'inline-block' }} onClick={() => switchView('login')}>Vissza a bejelentkezéshez</button>
+              <h3 style={{ fontWeight:800, color:'#0f172a', marginBottom:'0.5rem' }}>{T.sentTitle}</h3>
+              <p style={{ fontSize:'0.85rem', color:'#64748b', lineHeight:1.55 }}>{T.sentText}</p>
+              <button className="auth-link" style={{ marginTop:'1.25rem', display:'inline-block' }} onClick={() => switchView('login')}>{T.backToLogin}</button>
             </div>
           )}
 
@@ -271,11 +273,9 @@ export default function AuthModal({ onClose, initialView = 'login', onSuccess, i
               <div style={{ width:'48px', height:'48px', background:'#f0fdf4', borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 1rem' }}>
                 <Mail size={22} color="#16a34a" />
               </div>
-              <h3 style={{ fontWeight:800, color:'#0f172a', marginBottom:'0.5rem' }}>Erősítsd meg az e-mailt</h3>
-              <p style={{ fontSize:'0.85rem', color:'#64748b', lineHeight:1.55 }}>
-                Küldtünk egy megerősítő linket. Kattints rá, hogy aktiváld a fiókodat, majd gyere vissza erre az oldalra a meghívó elfogadásához.
-              </p>
-              <button className="auth-link" style={{ marginTop:'1.25rem', display:'inline-block' }} onClick={() => switchView('login')}>Vissza a bejelentkezéshez</button>
+              <h3 style={{ fontWeight:800, color:'#0f172a', marginBottom:'0.5rem' }}>{T.confirmTitle}</h3>
+              <p style={{ fontSize:'0.85rem', color:'#64748b', lineHeight:1.55 }}>{T.confirmText}</p>
+              <button className="auth-link" style={{ marginTop:'1.25rem', display:'inline-block' }} onClick={() => switchView('login')}>{T.backToLogin}</button>
             </div>
           )}
 

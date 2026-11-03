@@ -1,22 +1,25 @@
 'use client';
 
 import React, { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import Link from 'next/link';
+import { Link as LocaleLink } from '@/navigation';
 import { Camera, Ellipsis, AlertTriangle, Loader2 } from 'lucide-react';
 import Modal from '@/components/Modal';
 import StatusBadge from './StatusBadge';
 import TeamBadge from './TeamBadge';
 import BottomSheet from './BottomSheet';
+import { useApp } from '@/context/AppContext';
 
-function formatHuDate(dateStr) {
+function formatRelativeDate(dateStr, tToday, tYesterday) {
   if (!dateStr) return '';
   const d = new Date(dateStr);
   if (isNaN(d)) return '';
   const now = new Date();
   const diffDays = Math.round((now.setHours(0,0,0,0) - new Date(d).setHours(0,0,0,0)) / 86400000);
-  if (diffDays === 0) return 'ma';
-  if (diffDays === 1) return 'tegnap';
-  return d.toLocaleDateString('hu-HU', { month: 'short', day: 'numeric' });
+  if (diffDays === 0) return tToday;
+  if (diffDays === 1) return tYesterday;
+  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
 
 // Deterministic gradient per title — keeps cards visually distinct without photos
@@ -42,10 +45,10 @@ function titleGradient(title = '') {
   return `linear-gradient(135deg, ${a} 0%, ${b} 100%)`;
 }
 
-const TYPE_META = {
-  felmeres: { label: 'Felmérés', color: '#2563eb', bg: 'rgba(37,99,235,0.18)' },
-  ajanlat:  { label: 'Ajánlat',  color: '#fff',    bg: 'rgba(124,58,237,0.75)' },
-  projekt:  { label: 'Projekt',  color: '#fff',    bg: 'rgba(5,150,105,0.75)'  },
+const TYPE_STYLE = {
+  felmeres: { color: '#2563eb', bg: 'rgba(37,99,235,0.18)' },
+  ajanlat:  { color: '#fff',    bg: 'rgba(124,58,237,0.75)' },
+  projekt:  { color: '#fff',    bg: 'rgba(5,150,105,0.75)'  },
 };
 
 export default function ItemCard({
@@ -67,6 +70,11 @@ export default function ItemCard({
   onRetractTransfer,
   lockedReason,
 }) {
+  const { isDemoMode } = useApp();
+  const t       = useTranslations('mobile.itemCard');
+  const tCommon = useTranslations('common');
+  const AppLink = isDemoMode ? Link : LocaleLink;
+
   const [sheetOpen, setSheetOpen] = useState(false);
   const [lockOpen,  setLockOpen]  = useState(false);
   const [retracting, setRetracting] = useState(false);
@@ -141,16 +149,16 @@ export default function ItemCard({
           )}
 
           {/* Type badge */}
-          {type && TYPE_META[type] && (
+          {type && TYPE_STYLE[type] && (
             <div style={{ position: 'absolute', top: 8, right: 8 }}>
               <span style={{
                 fontSize: 11, fontWeight: 700, lineHeight: 1,
-                color: TYPE_META[type].color,
-                background: TYPE_META[type].bg,
+                color: TYPE_STYLE[type].color,
+                background: TYPE_STYLE[type].bg,
                 padding: '3px 8px', borderRadius: 999,
                 backdropFilter: 'blur(4px)',
               }}>
-                {TYPE_META[type].label}
+                {type === 'felmeres' ? t('typeSurvey') : type === 'ajanlat' ? t('typeQuote') : t('typeProject')}
               </span>
             </div>
           )}
@@ -163,7 +171,7 @@ export default function ItemCard({
                 fontSize: 10, fontWeight: 800, padding: '2px 7px',
                 borderRadius: 999, letterSpacing: '0.03em', whiteSpace: 'nowrap',
               }}>
-                {lockedReason === 'transfer_expired' ? 'LEJÁRT' : 'VISSZAUTASÍTVA'}
+                {lockedReason === 'transfer_expired' ? t('statusExpired') : t('statusRejected')}
               </span>
             </div>
           )}
@@ -176,7 +184,7 @@ export default function ItemCard({
                 fontSize: 10, fontWeight: 800, padding: '2px 7px',
                 borderRadius: 999, letterSpacing: '0.03em', whiteSpace: 'nowrap',
               }}>
-                ÁTADÁS FOLYAMATBAN
+                {t('transferPending')}
               </span>
             </div>
           )}
@@ -191,7 +199,7 @@ export default function ItemCard({
                 color: '#fff',
                 backdropFilter: 'blur(4px)',
               }}>
-                {role === 'owner' ? 'TULAJDONOS' : 'KÖZREMŰKÖDŐ'}
+                {role === 'owner' ? t('roleOwner') : t('roleContributor')}
               </span>
             </div>
           )}
@@ -233,7 +241,7 @@ export default function ItemCard({
               )}
               {clientName && date && <span style={{ color: '#64748b' }}> · </span>}
               {date && (
-                <span style={{ color: '#64748b', fontWeight: 500 }}>{formatHuDate(date)}</span>
+                <span style={{ color: '#64748b', fontWeight: 500 }}>{formatRelativeDate(date, t('today'), t('yesterday'))}</span>
               )}
             </span>
             <StatusBadge status={status} />
@@ -243,7 +251,7 @@ export default function ItemCard({
           <button
             type="button"
             onClick={() => isPendingTransfer ? setLockOpen(true) : setSheetOpen(true)}
-            aria-label="További műveletek"
+            aria-label={t('ariaOptions')}
             style={{
               position: 'absolute', right: 4, top: 4,
               width: 44, height: 44,
@@ -257,10 +265,10 @@ export default function ItemCard({
         </div>
 
         {/* Whole-card tap target */}
-        <Link
+        <AppLink
           href={href}
           style={{ position: 'absolute', inset: 0, zIndex: 1 }}
-          aria-label={`Megnyitás: ${title}`}
+          aria-label={t('ariaOpen', { title })}
         />
       </div>
 
@@ -276,19 +284,19 @@ export default function ItemCard({
         onDelete={onDelete}
       />
 
-      <Modal isOpen={lockOpen} onClose={retracting ? undefined : () => setLockOpen(false)} title="Átadás folyamatban">
+      <Modal isOpen={lockOpen} onClose={retracting ? undefined : () => setLockOpen(false)} title={t('transferModalTitle')}>
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.85rem', marginBottom: '1.25rem' }}>
           <div style={{ flexShrink: 0, width: 40, height: 40, borderRadius: '50%', background: 'var(--warning-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <AlertTriangle size={20} color="var(--warning-text)" />
           </div>
           <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', lineHeight: 1.6, margin: 0 }}>
-            Ez a dokumentum kollektívába való átadásra vár, ezért nem módosítható és nem törölhető.
-            {onRetractTransfer && <><br /><br />Vissza szeretnéd vonni a kérelmet?</>}
+            {t('transferModalBody')}
+            {onRetractTransfer && <><br /><br />{t('transferRetractQ')}</>}
           </p>
         </div>
         <div style={{ display: 'flex', gap: '0.65rem', justifyContent: 'flex-end' }}>
           <button className="btn btn-secondary btn-sm" onClick={() => setLockOpen(false)} disabled={retracting}>
-            {onRetractTransfer ? 'Mégse' : 'Bezárás'}
+            {onRetractTransfer ? tCommon('cancel') : tCommon('close')}
           </button>
           {onRetractTransfer && (
             <button
@@ -298,8 +306,8 @@ export default function ItemCard({
               disabled={retracting}
             >
               {retracting
-                ? <><Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> Visszavonás…</>
-                : 'Visszavonás'}
+                ? <><Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> {t('retractingBtn')}</>
+                : t('retract')}
             </button>
           )}
         </div>

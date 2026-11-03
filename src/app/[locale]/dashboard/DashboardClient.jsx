@@ -1,0 +1,644 @@
+'use client';
+
+import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
+import { useApp } from '@/context/AppContext';
+import { calculateProjectFinancials } from '@/lib/calculations';
+import { formatHUF, formatDate } from '@/lib/constants';
+import {
+  FolderKanban, Users, TrendingUp, TrendingDown, CheckCircle2,
+  Plus, Coins, Receipt, Hammer, BookOpen, Ruler, FileText,
+  UserCheck, Clock, ChevronRight, Mail, UsersRound, ArrowUpRight,
+} from 'lucide-react';
+import StatCard from '@/components/StatCard';
+import CalendarWidget from '@/components/CalendarWidget';
+import WorkspaceBadge from '@/components/WorkspaceBadge';
+import CompactRow from '@/components/mobile/CompactRow';
+import WorkspaceSectionHeader from '@/components/mobile/WorkspaceSectionHeader';
+import ItemCard from '@/components/mobile/ItemCard';
+import useMobile from '@/hooks/useMobile';
+import { collectiveColor } from '@/lib/collectiveColor';
+
+const QUOTE_STATUS_COLOR = {
+  draft:    'var(--text-muted)',
+  sent:     'var(--warning-text)',
+  accepted: 'var(--success-text)',
+  rejected: 'var(--danger-text)',
+};
+
+function SectionHeader({ icon: Icon, title, href, count }) {
+  const t = useTranslations('dashboard');
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+        {Icon && <Icon size={16} color="var(--accent)" />}
+        <h3 style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--text-primary)' }}>{title}</h3>
+        {count != null && <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-muted)', background: 'var(--bg-subtle)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-pill)', padding: '0.1rem 0.45rem' }}>{count}</span>}
+      </div>
+      {href && (
+        <Link href={href} style={{ fontSize: '0.8rem', color: 'var(--accent)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
+          {t('viewAll')} <ChevronRight size={14} />
+        </Link>
+      )}
+    </div>
+  );
+}
+
+function MobileQuickCards({ cards, router }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      {cards.map(({ key, icon: Icon, title, desc, href, color, bg }) => (
+        <button
+          key={key}
+          onClick={() => router.push(href)}
+          style={{
+            display: 'flex', alignItems: 'center', gap: 16,
+            padding: '16px 14px', borderRadius: 'var(--radius-xl)',
+            background: bg, border: `1.5px solid ${color}28`,
+            cursor: 'pointer', textAlign: 'left', width: '100%', minHeight: 72,
+          }}
+        >
+          <div style={{ width: 44, height: 44, borderRadius: 'var(--radius-lg)', background: color, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <Icon size={20} color="#fff" />
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 2 }}>{title}</div>
+            <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.4 }}>{desc}</div>
+          </div>
+          <ChevronRight size={16} color="var(--text-muted)" style={{ flexShrink: 0 }} />
+        </button>
+      ))}
+    </div>
+  );
+}
+
+export default function DashboardClient({
+  initialProjects,
+  initialInvoices,
+  initialLabourEntries,
+  initialUsers,
+  initialClients,
+  initialQuotes,
+  initialSurveys,
+  currentUser,
+  isAdmin,
+  isSuperAdmin,
+  impersonating,
+  effectiveEntityId,
+}) {
+  const router = useRouter();
+  const isMobile = useMobile();
+  const t = useTranslations('dashboard');
+  const {
+    projects: _ctxProjects,
+    quotes: _ctxQuotes,
+    invoices: _ctxInvoices,
+    labourEntries: _ctxLabourEntries,
+    clients: _ctxClients,
+    users: _ctxUsers,
+    surveys: _ctxSurveys,
+    diaryEntriesByProject,
+    dataReady,
+    isDemoMode,
+  } = useApp();
+
+  const p = (path) => isDemoMode ? `/demo${path}` : path;
+
+  const projects      = dataReady ? _ctxProjects      : initialProjects;
+  const quotes        = dataReady ? _ctxQuotes        : (initialQuotes || []);
+  const invoices      = dataReady ? _ctxInvoices      : initialInvoices;
+  const labourEntries = dataReady ? _ctxLabourEntries : initialLabourEntries;
+  const clients       = dataReady ? _ctxClients       : (initialClients || []);
+  const users         = dataReady ? _ctxUsers         : initialUsers;
+  const surveys       = dataReady ? _ctxSurveys       : (initialSurveys || []);
+
+  const QUOTE_STATUS = {
+    draft:    t('quoteStatus.draft'),
+    sent:     t('quoteStatus.sent'),
+    accepted: t('quoteStatus.accepted'),
+    rejected: t('quoteStatus.rejected'),
+  };
+
+  const activeInvoices = invoices.filter(i => !i.deleted_at);
+  const activityItems = [
+    ...activeInvoices.map(i => ({ ...i, _type: 'invoice', _date: i.created_at })),
+    ...labourEntries.map(i => ({ ...i, _type: 'labour', _date: i.date || i.created_at })),
+    ...Object.values(diaryEntriesByProject || {}).flat().map(i => ({ ...i, _type: 'diary', _date: i.entry_date || i.created_at })),
+  ].sort((a, b) => new Date(b._date) - new Date(a._date)).slice(0, 8);
+
+  const recentProjects = [...projects].slice(0, 4);
+  const recentSurveys  = [...surveys].slice(0, 5);
+  const recentQuotes   = [...quotes].slice(0, 5);
+
+  const allActiveInvoices = activeInvoices;
+
+  const [pendingInvitations, setPendingInvitations] = useState([]);
+  useEffect(() => {
+    if (isDemoMode) return;
+    fetch('/api/collectives/my-invitations')
+      .then(r => r.ok ? r.json() : { invitations: [] })
+      .then(d => setPendingInvitations(d.invitations || []))
+      .catch(() => {});
+  }, [isDemoMode]);
+
+  const [pendingTransfers, setPendingTransfers] = useState([]);
+  useEffect(() => {
+    if (isDemoMode) return;
+    fetch('/api/transfer-requests')
+      .then(r => r.ok ? r.json() : { requests: [] })
+      .then(d => setPendingTransfers(d.requests || []))
+      .catch(() => {});
+  }, [isDemoMode]);
+
+  const [combined, setCombined] = useState(null);
+  useEffect(() => {
+    if (!dataReady) return;
+    fetch('/api/workspace/combined', { cache: 'no-store' })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => setCombined(d))
+      .catch(() => {});
+  }, [dataReady]);
+
+  // ── Mobile home data ──
+  const personalSurveys  = combined?.personal?.surveys  || [];
+  const personalQuotes   = combined?.personal?.quotes   || [];
+  const personalProjects = combined?.personal?.projects || [];
+  const sharedSurveys    = combined?.shared?.surveys    || [];
+  const sharedQuotes     = combined?.shared?.quotes     || [];
+  const sharedProjects   = combined?.shared?.projects   || [];
+  const collectiveMeta   = combined?.collectives        || [];
+
+  const allItems = [
+    ...personalSurveys.map(s => ({ ...s, _kind: 'felmeres', _date: s.updated_at || s.created_at })),
+    ...personalQuotes.map(q  => ({ ...q, _kind: 'ajanlat',  _date: q.updated_at || q.created_at })),
+    ...personalProjects.map(proj => ({ ...proj, _kind: 'projekt', _date: proj.updated_at || proj.created_at })),
+    ...sharedSurveys.map(s  => ({ ...s, _kind: 'felmeres', _date: s.updated_at || s.created_at })),
+    ...sharedQuotes.map(q   => ({ ...q, _kind: 'ajanlat',  _date: q.updated_at || q.created_at })),
+    ...sharedProjects.map(proj => ({ ...proj, _kind: 'projekt', _date: proj.updated_at || proj.created_at })),
+  ].sort((a, b) => new Date(b._date) - new Date(a._date));
+
+  const mostRecent = allItems[0];
+
+  function recentItemCard(item) {
+    if (!item) return null;
+    const client = (clients || []).find(c => c.id === item.client_id);
+    const href   = `${p('/' + (item._kind === 'felmeres' ? 'felmeres' : item._kind === 'ajanlat' ? 'ajanlatok' : 'projektek') + '/' + item.id)}`;
+    const status = item._kind === 'felmeres'
+      ? (item.status === 'done' ? 'done' : item.status === 'reopened' ? 'reopened' : 'active')
+      : item._kind === 'ajanlat' ? (item.status || 'draft')
+      : (item.done_at || item.closed_at ? 'kesz' : 'folyamatban');
+    return (
+      <ItemCard
+        href={href}
+        title={item.name || item.title}
+        clientName={client?.name}
+        date={item._date}
+        status={status}
+        type={item._kind}
+        photoUrls={item._preview_urls || []}
+        isShared={!!item.collective_id}
+        stripHeight={90}
+      />
+    );
+  }
+
+  const totalSurveys  = personalSurveys.length  + sharedSurveys.length;
+  const totalQuotes   = personalQuotes.length   + sharedQuotes.length;
+  const totalProjects = personalProjects.length + sharedProjects.length;
+
+  const isEmptyUser = dataReady && combined !== null && totalSurveys === 0 && totalQuotes === 0 && totalProjects === 0;
+
+  const ALL_QUICK_CARDS = [
+    { key: 'felmeres', icon: Ruler,        title: t('quickCards.newSurvey'),  desc: t('quickCards.newSurveyDesc'),  href: p('/felmeres/uj'),   color: '#2563eb', bg: '#eff6ff', border: '#bfdbfe' },
+    { key: 'ajanlat',  icon: FileText,     title: t('quickCards.newQuote'),   desc: t('quickCards.newQuoteDesc'),   href: p('/ajanlatok/uj'), color: '#7c3aed', bg: '#f5f3ff', border: '#ddd6fe' },
+    { key: 'projekt',  icon: FolderKanban, title: t('quickCards.newProject'), desc: t('quickCards.newProjectDesc'), href: p('/projektek/uj'), color: '#059669', bg: '#ecfdf5', border: '#a7f3d0' },
+  ];
+  const quickCards = (dataReady && combined !== null) ? ALL_QUICK_CARDS.filter(c =>
+    c.key === 'felmeres' ? totalSurveys  === 0 :
+    c.key === 'ajanlat'  ? totalQuotes   === 0 :
+                           totalProjects === 0
+  ) : [];
+  const showQuickStart = quickCards.length > 0;
+
+  return (
+    <div className="container page-body">
+
+      {/* ── Pending invitation nudge ── */}
+      {pendingInvitations.length > 0 && (
+        <div style={{
+          background: 'linear-gradient(135deg, #eff6ff, #f5f3ff)',
+          border: '1px solid #c7d2fe',
+          borderRadius: 'var(--radius-md)',
+          padding: '0.85rem 1rem',
+          marginTop: 10,
+          marginBottom: '1rem',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <div style={{ width: 36, height: 36, borderRadius: 'var(--radius-md)', background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <Mail size={17} color="#fff" />
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontWeight: 800, fontSize: '0.9rem', color: '#1e3a8a' }}>
+                {pendingInvitations.length === 1
+                  ? t('invitedSingle', { name: pendingInvitations[0].collective_name })
+                  : t('invitedMultiple', { count: pendingInvitations.length })}
+              </div>
+              <div style={{ fontSize: '0.775rem', color: '#3730a3', marginTop: '0.1rem' }}>
+                {pendingInvitations.length === 1
+                  ? t('invitedBy', { name: pendingInvitations[0].inviter_name || t('unknown') })
+                  : pendingInvitations.map(i => i.collective_name).join(', ')}
+              </div>
+            </div>
+            {!isMobile && (
+              <Link href={p('/kollektivak')} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', padding: '0.5rem 0.9rem', background: 'var(--accent)', color: '#fff', borderRadius: 'var(--radius-md)', fontWeight: 700, fontSize: '0.8rem', textDecoration: 'none', flexShrink: 0 }}>
+                <UsersRound size={13} /> {t('view')}
+              </Link>
+            )}
+          </div>
+          {isMobile && (
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '0.65rem' }}>
+              <Link href={p('/kollektivak')} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', padding: '0.5rem 0.9rem', background: 'var(--accent)', color: '#fff', borderRadius: 'var(--radius-md)', fontWeight: 700, fontSize: '0.8rem', textDecoration: 'none' }}>
+                <UsersRound size={13} /> {t('view')}
+              </Link>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Pending transfer request nudge ── */}
+      {pendingTransfers.length > 0 && (
+        <div style={{
+          background: 'linear-gradient(135deg, #f0fdf4, #eff6ff)',
+          border: '1px solid #bbf7d0',
+          borderRadius: 'var(--radius-md)',
+          padding: '0.85rem 1rem',
+          marginTop: pendingInvitations.length === 0 ? 10 : 0,
+          marginBottom: '1rem',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <div style={{ width: 36, height: 36, borderRadius: 'var(--radius-md)', background: '#16a34a', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <ArrowUpRight size={17} color="#fff" />
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontWeight: 800, fontSize: '0.9rem', color: '#14532d' }}>
+                {pendingTransfers.length === 1
+                  ? t('transferSingle', { title: pendingTransfers[0].document_title })
+                  : t('transferMultiple', { count: pendingTransfers.length })}
+              </div>
+              <div style={{ fontSize: '0.775rem', color: '#166534', marginTop: '0.1rem' }}>
+                {pendingTransfers.length === 1
+                  ? t('requestedBy', { name: pendingTransfers[0].requester?.display_name || t('unknown') })
+                  : pendingTransfers.map(r => r.requester?.display_name || t('unknown')).join(', ')}
+              </div>
+            </div>
+            {!isMobile && (
+              <Link href={p('/kollektivak')} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', padding: '0.5rem 0.9rem', background: '#16a34a', color: '#fff', borderRadius: 'var(--radius-md)', fontWeight: 700, fontSize: '0.8rem', textDecoration: 'none', flexShrink: 0 }}>
+                <UsersRound size={13} /> {t('view')}
+              </Link>
+            )}
+          </div>
+          {isMobile && (
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '0.65rem' }}>
+              <Link href={p('/kollektivak')} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', padding: '0.5rem 0.9rem', background: '#16a34a', color: '#fff', borderRadius: 'var(--radius-md)', fontWeight: 700, fontSize: '0.8rem', textDecoration: 'none' }}>
+                <UsersRound size={13} /> {t('view')}
+              </Link>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ══════════════════════ MOBILE HOME ══════════════════════ */}
+      <div className="show-mobile">
+
+        {isEmptyUser && (
+          <div style={{ paddingTop: 24 }}>
+            <div style={{ textAlign: 'center', marginBottom: 20 }}>
+              <div style={{ fontSize: 17, fontWeight: 800, color: 'var(--text-primary)', marginBottom: 4 }}>
+                {t('emptyTitle')}
+              </div>
+              <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>
+                {t('emptySubtitle')}
+              </div>
+            </div>
+            <MobileQuickCards cards={quickCards} router={router} />
+          </div>
+        )}
+
+        {!(isSuperAdmin && !impersonating) && (
+          <div style={{ marginBottom: 24, marginTop: 24 }}>
+            <CalendarWidget projects={projects} clients={clients || []} quotes={quotes || []} />
+          </div>
+        )}
+
+        {!isEmptyUser && <>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginBottom: 24, marginTop: 16 }}>
+          {[
+            { label: t('tileSurveys'),  href: p('/felmeres'),   personal: personalSurveys.length,  shared: sharedSurveys.length,  color: '#2563eb' },
+            { label: t('tileQuotes'),   href: p('/ajanlatok'),  personal: personalQuotes.length,   shared: sharedQuotes.length,   color: '#7c3aed' },
+            { label: t('tileProjects'), href: p('/projektek'),  personal: personalProjects.length, shared: sharedProjects.length, color: '#059669' },
+          ].map(tile => (
+            <Link key={tile.label} href={tile.href} style={{ textDecoration: 'none' }}>
+              <div style={{
+                background: '#fff', borderRadius: 16, padding: '14px 12px',
+                borderLeft: `4px solid ${tile.color}`,
+                boxShadow: `0 4px 16px ${tile.color}28, 0 1px 4px rgba(0,0,0,0.06)`,
+                minHeight: 140,
+                display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
+              }}>
+                <div style={{ fontSize: 28, fontWeight: 800, color: '#0f172a', lineHeight: 1 }}>
+                  {tile.personal + tile.shared}
+                </div>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: '#0f172a', marginBottom: 6 }}>{tile.label}</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#2563eb', flexShrink: 0 }} />
+                      <span style={{ fontSize: 11, fontWeight: 600, color: '#475569' }}>{tile.personal}</span>
+                    </div>
+                    {tile.shared > 0 && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#15803d', flexShrink: 0 }} />
+                        <span style={{ fontSize: 11, fontWeight: 600, color: '#475569' }}>{tile.shared}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </Link>
+          ))}
+        </div>
+
+        {mostRecent && (
+          <div style={{ marginLeft: '0.5px', marginRight: '0.5px', padding: '1.25rem 0.85rem 1.5rem', background: 'linear-gradient(135deg, #450a0a 0%, #881337 100%)', borderRadius: '25px 0 25px 0', marginBottom: 24 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'rgba(255,255,255,0.5)', marginBottom: 8 }}>
+              {t('continueSection')}
+            </div>
+            {recentItemCard(mostRecent)}
+          </div>
+        )}
+
+        <div style={{ marginBottom: 24 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+            <WorkspaceSectionHeader type="personal" count={personalSurveys.length + personalQuotes.length + personalProjects.length} />
+            <Link href={p('/osszes?workspace=personal')} style={{ fontSize: 14, fontWeight: 700, color: '#2563eb', textDecoration: 'none', flexShrink: 0, marginLeft: 12, marginBottom: 12 }}>{t('viewAll')}</Link>
+          </div>
+          {[...personalSurveys, ...personalQuotes, ...personalProjects]
+            .sort((a, b) => new Date(b.updated_at || b.created_at) - new Date(a.updated_at || a.created_at))
+            .slice(0, 2)
+            .map(item => {
+              const kind = personalSurveys.find(s => s.id === item.id) ? 'felmeres' : personalQuotes.find(q => q.id === item.id) ? 'ajanlat' : 'projekt';
+              const client = (clients || []).find(c => c.id === item.client_id);
+              return (
+                <CompactRow
+                  key={item.id}
+                  href={p('/' + (kind === 'felmeres' ? 'felmeres' : kind === 'ajanlat' ? 'ajanlatok' : 'projektek') + '/' + item.id)}
+                  title={item.name || item.title}
+                  meta={client?.name}
+                  type={kind}
+                  isShared={false}
+                />
+              );
+            })}
+        </div>
+
+        {collectiveMeta.map((col) => {
+          const byDate = (a, b) => new Date(b.updated_at || b.created_at) - new Date(a.updated_at || a.created_at);
+          const colSurveys  = sharedSurveys.filter(s => s.collective_id === col.id).sort(byDate);
+          const colQuotes   = sharedQuotes.filter(q => q.collective_id === col.id).sort(byDate);
+          const colProjects = sharedProjects.filter(proj => proj.collective_id === col.id).sort(byDate);
+
+          const lastSurvey  = colSurveys[0]  || null;
+          const lastQuote   = colQuotes[0]   || null;
+          const lastProject = colProjects[0] || null;
+
+          if (!lastSurvey && !lastQuote && !lastProject) return null;
+
+          const total = colSurveys.length + colQuotes.length + colProjects.length;
+
+          return (
+            <div key={col.id} style={{ marginLeft: '0.5px', marginRight: '0.5px', padding: '1.25rem 0.85rem 1.5rem', background: collectiveColor(col.id), borderRadius: '25px 0 25px 0', marginBottom: 24 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <WorkspaceSectionHeader type="collective" name={col.name} count={total} light />
+                <Link href={p(`/osszes?workspace=${col.id}`)} style={{ fontSize: 14, fontWeight: 700, color: 'rgba(255,255,255,0.85)', textDecoration: 'none', flexShrink: 0, marginLeft: 12, marginBottom: 12 }}>{t('viewAll')}</Link>
+              </div>
+              {lastSurvey && (
+                <CompactRow href={p(`/felmeres/${lastSurvey.id}`)} title={lastSurvey.title} meta={(clients || []).find(c => c.id === lastSurvey.client_id)?.name} type="felmeres" isShared />
+              )}
+              {lastQuote && (
+                <CompactRow href={p(`/ajanlatok/${lastQuote.id}`)} title={lastQuote.title} meta={(clients || []).find(c => c.id === lastQuote.client_id)?.name} type="ajanlat" isShared />
+              )}
+              {lastProject && (
+                <CompactRow href={p(`/projektek/${lastProject.id}`)} title={lastProject.name} meta={(clients || []).find(c => c.id === lastProject.client_id)?.name} type="projekt" isShared />
+              )}
+            </div>
+          );
+        })}
+
+        {showQuickStart && (
+          <div style={{ marginTop: 8, marginBottom: 8 }}>
+            <MobileQuickCards cards={quickCards} router={router} />
+          </div>
+        )}
+        </>}
+      </div>
+      {/* ══════════════════════ END MOBILE HOME ══════════════════════ */}
+
+      {/* ══════════════════════ DESKTOP DASHBOARD ══════════════════════ */}
+      <div className="hide-mobile">
+        <div className="page-header">
+          <div className="page-header-row">
+            <h1 className="page-title" style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
+              Dashboard
+              <WorkspaceBadge />
+            </h1>
+          </div>
+        </div>
+
+        {!(isSuperAdmin && !impersonating) && (
+          <div className="stat-grid" style={{ marginBottom: '1.5rem' }}>
+            <StatCard label={t('statTotalCost')}      value={formatHUF(allActiveInvoices.reduce((s, i) => s + Number(i.value_huf || 0), 0))} sub={t('statTotalCostSub')}       icon={Coins}        href={p('/projektek')} accentColor="#065f46" />
+            <StatCard label={t('statActiveProjects')} value={projects.length}                                                                  sub={t('statActiveProjectsSub')}  icon={FolderKanban} href={p('/projektek')} accentColor="#0e7490" />
+            <StatCard label={t('statInvoices')}       value={allActiveInvoices.length}                                                         sub={t('statInvoicesSub')}        icon={Receipt}      href={p('/projektek')} accentColor="#4338ca" />
+          </div>
+        )}
+
+        {!(isSuperAdmin && !impersonating) && (
+          <div style={{ marginBottom: '1.75rem' }}>
+            <CalendarWidget projects={projects} clients={clients || []} quotes={quotes || []} />
+          </div>
+        )}
+
+        {/* Latest activity */}
+        <div style={{ marginBottom: '1.75rem' }}>
+          <SectionHeader icon={Clock} title={t('latestActivity')} count={activityItems.length} />
+          {activityItems.length === 0 ? (
+            <div className="card" style={{ textAlign: 'center', padding: '1.5rem', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+              {t('noActivity')}
+            </div>
+          ) : (
+            <div className="card" style={{ padding: '0.35rem 0', borderLeft: '4px solid #475569', boxShadow: '0 4px 16px #47556928, 0 1px 4px rgba(0,0,0,0.06)' }}>
+              {activityItems.map((item, idx) => {
+                const project = projects.find(pr => pr.id === item.project_id);
+                const isLast = idx === activityItems.length - 1;
+
+                if (item._type === 'invoice') return (
+                  <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.65rem 1rem', borderBottom: isLast ? 'none' : '1px solid var(--border-subtle)' }}>
+                    <div style={{ width: 32, height: 32, borderRadius: 'var(--radius-md)', background: 'var(--accent-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <Receipt size={15} color="var(--accent)" />
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontWeight: 700, fontSize: '0.85rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.description || t('invoiceFallback')}</div>
+                      <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{item.uploader_name} &bull; {project?.name} &bull; {formatDate(item.created_at)}</div>
+                    </div>
+                    <div style={{ fontWeight: 800, fontSize: '0.875rem', fontFamily: 'var(--font-mono)', flexShrink: 0 }}>{formatHUF(item.value_huf)}</div>
+                  </div>
+                );
+
+                if (item._type === 'labour') return (
+                  <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.65rem 1rem', borderBottom: isLast ? 'none' : '1px solid var(--border-subtle)' }}>
+                    <div style={{ width: 32, height: 32, borderRadius: 'var(--radius-md)', background: 'var(--success-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <Hammer size={15} color="var(--success-text)" />
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontWeight: 700, fontSize: '0.85rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.labour_type}</div>
+                      <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{users.find(u => u.id === item.uploaded_by)?.display_name || item.uploader_name || '–'} &bull; {project?.name} &bull; {formatDate(item._date)}</div>
+                    </div>
+                    <div style={{ fontWeight: 800, fontSize: '0.875rem', fontFamily: 'var(--font-mono)', flexShrink: 0, color: 'var(--success-text)' }}>+{formatHUF(item.value_huf)}</div>
+                  </div>
+                );
+
+                if (item._type === 'diary') return (
+                  <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.65rem 1rem', borderBottom: isLast ? 'none' : '1px solid var(--border-subtle)' }}>
+                    <div style={{ width: 32, height: 32, borderRadius: 'var(--radius-md)', background: 'var(--bg-subtle)', border: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <BookOpen size={15} color="var(--text-secondary)" />
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontWeight: 700, fontSize: '0.85rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.title || t('diaryFallback')}</div>
+                      <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{project?.name} &bull; {formatDate(item._date)}</div>
+                    </div>
+                  </div>
+                );
+
+                return null;
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Recent projects */}
+        <div style={{ marginBottom: '1.75rem' }}>
+          <SectionHeader icon={FolderKanban} title={t('projectsSection')} href={p('/projektek')} count={projects.length} />
+          {recentProjects.length === 0 ? (
+            <button onClick={() => router.push(p('/projektek/uj'))} style={{
+              display: 'flex', flexDirection: 'column', alignItems: 'flex-start',
+              gap: 16, padding: '28px 24px', width: '100%',
+              borderRadius: 'var(--radius-lg)', background: '#ecfdf5',
+              border: '1.5px solid #a7f3d0', cursor: 'pointer', textAlign: 'left',
+            }}>
+              <div style={{ width: 52, height: 52, borderRadius: 'var(--radius-lg)', background: '#059669', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <FolderKanban size={24} color="#fff" />
+              </div>
+              <div>
+                <div style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: 6 }}>{t('createFirstProject')}</div>
+                <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>{t('createFirstProjectDesc')}</div>
+              </div>
+              <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#059669', display: 'flex', alignItems: 'center', gap: 4 }}>
+                {t('create')} <ChevronRight size={14} />
+              </div>
+            </button>
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(300px, 100%), 1fr))', gap: '1rem' }}>
+              {recentProjects.map(project => {
+                const projectMemberUsers = users.filter(u => (project.members || []).includes(u.id));
+                const fin = calculateProjectFinancials(project, invoices, labourEntries, projectMemberUsers, currentUser?.id);
+                return (
+                  <div key={project.id} className="card card-interactive" onClick={() => router.push(p(`/projektek/${project.id}`))} style={{ cursor: 'pointer', borderLeft: '4px solid #059669', boxShadow: '0 4px 16px #05996928, 0 1px 4px rgba(0,0,0,0.06)' }}>
+                    <div style={{ fontWeight: 800, fontSize: '1rem', marginBottom: '0.35rem' }}>{project.name}</div>
+                    {project.description && <p style={{ fontSize: '0.825rem', color: 'var(--text-secondary)', marginBottom: '0.5rem', lineHeight: 1.4 }}>{project.description}</p>}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: 'var(--text-muted)', borderTop: '1px solid var(--border-subtle)', paddingTop: '0.5rem', marginTop: '0.5rem' }}>
+                      <span>{formatHUF(fin.totalCost + fin.totalLabourValue)} {t('totalCost')}</span>
+                      <span>{t('invoiceCount', { count: fin.projectInvoices.length })}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Surveys + Quotes */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(320px, 100%), 1fr))', gap: '1rem', marginBottom: '1.75rem' }}>
+          <div className="card" style={{ borderLeft: '4px solid #2563eb', boxShadow: '0 4px 16px #2563eb28, 0 1px 4px rgba(0,0,0,0.06)' }}>
+            <SectionHeader icon={Ruler} title={t('latestSurveys')} href={p('/felmeres')} />
+            {recentSurveys.length === 0 ? (
+              <button onClick={() => router.push(p('/felmeres/uj'))} style={{
+                display: 'flex', alignItems: 'center', gap: 12, width: '100%',
+                padding: '12px 0', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left',
+              }}>
+                <div style={{ width: 38, height: 38, borderRadius: 'var(--radius-md)', background: '#2563eb', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <Ruler size={17} color="#fff" />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--text-primary)' }}>{t('createFirstSurvey')}</div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{t('createFirstSurveyDesc')}</div>
+                </div>
+                <ChevronRight size={15} color="var(--text-muted)" style={{ flexShrink: 0 }} />
+              </button>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                {recentSurveys.map((s, idx) => (
+                  <Link key={s.id} href={p(`/felmeres/${s.id}`)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.6rem 0', borderBottom: idx < recentSurveys.length - 1 ? '1px solid var(--border-subtle)' : 'none', textDecoration: 'none', color: 'inherit' }}>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontWeight: 700, fontSize: '0.85rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.title}</div>
+                      <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{s.location || '–'} &bull; {formatDate(s.date || s.created_at)}</div>
+                    </div>
+                    <ChevronRight size={15} color="var(--text-muted)" style={{ flexShrink: 0, marginLeft: '0.5rem' }} />
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="card" style={{ borderLeft: '4px solid #7c3aed', boxShadow: '0 4px 16px #7c3aed28, 0 1px 4px rgba(0,0,0,0.06)' }}>
+            <SectionHeader icon={FileText} title={t('latestQuotes')} href={p('/ajanlatok')} />
+            {recentQuotes.length === 0 ? (
+              <button onClick={() => router.push(p('/ajanlatok/uj'))} style={{
+                display: 'flex', alignItems: 'center', gap: 12, width: '100%',
+                padding: '12px 0', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left',
+              }}>
+                <div style={{ width: 38, height: 38, borderRadius: 'var(--radius-md)', background: '#7c3aed', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <FileText size={17} color="#fff" />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--text-primary)' }}>{t('createFirstQuote')}</div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{t('createFirstQuoteDesc')}</div>
+                </div>
+                <ChevronRight size={15} color="var(--text-muted)" style={{ flexShrink: 0 }} />
+              </button>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                {recentQuotes.map((q, idx) => {
+                  const client = (clients || []).find(c => c.id === q.client_id);
+                  return (
+                    <Link key={q.id} href={p(`/ajanlatok/${q.id}`)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.6rem 0', borderBottom: idx < recentQuotes.length - 1 ? '1px solid var(--border-subtle)' : 'none', textDecoration: 'none', color: 'inherit' }}>
+                      <div style={{ minWidth: 0, flex: 1 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
+                          <span style={{ fontWeight: 700, fontSize: '0.85rem' }}>{q.title}</span>
+                          <span style={{ fontSize: '0.68rem', fontWeight: 700, color: QUOTE_STATUS_COLOR[q.status] || 'var(--text-muted)' }}>{QUOTE_STATUS[q.status] || q.status}</span>
+                        </div>
+                        <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{client?.name || '–'} &bull; {formatDate(q.created_at)}</div>
+                      </div>
+                      <ChevronRight size={15} color="var(--text-muted)" style={{ flexShrink: 0, marginLeft: '0.5rem' }} />
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

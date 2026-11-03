@@ -14,6 +14,7 @@ import { makeClientActions }     from './actions/clientActions';
 import { makeSurveyActions }     from './actions/surveyActions';
 import { makeQuoteActions }      from './actions/quoteActions';
 import { makeDiaryActions }      from './actions/diaryActions';
+import { PUBLIC_PREFIXES, PUBLIC_EXACT } from '@/lib/publicRoutes';
 
 export const AppContext = createContext(null);
 
@@ -28,6 +29,7 @@ export function AppProvider({ children }) {
   const [impersonatingCollectives, setImpersonatingCollectives] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showWelcome, setShowWelcome] = useState(false);
+  const [needsOnboarding, setNeedsOnboarding] = useState(false);
   const [collectives, setCollectives] = useState([]);
   const [allMemberships, setAllMemberships] = useState([]);
 
@@ -94,12 +96,10 @@ export function AppProvider({ children }) {
   })();
 
   // ---- Route guard ------------------------------------------------------------
-  const PUBLIC_ROUTE_PREFIXES = ['/login', '/change-password', '/szakemberek/', '/p/', '/clients/', '/naplo/', '/auth/', '/invitations/', '/demo', '/portal', '/impressum', '/adatkezeles', '/aszf', '/about', '/checkout-popup-success'];
-  const PUBLIC_ROUTE_EXACT    = ['/'];
   useEffect(() => {
     if (loading) return;
     if (!currentUser) {
-      const isPublic = PUBLIC_ROUTE_EXACT.includes(pathname) || PUBLIC_ROUTE_PREFIXES.some(prefix => pathname.startsWith(prefix));
+      const isPublic = PUBLIC_EXACT.includes(pathname) || PUBLIC_PREFIXES.some(prefix => pathname.startsWith(prefix));
       if (!isPublic) router.replace('/login');
       return;
     }
@@ -226,8 +226,20 @@ export function AppProvider({ children }) {
             trial_started_at: profile?.trial_started_at ?? null,
             trial_ends_at: profile?.trial_ends_at ?? null,
             default_tax_percent: profile?.default_tax_percent ?? 27,
+            locale:   profile?.locale   || null,
+            currency: profile?.currency || null,
           };
           setCurrentUser(user);
+
+          // Sync locale preference to cookie so next-intl picks it up
+          if (profile?.locale && typeof document !== 'undefined') {
+            document.cookie = `NEXT_LOCALE=${profile.locale};path=/;max-age=31536000;SameSite=Lax`;
+          }
+          // Show onboarding if locale or currency not yet set (skip for superadmin)
+          if (user.role !== 'superadmin' && (!profile?.locale || !profile?.currency)) {
+            setNeedsOnboarding(true);
+          }
+
           await refreshSupabaseData(user);
 
           const welcomeKey = `okosszaki_welcomed_${user.id}`;
@@ -348,6 +360,15 @@ export function AppProvider({ children }) {
             localStorage.setItem(`okosszaki_welcomed_${uid}`, '1');
           }
         },
+        needsOnboarding,
+        completeOnboarding: (locale, currency) => {
+          setNeedsOnboarding(false);
+          setCurrentUser(u => u ? { ...u, locale, currency } : u);
+          if (typeof document !== 'undefined') {
+            document.cookie = `NEXT_LOCALE=${locale};path=/;max-age=31536000;SameSite=Lax`;
+          }
+        },
+        userCurrency: (impersonating || currentUser)?.currency || 'HUF',
         // Collectives & context switcher
         collectives: effectiveCollectives,
         effectiveCollectives,

@@ -1,2 +1,2 @@
 'use client';
-export { default } from '@/app/profil/page.js';
+export { default } from '@/app/[locale]/profil/page.js';

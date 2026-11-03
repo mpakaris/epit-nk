@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useTranslations } from 'next-intl';
+import { Link as LocaleLink, usePathname, useRouter } from '@/navigation';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
 import {
   Ruler, Euro, Plus, Folder, Contact,
@@ -13,21 +14,6 @@ const HIDDEN_PREFIXES = [
   '/feltoltes', '/clients/', '/szakemberek/',
   '/invitations/', '/impressum', '/adatkezeles', '/aszf', '/about',
   '/naplo/', '/portal',
-];
-
-const NAV_ITEMS = [
-  { key: 'felmeres', label: 'Felmérés', icon: Ruler, path: '/felmeres' },
-  { key: 'ajanlatok', label: 'Ajánlat',  icon: Euro, path: '/ajanlatok' },
-  null, // center + placeholder
-  { key: 'projektek', label: 'Projekt',  icon: Folder,        path: '/projektek' },
-  { key: 'ugyfelek',  label: 'Ügyfél',   icon: Contact,       path: '/ugyfelek' },
-];
-
-const CREATE_ACTIONS = [
-  { label: 'Új felmérés', path: '/felmeres/uj', icon: Ruler },
-  { label: 'Új ajánlat',  path: '/ajanlatok/uj', icon: Euro },
-  { label: 'Új projekt',  path: '/projektek/uj', icon: FolderKanban },
-  { label: 'Új ügyfél',   path: '/ugyfelek/uj',  icon: BookUser },
 ];
 
 function getActiveKey(pathname) {
@@ -42,7 +28,25 @@ export default function FloatingNav() {
   const pathname = usePathname();
   const router   = useRouter();
   const { currentUser, isSuperAdmin, impersonating, isDemoMode } = useApp();
+  const t        = useTranslations('mobile.floatingNav');
   const navPrefix = isDemoMode ? '/demo' : '';
+
+  const AppLink = isDemoMode ? Link : LocaleLink;
+
+  const NAV_ITEMS = [
+    { key: 'felmeres', label: t('navSurveys'),  icon: Ruler,   path: '/felmeres' },
+    { key: 'ajanlatok', label: t('navQuotes'),   icon: Euro,    path: '/ajanlatok' },
+    null, // center + placeholder
+    { key: 'projektek', label: t('navProjects'), icon: Folder,  path: '/projektek' },
+    { key: 'ugyfelek',  label: t('navClients'),  icon: Contact, path: '/ugyfelek' },
+  ];
+
+  const CREATE_ACTIONS = [
+    { label: t('newSurvey'),  path: '/felmeres/uj',  icon: Ruler },
+    { label: t('newQuote'),   path: '/ajanlatok/uj', icon: Euro },
+    { label: t('newProject'), path: '/projektek/uj', icon: FolderKanban },
+    { label: t('newClient'),  path: '/ugyfelek/uj',  icon: BookUser },
+  ];
 
   const [expanded, setExpanded]   = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
@@ -52,19 +56,16 @@ export default function FloatingNav() {
     (isSuperAdmin && !impersonating) ||
     HIDDEN_PREFIXES.some(p => pathname.startsWith(p));
 
-  // Collapse on scroll
   useEffect(() => {
     const onScroll = () => setExpanded(false);
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
-  // Collapse on route change
   useEffect(() => {
     setExpanded(false);
   }, [pathname]);
 
-  // Collapse on outside tap
   useEffect(() => {
     if (!expanded) return;
     const onOutside = (e) => {
@@ -84,7 +85,11 @@ export default function FloatingNav() {
     if (activeItem) {
       const action = CREATE_ACTIONS.find(a => a.path.startsWith(activeItem.path));
       if (action) {
-        router.push(navPrefix + action.path);
+        if (isDemoMode) {
+          router.push(navPrefix + action.path);
+        } else {
+          router.push(action.path);
+        }
         return;
       }
     }
@@ -95,19 +100,17 @@ export default function FloatingNav() {
     <>
       <nav
         className={`floating-nav${expanded ? ' nav-expanded' : ''}`}
-        aria-label="Fő navigáció"
+        aria-label={t('ariaMainNav')}
       >
-        {/* Collapsed toggle — shows active-page icon or grid icon */}
         <button
           type="button"
           className="floating-nav-toggle"
           onClick={() => setExpanded(true)}
-          aria-label="Navigáció megnyitása"
+          aria-label={t('ariaOpenNav')}
         >
           <ToggleIcon size={20} strokeWidth={1.75} />
         </button>
 
-        {/* Full nav — shown when expanded */}
         <div className="floating-nav-inner">
           {NAV_ITEMS.map((item, idx) => {
             if (!item) {
@@ -117,7 +120,7 @@ export default function FloatingNav() {
                     type="button"
                     className="floating-nav-plus"
                     onClick={handlePlus}
-                    aria-label="Új elem létrehozása"
+                    aria-label={t('ariaNewItem')}
                   >
                     <Plus size={24} strokeWidth={2} aria-hidden="true" />
                   </button>
@@ -127,9 +130,9 @@ export default function FloatingNav() {
             const isActive = item.key === activeKey;
             const Icon = item.icon;
             return (
-              <Link
+              <AppLink
                 key={item.key}
-                href={navPrefix + item.path}
+                href={isDemoMode ? navPrefix + item.path : item.path}
                 className={`floating-nav-item${isActive ? ' active' : ''}`}
                 aria-current={isActive ? 'page' : undefined}
                 onClick={() => setExpanded(false)}
@@ -138,13 +141,12 @@ export default function FloatingNav() {
                   <Icon size={22} strokeWidth={1.75} aria-hidden="true" />
                 </span>
                 <span>{item.label}</span>
-              </Link>
+              </AppLink>
             );
           })}
         </div>
       </nav>
 
-      {/* Create type selector */}
       {createOpen && (
         <>
           <div
@@ -155,7 +157,7 @@ export default function FloatingNav() {
           <div
             role="dialog"
             aria-modal="true"
-            aria-label="Új elem létrehozása"
+            aria-label={t('ariaNewItem')}
             style={{
               position: 'fixed', bottom: 0, left: 0, right: 0,
               background: '#fff',
@@ -168,7 +170,7 @@ export default function FloatingNav() {
               <div style={{ width: 36, height: 4, borderRadius: 2, background: '#e2e8f0' }} />
             </div>
             <div style={{ padding: '0 20px 12px', fontSize: 13, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#64748b' }}>
-              Mit hozzon létre?
+              {t('createTitle')}
             </div>
             {CREATE_ACTIONS.map(action => {
               const Icon = action.icon;
@@ -176,7 +178,14 @@ export default function FloatingNav() {
                 <button
                   key={action.path}
                   type="button"
-                  onClick={() => { setCreateOpen(false); router.push(navPrefix + action.path); }}
+                  onClick={() => {
+                    setCreateOpen(false);
+                    if (isDemoMode) {
+                      router.push(navPrefix + action.path);
+                    } else {
+                      router.push(action.path);
+                    }
+                  }}
                   style={{
                     display: 'flex', alignItems: 'center', gap: 14,
                     width: '100%', minHeight: 56, padding: '0 20px',

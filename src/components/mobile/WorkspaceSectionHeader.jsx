@@ -1,17 +1,19 @@
 'use client';
 
 import React from 'react';
+import { useTranslations } from 'next-intl';
 import { User, Users } from 'lucide-react';
 
 export default function WorkspaceSectionHeader({ type = 'personal', name, count, members = [], light = false }) {
   const isPersonal = type === 'personal';
+  const t = useTranslations('mobile.workspace');
 
   const chipBg    = light ? 'rgba(255,255,255,0.15)' : isPersonal ? '#eff6ff' : '#dcfce7';
   const iconColor = light ? '#fff'                   : isPersonal ? '#2563eb' : '#16a34a';
   const hairline  = light ? 'rgba(255,255,255,0.2)'  : isPersonal ? '#e2e8f0' : '#cbd5e1';
   const labelColor= light ? '#fff'                   : '#0f172a';
   const countColor= light ? 'rgba(255,255,255,0.65)' : '#475569';
-  const label     = isPersonal ? 'Személyes' : name;
+  const label     = isPersonal ? t('personal') : name;
 
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>

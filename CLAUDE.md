@@ -42,7 +42,7 @@ Rules:
 - Everything shareable with 1–2 clicks (share link, client portal, public website).
 - Speed over completeness — features must be quick to reach, not buried.
 - Mobile-first in practice — contractors use phones on-site.
-- Hungarian language everywhere in the UI.
+- Hungarian language everywhere in the UI (default). The app is translated to EN/DE/HU — see Localisation section below.
 
 **Core modules:**
 | Module | Hungarian route | What it does |
@@ -388,6 +388,60 @@ GET  /api/szakemberek/[slug]    Public szakember page data
 
 ---
 
+## Localisation — Language & Currency
+
+### Language (`profiles.locale`)
+- Stored in `profiles.locale` (VARCHAR 5, nullable). Values: `'hu'` | `'de'` | `'en'`.
+- Drives **both** the app UI language **and** the language of outgoing documents (quote PDFs, emails). There is no separate "document language" — they are always the same.
+- Changeable anytime by the user in **Profil → Nyelv és pénznem** (`/profil#preferences`). Clicking a language pill calls `PATCH /api/auth/profile` with `{ locale }` and then `router.replace('/profil', { locale })`.
+- On login, AppContext syncs `profile.locale` to the `NEXT_LOCALE` cookie so next-intl renders in the correct language immediately.
+- The landing page (`/`) has its own locale detection via `useLandingLocale()` (`src/hooks/useLandingLocale.js`) which reads the same `NEXT_LOCALE` cookie. The landing page language switcher (EN/DE/HU pills in the navbar) also writes this cookie.
+- **There is NO language switcher in the Sidebar.** Language is managed exclusively in `/profil`.
+
+### Currency (`profiles.currency`)
+- Stored in `profiles.currency` (VARCHAR 3, nullable). Values: `'HUF'` | `'EUR'` | `'GBP'` | `'USD'`.
+- **Write-once**: the API (`PATCH /api/auth/profile`) only saves `currency` when the current DB value is NULL. Once set it cannot be changed through the UI. Contact support to override.
+- Exposed as `userCurrency` from `useApp()`. Use it with `formatMoney(amount, userCurrency)` from `@/lib/constants` for all monetary display.
+- `formatHUF()` still exists as a backward-compat alias for `formatMoney(amount, 'HUF')`. Migrate to `formatMoney` in new code.
+- Both `locale` and `currency` are NULL for new users until they complete the **OnboardingModal** (shown once on first login via `LoadingGate`).
+
+### No hardcoded strings — ever
+
+The **entire app is translated** (HU / DE / EN). Every user-visible string — labels, buttons, placeholders, empty states, error messages, section headings, tooltips — must go through the translation system. This is a non-negotiable rule that applies to every new feature and every change.
+
+**Inside the `[locale]` app** (authenticated pages):
+```js
+// In a server or client component
+const t = useTranslations('mySection');   // key namespace from the JSON files
+<button>{t('saveBtn')}</button>           // NOT <button>Save</button>
+```
+Then add the key to **all three files**: `messages/hu.json`, `messages/de.json`, `messages/en.json`.
+
+**Outside the `[locale]` app** (landing page `/`, auth modal, onboarding modal):
+These pages are not wrapped in `NextIntlClientProvider`. Use the `LANDING_I18N` / `AUTH_I18N` / `CHANGE_PASSWORD_I18N` objects in `src/lib/landingI18n.js` and the `useLandingLocale()` hook.
+
+**Common mistake to avoid:** writing a string directly in JSX and thinking "I'll add the translation later." Add it immediately — the i18n consistency test will catch missing keys at CI time.
+
+### i18n consistency test
+
+`tests/i18n.test.js` runs as part of the normal test suite (`npm test`). It:
+- Collects all dot-notation key paths from each JSON file recursively
+- Fails if any two files have different key sets (a key exists in one language but not another)
+- Fails if any key has an empty-string value (forgotten placeholder)
+
+**Run it standalone:** `npx vitest run tests/i18n.test.js`
+
+When you add new keys, add them to all three files before committing. If a key intentionally has the same value in all languages (e.g. a brand name), still add it explicitly to each file — do not omit it.
+
+### OnboardingModal flow
+1. New user registers → `profiles.locale` and `profiles.currency` are NULL.
+2. On first authenticated page load, `AppContext` sets `needsOnboarding = true`.
+3. `LoadingGate` renders `<OnboardingModal />` (takes priority over `<WelcomeModal />`).
+4. User picks language + currency → `PATCH /api/auth/profile` → `completeOnboarding(locale, currency)` in AppContext → modal closes → WelcomeModal shows.
+5. Existing users who pre-date migration 128 also see OnboardingModal once.
+
+---
+
 ## Standards — Non-Negotiable Rules
 
 These rules apply to every change, in every file. If a task conflicts with any of these, flag it before writing code.
@@ -518,7 +572,8 @@ Any route or UI that creates a resource (quote, survey, project, collective) mus
 - **Missing `navPrefix`** — every in-app `<Link>` or `router.push()` in a shared/demo-aware component needs it.
 - **Hardcoded breakpoint** — the one mobile breakpoint is 768 px.
 - **Hardcoded colour hex** — use CSS vars from `globals.css`.
-- **Hungarian UI** — all user-facing text (labels, buttons, placeholders, empty states, errors) must be in Hungarian.
+- **Hardcoded string** — no string literals in JSX. Use `useTranslations()` inside `[locale]` pages; use `LANDING_I18N` on the landing page. Add the key to all three JSON files immediately. `tests/i18n.test.js` will catch mismatches.
+- **Hungarian UI** — default language is Hungarian, but the app is fully translated (HU/DE/EN). All new strings must go through the translation system, not just be written in Hungarian.
 - **`user_id` from request body** — always set `user_id: user.id` server-side on inserts; never trust the client.
 - **Membership check without role** — checking only `active` status is not enough for document creation; must also verify `role === 'owner' || role === 'admin'`.
 - **Superadmin bypass in new routes** — do not add `isSuperAdmin` escape hatches to new routes; SA uses DB access.
@@ -584,6 +639,25 @@ refreshSupabaseData();
 // Client only → API has no guard, anyone can call the endpoint directly
 // API only  → UX shows delete button to users who will get a 403
 ```
+
+### 13. No Hardcoded Strings — Translations Required
+
+The entire app is translated (HU / DE / EN). **Every** user-visible string must use the translation system. Never write a string literal directly in JSX.
+
+**Inside `[locale]` pages** (uses `next-intl`):
+```js
+const t = useTranslations('mySection');
+// CORRECT
+<button>{t('saveBtn')}</button>
+// WRONG
+<button>Save</button>
+```
+Add the key to **all three files** at the same time: `messages/hu.json`, `messages/de.json`, `messages/en.json`.
+
+**Outside `[locale]`** (landing page, auth modal, onboarding modal — no `NextIntlClientProvider`):
+Use `LANDING_I18N` / `AUTH_I18N` objects from `src/lib/landingI18n.js` and the `useLandingLocale()` hook.
+
+**`tests/i18n.test.js`** enforces this automatically — it fails if any two locale files have different key sets or if any value is an empty string. Run standalone: `npx vitest run tests/i18n.test.js`.
 
 ---
 

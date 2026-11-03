@@ -21,6 +21,7 @@ export async function POST(req, { params }) {
 
   if (invErr || !inv) return Response.json({ error: 'Invitation not found' }, { status: 404 });
   if (inv.status === 'retracted') return Response.json({ error: 'RETRACTED' }, { status: 410 });
+  if (inv.status === 'accepted')  return Response.json({ ok: true });
   if (inv.status !== 'pending')   return Response.json({ error: `Invitation already ${inv.status}` }, { status: 409 });
 
   // Verify the logged-in user's email matches the invitation

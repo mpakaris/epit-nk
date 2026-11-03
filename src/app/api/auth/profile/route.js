@@ -112,6 +112,24 @@ export async function PATCH(request) {
     return Response.json({ success: true });
   }
 
+  // Onboarding: locale (always writable) + currency (write-once)
+  if ('locale' in body || 'currency' in body) {
+    const { data: current } = await admin.from('profiles').select('currency').eq('id', user.id).single();
+    const onboardingUpdate = {};
+    const VALID_LOCALES = ['hu', 'de', 'en'];
+    const VALID_CURRENCIES = ['HUF', 'EUR', 'GBP', 'USD'];
+    if ('locale' in body && VALID_LOCALES.includes(body.locale)) onboardingUpdate.locale = body.locale;
+    if ('currency' in body && VALID_CURRENCIES.includes(body.currency) && !current?.currency) {
+      onboardingUpdate.currency = body.currency;
+    }
+    if (Object.keys(onboardingUpdate).length > 0) {
+      const { data, error } = await admin.from('profiles').update(onboardingUpdate).eq('id', user.id).select().single();
+      if (error) return Response.json({ error: error.message }, { status: 500 });
+      return Response.json({ profile: data });
+    }
+    return Response.json({ success: true });
+  }
+
   // Letterhead / profile info update
   const allowed = ['display_name', 'first_name', 'last_name', 'company_name', 'street', 'street_number', 'zip', 'city', 'tax_number', 'default_tax_percent',
                    'phone', 'bank_account', 'bank_name', 'offer_validity_days', 'offer_terms_text',

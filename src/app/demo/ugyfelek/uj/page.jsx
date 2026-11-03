@@ -1,2 +1,2 @@
 'use client';
-export { default } from '@/app/ugyfelek/uj/page';
+export { default } from '@/app/[locale]/ugyfelek/uj/page';

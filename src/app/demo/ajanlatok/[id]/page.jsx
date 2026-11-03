@@ -1,2 +1,2 @@
 'use client';
-export { default } from '@/app/ajanlatok/[id]/page.js';
+export { default } from '@/app/[locale]/ajanlatok/[id]/page.js';

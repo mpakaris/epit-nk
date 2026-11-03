@@ -1,2 +1,2 @@
 'use client';
-export { default } from '@/app/felmeres/page.js';
+export { default } from '@/app/[locale]/felmeres/page.js';

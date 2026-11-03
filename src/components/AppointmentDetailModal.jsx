@@ -3,10 +3,10 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
+import { useTranslations } from 'next-intl';
 import Modal, { ConfirmModal, AlertModal } from '@/components/Modal';
 import { AlertTriangle, ExternalLink, Ruler, FileText, FolderKanban, CalendarDays, Loader2 } from 'lucide-react';
 
-const TYPE_LABEL = { felmeres: 'Felmérés', ajanlat: 'Ajánlat', projekt: 'Projekt' };
 const TYPE_ICON  = { felmeres: Ruler, ajanlat: FileText, projekt: FolderKanban };
 const TYPE_COLOR = { felmeres: '#2563eb', ajanlat: '#7c3aed', projekt: '#059669' };
 const TYPE_ROUTE = { felmeres: 'felmeres', ajanlat: 'ajanlatok', projekt: 'projektek' };
@@ -14,6 +14,8 @@ const TYPE_ROUTE = { felmeres: 'felmeres', ajanlat: 'ajanlatok', projekt: 'proje
 export default function AppointmentDetailModal({ apptId, isOpen, onClose, onChanged }) {
   const router = useRouter();
   const { clients, isDemoMode } = useApp();
+  const t = useTranslations('calendar');
+  const TYPE_LABEL = { felmeres: t('linkSurvey'), ajanlat: t('linkQuote'), projekt: t('linkProject') };
   const navPrefix = isDemoMode ? '/demo' : '';
 
   const [appt,            setAppt]            = useState(null);
@@ -46,12 +48,12 @@ export default function AppointmentDetailModal({ apptId, isOpen, onClose, onChan
         setTime(appointment.time?.slice(0, 5) || '');
         setClientId(appointment.client_id || '');
       })
-      .catch(() => setAlert('Az időpont nem található.'))
+      .catch(() => setAlert(t('notFound')))
       .finally(() => setLoading(false));
   }, [isOpen, apptId]);
 
   async function handleSave() {
-    if (!title.trim()) { setAlert('A cím kötelező.'); return; }
+    if (!title.trim()) { setAlert(t('titleRequired')); return; }
     setSaving(true);
     const res = await fetch(`/api/appointments/${apptId}`, {
       method: 'PATCH',
@@ -60,7 +62,7 @@ export default function AppointmentDetailModal({ apptId, isOpen, onClose, onChan
     });
     if (!res.ok) {
       const { error } = await res.json().catch(() => ({}));
-      setAlert(error || 'Hiba a mentéskor.');
+      setAlert(error || t('saveError'));
     } else {
       onChanged?.();
       onClose();
@@ -70,7 +72,7 @@ export default function AppointmentDetailModal({ apptId, isOpen, onClose, onChan
 
   async function handleDelete() {
     const res = await fetch(`/api/appointments/${apptId}`, { method: 'DELETE' });
-    if (!res.ok) { setAlert('Hiba a törléskor.'); return; }
+    if (!res.ok) { setAlert(t('deleteError')); return; }
     onChanged?.();
     onClose();
   }
@@ -96,7 +98,7 @@ export default function AppointmentDetailModal({ apptId, isOpen, onClose, onChan
     });
     if (!docRes.ok) {
       const { error } = await docRes.json().catch(() => ({}));
-      setAlert(error || 'Hiba a dokumentum létrehozásakor.');
+      setAlert(error || t('createDocError'));
       setRecreating(false);
       return;
     }
@@ -125,7 +127,7 @@ export default function AppointmentDetailModal({ apptId, isOpen, onClose, onChan
 
   return (
     <>
-      <Modal isOpen={isOpen} onClose={onClose} title="Időpont">
+      <Modal isOpen={isOpen} onClose={onClose} title={t('appointmentTitle')}>
         {loading ? (
           <div style={{ display: 'flex', justifyContent: 'center', padding: '2rem' }}>
             <Loader2 size={24} className="animate-spin" color="var(--text-muted)" />
@@ -135,27 +137,27 @@ export default function AppointmentDetailModal({ apptId, isOpen, onClose, onChan
 
             {/* Title */}
             <div>
-              <label className="form-label">Cím</label>
+              <label className="form-label">{t('titleLabel')}</label>
               <input className="form-control" value={title} onChange={e => setTitle(e.target.value)} />
             </div>
 
             {/* Date + Time */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
               <div>
-                <label className="form-label">Dátum</label>
+                <label className="form-label">{t('dateLabel')}</label>
                 <input className="form-control" type="date" value={date} onChange={e => setDate(e.target.value)} />
               </div>
               <div>
-                <label className="form-label">Időpont</label>
+                <label className="form-label">{t('timeLabel')}</label>
                 <input className="form-control" type="time" value={time} onChange={e => setTime(e.target.value)} />
               </div>
             </div>
 
             {/* Client */}
             <div>
-              <label className="form-label">Ügyfél</label>
+              <label className="form-label">{t('clientLabel')}</label>
               <select className="form-control" value={clientId} onChange={e => setClientId(e.target.value)}>
-                <option value="">— Nincs ügyfél —</option>
+                <option value="">{t('noClientOption')}</option>
                 {(clients || []).map(c => (
                   <option key={c.id} value={c.id}>{c.name}</option>
                 ))}
@@ -172,11 +174,11 @@ export default function AppointmentDetailModal({ apptId, isOpen, onClose, onChan
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <AlertTriangle size={16} color="var(--warning-text)" />
                   <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--warning-text)' }}>
-                    A kapcsolt {label.toLowerCase()} törölve lett.
+                    {t('linkedDocDeleted', { label: label.toLowerCase() })}
                   </span>
                 </div>
                 <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: 0 }}>
-                  Létrehozzuk újra a(z) „{appt.title}" dokumentumot és összekapcsoljuk?
+                  {t('recreatePrompt', { title: appt.title })}
                 </p>
                 <button
                   className="btn btn-primary btn-sm"
@@ -188,7 +190,7 @@ export default function AppointmentDetailModal({ apptId, isOpen, onClose, onChan
                     ? <Loader2 size={13} className="animate-spin" />
                     : <Icon size={13} />
                   }
-                  Igen, új {label} →
+                  {t('recreateBtn', { label })}
                 </button>
               </div>
             )}
@@ -207,7 +209,7 @@ export default function AppointmentDetailModal({ apptId, isOpen, onClose, onChan
               >
                 <Icon size={18} color={color} />
                 <span style={{ flex: 1, fontSize: 13, fontWeight: 700, color }}>
-                  Megnyitás: {label}
+                  {t('openDoc', { label })}
                 </span>
                 <ExternalLink size={14} color={color} />
               </button>
@@ -221,17 +223,17 @@ export default function AppointmentDetailModal({ apptId, isOpen, onClose, onChan
                 onClick={() => setConfirmDel(true)}
                 style={{ marginRight: 'auto' }}
               >
-                Törlés
+                {t('delete')}
               </button>
               <button type="button" className="btn btn-secondary btn-sm" onClick={onClose}>
-                Mégse
+                {t('cancel')}
               </button>
               <button
                 className="btn btn-primary btn-sm"
                 onClick={handleSave}
                 disabled={saving}
               >
-                {saving ? 'Mentés…' : 'Mentés'}
+                {saving ? t('saving') : t('save')}
               </button>
             </div>
 
@@ -243,11 +245,11 @@ export default function AppointmentDetailModal({ apptId, isOpen, onClose, onChan
         isOpen={confirmDel}
         onClose={() => setConfirmDel(false)}
         onConfirm={() => { setConfirmDel(false); handleDelete(); }}
-        title="Időpont törlése"
-        message={`Biztosan törölni kívánja a(z) „${appt?.title}" időpontot?`}
-        confirmLabel="Törlés"
+        title={t('deleteTitle')}
+        message={t('deleteConfirm', { title: appt?.title ?? '' })}
+        confirmLabel={t('delete')}
       />
-      <AlertModal isOpen={!!alert} onClose={() => setAlert(null)} title="Hiba" message={alert} />
+      <AlertModal isOpen={!!alert} onClose={() => setAlert(null)} title={t('errorTitle')} message={alert} />
     </>
   );
 }

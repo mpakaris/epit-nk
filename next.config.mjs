@@ -1,3 +1,7 @@
+import createNextIntlPlugin from 'next-intl/plugin';
+
+const withNextIntl = createNextIntlPlugin('./src/i18n/request.js');
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   // Cap upload request bodies at 25 MB (10 files × ~2.5 MB each after WebP compression)
@@ -21,4 +25,4 @@ const nextConfig = {
   },
 };
 
-export default nextConfig;
+export default withNextIntl(nextConfig);

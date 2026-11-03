@@ -5,9 +5,9 @@ import { useApp } from '@/context/AppContext';
 export default function WorkspaceBadge() {
   const { activeCollectiveId, effectiveCollectives } = useApp();
 
-  const label = activeCollectiveId
-    ? ((effectiveCollectives || []).find(c => c.collective_id === activeCollectiveId)?.name || 'Kollektíva')
-    : 'Személyes munkaterület';
+  if (!activeCollectiveId) return null;
+
+  const label = (effectiveCollectives || []).find(c => c.collective_id === activeCollectiveId)?.name || 'Kollektíva';
 
   return (
     <span style={{
@@ -15,9 +15,9 @@ export default function WorkspaceBadge() {
       fontWeight: 700,
       textTransform: 'uppercase',
       letterSpacing: '0.04em',
-      color: activeCollectiveId ? 'var(--accent)' : 'var(--text-muted)',
-      background: activeCollectiveId ? 'var(--accent-light)' : 'var(--bg-subtle)',
-      border: `1px solid ${activeCollectiveId ? 'var(--accent-border)' : 'var(--border-subtle)'}`,
+      color: 'var(--accent)',
+      background: 'var(--accent-light)',
+      border: '1px solid var(--accent-border)',
       borderRadius: 'var(--radius-pill)',
       padding: '0.2rem 0.55rem',
       whiteSpace: 'nowrap',

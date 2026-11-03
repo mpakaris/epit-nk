@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
+import { useTranslations } from 'next-intl';
 import { useScrollLock } from '@/hooks/useScrollLock';
 import { useApp } from '@/context/AppContext';
 import { processMediaFile } from '@/lib/mediaGate';
@@ -9,15 +10,6 @@ import {
   Camera, Image as ImageIcon, X, Check, Loader2, AlertCircle,
   ChevronLeft, ChevronRight, Lock, Eye, Home, Video,
 } from 'lucide-react';
-
-const WORK_TYPES = [
-  'Alapozás', 'Ácsmunka', 'Ajtócsere', 'Ablakcsere', 'Bontás',
-  'Burkolás', 'Csempézés', 'Festés', 'Gipszkarton', 'Kőművesmunka',
-  'Padlóburkolás', 'Szigetelés', 'Szállítás', 'Takarítás',
-  'Tetőfedés', 'Vakolás', 'Villanyszerelés', 'Vízvezeték-szerelés',
-];
-
-const today = () => new Date().toISOString().split('T')[0];
 
 const S = {
   heading: { fontSize: 20, fontWeight: 800, color: '#0f172a', margin: '0 0 6px', lineHeight: 1.25 },
@@ -50,36 +42,32 @@ function PhotoGrid({ previews, onRemove, disabled }) {
   );
 }
 
-function AddPhotoButtons({ count, onCamera, onGallery, disabled }) {
+function AddPhotoButtons({ count, onCamera, onGallery, disabled, tCamera, tGallery }) {
   if (count >= MAX_DIARY_PHOTOS) return null;
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
       <button type="button" onClick={onCamera} disabled={disabled}
         style={{ height: 48, borderRadius: 12, border: '1.5px dashed #cbd5e1', background: '#f8fafc', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontSize: 13, fontWeight: 600, color: '#475569' }}>
-        <Camera size={16} /> Kamera
+        <Camera size={16} /> {tCamera}
       </button>
       <button type="button" onClick={onGallery} disabled={disabled}
         style={{ height: 48, borderRadius: 12, border: '1.5px dashed #cbd5e1', background: '#f8fafc', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontSize: 13, fontWeight: 600, color: '#475569' }}>
-        <ImageIcon size={16} /> Galéria
+        <ImageIcon size={16} /> {tGallery}
       </button>
     </div>
   );
 }
 
-/**
- * 3-step stepper sheet for quick diary entry creation.
- * Step 1: Photos (client + private)
- * Step 2: What was done (title, date, work type)
- * Step 3: Details (section, visibility, notes)
- */
 export default function QuickDiarySheet({ isOpen, onClose, projectId, onSuccess }) {
   const { uploadDiaryPhotos, createDiaryEntry, projectRooms: ctxRooms } = useApp();
+  const t     = useTranslations('mobile.quickDiary');
   const rooms = (ctxRooms || []).filter(r => r.project_id === projectId);
+
+  const WORK_TYPES = t.raw('workTypes');
 
   const [step, setStep] = useState(1);
   const TOTAL = 3;
 
-  // Step 1 — Photos
   const clientCamRef  = useRef(null);
   const clientGalRef  = useRef(null);
   const privCamRef    = useRef(null);
@@ -89,12 +77,10 @@ export default function QuickDiarySheet({ isOpen, onClose, projectId, onSuccess 
   const [privateFiles,   setPrivateFiles]   = useState([]);
   const [privatePreviews,setPrivatePreviews]= useState([]);
 
-  // Step 2 — What
   const [title,    setTitle]    = useState('');
-  const [date,     setDate]     = useState(today());
+  const [date,     setDate]     = useState('');
   const [workType, setWorkType] = useState('');
 
-  // Step 3 — Details
   const [roomId,       setRoomId]       = useState('');
   const [isPublic,     setIsPublic]     = useState(false);
   const [clientNote,   setClientNote]   = useState('');
@@ -104,6 +90,8 @@ export default function QuickDiarySheet({ isOpen, onClose, projectId, onSuccess 
   const [error,      setError]      = useState('');
 
   useScrollLock(isOpen);
+
+  const today = () => new Date().toISOString().split('T')[0];
 
   useEffect(() => {
     if (!isOpen) return;
@@ -115,7 +103,6 @@ export default function QuickDiarySheet({ isOpen, onClose, projectId, onSuccess 
     setSubmitting(false); setError('');
   }, [isOpen]);
 
-  // Photo helpers
   const addFiles = (setFiles, setPreviews) => async (raw) => {
     if (!raw?.length) return;
     const converted = await Promise.all(Array.from(raw).map(processMediaFile));
@@ -136,7 +123,7 @@ export default function QuickDiarySheet({ isOpen, onClose, projectId, onSuccess 
   const removePrivate = (i) => { setPrivateFiles(p => p.filter((_,j)=>j!==i)); setPrivatePreviews(p => { const r=p[i]; if(r?.url) URL.revokeObjectURL(r.url); return p.filter((_,j)=>j!==i); }); };
 
   const validate = () => {
-    if (step === 2 && !title.trim()) return 'A cím megadása kötelező!';
+    if (step === 2 && !title.trim()) return t('titleRequired');
     return null;
   };
 
@@ -146,7 +133,6 @@ export default function QuickDiarySheet({ isOpen, onClose, projectId, onSuccess 
     setError('');
     if (step < TOTAL) { setStep(s => s + 1); return; }
 
-    // Submit
     setSubmitting(true);
     try {
       let photoIds = [];
@@ -171,63 +157,58 @@ export default function QuickDiarySheet({ isOpen, onClose, projectId, onSuccess 
       onSuccess?.();
       onClose();
     } catch (err) {
-      setError(err.message || 'Hiba a mentésnél');
+      setError(err.message || t('errorSaving'));
       setSubmitting(false);
     }
   };
 
   if (!isOpen) return null;
 
-  const stepLabels = ['Fotók', 'Bejegyzés', 'Részletek'];
+  const stepLabels = [t('stepPhotos'), t('stepEntry'), t('stepDetails')];
   const isLast = step === TOTAL;
-
-  // ── Step renderers (called as functions, not JSX elements, to avoid remount/focus loss) ──
 
   const StepPhotos = () => (
     <>
-      <h2 style={S.heading}>Fotók a munkáról</h2>
-      <p style={S.sub}>Az ügyfélnek szánt és privát fotók egyaránt feltölthetők. Kihagyható.</p>
+      <h2 style={S.heading}>{t('photosHeading')}</h2>
+      <p style={S.sub}>{t('photosSub')}</p>
 
-      {/* Hidden inputs */}
       <input ref={clientCamRef} type="file" accept="image/*,video/*" capture="environment" multiple onChange={makeChange(addFiles(setClientFiles, setClientPreviews))} style={{ display: 'none' }} />
       <input ref={clientGalRef} type="file" accept="image/*,video/*" multiple onChange={makeChange(addFiles(setClientFiles, setClientPreviews))} style={{ display: 'none' }} />
       <input ref={privCamRef}   type="file" accept="image/*,video/*" capture="environment" multiple onChange={makeChange(addFiles(setPrivateFiles, setPrivatePreviews))} style={{ display: 'none' }} />
       <input ref={privGalRef}   type="file" accept="image/*,video/*" multiple onChange={makeChange(addFiles(setPrivateFiles, setPrivatePreviews))} style={{ display: 'none' }} />
 
-      {/* Client photos */}
       <div style={{ marginBottom: 20 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
           <Eye size={14} color="#2563eb" />
-          <span style={{ fontSize: 13, fontWeight: 700, color: '#334155' }}>Ügyfélnek</span>
+          <span style={{ fontSize: 13, fontWeight: 700, color: '#334155' }}>{t('clientPhotosLabel')}</span>
           <span style={{ marginLeft: 'auto', fontSize: 12, color: '#94a3b8', fontWeight: 600 }}>{clientFiles.length}/{MAX_DIARY_PHOTOS}</span>
         </div>
         <PhotoGrid previews={clientPreviews} onRemove={removeClient} disabled={submitting} />
-        <AddPhotoButtons count={clientFiles.length} onCamera={() => clientCamRef.current?.click()} onGallery={() => clientGalRef.current?.click()} disabled={submitting} />
+        <AddPhotoButtons count={clientFiles.length} onCamera={() => clientCamRef.current?.click()} onGallery={() => clientGalRef.current?.click()} disabled={submitting} tCamera={t('cameraButton')} tGallery={t('galleryButton')} />
       </div>
 
-      {/* Private photos */}
       <div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
           <Lock size={14} color="#64748b" />
-          <span style={{ fontSize: 13, fontWeight: 700, color: '#334155' }}>Privát</span>
-          <span style={{ fontSize: 11, fontWeight: 700, color: '#fff', background: '#dc2626', borderRadius: 4, padding: '1px 6px', marginLeft: 4 }}>csak én látom</span>
+          <span style={{ fontSize: 13, fontWeight: 700, color: '#334155' }}>{t('privatePhotosLabel')}</span>
+          <span style={{ fontSize: 11, fontWeight: 700, color: '#fff', background: '#dc2626', borderRadius: 4, padding: '1px 6px', marginLeft: 4 }}>{t('onlyISeeIt')}</span>
           <span style={{ marginLeft: 'auto', fontSize: 12, color: '#94a3b8', fontWeight: 600 }}>{privateFiles.length}/{MAX_DIARY_PHOTOS}</span>
         </div>
         <PhotoGrid previews={privatePreviews} onRemove={removePrivate} disabled={submitting} />
-        <AddPhotoButtons count={privateFiles.length} onCamera={() => privCamRef.current?.click()} onGallery={() => privGalRef.current?.click()} disabled={submitting} />
+        <AddPhotoButtons count={privateFiles.length} onCamera={() => privCamRef.current?.click()} onGallery={() => privGalRef.current?.click()} disabled={submitting} tCamera={t('cameraButton')} tGallery={t('galleryButton')} />
       </div>
     </>
   );
 
   const StepWhat = () => (
     <>
-      <h2 style={S.heading}>Mit végeztél el?</h2>
+      <h2 style={S.heading}>{t('whatHeading')}</h2>
       <div style={{ marginBottom: 18 }}>
-        <label style={S.label}>Cím *</label>
+        <label style={S.label}>{t('titleLabel')}</label>
         <input
           type="text"
           className="form-control"
-          placeholder="pl. Alapozás befejezve"
+          placeholder={t('titlePlaceholder')}
           value={title}
           onChange={e => setTitle(e.target.value)}
           style={{ fontSize: 18, fontWeight: 600 }}
@@ -235,21 +216,21 @@ export default function QuickDiarySheet({ isOpen, onClose, projectId, onSuccess 
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 18 }}>
         <div>
-          <label style={S.label}>Dátum</label>
+          <label style={S.label}>{t('dateLabel')}</label>
           <input type="date" className="form-control" value={date} onChange={e => setDate(e.target.value)} />
         </div>
         <div>
-          <label style={S.label}>Munka típusa</label>
+          <label style={S.label}>{t('workTypeLabel')}</label>
           <input
             type="text"
             className="form-control"
-            placeholder="pl. Festés"
+            placeholder={t('workTypePlaceholder')}
             list="diary-work-types"
             value={workType}
             onChange={e => setWorkType(e.target.value)}
           />
           <datalist id="diary-work-types">
-            {WORK_TYPES.map(t => <option key={t} value={t} />)}
+            {WORK_TYPES.map(wt => <option key={wt} value={wt} />)}
           </datalist>
         </div>
       </div>
@@ -258,15 +239,14 @@ export default function QuickDiarySheet({ isOpen, onClose, projectId, onSuccess 
 
   const StepDetails = () => (
     <>
-      <h2 style={S.heading}>Részletek</h2>
-      <p style={S.sub}>Mind opcionális — átugorható.</p>
+      <h2 style={S.heading}>{t('detailsHeading')}</h2>
+      <p style={S.sub}>{t('detailsSub')}</p>
 
-      {/* Section */}
       {rooms.length > 0 && (
         <div style={{ marginBottom: 20 }}>
-          <label style={S.label}>Szekció</label>
+          <label style={S.label}>{t('sectionLabel')}</label>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {[{ id: '', name: 'Általános' }, ...rooms].map(r => {
+            {[{ id: '', name: t('generalSection') }, ...rooms].map(r => {
               const active = roomId === r.id;
               return (
                 <button key={r.id} type="button" onClick={() => setRoomId(r.id)} style={{ ...S.roomBtn, ...(active ? S.roomBtnActive : {}) }}>
@@ -282,7 +262,6 @@ export default function QuickDiarySheet({ isOpen, onClose, projectId, onSuccess 
         </div>
       )}
 
-      {/* Visibility toggle */}
       <div style={{ marginBottom: 18 }}>
         <button type="button" onClick={() => setIsPublic(v => !v)}
           style={{ display: 'flex', alignItems: 'center', gap: 12, width: '100%', background: isPublic ? 'var(--success-bg)' : '#f8fafc', border: `2px solid ${isPublic ? 'var(--success-border)' : '#e2e8f0'}`, borderRadius: 14, padding: '12px 14px', cursor: 'pointer', textAlign: 'left', transition: 'all 0.15s' }}>
@@ -291,29 +270,27 @@ export default function QuickDiarySheet({ isOpen, onClose, projectId, onSuccess 
           </div>
           <div>
             <div style={{ fontSize: 15, fontWeight: 700, color: isPublic ? 'var(--success-text)' : '#334155' }}>
-              {isPublic ? 'Nyilvános — ügyfél látja' : 'Privát — ügyfél nem látja'}
+              {isPublic ? t('publicToggleLabel') : t('privateToggleLabel')}
             </div>
             <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>
-              {isPublic ? 'Megjelenik az ügyfél portálján' : 'Kapcsold be, ha az ügyfélnek szánod'}
+              {isPublic ? t('publicHint') : t('privateHint')}
             </div>
           </div>
         </button>
       </div>
 
-      {/* Client message */}
       {isPublic && (
         <div style={{ marginBottom: 16 }}>
-          <label style={S.label}>Üzenet az ügyfélnek</label>
-          <textarea rows={3} className="form-control" placeholder="Leírás, amit az ügyfél lát…" value={clientNote} onChange={e => setClientNote(e.target.value)} style={{ resize: 'none' }} />
+          <label style={S.label}>{t('clientMessageLabel')}</label>
+          <textarea rows={3} className="form-control" placeholder={t('clientMessagePh')} value={clientNote} onChange={e => setClientNote(e.target.value)} style={{ resize: 'none' }} />
         </div>
       )}
 
-      {/* Internal note */}
       <div>
         <label style={{ ...S.label, display: 'flex', alignItems: 'center', gap: 5 }}>
-          <Lock size={11} /> Privát feljegyzés
+          <Lock size={11} /> {t('privateNoteLabel')}
         </label>
-        <textarea rows={2} className="form-control" placeholder="Csak én látom…" value={internalNote} onChange={e => setInternalNote(e.target.value)} style={{ resize: 'none' }} />
+        <textarea rows={2} className="form-control" placeholder={t('privateNotePh')} value={internalNote} onChange={e => setInternalNote(e.target.value)} style={{ resize: 'none' }} />
       </div>
     </>
   );
@@ -326,20 +303,17 @@ export default function QuickDiarySheet({ isOpen, onClose, projectId, onSuccess 
 
   return (
     <>
-      {/* Backdrop — no onClick: accidental taps must not lose form data */}
       <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,.45)', zIndex: 200 }} aria-hidden="true" />
 
-      <div role="dialog" aria-modal="true" aria-label="Új napló bejegyzés"
+      <div role="dialog" aria-modal="true" aria-label={t('ariaLabel')}
         style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: '#fff', borderRadius: '24px 24px 0 0', zIndex: 201, maxHeight: '92dvh', display: 'flex', flexDirection: 'column' }}>
 
-        {/* Handle */}
         <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 12, paddingBottom: 4, flexShrink: 0 }}>
           <div style={{ width: 36, height: 4, borderRadius: 2, background: '#e2e8f0' }} />
         </div>
 
-        {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', padding: '6px 16px 12px', flexShrink: 0, borderBottom: '1px solid #f1f5f9', gap: 10 }}>
-          <span style={{ flex: 1, fontSize: 16, fontWeight: 700, color: '#0f172a' }}>Napló bejegyzés</span>
+          <span style={{ flex: 1, fontSize: 16, fontWeight: 700, color: '#0f172a' }}>{t('sheetTitle')}</span>
           <button type="button" onClick={onClose} disabled={submitting}
             style={{ width: 36, height: 36, borderRadius: '50%', border: 'none', background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#64748b', flexShrink: 0 }}>
             <X size={16} />
@@ -366,7 +340,6 @@ export default function QuickDiarySheet({ isOpen, onClose, projectId, onSuccess 
           })}
         </div>
 
-        {/* Scrollable content */}
         <div style={{ flex: 1, overflowY: 'auto', padding: '4px 20px 8px', WebkitOverflowScrolling: 'touch' }}>
           {error && (
             <div style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', color: 'var(--danger-text)', padding: '0.55rem 0.75rem', borderRadius: 10, fontSize: 13, display: 'flex', gap: 6, marginBottom: 16, alignItems: 'flex-start' }}>
@@ -377,7 +350,6 @@ export default function QuickDiarySheet({ isOpen, onClose, projectId, onSuccess 
           <div style={{ height: 8 }} />
         </div>
 
-        {/* Navigation */}
         <div style={{ padding: '12px 16px', paddingBottom: 'calc(12px + env(safe-area-inset-bottom))', flexShrink: 0, borderTop: '1px solid #f1f5f9', display: 'flex', gap: 10 }}>
           {step > 1 && (
             <button type="button" onClick={() => { setError(''); setStep(s => s - 1); }} disabled={submitting}
@@ -388,10 +360,10 @@ export default function QuickDiarySheet({ isOpen, onClose, projectId, onSuccess 
           <button type="button" onClick={handleNext} disabled={submitting}
             style={{ flex: 1, height: 54, borderRadius: 14, border: 'none', background: isLast ? '#16a34a' : '#0f172a', color: '#fff', fontSize: 16, fontWeight: 700, cursor: submitting ? 'default' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, opacity: submitting ? 0.75 : 1, transition: 'background 0.2s' }}>
             {submitting
-              ? <><Loader2 size={18} className="animate-spin" /> Mentés...</>
+              ? <><Loader2 size={18} className="animate-spin" /> {t('savingBtn')}</>
               : isLast
-                ? <><Check size={18} /> Bejegyzés mentése</>
-                : <>Következő <ChevronRight size={18} /></>
+                ? <><Check size={18} /> {t('saveEntryBtn')}</>
+                : <>{t('nextBtn')} <ChevronRight size={18} /></>
             }
           </button>
         </div>
