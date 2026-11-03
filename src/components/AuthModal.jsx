@@ -26,7 +26,7 @@ const GoogleIcon = () => (
  */
 export default function AuthModal({ onClose, initialView = 'login', onSuccess, initialEmail = '' }) {
   const { login, loginWithOAuth, registerWithEmail, resetPasswordEmail } = useApp();
-  const locale = useLandingLocale();
+  const [locale] = useLandingLocale();
   const T = AUTH_I18N[locale] || AUTH_I18N.hu;
 
   const [view, setView] = useState(initialView);

@@ -1,11 +1,15 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useLandingLocale } from '@/hooks/useLandingLocale';
+import { LANDING_I18N } from '@/lib/landingI18n';
 
 const STORAGE_KEY = 'okosszaki_cookie_notice_dismissed';
 
 export default function CookieBanner() {
   const [visible, setVisible] = useState(false);
+  const [locale] = useLandingLocale();
+  const T = (LANDING_I18N[locale] || LANDING_I18N.hu).cookie;
 
   useEffect(() => {
     if (!localStorage.getItem(STORAGE_KEY)) setVisible(true);
@@ -30,15 +34,14 @@ export default function CookieBanner() {
       boxShadow: '0 -4px 24px rgba(0,0,0,0.25)',
     }}>
       <p style={{ margin: 0, color: '#cbd5e1', maxWidth: 680 }}>
-        Ez a weboldal kizárólag a működéshez szükséges sütiket használ (munkamenet-azonosítás).
-        Harmadik feles nyomkövető vagy hirdetési sütiket nem alkalmazunk.{' '}
+        {T.text}{' '}
         <a
           href="/adatkezeles"
           target="_blank"
           rel="noopener noreferrer"
           style={{ color: '#93c5fd', fontWeight: 600, textDecoration: 'underline' }}
         >
-          Adatkezelési Tájékoztató
+          {T.link}
         </a>
       </p>
       <button
@@ -53,7 +56,7 @@ export default function CookieBanner() {
           fontFamily: 'inherit',
         }}
       >
-        Értettem
+        {T.dismiss}
       </button>
     </div>
   );

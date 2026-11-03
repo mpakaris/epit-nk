@@ -98,6 +98,75 @@ export const LANDING_I18N = {
         },
       ],
     },
+    cookie: {
+      text:    'Ez a weboldal kizárólag a működéshez szükséges sütiket használ (munkamenet-azonosítás). Harmadik feles nyomkövető vagy hirdetési sütiket nem alkalmazunk.',
+      link:    'Adatkezelési Tájékoztató',
+      dismiss: 'Értettem',
+    },
+    preview: {
+      survey: {
+        label: 'Felmérés', title: 'Bakos villa – Teljes felmérés',
+        addRoom: 'Szoba hozzáadása', photoSuffix: 'fotó',
+        summary: '4 szoba · 72 m² összesen', genQuote: 'Ajánlat generálása',
+        rooms: [
+          { name: 'Nappali',    size: 32, photos: 4, h: 2.75 },
+          { name: 'Fürdőszoba', size:  8, photos: 7, h: 2.50 },
+          { name: 'Konyha',     size: 14, photos: 2, h: 2.75 },
+          { name: 'Háló 1',     size: 18, photos: 3, h: 2.60 },
+        ],
+      },
+      offer: {
+        label: 'Árajánlat #A-0047', title: 'Bakos villa – Teljes felújítás',
+        colHeaders: ['Megnevezés', 'Menny.', 'Egységár', 'Összeg'],
+        netTotal: 'Nettó végösszeg',
+        sections: [
+          {
+            name: 'Fürdőszoba',
+            items: [
+              { desc: 'Burkolás (falicsempe)', qty: '24 m²', unit: '4 500', total: '108 000' },
+              { desc: 'Szaniter szerelés',     qty: '1 db',  unit: '85 000', total: '85 000'  },
+            ],
+            subtotal: '193 000',
+          },
+          {
+            name: 'Nappali',
+            items: [
+              { desc: 'Gipszkarton álmennyezet', qty: '32 m²', unit: '3 200', total: '102 400' },
+              { desc: 'Festés (2 réteg)',         qty: '80 m²', unit: '1 200', total: '96 000'  },
+            ],
+            subtotal: '198 400',
+          },
+        ],
+      },
+      website: {
+        credential: 'Engedéllyel rendelkező kivitelező · Budapest',
+        servicesLabel: 'Szolgáltatások', refsLabel: 'Referenciák', cta: 'Ajánlatot kérek',
+        services: ['Kőművesmunka', 'Burkolás', 'Gipszkarton', 'Festés', 'Vízszerelés', 'Tetőfedés'],
+      },
+      portal: {
+        label: 'Ügyfélportál', title: 'Bakos villa – Teljes felújítás',
+        status: 'Folyamatban', projectStatus: 'Projekt állapota',
+        activePill: 'Aktív', recentPhotos: 'Legutóbbi fotók',
+        timeline: [
+          { label: 'Ajánlat elfogadva',    done: true  },
+          { label: 'Munka megkezdve',      done: true  },
+          { label: 'Burkolás folyamatban', active: true },
+          { label: 'Festés és befejezés',  done: false  },
+          { label: 'Átadás és ellenőrzés', done: false  },
+        ],
+      },
+      projects: {
+        pageTitle: 'Projektek', newProject: 'Új projekt', settled: 'Rendezett', addBtn: 'Hozzáadás',
+        nav: ['Projektek', 'Ajánlatok', 'Ügyfelek', 'Weboldal'],
+        statLabels: { cost: 'Összköltség', labour: 'Munkadíj', invoices: 'Számlák' },
+        items: [
+          { name: 'Kovács Éva – Fürdőszoba',      desc: 'Komplett burkolás, szaniterek cseréje',       cost: 485000, labour: 120000, invoices: 7,  balance: 35000  },
+          { name: 'Balaton u. 12. – Tetőcsere',   desc: 'Cserép csere, hőszigetelés, ereszrendszer',   cost: 1240000,labour: 280000, invoices: 12, balance: -65000 },
+          { name: 'Irodaház – Gipszkarton',        desc: '3 emelet belső felújítás, festés',            cost: 320000, labour: 85000,  invoices: 4,  balance: 0      },
+          { name: 'Horváth Bt. – Garázsbeépítés', desc: 'Vasbeton szerkezet, kapubeépítés',            cost: 890000, labour: 210000, invoices: 9,  balance: 120000 },
+        ],
+      },
+    },
   },
 
   de: {
@@ -199,6 +268,75 @@ export const LANDING_I18N = {
         },
       ],
     },
+    cookie: {
+      text:    'Diese Website verwendet ausschließlich technisch notwendige Cookies (Sitzungsidentifikation). Wir verwenden keine Tracking- oder Werbe-Cookies von Drittanbietern.',
+      link:    'Datenschutzerklärung',
+      dismiss: 'Verstanden',
+    },
+    preview: {
+      survey: {
+        label: 'Aufmaß', title: 'Villa Bakos – Vollständiges Aufmaß',
+        addRoom: 'Raum hinzufügen', photoSuffix: 'Fotos',
+        summary: '4 Räume · 72 m² gesamt', genQuote: 'Angebot erstellen',
+        rooms: [
+          { name: 'Wohnzimmer',    size: 32, photos: 4, h: 2.75 },
+          { name: 'Badezimmer',    size:  8, photos: 7, h: 2.50 },
+          { name: 'Küche',         size: 14, photos: 2, h: 2.75 },
+          { name: 'Schlafzimmer',  size: 18, photos: 3, h: 2.60 },
+        ],
+      },
+      offer: {
+        label: 'Angebot #A-0047', title: 'Villa Bakos – Vollständige Renovierung',
+        colHeaders: ['Bezeichnung', 'Menge', 'Einzelpr.', 'Summe'],
+        netTotal: 'Netto-Gesamtbetrag',
+        sections: [
+          {
+            name: 'Badezimmer',
+            items: [
+              { desc: 'Wandfliesen verlegen', qty: '24 m²', unit: '4 500', total: '108 000' },
+              { desc: 'Sanitärmontage',       qty: '1 Stk', unit: '85 000', total: '85 000'  },
+            ],
+            subtotal: '193 000',
+          },
+          {
+            name: 'Wohnzimmer',
+            items: [
+              { desc: 'Trockenbau-Abhangdecke', qty: '32 m²', unit: '3 200', total: '102 400' },
+              { desc: 'Streichen (2 Schichten)', qty: '80 m²', unit: '1 200', total: '96 000'  },
+            ],
+            subtotal: '198 400',
+          },
+        ],
+      },
+      website: {
+        credential: 'Zugelassener Bauunternehmer · Budapest',
+        servicesLabel: 'Leistungen', refsLabel: 'Referenzen', cta: 'Angebot anfordern',
+        services: ['Maurerarbeiten', 'Fliesenlegen', 'Trockenbau', 'Malerarbeiten', 'Sanitär', 'Dachdecken'],
+      },
+      portal: {
+        label: 'Kundenportal', title: 'Villa Bakos – Vollständige Renovierung',
+        status: 'In Bearbeitung', projectStatus: 'Projektstatus',
+        activePill: 'Aktiv', recentPhotos: 'Neueste Fotos',
+        timeline: [
+          { label: 'Angebot angenommen',    done: true  },
+          { label: 'Arbeit begonnen',       done: true  },
+          { label: 'Fliesenlegen läuft',    active: true },
+          { label: 'Streichen & Finish',    done: false  },
+          { label: 'Übergabe & Abnahme',   done: false  },
+        ],
+      },
+      projects: {
+        pageTitle: 'Projekte', newProject: 'Neues Projekt', settled: 'Ausgeglichen', addBtn: 'Hinzufügen',
+        nav: ['Projekte', 'Angebote', 'Kunden', 'Webseite'],
+        statLabels: { cost: 'Gesamtkosten', labour: 'Arbeitskosten', invoices: 'Rechnungen' },
+        items: [
+          { name: 'Eva K. – Badezimmer',         desc: 'Komplett-Fliesenlegen, Sanitäraustausch',    cost: 485000, labour: 120000, invoices: 7,  balance: 35000  },
+          { name: 'Balaton Str. 12 – Dachdecken', desc: 'Ziegelaustausch, Dämmung, Regenrinnen',      cost: 1240000,labour: 280000, invoices: 12, balance: -65000 },
+          { name: 'Bürogebäude – Trockenbau',     desc: '3 Etagen Innenausbau, Streichen',            cost: 320000, labour: 85000,  invoices: 4,  balance: 0      },
+          { name: 'Horvath GmbH – Garagenausbau', desc: 'Stahlbetonbau, Torantrieb-Einbau',           cost: 890000, labour: 210000, invoices: 9,  balance: 120000 },
+        ],
+      },
+    },
   },
 
   en: {
@@ -299,6 +437,75 @@ export const LANDING_I18N = {
           collectiveBullet: 'The client sees all participants and their work',
         },
       ],
+    },
+    cookie: {
+      text:    'This website uses only strictly necessary cookies (session identification). We do not use any third-party tracking or advertising cookies.',
+      link:    'Privacy Policy',
+      dismiss: 'Got it',
+    },
+    preview: {
+      survey: {
+        label: 'Survey', title: 'Bakos Villa – Full survey',
+        addRoom: 'Add room', photoSuffix: 'photos',
+        summary: '4 rooms · 72 m² total', genQuote: 'Generate quote',
+        rooms: [
+          { name: 'Living room', size: 32, photos: 4, h: 2.75 },
+          { name: 'Bathroom',    size:  8, photos: 7, h: 2.50 },
+          { name: 'Kitchen',     size: 14, photos: 2, h: 2.75 },
+          { name: 'Bedroom 1',   size: 18, photos: 3, h: 2.60 },
+        ],
+      },
+      offer: {
+        label: 'Quote #A-0047', title: 'Bakos Villa – Full renovation',
+        colHeaders: ['Description', 'Qty.', 'Unit pr.', 'Total'],
+        netTotal: 'Net total',
+        sections: [
+          {
+            name: 'Bathroom',
+            items: [
+              { desc: 'Wall tiling',          qty: '24 m²', unit: '4 500', total: '108 000' },
+              { desc: 'Plumbing installation', qty: '1 pc',  unit: '85 000', total: '85 000'  },
+            ],
+            subtotal: '193 000',
+          },
+          {
+            name: 'Living room',
+            items: [
+              { desc: 'Drywall suspended ceiling', qty: '32 m²', unit: '3 200', total: '102 400' },
+              { desc: 'Painting (2 coats)',         qty: '80 m²', unit: '1 200', total: '96 000'  },
+            ],
+            subtotal: '198 400',
+          },
+        ],
+      },
+      website: {
+        credential: 'Licensed contractor · Budapest',
+        servicesLabel: 'Services', refsLabel: 'References', cta: 'Request a quote',
+        services: ['Masonry', 'Tiling', 'Drywall', 'Painting', 'Plumbing', 'Roofing'],
+      },
+      portal: {
+        label: 'Client portal', title: 'Bakos Villa – Full renovation',
+        status: 'In progress', projectStatus: 'Project status',
+        activePill: 'Active', recentPhotos: 'Recent photos',
+        timeline: [
+          { label: 'Quote accepted',          done: true  },
+          { label: 'Work started',            done: true  },
+          { label: 'Tiling in progress',      active: true },
+          { label: 'Painting & finishing',    done: false  },
+          { label: 'Handover & inspection',   done: false  },
+        ],
+      },
+      projects: {
+        pageTitle: 'Projects', newProject: 'New project', settled: 'Settled', addBtn: 'Add',
+        nav: ['Projects', 'Quotes', 'Clients', 'Website'],
+        statLabels: { cost: 'Total cost', labour: 'Labour', invoices: 'Invoices' },
+        items: [
+          { name: 'Eva K. – Bathroom',         desc: 'Full tiling, sanitary replacement',         cost: 485000, labour: 120000, invoices: 7,  balance: 35000  },
+          { name: 'Balaton St. 12 – Roofing',  desc: 'Tile replacement, insulation, gutters',     cost: 1240000,labour: 280000, invoices: 12, balance: -65000 },
+          { name: 'Office block – Drywall',    desc: '3-floor interior fit-out, painting',        cost: 320000, labour: 85000,  invoices: 4,  balance: 0      },
+          { name: 'Horvath Ltd. – Garage',     desc: 'Reinforced concrete, gate installation',    cost: 890000, labour: 210000, invoices: 9,  balance: 120000 },
+        ],
+      },
     },
   },
 };

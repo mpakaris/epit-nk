@@ -194,7 +194,7 @@ export default function HomePage() {
               </div>
 
               <div className="lp-hero-preview" style={{ display:'flex', justifyContent:'center' }}>
-                <ProjectsListPreview />
+                <ProjectsListPreview locale={locale} />
               </div>
             </div>
           </div>

@@ -1,11 +1,12 @@
 'use client';
 
-import React, { useState, useEffect, useLayoutEffect } from 'react';
+import React, { useState, useLayoutEffect } from 'react';
 import {
   TrendingUp, TrendingDown, CheckCircle2, Plus,
-  FolderKanban, FileText, BookUser, Globe, Users,
-  Hammer, Receipt, Clock,
+  FolderKanban, FileText, BookUser, Globe,
+  Hammer,
 } from 'lucide-react';
+import { LANDING_I18N } from '@/lib/landingI18n';
 
 // ─── tokens (mirrors globals.css) ───────────────────────────────────────────
 const T = {
@@ -33,41 +34,9 @@ const T = {
 
 const fmt = (n) => new Intl.NumberFormat('hu-HU').format(n) + ' Ft';
 
-const PROJECTS = [
-  {
-    id: 1,
-    name: 'Kovács Éva – Fürdőszoba',
-    desc: 'Komplett burkolás, szaniterek cseréje',
-    cost: 485000, labour: 120000, invoices: 7, balance: 35000,
-  },
-  {
-    id: 2,
-    name: 'Balaton u. 12. – Tetőcsere',
-    desc: 'Cserép csere, hőszigetelés, ereszrendszer',
-    cost: 1240000, labour: 280000, invoices: 12, balance: -65000,
-  },
-  {
-    id: 3,
-    name: 'Irodaház – Gipszkarton',
-    desc: '3 emelet belső felújítás, festés',
-    cost: 320000, labour: 85000, invoices: 4, balance: 0,
-  },
-  {
-    id: 4,
-    name: 'Horváth Bt. – Garázsbeépítés',
-    desc: 'Vasbeton szerkezet, kapubeépítés',
-    cost: 890000, labour: 210000, invoices: 9, balance: 120000,
-  },
-];
+const NAV_ICONS = [FolderKanban, FileText, BookUser, Globe];
 
-const NAV_ITEMS = [
-  { icon: FolderKanban, label: 'Projektek', active: true },
-  { icon: FileText,     label: 'Ajánlatok', active: false },
-  { icon: BookUser,     label: 'Ügyfelek',  active: false },
-  { icon: Globe,        label: 'Weboldal',  active: false },
-];
-
-function BalancePill({ balance }) {
+function BalancePill({ balance, settledLabel }) {
   if (balance > 0) return (
     <span style={{ display:'inline-flex', alignItems:'center', gap:'0.3rem', fontSize:'0.72rem', fontWeight:700, padding:'0.2rem 0.5rem', borderRadius:9999, background:T.successBg, color:T.successText, border:`1px solid ${T.successBorder}` }}>
       <TrendingUp size={11} /> +{fmt(balance)}
@@ -80,12 +49,12 @@ function BalancePill({ balance }) {
   );
   return (
     <span style={{ display:'inline-flex', alignItems:'center', gap:'0.3rem', fontSize:'0.72rem', fontWeight:700, padding:'0.2rem 0.5rem', borderRadius:9999, background:T.bgSubtle, color:T.textSecondary, border:`1px solid ${T.border}` }}>
-      <CheckCircle2 size={11} /> Rendezett
+      <CheckCircle2 size={11} /> {settledLabel}
     </span>
   );
 }
 
-function ProjectCard({ project }) {
+function ProjectCard({ project, statLabels, addBtn, settledLabel }) {
   return (
     <div style={{
       background: T.bgCard,
@@ -97,7 +66,6 @@ function ProjectCard({ project }) {
       boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
       fontFamily: T.font,
     }}>
-      {/* Body */}
       <div style={{ padding: '0.85rem', display:'flex', flexDirection:'column', gap:'0.65rem', flex:1 }}>
         <h3 style={{ fontSize:'0.875rem', fontWeight:800, color:T.textPrimary, letterSpacing:'-0.015em', lineHeight:1.3, margin:0 }}>
           {project.name}
@@ -105,13 +73,11 @@ function ProjectCard({ project }) {
         <p style={{ fontSize:'0.72rem', color:T.textSecondary, lineHeight:1.4, margin:0 }}>
           {project.desc}
         </p>
-
-        {/* Stats box */}
         <div style={{ background:T.bgSubtle, borderRadius:8, padding:'0.5rem 0.65rem', display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:'0.3rem', border:`1px solid ${T.border}` }}>
           {[
-            { label: 'Összköltség', value: fmt(project.cost), color: T.textPrimary },
-            { label: 'Munkadíj',    value: fmt(project.labour), color: T.successText },
-            { label: 'Számlák',     value: `${project.invoices} db`, color: T.textSecondary },
+            { label: statLabels.cost,     value: fmt(project.cost),   color: T.textPrimary   },
+            { label: statLabels.labour,   value: fmt(project.labour), color: T.successText   },
+            { label: statLabels.invoices, value: `${project.invoices} db`, color: T.textSecondary },
           ].map(({ label, value, color }) => (
             <div key={label}>
               <div style={{ fontSize:'0.58rem', color:T.textMuted, textTransform:'uppercase', fontWeight:700, letterSpacing:'0.04em' }}>{label}</div>
@@ -119,12 +85,10 @@ function ProjectCard({ project }) {
             </div>
           ))}
         </div>
-
-        {/* Footer */}
         <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', paddingTop:'0.5rem', borderTop:`1px solid ${T.border}`, gap:'0.4rem', marginTop:'auto' }}>
-          <BalancePill balance={project.balance} />
+          <BalancePill balance={project.balance} settledLabel={settledLabel} />
           <span style={{ display:'inline-flex', alignItems:'center', gap:'0.25rem', padding:'0.25rem 0.55rem', borderRadius:8, background:T.accent, color:'#fff', fontSize:'0.68rem', fontWeight:700 }}>
-            <Plus size={10} /> Hozzáadás
+            <Plus size={10} /> {addBtn}
           </span>
         </div>
       </div>
@@ -139,8 +103,9 @@ const INNER_W       = 600;
 const INNER_H       = 640;
 const DEFAULT_SCALE = 0.72;
 
-export default function ProjectsListPreview() {
+export default function ProjectsListPreview({ locale = 'hu' }) {
   const [scale, setScale] = useState(DEFAULT_SCALE);
+  const P = (LANDING_I18N[locale] || LANDING_I18N.hu).preview.projects;
 
   useLayoutEffect(() => {
     const update = () => {
@@ -191,8 +156,8 @@ export default function ProjectsListPreview() {
             <div style={{ width:28, height:28, borderRadius:8, background:T.navy, display:'flex', alignItems:'center', justifyContent:'center', marginBottom:12 }}>
               <Hammer size={13} color='#bfdbfe' />
             </div>
-            {NAV_ITEMS.map(({ icon: Icon, label, active }) => (
-              <div key={label} title={label} style={{ width:36, height:36, borderRadius:9, display:'flex', alignItems:'center', justifyContent:'center', background: active ? T.accentLight : 'transparent', color: active ? T.accent : T.textMuted, cursor:'default' }}>
+            {NAV_ICONS.map((Icon, i) => (
+              <div key={i} title={P.nav[i]} style={{ width:36, height:36, borderRadius:9, display:'flex', alignItems:'center', justifyContent:'center', background: i === 0 ? T.accentLight : 'transparent', color: i === 0 ? T.accent : T.textMuted, cursor:'default' }}>
                 <Icon size={16} />
               </div>
             ))}
@@ -202,16 +167,16 @@ export default function ProjectsListPreview() {
           <div style={{ flex:1, overflowY:'hidden', display:'flex', flexDirection:'column' }}>
             {/* Top bar */}
             <div style={{ background:T.bgCard, borderBottom:`1px solid ${T.border}`, padding:'10px 18px', display:'flex', alignItems:'center', justifyContent:'space-between', flexShrink:0 }}>
-              <h1 style={{ fontSize:'1.1rem', fontWeight:800, color:T.textPrimary, letterSpacing:'-0.025em', margin:0, fontFamily:T.font }}>Projektek</h1>
+              <h1 style={{ fontSize:'1.1rem', fontWeight:800, color:T.textPrimary, letterSpacing:'-0.025em', margin:0, fontFamily:T.font }}>{P.pageTitle}</h1>
               <div style={{ display:'inline-flex', alignItems:'center', gap:'0.35rem', padding:'0.3rem 0.75rem', borderRadius:8, background:T.accent, color:'#fff', fontSize:'0.75rem', fontWeight:700, fontFamily:T.font }}>
-                <Plus size={13} /> Új projekt
+                <Plus size={13} /> {P.newProject}
               </div>
             </div>
 
             {/* Cards grid */}
             <div style={{ flex:1, padding:'14px 18px', overflowY:'hidden' }}>
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
-                {PROJECTS.map(p => <ProjectCard key={p.id} project={p} />)}
+                {P.items.map((p, i) => <ProjectCard key={i} project={p} statLabels={P.statLabels} addBtn={P.addBtn} settledLabel={P.settled} />)}
               </div>
             </div>
           </div>

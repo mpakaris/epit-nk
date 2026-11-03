@@ -393,10 +393,30 @@ GET  /api/szakemberek/[slug]    Public szakember page data
 ### Language (`profiles.locale`)
 - Stored in `profiles.locale` (VARCHAR 5, nullable). Values: `'hu'` | `'de'` | `'en'`.
 - Drives **both** the app UI language **and** the language of outgoing documents (quote PDFs, emails). There is no separate "document language" — they are always the same.
-- Changeable anytime by the user in **Profil → Nyelv és pénznem** (`/profil#preferences`). Clicking a language pill calls `PATCH /api/auth/profile` with `{ locale }` and then `router.replace('/profil', { locale })`.
+- Changeable anytime by the user in **Profil → Nyelv és pénznem** (`/profil#preferences`). Clicking a language pill calls `PATCH /api/auth/profile` with `{ locale }`, sets the `NEXT_LOCALE` cookie, then does `window.location.reload()`.
 - On login, AppContext syncs `profile.locale` to the `NEXT_LOCALE` cookie so next-intl renders in the correct language immediately.
 - The landing page (`/`) has its own locale detection via `useLandingLocale()` (`src/hooks/useLandingLocale.js`) which reads the same `NEXT_LOCALE` cookie. The landing page language switcher (EN/DE/HU pills in the navbar) also writes this cookie.
 - **There is NO language switcher in the Sidebar.** Language is managed exclusively in `/profil`.
+
+### Routing & i18n infrastructure (do not change without testing in production)
+
+The app uses **next-intl v4** with Next.js 16 and `localePrefix: 'never'`. The locale is determined entirely from the `NEXT_LOCALE` cookie — it never appears in the URL.
+
+**URL paths do not change when switching language.** `/ajanlatok` stays `/ajanlatok` for all locales; only the page content changes. This is intentional.
+
+**Key files:**
+- `proxy.js` (project root) — Next.js 16 renamed `middleware.js` → `proxy.js`. Do not rename it back or create a parallel `middleware.js`.
+- `src/i18n/routing.js` — defines locales, defaultLocale, localePrefix. Has `pathnames: {}` (empty object, NOT `undefined` and NOT a full locale map).
+- `src/i18n/request.js` — loads the right `messages/*.json` based on locale.
+- `[locale]/layout.jsx` — passes `locale` from `params` explicitly to both `getMessages({ locale })` and `NextIntlClientProvider locale={locale}`.
+
+**Why `pathnames: {}`?** Two constraints make full localized pathnames (`/angebote` for DE, `/kunden` etc.) non-viable:
+1. **Production Webpack RSC bug** — The production build uses `next build --webpack`. In this mode, next-intl's middleware rewrites (e.g. `/angebote` → `/de/ajanlatok`) cause 500 errors on RSC prefetch/navigation requests. Dev (Turbopack) is unaffected, which is why it "works on localhost."
+2. **Middleware crash on `undefined`** — Setting `pathnames` to `undefined` (or omitting it) causes `Object.entries(undefined)` in next-intl's middleware initialization, crashing the entire middleware bundle at startup and returning 500 for every route including `/`.
+
+The empty object `{}` is the safe middle ground: it keeps `pathnames` defined (no crash) while producing no localized URL translation (no RSC rewrite 500s).
+
+**If you want localized URLs in the future:** Restore the full `pathnames` map in `routing.js` **and** test with `npm run build --webpack && npm start` (not just `npm run dev`) before shipping. The RSC prefetch requests to German paths are what fail in production.
 
 ### Currency (`profiles.currency`)
 - Stored in `profiles.currency` (VARCHAR 3, nullable). Values: `'HUF'` | `'EUR'` | `'GBP'` | `'USD'`.
@@ -572,8 +592,7 @@ Any route or UI that creates a resource (quote, survey, project, collective) mus
 - **Missing `navPrefix`** — every in-app `<Link>` or `router.push()` in a shared/demo-aware component needs it.
 - **Hardcoded breakpoint** — the one mobile breakpoint is 768 px.
 - **Hardcoded colour hex** — use CSS vars from `globals.css`.
-- **Hardcoded string** — no string literals in JSX. Use `useTranslations()` inside `[locale]` pages; use `LANDING_I18N` on the landing page. Add the key to all three JSON files immediately. `tests/i18n.test.js` will catch mismatches.
-- **Hungarian UI** — default language is Hungarian, but the app is fully translated (HU/DE/EN). All new strings must go through the translation system, not just be written in Hungarian.
+- **Hardcoded string** — zero tolerance. Never write a user-visible string directly in JSX, not even in Hungarian. Use `useTranslations()` inside `[locale]` pages; use `LANDING_I18N` / `AUTH_I18N` on the landing page and auth modal. Add the key to **all three JSON files** (`hu`, `de`, `en`) immediately — not later. `tests/i18n.test.js` will catch mismatches at CI time.
 - **`user_id` from request body** — always set `user_id: user.id` server-side on inserts; never trust the client.
 - **Membership check without role** — checking only `active` status is not enough for document creation; must also verify `role === 'owner' || role === 'admin'`.
 - **Superadmin bypass in new routes** — do not add `isSuperAdmin` escape hatches to new routes; SA uses DB access.
@@ -642,20 +661,23 @@ refreshSupabaseData();
 
 ### 13. No Hardcoded Strings — Translations Required
 
-The entire app is translated (HU / DE / EN). **Every** user-visible string must use the translation system. Never write a string literal directly in JSX.
+**Never write a user-visible string directly in JSX. Use a translation key and add it to all three JSON files immediately.**
+
+The entire app is translated (HU / DE / EN). Every label, button, placeholder, error message, empty state, tooltip, and heading must go through the translation system — no exceptions.
 
 **Inside `[locale]` pages** (uses `next-intl`):
 ```js
 const t = useTranslations('mySection');
 // CORRECT
 <button>{t('saveBtn')}</button>
-// WRONG
+// WRONG — never do this
 <button>Save</button>
+<button>Mentés</button>
 ```
-Add the key to **all three files** at the same time: `messages/hu.json`, `messages/de.json`, `messages/en.json`.
+Add the key to **all three files** at the same time: `messages/hu.json`, `messages/de.json`, `messages/en.json`. Do not add it to one file and plan to do the others later.
 
-**Outside `[locale]`** (landing page, auth modal, onboarding modal — no `NextIntlClientProvider`):
-Use `LANDING_I18N` / `AUTH_I18N` objects from `src/lib/landingI18n.js` and the `useLandingLocale()` hook.
+**Outside `[locale]`** (landing page, auth modal, onboarding modal, preview components — no `NextIntlClientProvider`):
+Use `LANDING_I18N` / `AUTH_I18N` objects from `src/lib/landingI18n.js` and the `useLandingLocale()` hook. Add the string to all three locale objects (`hu`, `de`, `en`) in that file.
 
 **`tests/i18n.test.js`** enforces this automatically — it fails if any two locale files have different key sets or if any value is an empty string. Run standalone: `npx vitest run tests/i18n.test.js`.
 

@@ -112,30 +112,24 @@ function BrowserFrame({ url, children, innerHeight = 520 }) {
 }
 
 // ─── Survey preview ──────────────────────────────────────────────────────────
-const ROOMS = [
-  { name: 'Nappali',    size: 32, photos: 4, h: 2.75 },
-  { name: 'Fürdőszoba', size:  8, photos: 7, h: 2.50 },
-  { name: 'Konyha',     size: 14, photos: 2, h: 2.75 },
-  { name: 'Háló 1',     size: 18, photos: 3, h: 2.60 },
-];
-
-function SurveyPreview() {
+function SurveyPreview({ locale = 'hu' }) {
+  const P = (LANDING_I18N[locale] || LANDING_I18N.hu).preview.survey;
   return (
     <BrowserFrame url="okosszaki.hu/felmeresek/B-2024-12" innerHeight={520}>
       {/* Top bar */}
       <div style={{ background: T.bgCard, borderBottom: `1px solid ${T.border}`, padding: '10px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
         <div>
-          <div style={{ fontSize: 10, color: T.textMuted, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 2 }}>Felmérés</div>
-          <h1 style={{ fontSize: '1rem', fontWeight: 800, color: T.textPrimary, margin: 0 }}>Bakos villa – Teljes felmérés</h1>
+          <div style={{ fontSize: 10, color: T.textMuted, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 2 }}>{P.label}</div>
+          <h1 style={{ fontSize: '1rem', fontWeight: 800, color: T.textPrimary, margin: 0 }}>{P.title}</h1>
         </div>
         <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '0.3rem 0.7rem', borderRadius: 8, background: T.accent, color: '#fff', fontSize: '0.72rem', fontWeight: 700 }}>
-          <Plus size={12} /> Szoba hozzáadása
+          <Plus size={12} /> {P.addRoom}
         </div>
       </div>
 
       {/* Rooms grid */}
       <div style={{ flex: 1, padding: '14px 18px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, alignContent: 'start', overflowY: 'hidden' }}>
-        {ROOMS.map((r) => (
+        {P.rooms.map((r) => (
           <div key={r.name} style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 10, padding: '0.75rem', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 8 }}>
               <div style={{ width: 28, height: 28, borderRadius: 7, background: T.accentLight, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
@@ -144,7 +138,7 @@ function SurveyPreview() {
               <span style={{ fontWeight: 800, fontSize: '0.82rem', color: T.textPrimary }}>{r.name}</span>
             </div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
-              {[`${r.size} m²`, `${r.h} m`, `${r.photos} fotó`].map((val) => (
+              {[`${r.size} m²`, `${r.h} m`, `${r.photos} ${P.photoSuffix}`].map((val) => (
                 <span key={val} style={{ fontSize: '0.68rem', fontWeight: 700, padding: '0.15rem 0.45rem', borderRadius: 999, background: T.bgSubtle, border: `1px solid ${T.border}`, color: T.textSecondary }}>{val}</span>
               ))}
             </div>
@@ -154,9 +148,9 @@ function SurveyPreview() {
 
       {/* Bottom bar */}
       <div style={{ borderTop: `1px solid ${T.border}`, background: T.bgCard, padding: '10px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
-        <span style={{ fontSize: '0.75rem', color: T.textMuted, fontWeight: 600 }}>4 szoba · 72 m² összesen</span>
+        <span style={{ fontSize: '0.75rem', color: T.textMuted, fontWeight: 600 }}>{P.summary}</span>
         <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '0.3rem 0.7rem', borderRadius: 8, background: T.successBg, color: T.successText, border: `1px solid ${T.successBorder}`, fontSize: '0.72rem', fontWeight: 700 }}>
-          <FileText size={12} /> Ajánlat generálása
+          <FileText size={12} /> {P.genQuote}
         </div>
       </div>
     </BrowserFrame>
@@ -164,33 +158,15 @@ function SurveyPreview() {
 }
 
 // ─── Offer preview ───────────────────────────────────────────────────────────
-const OFFER_SECTIONS = [
-  {
-    name: 'Fürdőszoba',
-    items: [
-      { desc: 'Burkolás (falicsempe)', qty: '24 m²', unit: '4 500', total: '108 000' },
-      { desc: 'Szaniter szerelés',     qty: '1 db',  unit: '85 000', total: '85 000' },
-    ],
-    subtotal: '193 000',
-  },
-  {
-    name: 'Nappali',
-    items: [
-      { desc: 'Gipszkarton álmennyezet', qty: '32 m²', unit: '3 200', total: '102 400' },
-      { desc: 'Festés (2 réteg)',        qty: '80 m²', unit: '1 200', total: '96 000'  },
-    ],
-    subtotal: '198 400',
-  },
-];
-
-function OfferPreview() {
+function OfferPreview({ locale = 'hu' }) {
+  const P = (LANDING_I18N[locale] || LANDING_I18N.hu).preview.offer;
   return (
     <BrowserFrame url="okosszaki.hu/ajanlatok/A-0047" innerHeight={560}>
       {/* Top bar */}
       <div style={{ background: T.bgCard, borderBottom: `1px solid ${T.border}`, padding: '10px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
         <div>
-          <div style={{ fontSize: 10, color: T.accent, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 2 }}>Árajánlat #A-0047</div>
-          <h1 style={{ fontSize: '1rem', fontWeight: 800, color: T.textPrimary, margin: 0 }}>Bakos villa – Teljes felújítás</h1>
+          <div style={{ fontSize: 10, color: T.accent, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 2 }}>{P.label}</div>
+          <h1 style={{ fontSize: '1rem', fontWeight: 800, color: T.textPrimary, margin: 0 }}>{P.title}</h1>
         </div>
         <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '0.3rem 0.7rem', borderRadius: 8, background: T.accent, color: '#fff', fontSize: '0.72rem', fontWeight: 700 }}>
           <FileText size={12} /> PDF
@@ -205,18 +181,16 @@ function OfferPreview() {
 
       {/* Sections */}
       <div style={{ flex: 1, padding: '12px 18px', display: 'flex', flexDirection: 'column', gap: 10, overflowY: 'hidden' }}>
-        {OFFER_SECTIONS.map((sec) => (
+        {P.sections.map((sec) => (
           <div key={sec.name} style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 10, overflow: 'hidden' }}>
             <div style={{ background: T.bgSubtle, padding: '6px 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: `1px solid ${T.border}` }}>
               <span style={{ fontSize: '0.75rem', fontWeight: 800, color: T.textPrimary }}>{sec.name}</span>
               <span style={{ fontSize: '0.7rem', fontFamily: T.mono, fontWeight: 700, color: T.successText, background: T.successBg, border: `1px solid ${T.successBorder}`, padding: '0.1rem 0.45rem', borderRadius: 999 }}>{fmt(parseInt(sec.subtotal.replace(' ', ''), 10))}</span>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 52px 68px 72px', gap: 0 }}>
-              {/* Header */}
-              {['Megnevezés','Menny.','Egységár','Összeg'].map((h) => (
+              {P.colHeaders.map((h) => (
                 <div key={h} style={{ padding: '4px 8px', fontSize: '0.6rem', fontWeight: 700, color: T.textMuted, textTransform: 'uppercase', letterSpacing: '0.04em', borderBottom: `1px solid ${T.border}` }}>{h}</div>
               ))}
-              {/* Rows */}
               {sec.items.map((it) => (
                 <React.Fragment key={it.desc}>
                   <div style={{ padding: '5px 8px', fontSize: '0.72rem', color: T.textPrimary, fontWeight: 600, borderBottom: `1px solid ${T.bgSubtle}` }}>{it.desc}</div>
@@ -232,7 +206,7 @@ function OfferPreview() {
 
       {/* Total footer */}
       <div style={{ borderTop: `1px solid ${T.border}`, background: T.bgCard, padding: '10px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
-        <span style={{ fontSize: '0.8rem', fontWeight: 700, color: T.textSecondary }}>Nettó végösszeg</span>
+        <span style={{ fontSize: '0.8rem', fontWeight: 700, color: T.textSecondary }}>{P.netTotal}</span>
         <span style={{ fontSize: '1.15rem', fontWeight: 800, color: T.accent, fontFamily: T.mono }}>391 400 Ft</span>
       </div>
     </BrowserFrame>
@@ -240,11 +214,12 @@ function OfferPreview() {
 }
 
 // ─── Website preview (phone frame) ───────────────────────────────────────────
-function WebsitePreview() {
+function WebsitePreview({ locale = 'hu' }) {
   const PHONE_W     = 280;
   const PHONE_H     = 520;
   const phoneScale  = usePreviewScale(PHONE_W, 1);
-  const services = ['Kőművesmunka', 'Burkolás', 'Gipszkarton', 'Festés', 'Vízszerelés', 'Tetőfedés'];
+  const P = (LANDING_I18N[locale] || LANDING_I18N.hu).preview.website;
+  const services = P.services;
 
   return (
     <div style={{
@@ -278,7 +253,7 @@ function WebsitePreview() {
           <div style={{ width: 44, height: 44, borderRadius: '50%', background: T.accent, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.85rem', fontWeight: 800, color: '#fff' }}>NR</div>
           <div style={{ textAlign: 'center' }}>
             <div style={{ fontSize: '0.82rem', fontWeight: 800, color: '#fff' }}>Nemes Renováló Kft.</div>
-            <div style={{ fontSize: '0.62rem', color: T.textLight, marginTop: 2 }}>Engedéllyel rendelkező kivitelező · Budapest</div>
+            <div style={{ fontSize: '0.62rem', color: T.textLight, marginTop: 2 }}>{P.credential}</div>
           </div>
           <div style={{ display: 'flex', gap: 8, marginTop: 2 }}>
             {['⭐ 4.9','32 projekt'].map(b => (
@@ -289,7 +264,7 @@ function WebsitePreview() {
 
         {/* Services */}
         <div style={{ width: '100%', padding: '10px 12px' }}>
-          <div style={{ fontSize: '0.62rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: T.textMuted, marginBottom: 6 }}>Szolgáltatások</div>
+          <div style={{ fontSize: '0.62rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: T.textMuted, marginBottom: 6 }}>{P.servicesLabel}</div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 5 }}>
             {services.map(s => (
               <div key={s} style={{ background: T.bgSubtle, border: `1px solid ${T.border}`, borderRadius: 6, padding: '4px 6px', fontSize: '0.58rem', fontWeight: 600, color: T.textPrimary, textAlign: 'center' }}>{s}</div>
@@ -299,7 +274,7 @@ function WebsitePreview() {
 
         {/* Photo strip */}
         <div style={{ width: '100%', padding: '0 12px 10px' }}>
-          <div style={{ fontSize: '0.62rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: T.textMuted, marginBottom: 6 }}>Referenciák</div>
+          <div style={{ fontSize: '0.62rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: T.textMuted, marginBottom: 6 }}>{P.refsLabel}</div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 4 }}>
             {['#bfdbfe','#ddd6fe','#bbf7d0','#fed7aa','#fecaca','#e0f2fe'].map((bg, i) => (
               <div key={i} style={{ aspectRatio: '1', borderRadius: 6, background: bg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -312,7 +287,7 @@ function WebsitePreview() {
         {/* CTA */}
         <div style={{ width: '100%', padding: '0 12px' }}>
           <div style={{ background: T.accent, color: '#fff', borderRadius: 8, padding: '8px 12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontSize: '0.72rem', fontWeight: 700 }}>
-            Ajánlatot kérek <ChevronRight size={13} />
+            {P.cta} <ChevronRight size={13} />
           </div>
         </div>
       </div>
@@ -322,44 +297,37 @@ function WebsitePreview() {
 }
 
 // ─── Client portal preview ───────────────────────────────────────────────────
-const TIMELINE = [
-  { label: 'Ajánlat elfogadva',    done: true  },
-  { label: 'Munka megkezdve',      done: true  },
-  { label: 'Burkolás folyamatban', active: true },
-  { label: 'Festés és befejezés',  done: false  },
-  { label: 'Átadás és ellenőrzés', done: false  },
-];
-
-function ClientPortalPreview() {
+function ClientPortalPreview({ locale = 'hu' }) {
+  const P = (LANDING_I18N[locale] || LANDING_I18N.hu).preview.portal;
   return (
     <BrowserFrame url="okosszaki.hu/portal/bakos-villa" innerHeight={520}>
       {/* Top bar */}
       <div style={{ background: T.bgCard, borderBottom: `1px solid ${T.border}`, padding: '10px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
         <div>
-          <div style={{ fontSize: 10, color: T.accent, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 2 }}>Ügyfélportál</div>
-          <h1 style={{ fontSize: '1rem', fontWeight: 800, color: T.textPrimary, margin: 0 }}>Bakos villa – Teljes felújítás</h1>
+          <div style={{ fontSize: 10, color: T.accent, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 2 }}>{P.label}</div>
+          <h1 style={{ fontSize: '1rem', fontWeight: 800, color: T.textPrimary, margin: 0 }}>{P.title}</h1>
         </div>
-        <span style={{ fontSize: '0.68rem', fontWeight: 700, padding: '0.2rem 0.6rem', borderRadius: 999, background: '#fef3c7', color: '#92400e', border: '1px solid #fde68a' }}>Folyamatban</span>
+        <span style={{ fontSize: '0.68rem', fontWeight: 700, padding: '0.2rem 0.6rem', borderRadius: 999, background: '#fef3c7', color: '#92400e', border: '1px solid #fde68a' }}>{P.status}</span>
       </div>
 
       <div style={{ flex: 1, padding: '14px 18px', display: 'flex', flexDirection: 'column', gap: 12, overflowY: 'hidden' }}>
         {/* Progress */}
         <div style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 10, padding: '0.85rem' }}>
-          <div style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: T.textMuted, marginBottom: 10 }}>Projekt állapota</div>
+          <div style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: T.textMuted, marginBottom: 10 }}>{P.projectStatus}</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-            {TIMELINE.map((step, i) => {
+            {P.timeline.map((step, i) => {
               const isActive = step.active;
               const isDone   = step.done;
               const color = isDone ? T.successText : isActive ? T.accent : T.textLight;
               const bg    = isDone ? T.successBg   : isActive ? T.accentLight : T.bgSubtle;
-              const Icon  = isDone ? CheckCircle2 : isActive ? Clock : Clock;
+              const Icon  = isDone ? CheckCircle2 : Clock;
               return (
                 <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <div style={{ width: 22, height: 22, borderRadius: '50%', background: bg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                     <Icon size={12} color={color} />
                   </div>
                   <span style={{ fontSize: '0.75rem', fontWeight: isDone || isActive ? 700 : 500, color }}>{step.label}</span>
-                  {isActive && <span style={{ fontSize: '0.6rem', fontWeight: 700, background: T.accent, color: '#fff', padding: '1px 6px', borderRadius: 999, marginLeft: 'auto' }}>Aktív</span>}
+                  {isActive && <span style={{ fontSize: '0.6rem', fontWeight: 700, background: T.accent, color: '#fff', padding: '1px 6px', borderRadius: 999, marginLeft: 'auto' }}>{P.activePill}</span>}
                 </div>
               );
             })}
@@ -368,7 +336,7 @@ function ClientPortalPreview() {
 
         {/* Photo strip */}
         <div style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 10, padding: '0.75rem' }}>
-          <div style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: T.textMuted, marginBottom: 8 }}>Legutóbbi fotók</div>
+          <div style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: T.textMuted, marginBottom: 8 }}>{P.recentPhotos}</div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6 }}>
             {['#bfdbfe','#ddd6fe','#bbf7d0','#fed7aa'].map((bg, i) => (
               <div key={i} style={{ aspectRatio: '1', borderRadius: 7, background: bg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -386,19 +354,19 @@ function ClientPortalPreview() {
 const FEATURE_STATICS = [
   { id: 'survey',   Preview: SurveyPreview,              imageFirst: true,  demoHref: '/demo/felmeresek' },
   { id: 'offer',    Preview: OfferPreview,               imageFirst: false, demoHref: '/demo/ajanlatok'  },
-  { id: 'projects', Preview: () => <ProjectsListPreview />, imageFirst: true, demoHref: '/demo/projektek' },
+  { id: 'projects', Preview: ProjectsListPreview,          imageFirst: true, demoHref: '/demo/projektek' },
   { id: 'website',  Preview: WebsitePreview,             imageFirst: false, demoHref: '/demo/weboldalam' },
   { id: 'portal',   Preview: ClientPortalPreview,        imageFirst: true,  demoHref: '/clients/demo', comingSoon: true },
 ];
 
 // ─── Single feature row ───────────────────────────────────────────────────────
-function FeatureRow({ staticData, i18nItem, comingSoonLabel, registerBtn, demoBtn, onRegister }) {
+function FeatureRow({ staticData, i18nItem, comingSoonLabel, registerBtn, demoBtn, onRegister, locale }) {
   const { Preview, imageFirst, demoHref } = staticData;
   const { overline, title, desc, bullets, collectiveBullet } = i18nItem;
 
   const previewCol = (
     <div className="feature-preview-col" style={{ display: 'flex', justifyContent: imageFirst ? 'flex-start' : 'flex-end' }}>
-      <Preview />
+      <Preview locale={locale} />
     </div>
   );
 
@@ -503,6 +471,7 @@ export default function FeatureShowcase({ onRegister, locale = 'hu' }) {
             registerBtn={tf.registerBtn}
             demoBtn={tf.demoBtn}
             onRegister={onRegister}
+            locale={locale}
           />
         ))}
       </div>
