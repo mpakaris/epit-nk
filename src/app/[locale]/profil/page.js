@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from '@/navigation';
 import { useTranslations } from 'next-intl';
+import { routing } from '@/i18n/routing';
 import { useApp } from '@/context/AppContext';
 import {
   User, KeyRound, LogOut, CheckCircle2, AlertCircle, Loader2,
@@ -627,8 +628,11 @@ export default function ProfilPage() {
       if (!res.ok) return;
       // Sync cookie so next-intl picks up the change on next navigation
       document.cookie = `NEXT_LOCALE=${newLocale};path=/;max-age=31536000;SameSite=Lax`;
-      // Switch app locale via next-intl router (re-renders with new messages)
-      router.replace('/profil', { locale: newLocale });
+      // With localePrefix:'never', locale lives only in the cookie — navigate to the
+      // translated path directly so the URL stays clean (no /hu/ prefix injected).
+      const profilDef = routing.pathnames['/profil'];
+      const targetPath = typeof profilDef === 'object' ? (profilDef[newLocale] || '/profil') : '/profil';
+      window.location.replace(targetPath);
       setLocaleOk(true);
       setTimeout(() => setLocaleOk(false), 2500);
     } finally {
