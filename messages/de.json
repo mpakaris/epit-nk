@@ -318,7 +318,13 @@
     "memberActionSend": "Angebot senden",
     "memberActionRejection": "Ablehnung",
     "historyProject": "Projekt:",
-    "convertCollective": "Kollektiv"
+    "convertCollective": "Kollektiv",
+    "titleRequired": "Angebotsname ist erforderlich!",
+    "saveError": "Fehler beim Speichern des Angebots",
+    "createQuote": "Angebot erstellen",
+    "collectiveFallback": "Kollektiv",
+    "descriptionLabel": "Beschreibung / Notizen",
+    "newClientNamePlaceholder": "Max Mustermann"
   },
   "surveys": {
     "pageTitle": "Aufmaße",
@@ -337,7 +343,44 @@
     "nudge": "Erstellen Sie ein Kollektiv und teilen Sie Ihre Aufmaße.",
     "new": "Neues Aufmaß",
     "back": "Zurück zu den Aufmaßen",
-    "notFound": "Aufmaß nicht gefunden"
+    "notFound": "Aufmaß nicht gefunden",
+    "unauthorized": "Zugriff verweigert.",
+    "titleLabel": "Bezeichnung *",
+    "titlePlaceholder": "z.B. Badsanierung",
+    "titleRequired": "Bezeichnung ist erforderlich!",
+    "locationLabel": "Standort",
+    "locationPlaceholder": "Adresse",
+    "clientLabel": "Kunde",
+    "newClientButton": "Neuer Kunde",
+    "roomsLabel": "Räume",
+    "dateLabel": "Datum",
+    "notesLabel": "Bemerkungen",
+    "notesPlaceholder": "Aufmaßnotizen…",
+    "createSurvey": "Aufmaß erstellen",
+    "startSurvey": "Aufmaß starten",
+    "saving": "Speichern...",
+    "saveError": "Fehler beim Speichern des Aufmaßes",
+    "personalLabel": "Persönlich",
+    "collectiveFallback": "Kollektiv",
+    "newClientTitle": "Neuer Kunde",
+    "newClientNameLabel": "Name *",
+    "newClientNamePlaceholder": "Max Mustermann",
+    "newClientNameRequired": "Name ist erforderlich!",
+    "newClientPhoneLabel": "Telefon",
+    "newClientEmailLabel": "E-Mail *",
+    "newClientAddressLabel": "Adresse",
+    "newClientGdprText": "Der Kunde hat der Speicherung seiner Daten zugestimmt.",
+    "newClientCreateError": "Fehler beim Anlegen des Kunden",
+    "defaultRooms": [
+      "Wohnzimmer",
+      "Bad",
+      "Küche",
+      "Schlafzimmer",
+      "Garten",
+      "Flur"
+    ],
+    "roomChipOther": "+ Sonstige",
+    "roomChipPlaceholder": "z.B. Garage"
   },
   "projects": {
     "pageTitle": "Projekte",
@@ -497,7 +540,10 @@
     "totalQuoteValue": "gesamt {amount}",
     "totalExpenses": "{amount} Ausgaben",
     "quotesStatLabel": "Angebote",
-    "projectsStatLabel": "Abgeschlossene Projekte"
+    "projectsStatLabel": "Abgeschlossene Projekte",
+    "selectPlaceholder": "– Kunden auswählen –",
+    "personalGroup": "Persönliche Kunden",
+    "discountAbbr": "Rabb."
   },
   "calendar": {
     "pageTitle": "Kalender",
@@ -995,7 +1041,10 @@
     "leaveConfirmMsg": "Möchten Sie {collective} wirklich verlassen?",
     "activeMembers": "{count} aktive Mitglieder",
     "pendingInvitationsCount": "{count} ausstehende Einladung",
-    "scheduledCancelUntil": "{status} — bis {date}"
+    "scheduledCancelUntil": "{status} — bis {date}",
+    "workspaceLabel": "Arbeitsbereich",
+    "personalOption": "Persönlich (privat)",
+    "sharedWarning": "Dieser Inhalt wird mit allen Mitgliedern des Kollektivs geteilt."
   },
   "profile": {
     "pageTitle": "Mein Profil",
@@ -1230,6 +1279,8 @@
       "memberColDesc": "Du bist Mitglied · zur Genehmigung einreichen.",
       "approvalRequired": "Genehmigung erforderlich.",
       "approvalInfo": "Bis dahin lebt dieses {typeLabel} in deinem persönlichen Arbeitsbereich und ist bearbeitbar. Wenn der Eigentümer es genehmigt, wird es zum Team übertragen.",
+      "typeSurvey": "Aufmaß",
+      "typeQuote": "Angebot",
       "createAndSubmit": "Erstellen und einreichen →",
       "continue": "Weiter →",
       "shareTitle": "Dies wird mit dem gesamten Team geteilt.",

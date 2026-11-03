@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { Link as LocaleLink } from '@/navigation';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { useApp } from '@/context/AppContext';
 import Modal from '@/components/Modal';
 import ErrorBanner from '@/components/ErrorBanner';
@@ -16,6 +17,8 @@ import SharingBanner from '@/components/mobile/SharingBanner';
 import RoomChips from '@/components/mobile/RoomChips';
 
 function NewClientModal({ isOpen, onClose, onCreate }) {
+  const t = useTranslations('surveys');
+  const tc = useTranslations('common');
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
@@ -27,34 +30,34 @@ function NewClientModal({ isOpen, onClose, onCreate }) {
   const handleClose = () => { reset(); onClose(); };
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!name.trim()) { setError('A név megadása kötelező!'); return; }
+    if (!name.trim()) { setError(t('newClientNameRequired')); return; }
     setSaving(true);
     try {
       await onCreate({ name: name.trim(), phone: phone.trim(), email: email.trim(), address: address.trim(), gdprConsent: gdpr });
       reset();
     } catch (err) {
-      setError(err.message || 'Hiba az ügyfél létrehozásakor');
+      setError(err.message || t('newClientCreateError'));
     } finally {
       setSaving(false);
     }
   };
   return (
-    <Modal isOpen={isOpen} onClose={handleClose} title="Új ügyfél">
+    <Modal isOpen={isOpen} onClose={handleClose} title={t('newClientTitle')}>
       <ErrorBanner message={error} style={{ marginBottom: '0.85rem' }} />
       <form onSubmit={handleSubmit}>
-        <div className="form-group"><label className="form-label">Név *</label><input type="text" className="form-control" required autoFocus value={name} onChange={e => setName(e.target.value)} placeholder="Horváth Béla" /></div>
+        <div className="form-group"><label className="form-label">{t('newClientNameLabel')}</label><input type="text" className="form-control" required autoFocus value={name} onChange={e => setName(e.target.value)} placeholder={t('newClientNamePlaceholder')} /></div>
         <div className="grid-2col">
-          <div className="form-group" style={{ margin: 0 }}><label className="form-label">Telefon</label><input type="tel" className="form-control" value={phone} onChange={e => setPhone(e.target.value)} /></div>
-          <div className="form-group" style={{ margin: 0 }}><label className="form-label">E-mail *</label><input type="email" className="form-control" required value={email} onChange={e => setEmail(e.target.value)} /></div>
+          <div className="form-group" style={{ margin: 0 }}><label className="form-label">{t('newClientPhoneLabel')}</label><input type="tel" className="form-control" value={phone} onChange={e => setPhone(e.target.value)} /></div>
+          <div className="form-group" style={{ margin: 0 }}><label className="form-label">{t('newClientEmailLabel')}</label><input type="email" className="form-control" required value={email} onChange={e => setEmail(e.target.value)} /></div>
         </div>
-        <div className="form-group" style={{ marginTop: '0.75rem' }}><label className="form-label">Cím</label><input type="text" className="form-control" value={address} onChange={e => setAddress(e.target.value)} /></div>
+        <div className="form-group" style={{ marginTop: '0.75rem' }}><label className="form-label">{t('newClientAddressLabel')}</label><input type="text" className="form-control" value={address} onChange={e => setAddress(e.target.value)} /></div>
         <label style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', padding: '0.65rem', borderRadius: 'var(--radius-md)', background: 'var(--bg-subtle)', border: `1px solid ${gdpr ? 'var(--success-border)' : 'var(--border-subtle)'}`, cursor: 'pointer', margin: '0.75rem 0' }}>
           <input type="checkbox" checked={gdpr} onChange={e => setGdpr(e.target.checked)} style={{ marginTop: '0.15rem', flexShrink: 0, accentColor: 'var(--accent)', width: 14, height: 14 }} />
-          <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>Az ügyfél hozzájárult adatainak tárolásához. <span style={{ color: 'var(--danger-text)', fontWeight: 700 }}>*</span></span>
+          <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>{t('newClientGdprText')} <span style={{ color: 'var(--danger-text)', fontWeight: 700 }}>*</span></span>
         </label>
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
-          <button type="button" className="btn btn-secondary btn-sm" onClick={handleClose}>Mégse</button>
-          <button type="submit" className="btn btn-primary btn-sm" disabled={saving || !gdpr}>{saving ? <><Loader2 size={13} className="animate-spin" />Létrehozás</> : 'Létrehozás'}</button>
+          <button type="button" className="btn btn-secondary btn-sm" onClick={handleClose}>{tc('cancel')}</button>
+          <button type="submit" className="btn btn-primary btn-sm" disabled={saving || !gdpr}>{saving ? <><Loader2 size={13} className="animate-spin" />{tc('creating')}</> : tc('create')}</button>
         </div>
       </form>
     </Modal>
@@ -63,6 +66,8 @@ function NewClientModal({ isOpen, onClose, onCreate }) {
 
 export default function NewSurveyPage() {
   const router = useRouter();
+  const t = useTranslations('surveys');
+  const tc = useTranslations('common');
   const { clients, loading, createSurvey, createClient, currentUser, isDemoMode, effectiveCollectives } = useApp();
   const navPrefix = isDemoMode ? '/demo' : '';
   const AppLink = isDemoMode ? Link : LocaleLink;
@@ -82,7 +87,7 @@ export default function NewSurveyPage() {
   const [showNewClientModal, setShowNewClientModal] = useState(false);
 
   if (loading) return <PageSpinner />;
-  if (!currentUser) return <div className="container" style={{ paddingTop: '3rem', textAlign: 'center', color: 'var(--danger-text)' }}>Nincs jogosultsága.</div>;
+  if (!currentUser) return <div className="container" style={{ paddingTop: '3rem', textAlign: 'center', color: 'var(--danger-text)' }}>{t('unauthorized')}</div>;
 
   const collectives = (effectiveCollectives || []).map(c => ({ id: c.collective_id, name: c.name, role: c.role }));
   const selectedCollective = collectives.find(c => c.id === collectiveId);
@@ -97,7 +102,7 @@ export default function NewSurveyPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-    if (!title.trim()) { setError('A cím megadása kötelező!'); return; }
+    if (!title.trim()) { setError(t('titleRequired')); return; }
     setIsSubmitting(true);
     try {
       const survey = await createSurvey({ title: title.trim(), notes: notes.trim(), date: date || null, location: location.trim(), clientId, collectiveId: isContributorCollective ? null : collectiveId });
@@ -110,14 +115,14 @@ export default function NewSurveyPage() {
       }
       router.push(`${navPrefix}/felmeres/${survey.id}`);
     } catch (err) {
-      setError(err.message || 'Hiba a felmérés mentésekor');
+      setError(err.message || t('saveError'));
       setIsSubmitting(false);
     }
   };
 
   const selectedClient = clients.find(c => c.id === clientId);
 
-  // ── Mobile: step 1 — workspace picker ──
+  // ── Step 1: workspace picker (full-screen on mobile, modal on desktop) ──
   if (collectives.length > 0 && mobileStep === 1) {
     return (
       <WorkspacePicker
@@ -126,7 +131,7 @@ export default function NewSurveyPage() {
         onChange={setCollectiveId}
         onClose={() => router.back()}
         onNext={() => setMobileStep(2)}
-        typeLabel="felmérés"
+        docType="survey"
       />
     );
   }
@@ -146,7 +151,7 @@ export default function NewSurveyPage() {
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               boxShadow: 'var(--shadow-card)',
             }}
-            aria-label="Vissza"
+            aria-label={tc('back')}
           >
             <ArrowLeft size={22} color="#0f172a" strokeWidth={1.75} aria-hidden="true" />
           </button>
@@ -156,7 +161,7 @@ export default function NewSurveyPage() {
         </div>
 
         <h1 style={{ fontSize: 28, fontWeight: 800, color: '#0f172a', letterSpacing: '-0.02em', lineHeight: '34px', marginBottom: 12 }}>
-          Új felmérés
+          {t('new')}
         </h1>
 
         {/* Workspace chip — tapping goes back to step 1 */}
@@ -176,7 +181,7 @@ export default function NewSurveyPage() {
                 ? <Users size={15} color="#16a34a" strokeWidth={1.75} aria-hidden="true" />
                 : <User size={15} color="#2563eb" strokeWidth={1.75} aria-hidden="true" />}
               <span style={{ fontSize: 15, fontWeight: 700, color: collectiveId ? '#166534' : '#1d4ed8' }}>
-                {collectiveId ? (selectedCollective?.name || 'Kollektíva') : 'Személyes'}
+                {collectiveId ? (selectedCollective?.name || t('collectiveFallback')) : t('personalLabel')}
               </span>
               <ChevronDown size={14} color={collectiveId ? '#166534' : '#1d4ed8'} aria-hidden="true" />
             </button>
@@ -193,11 +198,11 @@ export default function NewSurveyPage() {
       <div className="hide-mobile">
         <div style={{ padding: '0.85rem 0 0.25rem' }}>
           <AppLink href={`${navPrefix}/felmeres`} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', color: 'var(--text-secondary)', fontSize: '0.825rem', fontWeight: 600 }}>
-            <ArrowLeft size={15} /> Vissza a felmérésekhez
+            <ArrowLeft size={15} /> {t('back')}
           </AppLink>
         </div>
         <div style={{ marginBottom: '1.5rem', paddingTop: '0.5rem' }}>
-          <h1 className="page-title">Új felmérés</h1>
+          <h1 className="page-title">{t('new')}</h1>
         </div>
       </div>
 
@@ -218,32 +223,32 @@ export default function NewSurveyPage() {
 
         {/* Form fields */}
         <div className="form-group">
-          <label className="form-label" htmlFor="sv-title">Megnevezés *</label>
+          <label className="form-label" htmlFor="sv-title">{t('titleLabel')}</label>
           <input
             id="sv-title" type="text" className="form-control"
             required autoFocus
             value={title} onChange={e => setTitle(e.target.value)}
-            placeholder="pl. Fürdőszoba felújítás"
+            placeholder={t('titlePlaceholder')}
           />
         </div>
 
         {/* Location */}
         <div className="form-group">
-          <label className="form-label" htmlFor="sv-location">Helyszín</label>
+          <label className="form-label" htmlFor="sv-location">{t('locationLabel')}</label>
           <div style={{ position: 'relative' }}>
             <MapPin size={16} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#64748b', pointerEvents: 'none' }} aria-hidden="true" />
             <input
               id="sv-location" type="text" className="form-control"
               style={{ paddingLeft: 40 }}
               value={location} onChange={e => setLocation(e.target.value)}
-              placeholder="Cím"
+              placeholder={t('locationPlaceholder')}
             />
           </div>
         </div>
 
         {/* Client selector — desktop only (add later on mobile) */}
         <div className="form-group hide-mobile">
-          <label className="form-label">Ügyfél</label>
+          <label className="form-label">{t('clientLabel')}</label>
           <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
             <ClientSelect value={clientId} onChange={e => setClientId(e.target.value)} clients={clients} style={{ flex: 1 }} />
             <button
@@ -251,9 +256,9 @@ export default function NewSurveyPage() {
               onClick={() => setShowNewClientModal(true)}
               className="btn btn-secondary btn-sm"
               style={{ whiteSpace: 'nowrap' }}
-              aria-label="Új ügyfél"
+              aria-label={t('newClientButton')}
             >
-              <Plus size={14} /> Új ügyfél
+              <Plus size={14} /> {t('newClientButton')}
             </button>
           </div>
           {selectedClient && (
@@ -266,27 +271,27 @@ export default function NewSurveyPage() {
 
         {/* Rooms — desktop only */}
         <div className="form-group hide-mobile">
-          <label className="form-label" style={{ display: 'block', marginBottom: 10 }}>Helyiségek</label>
+          <label className="form-label" style={{ display: 'block', marginBottom: 10 }}>{t('roomsLabel')}</label>
           <RoomChips selected={rooms} onChange={setRooms} />
         </div>
 
         {/* Desktop-only date + notes */}
         <div className="hide-mobile">
           <div className="form-group">
-            <label className="form-label" htmlFor="sv-date">Dátum</label>
+            <label className="form-label" htmlFor="sv-date">{t('dateLabel')}</label>
             <input id="sv-date" type="date" className="form-control" value={date} onChange={e => setDate(e.target.value)} />
           </div>
           <div className="form-group">
-            <label className="form-label" htmlFor="sv-notes">Megjegyzések</label>
-            <textarea id="sv-notes" rows={3} className="form-control" value={notes} onChange={e => setNotes(e.target.value)} placeholder="Felmérési megjegyzések…" />
+            <label className="form-label" htmlFor="sv-notes">{t('notesLabel')}</label>
+            <textarea id="sv-notes" rows={3} className="form-control" value={notes} onChange={e => setNotes(e.target.value)} placeholder={t('notesPlaceholder')} />
           </div>
         </div>
 
         {/* ── Desktop submit ── */}
         <div className="hide-mobile" style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
-          <button type="button" className="btn btn-secondary" onClick={() => router.back()}>Mégse</button>
+          <button type="button" className="btn btn-secondary" onClick={() => router.back()}>{tc('cancel')}</button>
           <button type="submit" className="btn btn-primary" disabled={isSubmitting}>
-            {isSubmitting ? <><Loader2 size={16} className="animate-spin" />Mentés...</> : <><Check size={16} />Felmérés létrehozása</>}
+            {isSubmitting ? <><Loader2 size={16} className="animate-spin" />{t('saving')}</> : <><Check size={16} />{t('createSurvey')}</>}
           </button>
         </div>
 
@@ -301,7 +306,7 @@ export default function NewSurveyPage() {
               fontSize: 17, fontWeight: 700, cursor: 'pointer',
             }}
           >
-            {isSubmitting ? 'Mentés...' : 'Felmérés indítása'}
+            {isSubmitting ? t('saving') : t('startSurvey')}
           </button>
         </div>
       </form>

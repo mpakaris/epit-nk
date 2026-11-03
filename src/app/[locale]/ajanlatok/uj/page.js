@@ -4,6 +4,7 @@ import React, { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { Link as LocaleLink } from '@/navigation';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { useApp } from '@/context/AppContext';
 import Modal from '@/components/Modal';
 import ErrorBanner from '@/components/ErrorBanner';
@@ -22,6 +23,8 @@ const today  = () => new Date().toISOString().split('T')[0];
 const nextDay = (d) => { const dt = new Date(d); dt.setDate(dt.getDate() + 1); return dt.toISOString().split('T')[0]; };
 
 function NewClientModal({ isOpen, onClose, onCreate }) {
+  const t = useTranslations('quotes');
+  const tc = useTranslations('common');
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
@@ -32,28 +35,28 @@ function NewClientModal({ isOpen, onClose, onCreate }) {
   const reset = () => { setName(''); setPhone(''); setEmail(''); setAddress(''); setGdpr(false); setError(''); };
   const handleClose = () => { reset(); onClose(); };
   const handleSave = async () => {
-    if (!name.trim()) { setError('A név megadása kötelező!'); return; }
+    if (!name.trim()) { setError(t('newClientNameRequired')); return; }
     setSaving(true);
     try { await onCreate({ name: name.trim(), phone: phone.trim(), email: email.trim(), address: address.trim(), gdprConsent: gdpr }); reset(); }
-    catch (err) { setError(err.message || 'Hiba'); }
+    catch (err) { setError(err.message || tc('error')); }
     finally { setSaving(false); }
   };
   return (
-    <Modal isOpen={isOpen} onClose={handleClose} title="Új ügyfél">
+    <Modal isOpen={isOpen} onClose={handleClose} title={t('newClientTitle')}>
       <ErrorBanner message={error} style={{ marginBottom: '0.85rem' }} />
-      <div className="form-group"><label className="form-label">Név *</label><input type="text" className="form-control" autoFocus value={name} onChange={e => setName(e.target.value)} placeholder="Horváth Béla" /></div>
+      <div className="form-group"><label className="form-label">{t('newClientNameLabel')}</label><input type="text" className="form-control" autoFocus value={name} onChange={e => setName(e.target.value)} placeholder={t('newClientNamePlaceholder')} /></div>
       <div className="grid-2col">
-        <div className="form-group" style={{ margin: 0 }}><label className="form-label">Telefon</label><input type="tel" className="form-control" value={phone} onChange={e => setPhone(e.target.value)} placeholder="+36 70 …" /></div>
-        <div className="form-group" style={{ margin: 0 }}><label className="form-label">E-mail *</label><input type="email" className="form-control" required value={email} onChange={e => setEmail(e.target.value)} placeholder="email@…" /></div>
+        <div className="form-group" style={{ margin: 0 }}><label className="form-label">{t('newClientPhoneLabel')}</label><input type="tel" className="form-control" value={phone} onChange={e => setPhone(e.target.value)} placeholder="+36 70 …" /></div>
+        <div className="form-group" style={{ margin: 0 }}><label className="form-label">{t('newClientEmailLabel')}</label><input type="email" className="form-control" required value={email} onChange={e => setEmail(e.target.value)} placeholder="email@…" /></div>
       </div>
-      <div className="form-group" style={{ marginTop: '0.75rem' }}><label className="form-label">Cím</label><input type="text" className="form-control" value={address} onChange={e => setAddress(e.target.value)} placeholder="Irányítószám, Város, utca" /></div>
+      <div className="form-group" style={{ marginTop: '0.75rem' }}><label className="form-label">{t('newClientAddressLabel')}</label><input type="text" className="form-control" value={address} onChange={e => setAddress(e.target.value)} placeholder={t('newClientAddressPlaceholder')} /></div>
       <label style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', padding: '0.65rem', borderRadius: 'var(--radius-md)', background: 'var(--bg-subtle)', border: `1px solid ${gdpr ? 'var(--success-border)' : 'var(--border-subtle)'}`, cursor: 'pointer', margin: '0.75rem 0' }}>
         <input type="checkbox" checked={gdpr} onChange={e => setGdpr(e.target.checked)} style={{ marginTop: '0.15rem', flexShrink: 0, accentColor: 'var(--accent)', width: 14, height: 14 }} />
-        <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>Az ügyfél hozzájárult adatainak tárolásához. <span style={{ color: 'var(--danger-text)', fontWeight: 700 }}>*</span></span>
+        <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>{t('newClientGdprText')} <span style={{ color: 'var(--danger-text)', fontWeight: 700 }}>*</span></span>
       </label>
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
-        <button type="button" className="btn btn-secondary btn-sm" onClick={handleClose}>Mégse</button>
-        <button type="button" className="btn btn-primary btn-sm" disabled={saving || !gdpr} onClick={handleSave}>{saving ? <><Loader2 size={13} className="animate-spin" />Létrehozás</> : 'Létrehozás'}</button>
+        <button type="button" className="btn btn-secondary btn-sm" onClick={handleClose}>{tc('cancel')}</button>
+        <button type="button" className="btn btn-primary btn-sm" disabled={saving || !gdpr} onClick={handleSave}>{saving ? <><Loader2 size={13} className="animate-spin" />{tc('creating')}</> : tc('create')}</button>
       </div>
     </Modal>
   );
@@ -62,6 +65,8 @@ function NewClientModal({ isOpen, onClose, onCreate }) {
 function NewQuotePageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const t = useTranslations('quotes');
+  const tc = useTranslations('common');
   const {
     clients, surveys, loading, dataReady,
     createQuote, createQuoteSection, createClient,
@@ -108,7 +113,6 @@ function NewQuotePageInner() {
 
   useEffect(() => {
     if (isDemoMode) {
-      // Demo has no API — tag all context surveys as personal
       setTemplateSurveys(surveys.map(s => ({ ...s, _source: 'personal' })));
       return;
     }
@@ -147,7 +151,7 @@ function NewQuotePageInner() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!title.trim()) { setError('Az ajánlat neve kötelező!'); return; }
+    if (!title.trim()) { setError(t('titleRequired')); return; }
     setError('');
     setIsSubmitting(true);
     try {
@@ -183,14 +187,14 @@ function NewQuotePageInner() {
 
       router.push(`${navPrefix}/ajanlatok/${quote.id}`);
     } catch (err) {
-      setError(err.message || 'Hiba az ajánlat mentésekor');
+      setError(err.message || t('saveError'));
       setIsSubmitting(false);
     }
   };
 
   if (loading || !dataReady) return <PageSpinner />;
 
-  // ── Mobile step 1: workspace picker ──
+  // ── Step 1: workspace picker (full-screen on mobile, modal on desktop) ──
   if (collectives.length > 0 && mobileStep === 1) {
     return (
       <WorkspacePicker
@@ -199,14 +203,14 @@ function NewQuotePageInner() {
         onChange={setCollectiveId}
         onClose={() => router.back()}
         onNext={() => setMobileStep(2)}
-        typeLabel="ajánlat"
+        docType="quote"
       />
     );
   }
 
   const surveyContextNote = collectiveId
-    ? `Csak a(z) ${selectedCollective?.name || 'kollektíva'} és saját felméréseid láthatók itt.`
-    : 'Csak a saját (személyes) felméréseid láthatók itt.';
+    ? t('surveyContextCollective', { name: selectedCollective?.name || t('collectiveFallback') })
+    : t('surveyContextPersonal');
 
   const personalSurveys    = filteredSurveys.filter(s => s._source === 'personal');
   const collectiveSurveys  = filteredSurveys.filter(s => s._source === 'collective');
@@ -217,7 +221,7 @@ function NewQuotePageInner() {
       style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '0.1rem', padding: '0.65rem 1rem', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', borderBottom: '1px solid var(--border-subtle)', opacity: s.archived_at ? 0.6 : 1 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
         <span style={{ fontWeight: 700, fontSize: '0.875rem', color: 'var(--text-primary)' }}>{s.title}</span>
-        {s.archived_at && <span style={{ fontSize: '0.62rem', fontWeight: 700, padding: '0.1rem 0.35rem', borderRadius: 999, background: 'var(--bg-subtle)', color: 'var(--text-muted)', border: '1px solid var(--border-subtle)', whiteSpace: 'nowrap' }}>Inaktív</span>}
+        {s.archived_at && <span style={{ fontSize: '0.62rem', fontWeight: 700, padding: '0.1rem 0.35rem', borderRadius: 999, background: 'var(--bg-subtle)', color: 'var(--text-muted)', border: '1px solid var(--border-subtle)', whiteSpace: 'nowrap' }}>{t('surveyInactive')}</span>}
       </div>
       <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
         {[s.location, s.date ? formatDate(s.date) : null].filter(Boolean).join(' · ')}
@@ -228,7 +232,7 @@ function NewQuotePageInner() {
   const SurveyPicker = () => (
     <div className="card mb-4" style={{ padding: '1.25rem' }}>
       <div style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>
-        Felmérés <span style={{ fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>(opcionális — szekciók automatikusan átvéve)</span>
+        {t('surveyOptional', { note: t('surveyNote') })}
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.85rem' }}>
         <Info size={12} color="var(--text-muted)" style={{ flexShrink: 0 }} />
@@ -241,7 +245,7 @@ function NewQuotePageInner() {
             <div style={{ fontWeight: 700, color: 'var(--accent)' }}>{selectedSurvey.title}</div>
             {selectedSurvey.location && <div style={{ fontSize: '0.78rem', color: 'var(--accent)', opacity: 0.8 }}>{selectedSurvey.location}</div>}
             {selectedSurvey._source === 'collective' && (
-              <div style={{ fontSize: '0.7rem', color: 'var(--accent)', opacity: 0.7, marginTop: '0.1rem' }}>Kollektíva felmérése</div>
+              <div style={{ fontSize: '0.7rem', color: 'var(--accent)', opacity: 0.7, marginTop: '0.1rem' }}>{t('collectionSurvey')}</div>
             )}
           </div>
           <button type="button" onClick={clearSurvey} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--accent)', padding: '0.2rem', display: 'flex' }}>
@@ -253,7 +257,7 @@ function NewQuotePageInner() {
           <Search size={15} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', pointerEvents: 'none' }} />
           <input
             type="text" className="form-control" style={{ paddingLeft: '2.25rem' }}
-            placeholder={templateSurveysLoading ? 'Betöltés…' : templateSurveys.length === 0 ? 'Még nincs elérhető felmérés' : 'Keresés a felmérések között…'}
+            placeholder={templateSurveysLoading ? t('surveysLoading') : templateSurveys.length === 0 ? t('surveysEmpty') : t('surveysSearchPlaceholder')}
             disabled={templateSurveysLoading || templateSurveys.length === 0}
             value={surveySearch}
             onChange={e => { setSurveySearch(e.target.value); setShowSurveyDropdown(true); }}
@@ -264,14 +268,14 @@ function NewQuotePageInner() {
             <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 50, background: 'var(--bg-card)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', boxShadow: '0 4px 16px rgba(0,0,0,0.1)', maxHeight: '260px', overflowY: 'auto', marginTop: '0.25rem' }}>
               {filteredSurveys.length === 0 && !templateSurveysLoading ? (
                 <div style={{ padding: '0.85rem 1rem', color: 'var(--text-muted)', fontSize: '0.82rem' }}>
-                  {includeInactive ? 'Nincs találat' : 'Nincs aktív felmérés'}
+                  {includeInactive ? t('surveysNoResult') : t('surveysNoActive')}
                 </div>
               ) : (
                 <>
                   {collectiveId && collectiveSurveys.length > 0 && (
                     <>
                       <div style={{ padding: '0.45rem 1rem', fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', background: 'var(--bg-subtle)', borderBottom: '1px solid var(--border-subtle)' }}>
-                        {selectedCollective?.name || 'Kollektíva'}
+                        {selectedCollective?.name || t('collectiveFallback')}
                       </div>
                       {collectiveSurveys.map(s => <SurveyPickerRow key={s.id} s={s} />)}
                     </>
@@ -280,7 +284,7 @@ function NewQuotePageInner() {
                     <>
                       {collectiveId && collectiveSurveys.length > 0 && (
                         <div style={{ padding: '0.45rem 1rem', fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', background: 'var(--bg-subtle)', borderBottom: '1px solid var(--border-subtle)', borderTop: '1px solid var(--border-subtle)' }}>
-                          Saját felmérések
+                          {t('surveysPersonalGroup')}
                         </div>
                       )}
                       {personalSurveys.map(s => <SurveyPickerRow key={s.id} s={s} />)}
@@ -288,13 +292,12 @@ function NewQuotePageInner() {
                   )}
                 </>
               )}
-              {/* Toggle inactive surveys */}
               <button
                 type="button"
                 onMouseDown={e => { e.preventDefault(); setIncludeInactive(v => !v); }}
                 style={{ width: '100%', padding: '0.6rem 1rem', background: 'var(--bg-subtle)', border: 'none', borderTop: '1px solid var(--border-subtle)', cursor: 'pointer', textAlign: 'left', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.4rem' }}
               >
-                {includeInactive ? '✓ Inaktív felmérések elrejtése' : 'Inaktív felmérések megjelenítése'}
+                {includeInactive ? t('surveysHideInactive') : t('surveysShowInactive')}
               </button>
             </div>
           )}
@@ -313,7 +316,7 @@ function NewQuotePageInner() {
             type="button"
             onClick={() => collectives.length > 0 ? setMobileStep(1) : router.back()}
             style={{ width: 48, height: 48, borderRadius: '50%', background: '#fff', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'var(--shadow-card)' }}
-            aria-label="Vissza"
+            aria-label={tc('back')}
           >
             <ArrowLeft size={22} color="#0f172a" strokeWidth={1.75} />
           </button>
@@ -323,7 +326,7 @@ function NewQuotePageInner() {
         </div>
 
         <h1 style={{ fontSize: 28, fontWeight: 800, color: '#0f172a', letterSpacing: '-0.02em', lineHeight: '34px', marginBottom: 12 }}>
-          Új ajánlat
+          {t('new')}
         </h1>
 
         {collectives.length > 0 && (
@@ -337,7 +340,7 @@ function NewQuotePageInner() {
                 ? <Users size={15} color="#16a34a" strokeWidth={1.75} />
                 : <User size={15} color="#2563eb" strokeWidth={1.75} />}
               <span style={{ fontSize: 15, fontWeight: 700, color: collectiveId ? '#166534' : '#1d4ed8' }}>
-                {collectiveId ? (selectedCollective?.name || 'Kollektíva') : 'Személyes'}
+                {collectiveId ? (selectedCollective?.name || t('collectiveFallback')) : t('personalWorkspace')}
               </span>
               <ChevronDown size={14} color={collectiveId ? '#166534' : '#1d4ed8'} />
             </button>
@@ -354,11 +357,11 @@ function NewQuotePageInner() {
       <div className="hide-mobile">
         <div style={{ padding: '0.85rem 0 0.25rem' }}>
           <AppLink href={`${navPrefix}/ajanlatok`} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', color: 'var(--text-secondary)', fontSize: '0.825rem', fontWeight: 600 }}>
-            <ArrowLeft size={15} /> Vissza
+            <ArrowLeft size={15} /> {tc('back')}
           </AppLink>
         </div>
         <div style={{ paddingTop: '0.5rem', marginBottom: '1.5rem' }}>
-          <h1 className="page-title">Új ajánlat</h1>
+          <h1 className="page-title">{t('new')}</h1>
         </div>
       </div>
 
@@ -380,21 +383,21 @@ function NewQuotePageInner() {
 
         {/* Title + Client — visible on both */}
         <div className="card mb-4" style={{ padding: '1.25rem' }}>
-          <div style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.05em', marginBottom: '1rem' }}>Alapadatok</div>
+          <div style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.05em', marginBottom: '1rem' }}>{t('basicData')}</div>
           <div className="form-group">
-            <label className="form-label" htmlFor="q-title">Ajánlat neve *</label>
-            <input id="q-title" type="text" className="form-control" required autoFocus value={title} onChange={e => setTitle(e.target.value)} placeholder="pl. Fürdőszoba felújítás" />
+            <label className="form-label" htmlFor="q-title">{t('metaTitle')}</label>
+            <input id="q-title" type="text" className="form-control" required autoFocus value={title} onChange={e => setTitle(e.target.value)} placeholder={t('metaTitlePlaceholder')} />
           </div>
 
           <div style={{ marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid var(--border-subtle)' }}>
-            <div style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.05em', marginBottom: '0.85rem' }}>Megrendelő</div>
+            <div style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.05em', marginBottom: '0.85rem' }}>{t('orderer')}</div>
             <div style={{ display: 'flex', gap: '0.65rem', alignItems: 'flex-end', flexWrap: 'wrap' }}>
               <div style={{ flex: 1, minWidth: '200px' }}>
-                <label className="form-label" htmlFor="q-client">Ügyfél</label>
+                <label className="form-label" htmlFor="q-client">{t('client')}</label>
                 <ClientSelect id="q-client" value={clientId} onChange={e => setClientId(e.target.value)} clients={clients} />
               </div>
               <button type="button" onClick={() => setShowNewClientModal(true)} className="btn btn-secondary btn-sm" style={{ whiteSpace: 'nowrap', marginBottom: 0 }}>
-                <Plus size={14} /> Új ügyfél
+                <Plus size={14} /> {t('newClientButton')}
               </button>
             </div>
             {clientId && (() => { const c = clients.find(x => x.id === clientId); return c ? (
@@ -409,33 +412,33 @@ function NewQuotePageInner() {
         {/* Optional details — desktop via CSS, hidden on mobile */}
         <div className="advanced-section" style={{ display: 'none' }}>
           <div className="card mb-4" style={{ padding: '1.25rem' }}>
-            <div style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.05em', marginBottom: '1rem' }}>Részletek</div>
+            <div style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.05em', marginBottom: '1rem' }}>{t('details')}</div>
             <div className="grid-2col">
               <div className="form-group" style={{ margin: 0 }}>
-                <label className="form-label" htmlFor="q-location">Helyszín</label>
-                <input id="q-location" type="text" className="form-control" value={location} onChange={e => setLocation(e.target.value)} placeholder="pl. Budapest, Fő utca 12." />
+                <label className="form-label" htmlFor="q-location">{t('location')}</label>
+                <input id="q-location" type="text" className="form-control" value={location} onChange={e => setLocation(e.target.value)} placeholder={t('locationPlaceholder')} />
               </div>
               <div className="form-group" style={{ margin: 0 }}>
-                <label className="form-label" htmlFor="q-type">Munka típusa</label>
-                <input id="q-type" type="text" className="form-control" value={workType} onChange={e => setWorkType(e.target.value)} placeholder="pl. Teljes felújítás" />
+                <label className="form-label" htmlFor="q-type">{t('workType')}</label>
+                <input id="q-type" type="text" className="form-control" value={workType} onChange={e => setWorkType(e.target.value)} placeholder={t('workTypePlaceholder')} />
               </div>
             </div>
             <div className="form-group" style={{ marginTop: '0.75rem' }}>
-              <label className="form-label" htmlFor="q-desc">Leírás / Megjegyzés</label>
-              <textarea id="q-desc" rows={2} className="form-control" value={description} onChange={e => setDescription(e.target.value)} placeholder="Részletes munkaleírás…" />
+              <label className="form-label" htmlFor="q-desc">{t('descriptionLabel')}</label>
+              <textarea id="q-desc" rows={2} className="form-control" value={description} onChange={e => setDescription(e.target.value)} placeholder={t('descriptionPlaceholder')} />
             </div>
             <div className="grid-2col">
               <div className="form-group" style={{ margin: 0 }}>
-                <label className="form-label" htmlFor="q-start">Tervezett kezdés</label>
+                <label className="form-label" htmlFor="q-start">{t('plannedStart')}</label>
                 <input id="q-start" type="date" className="form-control" min={today()} value={startDate} onChange={e => { const v = e.target.value; setStartDate(v); if (v && (!endDate || endDate <= v)) setEndDate(nextDay(v)); }} />
               </div>
               <div className="form-group" style={{ margin: 0 }}>
-                <label className="form-label" htmlFor="q-end">Tervezett befejezés</label>
+                <label className="form-label" htmlFor="q-end">{t('plannedEnd')}</label>
                 <input id="q-end" type="date" className="form-control" min={startDate ? nextDay(startDate) : undefined} value={endDate} onChange={e => setEndDate(e.target.value)} />
               </div>
             </div>
             <div className="form-group" style={{ marginTop: '0.75rem', marginBottom: 0 }}>
-              <label className="form-label">ÁFA kulcs</label>
+              <label className="form-label">{t('vatRate')}</label>
               <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
                 {['0', '5', '18', '27'].map(v => (
                   <button key={v} type="button" onClick={() => handleTaxChange(v)}
@@ -452,9 +455,9 @@ function NewQuotePageInner() {
 
         {/* Desktop submit */}
         <div className="hide-mobile" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem' }}>
-          <AppLink href={`${navPrefix}/ajanlatok`} className="btn btn-secondary">Mégse</AppLink>
+          <AppLink href={`${navPrefix}/ajanlatok`} className="btn btn-secondary">{tc('cancel')}</AppLink>
           <button type="submit" className="btn btn-primary" disabled={isSubmitting || !title.trim()}>
-            {isSubmitting ? <><Loader2 size={16} className="animate-spin" />Létrehozás…</> : <><Check size={16} />Ajánlat létrehozása</>}
+            {isSubmitting ? <><Loader2 size={16} className="animate-spin" />{tc('creating')}</> : <><Check size={16} />{t('createQuote')}</>}
           </button>
         </div>
 
@@ -465,7 +468,7 @@ function NewQuotePageInner() {
             disabled={isSubmitting}
             style={{ width: '100%', height: 56, borderRadius: 999, background: '#0f172a', border: 'none', color: '#fff', fontSize: 17, fontWeight: 700, cursor: 'pointer' }}
           >
-            {isSubmitting ? 'Létrehozás...' : 'Ajánlat létrehozása'}
+            {isSubmitting ? tc('creating') : t('createQuote')}
           </button>
         </div>
       </form>

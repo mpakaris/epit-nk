@@ -318,7 +318,13 @@
     "memberActionSend": "Send quote",
     "memberActionRejection": "Rejection",
     "historyProject": "Project:",
-    "convertCollective": "collective"
+    "convertCollective": "collective",
+    "titleRequired": "Offer name is required!",
+    "saveError": "Error saving the offer",
+    "createQuote": "Create offer",
+    "collectiveFallback": "Collective",
+    "descriptionLabel": "Description / Notes",
+    "newClientNamePlaceholder": "John Smith"
   },
   "surveys": {
     "pageTitle": "Surveys",
@@ -337,7 +343,44 @@
     "nudge": "Create a collective and share your surveys.",
     "new": "New survey",
     "back": "Back to surveys",
-    "notFound": "Survey not found"
+    "notFound": "Survey not found",
+    "unauthorized": "Access denied.",
+    "titleLabel": "Title *",
+    "titlePlaceholder": "e.g. Bathroom renovation",
+    "titleRequired": "Title is required!",
+    "locationLabel": "Location",
+    "locationPlaceholder": "Address",
+    "clientLabel": "Client",
+    "newClientButton": "New client",
+    "roomsLabel": "Rooms",
+    "dateLabel": "Date",
+    "notesLabel": "Notes",
+    "notesPlaceholder": "Survey notes…",
+    "createSurvey": "Create survey",
+    "startSurvey": "Start survey",
+    "saving": "Saving...",
+    "saveError": "Error saving the survey",
+    "personalLabel": "Personal",
+    "collectiveFallback": "Collective",
+    "newClientTitle": "New client",
+    "newClientNameLabel": "Name *",
+    "newClientNamePlaceholder": "John Smith",
+    "newClientNameRequired": "Name is required!",
+    "newClientPhoneLabel": "Phone",
+    "newClientEmailLabel": "E-mail *",
+    "newClientAddressLabel": "Address",
+    "newClientGdprText": "The client has consented to storing their data.",
+    "newClientCreateError": "Error creating the client",
+    "defaultRooms": [
+      "Living room",
+      "Bathroom",
+      "Kitchen",
+      "Bedroom",
+      "Garden",
+      "Hallway"
+    ],
+    "roomChipOther": "+ Other",
+    "roomChipPlaceholder": "e.g. Garage"
   },
   "projects": {
     "pageTitle": "Projects",
@@ -497,7 +540,10 @@
     "totalQuoteValue": "total {amount}",
     "totalExpenses": "{amount} expenses",
     "quotesStatLabel": "Quotes",
-    "projectsStatLabel": "Completed projects"
+    "projectsStatLabel": "Completed projects",
+    "selectPlaceholder": "– Select a client –",
+    "personalGroup": "Personal clients",
+    "discountAbbr": "disc."
   },
   "calendar": {
     "pageTitle": "Calendar",
@@ -995,7 +1041,10 @@
     "activeMembers": "{count} active member",
     "pendingInvitationsCount": "{count} pending invitation",
     "scheduledCancelUntil": "{status} — until {date}",
-    "resumeMenuTitle": "Restore subscription"
+    "resumeMenuTitle": "Restore subscription",
+    "workspaceLabel": "Workspace",
+    "personalOption": "Personal (private)",
+    "sharedWarning": "This content will be shared with all collective members."
   },
   "profile": {
     "pageTitle": "My profile",
@@ -1230,6 +1279,8 @@
       "memberColDesc": "You're a member · submit for approval.",
       "approvalRequired": "Approval required.",
       "approvalInfo": "Until then, this {typeLabel} lives in your personal workspace and is editable. When the owner approves it, it will be transferred to the team.",
+      "typeSurvey": "Survey",
+      "typeQuote": "Offer",
       "createAndSubmit": "Create and submit →",
       "continue": "Continue →",
       "shareTitle": "This will be shared with the entire team.",

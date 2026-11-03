@@ -3,6 +3,7 @@
 import React from 'react';
 import { useTranslations } from 'next-intl';
 import { User, Users, Check, X, Info } from 'lucide-react';
+import useMobile from '@/hooks/useMobile';
 import SharingBanner from './SharingBanner';
 
 export default function WorkspacePicker({
@@ -11,10 +12,12 @@ export default function WorkspacePicker({
   onChange,
   onClose,
   onNext,
-  typeLabel = '',
+  docType = 'survey', // 'survey' | 'quote'
   personalOnly = false,
 }) {
   const t = useTranslations('mobile.workspace');
+  const isMobile = useMobile();
+  const typeLabel = t(docType === 'quote' ? 'typeQuote' : 'typeSurvey');
 
   if (!personalOnly && collectives.length === 0) return null;
 
@@ -22,25 +25,22 @@ export default function WorkspacePicker({
   const isContributor = selected !== null && selectedCol &&
     selectedCol.role !== 'owner' && selectedCol.role !== 'admin';
 
-  return (
-    <div style={{
-      position: 'fixed', inset: 0, background: '#f8fafc', zIndex: 100,
-      display: 'flex', flexDirection: 'column',
-      paddingTop: 'env(safe-area-inset-top)',
-    }}>
+  const content = (
+    <>
       {/* Top bar */}
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '12px 16px', height: 64,
+        padding: '12px 16px', height: 64, flexShrink: 0,
       }}>
         <button
           type="button"
           onClick={onClose}
           style={{
             width: 48, height: 48, borderRadius: '50%',
-            background: '#fff', border: 'none', cursor: 'pointer',
+            background: isMobile ? '#fff' : 'var(--bg-subtle)',
+            border: 'none', cursor: 'pointer',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            boxShadow: 'var(--shadow-card)',
+            boxShadow: isMobile ? 'var(--shadow-card)' : 'none',
           }}
           aria-label={t('personal')}
         >
@@ -51,10 +51,13 @@ export default function WorkspacePicker({
 
       {/* Content */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '24px 16px 32px' }}>
-        <h1 style={{ fontSize: 32, fontWeight: 800, color: '#0f172a', letterSpacing: '-0.025em', lineHeight: '38px', marginBottom: 6 }}>
+        <h1 style={{
+          fontSize: isMobile ? 32 : 24, fontWeight: 800, color: '#0f172a',
+          letterSpacing: '-0.025em', lineHeight: isMobile ? '38px' : '30px', marginBottom: 6,
+        }}>
           {typeLabel}
         </h1>
-        <p style={{ fontSize: 17, fontWeight: 500, color: '#475569', marginBottom: 28, lineHeight: '24px' }}>
+        <p style={{ fontSize: isMobile ? 17 : 15, fontWeight: 500, color: '#475569', marginBottom: 28, lineHeight: '24px' }}>
           {t('whereToGo')}
         </p>
 
@@ -110,7 +113,7 @@ export default function WorkspacePicker({
       </div>
 
       {/* Primary button */}
-      <div style={{ padding: '0 16px 24px' }}>
+      <div style={{ padding: '0 16px 24px', flexShrink: 0 }}>
         <button
           type="button"
           onClick={onNext}
@@ -123,6 +126,46 @@ export default function WorkspacePicker({
         >
           {isContributor ? t('createAndSubmit') : t('continue')}
         </button>
+      </div>
+    </>
+  );
+
+  if (isMobile) {
+    return (
+      <div style={{
+        position: 'fixed', inset: 0, background: '#f8fafc', zIndex: 100,
+        display: 'flex', flexDirection: 'column',
+        paddingTop: 'env(safe-area-inset-top)',
+      }}>
+        {content}
+      </div>
+    );
+  }
+
+  // Desktop: centered modal
+  return (
+    <div
+      style={{
+        position: 'fixed', inset: 0, zIndex: 100,
+        background: 'rgba(15,23,42,0.45)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        padding: '1rem',
+      }}
+      onClick={onClose}
+    >
+      <div
+        style={{
+          background: 'var(--bg-base)',
+          borderRadius: 'var(--radius-lg)',
+          width: '100%', maxWidth: 480,
+          maxHeight: '90vh',
+          display: 'flex', flexDirection: 'column',
+          boxShadow: '0 24px 64px rgba(15,23,42,0.22)',
+          overflow: 'hidden',
+        }}
+        onClick={e => e.stopPropagation()}
+      >
+        {content}
       </div>
     </div>
   );

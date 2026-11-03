@@ -265,7 +265,13 @@
     "memberActionSend": "Ajánlat küldése",
     "memberActionRejection": "Elutasítás",
     "historyProject": "Projekt:",
-    "convertCollective": "kollektíva"
+    "convertCollective": "kollektíva",
+    "titleRequired": "Az ajánlat neve kötelező!",
+    "saveError": "Hiba az ajánlat mentésekor",
+    "createQuote": "Ajánlat létrehozása",
+    "collectiveFallback": "Kollektíva",
+    "descriptionLabel": "Leírás / Megjegyzés",
+    "newClientNamePlaceholder": "Horváth Béla"
   },
   "surveys": {
     "pageTitle": "Felmérések",
@@ -284,7 +290,44 @@
     "nudge": "Hozz létre egy kollektívát és oszd meg a felméréseidet.",
     "new": "Új felmérés",
     "back": "Vissza a felmérésekhez",
-    "notFound": "A felmérés nem található"
+    "notFound": "A felmérés nem található",
+    "unauthorized": "Nincs jogosultsága.",
+    "titleLabel": "Megnevezés *",
+    "titlePlaceholder": "pl. Fürdőszoba felújítás",
+    "titleRequired": "A cím megadása kötelező!",
+    "locationLabel": "Helyszín",
+    "locationPlaceholder": "Cím",
+    "clientLabel": "Ügyfél",
+    "newClientButton": "Új ügyfél",
+    "roomsLabel": "Helyiségek",
+    "dateLabel": "Dátum",
+    "notesLabel": "Megjegyzések",
+    "notesPlaceholder": "Felmérési megjegyzések…",
+    "createSurvey": "Felmérés létrehozása",
+    "startSurvey": "Felmérés indítása",
+    "saving": "Mentés...",
+    "saveError": "Hiba a felmérés mentésekor",
+    "personalLabel": "Személyes",
+    "collectiveFallback": "Kollektíva",
+    "newClientTitle": "Új ügyfél",
+    "newClientNameLabel": "Név *",
+    "newClientNamePlaceholder": "Horváth Béla",
+    "newClientNameRequired": "A név megadása kötelező!",
+    "newClientPhoneLabel": "Telefon",
+    "newClientEmailLabel": "E-mail *",
+    "newClientAddressLabel": "Cím",
+    "newClientGdprText": "Az ügyfél hozzájárult adatainak tárolásához.",
+    "newClientCreateError": "Hiba az ügyfél létrehozásakor",
+    "defaultRooms": [
+      "Nappali",
+      "Fürdő",
+      "Konyha",
+      "Hálószoba",
+      "Kert",
+      "Folyosó"
+    ],
+    "roomChipOther": "+ Egyéb",
+    "roomChipPlaceholder": "pl. Garázs"
   },
   "projects": {
     "pageTitle": "Projektek",
@@ -444,7 +487,10 @@
     "totalQuoteValue": "összesen {amount}",
     "totalExpenses": "{amount} kiadás",
     "quotesStatLabel": "Ajánlatok",
-    "projectsStatLabel": "Megvalósult projektek"
+    "projectsStatLabel": "Megvalósult projektek",
+    "selectPlaceholder": "– Válasszon ügyfelet –",
+    "personalGroup": "Személyes ügyfelek",
+    "discountAbbr": "kedv."
   },
   "calendar": {
     "pageTitle": "Naptár",
@@ -942,7 +988,10 @@
     "leaveConfirmMsg": "Biztosan ki szeretne lépni a(z) {collective} kollektívából?",
     "activeMembers": "{count} aktív tag",
     "pendingInvitationsCount": "{count} függőben lévő meghívó",
-    "scheduledCancelUntil": "{status} — {date}-ig"
+    "scheduledCancelUntil": "{status} — {date}-ig",
+    "workspaceLabel": "Munkaterület",
+    "personalOption": "Személyes (privát)",
+    "sharedWarning": "Ez a tartalom megosztódik a kollektíva összes tagjával."
   },
   "profile": {
     "pageTitle": "Profilom",
@@ -1231,6 +1280,8 @@
       "approvalRequired": "Jóváhagyás szükséges.",
       "approvalInfo": "Addig ez a {typeLabel} a személyes munkaterületeden él és szerkeszthető. Amikor a tulajdonos elfogadja, átkerül a csapathoz.",
       "createAndSubmit": "Létrehozás és beküldés →",
+      "typeSurvey": "Felmérés",
+      "typeQuote": "Ajánlat",
       "continue": "Tovább →",
       "shareTitle": "Ez a teljes csapattal meg lesz osztva.",
       "shareBodyWithName": "{collectiveName} — minden tag látja, szerkesztheti és törölheti.",

@@ -1,14 +1,18 @@
 'use client';
 
 import React from 'react';
+import { useTranslations } from 'next-intl';
 import { Check } from 'lucide-react';
+import useMobile from '@/hooks/useMobile';
 
-const DEFAULT_ROOMS = [
-  'Nappali', 'Fürdő', 'Konyha', 'Hálószoba', 'Kert', 'Folyosó',
-];
+export default function RoomChips({ selected = [], onChange }) {
+  const t = useTranslations('surveys');
+  const isMobile = useMobile();
+  const defaultRooms = t.raw('defaultRooms');
 
-export default function RoomChips({ selected = [], onChange, extraLabel = '+ Egyéb' }) {
-  const allRooms = DEFAULT_ROOMS;
+  const fontSize = isMobile ? 16 : 13;
+  const height   = isMobile ? 48 : 36;
+  const padding  = isMobile ? '0 16px' : '0 12px';
 
   const toggle = (room) => {
     if (selected.includes(room)) {
@@ -28,9 +32,20 @@ export default function RoomChips({ selected = [], onChange, extraLabel = '+ Egy
     setCustomOpen(false);
   };
 
+  const chipStyle = (isSelected) => ({
+    display: 'inline-flex', alignItems: 'center', gap: 6,
+    height, padding, borderRadius: 999,
+    fontSize, fontWeight: 600, cursor: 'pointer',
+    background: isSelected ? '#0f172a' : '#fff',
+    color: isSelected ? '#fff' : '#0f172a',
+    border: 'none',
+    boxShadow: isSelected ? 'none' : 'var(--shadow-card)',
+    transition: 'background 0.15s, color 0.15s',
+  });
+
   return (
     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-      {allRooms.map(room => {
+      {defaultRooms.map(room => {
         const isSelected = selected.includes(room);
         return (
           <button
@@ -38,43 +53,29 @@ export default function RoomChips({ selected = [], onChange, extraLabel = '+ Egy
             type="button"
             onClick={() => toggle(room)}
             aria-pressed={isSelected}
-            style={{
-              display: 'inline-flex', alignItems: 'center', gap: 6,
-              height: 48, padding: '0 16px', borderRadius: 999,
-              fontSize: 16, fontWeight: 600, cursor: 'pointer',
-              background: isSelected ? '#0f172a' : '#fff',
-              color: isSelected ? '#fff' : '#0f172a',
-              border: isSelected ? 'none' : 'none',
-              boxShadow: isSelected ? 'none' : 'var(--shadow-card)',
-              transition: 'background 0.15s, color 0.15s',
-            }}
+            style={chipStyle(isSelected)}
           >
-            {isSelected && <Check size={15} strokeWidth={2.5} aria-hidden="true" />}
+            {isSelected && <Check size={isMobile ? 15 : 12} strokeWidth={2.5} aria-hidden="true" />}
             {room}
           </button>
         );
       })}
 
       {/* Custom rooms already added */}
-      {selected.filter(r => !allRooms.includes(r)).map(room => (
+      {selected.filter(r => !defaultRooms.includes(r)).map(room => (
         <button
           key={room}
           type="button"
           onClick={() => toggle(room)}
           aria-pressed
-          style={{
-            display: 'inline-flex', alignItems: 'center', gap: 6,
-            height: 48, padding: '0 16px', borderRadius: 999,
-            fontSize: 16, fontWeight: 600, cursor: 'pointer',
-            background: '#0f172a', color: '#fff', border: 'none',
-          }}
+          style={{ ...chipStyle(true), boxShadow: 'none' }}
         >
-          <Check size={15} strokeWidth={2.5} aria-hidden="true" />
+          <Check size={isMobile ? 15 : 12} strokeWidth={2.5} aria-hidden="true" />
           {room}
         </button>
       ))}
 
-      {/* + Egyéb chip */}
+      {/* + Other chip */}
       {customOpen ? (
         <div style={{ display: 'flex', gap: 6 }}>
           <input
@@ -83,10 +84,10 @@ export default function RoomChips({ selected = [], onChange, extraLabel = '+ Egy
             value={customValue}
             onChange={e => setCustomValue(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addCustom(); } }}
-            placeholder="pl. Garázs"
+            placeholder={t('roomChipPlaceholder')}
             style={{
-              height: 48, padding: '0 14px', borderRadius: 999,
-              border: '1px solid #e2e8f0', fontSize: 16, fontWeight: 600,
+              height, padding: '0 14px', borderRadius: 999,
+              border: '1px solid #e2e8f0', fontSize, fontWeight: 600,
               color: '#0f172a', background: '#fff',
               boxShadow: 'var(--shadow-card)', minWidth: 120,
             }}
@@ -95,9 +96,9 @@ export default function RoomChips({ selected = [], onChange, extraLabel = '+ Egy
             type="button"
             onClick={addCustom}
             style={{
-              height: 48, padding: '0 16px', borderRadius: 999,
+              height, padding, borderRadius: 999,
               background: '#0f172a', color: '#fff', border: 'none',
-              fontSize: 15, fontWeight: 700, cursor: 'pointer',
+              fontSize: isMobile ? 15 : 12, fontWeight: 700, cursor: 'pointer',
             }}
           >
             OK
@@ -108,13 +109,13 @@ export default function RoomChips({ selected = [], onChange, extraLabel = '+ Egy
           type="button"
           onClick={() => setCustomOpen(true)}
           style={{
-            height: 48, padding: '0 16px', borderRadius: 999,
+            height, padding, borderRadius: 999,
             background: 'transparent', color: '#475569',
-            border: '1px solid #e2e8f0', fontSize: 16, fontWeight: 600,
+            border: '1px solid #e2e8f0', fontSize, fontWeight: 600,
             cursor: 'pointer',
           }}
         >
-          {extraLabel}
+          {t('roomChipOther')}
         </button>
       )}
     </div>

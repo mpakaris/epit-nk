@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { Users } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 
@@ -9,6 +10,7 @@ import { useApp } from '@/context/AppContext';
  * Returns null when the user has no collectives.
  */
 export default function CollectiveSelector({ value, onChange }) {
+  const t = useTranslations('collectives');
   const { effectiveCollectives } = useApp();
   const collectives = effectiveCollectives || [];
 
@@ -18,13 +20,13 @@ export default function CollectiveSelector({ value, onChange }) {
 
   return (
     <div className="form-group">
-      <label className="form-label">Munkaterület</label>
+      <label className="form-label">{t('workspaceLabel')}</label>
       <select
         className="form-control"
         value={value || ''}
         onChange={e => onChange(e.target.value || null)}
       >
-        <option value="">Személyes (privát)</option>
+        <option value="">{t('personalOption')}</option>
         {collectives.map(c => (
           <option key={c.collective_id} value={c.collective_id}>
             {c.name}
@@ -42,7 +44,7 @@ export default function CollectiveSelector({ value, onChange }) {
         }}>
           <Users size={14} style={{ flexShrink: 0, marginTop: '0.1rem', color: '#ea580c' }} />
           <span>
-            <strong>{selected?.name}</strong> — Ez a tartalom megosztódik a kollektíva összes tagjával.
+            <strong>{selected?.name}</strong> — {t('sharedWarning')}
           </span>
         </div>
       )}
