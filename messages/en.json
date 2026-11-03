@@ -562,7 +562,17 @@
     "projectsStatLabel": "Completed projects",
     "selectPlaceholder": "– Select a client –",
     "personalGroup": "Personal clients",
-    "discountAbbr": "disc."
+    "discountAbbr": "disc.",
+    "detailTabQuotes": "Offers",
+    "detailTabProjects": "Projects",
+    "detailTabSurveys": "Surveys",
+    "noSurveysForClient": "No surveys for this client.",
+    "detailNoContact": "No contact info provided.",
+    "detailTotalQuotes": "Total offers",
+    "detailQuotesCount": "{count} offer",
+    "detailInvoiced": "Invoiced",
+    "detailProjectsCount": "{count} project",
+    "detailNameRequired": "Name is required!"
   },
   "calendar": {
     "pageTitle": "Calendar",

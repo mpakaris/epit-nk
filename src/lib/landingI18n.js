@@ -2,7 +2,7 @@ export const LANDING_I18N = {
   hu: {
     nav: {
       features: 'Funkciók', pricing: 'Árazás', faq: 'GYIK', about: 'Rólunk',
-      login: 'Bejelentkezés', register: 'Ingyenes regisztráció',
+      login: 'Bejelentkezés', register: 'Ingyenes regisztráció', menu: 'Menü',
     },
     hero: {
       pill:           'Szakembereknek & kivitelezőknek',
@@ -172,7 +172,7 @@ export const LANDING_I18N = {
   de: {
     nav: {
       features: 'Funktionen', pricing: 'Preise', faq: 'FAQ', about: 'Über uns',
-      login: 'Anmelden', register: 'Kostenlos registrieren',
+      login: 'Anmelden', register: 'Kostenlos registrieren', menu: 'Menü',
     },
     hero: {
       pill:           'Für Handwerker & Bauunternehmer',
@@ -342,7 +342,7 @@ export const LANDING_I18N = {
   en: {
     nav: {
       features: 'Features', pricing: 'Pricing', faq: 'FAQ', about: 'About',
-      login: 'Log in', register: 'Register for free',
+      login: 'Log in', register: 'Register for free', menu: 'Menu',
     },
     hero: {
       pill:           'For tradespeople & contractors',

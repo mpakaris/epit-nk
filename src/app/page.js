@@ -124,30 +124,10 @@ export default function HomePage() {
               </button>
             </div>
 
-            <button onClick={() => setMobileMenuOpen(v => !v)} style={{ display:'none', background:'none', border:'none', cursor:'pointer', padding:'0.4rem', borderRadius:8, color:navy700 }} className="show-mobile">
-              {mobileMenuOpen ? <X size={22} /> : <Menu size={22} />}
+            <button onClick={() => setMobileMenuOpen(true)} style={{ display:'none', background:'none', border:'none', cursor:'pointer', padding:'0.4rem', borderRadius:8, color:navy700 }} className="show-mobile" aria-label="Menü">
+              <Menu size={22} />
             </button>
           </div>
-
-          {mobileMenuOpen && (
-            <div style={{ background:'#fff', borderTop:`1px solid ${slate200}`, padding:'1rem 1.25rem', display:'flex', flexDirection:'column', gap:'0.75rem' }}>
-              <a href="#features" className="nav-link" onClick={() => setMobileMenuOpen(false)}>{T.nav.features}</a>
-              <a href="#pricing"  className="nav-link" onClick={() => setMobileMenuOpen(false)}>{T.nav.pricing}</a>
-              <a href="#faq"      className="nav-link" onClick={() => setMobileMenuOpen(false)}>{T.nav.faq}</a>
-              <div style={{ display:'flex', gap:'0.4rem' }}>
-                {['hu','de','en'].map(loc => (
-                  <button key={loc} type="button" onClick={() => setLocale(loc)}
-                    style={{ flex:1, padding:'0.5rem', borderRadius:8, background: locale === loc ? navy900 : slate100, color: locale === loc ? '#fff' : navy700, border:'none', cursor: locale === loc ? 'default' : 'pointer', fontFamily:'inherit', fontWeight:800, fontSize:'0.75rem', textTransform:'uppercase', letterSpacing:'0.05em' }}>
-                    {loc}
-                  </button>
-                ))}
-              </div>
-              <div style={{ borderTop:`1px solid ${slate200}`, paddingTop:'0.75rem', display:'flex', flexDirection:'column', gap:'0.5rem' }}>
-                <button onClick={() => { openLogin();    setMobileMenuOpen(false); }} style={{ padding:'0.65rem', borderRadius:10, background:slate100, border:'none', cursor:'pointer', fontFamily:'inherit', fontWeight:700, color:navy900 }}>{T.nav.login}</button>
-                <button onClick={() => { openRegister(); setMobileMenuOpen(false); }} style={{ padding:'0.65rem', borderRadius:10, background:accent, border:'none', cursor:'pointer', fontFamily:'inherit', fontWeight:700, color:'#fff' }}>{T.nav.register}</button>
-              </div>
-            </div>
-          )}
         </header>
 
         {/* ── HERO ── */}
@@ -330,8 +310,56 @@ export default function HomePage() {
           @media (min-width: 768px)  { .hidden-mobile { display: flex !important; } .show-mobile { display: none !important; } }
           @media (max-width: 767px)  { .hidden-mobile { display: none !important; } .show-mobile { display: block !important; } }
           @media (max-width: 639px)  { .hero-grid { gap: 1.5rem !important; } }
+          @keyframes lp-slide-up { from { transform:translateY(100%); opacity:0; } to { transform:translateY(0); opacity:1; } }
         `}</style>
       </div>
+
+      {/* Mobile nav bottom sheet */}
+      {mobileMenuOpen && (
+        <>
+          <div onClick={() => setMobileMenuOpen(false)} style={{ position:'fixed', inset:0, background:'rgba(15,23,42,0.5)', zIndex:10000 }} aria-hidden="true" />
+          <div role="dialog" aria-modal="true" aria-label="Navigáció" style={{ position:'fixed', bottom:0, left:0, right:0, zIndex:10000, background:'#fff', borderRadius:'20px 20px 0 0', boxShadow:'0 -4px 32px rgba(0,0,0,0.14)', animation:'lp-slide-up .28s cubic-bezier(.32,1,.6,1)', fontFamily:"'Inter',system-ui,sans-serif", paddingBottom:'env(safe-area-inset-bottom)' }}>
+            {/* Handle */}
+            <div style={{ display:'flex', justifyContent:'center', paddingTop:12, paddingBottom:4 }}>
+              <div style={{ width:36, height:4, borderRadius:2, background:'#e2e8f0' }} />
+            </div>
+            {/* Title row */}
+            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'0.5rem 1.25rem 0.75rem', borderBottom:'1px solid #e2e8f0' }}>
+              <span style={{ fontWeight:800, fontSize:'1rem', color:navy900 }}>{T.nav.menu || 'Menü'}</span>
+              <button onClick={() => setMobileMenuOpen(false)} style={{ background:'none', border:'none', cursor:'pointer', padding:'0.35rem', borderRadius:8, color:navy700, display:'flex' }}>
+                <X size={20} />
+              </button>
+            </div>
+            {/* Nav links */}
+            <nav style={{ display:'flex', flexDirection:'column' }}>
+              {[
+                { href:'#features', label: T.nav.features },
+                { href:'#pricing',  label: T.nav.pricing  },
+                { href:'#faq',      label: T.nav.faq      },
+                { href:'/about',    label: T.nav.about    },
+              ].map(({ href, label }) => (
+                <a key={href} href={href} onClick={() => setMobileMenuOpen(false)} style={{ display:'block', padding:'0.95rem 1.25rem', fontSize:'1.05rem', fontWeight:600, color:navy900, textDecoration:'none', borderBottom:'1px solid #e2e8f0' }}>
+                  {label}
+                </a>
+              ))}
+            </nav>
+            {/* Language switcher */}
+            <div style={{ display:'flex', gap:'0.4rem', padding:'0.85rem 1.25rem', borderBottom:'1px solid #e2e8f0' }}>
+              {['hu','de','en'].map(loc => (
+                <button key={loc} type="button" onClick={() => setLocale(loc)}
+                  style={{ flex:1, padding:'0.55rem', borderRadius:8, background: locale === loc ? navy900 : '#f1f5f9', color: locale === loc ? '#fff' : navy700, border:'none', cursor: locale === loc ? 'default' : 'pointer', fontFamily:'inherit', fontWeight:800, fontSize:'0.75rem', textTransform:'uppercase', letterSpacing:'0.05em' }}>
+                  {loc}
+                </button>
+              ))}
+            </div>
+            {/* Auth buttons */}
+            <div style={{ display:'flex', flexDirection:'column', gap:'0.6rem', padding:'1rem 1.25rem' }}>
+              <button onClick={() => { openLogin(); setMobileMenuOpen(false); }} style={{ padding:'0.8rem', borderRadius:10, background:'#f1f5f9', border:'none', cursor:'pointer', fontFamily:'inherit', fontWeight:700, fontSize:'0.95rem', color:navy900 }}>{T.nav.login}</button>
+              <button onClick={() => { openRegister(); setMobileMenuOpen(false); }} style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:'0.4rem', padding:'0.8rem', borderRadius:10, background:accent, border:'none', cursor:'pointer', fontFamily:'inherit', fontWeight:700, fontSize:'0.95rem', color:'#fff' }}>{T.nav.register} <ArrowRight size={15} /></button>
+            </div>
+          </div>
+        </>
+      )}
 
       {authOpen && <AuthModal onClose={() => setAuthOpen(false)} initialView={authViewRef.current} />}
       <CookieBanner />

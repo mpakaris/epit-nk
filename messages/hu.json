@@ -509,7 +509,17 @@
     "projectsStatLabel": "Megvalósult projektek",
     "selectPlaceholder": "– Válasszon ügyfelet –",
     "personalGroup": "Személyes ügyfelek",
-    "discountAbbr": "kedv."
+    "discountAbbr": "kedv.",
+    "detailTabQuotes": "Ajánlatok",
+    "detailTabProjects": "Projektek",
+    "detailTabSurveys": "Felmérések",
+    "noSurveysForClient": "Nincs felmérés ehhez az ügyfélhez.",
+    "detailNoContact": "Nincs elérhetőség megadva.",
+    "detailTotalQuotes": "Összes ajánlat",
+    "detailQuotesCount": "{count} ajánlat",
+    "detailInvoiced": "Számlázott",
+    "detailProjectsCount": "{count} projekt",
+    "detailNameRequired": "A név megadása kötelező!"
   },
   "calendar": {
     "pageTitle": "Naptár",

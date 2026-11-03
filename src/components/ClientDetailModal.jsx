@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
+import { useTranslations } from 'next-intl';
 import Modal from './Modal';
 import { useApp } from '@/context/AppContext';
 import { formatHUF, formatDate } from '@/lib/constants';
@@ -27,6 +28,9 @@ export default function ClientDetailModal({ clientId, onClose, onDeleted }) {
     updateClient, deleteClient, collectives,
   } = useApp();
 
+  const t  = useTranslations('clients');
+  const tc = useTranslations('common');
+
   const client = clients.find(c => c.id === clientId);
 
   const [activeTab, setActiveTab] = useState('quotes');
@@ -36,7 +40,6 @@ export default function ClientDetailModal({ clientId, onClose, onDeleted }) {
   const [saving, setSaving]       = useState(false);
   const [formError, setFormError] = useState('');
 
-  // Edit form state — initialised from current client
   const [formName,        setFormName]        = useState('');
   const [formCompanyName, setFormCompanyName] = useState('');
   const [formTaxNumber,   setFormTaxNumber]   = useState('');
@@ -87,9 +90,9 @@ export default function ClientDetailModal({ clientId, onClose, onDeleted }) {
   };
 
   const handleSave = async () => {
-    if (!formName.trim()) { setFormError('A név megadása kötelező!'); return; }
+    if (!formName.trim()) { setFormError(t('detailNameRequired')); return; }
     if (hasNewShares && !formSharesGdpr) {
-      setFormError('Kérjük erősítse meg az ügyfél hozzájárulását az adatok megosztásához!');
+      setFormError(t('shareConsentRequired'));
       return;
     }
     setSaving(true); setFormError('');
@@ -108,7 +111,7 @@ export default function ClientDetailModal({ clientId, onClose, onDeleted }) {
       });
       setEditMode(false);
     } catch (err) {
-      setFormError(err.message || 'Hiba a mentéskor');
+      setFormError(err.message || tc('error'));
     } finally {
       setSaving(false);
     }
@@ -132,13 +135,13 @@ export default function ClientDetailModal({ clientId, onClose, onDeleted }) {
 
   // ── Render ────────────────────────────────────────────────────────────────
   const tabs = [
-    { key: 'quotes',    label: 'Ajánlatok',   count: clientQuotes.length,   icon: <FileText size={13} /> },
-    { key: 'projects',  label: 'Projektek',   count: clientProjects.length, icon: <FolderKanban size={13} /> },
-    { key: 'surveys',   label: 'Felmérések',  count: clientSurveys.length,  icon: <ClipboardList size={13} /> },
+    { key: 'quotes',   label: t('detailTabQuotes'),   count: clientQuotes.length,   icon: <FileText size={13} /> },
+    { key: 'projects', label: t('detailTabProjects'),  count: clientProjects.length, icon: <FolderKanban size={13} /> },
+    { key: 'surveys',  label: t('detailTabSurveys'),   count: clientSurveys.length,  icon: <ClipboardList size={13} /> },
   ];
 
   return (
-    <Modal isOpen onClose={onClose} maxWidth="660px" title={editMode ? 'Ügyfél szerkesztése' : null}>
+    <Modal isOpen onClose={onClose} maxWidth="660px" title={editMode ? t('editClient') : null}>
 
       {/* ── View mode ── */}
       {!editMode && (
@@ -161,7 +164,7 @@ export default function ClientDetailModal({ clientId, onClose, onDeleted }) {
                 )}
                 {shareCount > 0 && (
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.2rem', fontSize: '0.7rem', fontWeight: 700, background: '#ede9fe', color: '#5b21b6', border: '1px solid #c4b5fd', padding: '0.1rem 0.4rem', borderRadius: 'var(--radius-pill)' }}>
-                    <Share2 size={10} /> {shareCount} kollektíva
+                    <Share2 size={10} /> {t('collectivesCount', { count: shareCount })}
                   </span>
                 )}
               </div>
@@ -173,10 +176,10 @@ export default function ClientDetailModal({ clientId, onClose, onDeleted }) {
               )}
             </div>
             <div style={{ display: 'flex', gap: '0.35rem', flexShrink: 0 }}>
-              <button type="button" className="btn btn-secondary btn-sm" onClick={openEdit} title="Szerkesztés">
+              <button type="button" className="btn btn-secondary btn-sm" onClick={openEdit} title={t('editTitle')}>
                 <Edit3 size={13} />
               </button>
-              <button type="button" className="btn btn-danger btn-sm" onClick={() => setConfirmDelete(true)} title="Törlés">
+              <button type="button" className="btn btn-danger btn-sm" onClick={() => setConfirmDelete(true)} title={t('deleteTitle')}>
                 <Trash2 size={13} />
               </button>
             </div>
@@ -200,7 +203,7 @@ export default function ClientDetailModal({ clientId, onClose, onDeleted }) {
               </span>
             )}
             {!client.phone && !client.email && !client.address && (
-              <span style={{ fontSize: '0.825rem', color: 'var(--text-muted)' }}>Nincs elérhetőség megadva</span>
+              <span style={{ fontSize: '0.825rem', color: 'var(--text-muted)' }}>{t('detailNoContact')}</span>
             )}
           </div>
 
@@ -213,14 +216,14 @@ export default function ClientDetailModal({ clientId, onClose, onDeleted }) {
           {/* Financial summary */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', marginBottom: '1.25rem' }}>
             <div style={{ padding: '0.75rem 1rem', background: 'var(--warning-bg)', border: '1px solid var(--warning-border)', borderRadius: 'var(--radius-md)' }}>
-              <div style={{ fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--warning-text)', marginBottom: '0.2rem' }}>Összes ajánlat</div>
+              <div style={{ fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--warning-text)', marginBottom: '0.2rem' }}>{t('detailTotalQuotes')}</div>
               <div style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{formatHUF(totalQuoted)}</div>
-              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{clientQuotes.length} ajánlat</div>
+              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{t('detailQuotesCount', { count: clientQuotes.length })}</div>
             </div>
             <div style={{ padding: '0.75rem 1rem', background: 'var(--success-bg)', border: '1px solid var(--success-border)', borderRadius: 'var(--radius-md)' }}>
-              <div style={{ fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--success-text)', marginBottom: '0.2rem' }}>Számlázott</div>
+              <div style={{ fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--success-text)', marginBottom: '0.2rem' }}>{t('detailInvoiced')}</div>
               <div style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{formatHUF(totalInvoiced)}</div>
-              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{clientProjects.length} projekt</div>
+              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{t('detailProjectsCount', { count: clientProjects.length })}</div>
             </div>
           </div>
 
@@ -229,11 +232,11 @@ export default function ClientDetailModal({ clientId, onClose, onDeleted }) {
             <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem', padding: '0.85rem', borderRadius: 'var(--radius-md)', background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', marginBottom: '1rem' }}>
               <AlertTriangle size={16} color="var(--danger)" style={{ flexShrink: 0, marginTop: '0.1rem' }} />
               <div style={{ flex: 1 }}>
-                <div style={{ fontSize: '0.825rem', fontWeight: 700, color: 'var(--danger-text)', marginBottom: '0.5rem' }}>Biztosan törli „{client.name}" ügyfelet?</div>
+                <div style={{ fontSize: '0.825rem', fontWeight: 700, color: 'var(--danger-text)', marginBottom: '0.5rem' }}>{t('deleteConfirmMessage', { name: client.name })}</div>
                 <div style={{ display: 'flex', gap: '0.4rem', justifyContent: 'flex-end' }}>
-                  <button type="button" className="btn btn-secondary btn-sm" onClick={() => setConfirmDelete(false)} disabled={deleting}>Mégse</button>
+                  <button type="button" className="btn btn-secondary btn-sm" onClick={() => setConfirmDelete(false)} disabled={deleting}>{tc('cancel')}</button>
                   <button type="button" className="btn btn-danger btn-sm" onClick={handleDelete} disabled={deleting}>
-                    {deleting ? <><Loader2 size={13} className="animate-spin" /> Törlés...</> : <><Trash2 size={13} /> Törlés</>}
+                    {deleting ? <><Loader2 size={13} className="animate-spin" /> {tc('delete')}…</> : <><Trash2 size={13} /> {tc('delete')}</>}
                   </button>
                 </div>
               </div>
@@ -242,23 +245,23 @@ export default function ClientDetailModal({ clientId, onClose, onDeleted }) {
 
           {/* Tabs */}
           <div style={{ display: 'flex', gap: '0.25rem', borderBottom: '2px solid var(--border-subtle)', marginBottom: '1rem', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
-            {tabs.map(t => (
+            {tabs.map(tab => (
               <button
-                key={t.key}
+                key={tab.key}
                 type="button"
-                onClick={() => setActiveTab(t.key)}
+                onClick={() => setActiveTab(tab.key)}
                 style={{
                   display: 'flex', alignItems: 'center', gap: '0.35rem',
                   padding: '0.5rem 0.85rem', fontSize: '0.8rem', fontWeight: 700,
                   background: 'transparent', border: 'none', cursor: 'pointer', flexShrink: 0,
-                  borderBottom: activeTab === t.key ? '2px solid var(--accent)' : '2px solid transparent',
-                  color: activeTab === t.key ? 'var(--accent)' : 'var(--text-muted)',
+                  borderBottom: activeTab === tab.key ? '2px solid var(--accent)' : '2px solid transparent',
+                  color: activeTab === tab.key ? 'var(--accent)' : 'var(--text-muted)',
                   marginBottom: '-2px', transition: 'color 0.15s',
                 }}
               >
-                {t.icon} {t.label}
-                <span style={{ fontSize: '0.7rem', fontWeight: 700, background: activeTab === t.key ? 'var(--accent-light)' : 'var(--bg-subtle)', color: activeTab === t.key ? 'var(--accent)' : 'var(--text-muted)', padding: '0.05rem 0.4rem', borderRadius: 'var(--radius-pill)' }}>
-                  {t.count}
+                {tab.icon} {tab.label}
+                <span style={{ fontSize: '0.7rem', fontWeight: 700, background: activeTab === tab.key ? 'var(--accent-light)' : 'var(--bg-subtle)', color: activeTab === tab.key ? 'var(--accent)' : 'var(--text-muted)', padding: '0.05rem 0.4rem', borderRadius: 'var(--radius-pill)' }}>
+                  {tab.count}
                 </span>
               </button>
             ))}
@@ -268,7 +271,7 @@ export default function ClientDetailModal({ clientId, onClose, onDeleted }) {
           {activeTab === 'quotes' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
               {clientQuotes.length === 0 ? (
-                <p style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.825rem', padding: '1.5rem' }}>Nincs ajánlat ehhez az ügyfélhez.</p>
+                <p style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.825rem', padding: '1.5rem' }}>{t('noQuotesForClient')}</p>
               ) : clientQuotes.map(q => {
                 const total = quoteEntries.filter(e => e.quote_id === q.id).reduce((s, e) => s + Number(e.amount_huf || 0), 0);
                 return (
@@ -294,7 +297,7 @@ export default function ClientDetailModal({ clientId, onClose, onDeleted }) {
           {activeTab === 'projects' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
               {clientProjects.length === 0 ? (
-                <p style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.825rem', padding: '1.5rem' }}>Nincs projekt ehhez az ügyfélhez.</p>
+                <p style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.825rem', padding: '1.5rem' }}>{t('noProjectsForClient')}</p>
               ) : clientProjects.map(p => {
                 const pCost = invoices.filter(inv => inv.project_id === p.id).reduce((s, inv) => s + Number(inv.value_huf || 0), 0);
                 return (
@@ -319,7 +322,7 @@ export default function ClientDetailModal({ clientId, onClose, onDeleted }) {
           {activeTab === 'surveys' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
               {clientSurveys.length === 0 ? (
-                <p style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.825rem', padding: '1.5rem' }}>Nincs felmérés ehhez az ügyfélhez.</p>
+                <p style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.825rem', padding: '1.5rem' }}>{t('noSurveysForClient')}</p>
               ) : clientSurveys.map(s => (
                 <div key={s.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.65rem 0.85rem', background: 'var(--bg-subtle)', borderRadius: 'var(--radius-md)', gap: '0.5rem', flexWrap: 'wrap' }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
@@ -346,46 +349,46 @@ export default function ClientDetailModal({ clientId, onClose, onDeleted }) {
           )}
 
           <div className="form-group">
-            <label className="form-label">Kapcsolattartó neve *</label>
+            <label className="form-label">{t('contactName')}</label>
             <input type="text" className="form-control" autoFocus value={formName} onChange={e => setFormName(e.target.value)} />
           </div>
           <div className="grid-2col">
             <div className="form-group" style={{ margin: 0 }}>
-              <label className="form-label">Cégnév</label>
-              <input type="text" className="form-control" value={formCompanyName} onChange={e => setFormCompanyName(e.target.value)} placeholder="Pl. Fekete Kft." />
+              <label className="form-label">{t('companyName')}</label>
+              <input type="text" className="form-control" value={formCompanyName} onChange={e => setFormCompanyName(e.target.value)} />
             </div>
             <div className="form-group" style={{ margin: 0 }}>
-              <label className="form-label">Adószám</label>
+              <label className="form-label">{t('taxNumber')}</label>
               <input type="text" className="form-control" value={formTaxNumber} onChange={e => setFormTaxNumber(e.target.value)} placeholder="12345678-1-01" />
             </div>
           </div>
           <div className="form-group" style={{ marginTop: '0.75rem' }}>
-            <label className="form-label">Cím</label>
+            <label className="form-label">{t('address')}</label>
             <input type="text" className="form-control" value={formAddress} onChange={e => setFormAddress(e.target.value)} />
           </div>
           <div className="grid-2col">
             <div className="form-group" style={{ margin: 0 }}>
-              <label className="form-label">Telefon</label>
+              <label className="form-label">{t('phone')}</label>
               <input type="tel" className="form-control" value={formPhone} onChange={e => setFormPhone(e.target.value)} />
             </div>
             <div className="form-group" style={{ margin: 0 }}>
-              <label className="form-label">E-mail</label>
+              <label className="form-label">{t('email')}</label>
               <input type="email" className="form-control" value={formEmail} onChange={e => setFormEmail(e.target.value)} />
             </div>
           </div>
           <div className="form-group" style={{ marginTop: '0.75rem' }}>
-            <label className="form-label">Hűségkedvezmény (%)</label>
+            <label className="form-label">{t('discount')}</label>
             <input type="number" min="0" max="100" step="0.5" className="form-control" value={formDiscount} onChange={e => setFormDiscount(e.target.value)} />
           </div>
           <div className="form-group">
-            <label className="form-label">Megjegyzés</label>
+            <label className="form-label">{t('notes')}</label>
             <textarea rows={2} className="form-control" value={formNotes} onChange={e => setFormNotes(e.target.value)} />
           </div>
 
           {ownedCollectives.length > 0 && (
             <div style={{ marginTop: '0.5rem', marginBottom: '0.75rem', padding: '0.85rem', borderRadius: 'var(--radius-md)', background: 'var(--bg-subtle)', border: '1px solid var(--border-subtle)' }}>
               <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.6rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                <Share2 size={14} /> Megosztás Kollektívákkal
+                <Share2 size={14} /> {t('shareWithCollectives')}
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
                 {ownedCollectives.map(col => (
@@ -399,7 +402,7 @@ export default function ClientDetailModal({ clientId, onClose, onDeleted }) {
                 <label style={{ display: 'flex', alignItems: 'flex-start', gap: '0.6rem', padding: '0.65rem', borderRadius: 'var(--radius-md)', background: '#fff', border: `1px solid ${formSharesGdpr ? 'var(--success-border)' : 'var(--warning-border)'}`, cursor: 'pointer', marginTop: '0.65rem' }}>
                   <input type="checkbox" checked={formSharesGdpr} onChange={e => setFormSharesGdpr(e.target.checked)} style={{ marginTop: '0.15rem', flexShrink: 0, accentColor: 'var(--accent)', width: 15, height: 15 }} />
                   <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
-                    Megerősítem, hogy az ügyfél hozzájárult személyes adatainak megosztásához a Kollektíva vállalkozóival. <span style={{ color: 'var(--danger-text)', fontWeight: 700 }}>*</span>
+                    {t('shareGdprConfirmText')} <span style={{ color: 'var(--danger-text)', fontWeight: 700 }}>*</span>
                   </span>
                 </label>
               )}
@@ -407,9 +410,9 @@ export default function ClientDetailModal({ clientId, onClose, onDeleted }) {
           )}
 
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '0.5rem' }}>
-            <button type="button" className="btn btn-secondary btn-sm" onClick={() => setEditMode(false)} disabled={saving}>Mégse</button>
+            <button type="button" className="btn btn-secondary btn-sm" onClick={() => setEditMode(false)} disabled={saving}>{tc('cancel')}</button>
             <button type="button" className="btn btn-primary btn-sm" onClick={handleSave} disabled={saving || (hasNewShares && !formSharesGdpr)}>
-              {saving ? <><Loader2 size={13} className="animate-spin" /> Mentés...</> : <><CheckCircle2 size={13} /> Mentés</>}
+              {saving ? <><Loader2 size={13} className="animate-spin" /> {tc('saving')}</> : <><CheckCircle2 size={13} /> {tc('save')}</>}
             </button>
           </div>
         </>

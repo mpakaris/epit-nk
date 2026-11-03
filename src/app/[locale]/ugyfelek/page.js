@@ -470,7 +470,7 @@ export default function AdminClientsPage() {
         <ClientDetailModal
           clientId={selectedClientId}
           onClose={() => setSelectedClientId(null)}
-          onDeleted={() => { setSelectedClientId(null); setSuccessMsg('Ügyfél törölve.'); }}
+          onDeleted={() => { setSelectedClientId(null); setSuccessMsg(t('successDeleted')); }}
         />
       )}
     </div>

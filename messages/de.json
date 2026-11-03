@@ -562,7 +562,17 @@
     "projectsStatLabel": "Abgeschlossene Projekte",
     "selectPlaceholder": "– Kunden auswählen –",
     "personalGroup": "Persönliche Kunden",
-    "discountAbbr": "Rabb."
+    "discountAbbr": "Rabb.",
+    "detailTabQuotes": "Angebote",
+    "detailTabProjects": "Projekte",
+    "detailTabSurveys": "Aufmaße",
+    "noSurveysForClient": "Keine Aufmaße für diesen Kunden.",
+    "detailNoContact": "Keine Kontaktdaten hinterlegt.",
+    "detailTotalQuotes": "Angebote gesamt",
+    "detailQuotesCount": "{count} Angebot",
+    "detailInvoiced": "Abgerechnet",
+    "detailProjectsCount": "{count} Projekt",
+    "detailNameRequired": "Name ist erforderlich!"
   },
   "calendar": {
     "pageTitle": "Kalender",
