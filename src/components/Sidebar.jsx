@@ -17,8 +17,9 @@ import FloatingNav from './mobile/FloatingNav';
 
 // Build a reverse map of localized-first-segment → canonical-first-segment
 // so we can highlight the correct nav item regardless of the user's locale.
+// routing.pathnames may be undefined when locale-specific URL paths are not configured.
 const reverseSlugMap = {};
-for (const [canonical, localeMap] of Object.entries(routing.pathnames)) {
+for (const [canonical, localeMap] of Object.entries(routing.pathnames || {})) {
   if (typeof localeMap === 'string') continue;
   for (const [locale, localizedPath] of Object.entries(localeMap)) {
     if (locale === routing.defaultLocale) continue;
