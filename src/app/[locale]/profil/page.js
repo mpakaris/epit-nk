@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { useTranslations } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
 import { useApp } from '@/context/AppContext';
 import {
   User, KeyRound, LogOut, CheckCircle2, AlertCircle, Loader2,
@@ -118,6 +118,7 @@ export default function ProfilPage() {
 
   const t = useTranslations('profile');
   const tc = useTranslations('common');
+  const currentLocale = useLocale();
   const navPrefix = isDemoMode ? '/demo' : '';
 
   const PLANS = [
@@ -615,7 +616,7 @@ export default function ProfilPage() {
   };
 
   const handleSaveLocale = async (newLocale) => {
-    if (savingLocale || newLocale === currentUser?.locale) return;
+    if (savingLocale || newLocale === currentLocale) return;
     setSavingLocale(true);
     try {
       const res = await fetch('/api/auth/profile', {
@@ -632,7 +633,8 @@ export default function ProfilPage() {
       // entirely in the NEXT_LOCALE cookie — next-intl's router methods all produce
       // wrong URLs (prefix injection, nxtPlocale param, wrong page). A plain reload
       // sends the updated cookie to the server and the middleware picks it up.
-      document.cookie = `NEXT_LOCALE=${newLocale};path=/;max-age=31536000;SameSite=Lax`;
+      const secure = typeof window !== 'undefined' && window.location.protocol === 'https:' ? ';Secure' : '';
+      document.cookie = `NEXT_LOCALE=${newLocale};path=/;max-age=31536000;SameSite=Lax${secure}`;
       window.location.reload();
     } finally {
       setSavingLocale(false);
@@ -1290,7 +1292,7 @@ export default function ProfilPage() {
               </div>
               <div style={{ display: 'flex', gap: '0.5rem' }}>
                 {[{ code: 'hu', label: 'Magyar' }, { code: 'de', label: 'Deutsch' }, { code: 'en', label: 'English' }].map(lang => {
-                  const isActive = (currentUser?.locale || 'hu') === lang.code;
+                  const isActive = currentLocale === lang.code;
                   return (
                     <button
                       key={lang.code}

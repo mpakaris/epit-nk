@@ -233,7 +233,8 @@ export function AppProvider({ children }) {
 
           // Sync locale preference to cookie so next-intl picks it up
           if (profile?.locale && typeof document !== 'undefined') {
-            document.cookie = `NEXT_LOCALE=${profile.locale};path=/;max-age=31536000;SameSite=Lax`;
+            const secure = window.location.protocol === 'https:' ? ';Secure' : '';
+            document.cookie = `NEXT_LOCALE=${profile.locale};path=/;max-age=31536000;SameSite=Lax${secure}`;
           }
           // Show onboarding if locale or currency not yet set (skip for superadmin)
           if (user.role !== 'superadmin' && (!profile?.locale || !profile?.currency)) {
@@ -365,7 +366,8 @@ export function AppProvider({ children }) {
           setNeedsOnboarding(false);
           setCurrentUser(u => u ? { ...u, locale, currency } : u);
           if (typeof document !== 'undefined') {
-            document.cookie = `NEXT_LOCALE=${locale};path=/;max-age=31536000;SameSite=Lax`;
+            const secure = window.location.protocol === 'https:' ? ';Secure' : '';
+            document.cookie = `NEXT_LOCALE=${locale};path=/;max-age=31536000;SameSite=Lax${secure}`;
           }
         },
         userCurrency: (impersonating || currentUser)?.currency || 'HUF',
