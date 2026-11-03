@@ -1,9 +1,11 @@
 import { NextIntlClientProvider } from 'next-intl';
-import { getMessages } from 'next-intl/server';
+import { getMessages, setRequestLocale } from 'next-intl/server';
 import Sidebar from '@/components/Sidebar';
 import LoadingGate from '@/components/LoadingGate';
 
-export default async function LocaleLayout({ children }) {
+export default async function LocaleLayout({ children, params }) {
+  const { locale } = await params;
+  setRequestLocale(locale);
   const messages = await getMessages();
   return (
     <NextIntlClientProvider messages={messages}>
