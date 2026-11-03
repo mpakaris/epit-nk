@@ -7,7 +7,7 @@ export default async function LocaleLayout({ children, params }) {
   const { locale } = await params;
   const messages = await getMessages({ locale });
   return (
-    <NextIntlClientProvider messages={messages}>
+    <NextIntlClientProvider locale={locale} messages={messages}>
       <LoadingGate>
         <div className="app-layout">
           <Sidebar />
