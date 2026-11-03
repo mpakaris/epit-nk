@@ -3,7 +3,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from '@/navigation';
 import { useTranslations } from 'next-intl';
-import { routing } from '@/i18n/routing';
 import { useApp } from '@/context/AppContext';
 import {
   User, KeyRound, LogOut, CheckCircle2, AlertCircle, Loader2,
@@ -630,12 +629,12 @@ export default function ProfilPage() {
         setAlertModal({ variant: 'error', title: tc('error'), message: error || t('saveError') });
         return;
       }
-      // Sync cookie so next-intl picks up the change on the refresh request
+      // Set cookie first so the navigation request carries the new locale.
       document.cookie = `NEXT_LOCALE=${newLocale};path=/;max-age=31536000;SameSite=Lax`;
-      // router.refresh() re-fetches all Server Components via App Router — the new
-      // NEXT_LOCALE cookie is sent with that request so next-intl switches language
-      // without a hard reload (avoids server-side cache issues on production).
-      router.refresh();
+      // Navigate to the canonical path WITHOUT a { locale } option — passing { locale }
+      // causes next-intl to set forcePrefix:true which injects /hu/ even with
+      // localePrefix:'never'. The cookie above is the sole locale signal to the server.
+      router.replace('/profil');
       setLocaleOk(true);
       setTimeout(() => setLocaleOk(false), 2500);
     } finally {
