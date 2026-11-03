@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Plus, Edit3, Trash2, X, Check, Loader2, ChevronDown, Package } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { formatHUF } from '@/lib/constants';
