@@ -13,9 +13,10 @@ import ClientSelect from '@/components/ClientSelect';
 import PageSpinner from '@/components/PageSpinner';
 import WorkspacePicker from '@/components/mobile/WorkspacePicker';
 import SharingBanner from '@/components/mobile/SharingBanner';
+import useMobile from '@/hooks/useMobile';
 import { formatDate } from '@/lib/constants';
 import {
-  ArrowLeft, AlertCircle, Check, Loader2, Plus, Ruler, User, Search, X,
+  ArrowLeft, Check, Loader2, Plus, Ruler, User, Search, X,
   ChevronDown, Users, Info,
 } from 'lucide-react';
 
@@ -65,6 +66,7 @@ function NewClientModal({ isOpen, onClose, onCreate }) {
 function NewQuotePageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const isMobile = useMobile();
   const t = useTranslations('quotes');
   const tc = useTranslations('common');
   const {
@@ -78,7 +80,6 @@ function NewQuotePageInner() {
   const AppLink = isDemoMode ? Link : LocaleLink;
   const collectives = (effectiveCollectives || []).map(c => ({ id: c.collective_id, name: c.name, role: c.role }));
 
-  // Mobile step: 1 = workspace (only if has collectives), 2 = form
   const [mobileStep, setMobileStep] = useState(1);
   const [collectiveId, setCollectiveId] = useState(null);
 
@@ -168,7 +169,6 @@ function NewQuotePageInner() {
           body: JSON.stringify({ document_type: 'quote', document_id: quote.id, collective_id: collectiveId }),
         });
       }
-
       if (surveyId) {
         try {
           const data = await fetchSurveyMedia(surveyId);
@@ -184,7 +184,6 @@ function NewQuotePageInner() {
           fetch(`/api/quotes/${quote.id}/copy-survey-media`, { method: 'POST' }).catch(() => {});
         } catch {}
       }
-
       router.push(`${navPrefix}/ajanlatok/${quote.id}`);
     } catch (err) {
       setError(err.message || t('saveError'));
@@ -194,7 +193,7 @@ function NewQuotePageInner() {
 
   if (loading || !dataReady) return <PageSpinner />;
 
-  // ── Step 1: workspace picker (full-screen on mobile, modal on desktop) ──
+  // ── Step 1: workspace picker (full-screen on mobile, centered modal on desktop) ──
   if (collectives.length > 0 && mobileStep === 1) {
     return (
       <WorkspacePicker
@@ -212,8 +211,8 @@ function NewQuotePageInner() {
     ? t('surveyContextCollective', { name: selectedCollective?.name || t('collectiveFallback') })
     : t('surveyContextPersonal');
 
-  const personalSurveys    = filteredSurveys.filter(s => s._source === 'personal');
-  const collectiveSurveys  = filteredSurveys.filter(s => s._source === 'collective');
+  const personalSurveys   = filteredSurveys.filter(s => s._source === 'personal');
+  const collectiveSurveys = filteredSurveys.filter(s => s._source === 'collective');
 
   const SurveyPickerRow = ({ s }) => (
     <button key={s.id} type="button"
@@ -306,10 +305,118 @@ function NewQuotePageInner() {
     </div>
   );
 
+  const basicDataCard = (
+    <div className="card mb-4" style={{ padding: '1.25rem' }}>
+      <div style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.05em', marginBottom: '1rem' }}>{t('basicData')}</div>
+      <div className="form-group">
+        <label className="form-label" htmlFor="q-title">{t('metaTitle')}</label>
+        <input id="q-title" type="text" className="form-control" required autoFocus value={title} onChange={e => setTitle(e.target.value)} placeholder={t('metaTitlePlaceholder')} />
+      </div>
+      <div style={{ marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid var(--border-subtle)' }}>
+        <div style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.05em', marginBottom: '0.85rem' }}>{t('orderer')}</div>
+        <div style={{ display: 'flex', gap: '0.65rem', alignItems: 'flex-end', flexWrap: 'wrap' }}>
+          <div style={{ flex: 1, minWidth: '200px' }}>
+            <label className="form-label" htmlFor="q-client">{t('client')}</label>
+            <ClientSelect id="q-client" value={clientId} onChange={e => setClientId(e.target.value)} clients={clients} />
+          </div>
+          <button type="button" onClick={() => setShowNewClientModal(true)} className="btn btn-secondary btn-sm" style={{ whiteSpace: 'nowrap', marginBottom: 0 }}>
+            <Plus size={14} /> {t('newClientButton')}
+          </button>
+        </div>
+        {clientId && (() => { const c = clients.find(x => x.id === clientId); return c ? (
+          <div style={{ marginTop: '0.65rem', padding: '0.5rem 0.75rem', borderRadius: 'var(--radius-md)', background: 'var(--accent-light)', border: '1px solid var(--accent-border)', fontSize: '0.8rem', color: 'var(--accent)', fontWeight: 600 }}>
+            <User size={13} style={{ verticalAlign: 'middle', marginRight: '0.3rem' }} />
+            {c.name}{c.phone && ` · ${c.phone}`}
+          </div>
+        ) : null; })()}
+      </div>
+    </div>
+  );
+
+  const detailsCard = (
+    <div className="card mb-4" style={{ padding: '1.25rem' }}>
+      <div style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.05em', marginBottom: '1rem' }}>{t('details')}</div>
+      <div className="grid-2col">
+        <div className="form-group" style={{ margin: 0 }}>
+          <label className="form-label" htmlFor="q-location">{t('location')}</label>
+          <input id="q-location" type="text" className="form-control" value={location} onChange={e => setLocation(e.target.value)} placeholder={t('locationPlaceholder')} />
+        </div>
+        <div className="form-group" style={{ margin: 0 }}>
+          <label className="form-label" htmlFor="q-type">{t('workType')}</label>
+          <input id="q-type" type="text" className="form-control" value={workType} onChange={e => setWorkType(e.target.value)} placeholder={t('workTypePlaceholder')} />
+        </div>
+      </div>
+      <div className="form-group" style={{ marginTop: '0.75rem' }}>
+        <label className="form-label" htmlFor="q-desc">{t('descriptionLabel')}</label>
+        <textarea id="q-desc" rows={2} className="form-control" value={description} onChange={e => setDescription(e.target.value)} placeholder={t('descriptionPlaceholder')} />
+      </div>
+      <div className="grid-2col">
+        <div className="form-group" style={{ margin: 0 }}>
+          <label className="form-label" htmlFor="q-start">{t('plannedStart')}</label>
+          <input id="q-start" type="date" className="form-control" min={today()} value={startDate} onChange={e => { const v = e.target.value; setStartDate(v); if (v && (!endDate || endDate <= v)) setEndDate(nextDay(v)); }} />
+        </div>
+        <div className="form-group" style={{ margin: 0 }}>
+          <label className="form-label" htmlFor="q-end">{t('plannedEnd')}</label>
+          <input id="q-end" type="date" className="form-control" min={startDate ? nextDay(startDate) : undefined} value={endDate} onChange={e => setEndDate(e.target.value)} />
+        </div>
+      </div>
+      <div className="form-group" style={{ marginTop: '0.75rem', marginBottom: 0 }}>
+        <label className="form-label">{t('vatRate')}</label>
+        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+          {['0', '5', '18', '27'].map(v => (
+            <button key={v} type="button" onClick={() => handleTaxChange(v)}
+              style={{ padding: '0.35rem 0.85rem', borderRadius: 'var(--radius-md)', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer', background: taxPercent === v ? 'var(--accent)' : 'var(--bg-subtle)', color: taxPercent === v ? '#fff' : 'var(--text-secondary)', border: `1px solid ${taxPercent === v ? 'var(--accent)' : 'var(--border-subtle)'}` }}>{v}%</button>
+          ))}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+            <input type="number" min="0" max="100" step="0.5" className="form-control text-mono" style={{ width: '80px' }} value={taxPercent} onChange={e => handleTaxChange(e.target.value)} />
+            <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-secondary)' }}>%</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  // ── Step 2 on desktop (has collectives): show form in a modal ──
+  if (!isMobile && collectives.length > 0) {
+    return (
+      <>
+        <Modal isOpen={true} onClose={() => setMobileStep(1)} title={t('new')} maxWidth="720px">
+          {collectiveId && selectedCollective && (
+            <div style={{ marginBottom: 16 }}>
+              <SharingBanner collectiveName={selectedCollective.name} />
+            </div>
+          )}
+
+          <ErrorBanner message={error} style={{ marginBottom: '1rem' }} />
+
+          <form onSubmit={handleSubmit}>
+            <SurveyPicker />
+            {basicDataCard}
+            {detailsCard}
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+              <button type="button" className="btn btn-secondary" onClick={() => setMobileStep(1)}>{tc('cancel')}</button>
+              <button type="submit" className="btn btn-primary" disabled={isSubmitting || !title.trim()}>
+                {isSubmitting ? <><Loader2 size={16} className="animate-spin" />{tc('creating')}</> : <><Check size={16} />{t('createQuote')}</>}
+              </button>
+            </div>
+          </form>
+        </Modal>
+
+        <NewClientModal
+          isOpen={showNewClientModal}
+          onClose={() => setShowNewClientModal(false)}
+          onCreate={async (fields) => { const c = await createClient({ ...fields }); setClientId(c.id); setShowNewClientModal(false); }}
+        />
+      </>
+    );
+  }
+
+  // ── Mobile step 2 (or no-collectives full-page) ──
   return (
     <div className="container page-body" style={{ maxWidth: '720px' }}>
 
-      {/* ── Mobile step-2 top bar ── */}
+      {/* Mobile step-2 top bar */}
       <div className="show-mobile" style={{ marginBottom: 16 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 64 }}>
           <button
@@ -353,7 +460,7 @@ function NewQuotePageInner() {
         )}
       </div>
 
-      {/* ── Desktop header ── */}
+      {/* Desktop header — only shown when user has no collectives */}
       <div className="hide-mobile">
         <div style={{ padding: '0.85rem 0 0.25rem' }}>
           <AppLink href={`${navPrefix}/ajanlatok`} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', color: 'var(--text-secondary)', fontSize: '0.825rem', fontWeight: 600 }}>
@@ -365,7 +472,6 @@ function NewQuotePageInner() {
         </div>
       </div>
 
-      {/* CollectiveSelector — desktop only */}
       <div className="hide-mobile">
         <CollectiveSelector value={collectiveId} onChange={setCollectiveId} />
         {collectiveId && selectedCollective && (
@@ -378,82 +484,13 @@ function NewQuotePageInner() {
       <ErrorBanner message={error} style={{ marginBottom: '1rem' }} />
 
       <form onSubmit={handleSubmit}>
-        {/* Survey picker — visible on both mobile and desktop */}
         <SurveyPicker />
+        {basicDataCard}
 
-        {/* Title + Client — visible on both */}
-        <div className="card mb-4" style={{ padding: '1.25rem' }}>
-          <div style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.05em', marginBottom: '1rem' }}>{t('basicData')}</div>
-          <div className="form-group">
-            <label className="form-label" htmlFor="q-title">{t('metaTitle')}</label>
-            <input id="q-title" type="text" className="form-control" required autoFocus value={title} onChange={e => setTitle(e.target.value)} placeholder={t('metaTitlePlaceholder')} />
-          </div>
-
-          <div style={{ marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid var(--border-subtle)' }}>
-            <div style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.05em', marginBottom: '0.85rem' }}>{t('orderer')}</div>
-            <div style={{ display: 'flex', gap: '0.65rem', alignItems: 'flex-end', flexWrap: 'wrap' }}>
-              <div style={{ flex: 1, minWidth: '200px' }}>
-                <label className="form-label" htmlFor="q-client">{t('client')}</label>
-                <ClientSelect id="q-client" value={clientId} onChange={e => setClientId(e.target.value)} clients={clients} />
-              </div>
-              <button type="button" onClick={() => setShowNewClientModal(true)} className="btn btn-secondary btn-sm" style={{ whiteSpace: 'nowrap', marginBottom: 0 }}>
-                <Plus size={14} /> {t('newClientButton')}
-              </button>
-            </div>
-            {clientId && (() => { const c = clients.find(x => x.id === clientId); return c ? (
-              <div style={{ marginTop: '0.65rem', padding: '0.5rem 0.75rem', borderRadius: 'var(--radius-md)', background: 'var(--accent-light)', border: '1px solid var(--accent-border)', fontSize: '0.8rem', color: 'var(--accent)', fontWeight: 600 }}>
-                <User size={13} style={{ verticalAlign: 'middle', marginRight: '0.3rem' }} />
-                {c.name}{c.phone && ` · ${c.phone}`}
-              </div>
-            ) : null; })()}
-          </div>
-        </div>
-
-        {/* Optional details — desktop via CSS, hidden on mobile */}
         <div className="advanced-section" style={{ display: 'none' }}>
-          <div className="card mb-4" style={{ padding: '1.25rem' }}>
-            <div style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.05em', marginBottom: '1rem' }}>{t('details')}</div>
-            <div className="grid-2col">
-              <div className="form-group" style={{ margin: 0 }}>
-                <label className="form-label" htmlFor="q-location">{t('location')}</label>
-                <input id="q-location" type="text" className="form-control" value={location} onChange={e => setLocation(e.target.value)} placeholder={t('locationPlaceholder')} />
-              </div>
-              <div className="form-group" style={{ margin: 0 }}>
-                <label className="form-label" htmlFor="q-type">{t('workType')}</label>
-                <input id="q-type" type="text" className="form-control" value={workType} onChange={e => setWorkType(e.target.value)} placeholder={t('workTypePlaceholder')} />
-              </div>
-            </div>
-            <div className="form-group" style={{ marginTop: '0.75rem' }}>
-              <label className="form-label" htmlFor="q-desc">{t('descriptionLabel')}</label>
-              <textarea id="q-desc" rows={2} className="form-control" value={description} onChange={e => setDescription(e.target.value)} placeholder={t('descriptionPlaceholder')} />
-            </div>
-            <div className="grid-2col">
-              <div className="form-group" style={{ margin: 0 }}>
-                <label className="form-label" htmlFor="q-start">{t('plannedStart')}</label>
-                <input id="q-start" type="date" className="form-control" min={today()} value={startDate} onChange={e => { const v = e.target.value; setStartDate(v); if (v && (!endDate || endDate <= v)) setEndDate(nextDay(v)); }} />
-              </div>
-              <div className="form-group" style={{ margin: 0 }}>
-                <label className="form-label" htmlFor="q-end">{t('plannedEnd')}</label>
-                <input id="q-end" type="date" className="form-control" min={startDate ? nextDay(startDate) : undefined} value={endDate} onChange={e => setEndDate(e.target.value)} />
-              </div>
-            </div>
-            <div className="form-group" style={{ marginTop: '0.75rem', marginBottom: 0 }}>
-              <label className="form-label">{t('vatRate')}</label>
-              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
-                {['0', '5', '18', '27'].map(v => (
-                  <button key={v} type="button" onClick={() => handleTaxChange(v)}
-                    style={{ padding: '0.35rem 0.85rem', borderRadius: 'var(--radius-md)', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer', background: taxPercent === v ? 'var(--accent)' : 'var(--bg-subtle)', color: taxPercent === v ? '#fff' : 'var(--text-secondary)', border: `1px solid ${taxPercent === v ? 'var(--accent)' : 'var(--border-subtle)'}` }}>{v}%</button>
-                ))}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                  <input type="number" min="0" max="100" step="0.5" className="form-control text-mono" style={{ width: '80px' }} value={taxPercent} onChange={e => handleTaxChange(e.target.value)} />
-                  <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-secondary)' }}>%</span>
-                </div>
-              </div>
-            </div>
-          </div>
+          {detailsCard}
         </div>
 
-        {/* Desktop submit */}
         <div className="hide-mobile" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem' }}>
           <AppLink href={`${navPrefix}/ajanlatok`} className="btn btn-secondary">{tc('cancel')}</AppLink>
           <button type="submit" className="btn btn-primary" disabled={isSubmitting || !title.trim()}>
@@ -461,13 +498,8 @@ function NewQuotePageInner() {
           </button>
         </div>
 
-        {/* Mobile sticky submit */}
         <div className="show-mobile" style={{ marginTop: 24 }}>
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            style={{ width: '100%', height: 56, borderRadius: 999, background: '#0f172a', border: 'none', color: '#fff', fontSize: 17, fontWeight: 700, cursor: 'pointer' }}
-          >
+          <button type="submit" disabled={isSubmitting} style={{ width: '100%', height: 56, borderRadius: 999, background: '#0f172a', border: 'none', color: '#fff', fontSize: 17, fontWeight: 700, cursor: 'pointer' }}>
             {isSubmitting ? tc('creating') : t('createQuote')}
           </button>
         </div>

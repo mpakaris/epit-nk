@@ -1002,9 +1002,14 @@ export default function QuoteDetailPage() {
         </div>
       )}
 
-      {canEdit && showAddSection && (
+      <Modal
+        isOpen={!!(canEdit && showAddSection)}
+        onClose={() => setShowAddSection(false)}
+        title={t('sectionNewTitle')}
+        maxWidth="560px"
+      >
         <SectionAddForm surveyId={quote.survey_id} onSave={handleAddSection} onCancel={() => setShowAddSection(false)} />
-      )}
+      </Modal>
 
       {sections.length === 0 && !showAddSection && (
         <div className="card" style={{ textAlign: 'center', padding: '2rem 1.5rem', color: 'var(--text-muted)', fontSize: '0.875rem', marginBottom: '0.75rem' }}>

@@ -324,7 +324,26 @@
     "createQuote": "Create offer",
     "collectiveFallback": "Collective",
     "descriptionLabel": "Description / Notes",
-    "newClientNamePlaceholder": "John Smith"
+    "newClientNamePlaceholder": "John Smith",
+    "sectionNewTitle": "New section",
+    "sectionNameLabel": "Room name *",
+    "sectionNamePh": "e.g. Bathroom, Kitchen…",
+    "sectionNameRequired": "Room name is required!",
+    "sectionWidthLabel": "Width (m)",
+    "sectionLengthLabel": "Length (m)",
+    "sectionHeightLabel": "Height (m)",
+    "sectionWindowsLabel": "Windows",
+    "sectionDoorsLabel": "Doors",
+    "sectionWallLabel": "Wall area (m²)",
+    "sectionAreaCalc": "Floor area: {area} m²",
+    "sectionStartDate": "Start",
+    "sectionEndDate": "End",
+    "sectionDescLabel": "Description",
+    "sectionDescPh": "Work to be done, condition…",
+    "sectionPhotosLabel": "Photos",
+    "sectionPhotoBtn": "Photo",
+    "sectionAddBtn": "Add room",
+    "sectionSaveError": "Error saving"
   },
   "surveys": {
     "pageTitle": "Surveys",
@@ -1426,7 +1445,8 @@
       "noSharedItems": "No shared items in this collective.",
       "teamNudge": "Working in a team?",
       "collectivesLink": "Collectives →"
-    }
+    },
+    "teamBadge": "Team"
   },
   "projectDetail": {
     "back": "Back to projects",
@@ -1938,5 +1958,12 @@
     "emptySubtitle": "Add your labour rates — they will auto-fill quotes and surveys.",
     "emptyAddBtn": "Add first item",
     "deleteConfirm": "Delete {name}?"
+  },
+  "drawings": {
+    "drawLabel": "Draw a sketch",
+    "newTitle": "New sketch",
+    "header": "Sketches ({count})",
+    "addBtn": "Sketch",
+    "alt": "Sketch"
   }
 }

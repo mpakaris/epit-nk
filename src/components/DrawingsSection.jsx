@@ -1,11 +1,14 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
+import { useTranslations } from 'next-intl';
 import { PenLine, Plus, Trash2 } from 'lucide-react';
 import Modal from '@/components/Modal';
 import DrawingPad from '@/components/DrawingPad';
 
 export default function DrawingsSection({ drawings = [], onSave, onDelete, canEdit = true, compact = false, triggerCount = 0, hideHeader = false }) {
+  const t  = useTranslations('drawings');
+  const tc = useTranslations('common');
   const [showPad, setShowPad] = useState(false);
 
   const prevTriggerRef = useRef(triggerCount);
@@ -36,12 +39,12 @@ export default function DrawingsSection({ drawings = [], onSave, onDelete, canEd
         <button
           type="button"
           onClick={() => setShowPad(true)}
-          aria-label="Vázlat rajzolása"
+          aria-label={t('drawLabel')}
           style={{ width: 32, height: 32, borderRadius: '50%', background: 'var(--bg-subtle)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
         >
           <Plus size={16} color="var(--text-secondary)" strokeWidth={1.75} />
         </button>
-        <Modal isOpen={showPad} onClose={() => !saving && setShowPad(false)} title="Új vázlat" maxWidth="860px" maxHeight="95vh" persistent>
+        <Modal isOpen={showPad} onClose={() => !saving && setShowPad(false)} title={t('newTitle')} maxWidth="860px" maxHeight="95vh" persistent>
           <DrawingPad onSave={handleSave} onCancel={() => setShowPad(false)} saving={saving} />
         </Modal>
       </>
@@ -56,13 +59,13 @@ export default function DrawingsSection({ drawings = [], onSave, onDelete, canEd
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
               <PenLine size={14} color="var(--accent)" />
               <span style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.04em' }}>
-                Vázlatok ({drawings.length})
+                {t('header', { count: drawings.length })}
               </span>
             </div>
           )}
           {canEdit && (
             <button type="button" onClick={() => setShowPad(true)} className="btn btn-secondary btn-sm" style={{ fontSize: '0.78rem', marginLeft: drawings.length > 0 ? 'auto' : 0 }}>
-              <Plus size={13} /> {drawings.length > 0 ? 'Új vázlat' : 'Vázlat'}
+              <Plus size={13} /> {drawings.length > 0 ? t('newTitle') : t('addBtn')}
             </button>
           )}
         </div>
@@ -74,7 +77,7 @@ export default function DrawingsSection({ drawings = [], onSave, onDelete, canEd
             <div key={d.id} style={{ position: 'relative', borderRadius: 'var(--radius-md)', overflow: 'hidden', border: '1px solid var(--border-subtle)', background: 'var(--bg-subtle)' }}>
               <img
                 src={`data:image/svg+xml;utf8,${encodeURIComponent(d.svg_data)}`}
-                alt="Vázlat"
+                alt={t('alt')}
                 style={{ width: '100%', display: 'block' }}
               />
               {canEdit && (
@@ -83,7 +86,7 @@ export default function DrawingsSection({ drawings = [], onSave, onDelete, canEd
                   onClick={() => onDelete(d.id)}
                   className="btn btn-danger btn-sm"
                   style={{ position: 'absolute', top: '0.35rem', right: '0.35rem', padding: '0.25rem 0.45rem', opacity: 0.85 }}
-                  title="Törlés"
+                  title={tc('delete')}
                 >
                   <Trash2 size={12} />
                 </button>
@@ -93,7 +96,7 @@ export default function DrawingsSection({ drawings = [], onSave, onDelete, canEd
         </div>
       )}
 
-      <Modal isOpen={showPad} onClose={() => !saving && setShowPad(false)} title="Új vázlat" maxWidth="860px" maxHeight="95vh" persistent>
+      <Modal isOpen={showPad} onClose={() => !saving && setShowPad(false)} title={t('newTitle')} maxWidth="860px" maxHeight="95vh" persistent>
         <DrawingPad onSave={handleSave} onCancel={() => setShowPad(false)} saving={saving} />
       </Modal>
     </div>

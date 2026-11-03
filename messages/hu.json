@@ -271,7 +271,26 @@
     "createQuote": "Ajánlat létrehozása",
     "collectiveFallback": "Kollektíva",
     "descriptionLabel": "Leírás / Megjegyzés",
-    "newClientNamePlaceholder": "Horváth Béla"
+    "newClientNamePlaceholder": "Horváth Béla",
+    "sectionNewTitle": "Új szekció",
+    "sectionNameLabel": "Helyiség neve *",
+    "sectionNamePh": "pl. Fürdőszoba, Konyha…",
+    "sectionNameRequired": "A helyiség neve kötelező!",
+    "sectionWidthLabel": "Szél. (m)",
+    "sectionLengthLabel": "Hossz. (m)",
+    "sectionHeightLabel": "Magass. (m)",
+    "sectionWindowsLabel": "Ablak (db)",
+    "sectionDoorsLabel": "Ajtó (db)",
+    "sectionWallLabel": "Falfel. (m²)",
+    "sectionAreaCalc": "Alapterület: {area} m²",
+    "sectionStartDate": "Kezdés",
+    "sectionEndDate": "Befejezés",
+    "sectionDescLabel": "Leírás",
+    "sectionDescPh": "Elvégzendő munkák, állapot…",
+    "sectionPhotosLabel": "Fotók",
+    "sectionPhotoBtn": "Fotó",
+    "sectionAddBtn": "Helyiség hozzáadása",
+    "sectionSaveError": "Hiba a mentéskor"
   },
   "surveys": {
     "pageTitle": "Felmérések",
@@ -1426,7 +1445,8 @@
       "noSharedItems": "Nincs megosztott elem ebben a kollektívában.",
       "teamNudge": "Csapatban is dolgozol?",
       "collectivesLink": "Kollektívák →"
-    }
+    },
+    "teamBadge": "Csapat"
   },
   "projectDetail": {
     "back": "Vissza a projektekhez",
@@ -1938,5 +1958,12 @@
     "emptySubtitle": "Vedd fel munkadíjaidat — ezek auto-kitöltik az ajánlatokat és felméréseket.",
     "emptyAddBtn": "Első tétel hozzáadása",
     "deleteConfirm": "Biztosan törli: {name}?"
+  },
+  "drawings": {
+    "drawLabel": "Vázlat rajzolása",
+    "newTitle": "Új vázlat",
+    "header": "Vázlatok ({count})",
+    "addBtn": "Vázlat",
+    "alt": "Vázlat"
   }
 }

@@ -7,7 +7,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useApp } from '@/context/AppContext';
 import { formatDate } from '@/lib/constants';
-import { ConfirmModal, AlertModal } from '@/components/Modal';
+import Modal, { ConfirmModal, AlertModal } from '@/components/Modal';
 import LockedDocumentModal from '@/components/LockedDocumentModal';
 import CollectiveBanner from '@/components/CollectiveBanner';
 import DrawingsSection from '@/components/DrawingsSection';
@@ -237,7 +237,8 @@ function EntryForm({ initial, surveyId, onSave, onCancel }) {
 
 // ── Meta edit drawer (bottom sheet) ───────────────────────────────────────────
 function MetaDrawer({ survey, clients, isOpen, onClose, onSave }) {
-  const t = useTranslations('surveyDetail');
+  const t  = useTranslations('surveyDetail');
+  const tc = useTranslations('common');
   const [title, setTitle]       = useState('');
   const [date, setDate]         = useState('');
   const [location, setLocation] = useState('');
@@ -258,7 +259,7 @@ function MetaDrawer({ survey, clients, isOpen, onClose, onSave }) {
     setSaving(false);
   }, [isOpen, survey]);
 
-  const handleClose = async () => {
+  const handleSave = async () => {
     if (!title.trim()) { setError(t('metaNameRequired')); return; }
     setSaving(true);
     setError('');
@@ -277,77 +278,71 @@ function MetaDrawer({ survey, clients, isOpen, onClose, onSave }) {
     }
   };
 
-  if (!isOpen) return null;
-
   return (
-    <>
-      <div onClick={handleClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 200 }} />
-      <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 201, background: 'var(--bg-card)', borderRadius: 'var(--radius-lg) var(--radius-lg) 0 0', boxShadow: '0 -4px 32px rgba(0,0,0,0.18)', maxHeight: '90vh', overflow: 'auto', padding: '1.25rem 1.25rem 2rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
-          <span style={{ fontSize: '1rem', fontWeight: 800 }}>{t('metaDrawerTitle')}</span>
-          <button type="button" onClick={handleClose} disabled={saving}
-            style={{ background: 'var(--bg-subtle)', border: 'none', borderRadius: '50%', width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: saving ? 'not-allowed' : 'pointer', color: 'var(--text-secondary)' }}>
-            {saving ? <Loader2 size={15} className="animate-spin" /> : <X size={16} />}
-          </button>
+    <Modal isOpen={isOpen} onClose={onClose} title={t('metaDrawerTitle')} maxWidth="560px">
+      {error && (
+        <div style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', color: 'var(--danger-text)', padding: '0.55rem 0.75rem', borderRadius: 'var(--radius-md)', fontSize: '0.8rem', display: 'flex', gap: '0.4rem', marginBottom: '0.75rem' }}>
+          <AlertCircle size={14} style={{ flexShrink: 0 }} /><span>{error}</span>
         </div>
-        {error && (
-          <div style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', color: 'var(--danger-text)', padding: '0.55rem 0.75rem', borderRadius: 'var(--radius-md)', fontSize: '0.8rem', display: 'flex', gap: '0.4rem', marginBottom: '0.75rem' }}>
-            <AlertCircle size={14} style={{ flexShrink: 0 }} /><span>{error}</span>
-          </div>
-        )}
-        <div className="form-group">
-          <label className="form-label" htmlFor="sv-title">{t('metaNameLabel')}</label>
-          <input id="sv-title" type="text" className="form-control" autoFocus value={title} onChange={e => setTitle(e.target.value)} placeholder={t('metaNamePlaceholder')} />
+      )}
+      <div className="form-group">
+        <label className="form-label" htmlFor="sv-title">{t('metaNameLabel')}</label>
+        <input id="sv-title" type="text" className="form-control" autoFocus value={title} onChange={e => setTitle(e.target.value)} placeholder={t('metaNamePlaceholder')} />
+      </div>
+      <div className="grid-2col">
+        <div className="form-group" style={{ margin: 0 }}>
+          <label className="form-label" htmlFor="sv-date">{t('metaDateLabel')}</label>
+          <input id="sv-date" type="date" className="form-control" value={date} onChange={e => setDate(e.target.value)} />
         </div>
-        <div className="grid-2col">
-          <div className="form-group" style={{ margin: 0 }}>
-            <label className="form-label" htmlFor="sv-date">{t('metaDateLabel')}</label>
-            <input id="sv-date" type="date" className="form-control" value={date} onChange={e => setDate(e.target.value)} />
-          </div>
-          <div className="form-group" style={{ margin: 0 }}>
-            <label className="form-label" htmlFor="sv-location">{t('metaLocationLabel')}</label>
-            <input id="sv-location" type="text" className="form-control" value={location} onChange={e => setLocation(e.target.value)} placeholder={t('metaLocationPlaceholder')} />
-          </div>
-        </div>
-        <div className="form-group" style={{ marginTop: '0.75rem' }}>
-          <label className="form-label" htmlFor="sv-client">{t('metaClientLabel')}</label>
-          <select id="sv-client" className="form-control" value={clientId} onChange={e => setClientId(e.target.value)}>
-            <option value="">{t('metaNoClient')}</option>
-            {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-          </select>
-        </div>
-        <div className="form-group">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.3rem' }}>
-            <label className="form-label" htmlFor="sv-notes" style={{ margin: 0 }}>{t('metaNotesLabel')}</label>
-            <AudioRecorder
-              size="sm"
-              disabled={formatting}
-              hasContent={!!notes.trim()}
-              onTranscript={async (text) => {
-                setFormatting(true);
-                try {
-                  const res = await fetch('/api/format-notes', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ transcript: text }),
-                  });
-                  const data = await res.json();
-                  const formatted = res.ok ? (data.formatted || text) : text;
-                  setNotes(n => n.trim() ? n.trim() + '\n\n' + formatted : formatted);
-                } catch {
-                  setNotes(n => n.trim() ? n.trim() + '\n\n' + text : text);
-                } finally {
-                  setFormatting(false);
-                }
-              }}
-              onError={() => {}}
-            />
-            {formatting && <Loader2 size={13} className="animate-spin" style={{ color: 'var(--text-muted)' }} />}
-          </div>
-          <textarea id="sv-notes" rows={3} className="form-control" value={notes} onChange={e => setNotes(e.target.value)} placeholder={t('metaNotesPlaceholder')} />
+        <div className="form-group" style={{ margin: 0 }}>
+          <label className="form-label" htmlFor="sv-location">{t('metaLocationLabel')}</label>
+          <input id="sv-location" type="text" className="form-control" value={location} onChange={e => setLocation(e.target.value)} placeholder={t('metaLocationPlaceholder')} />
         </div>
       </div>
-    </>
+      <div className="form-group" style={{ marginTop: '0.75rem' }}>
+        <label className="form-label" htmlFor="sv-client">{t('metaClientLabel')}</label>
+        <select id="sv-client" className="form-control" value={clientId} onChange={e => setClientId(e.target.value)}>
+          <option value="">{t('metaNoClient')}</option>
+          {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+        </select>
+      </div>
+      <div className="form-group">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.3rem' }}>
+          <label className="form-label" htmlFor="sv-notes" style={{ margin: 0 }}>{t('metaNotesLabel')}</label>
+          <AudioRecorder
+            size="sm"
+            disabled={formatting}
+            hasContent={!!notes.trim()}
+            onTranscript={async (text) => {
+              setFormatting(true);
+              try {
+                const res = await fetch('/api/format-notes', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ transcript: text }),
+                });
+                const data = await res.json();
+                const formatted = res.ok ? (data.formatted || text) : text;
+                setNotes(n => n.trim() ? n.trim() + '\n\n' + formatted : formatted);
+              } catch {
+                setNotes(n => n.trim() ? n.trim() + '\n\n' + text : text);
+              } finally {
+                setFormatting(false);
+              }
+            }}
+            onError={() => {}}
+          />
+          {formatting && <Loader2 size={13} className="animate-spin" style={{ color: 'var(--text-muted)' }} />}
+        </div>
+        <textarea id="sv-notes" rows={3} className="form-control" value={notes} onChange={e => setNotes(e.target.value)} placeholder={t('metaNotesPlaceholder')} />
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '0.5rem' }}>
+        <button type="button" className="btn btn-secondary" onClick={onClose} disabled={saving}>{tc('cancel')}</button>
+        <button type="button" className="btn btn-primary" onClick={handleSave} disabled={saving}>
+          {saving ? <><Loader2 size={15} className="animate-spin" />{tc('saving')}</> : tc('save')}
+        </button>
+      </div>
+    </Modal>
   );
 }
 
@@ -857,16 +852,18 @@ export default function SurveyDetailPage() {
           )}
         </div>
 
-        {canAdd && showAddEntry && !editingEntry && (
-          <div className="card" style={{ padding: '1rem', border: '2px solid var(--accent-border)', background: 'var(--accent-light)', marginBottom: '0.75rem' }}>
-            <div style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--accent)', letterSpacing: '0.05em', marginBottom: '0.75rem' }}>{t('newRoomHeader')}</div>
-            <EntryForm
-              surveyId={id}
-              onSave={(fields) => createSurveyEntry(id, fields)}
-              onCancel={() => setShowAddEntry(false)}
-            />
-          </div>
-        )}
+        <Modal
+          isOpen={canAdd && showAddEntry && !editingEntry}
+          onClose={() => setShowAddEntry(false)}
+          title={t('newRoomHeader')}
+          maxWidth="560px"
+        >
+          <EntryForm
+            surveyId={id}
+            onSave={(fields) => createSurveyEntry(id, fields)}
+            onCancel={() => setShowAddEntry(false)}
+          />
+        </Modal>
 
         {!detailLoading && entries.length === 0 && !showAddEntry && (
           <div className="card" style={{ textAlign: 'center', padding: '2rem 1.5rem', color: 'var(--text-muted)', fontSize: '0.875rem' }}>

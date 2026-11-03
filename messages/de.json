@@ -146,7 +146,7 @@
     "emptyTextFiltered": "Versuchen Sie einen anderen Filter.",
     "emptyTextSearch": "Versuchen Sie andere Suchbegriffe.",
     "deleteConfirmTitle": "Angebot löschen",
-    "deleteConfirmMessage": "Möchten Sie das Projekt „{name}“ wirklich löschen?",
+    "deleteConfirmMessage": "Möchten Sie das Angebot „{title}\" wirklich löschen?",
     "nudge": "Erstellen Sie ein Kollektiv und arbeiten Sie gemeinsam an Angeboten.",
     "filterAll": "Alle",
     "new": "Neues Angebot",
@@ -324,7 +324,26 @@
     "createQuote": "Angebot erstellen",
     "collectiveFallback": "Kollektiv",
     "descriptionLabel": "Beschreibung / Notizen",
-    "newClientNamePlaceholder": "Max Mustermann"
+    "newClientNamePlaceholder": "Max Mustermann",
+    "sectionNewTitle": "Neuer Abschnitt",
+    "sectionNameLabel": "Raumname *",
+    "sectionNamePh": "z.B. Bad, Küche…",
+    "sectionNameRequired": "Raumname ist erforderlich!",
+    "sectionWidthLabel": "Breite (m)",
+    "sectionLengthLabel": "Länge (m)",
+    "sectionHeightLabel": "Höhe (m)",
+    "sectionWindowsLabel": "Fenster",
+    "sectionDoorsLabel": "Türen",
+    "sectionWallLabel": "Wandfl. (m²)",
+    "sectionAreaCalc": "Grundfläche: {area} m²",
+    "sectionStartDate": "Beginn",
+    "sectionEndDate": "Ende",
+    "sectionDescLabel": "Beschreibung",
+    "sectionDescPh": "Zu erledigende Arbeiten, Zustand…",
+    "sectionPhotosLabel": "Fotos",
+    "sectionPhotoBtn": "Foto",
+    "sectionAddBtn": "Raum hinzufügen",
+    "sectionSaveError": "Fehler beim Speichern"
   },
   "surveys": {
     "pageTitle": "Aufmaße",
@@ -336,7 +355,7 @@
     "emptyText": "Erstellen Sie das erste Aufmaß.",
     "emptyTextFiltered": "Versuchen Sie andere Suchbegriffe.",
     "deleteConfirmTitle": "Aufmaß löschen",
-    "deleteConfirmMessage": "Möchten Sie das Projekt „{name}“ wirklich löschen?",
+    "deleteConfirmMessage": "Möchten Sie das Aufmaß „{title}\" wirklich löschen?{extra} Dies kann nicht rückgängig gemacht werden.",
     "deleteConfirmExtra": " Wird endgültig gelöscht: {items}.",
     "deleteConfirmPhotos": "{count} Fotos/Videos",
     "deleteConfirmDrawings": "{count} Skizzen",
@@ -1426,7 +1445,8 @@
       "noSharedItems": "Keine geteilten Einträge in diesem Kollektiv.",
       "teamNudge": "Arbeiten Sie im Team?",
       "collectivesLink": "Kollektive →"
-    }
+    },
+    "teamBadge": "Team"
   },
   "projectDetail": {
     "back": "Zurück zu den Projekten",
@@ -1938,5 +1958,12 @@
     "emptySubtitle": "Füge deine Arbeitspreise hinzu — sie füllen Angebote und Aufmaße automatisch aus.",
     "emptyAddBtn": "Ersten Artikel hinzufügen",
     "deleteConfirm": "{name} wirklich löschen?"
+  },
+  "drawings": {
+    "drawLabel": "Skizze zeichnen",
+    "newTitle": "Neue Skizze",
+    "header": "Skizzen ({count})",
+    "addBtn": "Skizze",
+    "alt": "Skizze"
   }
 }

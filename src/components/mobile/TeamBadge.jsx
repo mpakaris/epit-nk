@@ -1,9 +1,11 @@
 'use client';
 
 import React from 'react';
+import { useTranslations } from 'next-intl';
 import { Users } from 'lucide-react';
 
 export default function TeamBadge() {
+  const t = useTranslations('mobile');
   return (
     <span style={{
       display: 'inline-flex', alignItems: 'center', gap: 4,
@@ -14,7 +16,7 @@ export default function TeamBadge() {
       flexShrink: 0,
     }}>
       <Users size={13} color="#ea580c" strokeWidth={1.75} aria-hidden="true" />
-      Csapat
+      {t('teamBadge')}
     </span>
   );
 }
