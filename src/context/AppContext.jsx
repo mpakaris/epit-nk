@@ -231,10 +231,15 @@ export function AppProvider({ children }) {
           };
           setCurrentUser(user);
 
-          // Sync locale preference to cookie so next-intl picks it up
-          if (profile?.locale && typeof document !== 'undefined') {
-            const secure = window.location.protocol === 'https:' ? ';Secure' : '';
-            document.cookie = `NEXT_LOCALE=${profile.locale};path=/;max-age=31536000;SameSite=Lax${secure}`;
+          // Sync locale preference to cookie so next-intl picks it up.
+          // Also clear any stale Secure variant left by a previous bad deploy —
+          // if both a Secure and a non-Secure NEXT_LOCALE cookie exist the
+          // middleware reads the wrong one and always falls back to Hungarian.
+          if (typeof document !== 'undefined') {
+            document.cookie = `NEXT_LOCALE=;path=/;max-age=0;SameSite=Lax;Secure`;
+            if (profile?.locale) {
+              document.cookie = `NEXT_LOCALE=${profile.locale};path=/;max-age=31536000;SameSite=Lax`;
+            }
           }
           // Show onboarding if locale or currency not yet set (skip for superadmin)
           if (user.role !== 'superadmin' && (!profile?.locale || !profile?.currency)) {
@@ -366,8 +371,7 @@ export function AppProvider({ children }) {
           setNeedsOnboarding(false);
           setCurrentUser(u => u ? { ...u, locale, currency } : u);
           if (typeof document !== 'undefined') {
-            const secure = window.location.protocol === 'https:' ? ';Secure' : '';
-            document.cookie = `NEXT_LOCALE=${locale};path=/;max-age=31536000;SameSite=Lax${secure}`;
+            document.cookie = `NEXT_LOCALE=${locale};path=/;max-age=31536000;SameSite=Lax`;
           }
         },
         userCurrency: (impersonating || currentUser)?.currency || 'HUF',

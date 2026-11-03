@@ -633,8 +633,7 @@ export default function ProfilPage() {
       // entirely in the NEXT_LOCALE cookie — next-intl's router methods all produce
       // wrong URLs (prefix injection, nxtPlocale param, wrong page). A plain reload
       // sends the updated cookie to the server and the middleware picks it up.
-      const secure = typeof window !== 'undefined' && window.location.protocol === 'https:' ? ';Secure' : '';
-      document.cookie = `NEXT_LOCALE=${newLocale};path=/;max-age=31536000;SameSite=Lax${secure}`;
+      document.cookie = `NEXT_LOCALE=${newLocale};path=/;max-age=31536000;SameSite=Lax`;
       window.location.reload();
     } finally {
       setSavingLocale(false);
