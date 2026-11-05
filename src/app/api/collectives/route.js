@@ -54,7 +54,7 @@ export async function GET(request) {
   // Fetch profile for subscription checks
   const { data: profile } = await admin
     .from('profiles')
-    .select('display_name, role, is_subscription_premium, subscription_tier, trial_ends_at')
+    .select('display_name, role, is_subscription_premium, subscription_tier, trial_ends_at, locale')
     .eq('id', user.id)
     .single();
 
@@ -155,11 +155,14 @@ export async function GET(request) {
       }
     } else {
     const displayName = profile?.display_name || 'Felhasználó';
+    const locale = profile?.locale || 'hu';
+    const workspaceSuffix = locale === 'de' ? 'Arbeitsbereich' : locale === 'en' ? 'Workspace' : 'Csapata';
+    const workspaceName = `${displayName} ${workspaceSuffix}`;
     const newId = globalThis.crypto.randomUUID();
     const now = new Date().toISOString();
     await admin.from('collectives').insert({
       id:                  newId,
-      name:                `${displayName} Csapata`,
+      name:                workspaceName,
       is_inclusive:        true,
       subscription_status: 'active',
     });
@@ -171,7 +174,7 @@ export async function GET(request) {
     });
     collectives.push({
       id:                    newId,
-      name:                  `${displayName} Csapata`,
+      name:                  workspaceName,
       created_at:            now,
       collective_tier:          null,
       creem_subscription_id:    null,
