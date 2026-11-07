@@ -172,7 +172,8 @@ describe('Soft delete: user-content tables have deleted_at column (CLAUDE.md §4
       .select('id, deleted_at')
       .limit(1)
 
-    if (error && error.message?.includes('deleted_at')) {
+    const errorMsg = error?.message ?? ''
+    if (errorMsg.includes('deleted_at')) {
       throw new Error(
         `Table "${tableName}" is missing the deleted_at column. ` +
         `Run: ALTER TABLE public.${tableName} ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ DEFAULT NULL;`
@@ -180,7 +181,7 @@ describe('Soft delete: user-content tables have deleted_at column (CLAUDE.md §4
     }
 
     // No error or unrelated error → column exists
-    expect(error?.message).not.toMatch(/deleted_at/)
+    expect(errorMsg).not.toMatch(/deleted_at/)
   })
 })
 
@@ -191,8 +192,8 @@ describe('Required Postgres functions exist', () => {
     const { error } = await admin.rpc('is_admin')
     // A "wrong number of arguments" or similar error means the function exists
     // A "function does not exist" means it's missing
-    const missing = error?.message?.includes('does not exist') ||
-                    error?.message?.includes('Could not find')
+    const missing = !!(error?.message?.includes('does not exist') ||
+                       error?.message?.includes('Could not find'))
     if (missing) {
       throw new Error('is_admin() function is missing from the DB. Check src/supabase/schema.sql §6.')
     }
@@ -210,21 +211,26 @@ describe('Required Postgres functions exist', () => {
 // ── Test 5: Core tables exist (schema gaps from CLAUDE.md known issues) ──────
 
 describe('Required tables exist (schema completeness)', () => {
+  // survey_items was dropped in migration 140 (replaced by survey_entry_items in code)
   const REQUIRED_TABLES = [
-    { table: 'survey_items',   note: 'Create via Task 11a in DB_Safety.md' },
-    { table: 'collectives',    note: 'Created in migration 052' },
-    { table: 'collective_members', note: 'Created in migration 052' },
-    { table: 'transfer_requests',  note: 'Created in migration 112' },
-    { table: 'media_items',    note: 'Created in migration 119' },
+    { table: 'collectives',         note: 'Created in migration 052' },
+    { table: 'collective_members',  note: 'Created in migration 052' },
+    { table: 'transfer_requests',   note: 'Created in migration 112' },
+    { table: 'media_items',         note: 'Created in migration 119' },
   ]
 
   it.each(REQUIRED_TABLES)('$table exists', async ({ table, note }) => {
-    const { error } = await admin.from(table).select('id').limit(1)
-    if (error?.message?.includes('does not exist') || error?.message?.includes('relation')) {
-      throw new Error(`Table "${table}" does not exist in the DB. ${note}`)
+    // Use select('*').limit(0) — avoids hardcoding column names (collective_members has no 'id')
+    const { error } = await admin.from(table).select('*').limit(0)
+    const errorMsg = error?.message ?? ''
+    const missing = errorMsg.includes('does not exist') ||
+                    errorMsg.includes('Could not find') ||
+                    errorMsg.includes('relation')
+    if (missing) {
+      throw new Error(`Table "${table}" does not exist in the DB. ${note}\nError: ${errorMsg}`)
     }
     // A "no rows" response (data=[]) is fine — table exists, just empty
-    expect(error?.message).not.toMatch(/does not exist/)
+    expect(errorMsg).not.toMatch(/does not exist/)
   })
 })
 

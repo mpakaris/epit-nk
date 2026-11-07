@@ -143,7 +143,8 @@ beforeAll(async () => {
     .from('invoices')
     .insert({
       project_id:     projectId,
-      owner_id:       contractorId,
+      uploaded_by:    contractorId,
+      category:       'Anyag',
       value_huf:      50000,
       description:    '[TEST] Anyagszámla',
       portal_visible: false,
@@ -158,8 +159,11 @@ beforeAll(async () => {
     .from('labour_entries')
     .insert({
       project_id:     projectId,
-      owner_id:       contractorId,
+      uploaded_by:    contractorId,
       labour_type:    '[TEST] Napszám',
+      date:           new Date().toISOString().slice(0, 10),
+      hours:          8,
+      hourly_rate:    3750,
       value_huf:      30000,
       portal_visible: false,
     })

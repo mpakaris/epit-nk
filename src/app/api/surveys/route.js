@@ -98,7 +98,7 @@ export async function POST(request) {
   }
 
   if (Array.isArray(shared_with) && shared_with.length > 0) {
-    await admin.from('surveys').update({ shared_with }).eq('id', survey.id).catch(() => {});
+    await admin.from('surveys').update({ shared_with }).eq('id', survey.id);
   }
 
   logAudit({

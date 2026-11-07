@@ -61,7 +61,7 @@ export async function GET(request) {
   // Projects
   const { data: rawProjects } = await admin
     .from('projects')
-    .select('id, client_id, owner_id, name, description, status, start_date, end_date, created_at, project_id')
+    .select('id, client_id, owner_id, name, description, status, start_date, end_date, created_at')
     .in('client_id', clientIds)
     .is('deleted_at', null)
     .order('created_at', { ascending: false });

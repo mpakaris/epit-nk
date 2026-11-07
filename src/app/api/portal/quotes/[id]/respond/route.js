@@ -59,13 +59,14 @@ export async function POST(request, { params }) {
   }
 
   // Persist comment to history
+  // Supabase builders don't have .catch() — errors are in the error field, never rejections
   await admin.from('quote_client_comments').insert({
     quote_id:     id,
     action,
     comment:      comment.trim() || null,
     client_email: user.email,
     client_name:  client.name,
-  }).catch(() => {});
+  });
 
   // Send email notification to contractor
   if (contractorEmail) {
