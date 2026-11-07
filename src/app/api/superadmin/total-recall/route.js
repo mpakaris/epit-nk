@@ -1,19 +1,20 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { deleteFromR2 } from '@/lib/r2';
+import { logAudit } from '@/lib/audit';
 
 async function assertSuperAdmin() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return null;
+  if (!user) return { admin: null };
   const admin = createAdminClient();
-  const { data: profile } = await admin.from('profiles').select('role').eq('id', user.id).single();
-  return profile?.role === 'superadmin' ? admin : null;
+  const { data: profile } = await admin.from('profiles').select('role, display_name').eq('id', user.id).single();
+  return profile?.role === 'superadmin' ? { admin, user, profile } : { admin: null };
 }
 
 // GET — list all users + aggregate stats
 export async function GET() {
-  const admin = await assertSuperAdmin();
+  const { admin } = await assertSuperAdmin();
   if (!admin) return Response.json({ error: 'Unauthorized' }, { status: 403 });
 
   const [
@@ -38,7 +39,7 @@ export async function GET() {
 
 // DELETE — total recall: wipe every trace of a user including R2 media
 export async function DELETE(req) {
-  const admin = await assertSuperAdmin();
+  const { admin, user: saUser, profile: saProfile } = await assertSuperAdmin();
   if (!admin) return Response.json({ error: 'Unauthorized' }, { status: 403 });
 
   const { email } = await req.json();
@@ -53,6 +54,7 @@ export async function DELETE(req) {
   if (!profile) return Response.json({ error: `No user found for ${email}` }, { status: 404 });
 
   const uid = profile.id;
+  await logAudit({ userId: saUser.id, userName: saProfile.display_name || '', action: 'Total recall initiated', targetType: 'admin', targetId: uid, targetName: email, details: { target_email: email } });
   const errors = [];
 
   const attempt = async (label, fn) => {
@@ -178,6 +180,7 @@ export async function DELETE(req) {
   }));
 
   console.log(`[total-recall] ${email} (${uid}) wiped. DB errors: ${errors.length}, R2 deleted: ${uniqueKeys.length}, R2 errors: ${r2Errors.length}`);
+  logAudit({ userId: saUser.id, userName: saProfile.display_name || '', action: 'Total recall completed', targetType: 'admin', targetId: uid, targetName: email, details: { r2_deleted: uniqueKeys.length, db_errors: errors.length } });
 
   return Response.json({
     ok: true,

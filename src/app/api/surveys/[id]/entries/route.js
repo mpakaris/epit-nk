@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { checkSurveyAccess } from '@/lib/surveyAccess';
+import { logAudit } from '@/lib/audit';
 
 async function getCtx(surveyId) {
   const supabase = await createClient();
@@ -15,7 +16,7 @@ async function getCtx(surveyId) {
     const access = await checkSurveyAccess(admin, survey, user.id, surveyId);
     if (!access.allowed) return { err: 'Forbidden', status: 403 };
   }
-  return { profile, admin };
+  return { profile, admin, survey };
 }
 
 export async function POST(request, { params }) {
@@ -57,6 +58,10 @@ export async function POST(request, { params }) {
   }
   const entry = data;
 
-  if (error) return Response.json({ error: error.message }, { status: 500 });
+  if (error) {
+    logAudit({ entityId: ctx.survey?.collective_id || ctx.profile.id, userId: ctx.profile.id, userName: ctx.profile.display_name || '', action: 'Survey entry creation failed', targetType: 'survey_entry', details: { error: error.message, survey_id: surveyId } });
+    return Response.json({ error: error.message }, { status: 500 });
+  }
+  logAudit({ entityId: ctx.survey?.collective_id || ctx.profile.id, userId: ctx.profile.id, userName: ctx.profile.display_name || '', action: 'Survey entry created', targetType: 'survey_entry', targetId: entry.id, targetName: entry.name });
   return Response.json({ entry: { ...entry, media: [] } }, { status: 201 });
 }

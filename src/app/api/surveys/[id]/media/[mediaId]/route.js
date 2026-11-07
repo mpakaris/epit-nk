@@ -3,6 +3,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { deleteFromR2 } from '@/lib/r2';
 import { checkWhereImageIsUsed } from '@/lib/mediaUsage';
 import { checkSurveyAccess } from '@/lib/surveyAccess';
+import { logAudit } from '@/lib/audit';
 
 export async function DELETE(request, { params }) {
   const { id: surveyId, mediaId } = await params;
@@ -54,5 +55,6 @@ export async function DELETE(request, { params }) {
   if (total === 0) {
     try { await deleteFromR2(r2Key); } catch {}
   }
+  logAudit({ entityId: survey.collective_id || user.id, userId: user.id, action: 'Survey media deleted', targetType: 'survey_media', targetId: mediaId, details: { survey_id: surveyId } });
   return Response.json({ success: true });
 }

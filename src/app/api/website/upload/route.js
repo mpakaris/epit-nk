@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { uploadToR2, deleteFromR2, r2PublicUrl, toWebp } from '@/lib/r2';
 import { resolveEffectiveUserId } from '@/lib/godMode';
+import { logAudit } from '@/lib/audit';
 
 const MAX_SIZE_ABOUT        = 5  * 1024 * 1024;  // 5 MB
 const MAX_SIZE_GALLERY_IMG  = 15 * 1024 * 1024;  // 15 MB
@@ -118,6 +119,7 @@ export async function POST(request) {
     }
   }
 
+  logAudit({ userId: effectiveUserId, userName: '', action: 'Website media uploaded', targetType: 'website', targetId: website.id, details: { type, count: results.length } });
   return Response.json({ files: results });
 }
 
@@ -137,5 +139,6 @@ export async function DELETE(request) {
   }
 
   await deleteFromR2(r2_key);
+  logAudit({ userId: effectiveUserId, userName: '', action: 'Website media deleted', targetType: 'website', details: { r2_key } });
   return Response.json({ success: true });
 }

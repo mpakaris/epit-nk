@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { logAudit } from '@/lib/audit';
 
 export async function POST(request, { params }) {
   const { id: projectId } = await params;
@@ -89,6 +90,11 @@ export async function POST(request, { params }) {
     .insert(toInsert)
     .select();
 
-  if (insertErr) return Response.json({ error: insertErr.message }, { status: 500 });
+  if (insertErr) {
+    logAudit({ entityId: project.collective_id || user.id, userId: user.id, userName: profile.display_name || '', action: 'Rooms sync from quote failed', targetType: 'project_room', targetId: projectId, details: { error: insertErr.message } });
+    return Response.json({ error: insertErr.message }, { status: 500 });
+  }
+
+  logAudit({ entityId: project.collective_id || user.id, userId: user.id, userName: profile.display_name || '', action: 'Rooms synced from quote', targetType: 'project_room', targetId: projectId, details: { created: created.length } });
   return Response.json({ created: created.length, rooms: created });
 }

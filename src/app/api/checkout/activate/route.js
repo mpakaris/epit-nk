@@ -25,11 +25,13 @@ export async function POST(request) {
     console.error('[activate] Creem lookup failed', res.status, JSON.stringify(errBody));
     // Don't block activation on a lookup failure — subscription_id came from Creem's own redirect
     console.warn('[activate] granting premium anyway based on Creem redirect params');
+    logAudit({ userId: user.id, userName: user.email, action: 'Activation — Creem lookup failed (granting anyway)', targetType: 'payment', targetId: subscriptionId, details: { creem_status: res.status, error: JSON.stringify(errBody) } });
   } else {
     const sub = await res.json();
     const status = sub?.status;
     console.log('[activate] subscription status:', status, 'for user:', user.id);
     if (!['active', 'trialing', 'paid'].includes(status)) {
+      logAudit({ userId: user.id, userName: user.email, action: 'Activation blocked — subscription not active', targetType: 'payment', targetId: subscriptionId, details: { creem_status: status, error: `Subscription status is '${status}', expected active/trialing/paid` } });
       return NextResponse.json({ error: `Subscription not active (${status})` }, { status: 402 });
     }
   }

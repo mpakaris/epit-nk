@@ -1,10 +1,11 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { logAudit } from '@/lib/audit';
 
 async function requireOwnerOrAdmin(user, admin) {
   const { data: profile } = await admin
     .from('profiles')
-    .select('active_collective_id')
+    .select('active_collective_id, display_name')
     .eq('id', user.id)
     .single();
   if (!profile?.active_collective_id) return { error: 'Nincs aktív kollektíva', status: 403 };
@@ -20,7 +21,7 @@ async function requireOwnerOrAdmin(user, admin) {
   if (!member || !['owner', 'admin'].includes(member.role)) {
     return { error: 'Nincs jogosultságod', status: 403 };
   }
-  return { collectiveId: profile.active_collective_id };
+  return { collectiveId: profile.active_collective_id, displayName: profile.display_name };
 }
 
 export async function GET(request, { params }) {
@@ -69,6 +70,7 @@ export async function PATCH(request, { params }) {
     .eq('collective_id', ctx.collectiveId);
 
   if (error) return Response.json({ error: error.message }, { status: 500 });
+  logAudit({ entityId: ctx.collectiveId, userId: user.id, userName: ctx.displayName || '', action: 'WA account updated', targetType: 'wa_account', targetId: id });
   return Response.json({ updated: true });
 }
 
@@ -87,5 +89,6 @@ export async function DELETE(request, { params }) {
     .eq('id', id)
     .eq('collective_id', ctx.collectiveId);
 
+  logAudit({ entityId: ctx.collectiveId, userId: user.id, userName: ctx.displayName || '', action: 'WA account deactivated', targetType: 'wa_account', targetId: id });
   return Response.json({ deactivated: true });
 }

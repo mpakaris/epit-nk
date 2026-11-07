@@ -1,13 +1,14 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { checkSurveyAccess } from '@/lib/surveyAccess';
+import { logAudit } from '@/lib/audit';
 
 async function getCtx(surveyId) {
   const supabase = await createClient();
   const { data: { user }, error } = await supabase.auth.getUser();
   if (error || !user) return { err: 'Unauthenticated', status: 401 };
   const admin = createAdminClient();
-  const { data: profile } = await admin.from('profiles').select('id, role').eq('id', user.id).single();
+  const { data: profile } = await admin.from('profiles').select('id, role, display_name').eq('id', user.id).single();
   if (!profile) return { err: 'Forbidden', status: 403 };
   const { data: survey } = await admin.from('surveys').select('owner_id, collective_id, shared_with, created_by').eq('id', surveyId).is('deleted_at', null).single();
   if (!survey) return { err: 'Not found', status: 404 };
@@ -26,7 +27,7 @@ async function getCtx(surveyId) {
   }
 
   const isKollektivOwner = memberRole === 'owner' || memberRole === 'admin';
-  return { user, profile, admin, isSuperAdmin, isKollektivOwner };
+  return { user, profile, admin, survey, isSuperAdmin, isKollektivOwner };
 }
 
 export async function PUT(request, { params }) {
@@ -39,7 +40,10 @@ export async function PUT(request, { params }) {
   if (!existing) return Response.json({ error: 'Tétel nem található' }, { status: 404 });
 
   const canEdit = ctx.isSuperAdmin || ctx.isKollektivOwner || existing.created_by === ctx.user.id;
-  if (!canEdit) return Response.json({ error: 'Nincs jogosultság a módosításhoz' }, { status: 403 });
+  if (!canEdit) {
+    logAudit({ entityId: ctx.survey?.collective_id || ctx.user.id, userId: ctx.user.id, userName: ctx.profile.display_name || '', action: 'Survey item update denied', targetType: 'survey_item', targetId: itemId, details: { error: 'Permission denied', surveyId } });
+    return Response.json({ error: 'Nincs jogosultság a módosításhoz' }, { status: 403 });
+  }
 
   const body = await request.json();
   const allowed = ['description', 'quantity', 'unit', 'notes', 'entry_type', 'is_confirmed', 'sort_order'];
@@ -54,6 +58,7 @@ export async function PUT(request, { params }) {
   const { data: item, error } = await ctx.admin.from('survey_entry_items')
     .update(update).eq('id', itemId).eq('survey_id', surveyId).select().single();
   if (error) return Response.json({ error: error.message }, { status: 400 });
+  logAudit({ entityId: ctx.survey?.collective_id || ctx.user.id, userId: ctx.user.id, userName: ctx.profile.display_name || '', action: 'Survey item updated', targetType: 'survey_item', targetId: itemId, targetName: item.description });
   return Response.json({ item });
 }
 
@@ -67,10 +72,14 @@ export async function DELETE(request, { params }) {
   if (!existing) return Response.json({ error: 'Tétel nem található' }, { status: 404 });
 
   const canDelete = ctx.isSuperAdmin || ctx.isKollektivOwner || existing.created_by === ctx.user.id;
-  if (!canDelete) return Response.json({ error: 'Nincs jogosultság a törléshez' }, { status: 403 });
+  if (!canDelete) {
+    logAudit({ entityId: ctx.survey?.collective_id || ctx.user.id, userId: ctx.user.id, userName: ctx.profile.display_name || '', action: 'Survey item delete denied', targetType: 'survey_item', targetId: itemId, details: { error: 'Permission denied', surveyId } });
+    return Response.json({ error: 'Nincs jogosultság a törléshez' }, { status: 403 });
+  }
 
   const { error } = await ctx.admin.from('survey_entry_items')
     .delete().eq('id', itemId).eq('survey_id', surveyId);
   if (error) return Response.json({ error: error.message }, { status: 400 });
+  logAudit({ entityId: ctx.survey?.collective_id || ctx.user.id, userId: ctx.user.id, userName: ctx.profile.display_name || '', action: 'Survey item deleted', targetType: 'survey_item', targetId: itemId });
   return Response.json({ success: true });
 }

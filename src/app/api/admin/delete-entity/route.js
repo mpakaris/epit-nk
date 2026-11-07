@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
+import { logAudit } from '@/lib/audit';
 
 export async function DELETE(request) {
   try {
@@ -10,7 +11,7 @@ export async function DELETE(request) {
 
     const admin = createAdminClient();
 
-    const { data: callerProfile } = await admin.from('profiles').select('role').eq('id', caller.id).single();
+    const { data: callerProfile } = await admin.from('profiles').select('role, display_name').eq('id', caller.id).single();
     if (!callerProfile || callerProfile.role !== 'superadmin') {
       return NextResponse.json({ error: 'Csak Superadmin törölhet kollektívát!' }, { status: 403 });
     }
@@ -65,9 +66,11 @@ export async function DELETE(request) {
     const { error: collectiveErr } = await admin.from('collectives').delete().eq('id', entityId);
     if (collectiveErr) throw collectiveErr;
 
+    await logAudit({ userId: caller.id, userName: callerProfile.display_name || '', action: 'Collective deleted by admin', targetType: 'collective', targetId: entityId, details: { projects_deleted: projectIds.length, quotes_deleted: quoteIds.length } });
     return NextResponse.json({ success: true });
   } catch (err) {
     console.error('delete-entity error:', err);
+    logAudit({ userId: caller?.id, action: 'Collective deletion failed', targetType: 'collective', targetId: entityId, details: { error: err.message } });
     return NextResponse.json({ error: err.message || 'Szerverhiba' }, { status: 500 });
   }
 }

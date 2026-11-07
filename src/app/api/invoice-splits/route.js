@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { logAudit } from '@/lib/audit';
 
 // PUT — replace all splits for one invoice
 export async function PUT(request) {
@@ -8,7 +9,7 @@ export async function PUT(request) {
   if (authErr || !user) return Response.json({ error: 'Unauthenticated' }, { status: 401 });
 
   const admin = createAdminClient();
-  const { data: profile } = await admin.from('profiles').select('role').eq('id', user.id).single();
+  const { data: profile } = await admin.from('profiles').select('role, display_name').eq('id', user.id).single();
   if (!profile) return Response.json({ error: 'Unauthenticated' }, { status: 401 });
 
   const { invoice_id, splits } = await request.json();
@@ -47,6 +48,10 @@ export async function PUT(request) {
   if (rows.length === 0) return Response.json({ splits: [] });
 
   const { data: saved, error } = await admin.from('invoice_section_splits').insert(rows).select();
-  if (error) return Response.json({ error: error.message }, { status: 400 });
+  if (error) {
+    logAudit({ entityId: user.id, userId: user.id, userName: profile.display_name || user.email || '', action: 'Invoice splits save failed', targetType: 'invoice_split', targetId: invoice_id, details: { error: error.message } });
+    return Response.json({ error: error.message }, { status: 400 });
+  }
+  logAudit({ entityId: user.id, userId: user.id, userName: profile.display_name || user.email || '', action: 'Invoice splits saved', targetType: 'invoice_split', targetId: invoice_id, details: { splits_count: saved.length } });
   return Response.json({ splits: saved });
 }

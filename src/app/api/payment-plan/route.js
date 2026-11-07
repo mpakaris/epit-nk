@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { logAudit } from '@/lib/audit';
 
 async function resolveAccess(userId) {
   const admin = createAdminClient();
@@ -60,7 +61,10 @@ export async function POST(request) {
 
   if (!isSuperAdmin) {
     const { allowed } = await isProjectOwnerOrAdmin(admin, user.id, project_id);
-    if (!allowed) return Response.json({ error: 'Csak a projekt tulajdonosa adhat hozzá fizetési tételt.' }, { status: 403 });
+    if (!allowed) {
+      logAudit({ entityId: user.id, userId: user.id, userName: profile.display_name || '', action: 'Payment plan creation denied', targetType: 'payment_item', details: { error: 'Permission denied', project_id } });
+      return Response.json({ error: 'Csak a projekt tulajdonosa adhat hozzá fizetési tételt.' }, { status: 403 });
+    }
   }
 
   const { data: project } = await admin.from('projects').select('collective_id').eq('id', project_id).is('deleted_at', null).single();
@@ -82,5 +86,6 @@ export async function POST(request) {
   }]).select().single();
 
   if (error) return Response.json({ error: error.message }, { status: 400 });
+  logAudit({ entityId: project?.collective_id || user.id, userId: user.id, userName: profile.display_name || '', action: 'Payment plan item created', targetType: 'payment_item', targetId: item.id, targetName: item.label, details: { project_id, amount_huf: item.amount_huf } });
   return Response.json({ item });
 }

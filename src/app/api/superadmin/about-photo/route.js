@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { uploadToR2, r2PublicUrl, toWebp } from '@/lib/r2';
+import { logAudit } from '@/lib/audit';
 
 export const R2_KEY = 'platform/about-me.webp';
 
@@ -35,5 +36,6 @@ export async function POST(request) {
 
   await uploadToR2(R2_KEY, webpBuffer, 'image/webp');
 
+  logAudit({ userId: auth.user.id, userName: '', action: 'About photo uploaded', targetType: 'admin' });
   return Response.json({ url: r2PublicUrl(R2_KEY) });
 }

@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { uploadToR2, r2PublicUrl, diaryMediaKey } from '@/lib/r2';
 import { checkSurveyAccess } from '@/lib/surveyAccess';
+import { logAudit } from '@/lib/audit';
 
 const MAX_FILES = 10;
 const MAX_IMAGE_BYTES = 4 * 1024 * 1024;   // 4 MB — client compresses to ~400 KB, headroom for WebP
@@ -14,7 +15,7 @@ export async function POST(request) {
   const { data: { user }, error: authErr } = await supabase.auth.getUser();
   if (authErr || !user) return Response.json({ error: 'Unauthenticated' }, { status: 401 });
 
-  const { data: profile } = await admin.from('profiles').select('id, role').eq('id', user.id).single();
+  const { data: profile } = await admin.from('profiles').select('id, role, display_name').eq('id', user.id).single();
   if (!profile) return Response.json({ error: 'Profile not found' }, { status: 403 });
   let formData;
   try { formData = await request.formData(); }
@@ -85,5 +86,6 @@ export async function POST(request) {
     results.push(media);
   }
 
+  logAudit({ entityId: survey.collective_id || user.id, userId: user.id, userName: profile.display_name || '', action: 'Survey media uploaded', targetType: 'survey_media', targetId: surveyId, details: { count: results.length, survey_id: surveyId } });
   return Response.json({ media: results }, { status: 200 });
 }

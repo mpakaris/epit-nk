@@ -3,6 +3,7 @@ import * as crypto from 'crypto';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { sendEmail } from '@/lib/email';
 import { wrapEmail } from '@/lib/emailTemplates';
+import { logAudit } from '@/lib/audit';
 
 function verifySignature(payload, signature, secret) {
   const computed = crypto.createHmac('sha256', secret).update(payload).digest('hex');
@@ -46,9 +47,11 @@ async function grantPremium(admin, userId, subscriptionId, family = 'premium') {
     .eq('id', userId);
   if (error) {
     console.error('[creem webhook] grantPremium error:', error.message);
+    logAudit({ userId, action: 'Premium grant failed', targetType: 'subscription', targetId: subscriptionId, details: { error: error.message, family } });
     return;
   }
   console.log('[creem webhook] grantPremium OK for userId:', userId);
+  logAudit({ userId, action: 'Premium granted', targetType: 'subscription', targetId: subscriptionId, details: { family } });
 
   // Ensure inclusive collective is active (create it if missing, reactivate if frozen)
   const { data: ownedMemberships } = await admin
@@ -125,9 +128,10 @@ async function revokePremium(admin, userId, subscriptionId) {
       .in('status', ['active', 'trialing', 'scheduled_cancel']);
   }
 
-  await admin.from('profiles')
+  const { error } = await admin.from('profiles')
     .update({ is_subscription_premium: false, subscription_tier: 'basic' })
     .eq('id', userId);
+  logAudit({ userId, action: error ? 'Premium revoke failed' : 'Premium revoked', targetType: 'subscription', targetId: subscriptionId, details: error ? { error: error.message } : undefined });
 
   // Collective addons require premium as their basis — freeze them all
   const { data: ownedMemberships } = await admin
@@ -183,15 +187,20 @@ export async function POST(request) {
 
   if (!webhookSecret) {
     console.error('[creem webhook] CREEM_WEBHOOK_SECRET is not configured — rejecting request');
+    logAudit({ action: 'Webhook config error', targetType: 'payment', details: { error: 'CREEM_WEBHOOK_SECRET not configured' } });
     return NextResponse.json({ error: 'Webhook not configured' }, { status: 500 });
   }
   if (!signature || !verifySignature(body, signature, webhookSecret)) {
+    logAudit({ action: 'Webhook signature invalid', targetType: 'payment', details: { error: 'Invalid or missing creem-signature header', has_signature: !!signature } });
     return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
   }
 
   let event;
   try { event = JSON.parse(body); }
-  catch { return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 }); }
+  catch {
+    logAudit({ action: 'Webhook parse error', targetType: 'payment', details: { error: 'Invalid JSON body' } });
+    return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
+  }
 
   const admin = createAdminClient();
   const { eventType, object: payload } = event;
@@ -226,11 +235,44 @@ export async function POST(request) {
 
   console.log('[creem webhook] userId:', userId, '| productId:', productId, '| family:', family, '| subscriptionId:', subscriptionId);
 
+  // Log every incoming webhook event with full context for support/troubleshooting
+  logAudit({
+    userId:     userId || null,
+    action:     `Webhook received: ${eventType}`,
+    targetType: 'payment',
+    targetId:   subscriptionId || null,
+    details: {
+      event_type:      eventType,
+      product_family:  family,
+      product_id:      productId || null,
+      subscription_id: subscriptionId || null,
+      user_id:         userId || null,
+      period_end:      periodEnd || null,
+      has_userId:      !!userId,
+    },
+  });
+
+  if (!userId && eventType !== 'subscription.updated') {
+    logAudit({
+      action:     'Webhook userId missing',
+      targetType: 'payment',
+      targetId:   subscriptionId || null,
+      details: {
+        event_type:      eventType,
+        product_family:  family,
+        subscription_id: subscriptionId || null,
+        error:           'userId not found in payload metadata — cannot process event',
+      },
+    });
+  }
+
   switch (eventType) {
 
     case 'checkout.completed': {
       if ((family === 'premium') && userId) {
         await grantPremium(admin, userId, subscriptionId, family);
+      } else if (family === 'premium' && !userId) {
+        logAudit({ action: 'Checkout completed — premium not granted: userId missing', targetType: 'payment', targetId: subscriptionId, details: { event_type: eventType, product_id: productId } });
       }
       if (userId) {
         const profile = await getProfile(admin, userId);
@@ -262,18 +304,26 @@ export async function POST(request) {
             .update({ period_end: premiumPeriodIso, status: 'active', updated_at: new Date().toISOString() })
             .eq('creem_subscription_id', subscriptionId);
         }
+        logAudit({ userId, action: `Subscription ${eventType}`, targetType: 'payment', targetId: subscriptionId, details: { family, period_end: premiumPeriodIso || null } });
+      } else if (family === 'premium' && !userId) {
+        logAudit({ action: `Subscription ${eventType} — userId missing`, targetType: 'payment', targetId: subscriptionId, details: { family, error: 'Cannot grant premium: userId not in payload' } });
       }
       if ((family === 'addon') && subscriptionId) {
         await updateCollectiveStatus(admin, subscriptionId, 'active', periodEnd);
+        logAudit({ userId: userId || null, action: 'Addon subscription activated', targetType: 'payment', targetId: subscriptionId, details: { family, period_end: periodEnd || null } });
       }
       break;
     }
 
     case 'subscription.canceled': {
       if (family === 'addon') {
-        if (subscriptionId) await updateCollectiveStatus(admin, subscriptionId, 'canceled', periodEnd);
+        if (subscriptionId) {
+          await updateCollectiveStatus(admin, subscriptionId, 'canceled', periodEnd);
+          logAudit({ userId: userId || null, action: 'Addon subscription canceled', targetType: 'payment', targetId: subscriptionId, details: { family } });
+        }
       } else {
         if (userId) await revokePremium(admin, userId, subscriptionId);
+        else logAudit({ action: 'Subscription canceled — userId missing', targetType: 'payment', targetId: subscriptionId, details: { error: 'Cannot revoke premium: userId not in payload' } });
       }
       if (userId) {
         const profile = await getProfile(admin, userId);
@@ -294,20 +344,31 @@ export async function POST(request) {
 
     case 'subscription.expired':
     case 'subscription.paused': {
+      const newStatus = eventType === 'subscription.paused' ? 'paused' : 'expired';
       if (family === 'addon') {
-        if (subscriptionId) await updateCollectiveStatus(admin, subscriptionId, eventType === 'subscription.paused' ? 'paused' : 'expired', periodEnd);
+        if (subscriptionId) {
+          await updateCollectiveStatus(admin, subscriptionId, newStatus, periodEnd);
+          logAudit({ userId: userId || null, action: `Addon subscription ${newStatus}`, targetType: 'payment', targetId: subscriptionId, details: { family } });
+        }
       } else {
-        if (userId) await revokePremium(admin, userId, subscriptionId);
+        if (userId) {
+          await revokePremium(admin, userId, subscriptionId);
+          logAudit({ userId, action: `Premium subscription ${newStatus}`, targetType: 'payment', targetId: subscriptionId, details: { family } });
+        } else {
+          logAudit({ action: `Subscription ${newStatus} — userId missing`, targetType: 'payment', targetId: subscriptionId, details: { error: 'Cannot revoke premium: userId not in payload' } });
+        }
       }
       break;
     }
 
     case 'subscription.updated': {
       console.log('[creem webhook] subscription.updated — no DB action required');
+      logAudit({ userId: userId || null, action: 'Subscription updated (no DB action)', targetType: 'payment', targetId: subscriptionId, details: { family } });
       break;
     }
 
     default:
+      logAudit({ userId: userId || null, action: `Webhook unhandled event: ${eventType}`, targetType: 'payment', targetId: subscriptionId, details: { event_type: eventType, family } });
       break;
   }
 

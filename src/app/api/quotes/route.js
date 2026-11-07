@@ -98,7 +98,10 @@ export async function POST(request) {
     warranty_months:       profile.warranty_months       ?? 0,
   }]).select().single();
 
-  if (error) return Response.json({ error: error.message }, { status: 400 });
+  if (error) {
+    logAudit({ entityId: collectiveId || user.id, userId: user.id, userName: profile.display_name || user.email, action: 'Quote creation failed', targetType: 'quote', details: { error: error.message } });
+    return Response.json({ error: error.message }, { status: 400 });
+  }
 
   logAudit({
     entityId:   collectiveId || user.id,

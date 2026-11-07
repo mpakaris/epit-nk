@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { logAudit } from '@/lib/audit';
 
 export async function POST(request) {
   // Superadmin only
@@ -8,7 +9,7 @@ export async function POST(request) {
   if (!user) return Response.json({ error: 'Unauthenticated' }, { status: 401 });
 
   const admin = createAdminClient();
-  const { data: callerProfile } = await admin.from('profiles').select('role').eq('id', user.id).single();
+  const { data: callerProfile } = await admin.from('profiles').select('role, display_name').eq('id', user.id).single();
   if (callerProfile?.role !== 'superadmin') return Response.json({ error: 'Forbidden' }, { status: 403 });
 
   const { email } = await request.json().catch(() => ({}));
@@ -47,6 +48,7 @@ export async function POST(request) {
       return Response.json({ error: `Email mismatch detected (auth: ${authEmail} → profile: ${profileEmail}) but update failed: ${updateErr.message}` }, { status: 500 });
     }
 
+    logAudit({ userId: user.id, userName: callerProfile.display_name || '', action: 'Auth user repaired', targetType: 'admin', targetId: profile.id, targetName: email, details: { result: `Email mismatch fixed: auth was "${authEmail}", updated to match profile "${profileEmail}".` } });
     return Response.json({
       ok: true,
       userId: updated.user.id,
@@ -67,6 +69,7 @@ export async function POST(request) {
     return Response.json({ error: createErr.message }, { status: 500 });
   }
 
+  logAudit({ userId: user.id, userName: callerProfile.display_name || '', action: 'Auth user repaired', targetType: 'admin', targetId: profile.id, targetName: email, details: { result: 'Auth user created and linked to existing profile.' } });
   return Response.json({
     ok: true,
     userId: created.user.id,

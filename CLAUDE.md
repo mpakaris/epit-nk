@@ -677,6 +677,7 @@ Any route or UI that creates a resource (quote, survey, project, collective) mus
 - **Fail-open secret check** — `if (process.env.SECRET && value !== process.env.SECRET)` is wrong; use `if (!process.env.SECRET || value !== process.env.SECRET)`. See rule 14.
 - **New table without RLS** — every new `CREATE TABLE` in `public` schema must immediately be followed by `ENABLE ROW LEVEL SECURITY` and a deny-all policy. See rule 14.
 - **Webhook without fail-closed signature check** — always verify webhook signatures fail-closed. See rule 15.
+- **Missing audit log on mutation** — every INSERT/UPDATE/DELETE and every external API call (Creem, SMTP, AI) must call `logAudit` for both success and failure. See rule 19.
 
 ### 11. Banner / Notification Row Layout
 Banners with icon + text + action button use different layouts on mobile vs desktop. Always use `useMobile()` — never `flexWrap: 'wrap'` (it creates squished columns on narrow screens).
@@ -878,6 +879,53 @@ if (!allowed) return Response.json({ error: 'Túl sok kérés. Kérjük, próbá
 - `POST /api/ocr` — 20/hour per userId
 - `POST /api/invoice-ai` — 20/hour per userId
 - `POST /api/szakemberek/[slug]/contact` — 5/hour per IP
+
+---
+
+### 19. Audit Logging — Required on Every Mutation
+
+Every API route handler that performs a mutation (INSERT, UPDATE, DELETE, or any external state change such as a Creem API call) **must** call `logAudit` for both the success path and every failure path where the user identity is known. No exceptions.
+
+```js
+import { logAudit } from '@/lib/audit';
+
+// CORRECT — log success AND failure
+const { data, error } = await admin.from('quotes').insert([...]).select().single();
+if (error) {
+  logAudit({ entityId: collectiveId || user.id, userId: user.id, userName: profile.display_name || user.email,
+    action: 'Quote creation failed', targetType: 'quote', details: { error: error.message } });
+  return Response.json({ error: error.message }, { status: 400 });
+}
+logAudit({ entityId: collectiveId || user.id, userId: user.id, userName: profile.display_name || user.email,
+  action: 'Quote created', targetType: 'quote', targetId: data.id, targetName: data.title });
+
+// WRONG — silent failure
+if (error) return Response.json({ error: error.message }, { status: 400 });
+```
+
+**What must be logged:**
+
+| Path | Log |
+|---|---|
+| Successful DB write | action describing what was created/updated/deleted, `targetId`, `targetName` |
+| DB error (insert/update fails) | `action: 'X creation failed'`, `details: { error: error.message }` |
+| Permission denied (403) | `action: 'X denied'`, `details: { error: 'Permission denied' }` |
+| External API failure (Creem, OpenAI, SMTP) | `action: 'X failed'`, `details: { error: msg, creem_status: res.status }` |
+| Webhook received | log event type + all extracted context immediately on entry |
+
+**What can be skipped:**
+- 401 returns (no user identity — nothing to attribute)
+- 400 validation errors on missing/invalid input (not an action, just a bad request)
+- GET-only routes (reads are not mutations)
+- Internal AI helper routes that produce no DB side-effects (`ocr`, `invoice-ai`, `transcribe`, `fill-property`)
+
+**Field conventions:**
+- `action` — English, imperative past tense: `'Quote created'`, `'Quote creation failed'`, `'Subscription canceled'`
+- `targetType` — snake_case noun: `'quote'`, `'payment'`, `'survey_entry'`, `'wa_account'`
+- `entityId` — the workspace: `collective_id || user.id` (omit for superadmin-only routes)
+- `details` — always include `{ error: message }` on failure paths; include business-relevant fields on success (amounts, counts, IDs of related records)
+
+**Payment routes require extra detail** — every Creem API call (checkout, cancel, upgrade, webhook event) must log the `subscription_id`, `product_id`, and `creem_status` so support can reconstruct the exact payment timeline without reading server logs.
 
 ---
 

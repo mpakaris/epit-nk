@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { logAudit } from '@/lib/audit';
 
 async function requireOwnerOrAdmin(user, admin) {
   const { data: profile } = await admin
@@ -90,7 +91,12 @@ export async function POST(request) {
     { onConflict: 'phone_number' }
   ).select('id').single();
 
-  if (upsertErr) return Response.json({ error: upsertErr.message }, { status: 500 });
+  if (upsertErr) {
+    logAudit({ entityId: ctx.collectiveId, userId: user.id, userName: ctx.profile.display_name || '', action: 'WA account registration failed', targetType: 'wa_account', details: { error: upsertErr.message, phone_number } });
+    return Response.json({ error: upsertErr.message }, { status: 500 });
+  }
+
+  logAudit({ entityId: ctx.collectiveId, userId: user.id, userName: ctx.profile.display_name || '', action: 'WA account registered', targetType: 'wa_account', targetId: account.id, details: { phone_number } });
 
   // Assign to projects
   if (project_ids.length) {

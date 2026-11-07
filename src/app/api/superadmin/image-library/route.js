@@ -2,6 +2,7 @@ import { createHash } from 'crypto';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { uploadToR2, deleteFromR2, r2PublicUrl, toWebp } from '@/lib/r2';
+import { logAudit } from '@/lib/audit';
 
 const MAX_SIZE_BYTES = 30 * 1024 * 1024;
 const ALLOWED_MIME = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/heic', 'image/heif', 'image/tiff'];
@@ -100,6 +101,7 @@ export async function POST(request) {
     results.push({ ...img, url: r2PublicUrl(key) });
   }
 
+  logAudit({ userId: auth.user.id, userName: '', action: 'Platform images uploaded', targetType: 'image_library', details: { count: results.length, skipped } });
   return Response.json({ images: results, skipped }, { status: 201 });
 }
 
@@ -123,6 +125,7 @@ export async function PATCH(request) {
     .single();
 
   if (error) return Response.json({ error: error.message }, { status: 500 });
+  logAudit({ userId: auth.user.id, userName: '', action: 'Platform hero image set', targetType: 'image_library', targetId: id });
   return Response.json({ image: { ...img, url: r2PublicUrl(img.r2_key) } });
 }
 
@@ -139,5 +142,6 @@ export async function DELETE(request) {
   await deleteFromR2(img.r2_key);
   await auth.admin.from('image_library').delete().eq('id', id);
 
+  logAudit({ userId: auth.user.id, userName: '', action: 'Platform image deleted', targetType: 'image_library', targetId: id });
   return Response.json({ success: true });
 }

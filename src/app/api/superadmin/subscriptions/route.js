@@ -1,14 +1,15 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { logAudit } from '@/lib/audit';
 
 async function requireSuperadmin() {
   const supabase = await createClient();
   const { data: { user }, error } = await supabase.auth.getUser();
   if (error || !user) return { error: 'Unauthenticated', status: 401 };
   const admin = createAdminClient();
-  const { data: caller } = await admin.from('profiles').select('role').eq('id', user.id).single();
+  const { data: caller } = await admin.from('profiles').select('role, display_name').eq('id', user.id).single();
   if (caller?.role !== 'superadmin') return { error: 'Forbidden', status: 403 };
-  return { admin };
+  return { admin, user, caller };
 }
 
 export async function GET() {
@@ -71,6 +72,7 @@ export async function PATCH(request) {
       })
       .eq('id', userId);
     if (error) return Response.json({ error: error.message }, { status: 500 });
+    logAudit({ userId: auth.user.id, userName: auth.caller.display_name || '', action: 'Subscription updated by admin', targetType: 'subscription', targetId: userId, details: { is_subscription_premium, tier: is_subscription_premium ? 'premium' : 'basic' } });
     return Response.json({ ok: true });
   }
 
@@ -91,6 +93,7 @@ export async function PATCH(request) {
       .update(update)
       .eq('id', collectiveId);
     if (error) return Response.json({ error: error.message }, { status: 500 });
+    logAudit({ userId: auth.user.id, userName: auth.caller.display_name || '', action: 'Collective subscription updated by admin', targetType: 'subscription', targetId: collectiveId, details: { subscription_type, seat_count } });
     return Response.json({ ok: true });
   }
 

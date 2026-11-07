@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { logAudit } from '@/lib/audit';
 
 // PATCH — toggle resolved
 export async function PATCH(request, { params }) {
@@ -42,5 +43,6 @@ export async function PATCH(request, { params }) {
 
   if (error) return Response.json({ error: error.message }, { status: 500 });
 
+  logAudit({ entityId: quote.owner_id, userId: user.id, userName: '', action: updated.resolved_at ? 'Quote comment resolved' : 'Quote comment unresolved', targetType: 'quote_comment', targetId: commentId, targetName: id });
   return Response.json({ comment: updated });
 }

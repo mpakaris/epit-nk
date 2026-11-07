@@ -1,14 +1,15 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { logAudit } from '@/lib/audit';
 
 async function requireSuperadmin() {
   const supabase = await createClient();
   const { data: { user }, error } = await supabase.auth.getUser();
   if (error || !user) return { error: 'Unauthenticated', status: 401 };
   const admin = createAdminClient();
-  const { data: caller } = await admin.from('profiles').select('role').eq('id', user.id).single();
+  const { data: caller } = await admin.from('profiles').select('role, display_name').eq('id', user.id).single();
   if (caller?.role !== 'superadmin') return { error: 'Forbidden', status: 403 };
-  return { admin };
+  return { admin, user, caller };
 }
 
 export async function GET() {
@@ -39,5 +40,6 @@ export async function PATCH(request) {
     .eq('key', key);
 
   if (error) return Response.json({ error: error.message }, { status: 500 });
+  logAudit({ userId: auth.user.id, userName: auth.caller?.display_name || '', action: 'Pricing config updated', targetType: 'admin', targetName: key, details: { key, value: Number(value) } });
   return Response.json({ ok: true });
 }

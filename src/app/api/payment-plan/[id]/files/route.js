@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { uploadToR2, r2PublicUrl } from '@/lib/r2';
+import { logAudit } from '@/lib/audit';
 
 const MAX_SIZE_BYTES = 20 * 1024 * 1024; // 20 MB
 
@@ -18,7 +19,7 @@ export async function POST(request, { params }) {
   if (authErr || !user) return Response.json({ error: 'Unauthenticated' }, { status: 401 });
 
   const admin = createAdminClient();
-  const { data: profile } = await admin.from('profiles').select('role').eq('id', user.id).single();
+  const { data: profile } = await admin.from('profiles').select('role, display_name').eq('id', user.id).single();
   if (!profile || !['admin', 'superadmin'].includes(profile.role)) {
     return Response.json({ error: 'Nincs jogosultság' }, { status: 403 });
   }
@@ -53,5 +54,6 @@ export async function POST(request, { params }) {
   }]).select().single();
 
   if (dbErr) return Response.json({ error: `DB hiba: ${dbErr.message}` }, { status: 500 });
+  logAudit({ entityId: user.id, userId: user.id, userName: profile.display_name || '', action: 'Payment file uploaded', targetType: 'payment_file', targetId: record.id, targetName: file.name, details: { item_id: itemId } });
   return Response.json({ file: record });
 }

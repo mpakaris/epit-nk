@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { logAudit } from '@/lib/audit';
 
 async function getCtx() {
   const supabase = await createClient();
@@ -54,6 +55,11 @@ export async function POST(request) {
     sort_order,
   }]).select().single();
 
-  if (error) return Response.json({ error: error.message }, { status: 500 });
+  if (error) {
+    logAudit({ entityId: collectiveId || ctx.user.id, userId: ctx.user.id, userName: ctx.profile.display_name || '', action: 'Catalogue item creation failed', targetType: 'catalogue', details: { error: error.message } });
+    return Response.json({ error: error.message }, { status: 500 });
+  }
+
+  logAudit({ entityId: collectiveId || ctx.user.id, userId: ctx.user.id, userName: ctx.profile.display_name || '', action: 'Catalogue item created', targetType: 'catalogue', targetId: item.id, targetName: item.name });
   return Response.json({ item }, { status: 201 });
 }

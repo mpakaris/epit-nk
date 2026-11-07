@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { uploadToR2, r2PublicUrl, diaryMediaKey } from '@/lib/r2';
+import { logAudit } from '@/lib/audit';
 
 const MAX_FILES = 10;
 const MAX_IMAGE_BYTES = 4 * 1024 * 1024;   // 4 MB
@@ -77,5 +78,6 @@ export async function POST(request) {
     });
   }
 
+  logAudit({ userId: user.id, action: 'Diary media uploaded', targetType: 'diary_photo', details: { count: results.length } });
   return Response.json({ photos: results }, { status: 200 });
 }

@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { logAudit } from '@/lib/audit';
 
 async function requireSuperadmin() {
   const supabase = await createClient();
@@ -8,7 +9,7 @@ async function requireSuperadmin() {
   const admin = createAdminClient();
   const { data: caller } = await admin.from('profiles').select('role').eq('id', user.id).single();
   if (caller?.role !== 'superadmin') return { error: 'Forbidden', status: 403 };
-  return { admin };
+  return { admin, user };
 }
 
 export async function GET() {
@@ -37,7 +38,7 @@ export async function GET() {
 export async function PATCH(request) {
   const auth = await requireSuperadmin();
   if (auth.error) return Response.json({ error: auth.error }, { status: auth.status });
-  const { admin } = auth;
+  const { admin, user } = auth;
 
   const body = await request.json();
   const { userId, is_subscription_premium } = body;
@@ -51,5 +52,6 @@ export async function PATCH(request) {
     .eq('id', userId);
 
   if (error) return Response.json({ error: error.message }, { status: 500 });
+  logAudit({ userId: user.id, userName: '', action: 'Website subscription override', targetType: 'subscription', targetId: userId, details: { is_subscription_premium } });
   return Response.json({ ok: true });
 }

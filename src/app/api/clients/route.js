@@ -47,7 +47,10 @@ export async function POST(request) {
     .select()
     .single();
 
-  if (insertErr) return Response.json({ error: insertErr.message }, { status: 400 });
+  if (insertErr) {
+    logAudit({ userId: user.id, userName: profile.display_name || user.email, action: 'Client creation failed', targetType: 'client', details: { error: insertErr.message } });
+    return Response.json({ error: insertErr.message }, { status: 400 });
+  }
 
   if (collectiveShares.length > 0) {
     await admin.from('client_collective_shares').insert(

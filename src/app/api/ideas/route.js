@@ -55,7 +55,10 @@ export async function POST(request) {
     idea:        idea.trim(),
   }]).select().single();
 
-  if (error) return Response.json({ error: error.message }, { status: 400 });
+  if (error) {
+    logAudit({ userId: ctx.user.id, userName: ctx.profile.display_name || ctx.user.email, action: 'Idea creation failed', targetType: 'idea', details: { error: error.message } });
+    return Response.json({ error: error.message }, { status: 400 });
+  }
 
   logAudit({
     entityId:   ctx.user.id,

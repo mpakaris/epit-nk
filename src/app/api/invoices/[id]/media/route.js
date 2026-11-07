@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { logAudit } from '@/lib/audit';
 
 async function resolveCtx(user, invoiceId) {
   const admin = createAdminClient();
@@ -64,5 +65,6 @@ export async function POST(request, { params }) {
   const { data: media, error: err } = await ctx.admin.from('invoice_media')
     .insert({ invoice_id: id, image_url, storage_path, sort_order }).select().single();
   if (err) return Response.json({ error: err.message }, { status: 400 });
+  logAudit({ entityId: ctx.project.collective_id || user.id, userId: user.id, action: 'Invoice media added', targetType: 'invoice_media', targetId: id, details: { invoice_id: id } });
   return Response.json({ media });
 }

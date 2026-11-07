@@ -63,7 +63,10 @@ export async function PATCH(request, { params }) {
     .select()
     .single();
 
-  if (updateErr) return Response.json({ error: updateErr.message }, { status: 500 });
+  if (updateErr) {
+    logAudit({ entityId: entry.project_id, userId: user.id, userName: profile.display_name, action: 'Diary entry update failed', targetType: 'diary_entry', targetId: id, details: { error: updateErr.message } });
+    return Response.json({ error: updateErr.message }, { status: 500 });
+  }
 
   if (Array.isArray(add_photo_ids) && add_photo_ids.length > 0) {
     await admin.from('diary_photos').update({ entry_id: id }).in('id', add_photo_ids);
@@ -112,7 +115,10 @@ export async function DELETE(request, { params }) {
   const { error: delErr } = await admin.from('diary_entries')
     .update({ deleted_at: new Date().toISOString() })
     .eq('id', id);
-  if (delErr) return Response.json({ error: delErr.message }, { status: 500 });
+  if (delErr) {
+    logAudit({ entityId: entry.project_id, userId: user.id, userName: profile.display_name, action: 'Diary entry deletion failed', targetType: 'diary_entry', targetId: id, details: { error: delErr.message } });
+    return Response.json({ error: delErr.message }, { status: 500 });
+  }
 
   logAudit({
     entityId: entry.project_id,

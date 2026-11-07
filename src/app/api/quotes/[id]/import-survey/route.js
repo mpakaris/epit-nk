@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { logAudit } from '@/lib/audit';
 
 // POST /api/quotes/[id]/import-survey
 // Copies survey_entries from the quote's linked survey into quote_sections.
@@ -12,7 +13,7 @@ export async function POST(request, { params }) {
   if (authErr || !user) return Response.json({ error: 'Unauthenticated' }, { status: 401 });
 
   const admin = createAdminClient();
-  const { data: profile } = await admin.from('profiles').select('id, role').eq('id', user.id).single();
+  const { data: profile } = await admin.from('profiles').select('id, role, display_name').eq('id', user.id).single();
   if (!profile) return Response.json({ error: 'Forbidden' }, { status: 403 });
 
   const { data: quote } = await admin.from('quotes').select('id, owner_id, created_by, collective_id, shared_with, survey_id').eq('id', quoteId).is('deleted_at', null).single();
@@ -51,7 +52,11 @@ export async function POST(request, { params }) {
   }));
 
   const { data: sections, error } = await admin.from('quote_sections').insert(rows).select();
-  if (error) return Response.json({ error: error.message }, { status: 500 });
+  if (error) {
+    logAudit({ entityId: quote.collective_id || user.id, userId: user.id, userName: profile.display_name || user.email || '', action: 'Survey import failed', targetType: 'quote', targetId: quoteId, details: { error: error.message, survey_id: quote.survey_id } });
+    return Response.json({ error: error.message }, { status: 500 });
+  }
+  logAudit({ entityId: quote.collective_id || user.id, userId: user.id, userName: profile.display_name || user.email || '', action: 'Survey imported to quote', targetType: 'quote', targetId: quoteId, targetName: quote.id, details: { survey_id: quote.survey_id, sections_created: sections?.length || 0 } });
 
   // Flip survey to done on first import (only if still active)
   const { data: survey } = await admin.from('surveys').select('status').eq('id', quote.survey_id).is('deleted_at', null).single();

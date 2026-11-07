@@ -3,6 +3,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { sendEmail } from '@/lib/email';
 import { fillTemplate, wrapEmail, EMAIL_TEMPLATES } from '@/lib/emailTemplates';
 import { softDeleteUser } from '@/lib/softDeleteUser';
+import { logAudit } from '@/lib/audit';
 
 export async function DELETE() {
   const supabase = await createClient();
@@ -47,7 +48,9 @@ export async function DELETE() {
     }
   }
 
+  await logAudit({ userId: user.id, userName: profile.display_name || profile.email || '', action: 'Account deletion initiated', targetType: 'account', targetId: user.id, targetName: profile.email });
   await softDeleteUser(user.id);
+  await logAudit({ userId: user.id, userName: profile.display_name || profile.email || '', action: 'Account deleted', targetType: 'account', targetId: user.id, targetName: profile.email });
 
   // Sign out the session
   await supabase.auth.signOut();

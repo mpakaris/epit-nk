@@ -83,6 +83,7 @@ export async function POST(request) {
     const err = await res.json().catch(() => ({}));
     const msg = Array.isArray(err.message) ? err.message.join(', ') : (err.message || 'Lemondás sikertelen');
     console.error('[subscriptions/cancel] Creem error', res.status, msg);
+    logAudit({ userId: user.id, userName: user.email, action: 'Subscription cancel failed', targetType: 'payment', targetId: subscriptionId, details: { error: msg, creem_status: res.status, collective_id: collectiveId || null } });
     return NextResponse.json({ error: msg }, { status: res.status });
   }
 

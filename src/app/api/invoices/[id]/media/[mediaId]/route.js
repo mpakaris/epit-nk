@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { logAudit } from '@/lib/audit';
 
 export async function DELETE(request, { params }) {
   const { id, mediaId } = await params;
@@ -28,12 +29,15 @@ export async function DELETE(request, { params }) {
     isKollektivOwner = mem?.role === 'owner' || mem?.role === 'admin';
   }
 
-  if (!isSuperAdmin && !isProjectOwner && !isEntryOwner && !isKollektivOwner)
+  if (!isSuperAdmin && !isProjectOwner && !isEntryOwner && !isKollektivOwner) {
+    logAudit({ userId: user.id, action: 'Invoice media delete denied', targetType: 'invoice_media', targetId: mediaId, details: { error: 'Permission denied', invoice_id: id } });
     return Response.json({ error: 'Csak a számla feltöltője vagy a projekt tulajdonosa törölhet bizonylatot.' }, { status: 403 });
+  }
 
   const { error: err } = await admin.from('invoice_media')
     .delete().eq('id', mediaId).eq('invoice_id', id);
   if (err) return Response.json({ error: err.message }, { status: 400 });
 
+  logAudit({ entityId: project?.collective_id || user.id, userId: user.id, action: 'Invoice media deleted', targetType: 'invoice_media', targetId: mediaId });
   return Response.json({ ok: true });
 }

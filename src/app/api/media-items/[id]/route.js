@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { safeDeleteMediaItem } from '@/lib/mediaUsage';
+import { logAudit } from '@/lib/audit';
 
 export async function DELETE(request, { params }) {
   const { id: mediaItemId } = await params;
@@ -35,5 +36,6 @@ export async function DELETE(request, { params }) {
   }
 
   await safeDeleteMediaItem(admin, mediaItemId);
+  logAudit({ entityId: doc.collective_id || user.id, userId: user.id, action: 'Media item deleted', targetType: 'media_item', targetId: mediaItemId, details: { document_type: item.document_type, document_id: item.document_id } });
   return Response.json({ ok: true });
 }

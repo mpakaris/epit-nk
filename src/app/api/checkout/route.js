@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { logAudit } from '@/lib/audit';
 
 export async function POST(request) {
   const supabase = await createClient();
@@ -38,8 +39,10 @@ export async function POST(request) {
   if (!res.ok) {
     const msg = Array.isArray(data.message) ? data.message.join(', ') : (data.message || 'Checkout creation failed');
     console.error('[checkout] Creem error', res.status, msg, body);
+    logAudit({ userId: user.id, userName: profile?.email || '', action: 'Checkout failed', targetType: 'billing', details: { error: msg, product_id: productId } });
     return NextResponse.json({ error: msg }, { status: res.status });
   }
 
+  logAudit({ userId: user.id, userName: profile?.email || '', action: 'Checkout initiated', targetType: 'billing', details: { product_id: productId } });
   return NextResponse.json({ checkoutUrl: data.checkout_url || data.checkoutUrl });
 }

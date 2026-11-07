@@ -61,7 +61,10 @@ export async function POST(request) {
     ai_total:            aiTotal ? Number(aiTotal) : null,
   }]).select().single();
 
-  if (error) return Response.json({ error: error.message }, { status: 400 });
+  if (error) {
+    logAudit({ entityId: project.collective_id || user.id, userId: user.id, userName: callerProfile?.display_name || user.email, action: 'Invoice creation failed', targetType: 'project', targetId: projectId, details: { error: error.message } });
+    return Response.json({ error: error.message }, { status: 400 });
+  }
 
   logAudit({
     entityId:   project.collective_id || user.id,

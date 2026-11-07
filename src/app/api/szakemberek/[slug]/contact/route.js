@@ -1,6 +1,7 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import { globalRateLimit } from '@/lib/rateLimitGlobal';
 import { getClientIp } from '@/lib/rateLimit';
+import { logAudit } from '@/lib/audit';
 
 export async function POST(request, { params }) {
   const ip = getClientIp(request);
@@ -37,6 +38,10 @@ export async function POST(request, { params }) {
     message: message?.trim() || null,
   });
 
-  if (error) return Response.json({ error: error.message }, { status: 500 });
+  if (error) {
+    logAudit({ action: 'Website lead save failed', targetType: 'website_lead', details: { error: error.message, slug } });
+    return Response.json({ error: error.message }, { status: 500 });
+  }
+  logAudit({ action: 'Website lead received', targetType: 'website_lead', targetId: website.id, targetName: slug, details: { name: name.trim(), has_email: !!email, has_phone: !!phone } });
   return Response.json({ success: true });
 }

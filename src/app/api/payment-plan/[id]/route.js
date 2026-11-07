@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { logAudit } from '@/lib/audit';
 
 async function resolveItem(userId, itemId) {
   const admin = createAdminClient();
@@ -10,20 +11,20 @@ async function resolveItem(userId, itemId) {
   if (!profile || !item) return { admin, profile, item, allowed: false };
 
   const isSuperAdmin = profile.role === 'superadmin';
-  if (isSuperAdmin) return { admin, profile, item, allowed: true };
+  if (isSuperAdmin) return { admin, profile, item, project: null, allowed: true };
 
   const { data: project } = await admin.from('projects').select('owner_id, created_by, collective_id').eq('id', item.project_id).is('deleted_at', null).single();
-  if (!project) return { admin, profile, item, allowed: false };
+  if (!project) return { admin, profile, item, project: null, allowed: false };
 
   const isOwner = project.owner_id === userId || project.created_by === userId;
-  if (isOwner) return { admin, profile, item, allowed: true };
+  if (isOwner) return { admin, profile, item, project, allowed: true };
 
   if (project.collective_id) {
     const { data: mem } = await admin.from('collective_members').select('role').eq('collective_id', project.collective_id).eq('user_id', userId).eq('status', 'active').maybeSingle();
-    if (mem && (mem.role === 'owner' || mem.role === 'admin')) return { admin, profile, item, allowed: true };
+    if (mem && (mem.role === 'owner' || mem.role === 'admin')) return { admin, profile, item, project, allowed: true };
   }
 
-  return { admin, profile, item, allowed: false };
+  return { admin, profile, item, project, allowed: false };
 }
 
 export async function PATCH(request, { params }) {
@@ -32,7 +33,7 @@ export async function PATCH(request, { params }) {
   const { data: { user }, error: authErr } = await supabase.auth.getUser();
   if (authErr || !user) return Response.json({ error: 'Unauthenticated' }, { status: 401 });
 
-  const { admin, item, allowed } = await resolveItem(user.id, id);
+  const { admin, profile, item, project, allowed } = await resolveItem(user.id, id);
   if (!allowed) return Response.json({ error: 'Csak a projekt tulajdonosa módosíthatja a fizetési tervet.' }, { status: 403 });
   if (!item) return Response.json({ error: 'Nem található' }, { status: 404 });
 
@@ -50,6 +51,7 @@ export async function PATCH(request, { params }) {
 
   const { data: updated, error } = await admin.from('payment_plan_items').update(updates).eq('id', id).select().single();
   if (error) return Response.json({ error: error.message }, { status: 400 });
+  logAudit({ entityId: project?.collective_id || user.id, userId: user.id, userName: profile.display_name || '', action: updates.status ? `Payment item marked ${updates.status}` : 'Payment item updated', targetType: 'payment_item', targetId: id, targetName: item.label });
   return Response.json({ item: updated });
 }
 
@@ -59,11 +61,12 @@ export async function DELETE(request, { params }) {
   const { data: { user }, error: authErr } = await supabase.auth.getUser();
   if (authErr || !user) return Response.json({ error: 'Unauthenticated' }, { status: 401 });
 
-  const { admin, item, allowed } = await resolveItem(user.id, id);
+  const { admin, profile: profileDel, item, project, allowed } = await resolveItem(user.id, id);
   if (!allowed) return Response.json({ error: 'Csak a projekt tulajdonosa törölhet fizetési tételt.' }, { status: 403 });
   if (!item) return Response.json({ error: 'Nem található' }, { status: 404 });
 
   const { error } = await admin.from('payment_plan_items').delete().eq('id', id);
   if (error) return Response.json({ error: error.message }, { status: 400 });
+  logAudit({ entityId: project?.collective_id || user.id, userId: user.id, userName: profileDel.display_name || '', action: 'Payment item deleted', targetType: 'payment_item', targetId: id, targetName: item.label });
   return Response.json({ ok: true });
 }

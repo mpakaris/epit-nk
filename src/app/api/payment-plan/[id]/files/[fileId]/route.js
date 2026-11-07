@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { deleteFromR2 } from '@/lib/r2';
+import { logAudit } from '@/lib/audit';
 
 export async function DELETE(request, { params }) {
   const { id: itemId, fileId } = await params;
@@ -30,5 +31,6 @@ export async function DELETE(request, { params }) {
 
   const { error } = await admin.from('payment_item_files').delete().eq('id', fileId);
   if (error) return Response.json({ error: error.message }, { status: 400 });
+  logAudit({ userId: user.id, action: 'Payment file deleted', targetType: 'payment_file', targetId: fileId, details: { item_id: itemId } });
   return Response.json({ ok: true });
 }

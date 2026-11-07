@@ -66,7 +66,10 @@ export async function POST(request) {
     .select()
     .single();
 
-  if (projErr) return Response.json({ error: projErr.message }, { status: 400 });
+  if (projErr) {
+    logAudit({ entityId: collectiveId || user.id, userId: user.id, userName: profile?.display_name || user.email, action: 'Project creation failed', targetType: 'project', details: { error: projErr.message } });
+    return Response.json({ error: projErr.message }, { status: 400 });
+  }
 
   // Copy rooms from linked quote (one-time structural inheritance — no live dependency)
   if (quoteId) {

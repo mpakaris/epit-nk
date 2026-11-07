@@ -3,6 +3,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { logOpenAiUsage } from '@/lib/waAssistant/logAiUsage';
 import { logAiCall } from '@/lib/waAssistant/logAiCall';
 import { globalRateLimit } from '@/lib/rateLimitGlobal';
+import { logAudit } from '@/lib/audit';
 
 const MODEL = 'gpt-4o';
 
@@ -162,5 +163,6 @@ Válasz KIZÁRÓLAG ebben a JSON formátumban:
     notes:            e.notes ? String(e.notes).substring(0, 300) : null,
   })).filter(e => e.work_description);
 
+  logAudit({ entityId: quote.collective_id || user.id, userId: user.id, action: 'AI entries generated', targetType: 'quote_section', targetId: sectionId, targetName: section.name, details: { quote_id: quoteId, entries_count: entries.length } });
   return Response.json({ entries });
 }

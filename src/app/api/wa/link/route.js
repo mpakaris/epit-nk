@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { logAudit } from '@/lib/audit';
 
 export async function POST(request) {
   const supabase = await createClient();
@@ -37,7 +38,12 @@ export async function POST(request) {
     { onConflict: 'phone_number' }
   );
 
-  if (upsertErr) return Response.json({ error: upsertErr.message }, { status: 500 });
+  if (upsertErr) {
+    logAudit({ entityId: profile?.active_collective_id || user.id, userId: user.id, userName: profile?.display_name || user.email || '', action: 'WA number link failed', targetType: 'wa_account', details: { error: upsertErr.message, phone_number } });
+    return Response.json({ error: upsertErr.message }, { status: 500 });
+  }
+
+  logAudit({ entityId: profile?.active_collective_id || user.id, userId: user.id, userName: profile?.display_name || user.email || '', action: 'WA number linked', targetType: 'wa_account', details: { phone_number } });
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
   const secret = process.env.INTERNAL_CRON_SECRET;

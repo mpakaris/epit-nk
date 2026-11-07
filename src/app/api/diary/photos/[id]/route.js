@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { deleteFromR2 } from '@/lib/r2';
+import { logAudit } from '@/lib/audit';
 
 // DELETE /api/diary/photos/[id] — admin or entry owner only
 export async function DELETE(request, { params }) {
@@ -28,6 +29,7 @@ export async function DELETE(request, { params }) {
       .eq('id', photo.entry_id)
       .is('deleted_at', null).single();
     if (!entry || entry.created_by !== profile.id) {
+      logAudit({ userId: user.id, action: 'Diary photo delete denied', targetType: 'diary_photo', targetId: id, details: { error: 'Permission denied' } });
       return Response.json({ error: 'Nincs jogosultsága törölni ezt a fotót' }, { status: 403 });
     }
   }
@@ -50,5 +52,6 @@ export async function DELETE(request, { params }) {
 
   if (delErr) return Response.json({ error: delErr.message }, { status: 500 });
 
+  logAudit({ userId: user.id, action: 'Diary photo deleted', targetType: 'diary_photo', targetId: id });
   return Response.json({ success: true });
 }

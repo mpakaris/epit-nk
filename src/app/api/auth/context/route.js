@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { logAudit } from '@/lib/audit';
 
 export async function PATCH(request) {
   const supabase = await createClient();
@@ -12,6 +13,7 @@ export async function PATCH(request) {
   // null = switch to personal context
   if (collective_id === null || collective_id === undefined) {
     await admin.from('profiles').update({ active_collective_id: null }).eq('id', user.id);
+    logAudit({ userId: user.id, action: 'Workspace switched to personal', targetType: 'workspace' });
     return Response.json({ success: true, context: 'personal' });
   }
 
@@ -24,7 +26,10 @@ export async function PATCH(request) {
     .eq('status', 'active')
     .single();
 
-  if (!membership) return Response.json({ error: 'Not a member of this collective' }, { status: 403 });
+  if (!membership) {
+    logAudit({ userId: user.id, action: 'Workspace switch denied', targetType: 'workspace', targetId: collective_id, details: { error: 'Not a member', collective_id } });
+    return Response.json({ error: 'Not a member of this collective' }, { status: 403 });
+  }
 
   const { error } = await admin
     .from('profiles')
@@ -32,5 +37,6 @@ export async function PATCH(request) {
     .eq('id', user.id);
 
   if (error) return Response.json({ error: error.message }, { status: 500 });
+  logAudit({ userId: user.id, action: 'Workspace switched to collective', targetType: 'workspace', targetId: collective_id });
   return Response.json({ success: true, context: 'collective', collective_id });
 }

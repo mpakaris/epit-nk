@@ -2,13 +2,14 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { deleteFromR2 } from '@/lib/r2';
 import { checkSurveyAccess } from '@/lib/surveyAccess';
+import { logAudit } from '@/lib/audit';
 
 async function getCtx(surveyId) {
   const supabase = await createClient();
   const { data: { user }, error } = await supabase.auth.getUser();
   if (error || !user) return { err: 'Unauthenticated', status: 401 };
   const admin = createAdminClient();
-  const { data: profile } = await admin.from('profiles').select('id, role').eq('id', user.id).single();
+  const { data: profile } = await admin.from('profiles').select('id, role, display_name').eq('id', user.id).single();
   if (!profile) return { err: 'Forbidden', status: 403 };
   const { data: survey } = await admin.from('surveys').select('owner_id, collective_id, shared_with, created_by').eq('id', surveyId).is('deleted_at', null).single();
   if (!survey) return { err: 'Not found', status: 404 };
@@ -38,7 +39,10 @@ export async function PATCH(request, { params }) {
   if (!entry) return Response.json({ error: 'Not found' }, { status: 404 });
 
   const canEdit = ctx.isSuperAdmin || ctx.isKollektivOwner || entry.created_by === ctx.user.id;
-  if (!canEdit) return Response.json({ error: 'Csak a bejegyzés létrehozója vagy a kollektíva tulajdonosa módosíthat.' }, { status: 403 });
+  if (!canEdit) {
+    logAudit({ entityId: ctx.user.id, userId: ctx.user.id, userName: ctx.profile.display_name || '', action: 'Survey entry update denied', targetType: 'survey_entry', targetId: entryId, details: { error: 'Permission denied', entryId, surveyId } });
+    return Response.json({ error: 'Csak a bejegyzés létrehozója vagy a kollektíva tulajdonosa módosíthat.' }, { status: 403 });
+  }
 
   const fields = await request.json();
   const allowed = ['name', 'description', 'width_m', 'length_m', 'height_m', 'window_count', 'door_count', 'sort_order'];
@@ -57,6 +61,7 @@ export async function PATCH(request, { params }) {
 
   const { data, error } = await ctx.admin.from('survey_entries').update(update).eq('id', entryId).eq('survey_id', surveyId).select().single();
   if (error) return Response.json({ error: error.message }, { status: 400 });
+  logAudit({ entityId: ctx.user.id, userId: ctx.user.id, userName: ctx.profile.display_name || '', action: 'Survey entry updated', targetType: 'survey_entry', targetId: entryId, targetName: data.name });
   return Response.json({ entry: data });
 }
 
@@ -70,7 +75,10 @@ export async function DELETE(request, { params }) {
   if (!entry) return Response.json({ error: 'Not found' }, { status: 404 });
 
   const canDelete = ctx.isSuperAdmin || ctx.isKollektivOwner || entry.created_by === ctx.user.id;
-  if (!canDelete) return Response.json({ error: 'Csak a bejegyzés létrehozója vagy a kollektíva tulajdonosa törölhet.' }, { status: 403 });
+  if (!canDelete) {
+    logAudit({ entityId: ctx.user.id, userId: ctx.user.id, userName: ctx.profile.display_name || '', action: 'Survey entry delete denied', targetType: 'survey_entry', targetId: entryId, details: { error: 'Permission denied', entryId, surveyId } });
+    return Response.json({ error: 'Csak a bejegyzés létrehozója vagy a kollektíva tulajdonosa törölhet.' }, { status: 403 });
+  }
 
   const { data: media } = await ctx.admin.from('survey_media').select('id, drive_file_id').eq('entry_id', entryId);
   if (media?.length) {
@@ -82,5 +90,6 @@ export async function DELETE(request, { params }) {
 
   const { error } = await ctx.admin.from('survey_entries').delete().eq('id', entryId).eq('survey_id', surveyId);
   if (error) return Response.json({ error: error.message }, { status: 400 });
+  logAudit({ entityId: ctx.user.id, userId: ctx.user.id, userName: ctx.profile.display_name || '', action: 'Survey entry deleted', targetType: 'survey_entry', targetId: entryId });
   return Response.json({ success: true });
 }

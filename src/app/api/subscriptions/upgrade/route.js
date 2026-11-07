@@ -54,6 +54,7 @@ export async function POST(request) {
       ? 'Az előző csomagváltás még feldolgozás alatt van. Kérjük, várj néhány percet, majd próbáld újra.'
       : rawMsg || 'Csomagváltás sikertelen. Kérjük, próbáld újra.';
 
+    logAudit({ entityId: collectiveId, userId: user.id, userName: user.email, action: 'Subscription upgrade failed', targetType: 'payment', targetId: subscriptionId, details: { error: rawMsg, creem_status: upgradeRes.status, collective_id: collectiveId, target_tier: targetTier } });
     return NextResponse.json({ error: msg }, { status: upgradeRes.status });
   }
 

@@ -37,13 +37,21 @@ export async function GET(request) {
         .eq('id', session.user.id)
         .maybeSingle();
 
-      logAudit({
+      await logAudit({
         entityId:   profile?.active_collective_id || session.user.id,
         userId:     session.user.id,
         userName:   profile?.display_name || session.user.email,
         action:     'Login success',
         targetType: 'auth',
         targetName: 'OAuth',
+        details:    { provider: 'oauth', is_new_user: !profile },
+      });
+    } else {
+      await logAudit({
+        action:     'Login failed',
+        targetType: 'auth',
+        targetName: 'OAuth',
+        details:    { reason: 'Session exchange failed' },
       });
     }
   }

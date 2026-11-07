@@ -91,7 +91,10 @@ export async function POST(request) {
     room_id:       room_id || null,
   }]).select().single();
 
-  if (insertErr) return Response.json({ error: insertErr.message }, { status: 500 });
+  if (insertErr) {
+    logAudit({ entityId: ctx.project.collective_id || user.id, userId: user.id, userName: ctx.profile.display_name, action: 'Diary entry creation failed', targetType: 'diary_entry', details: { error: insertErr.message } });
+    return Response.json({ error: insertErr.message }, { status: 500 });
+  }
 
   let photos = [];
   if (Array.isArray(photo_ids) && photo_ids.length > 0) {

@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { logAudit } from '@/lib/audit';
 
 async function getCtx() {
   const supabase = await createClient();
@@ -34,7 +35,11 @@ export async function PUT(request, { params }) {
   if ('unit' in update) { update.unit = update.unit?.trim(); if (!update.unit) return Response.json({ error: 'A mértékegység nem lehet üres' }, { status: 400 }); }
 
   const { data: item, error } = await ctx.admin.from('catalogue_items').update(update).eq('id', itemId).select().single();
-  if (error) return Response.json({ error: error.message }, { status: 400 });
+  if (error) {
+    logAudit({ entityId: collectiveId || ctx.user.id, userId: ctx.user.id, userName: ctx.profile.display_name || '', action: 'Catalogue item update failed', targetType: 'catalogue', targetId: itemId, details: { error: error.message } });
+    return Response.json({ error: error.message }, { status: 400 });
+  }
+  logAudit({ entityId: collectiveId || ctx.user.id, userId: ctx.user.id, userName: ctx.profile.display_name || '', action: 'Catalogue item updated', targetType: 'catalogue', targetId: itemId, targetName: item.name });
   return Response.json({ item });
 }
 
@@ -50,9 +55,13 @@ export async function DELETE(request, { params }) {
   const canDelete = ctx.profile.role === 'superadmin'
     || existing.owner_id === ctx.user.id
     || (collectiveId && existing.collective_id === collectiveId);
-  if (!canDelete) return Response.json({ error: 'Nincs jogosultság' }, { status: 403 });
+  if (!canDelete) {
+    logAudit({ entityId: collectiveId || ctx.user.id, userId: ctx.user.id, userName: ctx.profile.display_name || '', action: 'Catalogue item delete denied', targetType: 'catalogue', targetId: itemId, details: { error: 'Nincs jogosultság' } });
+    return Response.json({ error: 'Nincs jogosultság' }, { status: 403 });
+  }
 
   const { error } = await ctx.admin.from('catalogue_items').delete().eq('id', itemId);
   if (error) return Response.json({ error: error.message }, { status: 400 });
+  logAudit({ entityId: collectiveId || ctx.user.id, userId: ctx.user.id, userName: ctx.profile.display_name || '', action: 'Catalogue item deleted', targetType: 'catalogue', targetId: itemId });
   return Response.json({ success: true });
 }
