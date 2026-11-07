@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
-import { ArrowLeft, ExternalLink, Search, Users } from 'lucide-react';
+import { ArrowLeft, Search, Users, ChevronRight } from 'lucide-react';
 import PageSpinner from '@/components/PageSpinner';
 
 export default function SuperadminPortalsPage() {
@@ -20,7 +20,6 @@ export default function SuperadminPortalsPage() {
     fetch('/api/superadmin/data')
       .then(r => r.json())
       .then(data => {
-        // Group clients by email, deduplicate
         const all = data.clients || [];
         const byEmail = {};
         for (const c of all) {
@@ -56,18 +55,17 @@ export default function SuperadminPortalsPage() {
       <div className="page-header">
         <div>
           <h1 className="page-title" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <Users size={20} /> Ügyfél portálok
+            <Users size={20} /> Client Portals
           </h1>
-          <p className="page-subtitle">{clients.length} egyedi email-cím</p>
+          <p className="page-subtitle">{clients.length} unique email {clients.length === 1 ? 'address' : 'addresses'}</p>
         </div>
       </div>
 
-      {/* Search */}
       <div style={{ position: 'relative', marginBottom: '1.25rem', maxWidth: 420 }}>
         <Search size={15} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', pointerEvents: 'none' }} />
         <input
           type="text"
-          placeholder="Keresés email vagy név alapján…"
+          placeholder="Search by email or name…"
           value={query}
           onChange={e => setQuery(e.target.value)}
           className="form-control"
@@ -77,39 +75,36 @@ export default function SuperadminPortalsPage() {
 
       {filtered.length === 0 ? (
         <div className="card" style={{ textAlign: 'center', padding: '2.5rem', color: 'var(--text-muted)' }}>
-          {query ? 'Nincs találat.' : 'Még nincs email-címmel rendelkező ügyfél.'}
+          {query ? 'No results found.' : 'No clients with email addresses yet.'}
         </div>
       ) : (
         <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
           {filtered.map((c, i) => (
-            <div
+            <Link
               key={c.email}
+              href={`/superadmin/portals/${encodeURIComponent(c.email)}`}
               style={{
                 display: 'flex', alignItems: 'center', gap: '0.75rem',
                 padding: '0.75rem 1rem',
                 borderBottom: i < filtered.length - 1 ? '1px solid var(--border-subtle)' : 'none',
+                textDecoration: 'none', color: 'inherit',
+                transition: 'background 0.12s',
               }}
+              onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-subtle)'}
+              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
             >
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontWeight: 700, fontSize: '0.875rem', color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>
                   {c.email}
                 </div>
                 <div style={{ fontSize: '0.775rem', color: 'var(--text-muted)', marginTop: '0.1rem' }}>
-                  {[...c.names].join(', ')}
+                  {[...c.names].filter(Boolean).join(', ') || '—'}
                   {' · '}
-                  <span>{c.records.length} vállalkozó</span>
+                  <span>{c.records.length} {c.records.length === 1 ? 'contractor' : 'contractors'}</span>
                 </div>
               </div>
-              <Link
-                href={`/portal/dashboard?as=${encodeURIComponent(c.email)}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="btn btn-primary btn-sm"
-                style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', flexShrink: 0 }}
-              >
-                <ExternalLink size={13} /> Portál megnyitása
-              </Link>
-            </div>
+              <ChevronRight size={15} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
+            </Link>
           ))}
         </div>
       )}
