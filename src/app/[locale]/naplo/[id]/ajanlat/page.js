@@ -8,17 +8,16 @@ export default async function QuotePrintPage({ params }) {
 
   const { data: project } = await admin
     .from('projects')
-    .select('id, name, description, start_date, end_date, client_id, entity_id')
+    .select('id, name, description, start_date, end_date, client_id, owner_id')
     .eq('id', id)
     .single();
 
   if (!project) notFound();
 
-  const { data: entity } = await admin
-    .from('entities')
-    .select('id, name')
-    .eq('id', project.entity_id)
-    .single();
+  const { data: ownerProfile } = project.owner_id
+    ? await admin.from('profiles').select('id, display_name, company_name').eq('id', project.owner_id).single()
+    : { data: null };
+  const entity = { id: project.owner_id, name: ownerProfile?.company_name || ownerProfile?.display_name || null };
 
   const { data: quoteRow } = await admin
     .from('quotes')

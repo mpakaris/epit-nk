@@ -27,13 +27,14 @@ export async function GET(request) {
 
   const { project_id } = tokenRow;
 
-  const { data: project } = await admin.from('projects').select('id, name, description').eq('id', project_id).single();
+  const { data: project } = await admin.from('projects').select('id, name, description').eq('id', project_id).is('deleted_at', null).single();
   if (!project) return Response.json({ error: 'invalid_token' }, { status: 404 });
 
   const { data: entries } = await admin
     .from('diary_entries')
     .select('id, title, body, work_type, client_note, entry_date, created_at, created_by')
     .eq('project_id', project_id)
+    .is('deleted_at', null)
     .order('entry_date', { ascending: false })
     .order('created_at', { ascending: false });
 

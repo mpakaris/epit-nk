@@ -11,7 +11,7 @@ export async function PATCH(request, { params }) {
 
   const admin = createAdminClient();
 
-  const { data: quote } = await admin.from('quotes').select('owner_id, shared_with').eq('id', id).single();
+  const { data: quote } = await admin.from('quotes').select('owner_id, shared_with').eq('id', id).is('deleted_at', null).single();
   if (!quote) return Response.json({ error: 'Not found' }, { status: 404 });
 
   const { data: profile } = await admin.from('profiles').select('role').eq('id', user.id).single();

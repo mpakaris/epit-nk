@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { globalRateLimit } from '@/lib/rateLimitGlobal';
 
 export async function POST(request, { params }) {
   const { id: surveyId } = await params;
@@ -7,10 +8,13 @@ export async function POST(request, { params }) {
   const supabase = await createClient();
   const { data: { user }, error: authErr } = await supabase.auth.getUser();
   if (authErr || !user) return Response.json({ error: 'Unauthenticated' }, { status: 401 });
+  const { allowed: rlAllowed } = await globalRateLimit(`ai-call:${user.id}`, { limit: 30, windowSec: 3600 });
+  if (!rlAllowed) return Response.json({ error: 'Túl sok kérés. Kérjük, próbáld újra később.' }, { status: 429 });
+
 
   const admin = createAdminClient();
   const { data: survey } = await admin.from('surveys')
-    .select('owner_id, created_by, collective_id').eq('id', surveyId).single();
+    .select('owner_id, created_by, collective_id').eq('id', surveyId).is('deleted_at', null).single();
   if (!survey) return Response.json({ error: 'Not found' }, { status: 404 });
 
   const { data: profile } = await admin.from('profiles').select('role').eq('id', user.id).single();

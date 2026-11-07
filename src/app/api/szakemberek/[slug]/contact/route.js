@@ -1,6 +1,12 @@
 import { createAdminClient } from '@/lib/supabase/admin';
+import { globalRateLimit } from '@/lib/rateLimitGlobal';
+import { getClientIp } from '@/lib/rateLimit';
 
 export async function POST(request, { params }) {
+  const ip = getClientIp(request);
+  const { allowed } = await globalRateLimit(`contact:${ip}`, { limit: 5, windowSec: 3600 });
+  if (!allowed) return Response.json({ error: 'Túl sok kérés. Kérjük, próbáld újra később.' }, { status: 429 });
+
   const { slug } = await params;
 
   let body;

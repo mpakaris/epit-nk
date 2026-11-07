@@ -4,6 +4,7 @@ import { sendEmail } from '@/lib/email';
 import { EMAIL_TEMPLATES, fillTemplate, wrapEmail, buildOfferDetailHtml } from '@/lib/emailTemplates';
 import { generateOfferPdf } from '@/lib/generateOfferPdf';
 import { logAudit } from '@/lib/audit';
+import { globalRateLimit } from '@/lib/rateLimitGlobal';
 
 export async function POST(request, { params }) {
   const { id } = await params;
@@ -11,6 +12,9 @@ export async function POST(request, { params }) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return Response.json({ error: 'Unauthenticated' }, { status: 401 });
+
+  const { allowed } = await globalRateLimit(`quote-send:${user.id}`, { limit: 10, windowSec: 3600 });
+  if (!allowed) return Response.json({ error: 'Túl sok kérés. Kérjük, próbáld újra később.' }, { status: 429 });
 
   const body = await request.json().catch(() => ({}));
   const attachTerms = body.attachTerms !== false; // default true
@@ -23,6 +27,7 @@ export async function POST(request, { params }) {
     .from('quotes')
     .select('*, quote_sections(*, quote_entries(*))')
     .eq('id', id)
+    .is('deleted_at', null)
     .single();
   if (!quote) return Response.json({ error: 'Ajánlat nem található' }, { status: 404 });
 
@@ -45,7 +50,7 @@ export async function POST(request, { params }) {
     return Response.json({ error: 'Csak az ajánlat tulajdonosa küldhet ajánlatot az ügyfélnek.' }, { status: 403 });
 
   if (!quote.client_id) return Response.json({ error: 'Nincs ügyfél rendelve az ajánlathoz' }, { status: 400 });
-  const { data: client } = await admin.from('clients').select('name, email').eq('id', quote.client_id).single();
+  const { data: client } = await admin.from('clients').select('name, email').eq('id', quote.client_id).is('deleted_at', null).single();
   if (!client?.email) return Response.json({ error: 'Az ügyfélnek nincs megadva email cím' }, { status: 400 });
 
   // Totals for email body

@@ -6,7 +6,7 @@ async function resolveAccess(user, invoiceId) {
   const admin = createAdminClient();
   const [{ data: profile }, { data: invoice }] = await Promise.all([
     admin.from('profiles').select('role, display_name').eq('id', user.id).single(),
-    admin.from('invoices').select('id, project_id, uploaded_by, value_huf, category').eq('id', invoiceId).single(),
+    admin.from('invoices').select('id, project_id, uploaded_by, value_huf, category').eq('id', invoiceId).is('deleted_at', null).single(),
   ]);
   if (!profile || !invoice) return null;
 
@@ -14,7 +14,7 @@ async function resolveAccess(user, invoiceId) {
     .from('projects')
     .select('id, owner_id, created_by, collective_id, name')
     .eq('id', invoice.project_id)
-    .single();
+    .is('deleted_at', null).single();
   if (!project) return null;
 
   const isSuperAdmin  = profile.role === 'superadmin';

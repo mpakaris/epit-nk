@@ -14,12 +14,12 @@ export async function PUT(request) {
   const { invoice_id, splits } = await request.json();
   if (!invoice_id) return Response.json({ error: 'invoice_id kötelező' }, { status: 400 });
 
-  const { data: invoice } = await admin.from('invoices').select('project_id').eq('id', invoice_id).single();
+  const { data: invoice } = await admin.from('invoices').select('project_id').eq('id', invoice_id).is('deleted_at', null).single();
   if (!invoice) return Response.json({ error: 'Számla nem található' }, { status: 404 });
 
   // Permission: project owner, collective owner/admin, or superadmin
   if (profile.role !== 'superadmin') {
-    const { data: project } = await admin.from('projects').select('owner_id, collective_id').eq('id', invoice.project_id).single();
+    const { data: project } = await admin.from('projects').select('owner_id, collective_id').eq('id', invoice.project_id).is('deleted_at', null).single();
     const isOwner = project?.owner_id === user.id;
     let isCollectiveAdmin = false;
     if (project?.collective_id) {

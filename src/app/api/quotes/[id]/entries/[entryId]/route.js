@@ -18,7 +18,7 @@ async function getCtx(quoteId, entryId) {
   if (isSuperAdmin || isOwn) return { user, admin, entry, isSuperAdmin };
 
   // Quote owner or collective owner can also modify
-  const { data: quote } = await admin.from('quotes').select('collective_id, owner_id, created_by').eq('id', quoteId).single();
+  const { data: quote } = await admin.from('quotes').select('collective_id, owner_id, created_by').eq('id', quoteId).is('deleted_at', null).single();
   const isQuoteOwner = quote?.owner_id === user.id || quote?.created_by === user.id;
   if (isQuoteOwner) return { user, admin, entry, isSuperAdmin };
 
@@ -45,7 +45,7 @@ export async function PATCH(request, { params }) {
   if (error) return Response.json({ error: error.message }, { status: 400 });
 
   const { data: prof } = await ctx.admin.from('profiles').select('display_name').eq('id', ctx.user.id).single();
-  const { data: quote } = await ctx.admin.from('quotes').select('collective_id').eq('id', quoteId).single();
+  const { data: quote } = await ctx.admin.from('quotes').select('collective_id').eq('id', quoteId).is('deleted_at', null).single();
   logAudit({
     entityId: quote?.collective_id || ctx.user.id, userId: ctx.user.id,
     userName: prof?.display_name || ctx.user.email,
@@ -67,7 +67,7 @@ export async function DELETE(request, { params }) {
   if (error) return Response.json({ error: error.message }, { status: 400 });
 
   const { data: prof } = await ctx.admin.from('profiles').select('display_name').eq('id', ctx.user.id).single();
-  const { data: quote } = await ctx.admin.from('quotes').select('collective_id').eq('id', quoteId).single();
+  const { data: quote } = await ctx.admin.from('quotes').select('collective_id').eq('id', quoteId).is('deleted_at', null).single();
   logAudit({
     entityId: quote?.collective_id || ctx.user.id, userId: ctx.user.id,
     userName: prof?.display_name || ctx.user.email,

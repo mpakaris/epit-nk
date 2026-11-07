@@ -15,7 +15,7 @@ export async function DELETE(request, { params }) {
   const { data: profile } = await admin.from('profiles').select('id, role').eq('id', user.id).single();
   if (!profile) return Response.json({ error: 'Forbidden' }, { status: 403 });
 
-  const { data: survey } = await admin.from('surveys').select('owner_id, collective_id, shared_with, created_by').eq('id', surveyId).single();
+  const { data: survey } = await admin.from('surveys').select('owner_id, collective_id, shared_with, created_by').eq('id', surveyId).is('deleted_at', null).single();
   if (!survey) return Response.json({ error: 'Not found' }, { status: 404 });
 
   const { data: media } = await admin

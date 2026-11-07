@@ -3,22 +3,33 @@ export function makeEntityUserActions({
   setEntities, setProjects, setQuotes, setInvoices, setUsers,
   effectiveEntityId, supabase,
 }) {
-  // ---- Entities (superadmin only) -----------------------------------------------
+  // ---- Entities (superadmin only — backed by collectives table) -----------------
 
   const createEntity = async ({ name }) => {
     if (!isSuperAdmin) throw new Error('Csak Superadmin hozhat létre entitást!');
-    const { data, error } = await supabase.from('entities').insert([{ name }]).select().single();
-    if (error) throw error;
-    setEntities(prev => [...prev, data].sort((a, b) => a.name.localeCompare(b.name)));
-    return data;
+    const res = await fetch('/api/collectives', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Hiba a létrehozáskor');
+    const newEntity = { ...data.collective, type: 'collective' };
+    setEntities(prev => [...prev, newEntity].sort((a, b) => a.name.localeCompare(b.name)));
+    return newEntity;
   };
 
   const updateEntity = async (entityId, fields) => {
     if (!isSuperAdmin) throw new Error('Csak Superadmin módosíthat entitást!');
-    const { data, error } = await supabase.from('entities').update(fields).eq('id', entityId).select().single();
-    if (error) throw error;
-    setEntities(prev => prev.map(e => e.id === entityId ? data : e));
-    return data;
+    const res = await fetch(`/api/superadmin/entity/${entityId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(fields),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Hiba a mentéskor');
+    setEntities(prev => prev.map(e => e.id === entityId ? { ...e, ...data.entity, type: 'collective' } : e));
+    return data.entity;
   };
 
   const deleteEntity = async (entityId) => {

@@ -9,7 +9,7 @@ async function getCtx(quoteId) {
   const admin = createAdminClient();
   const { data: profile } = await admin.from('profiles').select('id, role, display_name').eq('id', user.id).single();
   if (!profile) return { err: 'Forbidden', status: 403 };
-  const { data: quote } = await admin.from('quotes').select('id, owner_id, created_by, collective_id, survey_id').eq('id', quoteId).single();
+  const { data: quote } = await admin.from('quotes').select('id, owner_id, created_by, collective_id, survey_id').eq('id', quoteId).is('deleted_at', null).single();
   if (!quote) return { err: 'Quote not found', status: 404 };
 
   const isSuperAdmin = profile.role === 'superadmin';

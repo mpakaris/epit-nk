@@ -12,14 +12,16 @@ export async function DELETE(request, { params }) {
   if (!profile) return Response.json({ error: 'Profile not found' }, { status: 403 });
 
   const { id } = await params;
-  const { data: existing } = await admin.from('ideas').select('author_id, idea').eq('id', id).single();
+  const { data: existing } = await admin.from('ideas').select('author_id, idea').eq('id', id).is('deleted_at', null).single();
   if (!existing) return Response.json({ error: 'Not found' }, { status: 404 });
 
   const isAdmin = ['admin', 'superadmin'].includes(profile.role);
   const isOwner = existing.author_id === user.id;
   if (!isOwner && !isAdmin) return Response.json({ error: 'Forbidden' }, { status: 403 });
 
-  const { error } = await admin.from('ideas').delete().eq('id', id);
+  const { error } = await admin.from('ideas')
+    .update({ deleted_at: new Date().toISOString() })
+    .eq('id', id);
   if (error) return Response.json({ error: error.message }, { status: 500 });
 
   logAudit({

@@ -6,7 +6,7 @@ async function getCtx(projectId, userId) {
   const admin = createAdminClient();
   const { data: profile } = await admin.from('profiles').select('id, role').eq('id', userId).single();
   if (!profile) return { err: 'Forbidden', status: 403 };
-  const { data: project } = await admin.from('projects').select('id, owner_id, created_by, collective_id').eq('id', projectId).single();
+  const { data: project } = await admin.from('projects').select('id, owner_id, created_by, collective_id').eq('id', projectId).is('deleted_at', null).single();
   if (!project) return { err: 'Project not found', status: 404 };
 
   const isSuperAdmin = profile.role === 'superadmin';
@@ -76,7 +76,7 @@ export async function DELETE(request, { params }) {
   await Promise.all([
     ctx.admin.from('invoices').update({ room_id: null }).eq('room_id', roomId),
     ctx.admin.from('labour_entries').update({ room_id: null }).eq('room_id', roomId),
-    ctx.admin.from('invoice_splits').update({ room_id: null }).eq('room_id', roomId),
+    ctx.admin.from('invoice_section_splits').update({ room_id: null }).eq('room_id', roomId),
   ]);
 
   const { error: deleteErr } = await ctx.admin

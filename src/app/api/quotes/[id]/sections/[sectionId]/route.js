@@ -15,6 +15,7 @@ async function getCtx(quoteId, sectionId) {
     .from('quotes')
     .select('id, owner_id, created_by, collective_id, shared_with')
     .eq('id', quoteId)
+    .is('deleted_at', null)
     .single();
   if (!quote) return { err: 'Quote not found', status: 404 };
 

@@ -452,13 +452,13 @@ async function finalise(admin, queueId, waMsgId, startedAt, updates = {}) {
 
 export async function POST(request) {
   const authHeader = request.headers.get('Authorization');
-  if (authHeader !== `Bearer ${process.env.INTERNAL_CRON_SECRET}`) {
+  const secret = process.env.INTERNAL_CRON_SECRET;
+  if (!secret || authHeader !== `Bearer ${secret}`) {
     return Response.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   const admin  = createAdminClient();
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-  const secret = process.env.INTERNAL_CRON_SECRET;
 
   const { data: items, error: rpcError } = await admin.rpc('claim_wa_queue_items', { batch_size: 3 });
 

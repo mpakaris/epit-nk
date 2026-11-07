@@ -14,7 +14,7 @@ async function resolveAccess(user, entryId) {
     .from('projects')
     .select('id, owner_id, created_by, collective_id, name')
     .eq('id', entry.project_id)
-    .single();
+    .is('deleted_at', null).single();
   if (!project) return null;
 
   const isSuperAdmin   = profile.role === 'superadmin';

@@ -18,18 +18,17 @@ export default async function PublicProjectDiaryPage({ params }) {
   // Fetch project
   const { data: project } = await admin
     .from('projects')
-    .select('id, name, description, start_date, end_date, client_id, entity_id')
+    .select('id, name, description, start_date, end_date, client_id, owner_id')
     .eq('id', id)
     .single();
 
   if (!project) notFound();
 
-  // Fetch entity (for branding)
-  const { data: entity } = await admin
-    .from('entities')
-    .select('id, name')
-    .eq('id', project.entity_id)
-    .single();
+  // Fetch contractor profile for branding (company name shown on the public diary page)
+  const { data: ownerProfile } = project.owner_id
+    ? await admin.from('profiles').select('id, display_name, company_name').eq('id', project.owner_id).single()
+    : { data: null };
+  const entity = { id: project.owner_id, name: ownerProfile?.company_name || ownerProfile?.display_name || null };
 
   // Fetch client
   let client = null;
@@ -66,6 +65,7 @@ export default async function PublicProjectDiaryPage({ params }) {
     .select('id, title, body, work_type, client_note, entry_date, created_at, created_by')
     .eq('project_id', id)
     .eq('is_public', true)
+    .is('deleted_at', null)
     .order('entry_date', { ascending: false })
     .order('created_at', { ascending: false });
 

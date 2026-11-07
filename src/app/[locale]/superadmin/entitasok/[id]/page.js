@@ -8,14 +8,14 @@ import Modal, { ConfirmModal, AlertModal } from '@/components/Modal';
 import { formatDate, formatHUF } from '@/lib/constants';
 import {
   ArrowLeft, ArrowUpRight, Users, FolderKanban, Plus, Eye, Trash2,
-  UserPlus, RotateCcw, Lock, CheckCircle2, AlertCircle, ShieldCheck, Briefcase, HardDriveUpload, Edit3, X, Save
+  UserPlus, RotateCcw, Lock, CheckCircle2, AlertCircle, ShieldCheck, Briefcase,
 } from 'lucide-react';
 
 export default function EntityDetailPage() {
   const { id } = useParams();
   const {
-    isSuperAdmin, loading, entities, users, projects, invoices, clients,
-    createUser, deleteUser, resetUserPassword, startImpersonation,
+    isSuperAdmin, loading, entities, users, projects, invoices,
+    allMemberships, createUser, deleteUser, resetUserPassword, startImpersonation,
     createProject, createClient,
   } = useApp();
 
@@ -40,11 +40,6 @@ export default function EntityDetailPage() {
   const [projEndDate, setProjEndDate] = useState('');
   const [projFormError, setProjFormError] = useState('');
   const [projSubmitting, setProjSubmitting] = useState(false);
-
-  // Drive folder configuration
-  const [editingDrive, setEditingDrive] = useState(false);
-  const [driveFolderId, setDriveFolderId] = useState('');
-  const [driveSaving, setDriveSaving] = useState(false);
 
   // Client creation
   const [showCreateClientModal, setShowCreateClientModal] = useState(false);
@@ -75,9 +70,10 @@ export default function EntityDetailPage() {
     );
   }
 
-  const entityUsers = users.filter(u => u.entity_id === id);
-  const entityProjects = projects.filter(p => p.entity_id === id);
-  const entityClients = clients.filter(c => c.entity_id === id);
+  const memberUserIds = new Set(allMemberships.filter(m => m.entity_id === id).map(m => m.user_id));
+  const entityUsers = users.filter(u => memberUserIds.has(u.id));
+  const entityProjects = projects.filter(p => p.collective_id === id);
+  const entityClients = [];
   const totalCost = invoices
     .filter(inv => entityProjects.some(p => p.id === inv.project_id))
     .reduce((s, inv) => s + Number(inv.value_huf || 0), 0);
@@ -146,25 +142,6 @@ export default function EntityDetailPage() {
     }
   };
 
-  const handleSaveDriveFolder = async () => {
-    setDriveSaving(true);
-    try {
-      const res = await fetch(`/api/superadmin/entity/${id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ google_drive_folder_id: driveFolderId.trim() || null }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Error saving');
-      setSuccessMsg('Google Drive folder configured.');
-      setEditingDrive(false);
-    } catch (err) {
-      setAlertModal({ message: err.message });
-    } finally {
-      setDriveSaving(false);
-    }
-  };
-
   const handleCreateClient = async (e) => {
     e.preventDefault();
     setClientFormError('');
@@ -211,49 +188,6 @@ export default function EntityDetailPage() {
         <div className="stat-card"><div className="stat-label">Users</div><div className="stat-value">{entityUsers.length}</div></div>
         <div className="stat-card"><div className="stat-label">Projects</div><div className="stat-value">{entityProjects.length}</div></div>
         <div className="stat-card"><div className="stat-label">Total expenses</div><div className="stat-value" style={{ fontSize: '1.1rem' }}>{formatHUF(totalCost)}</div></div>
-      </div>
-
-      {/* Google Drive folder */}
-      <div className="card mb-6" style={{ padding: '1rem 1.15rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem', flexWrap: 'wrap' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-            <HardDriveUpload size={18} color="var(--accent)" />
-            <h3 style={{ fontSize: '1rem', fontWeight: 800, margin: 0 }}>Google Drive Folder</h3>
-          </div>
-          {!editingDrive && (
-            <button type="button" className="btn btn-secondary btn-sm" onClick={() => { setDriveFolderId(entity.google_drive_folder_id || ''); setEditingDrive(true); }}>
-              <Edit3 size={13} /> Edit
-            </button>
-          )}
-        </div>
-
-        {editingDrive ? (
-          <div style={{ marginTop: '0.85rem', display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'flex-end' }}>
-            <div style={{ flex: 1, minWidth: 200 }}>
-              <label className="form-label" style={{ fontSize: '0.8rem', marginBottom: '0.25rem', display: 'block' }}>Drive folder ID</label>
-              <input
-                type="text"
-                className="form-control text-mono"
-                placeholder="e.g. 1aBcDeFgHiJkLmNoPqRsTuVwXyZ"
-                value={driveFolderId}
-                onChange={e => setDriveFolderId(e.target.value)}
-                style={{ fontSize: '0.85rem' }}
-              />
-            </div>
-            <div style={{ display: 'flex', gap: '0.4rem' }}>
-              <button type="button" className="btn btn-secondary btn-sm" onClick={() => setEditingDrive(false)} disabled={driveSaving}>
-                <X size={13} /> Cancel
-              </button>
-              <button type="button" className="btn btn-primary btn-sm" onClick={handleSaveDriveFolder} disabled={driveSaving}>
-                <Save size={13} /> {driveSaving ? 'Saving...' : 'Save'}
-              </button>
-            </div>
-          </div>
-        ) : (
-          <div style={{ marginTop: '0.5rem', fontSize: '0.85rem', color: entity.google_drive_folder_id ? 'var(--text-primary)' : 'var(--text-muted)', fontFamily: entity.google_drive_folder_id ? 'var(--font-mono)' : 'inherit' }}>
-            {entity.google_drive_folder_id || 'Not configured — required for diary photo uploads'}
-          </div>
-        )}
       </div>
 
       {/* Users */}
@@ -304,18 +238,7 @@ export default function EntityDetailPage() {
                     <button type="button" onClick={() => startImpersonation(u.id).catch(err => setAlertModal({ message: err.message }))} className="btn btn-secondary btn-sm" title="God Mode – Collective view" style={{ padding: '0.25rem 0.55rem' }}>
                       <Eye size={13} />
                     </button>
-                    {u.personal_entity_id && (
-                      <button
-                        type="button"
-                        onClick={() => startImpersonation(u.id, u.personal_entity_id).catch(err => setAlertModal({ message: err.message }))}
-                        className="btn btn-secondary btn-sm"
-                        title="God Mode – Personal view"
-                        style={{ padding: '0.25rem 0.55rem', fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-muted)' }}
-                      >
-                        <Eye size={13} />
-                        <span style={{ fontSize: '0.65rem' }}>P</span>
-                      </button>
-                    )}
+
 
                     <button type="button" onClick={() => { setFormError(''); setResetTarget(u); setTempPass('OkosSzaki2026!'); }} className="btn btn-secondary btn-sm" style={{ padding: '0.25rem 0.55rem' }}>
                       <RotateCcw size={12} />

@@ -620,22 +620,63 @@ Report the before/after index state and the EXPLAIN output.
 
 ---
 
-## SQL Run Checklist (Supabase Dashboard)
+## Implementation Status
 
-| Task | SQL Run | Verified |
+### Code changes (applied — deploy these)
+| Task | Status | Notes |
 |---|---|---|
-| Task 1 — Audit policies | ☐ | ☐ |
-| Task 2 — Confirm no anon data reads | ☐ | ☐ |
-| Task 2 — REVOKE anon/authenticated | ☐ | ☐ |
-| Task 3 — Add deny_all policies | ☐ | ☐ |
-| Task 3 — Drop surviving entity_id policies | ☐ | ☐ |
-| Task 6a — New RLS helper functions | ☐ | ☐ |
-| Task 6b — Document table policies | ☐ | ☐ |
-| Task 6c — Child table policies | ☐ | ☐ |
-| Task 9 — Creem webhook fail-closed | ☐ | ☐ |
-| Task 10 — Global rate limiting (Upstash) | ☐ | ☐ |
-| Task 11a — survey_items table | ☐ | ☐ |
-| Task 11b — diary_entries.deleted_at + ideas.deleted_at | ☐ | ☐ |
-| Task 11c — Inclusive collective unique index | ☐ | ☐ |
-| Task 11d — Drop entities/memberships | ☐ | ☐ |
-| Task 12 — Composite indexes | ☐ | ☐ |
+| Task 4 — Cron endpoint fail-closed | ✅ Done | `cron/expire-transfers/route.js` |
+| Task 9 — Creem webhook fail-closed | ✅ Done | `webhooks/creem/route.js` |
+| Task 10 — Global rate limiting | ✅ Done | `src/lib/rateLimitGlobal.js` + 5 routes — **needs `UPSTASH_REDIS_REST_URL` + `UPSTASH_REDIS_REST_TOKEN` in `.env.local`** |
+| Task 5 — Narrow SELECT * in entity/data | ✅ Done | Explicit PROFILE_COLS list; excludes 10 sensitive fields |
+| Task 7 — ETag caching on entity/data | ✅ Done | 304 on unchanged data; 3 cheap pre-queries + ETag header |
+| Task 11b — diary/ideas soft delete (code) | ✅ Done | Routes updated; **migration 129 must be applied before next deploy** |
+| Bug fix — diary/[id] resolveEntry deleted_at | ✅ Done | `diary/[id]/route.js` PATCH/DELETE could operate on soft-deleted entries |
+| Bug fix — ideas/[id] DELETE deleted_at | ✅ Done | `ideas/[id]/route.js` DELETE lookup now filters deleted ideas |
+| Bug fix — public diary feeds missing deleted_at | ✅ Done | `diary/share/resolve`, `portal/data`, `entity/data` preview fetch, `clients/[id]` portal, `naplo/[id]` public view, `projektek/[id]` count, `admin/projektek` count — all now filter `.is('deleted_at', null)` |
+| Task 11d (partial) — remove entities lookups from public pages | ✅ Done | `naplo/[id]`, `naplo/[id]/ajanlat`, `clients/[id]`, `clients/[id]/ajanlat/[quoteId]` now use `profiles.company_name\|\|display_name` via `owner_id` instead of `entities` table; remaining `entities` refs are all in `/superadmin/` paths |
+| Bug fix — portal/data quotes+projects+clients missing deleted_at | ✅ Done | `portal/data/route.js` now filters deleted quotes, projects and clients |
+| Bug fix — workspace/combined projects missing deleted_at | ✅ Done | `workspace/combined/route.js` personal + shared project queries now filter deleted_at |
+| Bug fix — entity/data invoices missing deleted_at | ✅ Done | `entity/data/route.js` invoice fetch in bulk load now filters deleted_at |
+| Bug fix — quotes/projects/surveys gatekeeper lookups missing deleted_at | ✅ Done | `quotes/[id]`, `projects/[id]`, `surveys/[id]`, `invoices/[id]` gatekeeper `.single()` calls now include `.is('deleted_at', null)` — soft-deleted documents now return 404 instead of 200 |
+| Bug fix — 30+ sub-document route parent lookups missing deleted_at | ✅ Done | All survey/quote/project sub-routes (entries, sections, rooms, diary, labour, invoices, payment-plan, etc.) now filter deleted parents before allowing mutations |
+| Bug fix — quotes/[id]/send gatekeeper + client lookup | ✅ Done | PDF+email endpoint now rejects soft-deleted quotes and clients |
+| Bug fix — invoice-splits parent invoice lookup | ✅ Done | `invoice-splits/route.js` now filters deleted invoices |
+| Bug fix — 7 AI routes missing rate limiting | ✅ Done | `analyze-layout`, `fill-property`, `fill-entry`, `generate-items`, `parse-entry`, `generate-entries`, `format-notes` — all now have `globalRateLimit` (30/hr per user) |
+| Bug fix — 3 more quote sub-routes missing deleted_at gatekeeper | ✅ Done | `parse-entry`, `sections/[sectionId]/generate-entries`, `sections/[sectionId]/route.js` |
+| Bug fix — history routes missing deleted_at | ✅ Done | `quotes/[id]/history`, `projects/[id]/history` |
+| Bug fix — invoice media routes missing deleted_at on parent lookups | ✅ Done | `invoices/[id]/media`, `invoices/[id]/media/[mediaId]` |
+| Bug fix — labour-entries/[id] project gatekeeper | ✅ Done | Project FK lookup now filters deleted projects |
+| Bug fix — diary/photos/[id] diary_entries gatekeeper | ✅ Done | Photo deletion now 404s if the parent entry is deleted |
+| Bug fix — portal/quotes/[id]/respond quotes+clients gatekeeper | ✅ Done | Client quote-accept/reject flow 404s on deleted quotes/clients |
+| Bug fix — projects/[id]/invoice-media project gatekeeper | ✅ Done | |
+| Security — WA process + send routes Bearer token was fail-open | ✅ Done | `wa/process`, `wa/send` now use `!secret \|\| header !== Bearer ${secret}` pattern |
+| Security — WhatsApp webhook was fail-open (skip if no secret) | ✅ Done | `webhooks/whatsapp/route.js` now rejects with 500 if `WHINSELF_WEBHOOK_SECRET` not configured |
+| Tests — Test 1 extended: catches Bearer template literal fail-open | ✅ Done | Detects `header !== \`Bearer \${process.env.X}\`` without prior `!secret` guard |
+| Tests — Test 5 tightened: catches `if (secret) {` fail-open variant | ✅ Done | Covers any variable name, not just `*Secret` naming |
+| Tests — Test 6 extended: 7 more AI routes in MUST_HAVE_GLOBAL_RL | ✅ Done | |
+| Tests — Test 7 upgraded to per-table proximity check | ✅ Done | Covers workspace/combined + portal/data + entity/data invoices (6 new entries) |
+| Tests — Test 10 added: gatekeeper deleted_at coverage | ✅ Done | 30+ gatekeeper routes verified; all 10 tests green |
+| Task 11d — entities/memberships code migration | ✅ Done | superadmin/data, entityUserActions, delete-entity, superadmin pages all migrated to collectives/collective_members |
+| Tests — Test 11 added: no legacy table references | ✅ Done | Scans API routes + context files for `.from('entities')` / `.from('memberships')` |
+
+### SQL migrations — full apply order (all in `supabase/migrations/`)
+| # | File | Priority | Notes |
+|---|---|---|---|
+| 129 | `129_soft_delete_diary_ideas.sql` | 🔴 **Before next deploy** | Adds `deleted_at` to diary_entries + ideas; code already uses it |
+| 130 | `130_survey_items.sql` | 🟡 High | Creates survey_items table; fixes 500 on survey items API |
+| 131 | `131_composite_indexes.sql` | 🟡 Medium | Composite workspace indexes; performance |
+| 132 | `132_inclusive_collective_unique_index.sql` | 🟡 Medium | Adds `owner_id` to collectives + unique partial index; race condition fix |
+| 133 | `133_invoice_media_rls.sql` | 🟢 Low | Retroactive RLS on invoice_media table |
+| 134 | `134_deny_all_rls_policies.sql` | 🟢 Low | Task 3: deny-all on tables missing policies; drops stale entity_id policies |
+| 135 | `135_revoke_anon_table_access.sql` | 🟢 Low | Task 2: REVOKE all table grants from anon + authenticated roles |
+| 136 | `136_rls_helper_functions.sql` | 🟢 Low | Task 6a: is_superadmin(), is_collective_member(), is_collective_owner_or_admin() |
+| 137 | `137_rls_document_tables.sql` | 🟢 Low | Task 6b: RLS policies for projects, quotes, surveys, clients |
+| 138 | `138_rls_child_tables.sql` | 🟢 Low | Task 6c: RLS policies for invoices, labour_entries, quote_entries, quote_sections, project_rooms, diary_entries |
+| 139 | `139_drop_entities_memberships.sql` | 🟡 High | Task 11d: DROP TABLE entities + memberships; apply after deploying this code change |
+
+**Previously blocked — now done:**
+| Task | Status | Notes |
+|---|---|---|
+| Task 2 code audit | ✅ Done | db-rules Test 2 passes — no anon data reads in codebase |
+| Task 11d — Drop entities/memberships tables | ✅ Done | Code migrated: superadmin/data uses collectives/collective_members; entityUserActions uses API routes; delete-entity uses collective_id; superadmin pages fixed (collective_id); migration 139 created; Test 11 added |

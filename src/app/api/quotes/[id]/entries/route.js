@@ -10,7 +10,7 @@ export async function POST(request, { params }) {
   if (authErr || !user) return Response.json({ error: 'Unauthenticated' }, { status: 401 });
 
   const admin = createAdminClient();
-  const { data: quote } = await admin.from('quotes').select('id, owner_id, created_by, collective_id').eq('id', quoteId).single();
+  const { data: quote } = await admin.from('quotes').select('id, owner_id, created_by, collective_id').eq('id', quoteId).is('deleted_at', null).single();
   if (!quote) return Response.json({ error: 'Not found' }, { status: 404 });
 
   const isOwner = quote.owner_id === user.id || quote.created_by === user.id;

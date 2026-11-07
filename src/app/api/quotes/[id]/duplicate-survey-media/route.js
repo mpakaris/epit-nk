@@ -15,7 +15,7 @@ export async function POST(request, { params }) {
 
   const admin = createAdminClient();
 
-  const { data: quote } = await admin.from('quotes').select('id, title, owner_id, created_by, client_id').eq('id', quoteId).single();
+  const { data: quote } = await admin.from('quotes').select('id, title, owner_id, created_by, client_id').eq('id', quoteId).is('deleted_at', null).single();
   if (!quote) return Response.json({ error: 'Quote not found' }, { status: 404 });
   if (quote.owner_id !== user.id && quote.created_by !== user.id)
     return Response.json({ error: 'Forbidden' }, { status: 403 });

@@ -20,7 +20,7 @@ export async function DELETE(request, { params }) {
 
   let isKollektivOwner = false;
   if (!isAdmin && !isCreator) {
-    const { data: survey } = await admin.from('surveys').select('collective_id').eq('id', id).single();
+    const { data: survey } = await admin.from('surveys').select('collective_id').eq('id', id).is('deleted_at', null).single();
     if (survey?.collective_id) {
       const { data: mem } = await admin.from('collective_members')
         .select('role').eq('collective_id', survey.collective_id).eq('user_id', user.id).eq('status', 'active').maybeSingle();

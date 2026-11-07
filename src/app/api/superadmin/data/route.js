@@ -13,7 +13,7 @@ export async function GET() {
   if (profile?.role !== 'superadmin') return Response.json({ error: 'Forbidden' }, { status: 403 });
 
   const [
-    { data: entities },
+    { data: collectives },
     { data: users },
     { data: projects },
     { data: projectMembers },
@@ -24,7 +24,7 @@ export async function GET() {
     { data: quoteEntries },
     { data: quoteSections },
   ] = await Promise.all([
-    admin.from('entities').select('*').order('name'),
+    admin.from('collectives').select('id, name, created_at, collective_tier, subscription_status, is_inclusive').order('name'),
     admin.from('profiles').select('*').order('display_name'),
     admin.from('projects').select('*').order('created_at', { ascending: false }),
     admin.from('project_members').select('project_id, user_id'),
@@ -36,27 +36,26 @@ export async function GET() {
     admin.from('quote_sections').select('*').order('sort_order').order('created_at'),
   ]);
 
-  // Fetch all active memberships (used for entity stats, handleJump, and personal entity lookup)
-  const { data: allMembershipsRaw } = await admin
-    .from('memberships')
-    .select('user_id, entity_id, role, status, entities(type), profiles!memberships_user_id_fkey(id, display_name, email, role)')
+  // Fetch collective memberships (replaces old memberships table query)
+  const { data: rawMembers } = await admin
+    .from('collective_members')
+    .select('user_id, collective_id, role, status')
     .eq('status', 'active');
 
-  const personalEntityByUser = {};
-  const collectiveMemberships = [];
-  for (const m of allMembershipsRaw || []) {
-    if (m.entities?.type === 'personal') {
-      personalEntityByUser[m.user_id] = m.entity_id;
-    } else {
-      collectiveMemberships.push({
-        user_id:      m.user_id,
-        entity_id:    m.entity_id,
-        role:         m.role,
-        display_name: m.profiles?.display_name || m.user_id,
-        email:        m.profiles?.email || null,
-      });
-    }
-  }
+  // Fetch profiles for member display names
+  const memberUserIds = [...new Set((rawMembers || []).map(m => m.user_id))];
+  const { data: memberProfiles } = memberUserIds.length > 0
+    ? await admin.from('profiles').select('id, display_name, email').in('id', memberUserIds)
+    : { data: [] };
+  const profileMap = Object.fromEntries((memberProfiles || []).map(p => [p.id, p]));
+
+  const collectiveMemberships = (rawMembers || []).map(m => ({
+    user_id:      m.user_id,
+    entity_id:    m.collective_id,  // alias for backward compat with superadmin pages
+    role:         m.role,
+    display_name: profileMap[m.user_id]?.display_name || m.user_id,
+    email:        profileMap[m.user_id]?.email || null,
+  }));
 
   // Attach members to projects (same shape as the browser query)
   const projectsWithMembers = (projects || []).map(p => ({
@@ -64,13 +63,17 @@ export async function GET() {
     members: (projectMembers || []).filter(pm => pm.project_id === p.id).map(pm => pm.user_id),
   }));
 
+  // personal_entity_id no longer meaningful — personal workspace = user.id directly
   const usersWithPersonal = (users || []).map(u => ({
     ...u,
-    personal_entity_id: personalEntityByUser[u.id] || null,
+    personal_entity_id: null,
   }));
 
+  // Map collectives to the shape superadmin pages expect (with type field)
+  const entities = (collectives || []).map(c => ({ ...c, type: 'collective' }));
+
   return Response.json({
-    entities:      entities      || [],
+    entities,
     users:         usersWithPersonal,
     projects:      projectsWithMembers,
     invoices:      invoices      || [],

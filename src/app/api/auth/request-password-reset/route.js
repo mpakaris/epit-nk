@@ -3,8 +3,14 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { sendEmail } from '@/lib/email';
 import { wrapEmail } from '@/lib/emailTemplates';
 import { logAudit } from '@/lib/audit';
+import { globalRateLimit } from '@/lib/rateLimitGlobal';
+import { getClientIp } from '@/lib/rateLimit';
 
 export async function POST(request) {
+  const ip = getClientIp(request);
+  const { allowed } = await globalRateLimit(`pwd-reset:${ip}`, { limit: 5, windowSec: 3600 });
+  if (!allowed) return Response.json({ error: 'Túl sok kérés. Kérjük, próbáld újra később.' }, { status: 429 });
+
   const origin = new URL(request.url).origin;
   const { email } = await request.json().catch(() => ({}));
 

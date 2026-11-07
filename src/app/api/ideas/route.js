@@ -16,7 +16,7 @@ export async function GET(request) {
   const ctx = await getCallerProfile(supabase, admin);
   if (ctx.error) return Response.json({ error: ctx.error }, { status: ctx.status });
 
-  let query = admin.from('ideas').select('*').order('created_at', { ascending: false });
+  let query = admin.from('ideas').select('*').is('deleted_at', null).order('created_at', { ascending: false });
 
   if (ctx.profile.role === 'superadmin') {
     // SA sees all ideas

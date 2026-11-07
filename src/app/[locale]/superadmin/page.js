@@ -199,7 +199,7 @@ export default function SuperAdminPage() {
   }
 
   // ── Computed stats ────────────────────────────────────────────────────────
-  const collectiveEntities = entities.filter(e => e.type !== 'personal');
+  const collectiveEntities = entities; // all entities are now collective type
   const totalUsers   = recallUsers.length;
   const basicCount   = recallUsers.filter(u => !u.is_subscription_premium && u.subscription_tier === 'basic').length;
   const trialCount   = recallUsers.filter(u => u.subscription_tier === 'trial').length;
@@ -242,8 +242,8 @@ export default function SuperAdminPage() {
   };
 
   const handleDelete = (entity) => {
-    const entityUsers    = users.filter(u => u.entity_id === entity.id).length;
-    const entityProjects = projects.filter(p => p.entity_id === entity.id).length;
+    const entityUsers    = allMemberships.filter(m => m.entity_id === entity.id).length;
+    const entityProjects = projects.filter(p => p.collective_id === entity.id).length;
     setConfirmModal({
       message: `Are you sure you want to delete "${entity.name}"?\n${entityUsers} users and ${entityProjects} projects will also be deleted. This cannot be undone!`,
       onConfirm: async () => {

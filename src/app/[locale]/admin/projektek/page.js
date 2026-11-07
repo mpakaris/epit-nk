@@ -68,7 +68,7 @@ async function AdminProjectsContent() {
       ? admin.from('labour_entries').select('project_id').in('project_id', projectIds)
       : Promise.resolve({ data: [] }),
     projectIds.length > 0
-      ? admin.from('diary_entries').select('project_id').in('project_id', projectIds)
+      ? admin.from('diary_entries').select('project_id').in('project_id', projectIds).is('deleted_at', null)
       : Promise.resolve({ data: [] }),
   ]);
 

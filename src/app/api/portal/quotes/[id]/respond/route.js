@@ -24,7 +24,7 @@ export async function POST(request, { params }) {
     .from('quotes')
     .select('id, client_id, owner_id, status, title')
     .eq('id', id)
-    .single();
+    .is('deleted_at', null).single();
 
   if (!quote) return Response.json({ error: 'Not found' }, { status: 404 });
   if (quote.status !== 'sent') return Response.json({ error: 'Ez az ajánlat nem módosítható' }, { status: 400 });
@@ -35,7 +35,7 @@ export async function POST(request, { params }) {
     .select('id, name')
     .eq('id', quote.client_id)
     .ilike('email', user.email.toLowerCase())
-    .single();
+    .is('deleted_at', null).single();
 
   if (!client) return Response.json({ error: 'Forbidden' }, { status: 403 });
 

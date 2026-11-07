@@ -13,7 +13,7 @@ async function getCallerAndSurvey(id) {
   const { data: profile } = await admin.from('profiles').select('id, role, display_name, is_subscription_premium, subscription_tier, trial_ends_at').eq('id', user.id).single();
   if (!profile) return { err: 'Forbidden', status: 403 };
 
-  const { data: survey } = await admin.from('surveys').select('*').eq('id', id).single();
+  const { data: survey } = await admin.from('surveys').select('*').eq('id', id).is('deleted_at', null).single();
   if (!survey) return { err: 'Not found', status: 404 };
 
   if (profile.role === 'superadmin') {

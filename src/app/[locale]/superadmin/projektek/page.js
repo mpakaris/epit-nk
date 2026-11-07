@@ -19,16 +19,16 @@ function SuperAdminProjectsContent() {
   const entityMap = Object.fromEntries(entities.map(e => [e.id, e]));
 
   const filtered = projects.filter(p => {
-    if (entityFilter && p.entity_id !== entityFilter) return false;
+    if (entityFilter && p.collective_id !== entityFilter) return false;
     if (search && !p.name.toLowerCase().includes(search.toLowerCase())) return false;
     return true;
   });
 
-  // Group by entity
+  // Group by entity (collective)
   const grouped = entities
     .map(entity => ({
       entity,
-      projects: filtered.filter(p => p.entity_id === entity.id),
+      projects: filtered.filter(p => p.collective_id === entity.id),
     }))
     .filter(g => g.projects.length > 0);
 

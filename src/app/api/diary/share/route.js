@@ -22,7 +22,7 @@ export async function GET(request) {
   if (!projectId) return Response.json({ error: 'Missing project_id' }, { status: 400 });
 
   // Verify caller can access this project
-  const { data: projectCheck } = await admin.from('projects').select('id, owner_id, collective_id, created_by').eq('id', projectId).single();
+  const { data: projectCheck } = await admin.from('projects').select('id, owner_id, collective_id, created_by').eq('id', projectId).is('deleted_at', null).single();
   if (!projectCheck) return Response.json({ error: 'Project not found or access denied' }, { status: 404 });
   if (profile.role !== 'superadmin') {
     const isOwner = projectCheck.owner_id === profile.id || projectCheck.created_by === profile.id;
@@ -55,7 +55,7 @@ export async function POST(request) {
   const { project_id, label, expires_at } = body;
   if (!project_id) return Response.json({ error: 'Missing project_id' }, { status: 400 });
 
-  const { data: project } = await admin.from('projects').select('id, owner_id, collective_id, created_by').eq('id', project_id).single();
+  const { data: project } = await admin.from('projects').select('id, owner_id, collective_id, created_by').eq('id', project_id).is('deleted_at', null).single();
   if (!project) return Response.json({ error: 'Project not found' }, { status: 404 });
   if (profile.role !== 'superadmin') {
     const isOwner = project.owner_id === profile.id || project.created_by === profile.id;

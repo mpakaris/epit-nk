@@ -12,7 +12,7 @@ async function getCallerAndQuote(id) {
   const { data: profile } = await admin.from('profiles').select('role, active_collective_id, display_name, is_subscription_premium, subscription_tier, trial_ends_at').eq('id', user.id).single();
   if (!profile) return { err: 'Forbidden', status: 403 };
 
-  const { data: quote } = await admin.from('quotes').select('*').eq('id', id).single();
+  const { data: quote } = await admin.from('quotes').select('*').eq('id', id).is('deleted_at', null).single();
   if (!quote) return { err: 'Not found', status: 404 };
 
   const isSuperAdmin = profile.role === 'superadmin';

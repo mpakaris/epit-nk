@@ -13,7 +13,7 @@ export async function GET(request, { params }) {
     .from('projects')
     .select('owner_id, created_by, collective_id')
     .eq('id', id)
-    .single();
+    .is('deleted_at', null).single();
   if (!project) return Response.json({ error: 'Not found' }, { status: 404 });
 
   const { data: profile } = await admin.from('profiles').select('role').eq('id', user.id).single();

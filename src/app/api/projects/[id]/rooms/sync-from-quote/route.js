@@ -12,7 +12,7 @@ export async function POST(request, { params }) {
   const { data: profile } = await admin.from('profiles').select('id, role').eq('id', user.id).single();
   if (!profile) return Response.json({ error: 'Forbidden' }, { status: 403 });
 
-  const { data: project } = await admin.from('projects').select('id, owner_id, created_by, collective_id').eq('id', projectId).single();
+  const { data: project } = await admin.from('projects').select('id, owner_id, created_by, collective_id').eq('id', projectId).is('deleted_at', null).single();
   if (!project) return Response.json({ error: 'Project not found' }, { status: 404 });
 
   const isSuperAdmin = profile.role === 'superadmin';

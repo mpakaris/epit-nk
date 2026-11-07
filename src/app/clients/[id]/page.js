@@ -16,8 +16,10 @@ export default async function ClientPortalPage({ params }) {
   const { data: client } = await admin.from('clients').select('*').eq('id', id).single();
   if (!client) notFound();
 
-  const { data: entity } = await admin
-    .from('entities').select('id, name').eq('id', client.entity_id).single();
+  const { data: ownerProfile } = client.owner_id
+    ? await admin.from('profiles').select('id, display_name, company_name').eq('id', client.owner_id).single()
+    : { data: null };
+  const entity = { id: client.owner_id, name: ownerProfile?.company_name || ownerProfile?.display_name || null };
 
   // Non-draft quotes for this client, newest first
   const { data: rawQuotes } = await admin
@@ -74,6 +76,7 @@ export default async function ClientPortalPage({ params }) {
         .select('id, project_id, title, body, work_type, client_note, entry_date, created_at, created_by')
         .in('project_id', projectIds)
         .eq('is_public', true)
+        .is('deleted_at', null)
         .order('entry_date', { ascending: false })
         .order('created_at', { ascending: false })
     : { data: [] };

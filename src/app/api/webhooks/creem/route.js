@@ -181,10 +181,12 @@ export async function POST(request) {
   const signature = request.headers.get('creem-signature');
   const webhookSecret = process.env.CREEM_WEBHOOK_SECRET;
 
-  if (webhookSecret && signature) {
-    if (!verifySignature(body, signature, webhookSecret)) {
-      return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
-    }
+  if (!webhookSecret) {
+    console.error('[creem webhook] CREEM_WEBHOOK_SECRET is not configured — rejecting request');
+    return NextResponse.json({ error: 'Webhook not configured' }, { status: 500 });
+  }
+  if (!signature || !verifySignature(body, signature, webhookSecret)) {
+    return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
   }
 
   let event;

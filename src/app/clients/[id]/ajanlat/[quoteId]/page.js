@@ -24,8 +24,10 @@ export default async function ClientQuotePrintPage({ params }) {
     .eq('quote_id', quoteId)
     .order('created_at');
 
-  const { data: entity } = await admin
-    .from('entities').select('id, name').eq('id', client.entity_id).single();
+  const { data: ownerProfile } = client.owner_id
+    ? await admin.from('profiles').select('id, display_name, company_name').eq('id', client.owner_id).single()
+    : { data: null };
+  const entity = { id: client.owner_id, name: ownerProfile?.company_name || ownerProfile?.display_name || null };
 
   // PrintQuote expects a project shape — we synthesise a minimal one from the quote
   const syntheticProject = {
@@ -35,7 +37,7 @@ export default async function ClientQuotePrintPage({ params }) {
     start_date: quote.start_date,
     end_date: quote.end_date,
     client_id: clientId,
-    entity_id: client.entity_id,
+    owner_id: client.owner_id,
   };
 
   return (

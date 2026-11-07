@@ -22,6 +22,7 @@ async function getCallerAndProject(id) {
     .from('projects')
     .select('owner_id, collective_id, name, created_by')
     .eq('id', id)
+    .is('deleted_at', null)
     .single();
   if (!project) return { err: 'Not found', status: 404 };
 
@@ -56,7 +57,7 @@ export async function GET(request, { params }) {
   if (authErr || !user) return Response.json({ error: 'Unauthenticated' }, { status: 401 });
 
   const admin = createAdminClient();
-  const { data: project } = await admin.from('projects').select('*').eq('id', id).single();
+  const { data: project } = await admin.from('projects').select('*').eq('id', id).is('deleted_at', null).single();
   if (!project) return Response.json({ error: 'Not found' }, { status: 404 });
 
   const { data: profile } = await admin.from('profiles').select('role, active_collective_id, display_name, is_subscription_premium, subscription_tier, trial_ends_at').eq('id', user.id).single();
@@ -79,7 +80,7 @@ export async function GET(request, { params }) {
   const [memberRes, clientRes, usersRes] = await Promise.all([
     admin.from('project_members').select('user_id').eq('project_id', id),
     project.client_id
-      ? admin.from('clients').select('*').eq('id', project.client_id).single()
+      ? admin.from('clients').select('*').eq('id', project.client_id).is('deleted_at', null).single()
       : Promise.resolve({ data: null }),
     project.collective_id
       ? admin.from('collective_members').select('user_id, role, profiles(id, display_name, email, role)').eq('collective_id', project.collective_id).eq('status', 'active')

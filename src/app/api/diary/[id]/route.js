@@ -14,11 +14,12 @@ async function resolveEntry(entryId, userId, profile, admin) {
   const { data: entry } = await admin.from('diary_entries')
     .select('id, title, project_id, created_by')
     .eq('id', entryId)
+    .is('deleted_at', null)
     .single();
   if (!entry) return null;
   if (profile.role === 'superadmin') return { ...entry, isKollektivOwner: true };
   // Verify user can access the project
-  const { data: project } = await admin.from('projects').select('owner_id, collective_id, created_by').eq('id', entry.project_id).single();
+  const { data: project } = await admin.from('projects').select('owner_id, collective_id, created_by').eq('id', entry.project_id).is('deleted_at', null).single();
   if (!project) return null;
   const isProjectOwner = project.owner_id === userId || project.created_by === userId;
   if (isProjectOwner) return { ...entry, isKollektivOwner: true };
@@ -108,7 +109,9 @@ export async function DELETE(request, { params }) {
     return Response.json({ error: 'Nincs jogosultsága törölni ezt a bejegyzést' }, { status: 403 });
   }
 
-  const { error: delErr } = await admin.from('diary_entries').delete().eq('id', id);
+  const { error: delErr } = await admin.from('diary_entries')
+    .update({ deleted_at: new Date().toISOString() })
+    .eq('id', id);
   if (delErr) return Response.json({ error: delErr.message }, { status: 500 });
 
   logAudit({

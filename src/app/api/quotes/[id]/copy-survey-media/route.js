@@ -11,7 +11,7 @@ export async function POST(request, { params }) {
   const admin = createAdminClient();
 
   const { data: quote } = await admin
-    .from('quotes').select('id, survey_id, owner_id, created_by, collective_id').eq('id', quoteId).single();
+    .from('quotes').select('id, survey_id, owner_id, created_by, collective_id').eq('id', quoteId).is('deleted_at', null).single();
   if (!quote) return Response.json({ error: 'Not found' }, { status: 404 });
 
   const isOwner = quote.owner_id === user.id || quote.created_by === user.id;

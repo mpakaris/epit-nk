@@ -3,7 +3,8 @@ import { toJid, jidToE164 } from '@/lib/waAssistant/jid';
 
 export async function POST(request) {
   const authHeader = request.headers.get('Authorization');
-  if (authHeader !== `Bearer ${process.env.INTERNAL_CRON_SECRET}`) {
+  const secret = process.env.INTERNAL_CRON_SECRET;
+  if (!secret || authHeader !== `Bearer ${secret}`) {
     return Response.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

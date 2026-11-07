@@ -13,7 +13,7 @@ export async function GET(request, { params }) {
     .from('quotes')
     .select('owner_id, created_by, collective_id')
     .eq('id', id)
-    .single();
+    .is('deleted_at', null).single();
   if (!quote) return Response.json({ error: 'Not found' }, { status: 404 });
 
   const isOwner = quote.owner_id === user.id || quote.created_by === user.id;

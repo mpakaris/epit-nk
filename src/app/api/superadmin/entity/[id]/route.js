@@ -20,14 +20,14 @@ export async function PATCH(request, { params }) {
 
   const body = await request.json();
   // Only allow specific fields to be updated
-  const allowed = ['google_drive_folder_id', 'name'];
+  const allowed = ['name'];
   const updates = {};
   for (const key of allowed) {
     if (key in body) updates[key] = body[key];
   }
   if (Object.keys(updates).length === 0) return Response.json({ error: 'No valid fields to update' }, { status: 400 });
 
-  const { data: entity, error: updateErr } = await admin.from('entities').update(updates).eq('id', id).select().single();
+  const { data: entity, error: updateErr } = await admin.from('collectives').update(updates).eq('id', id).select().single();
   if (updateErr) return Response.json({ error: updateErr.message }, { status: 500 });
 
   logAudit({

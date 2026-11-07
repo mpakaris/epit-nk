@@ -12,15 +12,15 @@ export async function DELETE(request) {
 
     const { data: callerProfile } = await admin.from('profiles').select('role').eq('id', caller.id).single();
     if (!callerProfile || callerProfile.role !== 'superadmin') {
-      return NextResponse.json({ error: 'Csak Superadmin törölhet entitást!' }, { status: 403 });
+      return NextResponse.json({ error: 'Csak Superadmin törölhet kollektívát!' }, { status: 403 });
     }
 
     const { entityId } = await request.json();
     if (!entityId) return NextResponse.json({ error: 'entityId kötelező!' }, { status: 400 });
 
-    // 1. Collect entity's projects to find child rows
-    const { data: entityProjects } = await admin.from('projects').select('id').eq('entity_id', entityId);
-    const projectIds = (entityProjects || []).map(p => p.id);
+    // 1. Collect collective's projects to find child rows
+    const { data: collectiveProjects } = await admin.from('projects').select('id').eq('collective_id', entityId);
+    const projectIds = (collectiveProjects || []).map(p => p.id);
 
     // 2. Delete storage files for invoices belonging to these projects
     if (projectIds.length > 0) {
@@ -37,13 +37,7 @@ export async function DELETE(request) {
       }
     }
 
-    // 3. Delete all auth users belonging to the entity (cascades profiles + project_members)
-    const { data: entityProfiles } = await admin.from('profiles').select('id').eq('entity_id', entityId);
-    for (const profile of entityProfiles || []) {
-      await admin.auth.admin.deleteUser(profile.id);
-    }
-
-    // 4. Delete child DB rows explicitly (in case FK cascades aren't set)
+    // 3. Delete child DB rows explicitly (sub-records may be hard-deleted per CLAUDE.md §4)
     if (projectIds.length > 0) {
       await admin.from('labour_entries').delete().in('project_id', projectIds);
       await admin.from('invoices').delete().in('project_id', projectIds);
@@ -51,18 +45,25 @@ export async function DELETE(request) {
       await admin.from('projects').delete().in('id', projectIds);
     }
 
-    const { data: entityQuotes } = await admin.from('quotes').select('id').eq('entity_id', entityId);
-    const quoteIds = (entityQuotes || []).map(q => q.id);
+    const { data: collectiveQuotes } = await admin.from('quotes').select('id').eq('collective_id', entityId);
+    const quoteIds = (collectiveQuotes || []).map(q => q.id);
     if (quoteIds.length > 0) {
       await admin.from('quote_entries').delete().in('quote_id', quoteIds);
       await admin.from('quotes').delete().in('id', quoteIds);
     }
 
-    await admin.from('clients').delete().eq('entity_id', entityId);
+    const { data: collectiveSurveys } = await admin.from('surveys').select('id').eq('collective_id', entityId);
+    const surveyIds = (collectiveSurveys || []).map(s => s.id);
+    if (surveyIds.length > 0) {
+      await admin.from('surveys').delete().in('id', surveyIds);
+    }
 
-    // 5. Delete the entity itself
-    const { error: entityErr } = await admin.from('entities').delete().eq('id', entityId);
-    if (entityErr) throw entityErr;
+    // 4. Remove all collective members (sub-records, hard delete is correct)
+    await admin.from('collective_members').delete().eq('collective_id', entityId);
+
+    // 5. Delete the collective itself
+    const { error: collectiveErr } = await admin.from('collectives').delete().eq('id', entityId);
+    if (collectiveErr) throw collectiveErr;
 
     return NextResponse.json({ success: true });
   } catch (err) {

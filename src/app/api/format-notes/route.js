@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { logOpenAiUsage } from '@/lib/waAssistant/logAiUsage';
 import { logAiCall } from '@/lib/waAssistant/logAiCall';
+import { globalRateLimit } from '@/lib/rateLimitGlobal';
 
 const MODEL = 'gpt-4o-mini';
 
@@ -8,6 +9,9 @@ export async function POST(request) {
   const supabase = await createClient();
   const { data: { user }, error: authErr } = await supabase.auth.getUser();
   if (authErr || !user) return Response.json({ error: 'Unauthenticated' }, { status: 401 });
+  const { allowed: rlAllowed } = await globalRateLimit(`ai-call:${user.id}`, { limit: 30, windowSec: 3600 });
+  if (!rlAllowed) return Response.json({ error: 'Túl sok kérés. Kérjük, próbáld újra később.' }, { status: 429 });
+
 
   const { transcript } = await request.json();
   if (!transcript?.trim()) return Response.json({ error: 'Nincs szöveg' }, { status: 400 });

@@ -85,13 +85,14 @@ function parsePayload(payload) {
 export async function POST(request) {
   const rawBody = await request.text();
 
-  // HMAC verification (skip if secret not configured)
   const secret = process.env.WHINSELF_WEBHOOK_SECRET;
-  if (secret) {
-    const signature = request.headers.get('x-hub-signature-256') || request.headers.get('x-whinself-signature');
-    if (!signature || !verifySignature(rawBody, signature, secret)) {
-      return Response.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+  if (!secret) {
+    console.error('[wh] WHINSELF_WEBHOOK_SECRET not configured — rejecting request');
+    return Response.json({ error: 'Webhook not configured' }, { status: 500 });
+  }
+  const signature = request.headers.get('x-hub-signature-256') || request.headers.get('x-whinself-signature');
+  if (!signature || !verifySignature(rawBody, signature, secret)) {
+    return Response.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   try {

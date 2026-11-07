@@ -15,7 +15,7 @@ export async function POST(request, { params }) {
   const { data: profile } = await admin.from('profiles').select('id, role').eq('id', user.id).single();
   if (!profile) return Response.json({ error: 'Forbidden' }, { status: 403 });
 
-  const { data: quote } = await admin.from('quotes').select('id, owner_id, created_by, collective_id, shared_with, survey_id').eq('id', quoteId).single();
+  const { data: quote } = await admin.from('quotes').select('id, owner_id, created_by, collective_id, shared_with, survey_id').eq('id', quoteId).is('deleted_at', null).single();
   if (!quote) return Response.json({ error: 'Quote not found' }, { status: 404 });
   const isSuperAdmin = profile.role === 'superadmin';
   const isOwner = quote.owner_id === user.id || quote.created_by === user.id;
@@ -54,7 +54,7 @@ export async function POST(request, { params }) {
   if (error) return Response.json({ error: error.message }, { status: 500 });
 
   // Flip survey to done on first import (only if still active)
-  const { data: survey } = await admin.from('surveys').select('status').eq('id', quote.survey_id).single();
+  const { data: survey } = await admin.from('surveys').select('status').eq('id', quote.survey_id).is('deleted_at', null).single();
   if (survey?.status === 'active') {
     await admin.from('surveys')
       .update({ status: 'done', done_at: new Date().toISOString() })

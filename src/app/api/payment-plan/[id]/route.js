@@ -12,7 +12,7 @@ async function resolveItem(userId, itemId) {
   const isSuperAdmin = profile.role === 'superadmin';
   if (isSuperAdmin) return { admin, profile, item, allowed: true };
 
-  const { data: project } = await admin.from('projects').select('owner_id, created_by, collective_id').eq('id', item.project_id).single();
+  const { data: project } = await admin.from('projects').select('owner_id, created_by, collective_id').eq('id', item.project_id).is('deleted_at', null).single();
   if (!project) return { admin, profile, item, allowed: false };
 
   const isOwner = project.owner_id === userId || project.created_by === userId;

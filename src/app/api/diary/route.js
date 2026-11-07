@@ -6,7 +6,7 @@ async function getCallerAndProject(admin, userId, projectId) {
   const { data: profile } = await admin.from('profiles').select('id, role, display_name').eq('id', userId).single();
   if (!profile) return { err: 'Profile not found', status: 403 };
 
-  const { data: project } = await admin.from('projects').select('id, owner_id, collective_id, created_by').eq('id', projectId).single();
+  const { data: project } = await admin.from('projects').select('id, owner_id, collective_id, created_by').eq('id', projectId).is('deleted_at', null).single();
   if (!project) return { err: 'Project not found', status: 404 };
 
   if (profile.role === 'superadmin') return { profile, project };
@@ -39,6 +39,7 @@ export async function GET(request) {
     .from('diary_entries')
     .select('*')
     .eq('project_id', projectId)
+    .is('deleted_at', null)
     .order('entry_date', { ascending: false })
     .order('created_at', { ascending: false });
 

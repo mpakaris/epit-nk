@@ -46,7 +46,6 @@ export async function logAudit({
       : null;
 
     await admin.from('audit_logs').insert([{
-      entity_id:   null,
       user_id:     userId     || null,
       user_name:   userName   || '',
       action,

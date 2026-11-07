@@ -25,7 +25,7 @@ export default function SuperAdminQuotesPage() {
   const getTotal = id => quoteEntries.filter(e => e.quote_id === id).reduce((s, e) => s + Number(e.amount_huf || 0), 0);
 
   const filtered = quotes.filter(q => {
-    if (entityFilter && q.entity_id !== entityFilter) return false;
+    if (entityFilter && q.collective_id !== entityFilter) return false;
     if (statusFilter !== 'all' && q.status !== statusFilter) return false;
     if (search && !q.title.toLowerCase().includes(search.toLowerCase())) return false;
     return true;
@@ -75,7 +75,7 @@ export default function SuperAdminQuotesPage() {
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
           {filtered.map(q => {
-            const entity = entityMap[q.entity_id];
+            const entity = entityMap[q.collective_id];
             const client = q.client_id ? clientMap[q.client_id] : null;
             const total = getTotal(q.id);
 

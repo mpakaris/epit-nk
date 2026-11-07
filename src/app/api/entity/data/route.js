@@ -1,7 +1,39 @@
+import crypto from 'crypto';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 
 export const dynamic = 'force-dynamic';
+
+// Columns returned for each user in the workspace users array.
+// Excludes per-user quote-defaults and auth-only fields that are only needed
+// on the /profil page or via /api/auth/profile (the authoritative currentUser source).
+const PROFILE_COLS = [
+  'id', 'display_name', 'role', 'email', 'active_collective_id',
+  'is_subscription_premium', 'subscription_tier', 'trial_started_at', 'trial_ends_at',
+  'company_name', 'locale', 'currency', 'phone', 'profile_slug', 'avatar_url',
+  'default_tax_percent', 'wa_enabled', 'wa_phone_number',
+  'created_at', 'updated_at', 'deleted_at', 'scheduled_deletion_at',
+].join(', ');
+
+// Cheap 3-query signal for ETag generation. Detects new record creations across
+// the three main document tables. Does NOT detect in-place updates (acceptable
+// trade-off — stale updates resolve on the next hard navigation).
+async function getLatestTimestamp(admin, userId, collectiveId) {
+  const isPersonal = !collectiveId;
+  const queries = ['projects', 'quotes', 'surveys'].map(table => {
+    let q = admin.from(table)
+      .select('created_at')
+      .is('deleted_at', null)
+      .order('created_at', { ascending: false })
+      .limit(1);
+    return isPersonal
+      ? q.eq('owner_id', userId).is('collective_id', null)
+      : q.eq('collective_id', collectiveId);
+  });
+  const results = await Promise.all(queries);
+  const ts = results.flatMap(r => r.data || []).map(r => r.created_at).filter(Boolean).sort().reverse()[0] || '';
+  return ts;
+}
 
 export async function GET(request) {
   const supabase = await createClient();
@@ -32,6 +64,13 @@ export async function GET(request) {
     collectiveId = profile.active_collective_id || null;
   }
   const isPersonal = !collectiveId;
+
+  // ── ETag — return 304 when nothing has changed ────────────────────────────
+  const latestTs = await getLatestTimestamp(admin, userId, collectiveId);
+  const etag = `"${crypto.createHash('sha256').update(`${latestTs}:${userId}:${collectiveId || 'personal'}`).digest('hex')}"`;
+  if (request.headers.get('if-none-match') === etag) {
+    return new Response(null, { status: 304, headers: { ETag: etag } });
+  }
 
   // ── Projects ─────────────────────────────────────────────────────────────
   let projectsQuery = admin.from('projects').select('*').is('deleted_at', null).order('created_at', { ascending: false });
@@ -120,7 +159,7 @@ export async function GET(request) {
   // ── Users ─────────────────────────────────────────────────────────────────
   let usersData = [];
   if (isPersonal) {
-    const { data: me } = await admin.from('profiles').select('*').eq('id', userId).single();
+    const { data: me } = await admin.from('profiles').select(PROFILE_COLS).eq('id', userId).single();
     usersData = me ? [me] : [];
   } else {
     const { data: members } = await admin
@@ -130,7 +169,7 @@ export async function GET(request) {
       .eq('status', 'active');
     const memberIds = (members || []).map(m => m.user_id);
     const { data: memberProfiles } = memberIds.length > 0
-      ? await admin.from('profiles').select('*').in('id', memberIds)
+      ? await admin.from('profiles').select(PROFILE_COLS).in('id', memberIds)
       : { data: [] };
     usersData = (members || []).map(m => {
       const profile = (memberProfiles || []).find(p => p.id === m.user_id);
@@ -148,7 +187,7 @@ export async function GET(request) {
       ? admin.from('project_members').select('project_id, user_id').in('project_id', projectIds)
       : Promise.resolve({ data: [] }),
     projectIds.length > 0
-      ? admin.from('invoices').select('*').in('project_id', projectIds).order('created_at', { ascending: false })
+      ? admin.from('invoices').select('*').in('project_id', projectIds).is('deleted_at', null).order('created_at', { ascending: false })
       : Promise.resolve({ data: [] }),
     projectIds.length > 0
       ? admin.from('labour_entries').select('*').in('project_id', projectIds).order('date', { ascending: false })
@@ -173,6 +212,7 @@ export async function GET(request) {
       .from('diary_entries')
       .select('id, project_id')
       .in('project_id', projectIds)
+      .is('deleted_at', null)
       .order('entry_date', { ascending: false });
     const diaryEntryIds = (diaryEntryRows || []).map(e => e.id);
     const entryProjectMap = Object.fromEntries((diaryEntryRows || []).map(e => [e.id, e.project_id]));
@@ -262,5 +302,5 @@ export async function GET(request) {
     projectRooms:  projectRoomsRes.data  || [],
     isPersonal,
     collectiveId,
-  }, { headers: { 'Cache-Control': 'no-store' } });
+  }, { headers: { 'Cache-Control': 'private, no-cache', 'ETag': etag } });
 }

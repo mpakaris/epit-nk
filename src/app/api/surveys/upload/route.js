@@ -25,7 +25,7 @@ export async function POST(request) {
   const entryId = formData.get('entry_id') || null;
   const mediaType = formData.get('media_type') || 'photo';
 
-  const { data: survey } = await admin.from('surveys').select('owner_id, collective_id, shared_with, created_by').eq('id', surveyId).single();
+  const { data: survey } = await admin.from('surveys').select('owner_id, collective_id, shared_with, created_by').eq('id', surveyId).is('deleted_at', null).single();
   if (!survey) return Response.json({ error: 'Felmérés nem található' }, { status: 404 });
   if (profile.role !== 'superadmin') {
     const access = await checkSurveyAccess(admin, survey, user.id, surveyId);

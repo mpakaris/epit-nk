@@ -18,12 +18,12 @@ export async function POST(request, { params }) {
   if (authErr || !user) return Response.json({ error: 'Unauthenticated' }, { status: 401 });
 
   const admin = createAdminClient();
-  const { data: profile } = await admin.from('profiles').select('role, entity_id').eq('id', user.id).single();
+  const { data: profile } = await admin.from('profiles').select('role').eq('id', user.id).single();
   if (!profile || !['admin', 'superadmin'].includes(profile.role)) {
     return Response.json({ error: 'Nincs jogosultság' }, { status: 403 });
   }
 
-  const { data: item } = await admin.from('payment_plan_items').select('project_id, entity_id').eq('id', itemId).single();
+  const { data: item } = await admin.from('payment_plan_items').select('project_id').eq('id', itemId).single();
   if (!item) return Response.json({ error: 'Tétel nem található' }, { status: 404 });
 
   let formData;
@@ -35,8 +35,7 @@ export async function POST(request, { params }) {
   if (file.size > MAX_SIZE_BYTES) return Response.json({ error: 'A fájl túl nagy (max 20 MB)' }, { status: 400 });
 
   const mimeType = file.type || 'application/octet-stream';
-  const entityId = item.entity_id;
-  const key = paymentFileKey(entityId, file.name);
+  const key = paymentFileKey(user.id, file.name);
   const buffer = Buffer.from(await file.arrayBuffer());
 
   try { await uploadToR2(key, buffer, mimeType); }

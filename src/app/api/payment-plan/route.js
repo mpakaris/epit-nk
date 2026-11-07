@@ -8,7 +8,7 @@ async function resolveAccess(userId) {
 }
 
 async function isProjectOwnerOrAdmin(admin, userId, projectId) {
-  const { data: project } = await admin.from('projects').select('owner_id, created_by, collective_id').eq('id', projectId).single();
+  const { data: project } = await admin.from('projects').select('owner_id, created_by, collective_id').eq('id', projectId).is('deleted_at', null).single();
   if (!project) return { allowed: false, project: null };
 
   const isSuperAdmin = false; // handled separately
@@ -63,7 +63,7 @@ export async function POST(request) {
     if (!allowed) return Response.json({ error: 'Csak a projekt tulajdonosa adhat hozzá fizetési tételt.' }, { status: 403 });
   }
 
-  const { data: project } = await admin.from('projects').select('collective_id').eq('id', project_id).single();
+  const { data: project } = await admin.from('projects').select('collective_id').eq('id', project_id).is('deleted_at', null).single();
   if (!project) return Response.json({ error: 'Projekt nem található' }, { status: 404 });
 
   const { data: existing } = await admin.from('payment_plan_items').select('sort_order').eq('project_id', project_id).order('sort_order', { ascending: false }).limit(1);

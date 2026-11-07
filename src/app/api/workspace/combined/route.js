@@ -34,7 +34,7 @@ export async function GET(request) {
       .eq('owner_id', userId).is('collective_id', null).is('deleted_at', null)
       .order('created_at', { ascending: false }),
     admin.from('projects').select('*')
-      .eq('owner_id', userId).is('collective_id', null)
+      .eq('owner_id', userId).is('collective_id', null).is('deleted_at', null)
       .order('created_at', { ascending: false }),
   ];
 
@@ -48,7 +48,7 @@ export async function GET(request) {
         .in('collective_id', collectiveIds).is('deleted_at', null)
         .order('created_at', { ascending: false }),
       admin.from('projects').select('*')
-        .in('collective_id', collectiveIds)
+        .in('collective_id', collectiveIds).is('deleted_at', null)
         .order('created_at', { ascending: false }),
     );
   }

@@ -22,7 +22,8 @@ export async function GET(request) {
   const { data: clientRecords } = await admin
     .from('clients')
     .select('id, owner_id, name')
-    .ilike('email', email);
+    .ilike('email', email)
+    .is('deleted_at', null);
 
   if (!clientRecords?.length) return Response.json({ contractors: [], email: user.email });
 
@@ -41,6 +42,7 @@ export async function GET(request) {
     .select('id, client_id, owner_id, title, description, work_type, location, status, tax_percent, start_date, end_date, created_at, project_id')
     .in('client_id', clientIds)
     .neq('status', 'draft')
+    .is('deleted_at', null)
     .order('created_at', { ascending: false });
 
   const quotes    = rawQuotes || [];
@@ -60,6 +62,7 @@ export async function GET(request) {
     .from('projects')
     .select('id, client_id, owner_id, name, description, status, start_date, end_date, created_at, project_id')
     .in('client_id', clientIds)
+    .is('deleted_at', null)
     .order('created_at', { ascending: false });
 
   const projects    = rawProjects || [];
@@ -74,6 +77,7 @@ export async function GET(request) {
           .select('id, project_id, title, body, client_note, work_type, entry_date, created_at, created_by, author_name')
           .in('project_id', projectIds)
           .eq('is_public', true)
+          .is('deleted_at', null)
           .order('entry_date', { ascending: false })
           .order('created_at', { ascending: false })
           .limit(60)

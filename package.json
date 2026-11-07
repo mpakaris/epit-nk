@@ -18,6 +18,8 @@
     "@react-pdf/renderer": "^4.9.0",
     "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.117.2",
+    "@upstash/ratelimit": "^2.2.0",
+    "@upstash/redis": "^1.41.0",
     "canvas-confetti": "^1.9.4",
     "googleapis": "^183.0.0",
     "leaflet": "^1.9.4",

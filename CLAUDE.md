@@ -80,6 +80,77 @@ R2 (Cloudflare object storage) credentials are also required for file uploads �
 
 ---
 
+## Database Access — Direct Connection via psql
+
+The production database is a Supabase Postgres instance. All the values needed to connect are in `.env.local`.
+
+### Connection string
+
+```
+postgresql://postgres.<PROJECT_REF>:<Supabase_DB_Passwort>@aws-0-eu-west-2.pooler.supabase.com:6543/postgres
+```
+
+Substituting from `.env.local`:
+- `<PROJECT_REF>` — the subdomain from `NEXT_PUBLIC_SUPABASE_URL` (the part before `.supabase.co`)
+- `<Supabase_DB_Passwort>` — the value of `Supabase_DB_Passwort`
+
+The pooler region is **eu-west-2** (London). Port **6543** is transaction-mode pooler (stateless, safe for one-off SQL).
+
+### Quick connect
+
+```bash
+DB_URL="postgresql://postgres.<PROJECT_REF>:<PASSWORD>@aws-0-eu-west-2.pooler.supabase.com:6543/postgres"
+PGPASSWORD=<PASSWORD> psql "$DB_URL"
+```
+
+Or inline for a single statement:
+
+```bash
+PGPASSWORD=<PASSWORD> psql "$DB_URL" -c "SELECT version();"
+```
+
+### Applying a migration
+
+Migrations live in `supabase/migrations/` as numbered `.sql` files. They are applied **manually** — there is no automated runner.
+
+**Apply a single file:**
+```bash
+DB_URL="postgresql://postgres.<PROJECT_REF>:<PASSWORD>@aws-0-eu-west-2.pooler.supabase.com:6543/postgres"
+PGPASSWORD=<PASSWORD> psql "$DB_URL" -f supabase/migrations/<NNN>_<name>.sql
+```
+
+**Apply a range (e.g. 134 through 139 in order):**
+```bash
+DB_URL="postgresql://postgres.<PROJECT_REF>:<PASSWORD>@aws-0-eu-west-2.pooler.supabase.com:6543/postgres"
+for f in supabase/migrations/13{4,5,6,7,8,9}_*.sql; do
+  echo "Applying $f …"
+  PGPASSWORD=<PASSWORD> psql "$DB_URL" -f "$f"
+done
+```
+
+### Verify a migration was applied
+
+Check for a column, table, or policy that the migration adds:
+```bash
+# Did migration 129 add deleted_at to diary_entries?
+PGPASSWORD=<PASSWORD> psql "$DB_URL" -c \
+  "SELECT column_name FROM information_schema.columns
+   WHERE table_schema='public' AND table_name='diary_entries' AND column_name='deleted_at';"
+
+# Does a table exist?
+PGPASSWORD=<PASSWORD> psql "$DB_URL" -c \
+  "SELECT table_name FROM information_schema.tables
+   WHERE table_schema='public' AND table_name='<table>';"
+```
+
+### Notes
+- There is **no migration history table** — migrations are tracked only by the files in `supabase/migrations/` and the DB Safety doc (`DB_Safety.md`).
+- The pooler uses **transaction mode** (port 6543). DDL statements (`CREATE TABLE`, `ALTER TABLE`, `DROP TABLE`) work fine in transaction mode.
+- Never run migrations in parallel — apply them one at a time, in numeric order.
+- The `CASCADE` keyword is used in drop statements to remove dependent FK constraints automatically.
+
+---
+
 ## Stack
 - **Next.js** (App Router) + **Supabase** (Postgres + Auth)
 - **Language:** All UI text must be in **Hungarian**
@@ -810,6 +881,32 @@ if (!allowed) return Response.json({ error: 'Túl sok kérés. Kérjük, próbá
 
 ---
 
+### 18. DB Migrations — Always Create a Migration File
+
+Any code change that requires a DB schema change (new table, new column, new index, new policy, dropped column) **must** include a corresponding SQL migration file in `supabase/migrations/` before or alongside the code change. Never push code that depends on a schema change without an accompanying migration.
+
+**File naming convention:** `<next_number>_<short_description>.sql` — e.g. `129_soft_delete_diary_ideas.sql`. Use the next sequential number after the last file in `supabase/migrations/`.
+
+**Migration file template:**
+```sql
+-- Migration NNN: short description
+-- Required by: CLAUDE.md §X (rule name) OR feature: <feature name>
+-- Apply via Supabase SQL Editor (Dashboard → SQL Editor → New query)
+
+ALTER TABLE public.<table> ADD COLUMN IF NOT EXISTS ...;
+CREATE INDEX IF NOT EXISTS ...;
+```
+
+**Checklist for every new migration:**
+1. `ALTER TABLE ... ENABLE ROW LEVEL SECURITY` + deny-all policy if it's a new table (§14)
+2. Composite indexes for `(owner_id, deleted_at)` and `(collective_id, deleted_at)` if it uses the workspace model (§14)
+3. `deleted_at TIMESTAMPTZ DEFAULT NULL` if it stores user-owned content (§4)
+4. Update `Known Issues / Pending migrations` section in this file to list what still needs to be applied
+
+**Apply workflow:** Migrations are applied manually via Supabase SQL Editor — there is no automated migration runner. When deploying a feature, apply the migration SQL first, then deploy the code. The migration files in `supabase/migrations/` are the authoritative record of all schema changes.
+
+---
+
 ## Known Issues / In Progress
 
 ### Race condition — inclusive collective duplicate creation
@@ -825,13 +922,16 @@ Apply via Supabase SQL editor when ready.
 ### Schema gaps
 - `survey_items` table — referenced in code (`/api/surveys/[id]/items`) and permission docs but does **not exist** in the DB. Requires a migration before that route is functional.
 - `project_media` table — referenced in deletion scripts but does **not exist** in the DB. Requires a migration.
-- `diary_entries` has **no `deleted_at` column** — currently uses hard delete. Soft-delete rule (§4) cannot be applied until a migration adds the column.
 
 ### Bugs to fix
 - **Superadmin impersonation display_name bleedthrough** — when SA impersonates a user, `profiles.display_name` of the SA account gets overwritten with the impersonated user's name. Root cause is in the impersonation flow; `god_mode.js` / `refreshSupabaseData` need to avoid writing SA's own profile during impersonation.
 
-### Pending migrations
-- Migration 053 written — apply via Supabase SQL editor to drop old `entity_id` columns
+### Pending migrations (apply via Supabase SQL Editor in order)
+- **Migration 053** — drop old `entity_id` columns
+- **Migration 129** (`supabase/migrations/129_soft_delete_diary_ideas.sql`) — add `deleted_at` to `diary_entries` and `ideas`; **code already updated to use soft delete — apply before the next deploy**
+- **Migration 130** (`supabase/migrations/130_survey_items.sql`) — create `survey_items` table; required for `/api/surveys/[id]/items` to function
+- **Migration 131** (`supabase/migrations/131_composite_indexes.sql`) — composite indexes for projects/quotes/surveys workspace queries; apply for performance
+- **Migration 132** (`supabase/migrations/132_inclusive_collective_unique_index.sql`) — unique partial index preventing duplicate inclusive collective on double-render
 - RLS policies still reference old `current_entity_id()` function — not enforced, rewrite pending
 
 ### Pending features

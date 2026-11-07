@@ -17,7 +17,7 @@ export async function DELETE(request, { params }) {
   const { data: token } = await admin.from('diary_share_tokens').select('id, project_id').eq('id', id).single();
   if (!token) return Response.json({ error: 'Token not found' }, { status: 404 });
   if (profile.role !== 'superadmin') {
-    const { data: proj } = await admin.from('projects').select('owner_id, created_by').eq('id', token.project_id).single();
+    const { data: proj } = await admin.from('projects').select('owner_id, created_by').eq('id', token.project_id).is('deleted_at', null).single();
     if (!proj || (proj.owner_id !== profile.id && proj.created_by !== profile.id))
       return Response.json({ error: 'Access denied' }, { status: 403 });
   }

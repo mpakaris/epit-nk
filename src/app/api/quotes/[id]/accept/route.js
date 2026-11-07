@@ -11,7 +11,7 @@ export async function POST(request, { params }) {
 
   const admin = createAdminClient();
 
-  const { data: quote } = await admin.from('quotes').select('*').eq('id', id).single();
+  const { data: quote } = await admin.from('quotes').select('*').eq('id', id).is('deleted_at', null).single();
   if (!quote) return Response.json({ error: 'Az ajánlat nem található.' }, { status: 404 });
 
   // Only owner/admin can accept

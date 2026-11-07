@@ -13,7 +13,7 @@ export async function PUT(request, { params }) {
   if (!profile || !['admin', 'superadmin'].includes(profile.role))
     return Response.json({ error: 'Forbidden' }, { status: 403 });
 
-  const { data: project } = await admin.from('projects').select('owner_id, collective_id, name, created_by').eq('id', id).single();
+  const { data: project } = await admin.from('projects').select('owner_id, collective_id, name, created_by').eq('id', id).is('deleted_at', null).single();
   if (!project) return Response.json({ error: 'Not found' }, { status: 404 });
 
   const isOwner = project.owner_id === user.id || project.created_by === user.id;

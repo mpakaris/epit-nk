@@ -11,7 +11,7 @@ export async function GET(request, { params }) {
   const { id } = await params;
   const admin = createAdminClient();
 
-  const { data: quote } = await admin.from('quotes').select('title, offer_number, owner_id, created_by, collective_id').eq('id', id).single();
+  const { data: quote } = await admin.from('quotes').select('title, offer_number, owner_id, created_by, collective_id').eq('id', id).is('deleted_at', null).single();
   if (!quote) return Response.json({ error: 'Not found' }, { status: 404 });
 
   const { data: profile } = await admin.from('profiles').select('role').eq('id', user.id).single();

@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { logOpenAiUsage } from '@/lib/waAssistant/logAiUsage';
+import { globalRateLimit } from '@/lib/rateLimitGlobal';
 
 const MODEL = 'gpt-4o';
 
@@ -10,6 +11,9 @@ export async function POST(request, { params }) {
   const supabase = await createClient();
   const { data: { user }, error: authErr } = await supabase.auth.getUser();
   if (authErr || !user) return Response.json({ error: 'Unauthenticated' }, { status: 401 });
+  const { allowed: rlAllowed } = await globalRateLimit(`ai-call:${user.id}`, { limit: 30, windowSec: 3600 });
+  if (!rlAllowed) return Response.json({ error: 'Túl sok kérés. Kérjük, próbáld újra később.' }, { status: 429 });
+
 
   const admin = createAdminClient();
   const { data: profile } = await admin.from('profiles')
@@ -17,7 +21,7 @@ export async function POST(request, { params }) {
   if (!profile) return Response.json({ error: 'Forbidden' }, { status: 403 });
 
   const { data: quote } = await admin.from('quotes')
-    .select('id, owner_id, created_by, collective_id').eq('id', quoteId).single();
+    .select('id, owner_id, created_by, collective_id').eq('id', quoteId).is('deleted_at', null).single();
   if (!quote) return Response.json({ error: 'Ajánlat nem található' }, { status: 404 });
 
   if (profile.role !== 'superadmin') {

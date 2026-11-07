@@ -12,7 +12,7 @@ export async function GET(request, { params }) {
 
   // Verify caller can access this quote (owner, shared, or superadmin)
   const { data: profile } = await admin.from('profiles').select('role').eq('id', user.id).single();
-  const { data: quote }   = await admin.from('quotes').select('owner_id, created_by, collective_id, shared_with').eq('id', id).single();
+  const { data: quote }   = await admin.from('quotes').select('owner_id, created_by, collective_id, shared_with').eq('id', id).is('deleted_at', null).single();
 
   if (!quote) return Response.json({ error: 'Not found' }, { status: 404 });
 

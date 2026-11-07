@@ -26,7 +26,7 @@ export async function DELETE(request, { params }) {
       .from('diary_entries')
       .select('created_by')
       .eq('id', photo.entry_id)
-      .single();
+      .is('deleted_at', null).single();
     if (!entry || entry.created_by !== profile.id) {
       return Response.json({ error: 'Nincs jogosultsága törölni ezt a fotót' }, { status: 403 });
     }

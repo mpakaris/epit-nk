@@ -9,11 +9,11 @@ export async function DELETE(request, { params }) {
 
   const admin = createAdminClient();
   const { data: invoice } = await admin.from('invoices')
-    .select('project_id, uploaded_by').eq('id', id).single();
+    .select('project_id, uploaded_by').eq('id', id).is('deleted_at', null).single();
   if (!invoice) return Response.json({ error: 'Not found' }, { status: 404 });
 
   const { data: project } = await admin.from('projects')
-    .select('owner_id, created_by, collective_id').eq('id', invoice.project_id).single();
+    .select('owner_id, created_by, collective_id').eq('id', invoice.project_id).is('deleted_at', null).single();
   const { data: profile } = await admin.from('profiles').select('role').eq('id', user.id).single();
 
   const isSuperAdmin   = profile?.role === 'superadmin';

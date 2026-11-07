@@ -72,7 +72,7 @@ async function ProjectDetailContent({ params }) {
       .eq('project_id', id)
       .order('date', { ascending: false }),
     admin.from('clients').select('*').eq('owner_id', effectiveUserId).order('name'),
-    admin.from('diary_entries').select('id', { count: 'exact', head: true }).eq('project_id', id),
+    admin.from('diary_entries').select('id', { count: 'exact', head: true }).eq('project_id', id).is('deleted_at', null),
     admin.from('project_rooms').select('*').eq('project_id', id).order('sort_order').order('created_at'),
     admin.from('payment_plan_items').select('*, payment_item_files(*)').eq('project_id', id).order('sort_order').order('created_at'),
     admin.from('invoice_section_splits').select('*').eq('project_id', id),

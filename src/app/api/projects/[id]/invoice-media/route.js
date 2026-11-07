@@ -9,7 +9,7 @@ export async function GET(request, { params }) {
 
   const admin = createAdminClient();
   const { data: project } = await admin.from('projects')
-    .select('owner_id, created_by, collective_id').eq('id', id).single();
+    .select('owner_id, created_by, collective_id').eq('id', id).is('deleted_at', null).single();
   if (!project) return Response.json({ error: 'Not found' }, { status: 404 });
 
   const { data: profile } = await admin.from('profiles').select('role').eq('id', user.id).single();

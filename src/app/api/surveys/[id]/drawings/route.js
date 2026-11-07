@@ -11,7 +11,7 @@ async function getCtx(surveyId) {
   const { data: profile } = await admin.from('profiles').select('id, role').eq('id', user.id).single();
   if (!profile) return { err: 'Forbidden', status: 403 };
 
-  const { data: survey } = await admin.from('surveys').select('owner_id, collective_id, shared_with, created_by').eq('id', surveyId).single();
+  const { data: survey } = await admin.from('surveys').select('owner_id, collective_id, shared_with, created_by').eq('id', surveyId).is('deleted_at', null).single();
   if (!survey) return { err: 'Not found', status: 404 };
 
   if (profile.role !== 'superadmin') {

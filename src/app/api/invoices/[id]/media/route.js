@@ -4,10 +4,10 @@ import { createAdminClient } from '@/lib/supabase/admin';
 async function resolveCtx(user, invoiceId) {
   const admin = createAdminClient();
   const { data: invoice } = await admin.from('invoices')
-    .select('id, project_id, uploaded_by').eq('id', invoiceId).single();
+    .select('id, project_id, uploaded_by').eq('id', invoiceId).is('deleted_at', null).single();
   if (!invoice) return null;
   const { data: project } = await admin.from('projects')
-    .select('id, owner_id, created_by, collective_id').eq('id', invoice.project_id).single();
+    .select('id, owner_id, created_by, collective_id').eq('id', invoice.project_id).is('deleted_at', null).single();
   if (!project) return null;
   const { data: profile } = await admin.from('profiles').select('role').eq('id', user.id).single();
 

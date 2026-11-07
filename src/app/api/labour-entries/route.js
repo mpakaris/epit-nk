@@ -18,7 +18,7 @@ export async function POST(request) {
   if (!labourType?.trim()) return Response.json({ error: 'A munkavégzés típusa kötelező!' }, { status: 400 });
 
   // Verify access to the project
-  const { data: project } = await admin.from('projects').select('id, owner_id, created_by, collective_id, name').eq('id', projectId).single();
+  const { data: project } = await admin.from('projects').select('id, owner_id, created_by, collective_id, name').eq('id', projectId).is('deleted_at', null).single();
   if (!project) return Response.json({ error: 'Projekt nem található' }, { status: 404 });
 
   const isSuperAdmin = profile.role === 'superadmin';

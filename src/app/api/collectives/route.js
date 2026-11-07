@@ -165,6 +165,7 @@ export async function GET(request) {
       name:                workspaceName,
       is_inclusive:        true,
       subscription_status: 'active',
+      owner_id:            userId,
     });
     await admin.from('collective_members').insert({
       collective_id: newId,

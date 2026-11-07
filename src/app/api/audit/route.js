@@ -10,13 +10,13 @@ export async function POST(request) {
 
   const admin = createAdminClient();
   const { data: profile } = await admin
-    .from('profiles').select('display_name, entity_id').eq('id', user.id).single();
+    .from('profiles').select('display_name').eq('id', user.id).single();
 
   const { action, entityId, targetType, targetId, targetName, details } = await request.json();
   if (!action) return Response.json({ error: 'action required' }, { status: 400 });
 
   await logAudit({
-    entityId:   entityId   ?? profile?.entity_id ?? null,
+    entityId:   entityId ?? null,
     userId:     user.id,
     userName:   profile?.display_name || user.email,
     action,
@@ -56,7 +56,6 @@ export async function GET(request) {
     .order('created_at', { ascending: false })
     .range(offset, offset + limit - 1);
 
-  if (entityId) q = q.eq('entity_id', entityId);
   if (userName) q = q.ilike('user_name', `%${userName}%`);
   if (action)   q = q.eq('action', action);
   if (from)     q = q.gte('created_at', from);
@@ -67,7 +66,6 @@ export async function GET(request) {
   if (error) return Response.json({ error: error.message }, { status: 500 });
 
   // Resolve workspace context from details.workspace_id
-  // (entity_id is always null now due to legacy FK constraint workaround)
   const workspaceIds = [...new Set((logs || [])
     .map(l => l.details?.workspace_id)
     .filter(Boolean))];
