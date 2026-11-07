@@ -91,10 +91,13 @@ export async function PATCH(request, { params }) {
                    'status', 'client_id', 'shared_with', 'tax_percent', 'survey_id',
                    'valid_until', 'offer_number', 'offer_terms_text',
                    'payment_deadline_days', 'payment_method', 'deposit_percent', 'warranty_months',
-                   'updated_at', 'updated_by_name',
+                   'updated_at', 'updated_by_name', 'portal_visible',
                    ...(isOwner || isSuperAdmin || isKollektivOwner ? ['collective_id'] : [])];
   const update = {};
   for (const k of allowed) if (k in fields) update[k] = fields[k];
+
+  // Auto-share on portal when status transitions to 'sent' — contractor can override manually
+  if (update.status === 'sent' && !ctx.quote.portal_visible) update.portal_visible = true;
 
   // Validate shared_with users are in the same collective
   if (Array.isArray(update.shared_with) && update.shared_with.length > 0 && ctx.quote.collective_id) {
@@ -119,26 +122,32 @@ export async function PATCH(request, { params }) {
     payment_deadline_days: 'Fizetési határidő', payment_method: 'Fizetési mód',
     deposit_percent: 'Előleg', warranty_months: 'Garancia',
   };
-  const changedFields = update.status ? null : Object.keys(update)
+  const changedFields = (update.status || 'portal_visible' in update) ? null : Object.keys(update)
     .filter(k => !['updated_at', 'updated_by_name'].includes(k) && update[k] !== ctx.quote[k])
     .map(k => FIELD_LABELS[k])
     .filter(Boolean);
 
   const statusLabels = { draft: 'Tervezet', sent: 'Kiküldve', accepted: 'Elfogadva', rejected: 'Elutasítva' };
 
+  const auditAction = 'portal_visible' in update && !update.status
+    ? (update.portal_visible ? 'Ajánlat megjelent a portálon' : 'Ajánlat eltávolítva a portálról')
+    : update.status
+      ? `Státusz: ${statusLabels[update.status] || update.status}`
+      : 'Ajánlat módosítva';
+
   logAudit({
     entityId: ctx.quote.collective_id || ctx.user.id,
     userId:   ctx.user.id,
     userName: ctx.profile.display_name || ctx.user.email,
-    action:   update.status
-      ? `Státusz: ${statusLabels[update.status] || update.status}`
-      : 'Ajánlat módosítva',
+    action:   auditAction,
     targetType: 'quote',
     targetId:   id,
     targetName: ctx.quote.title,
     details: update.status
-      ? { status: update.status }
-      : (changedFields?.length ? { changed_fields: changedFields } : null),
+      ? { status: update.status, portal_visible: data.portal_visible }
+      : 'portal_visible' in update
+        ? { portal_visible: update.portal_visible }
+        : (changedFields?.length ? { changed_fields: changedFields } : null),
   });
 
   return Response.json({ quote: data });

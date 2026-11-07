@@ -114,9 +114,10 @@ export async function POST(request, { params }) {
     return Response.json({ error: `Email küldési hiba: ${err.message}` }, { status: 500 });
   }
 
+  // Auto-share on portal when sent — contractor can manually hide it afterwards
   const { data: updated, error: updateErr } = await admin
     .from('quotes')
-    .update({ status: 'sent' })
+    .update({ status: 'sent', portal_visible: true })
     .eq('id', id)
     .select()
     .single();

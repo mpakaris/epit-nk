@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { r2PublicUrl } from '@/lib/r2';
 
 export async function GET(request) {
   const supabase = await createClient();
@@ -36,12 +37,12 @@ export async function GET(request) {
     .select('id, display_name, company_name, email, terms_pdf_url, terms_pdf_name')
     .in('id', ownerIds);
 
-  // Non-draft quotes for these clients
+  // Portal-visible quotes for these clients (CP-12: filter by portal_visible instead of status!=draft)
   const { data: rawQuotes } = await admin
     .from('quotes')
     .select('id, client_id, owner_id, title, description, work_type, location, status, tax_percent, start_date, end_date, created_at, project_id')
     .in('client_id', clientIds)
-    .neq('status', 'draft')
+    .eq('portal_visible', true)
     .is('deleted_at', null)
     .order('created_at', { ascending: false });
 
@@ -68,10 +69,35 @@ export async function GET(request) {
   const projects    = rawProjects || [];
   const projectIds  = projects.map(p => p.id);
 
-  const [{ data: invoices }, { data: rawDiary }] = await Promise.all([
+  const [
+    { data: rawInvoiceTotals },
+    { data: rawPortalInvoices },
+    { data: rawLabourEntries },
+    { data: rawDiary },
+    { data: rawMedia },
+  ] = await Promise.all([
+    // All invoices for total (existing behaviour)
     projectIds.length
       ? admin.from('invoices').select('project_id, value_huf').in('project_id', projectIds).is('deleted_at', null)
       : { data: [] },
+    // CP-09: portal-visible invoices with full fields
+    projectIds.length
+      ? admin.from('invoices')
+          .select('id, project_id, category, value_huf, description, created_at')
+          .in('project_id', projectIds)
+          .eq('portal_visible', true)
+          .is('deleted_at', null)
+          .order('created_at', { ascending: false })
+      : { data: [] },
+    // CP-10: portal-visible labour entries
+    projectIds.length
+      ? admin.from('labour_entries')
+          .select('id, project_id, labour_type, hours, unit, value_huf, date')
+          .in('project_id', projectIds)
+          .eq('portal_visible', true)
+          .order('date', { ascending: false })
+      : { data: [] },
+    // Existing: public diary entries
     projectIds.length
       ? admin.from('diary_entries')
           .select('id, project_id, title, body, client_note, work_type, entry_date, created_at, created_by, author_name')
@@ -81,6 +107,15 @@ export async function GET(request) {
           .order('entry_date', { ascending: false })
           .order('created_at', { ascending: false })
           .limit(60)
+      : { data: [] },
+    // CP-11: portal-visible media items (project documents only)
+    projectIds.length
+      ? admin.from('media_items')
+          .select('id, document_id, r2_key, thumbnail_url, mime_type, created_at')
+          .eq('document_type', 'project')
+          .in('document_id', projectIds)
+          .eq('portal_visible', true)
+          .order('created_at')
       : { data: [] },
   ]);
 
@@ -121,21 +156,34 @@ export async function GET(request) {
       .filter(p => ownerClientIds.includes(p.client_id))
       .map(p => ({
         ...p,
-        invoiceTotal: (invoices || [])
+        invoiceTotal: (rawInvoiceTotals || [])
           .filter(i => i.project_id === p.id)
           .reduce((s, i) => s + Number(i.value_huf || 0), 0),
-        linkedQuote: ownerQuotes.find(q => q.project_id === p.id) || null,
+        invoices: (rawPortalInvoices || []).filter(i => i.project_id === p.id),
+        labourEntries: (rawLabourEntries || []).filter(l => l.project_id === p.id),
+        media: (rawMedia || [])
+          .filter(m => m.document_id === p.id)
+          .map(m => ({
+            id: m.id,
+            mime_type: m.mime_type,
+            created_at: m.created_at,
+            url: r2PublicUrl(m.r2_key),
+            thumbnail: m.thumbnail_url || r2PublicUrl(m.r2_key),
+          })),
+        // CP-16: all portal-visible quotes linked to this project
+        quotes: ownerQuotes.filter(q => q.project_id === p.id),
         diaryEntries: enrichedDiary.filter(d => d.project_id === p.id),
       }));
 
     return {
-      owner_id:         ownerId,
-      contractor_name:  profile?.company_name || profile?.display_name || 'Ismeretlen vállalkozó',
-      contractor_email: profile?.email || null,
-      terms_pdf_url:    profile?.terms_pdf_url || null,
-      terms_pdf_name:   profile?.terms_pdf_name || null,
-      quotes:           ownerQuotes,
-      projects:         ownerProjects,
+      owner_id:          ownerId,
+      contractor_name:   profile?.company_name || profile?.display_name || 'Ismeretlen vállalkozó',
+      contractor_email:  profile?.email || null,
+      terms_pdf_url:     profile?.terms_pdf_url || null,
+      terms_pdf_name:    profile?.terms_pdf_name || null,
+      // Standalone quotes (not linked to any project) shown at contractor level
+      standaloneQuotes:  ownerQuotes.filter(q => !q.project_id),
+      projects:          ownerProjects,
     };
   });
 

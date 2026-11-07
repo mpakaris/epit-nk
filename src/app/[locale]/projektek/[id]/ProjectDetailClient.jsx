@@ -39,6 +39,7 @@ import PaymentPlanModal, { TRIGGER_DISPLAY, STATUS_DISPLAY } from './components/
 import WorkTypeSelector, { WORK_TYPES } from './components/WorkTypeSelector';
 import RoomModal from './components/RoomModal';
 import ProjectEditModal from './components/ProjectEditModal';
+import PortalShareSection from './components/PortalShareSection';
 
 
 const CARD_HEADER_BG = '#334155';
@@ -1311,6 +1312,14 @@ export default function ProjectDetailClient({
 
         </>
       )}
+
+      <PortalShareSection
+        project={project}
+        invoices={liveInvoices}
+        labourEntries={liveLabour}
+        diaryEntries={diaryEntriesByProject[project.id] || []}
+        canManage={canManageProject}
+      />
 
       </div>
 

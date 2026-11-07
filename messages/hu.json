@@ -1720,7 +1720,22 @@
     "costLabel": "Költség",
     "quoteRefLabel": "Ajánlat",
     "costBreakdownTitle": "Költségek megoszlása",
-    "amountTooltipLabel": "Összeg"
+    "amountTooltipLabel": "Összeg",
+    "portalSectionTitle": "Portál megosztás",
+    "portalSharedBadge": "{count} megosztott elem",
+    "portalNoneShared": "Nincs megosztott elem",
+    "portalInvoicesLabel": "Számlák",
+    "portalLabourLabel": "Munkadíj",
+    "portalMediaLabel": "Média",
+    "portalDiaryLabel": "Napló",
+    "portalNoInvoices": "Nincsenek számlák ebben a projektben",
+    "portalNoLabour": "Nincsenek munkabejegyzések",
+    "portalNoMedia": "Nincsenek médiatartalmak",
+    "portalNoDiary": "Nincsenek naplóbejegyzések",
+    "portalShareToggleLabel": "Megosztás az ügyféllel",
+    "portalShareError": "Hiba a megosztásnál. Próbáld újra.",
+    "portalClientLink": "Portál megtekintése",
+    "portalNoClientHint": "Rendelj ügyfelet a projekthez a portál megosztáshoz."
   },
   "surveyDetail": {
     "readOnly": "🔒 Ez a felmérés csak olvasható.",

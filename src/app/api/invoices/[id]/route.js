@@ -37,22 +37,27 @@ export async function PATCH(request, { params }) {
   const { admin, profile, project } = ctx;
 
   const fields = await request.json();
-  const allowed = ['value_huf', 'category', 'description', 'ai_line_items', 'ai_total', 'image_url', 'storage_path'];
+  const allowed = ['value_huf', 'category', 'description', 'ai_line_items', 'ai_total', 'image_url', 'storage_path', 'portal_visible'];
   const update = {};
   for (const k of allowed) if (k in fields) update[k] = fields[k];
 
   const { data, error } = await admin.from('invoices').update(update).eq('id', id).select().single();
   if (error) return Response.json({ error: error.message }, { status: 400 });
 
+  const isPortalToggle = 'portal_visible' in update && Object.keys(update).length === 1;
   logAudit({
     entityId:   project.collective_id || user.id,
     userId:     user.id,
     userName:   profile.display_name || user.email,
-    action:     'Számla módosítva',
+    action:     isPortalToggle
+      ? (update.portal_visible ? 'Számla megjelent a portálon' : 'Számla eltávolítva a portálról')
+      : 'Számla módosítva',
     targetType: 'project',
     targetId:   project.id,
     targetName: project.name,
-    details:    { value_huf: update.value_huf, category: update.category },
+    details:    isPortalToggle
+      ? { portal_visible: update.portal_visible, invoice_id: id }
+      : { value_huf: update.value_huf, category: update.category },
   });
 
   return Response.json({ invoice: data });

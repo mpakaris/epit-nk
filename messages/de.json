@@ -1720,7 +1720,22 @@
     "costLabel": "Kosten",
     "quoteRefLabel": "Angebot",
     "costBreakdownTitle": "Kostenaufschlüsselung",
-    "amountTooltipLabel": "Betrag"
+    "amountTooltipLabel": "Betrag",
+    "portalSectionTitle": "Portal-Freigabe",
+    "portalSharedBadge": "{count} freigegebene Elemente",
+    "portalNoneShared": "Nichts freigegeben",
+    "portalInvoicesLabel": "Rechnungen",
+    "portalLabourLabel": "Arbeitskosten",
+    "portalMediaLabel": "Medien",
+    "portalDiaryLabel": "Tagebuch",
+    "portalNoInvoices": "Keine Rechnungen in diesem Projekt",
+    "portalNoLabour": "Keine Arbeitseinträge",
+    "portalNoMedia": "Keine Mediendateien",
+    "portalNoDiary": "Keine Tagebucheinträge",
+    "portalShareToggleLabel": "Mit Kunden teilen",
+    "portalShareError": "Freigabe konnte nicht aktualisiert werden.",
+    "portalClientLink": "Portal ansehen",
+    "portalNoClientHint": "Weise diesem Projekt einen Kunden zu, um das Portal zu aktivieren."
   },
   "surveyDetail": {
     "readOnly": "🔒 Dieses Aufmaß ist schreibgeschützt.",

@@ -1720,7 +1720,22 @@
     "costLabel": "Cost",
     "quoteRefLabel": "Quote",
     "costBreakdownTitle": "Cost breakdown",
-    "amountTooltipLabel": "Amount"
+    "amountTooltipLabel": "Amount",
+    "portalSectionTitle": "Portal sharing",
+    "portalSharedBadge": "{count} shared items",
+    "portalNoneShared": "Nothing shared",
+    "portalInvoicesLabel": "Invoices",
+    "portalLabourLabel": "Labour",
+    "portalMediaLabel": "Media",
+    "portalDiaryLabel": "Diary",
+    "portalNoInvoices": "No invoices in this project",
+    "portalNoLabour": "No labour entries",
+    "portalNoMedia": "No media files",
+    "portalNoDiary": "No diary entries",
+    "portalShareToggleLabel": "Share with client",
+    "portalShareError": "Failed to update sharing. Please try again.",
+    "portalClientLink": "View portal",
+    "portalNoClientHint": "Assign a client to this project to enable portal sharing."
   },
   "surveyDetail": {
     "readOnly": "🔒 This survey is read-only.",

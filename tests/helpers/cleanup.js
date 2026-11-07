@@ -28,6 +28,8 @@ async function getTestUserIds(admin) {
     process.env.TEST_SOLO_EMAIL,
     process.env.TEST_OWNER_EMAIL,
     process.env.TEST_MEMBER_EMAIL,
+    process.env.TEST_CLIENT_EMAIL,
+    process.env.TEST_SA_EMAIL,
   ].filter(Boolean)
 
   const { data } = await admin.from('profiles').select('id').in('email', emails)
@@ -58,6 +60,8 @@ async function cleanRecords(admin, userIds) {
   // Must delete before profiles — no ON DELETE CASCADE on these FKs
   await del(admin, 'transfer_requests',     'from_user_id', userIds,    'transfer_requests')
   await del(admin, 'appointments',          'owner_id',     userIds,    'appointments')
+  // Delete quote_client_comments by both quote_id and resolved_by to avoid FK blocks
+  await del(admin, 'quote_client_comments', 'quote_id',     quoteIds,   'quote_client_comments (quote_id)')
   await del(admin, 'quote_client_comments', 'resolved_by',  userIds,    'quote_client_comments (resolved_by)')
   await del(admin, 'diary_entries',         'project_id',   projectIds, 'diary_entries')
   await del(admin, 'invoices',          'project_id',   projectIds, 'invoices')

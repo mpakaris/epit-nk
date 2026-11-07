@@ -37,7 +37,7 @@ export async function PATCH(request, { params }) {
   const { admin, profile, entry, project } = ctx;
 
   const fields = await request.json();
-  const allowed = ['labour_type', 'hours', 'hourly_rate', 'unit', 'date', 'description', 'room_id'];
+  const allowed = ['labour_type', 'hours', 'hourly_rate', 'unit', 'date', 'description', 'room_id', 'portal_visible'];
   const update = {};
   for (const k of allowed) if (k in fields) update[k] = fields[k];
 
@@ -50,15 +50,20 @@ export async function PATCH(request, { params }) {
   const { data, error } = await admin.from('labour_entries').update(update).eq('id', id).select().single();
   if (error) return Response.json({ error: error.message }, { status: 400 });
 
+  const isPortalToggle = 'portal_visible' in update && Object.keys(update).length === 1;
   logAudit({
     entityId:   project.collective_id || user.id,
     userId:     user.id,
     userName:   profile.display_name || user.email,
-    action:     'Munkabejegyzés módosítva',
+    action:     isPortalToggle
+      ? (update.portal_visible ? 'Munkabejegyzés megjelent a portálon' : 'Munkabejegyzés eltávolítva a portálról')
+      : 'Munkabejegyzés módosítva',
     targetType: 'project',
     targetId:   project.id,
     targetName: project.name,
-    details:    { labour_type: update.labour_type ?? entry.labour_type, hours: update.hours ?? entry.hours, unit: update.unit ?? entry.unit, value_huf: update.value_huf ?? entry.value_huf },
+    details:    isPortalToggle
+      ? { portal_visible: update.portal_visible, entry_id: id }
+      : { labour_type: update.labour_type ?? entry.labour_type, hours: update.hours ?? entry.hours, unit: update.unit ?? entry.unit, value_huf: update.value_huf ?? entry.value_huf },
   });
 
   return Response.json({ labourEntry: data });

@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
-import { ArrowLeft, Loader2, ChevronDown, ChevronUp } from 'lucide-react';
+import { ArrowLeft, Loader2, ChevronDown, ChevronUp, ExternalLink } from 'lucide-react';
 import PageSpinner from '@/components/PageSpinner';
 
 // ── helpers & sub-components ─────────────────────────────────────────────────
@@ -151,6 +151,16 @@ export default function SAPortalViewPage() {
           <h1 className="page-title" style={{ fontFamily: 'var(--font-mono)', fontSize: '1.15rem' }}>{clientEmail}</h1>
           <p className="page-subtitle">{contractors.length} vállalkozó · Superadmin nézet</p>
         </div>
+        <a
+          href={`/portal/dashboard?as=${encodeURIComponent(clientEmail)}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="btn btn-secondary btn-sm"
+          style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}
+        >
+          <ExternalLink size={14} />
+          Portál megtekintése ügyfelként
+        </a>
       </div>
 
       {error && (

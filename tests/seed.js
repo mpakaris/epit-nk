@@ -36,9 +36,24 @@ const USERS = [
     name:     'Test Member',
     premium:  false,
   },
+  // Portal client — a real-world client who logs in via OTP in prod; password in tests
+  {
+    email:    process.env.TEST_CLIENT_EMAIL,
+    password: process.env.TEST_CLIENT_PASSWORD,
+    name:     'Test Client',
+    premium:  false,
+  },
+  // Superadmin — for SA impersonation tests
+  {
+    email:    process.env.TEST_SA_EMAIL,
+    password: process.env.TEST_SA_PASSWORD,
+    name:     'Test SA',
+    premium:  false,
+    role:     'superadmin',
+  },
 ]
 
-async function ensureUser({ email, password, name, premium }) {
+async function ensureUser({ email, password, name, premium, role }) {
   const { data: existing } = await admin.from('profiles').select('id').eq('email', email).maybeSingle()
 
   let userId
@@ -65,6 +80,7 @@ async function ensureUser({ email, password, name, premium }) {
     subscription_tier:       premium ? 'premium' : 'basic',
     must_change_password:    false,
     gdpr_consented_at:       new Date().toISOString(),
+    ...(role ? { role } : {}),
   }).eq('id', userId)
 
   return userId
@@ -143,7 +159,7 @@ async function ensureCollective(ownerEmail, memberEmail) {
 async function main() {
   console.log('\n── Test User Seed ──────────────────────────')
 
-  if (!process.env.TEST_SOLO_EMAIL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+  if (!process.env.TEST_SOLO_EMAIL || !process.env.TEST_CLIENT_EMAIL || !process.env.TEST_SA_EMAIL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
     console.error('Missing env vars. Add TEST_* and SUPABASE_SERVICE_ROLE_KEY to .env.local or .env.test')
     process.exit(1)
   }
