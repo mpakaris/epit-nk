@@ -64,6 +64,16 @@ export async function POST(request) {
   const validityDays = profile.offer_validity_days ?? 30;
   const validUntil = new Date(Date.now() + validityDays * 86400000).toISOString().split('T')[0];
 
+  // Auto-generate offer number: YYYY/NNN — count includes deleted quotes so numbers never recycle
+  const year = new Date().getFullYear();
+  const { count: quoteCount } = await admin
+    .from('quotes')
+    .select('*', { count: 'exact', head: true })
+    .eq('owner_id', user.id)
+    .gte('created_at', `${year}-01-01`)
+    .lt('created_at', `${year + 1}-01-01`);
+  const offerNumber = `${year}/${String((quoteCount || 0) + 1).padStart(3, '0')}`;
+
   const { data, error } = await admin.from('quotes').insert([{
     owner_id:         user.id,
     collective_id:    collectiveId,
@@ -79,10 +89,11 @@ export async function POST(request) {
     shared_with:      safeSharedWith,
     tax_percent:      Number(tax_percent) || 0,
     survey_id:        survey_id     || null,
+    offer_number:          offerNumber,
     valid_until:           validUntil,
     offer_terms_text:      profile.offer_terms_text      || null,
     payment_deadline_days: profile.payment_deadline_days ?? 8,
-    payment_method:        profile.payment_method        || 'banki átutalás',
+    payment_method:        profile.payment_method        || null,
     deposit_percent:       profile.deposit_percent       ?? 0,
     warranty_months:       profile.warranty_months       ?? 0,
   }]).select().single();

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useApp } from '@/context/AppContext';
-import { formatHUF, formatDate } from '@/lib/constants';
+import { formatMoney, formatDate } from '@/lib/constants';
 import SectionMediaGrid from '@/components/SectionMediaGrid';
 import {
   Edit3, Loader2, Check, Trash2, Plus, User, Ruler, Calendar,
@@ -15,7 +15,8 @@ import SectionPhotoZone from './SectionPhotoZone';
 import { TYPE_ICONS, TYPE_COLORS, QUOTE_ENTRY_LABELS } from './constants';
 
 export default function SectionCard({ section, surveyEntry, surveyId, quoteId, canEdit, isQuoteOwner, currentUserId, onDelete, onAddEntry, onEditEntry, onDeleteEntry, sectionEntries, quote, onEntriesGenerated, sectionMediaItems = [] }) {
-  const { updateQuoteSection, activeCollectiveId, createQuoteEntry, deleteQuoteEntry } = useApp();
+  const { updateQuoteSection, activeCollectiveId, createQuoteEntry, deleteQuoteEntry, userCurrency } = useApp();
+  const fmt = (n) => formatMoney(n, userCurrency);
   const [collapsed, setCollapsed] = useState(true);
   const canEditSection   = canEdit && (isQuoteOwner || section.created_by === currentUserId);
   const canEditEntry     = (entry) => canEdit && (isQuoteOwner || entry.user_id === currentUserId);
@@ -311,7 +312,7 @@ export default function SectionCard({ section, surveyEntry, surveyId, quoteId, c
             <span style={{ fontSize: '0.72rem', fontWeight: 600, color: '#1e3a5f' }}>{sectionEntries.length} tétel</span>
             {contributors.map(name => <span key={name} style={PILL_LIGHT}><User size={10} />{name}</span>)}
           </div>
-          <span style={TOTAL_PILL_LIGHT}>{formatHUF(sectionSubtotalForHeader)}</span>
+          <span style={TOTAL_PILL_LIGHT}>{fmt(sectionSubtotalForHeader)}</span>
           <div style={{ color: '#4b6a91', pointerEvents: 'none', display: 'flex', alignItems: 'center' }}>
             {collapsed ? <ChevronDown size={15} /> : <ChevronUp size={15} />}
           </div>
@@ -322,7 +323,7 @@ export default function SectionCard({ section, surveyEntry, surveyId, quoteId, c
           <div style={{ padding: '0.45rem 1rem', display: 'flex', alignItems: 'center', gap: 8 }}>
             <div style={{ flex: 1, display: 'flex', alignItems: 'baseline', gap: 8, minWidth: 0 }}>
               <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, fontSize: '1rem', color: '#1e3a5f', flexShrink: 0 }}>
-                {formatHUF(sectionSubtotalForHeader)}
+                {fmt(sectionSubtotalForHeader)}
               </span>
               <span style={{ fontSize: '0.72rem', color: '#4b6a91', fontWeight: 600, flexShrink: 0 }}>
                 {sectionEntries.length} tétel
@@ -453,13 +454,13 @@ export default function SectionCard({ section, surveyEntry, surveyId, quoteId, c
                                 <div style={{ flex: 1, minWidth: 0 }}>
                                   <div style={{ fontWeight: 600, fontSize: '0.8rem', color: 'var(--text-primary)' }}>{entry.work_description}</div>
                                   <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                                    {useQty && entry.quantity != null && <span>{entry.quantity} {entry.unit||'db'}{entry.unit_price ? ` × ${formatHUF(entry.unit_price)}` : ''}</span>}
+                                    {useQty && entry.quantity != null && <span>{entry.quantity} {entry.unit||'db'}{entry.unit_price ? ` × ${fmt(entry.unit_price)}` : ''}</span>}
                                     {entry.notes && <span style={{ fontStyle: 'italic' }}>{entry.notes}</span>}
                                     {activeCollectiveId && entry.created_by_name && <span style={{ opacity: 0.7 }}>· {entry.created_by_name}</span>}
                                   </div>
                                 </div>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', flexShrink: 0 }}>
-                                  <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: '0.8rem' }}>{formatHUF(entry.amount_huf)}</span>
+                                  <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: '0.8rem' }}>{fmt(entry.amount_huf)}</span>
                                   {canEditEntry(entry) && (
                                     <button type="button" onClick={() => onEditEntry(section.id, entry.id)} className="btn btn-secondary btn-sm" style={{ padding: '0.15rem 0.35rem' }}><Edit3 size={11} /></button>
                                   )}
@@ -468,7 +469,7 @@ export default function SectionCard({ section, surveyEntry, surveyId, quoteId, c
                             );
                           })}
                           <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '0.2rem' }}>
-                            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)' }}>{formatHUF(typeTotal)}</span>
+                            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)' }}>{fmt(typeTotal)}</span>
                           </div>
                         </div>
                       );
@@ -476,7 +477,7 @@ export default function SectionCard({ section, surveyEntry, surveyId, quoteId, c
                     {grouped.length > 1 && (
                       <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '0.5rem', paddingTop: '0.25rem' }}>
                         <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.03em' }}>Összesen:</span>
-                        <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, fontSize: '0.95rem', color: 'var(--text-primary)' }}>{formatHUF(sectionSubtotal)}</span>
+                        <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, fontSize: '0.95rem', color: 'var(--text-primary)' }}>{fmt(sectionSubtotal)}</span>
                       </div>
                     )}
                   </div>

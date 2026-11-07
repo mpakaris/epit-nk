@@ -7,7 +7,7 @@ import { processMediaFile } from '@/lib/mediaGate';
 import Modal from '@/components/Modal';
 import Lightbox from '@/components/Lightbox';
 import ErrorBanner from '@/components/ErrorBanner';
-import { formatHUF, formatDate, INVOICE_CATEGORIES } from '@/lib/constants';
+import { formatDate, INVOICE_CATEGORIES } from '@/lib/constants';
 
 export default function InvoiceDetailDrawer({ invoice, isAdmin, rooms, splits = [], onClose, onDelete, onSave, onSaveSplits, onUploadImage, invoiceMedia = [], onMediaAdded, onMediaDeleted }) {
   const t = useTranslations('projectDetail');

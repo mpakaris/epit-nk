@@ -6,7 +6,7 @@ import { Link as LocaleLink } from '@/navigation';
 import { useParams } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
 import { useTranslations } from 'next-intl';
-import { formatHUF, formatDate } from '@/lib/constants';
+import { formatMoney, formatDate } from '@/lib/constants';
 import {
   ArrowLeft,
   Phone,
@@ -26,7 +26,8 @@ import StatusBadge from '@/components/StatusBadge';
 
 export default function ClientDetailPage() {
   const { id } = useParams();
-  const { isAdmin, loading, dataReady, clients, quotes, quoteEntries, projects, invoices, isDemoMode } = useApp();
+  const { isAdmin, loading, dataReady, clients, quotes, quoteEntries, projects, invoices, isDemoMode, userCurrency } = useApp();
+  const fmt = (n) => formatMoney(n, userCurrency);
   const t = useTranslations('clients');
   const tc = useTranslations('common');
   const navPrefix = isDemoMode ? '/demo' : '';
@@ -185,12 +186,12 @@ export default function ClientDetailPage() {
         <div className="stat-card">
           <div className="stat-label">{t('quotesStatLabel')}</div>
           <div className="stat-value">{clientQuotes.length}</div>
-          <div className="stat-sub">{t('totalQuoteValue', { amount: formatHUF(totalQuoteValue) })}</div>
+          <div className="stat-sub">{t('totalQuoteValue', { amount: fmt(totalQuoteValue) })}</div>
         </div>
         <div className="stat-card">
           <div className="stat-label">{t('projectsStatLabel')}</div>
           <div className="stat-value">{clientProjects.length}</div>
-          <div className="stat-sub">{t('totalExpenses', { amount: formatHUF(totalInvoiceValue) })}</div>
+          <div className="stat-sub">{t('totalExpenses', { amount: fmt(totalInvoiceValue) })}</div>
         </div>
       </div>
 
@@ -219,7 +220,7 @@ export default function ClientDetailPage() {
                   </div>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexShrink: 0 }}>
-                  <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, fontSize: '0.95rem' }}>{formatHUF(qTotal)}</span>
+                  <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, fontSize: '0.95rem' }}>{fmt(qTotal)}</span>
                   <StatusBadge status={q.status} />
                   <AppLink href={`${navPrefix}/ajanlatok/${q.id}`} className="btn btn-secondary btn-sm" style={{ padding: '0.3rem 0.6rem', fontSize: '0.775rem' }}>
                     {t('detailsBtn')}
@@ -254,7 +255,7 @@ export default function ClientDetailPage() {
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexShrink: 0 }}>
                   <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                    <Coins size={14} color="var(--accent)" /> {formatHUF(pCost)}
+                    <Coins size={14} color="var(--accent)" /> {fmt(pCost)}
                   </span>
                   <AppLink href={`${navPrefix}/projektek/${p.id}`} className="btn btn-secondary btn-sm" style={{ padding: '0.3rem 0.6rem', fontSize: '0.775rem' }}>
                     {t('detailsBtn')}

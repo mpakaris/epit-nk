@@ -2,10 +2,13 @@
 
 import { TrendingUp } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { formatHUF } from '@/lib/constants';
+import { formatMoney } from '@/lib/constants';
+import { useApp } from '@/context/AppContext';
 
 export default function CombinedStatsCard({ totalCost, invoiceCount, totalLabour, labourCount, collective, ownPaid, balance }) {
   const t = useTranslations('projectDetail');
+  const { userCurrency } = useApp();
+  const fmt = (n) => formatMoney(n, userCurrency);
   const hasInvoices = invoiceCount > 0;
   const hasLabour   = labourCount > 0;
 
@@ -26,11 +29,11 @@ export default function CombinedStatsCard({ totalCost, invoiceCount, totalLabour
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#065f46', marginBottom: '0.35rem' }}>
         <TrendingUp size={13} /> {t('financialSummaryTitle')}
       </div>
-      {hasInvoices && row(t('totalExpensesLabel'), formatHUF(totalCost), t('invoiceCountSub', { count: invoiceCount }))}
-      {hasLabour   && row(t('labourFeeLabel'), formatHUF(totalLabour), t('labourCountSub', { count: labourCount }), 'var(--success-text)')}
-      {collective  && row(t('paidByYouLabel'), formatHUF(ownPaid), t('ownInvoicesSub'))}
+      {hasInvoices && row(t('totalExpensesLabel'), fmt(totalCost), t('invoiceCountSub', { count: invoiceCount }))}
+      {hasLabour   && row(t('labourFeeLabel'), fmt(totalLabour), t('labourCountSub', { count: labourCount }), 'var(--success-text)')}
+      {collective  && row(t('paidByYouLabel'), fmt(ownPaid), t('ownInvoicesSub'))}
       {collective  && row(t('balanceLabel'),
-        balance > 0 ? `+${formatHUF(balance)}` : formatHUF(balance),
+        balance > 0 ? `+${fmt(balance)}` : fmt(balance),
         balance > 0 ? t('balanceCredit') : balance < 0 ? t('balanceDebt') : t('balanceSettled'),
         balance > 0 ? 'var(--success-text)' : balance < 0 ? 'var(--danger-text)' : undefined
       )}

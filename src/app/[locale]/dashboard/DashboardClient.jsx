@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useApp } from '@/context/AppContext';
 import { calculateProjectFinancials } from '@/lib/calculations';
-import { formatHUF, formatDate } from '@/lib/constants';
+import { formatMoney, formatDate } from '@/lib/constants';
 import {
   FolderKanban, Users, TrendingUp, TrendingDown, CheckCircle2,
   Plus, Coins, Receipt, Hammer, BookOpen, Ruler, FileText,
@@ -102,8 +102,10 @@ export default function DashboardClient({
     diaryEntriesByProject,
     dataReady,
     isDemoMode,
+    userCurrency,
   } = useApp();
 
+  const fmt = (n) => formatMoney(n, userCurrency);
   const p = (path) => isDemoMode ? `/demo${path}` : path;
 
   const projects      = dataReady ? _ctxProjects      : initialProjects;
@@ -458,7 +460,7 @@ export default function DashboardClient({
 
         {!(isSuperAdmin && !impersonating) && (
           <div className="stat-grid" style={{ marginBottom: '1.5rem' }}>
-            <StatCard label={t('statTotalCost')}      value={formatHUF(allActiveInvoices.reduce((s, i) => s + Number(i.value_huf || 0), 0))} sub={t('statTotalCostSub')}       icon={Coins}        href={p('/projektek')} accentColor="#065f46" />
+            <StatCard label={t('statTotalCost')}      value={fmt(allActiveInvoices.reduce((s, i) => s + Number(i.value_huf || 0), 0))} sub={t('statTotalCostSub')}       icon={Coins}        href={p('/projektek')} accentColor="#065f46" />
             <StatCard label={t('statActiveProjects')} value={projects.length}                                                                  sub={t('statActiveProjectsSub')}  icon={FolderKanban} href={p('/projektek')} accentColor="#0e7490" />
             <StatCard label={t('statInvoices')}       value={allActiveInvoices.length}                                                         sub={t('statInvoicesSub')}        icon={Receipt}      href={p('/projektek')} accentColor="#4338ca" />
           </div>
@@ -492,7 +494,7 @@ export default function DashboardClient({
                       <div style={{ fontWeight: 700, fontSize: '0.85rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.description || t('invoiceFallback')}</div>
                       <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{item.uploader_name} &bull; {project?.name} &bull; {formatDate(item.created_at)}</div>
                     </div>
-                    <div style={{ fontWeight: 800, fontSize: '0.875rem', fontFamily: 'var(--font-mono)', flexShrink: 0 }}>{formatHUF(item.value_huf)}</div>
+                    <div style={{ fontWeight: 800, fontSize: '0.875rem', fontFamily: 'var(--font-mono)', flexShrink: 0 }}>{fmt(item.value_huf)}</div>
                   </div>
                 );
 
@@ -505,7 +507,7 @@ export default function DashboardClient({
                       <div style={{ fontWeight: 700, fontSize: '0.85rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.labour_type}</div>
                       <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{users.find(u => u.id === item.uploaded_by)?.display_name || item.uploader_name || '–'} &bull; {project?.name} &bull; {formatDate(item._date)}</div>
                     </div>
-                    <div style={{ fontWeight: 800, fontSize: '0.875rem', fontFamily: 'var(--font-mono)', flexShrink: 0, color: 'var(--success-text)' }}>+{formatHUF(item.value_huf)}</div>
+                    <div style={{ fontWeight: 800, fontSize: '0.875rem', fontFamily: 'var(--font-mono)', flexShrink: 0, color: 'var(--success-text)' }}>+{fmt(item.value_huf)}</div>
                   </div>
                 );
 
@@ -558,7 +560,7 @@ export default function DashboardClient({
                     <div style={{ fontWeight: 800, fontSize: '1rem', marginBottom: '0.35rem' }}>{project.name}</div>
                     {project.description && <p style={{ fontSize: '0.825rem', color: 'var(--text-secondary)', marginBottom: '0.5rem', lineHeight: 1.4 }}>{project.description}</p>}
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: 'var(--text-muted)', borderTop: '1px solid var(--border-subtle)', paddingTop: '0.5rem', marginTop: '0.5rem' }}>
-                      <span>{formatHUF(fin.totalCost + fin.totalLabourValue)} {t('totalCost')}</span>
+                      <span>{fmt(fin.totalCost + fin.totalLabourValue)} {t('totalCost')}</span>
                       <span>{t('invoiceCount', { count: fin.projectInvoices.length })}</span>
                     </div>
                   </div>

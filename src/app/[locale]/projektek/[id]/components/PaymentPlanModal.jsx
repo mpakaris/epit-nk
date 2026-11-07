@@ -6,7 +6,6 @@ import { AlertCircle, Loader2, Check, ChevronLeft, ChevronRight, Calendar, Flag,
 import { useTranslations } from 'next-intl';
 import Modal from '@/components/Modal';
 import ErrorBanner from '@/components/ErrorBanner';
-import { formatHUF } from '@/lib/constants';
 
 const ROMAN = ['I','II','III','IV','V','VI','VII','VIII','IX','X','XI','XII','XIII','XIV','XV','XVI','XVII','XVIII','XIX','XX'];
 

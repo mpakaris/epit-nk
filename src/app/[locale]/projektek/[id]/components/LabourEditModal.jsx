@@ -5,12 +5,15 @@ import { Loader2, Check, Trash2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import Modal from '@/components/Modal';
 import ErrorBanner from '@/components/ErrorBanner';
-import { formatHUF } from '@/lib/constants';
+import { formatMoney } from '@/lib/constants';
+import { useApp } from '@/context/AppContext';
 
 const LABOUR_UNITS = ['h', 'nap', 'm²', 'm³', 'm', 'fm', 'db', 'l', 'kg'];
 
 export default function LabourEditModal({ entry, onClose, onSave, onDelete, rooms = [], canEdit = true }) {
   const t = useTranslations('projectDetail');
+  const { userCurrency } = useApp();
+  const fmt = (n) => formatMoney(n, userCurrency);
   const [labourType,  setLabourType]  = useState('');
   const [date,        setDate]        = useState('');
   const [hours,       setHours]       = useState('');
@@ -111,7 +114,7 @@ export default function LabourEditModal({ entry, onClose, onSave, onDelete, room
         </div>
         {preview > 0 && (
           <div style={{ marginTop: '0.5rem', padding: '0.5rem 0.75rem', borderRadius: 'var(--radius-md)', background: 'var(--success-bg)', border: '1px solid var(--success-border)', color: 'var(--success-text)', fontSize: '0.825rem', fontWeight: 700 }}>
-            {t('labourPreview', { hours, unit, price: formatHUF(parseInt(hourlyRate, 10) || 0), total: formatHUF(preview) })}
+            {t('labourPreview', { hours, unit, price: fmt(parseInt(hourlyRate, 10) || 0), total: fmt(preview) })}
           </div>
         )}
         <div className="form-group" style={{ marginTop: '0.75rem', marginBottom: 0 }}>

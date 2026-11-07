@@ -2,7 +2,6 @@
 
 import { ResponsiveContainer, AreaChart, Area, ReferenceLine, XAxis, YAxis, Tooltip } from 'recharts';
 import { useTranslations } from 'next-intl';
-import { formatHUF } from '@/lib/constants';
 
 export default function BurndownCard({ invoices, labourEntries, projectRooms, startDate, endDate }) {
   const t = useTranslations('projectDetail');

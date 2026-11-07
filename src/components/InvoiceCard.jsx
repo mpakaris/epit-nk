@@ -1,10 +1,12 @@
 'use client';
 
 import React from 'react';
-import { formatHUF, formatDate, INVOICE_CATEGORY_COLORS } from '@/lib/constants';
+import { formatMoney, formatDate, INVOICE_CATEGORY_COLORS } from '@/lib/constants';
+import { useApp } from '@/context/AppContext';
 import { User, Calendar, Home, Sparkles, PencilLine, Paperclip, HardHat } from 'lucide-react';
 
 export default function InvoiceCard({ invoice, room, media = [], onClick }) {
+  const { userCurrency } = useApp();
   const c        = INVOICE_CATEGORY_COLORS[invoice.category] ?? INVOICE_CATEGORY_COLORS['Egyéb'];
   const isLabour = invoice.category === 'Munka';
   const hasItems = Array.isArray(invoice.ai_line_items) && invoice.ai_line_items.length > 0;
@@ -23,7 +25,7 @@ export default function InvoiceCard({ invoice, room, media = [], onClick }) {
               {isLabour && <HardHat size={11} />}{invoice.category}
             </div>
             <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 900, fontSize: '1.35rem', color: c.color, lineHeight: 1.1 }}>
-              {formatHUF(invoice.value_huf)}
+              {formatMoney(invoice.value_huf, userCurrency)}
             </div>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.3rem', flexShrink: 0 }}>

@@ -6,7 +6,7 @@ import { Link as LocaleLink } from '@/navigation';
 import { useParams, useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useApp } from '@/context/AppContext';
-import { formatHUF, formatDate, QUOTE_STATUSES, QUOTE_ENTRY_TYPES, QUANTITY_UNITS, LABOUR_UNITS } from '@/lib/constants';
+import { formatMoney, formatDate, QUOTE_STATUSES, QUOTE_ENTRY_TYPES, QUANTITY_UNITS, LABOUR_UNITS } from '@/lib/constants';
 import Modal, { ConfirmModal, AlertModal } from '@/components/Modal';
 import LockedDocumentModal from '@/components/LockedDocumentModal';
 import StatusBadge from '@/components/StatusBadge';
@@ -90,8 +90,10 @@ export default function QuoteDetailPage() {
     createQuoteEntry, updateQuoteEntry, deleteQuoteEntry,
     fetchSurveyMedia, surveyEntriesBySurvey,
     isDemoMode,
+    userCurrency,
   } = useApp();
 
+  const fmt = (n) => formatMoney(n, userCurrency);
   const navPrefix = isDemoMode ? '/demo' : '';
   const AppLink = isDemoMode ? Link : LocaleLink;
   const isMobile  = useMobile();
@@ -109,7 +111,7 @@ export default function QuoteDetailPage() {
   const [metaValidUntil,        setMetaValidUntil]        = useState('');
   const [metaOfferTerms,        setMetaOfferTerms]        = useState('');
   const [metaPaymentDays,       setMetaPaymentDays]       = useState('8');
-  const [metaPaymentMethod,     setMetaPaymentMethod]     = useState('banki átutalás');
+  const [metaPaymentMethod,     setMetaPaymentMethod]     = useState('');
   const [metaDepositPercent,    setMetaDepositPercent]    = useState('0');
   const [metaWarrantyMonths,    setMetaWarrantyMonths]    = useState('0');
   const [metaInitialized, setMetaInitialized] = useState(false);
@@ -340,7 +342,7 @@ export default function QuoteDetailPage() {
     setMetaValidUntil(quote.valid_until || '');
     setMetaOfferTerms(quote.offer_terms_text || '');
     setMetaPaymentDays(quote.payment_deadline_days != null ? String(quote.payment_deadline_days) : '8');
-    setMetaPaymentMethod(quote.payment_method || 'banki átutalás');
+    setMetaPaymentMethod(quote.payment_method || '');
     setMetaDepositPercent(quote.deposit_percent != null ? String(quote.deposit_percent) : '0');
     setMetaWarrantyMonths(quote.warranty_months != null ? String(quote.warranty_months) : '0');
     setMetaInitialized(true);
@@ -437,7 +439,7 @@ export default function QuoteDetailPage() {
     metaValidUntil     !== (quote.valid_until             || '')                     ||
     metaOfferTerms     !== (quote.offer_terms_text        || '')                     ||
     metaPaymentDays    !== String(quote.payment_deadline_days ?? 8)                  ||
-    metaPaymentMethod  !== (quote.payment_method          || 'banki átutalás')       ||
+    metaPaymentMethod  !== (quote.payment_method          || '')                      ||
     metaDepositPercent !== String(quote.deposit_percent   ?? 0)                      ||
     metaWarrantyMonths !== String(quote.warranty_months   ?? 0)
   );
@@ -730,7 +732,7 @@ export default function QuoteDetailPage() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.65rem 1rem', background: 'var(--bg-subtle)', borderBottom: sectionEntries.length > 0 ? '1px solid var(--border-subtle)' : 'none', gap: '0.5rem' }}>
           <span style={{ fontWeight: 700, fontSize: '0.875rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}><MoreHorizontal size={14} />{t('generalItems')}</span>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-            {sectionTotal > 0 && <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: '0.82rem', color: 'var(--text-secondary)' }}>{formatHUF(sectionTotal)}</span>}
+            {sectionTotal > 0 && <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: '0.82rem', color: 'var(--text-secondary)' }}>{fmt(sectionTotal)}</span>}
             {canEdit && <button type="button" onClick={() => openEntryModal(null)} className="btn btn-primary btn-sm" style={{ padding: '0.25rem 0.45rem' }} title="Tétel hozzáadása"><Plus size={12} /></button>}
           </div>
         </div>
@@ -757,13 +759,13 @@ export default function QuoteDetailPage() {
           <div style={{ fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.15rem', fontSize: '0.9rem' }}>{entry.work_description}</div>
           <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', gap: '0.6rem', flexWrap: 'wrap', alignItems: 'center' }}>
             <span style={{ padding: '0.1rem 0.35rem', borderRadius: 'var(--radius-pill)', background: tc.bg, color: tc.color, fontWeight: 700, fontSize: '0.68rem', border: `1px solid ${tc.border}` }}>{QUOTE_ENTRY_LABELS[entry.entry_type]}</span>
-            {useQty && entry.quantity != null && <span>{entry.quantity} {entry.unit || 'db'}{entry.unit_price ? ` × ${formatHUF(entry.unit_price)}` : ''}</span>}
+            {useQty && entry.quantity != null && <span>{entry.quantity} {entry.unit || 'db'}{entry.unit_price ? ` × ${fmt(entry.unit_price)}` : ''}</span>}
             {contributor && <span style={{ display: 'flex', alignItems: 'center', gap: '0.2rem' }}><User size={10} />{contributor.display_name}</span>}
             {entry.notes && <span style={{ fontStyle: 'italic' }}>{entry.notes}</span>}
           </div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexShrink: 0 }}>
-          <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, fontSize: '0.95rem' }}>{formatHUF(entry.amount_huf)}</span>
+          <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, fontSize: '0.95rem' }}>{fmt(entry.amount_huf)}</span>
           {canEdit && (
             <>
               <button type="button" onClick={() => openEntryModal(sectionId, entry.id)} className="btn btn-secondary btn-sm" style={{ padding: '0.2rem 0.4rem' }}><Edit3 size={11} /></button>
@@ -982,12 +984,12 @@ export default function QuoteDetailPage() {
           <div style={{ display: 'grid', gridTemplateColumns: taxRate > 0 ? '1fr 1fr' : '1fr' }}>
             <div style={{ padding: '0.85rem 1.1rem' }}>
               <div style={{ fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: '0.3rem' }}>{t('net')}</div>
-              <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: '1rem', color: 'var(--text-primary)' }}>{formatHUF(netTotal)}</div>
+              <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: '1rem', color: 'var(--text-primary)' }}>{fmt(netTotal)}</div>
             </div>
             {taxRate > 0 && (
               <div style={{ padding: '0.85rem 1.1rem', borderLeft: '1px solid var(--border-subtle)' }}>
                 <div style={{ fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: '0.3rem' }}>{t('vat', { rate: taxRate })}</div>
-                <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: '1rem', color: 'var(--text-secondary)' }}>{formatHUF(taxAmount)}</div>
+                <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: '1rem', color: 'var(--text-secondary)' }}>{fmt(taxAmount)}</div>
               </div>
             )}
           </div>
@@ -996,7 +998,7 @@ export default function QuoteDetailPage() {
             <div style={{ fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'rgba(255,255,255,0.5)' }}>{t('gross')}</div>
             <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 900, fontSize: '1.35rem', color: '#fff', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
               <Coins size={16} color="rgba(255,255,255,0.5)" />
-              {formatHUF(grossTotal)}
+              {fmt(grossTotal)}
             </div>
           </div>
         </div>
@@ -1037,12 +1039,12 @@ export default function QuoteDetailPage() {
           <div style={{ marginBottom: '0.85rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--success-border)', overflow: 'hidden' }}>
             <div style={{ padding: '0.4rem 0.75rem', background: 'var(--success-bg)', fontSize: '0.72rem', fontWeight: 700, color: 'var(--success-text)', display: 'flex', justifyContent: 'space-between' }}>
               <span>{t('entryPending', { count: pendingEntries.length })}</span>
-              <span style={{ fontFamily: 'var(--font-mono)' }}>{formatHUF(pendingEntries.reduce((s, e) => s + e.amount_huf, 0))}</span>
+              <span style={{ fontFamily: 'var(--font-mono)' }}>{fmt(pendingEntries.reduce((s, e) => s + e.amount_huf, 0))}</span>
             </div>
             {pendingEntries.map((e, i) => (
               <div key={e._tmpKey || i} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.35rem 0.75rem', background: '#fff', borderTop: '1px solid var(--border-subtle)' }}>
                 <span style={{ flex: 1, fontSize: '0.82rem', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.work_description}</span>
-                <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8rem', color: 'var(--text-secondary)', flexShrink: 0 }}>{formatHUF(e.amount_huf)}</span>
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8rem', color: 'var(--text-secondary)', flexShrink: 0 }}>{fmt(e.amount_huf)}</span>
                 <button type="button" onClick={() => setPendingEntries(p => p.filter((_, j) => j !== i))} style={{ border: 'none', background: 'none', cursor: 'pointer', color: 'var(--danger-text)', padding: 0, display: 'flex' }}><X size={13} /></button>
               </div>
             ))}
@@ -1102,7 +1104,7 @@ export default function QuoteDetailPage() {
         {(entryForm.entry_type === 'equipment' || entryForm.entry_type === 'transport' || entryForm.entry_type === 'other') && (
           <div className="form-group"><label className="form-label">{t('entryAmount')}</label><input inputMode="decimal" type="number" min="1" className="form-control text-mono" placeholder="0" value={entryForm.flat_amount} onChange={e => setEntryForm(f => ({ ...f, flat_amount: e.target.value }))} /></div>
         )}
-        {previewAmount > 0 && <div style={{ padding: '0.6rem 0.85rem', borderRadius: 'var(--radius-md)', background: 'var(--success-bg)', border: '1px solid var(--success-border)', color: 'var(--success-text)', fontWeight: 700, fontSize: '0.875rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}><Coins size={15} /> {t('entryItem')} <span style={{ fontFamily: 'var(--font-mono)' }}>{formatHUF(previewAmount)}</span></div>}
+        {previewAmount > 0 && <div style={{ padding: '0.6rem 0.85rem', borderRadius: 'var(--radius-md)', background: 'var(--success-bg)', border: '1px solid var(--success-border)', color: 'var(--success-text)', fontWeight: 700, fontSize: '0.875rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}><Coins size={15} /> {t('entryItem')} <span style={{ fontFamily: 'var(--font-mono)' }}>{fmt(previewAmount)}</span></div>}
 
         <div className="form-group">
           <label className="form-label">{t('entryContractor')}</label>
@@ -1644,7 +1646,7 @@ export default function QuoteDetailPage() {
               if (entry.details?.to) sub.push(`→ ${entry.details.to}`);
               if (entry.details?.project_name) sub.push(`${t('historyProject')} ${entry.details.project_name}`);
               if (entry.details?.work_description) sub.push(entry.details.work_description);
-              if (entry.details?.amount_huf) sub.push(formatHUF(entry.details.amount_huf));
+              if (entry.details?.amount_huf) sub.push(fmt(entry.details.amount_huf));
               if (entry.details?.name) sub.push(`„${entry.details.name}"`);
               if (entry.details?.changed_fields?.length) sub.push(entry.details.changed_fields.join(', '));
 

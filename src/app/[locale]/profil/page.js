@@ -425,7 +425,7 @@ export default function ProfilPage() {
   const [offerValidityDays, setOfferValidityDays] = useState('30');
   const [offerTermsText,    setOfferTermsText]    = useState('');
   const [paymentDeadlineDays, setPaymentDeadlineDays] = useState('8');
-  const [paymentMethod,       setPaymentMethod]       = useState('banki átutalás');
+  const [paymentMethod,       setPaymentMethod]       = useState('');
   const [depositPercent,      setDepositPercent]      = useState('0');
   const [warrantyMonths,      setWarrantyMonths]      = useState('0');
   const [loadingProfile, setLoadingProfile] = useState(true);
@@ -496,7 +496,7 @@ export default function ProfilPage() {
         setOfferValidityDays(profile.offer_validity_days != null ? String(profile.offer_validity_days) : '30');
         setOfferTermsText(profile.offer_terms_text         || '');
         setPaymentDeadlineDays(profile.payment_deadline_days != null ? String(profile.payment_deadline_days) : '8');
-        setPaymentMethod(profile.payment_method            || 'banki átutalás');
+        setPaymentMethod(profile.payment_method            || '');
         setDepositPercent(profile.deposit_percent != null ? String(profile.deposit_percent) : '0');
         setWarrantyMonths(profile.warranty_months != null ? String(profile.warranty_months) : '0');
         setTermsPdfUrl(profile.terms_pdf_url               || null);
@@ -1200,7 +1200,7 @@ export default function ProfilPage() {
             </div>
             <div className="form-group" style={{ margin: 0 }}>
               <label className="form-label">{t('paymentMethod')}</label>
-              <input type="text" className="form-control" value={paymentMethod} onChange={e => setPaymentMethod(e.target.value)} placeholder="banki átutalás" />
+              <input type="text" className="form-control" value={paymentMethod} onChange={e => setPaymentMethod(e.target.value)} placeholder={t('paymentMethodPlaceholder')} />
             </div>
           </div>
 

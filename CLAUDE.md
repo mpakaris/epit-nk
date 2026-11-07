@@ -245,7 +245,7 @@ const { data: profile } = await admin.from('profiles')
 | File | Purpose |
 |---|---|
 | `calculations.js` | `calculateProjectFinancials()` — settlement algorithm, cost/labour splits |
-| `constants.js` | `INVOICE_CATEGORIES`, `QUOTE_ENTRY_TYPES`, `QUOTE_STATUSES`, `formatHUF()`, `formatDate()` |
+| `constants.js` | `INVOICE_CATEGORIES`, `QUOTE_ENTRY_TYPES`, `QUOTE_STATUSES`, `formatMoney(amount, currency)`, `formatHUF()` (HUF alias), `formatDate()` |
 | `mediaGate.js` | `processMediaFiles()` — compresses images → WebP (400 KB target), validates video ≤ 10 MB |
 | `r2.js` | Cloudflare R2 (S3-compatible) upload/delete; `r2PublicUrl(key)` builds CDN URL |
 | `emailTemplates.js` | `fillTemplate()`, `wrapEmail()` — branded HTML email wrapper |
@@ -425,6 +425,11 @@ The empty object `{}` is the safe middle ground: it keeps `pathnames` defined (n
 - `formatHUF()` still exists as a backward-compat alias for `formatMoney(amount, 'HUF')`. Migrate to `formatMoney` in new code.
 - Both `locale` and `currency` are NULL for new users until they complete the **OnboardingModal** (shown once on first login via `LoadingGate`).
 
+**Adding a new currency** requires changes in three places:
+1. `src/lib/constants.js` — add an entry to `CURRENCY_FMT`: `XYZ: ['locale-tag', decimalPlaces, 'XYZ']`
+2. `src/app/[locale]/profil/page.js` (or wherever the currency picker lives) — add the new option to the UI pill list
+3. `CLAUDE.md` (this file) — add the new code to the `Values:` list above
+
 ### No hardcoded strings — ever
 
 The **entire app is translated** (HU / DE / EN). Every user-visible string — labels, buttons, placeholders, empty states, error messages, section headings, tooltips — must go through the translation system. This is a non-negotiable rule that applies to every new feature and every change.
@@ -598,6 +603,9 @@ Any route or UI that creates a resource (quote, survey, project, collective) mus
 - **Superadmin bypass in new routes** — do not add `isSuperAdmin` escape hatches to new routes; SA uses DB access.
 - **`flexWrap: 'wrap'` on banner rows** — see rule 11.
 - **Single-layer permission check** — every mutation needs both a client-side guard AND an API-side guard; see rule 12.
+- **Fail-open secret check** — `if (process.env.SECRET && value !== process.env.SECRET)` is wrong; use `if (!process.env.SECRET || value !== process.env.SECRET)`. See rule 14.
+- **New table without RLS** — every new `CREATE TABLE` in `public` schema must immediately be followed by `ENABLE ROW LEVEL SECURITY` and a deny-all policy. See rule 14.
+- **Webhook without fail-closed signature check** — always verify webhook signatures fail-closed. See rule 15.
 
 ### 11. Banner / Notification Row Layout
 Banners with icon + text + action button use different layouts on mobile vs desktop. Always use `useMobile()` — never `flexWrap: 'wrap'` (it creates squished columns on narrow screens).
@@ -680,6 +688,125 @@ Add the key to **all three files** at the same time: `messages/hu.json`, `messag
 Use `LANDING_I18N` / `AUTH_I18N` objects from `src/lib/landingI18n.js` and the `useLandingLocale()` hook. Add the string to all three locale objects (`hu`, `de`, `en`) in that file.
 
 **`tests/i18n.test.js`** enforces this automatically — it fails if any two locale files have different key sets or if any value is an empty string. Run standalone: `npx vitest run tests/i18n.test.js`.
+
+### 14. New DB Tables — Required Boilerplate
+
+Every `CREATE TABLE` in the `public` schema requires three things immediately after creation. No exceptions.
+
+**1. Enable RLS:**
+```sql
+ALTER TABLE public.<new_table> ENABLE ROW LEVEL SECURITY;
+```
+
+**2. Add deny-all policy** (the app uses service_role; anon/authenticated must not reach tables directly):
+```sql
+CREATE POLICY "deny_all_direct_access"
+  ON public.<new_table>
+  AS RESTRICTIVE FOR ALL
+  TO anon, authenticated
+  USING (false);
+```
+
+**3. Add composite indexes** if the table uses the workspace model (`owner_id`, `collective_id`, `deleted_at`):
+```sql
+-- Personal context queries
+CREATE INDEX IF NOT EXISTS <table>_personal_idx
+  ON public.<table> (owner_id, deleted_at)
+  WHERE collective_id IS NULL;
+
+-- Collective context queries
+CREATE INDEX IF NOT EXISTS <table>_collective_idx
+  ON public.<table> (collective_id, deleted_at)
+  WHERE collective_id IS NOT NULL;
+```
+
+**4. Add `deleted_at` column** if the table stores user-owned content (projects, quotes, surveys, clients, invoices, ideas, diary entries):
+```sql
+ALTER TABLE public.<table> ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ DEFAULT NULL;
+```
+
+**Why:** The app bypasses RLS via service_role, so the deny-all policy is defence-in-depth — it blocks direct REST API access using the exposed anon key. Missing composite indexes cause sequential scans on every workspace context switch once a user has significant data. `tests/db-schema.test.js` enforces the first two automatically.
+
+---
+
+### 15. Secret / Env Var Checks Must Fail-Closed
+
+Never write a conditional secret check as:
+```js
+// WRONG — if the env var is missing, the check is skipped entirely
+if (process.env.MY_SECRET && value !== process.env.MY_SECRET) {
+  return Response.json({ error: 'Unauthorized' }, { status: 401 });
+}
+```
+
+Always write it fail-closed:
+```js
+// CORRECT — missing env var is treated as a misconfiguration → reject
+if (!process.env.MY_SECRET || value !== process.env.MY_SECRET) {
+  return Response.json({ error: 'Unauthorized' }, { status: 401 });
+}
+```
+
+This applies to: cron endpoints (`CRON_SECRET`), internal service-to-service calls (`INTERNAL_CRON_SECRET`), webhook handlers (`*_WEBHOOK_SECRET`), and any other route that relies on a shared secret for access control.
+
+**Why:** A missing env var in production (misconfigured deployment, secret rotation error) should cause the endpoint to reject all traffic, not silently accept it. `tests/db-rules.test.js` detects the fail-open pattern automatically.
+
+---
+
+### 16. Webhook Handlers — Signature Verification Required
+
+Any route that processes external webhook events (payments, messaging, etc.) must:
+
+1. **Verify the signature fail-closed** — reject if the secret is not configured OR the signature is absent OR invalid:
+```js
+const secret = process.env.WEBHOOK_SECRET;
+const signature = request.headers.get('x-signature');
+
+if (!secret) {
+  console.error('[webhook] secret not configured');
+  return Response.json({ error: 'Not configured' }, { status: 500 });
+}
+if (!signature || !verifySignature(rawBody, signature, secret)) {
+  return Response.json({ error: 'Invalid signature' }, { status: 401 });
+}
+```
+
+2. **Use `timing-safe` comparison** — always use `crypto.timingSafeEqual()` to prevent timing attacks, never `===` for signature strings.
+
+3. **Read the raw body before parsing** — signature is computed over the raw bytes; parsing with `request.json()` first will make verification impossible. Read with `request.text()` or `request.arrayBuffer()` first.
+
+**Why:** A payment webhook that accepts unsigned requests allows anyone to forge subscription activations, subscription cancellations, or refund events. This is a critical revenue and access-control vulnerability.
+
+---
+
+### 17. Rate Limiting on Expensive and Public Endpoints
+
+Any endpoint that does one or more of the following **must** have rate limiting:
+- Is accessible without authentication (public IP-based limit)
+- Calls an external paid API (OCR, AI, SMTP, Puppeteer PDF)
+- Accepts user-generated content from the public internet
+
+**Use the global rate limiter** (`src/lib/rateLimitGlobal.js` backed by Upstash/Vercel KV) — not the in-process `rateLimit()` from `src/lib/rateLimit.js`. The in-process version resets on cold starts and doesn't work across serverless instances.
+
+```js
+import { globalRateLimit } from '@/lib/rateLimitGlobal';
+
+// User-scoped (authenticated endpoints)
+const { allowed } = await globalRateLimit(`ocr:${user.id}`, { limit: 20, windowSec: 3600 });
+
+// IP-scoped (public endpoints)
+const ip = request.headers.get('cf-connecting-ip') || request.headers.get('x-forwarded-for')?.split(',')[0] || 'unknown';
+const { allowed } = await globalRateLimit(`contact:${ip}`, { limit: 5, windowSec: 3600 });
+
+if (!allowed) return Response.json({ error: 'Túl sok kérés. Kérjük, próbáld újra később.' }, { status: 429 });
+```
+
+**Endpoints currently requiring rate limits:**
+- `POST /api/auth/request-password-reset` — 5/hour per IP
+- `POST /api/quotes/[id]/send` — 10/hour per userId
+- `POST /api/ocr` — 20/hour per userId
+- `POST /api/invoice-ai` — 20/hour per userId
+- `POST /api/szakemberek/[slug]/contact` — 5/hour per IP
 
 ---
 

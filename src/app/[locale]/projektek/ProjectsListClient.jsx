@@ -8,7 +8,7 @@ import { useTranslations } from 'next-intl';
 import { useApp } from '@/context/AppContext';
 import { useTransferRequests } from '@/hooks/useTransferRequests';
 import { calculateProjectFinancials } from '@/lib/calculations';
-import { formatHUF, formatDate } from '@/lib/constants';
+import { formatDate } from '@/lib/constants';
 import {
   FolderKanban, Users, TrendingUp, TrendingDown, CheckCircle2,
   Plus, AlertCircle, Loader2, Search, X, FileText,

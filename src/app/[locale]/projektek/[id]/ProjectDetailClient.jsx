@@ -8,7 +8,7 @@ import { useTranslations } from 'next-intl';
 import { useApp } from '@/context/AppContext';
 import { processMediaFile } from '@/lib/mediaGate';
 import { calculateProjectFinancials } from '@/lib/calculations';
-import { formatHUF, formatDate, INVOICE_CATEGORIES } from '@/lib/constants';
+import { formatMoney, formatDate, INVOICE_CATEGORIES } from '@/lib/constants';
 import InvoiceCard from '@/components/InvoiceCard';
 import CollectiveBanner from '@/components/CollectiveBanner';
 import StatCard from '@/components/StatCard';
@@ -91,8 +91,10 @@ export default function ProjectDetailClient({
     isDemoMode,
     refreshSupabaseData,
     projects: ctxProjects,
+    userCurrency,
   } = useApp();
 
+  const fmtMoney = (n) => formatMoney(n, userCurrency);
   const t = useTranslations('projectDetail');
   const navPrefix = isDemoMode ? '/demo' : '';
   const AppLink = isDemoMode ? Link : LocaleLink;
@@ -730,7 +732,7 @@ export default function ProjectDetailClient({
                 <div style={{ borderRadius: 'var(--radius-md)', overflow: 'hidden', border: '1.5px solid #cbd5e1' }}>
                   <div style={{ background: '#475569', padding: '0.75rem 1rem' }}>
                     <div style={{ fontWeight: 800, fontSize: '1.05rem', color: '#fff' }}>{t('general')}</div>
-                    <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 900, fontSize: '1.1rem', color: '#fff', marginTop: '0.15rem' }}>{formatHUF(roomCost('general'))}</div>
+                    <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 900, fontSize: '1.1rem', color: '#fff', marginTop: '0.15rem' }}>{fmtMoney(roomCost('general'))}</div>
                   </div>
                   <div style={{ background: '#f8fafc', padding: '0.65rem 1rem' }}>
                     <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', gap: '0.65rem' }}>
@@ -761,11 +763,11 @@ export default function ProjectDetailClient({
                         </div>
                         <div style={{ textAlign: 'right', flexShrink: 0 }}>
                           {actual > 0 && (
-                            <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 900, fontSize: '1.1rem', color: '#fff' }}>{formatHUF(actual)}</div>
+                            <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 900, fontSize: '1.1rem', color: '#fff' }}>{fmtMoney(actual)}</div>
                           )}
                           {quoted != null && (
                             <div style={{ fontSize: '0.68rem', fontWeight: 700, color: overBudget ? '#fca5a5' : '#86efac', marginTop: '0.1rem' }}>
-                              {actual > 0 ? (overBudget ? '↑' : '↓') + ' ' : ''}{t('planned')} {formatHUF(quoted)}
+                              {actual > 0 ? (overBudget ? '↑' : '↓') + ' ' : ''}{t('planned')} {fmtMoney(quoted)}
                             </div>
                           )}
                         </div>
@@ -837,7 +839,7 @@ export default function ProjectDetailClient({
                     </span>
                   </div>
                   <div style={{ marginTop: '0.2rem', fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 600 }}>
-                    {t('grossLabel')} <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, color: 'var(--text-primary)' }}>{formatHUF(grossTotal)}</span>
+                    {t('grossLabel')} <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, color: 'var(--text-primary)' }}>{fmtMoney(grossTotal)}</span>
                   </div>
                 </div>
               </div>
@@ -878,7 +880,7 @@ export default function ProjectDetailClient({
                       {isSelf && <span style={{ fontSize: '0.65rem', color: 'var(--accent)', background: 'var(--accent-light)', padding: '0.1rem 0.35rem', borderRadius: 'var(--radius-pill)', fontWeight: 700 }}>{t('youBadge')}</span>}
                       {member.deletedAt && <span style={{ fontSize: '0.65rem', color: '#fff', background: 'var(--danger)', padding: '0.1rem 0.4rem', borderRadius: 'var(--radius-pill)', fontWeight: 700 }}>{t('leftBadge')}</span>}
                     </div>
-                    <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, fontSize: '1rem', color: 'var(--text-primary)' }}>{formatHUF(total)}</span>
+                    <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, fontSize: '1rem', color: 'var(--text-primary)' }}>{fmtMoney(total)}</span>
                   </div>
 
                   {/* Invoices */}
@@ -886,13 +888,13 @@ export default function ProjectDetailClient({
                     <div>
                       <div style={{ fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-muted)', marginBottom: '0.35rem', display: 'flex', justifyContent: 'space-between' }}>
                         <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}><Receipt size={11} /> {t('invoiceCountData')}</span>
-                        <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)', fontWeight: 700 }}>{formatHUF(member.paid)}</span>
+                        <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)', fontWeight: 700 }}>{fmtMoney(member.paid)}</span>
                       </div>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
                         {memberInvoices.map(inv => (
                           <div key={inv.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.8rem', padding: '0.2rem 0' }}>
                             <span style={{ color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, minWidth: 0 }}>{inv.description || inv.category}</span>
-                            <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, fontSize: '0.78rem', flexShrink: 0, marginLeft: '0.5rem' }}>{formatHUF(inv.value_huf)}</span>
+                            <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, fontSize: '0.78rem', flexShrink: 0, marginLeft: '0.5rem' }}>{fmtMoney(inv.value_huf)}</span>
                           </div>
                         ))}
                       </div>
@@ -904,7 +906,7 @@ export default function ProjectDetailClient({
                     <div style={{ borderTop: memberInvoices.length > 0 ? '1px solid var(--border-subtle)' : 'none', paddingTop: memberInvoices.length > 0 ? '0.65rem' : 0 }}>
                       <div style={{ fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-muted)', marginBottom: '0.35rem', display: 'flex', justifyContent: 'space-between' }}>
                         <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}><Hammer size={11} /> {t('labourFeeLabel')}</span>
-                        <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--success-text)', fontWeight: 700 }}>+{formatHUF(member.labourValue)}</span>
+                        <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--success-text)', fontWeight: 700 }}>+{fmtMoney(member.labourValue)}</span>
                       </div>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
                         {memberLabour.map(e => (
@@ -912,7 +914,7 @@ export default function ProjectDetailClient({
                             <span style={{ color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, minWidth: 0 }}>
                               {e.labour_type}{e.hours ? ` · ${e.hours} ${e.unit || 'h'}` : ''}
                             </span>
-                            <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, fontSize: '0.78rem', flexShrink: 0, marginLeft: '0.5rem', color: 'var(--success-text)' }}>+{formatHUF(e.value_huf)}</span>
+                            <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, fontSize: '0.78rem', flexShrink: 0, marginLeft: '0.5rem', color: 'var(--success-text)' }}>+{fmtMoney(e.value_huf)}</span>
                           </div>
                         ))}
                       </div>
@@ -1429,7 +1431,7 @@ export default function ProjectDetailClient({
 
               const sub = [];
               if (entry.user_name) sub.push(entry.user_name);
-              if (d.value_huf)     sub.push(formatHUF(d.value_huf));
+              if (d.value_huf)     sub.push(fmtMoney(d.value_huf));
               if (d.category)      sub.push(d.category);
               if (d.labour_type)   sub.push(d.labour_type);
               if (d.hours != null && d.unit) sub.push(`${d.hours} ${d.unit}`);

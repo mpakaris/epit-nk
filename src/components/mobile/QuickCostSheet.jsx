@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl';
 import { useScrollLock } from '@/hooks/useScrollLock';
 import { useApp } from '@/context/AppContext';
 import { processMediaFile } from '@/lib/mediaGate';
-import { INVOICE_CATEGORIES, formatHUF } from '@/lib/constants';
+import { INVOICE_CATEGORIES } from '@/lib/constants';
 import {
   Camera, Image as ImageIcon, X, Check, Loader2, AlertCircle,
   ChevronLeft, ChevronRight, Home,

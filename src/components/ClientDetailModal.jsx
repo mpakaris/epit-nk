@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import Modal from './Modal';
 import { useApp } from '@/context/AppContext';
-import { formatHUF, formatDate } from '@/lib/constants';
+import { formatMoney, formatDate } from '@/lib/constants';
 import {
   Phone, Mail, MapPin, Building2, Hash, Percent, ShieldCheck, Share2,
   Edit3, Trash2, FileText, FolderKanban, ClipboardList,
@@ -25,9 +25,10 @@ function Avatar({ name }) {
 export default function ClientDetailModal({ clientId, onClose, onDeleted }) {
   const {
     clients, quotes, quoteEntries, projects, invoices, surveys,
-    updateClient, deleteClient, collectives,
+    updateClient, deleteClient, collectives, userCurrency,
   } = useApp();
 
+  const fmt = (n) => formatMoney(n, userCurrency);
   const t  = useTranslations('clients');
   const tc = useTranslations('common');
 
@@ -217,12 +218,12 @@ export default function ClientDetailModal({ clientId, onClose, onDeleted }) {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', marginBottom: '1.25rem' }}>
             <div style={{ padding: '0.75rem 1rem', background: 'var(--warning-bg)', border: '1px solid var(--warning-border)', borderRadius: 'var(--radius-md)' }}>
               <div style={{ fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--warning-text)', marginBottom: '0.2rem' }}>{t('detailTotalQuotes')}</div>
-              <div style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{formatHUF(totalQuoted)}</div>
+              <div style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{fmt(totalQuoted)}</div>
               <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{t('detailQuotesCount', { count: clientQuotes.length })}</div>
             </div>
             <div style={{ padding: '0.75rem 1rem', background: 'var(--success-bg)', border: '1px solid var(--success-border)', borderRadius: 'var(--radius-md)' }}>
               <div style={{ fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--success-text)', marginBottom: '0.2rem' }}>{t('detailInvoiced')}</div>
-              <div style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{formatHUF(totalInvoiced)}</div>
+              <div style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{fmt(totalInvoiced)}</div>
               <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{t('detailProjectsCount', { count: clientProjects.length })}</div>
             </div>
           </div>
@@ -281,7 +282,7 @@ export default function ClientDetailModal({ clientId, onClose, onDeleted }) {
                       <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.1rem' }}>{formatDate(q.created_at)}{q.location && ` · ${q.location}`}</div>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexShrink: 0 }}>
-                      <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, fontSize: '0.875rem' }}>{formatHUF(total)}</span>
+                      <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, fontSize: '0.875rem' }}>{fmt(total)}</span>
                       <StatusBadge status={q.status} />
                       <Link href={`/ajanlatok/${q.id}`} className="btn btn-secondary btn-sm" style={{ padding: '0.25rem 0.5rem' }} onClick={onClose}>
                         <ExternalLink size={12} />
@@ -307,7 +308,7 @@ export default function ClientDetailModal({ clientId, onClose, onDeleted }) {
                       {p.description && <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.1rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.description}</div>}
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexShrink: 0 }}>
-                      <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, fontSize: '0.875rem' }}>{formatHUF(pCost)}</span>
+                      <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, fontSize: '0.875rem' }}>{fmt(pCost)}</span>
                       <Link href={`/projektek/${p.id}`} className="btn btn-secondary btn-sm" style={{ padding: '0.25rem 0.5rem' }} onClick={onClose}>
                         <ExternalLink size={12} />
                       </Link>
