@@ -175,13 +175,17 @@ export async function GET(request) {
         diaryEntries: enrichedDiary.filter(d => d.project_id === p.id),
       }));
 
+    // The client_id is the clients.id record linking this email to this contractor.
+    // Used by the SA portal view to link to /clients/[id] (the real client portal).
+    const ownerClientRecord = clientRecords.find(c => c.owner_id === ownerId);
+
     return {
       owner_id:          ownerId,
+      client_id:         ownerClientRecord?.id || null,
       contractor_name:   profile?.company_name || profile?.display_name || 'Ismeretlen vállalkozó',
       contractor_email:  profile?.email || null,
       terms_pdf_url:     profile?.terms_pdf_url || null,
       terms_pdf_name:    profile?.terms_pdf_name || null,
-      // Standalone quotes (not linked to any project) shown at contractor level
       standaloneQuotes:  ownerQuotes.filter(q => !q.project_id),
       projects:          ownerProjects,
     };

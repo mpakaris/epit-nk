@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
-import { ArrowLeft, Loader2, ChevronDown, ChevronUp, ExternalLink, Building2 } from 'lucide-react';
+import { ArrowLeft, ChevronDown, ChevronUp, ExternalLink, Building2 } from 'lucide-react';
 import PageSpinner from '@/components/PageSpinner';
 
 // ── constants ─────────────────────────────────────────────────────────────────
@@ -256,15 +256,26 @@ export default function SAPortalViewPage() {
               <div style={{ width: 34, height: 34, borderRadius: 9, background: 'var(--bg-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                 <Building2 size={16} color="var(--text-muted)" />
               </div>
-              <div style={{ flex: 1 }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontWeight: 800, fontSize: '0.9rem', color: 'var(--text-primary)' }}>{c.contractor_name}</div>
                 {c.contractor_email && <div style={{ fontSize: '0.775rem', color: 'var(--text-muted)' }}>{c.contractor_email}</div>}
+                <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.1rem' }}>
+                  {standaloneQuotes.length + projects.reduce((s, p) => s + (p.quotes?.length || 0), 0)} {standaloneQuotes.length + projects.reduce((s, p) => s + (p.quotes?.length || 0), 0) === 1 ? 'quote' : 'quotes'}
+                  {' · '}
+                  {projects.length} {projects.length === 1 ? 'project' : 'projects'}
+                </div>
               </div>
-              <div style={{ fontSize: '0.775rem', color: 'var(--text-muted)', flexShrink: 0 }}>
-                {standaloneQuotes.length + projects.reduce((s, p) => s + (p.quotes?.length || 0), 0)} {standaloneQuotes.length + projects.reduce((s, p) => s + (p.quotes?.length || 0), 0) === 1 ? 'quote' : 'quotes'}
-                {' · '}
-                {projects.length} {projects.length === 1 ? 'project' : 'projects'}
-              </div>
+              {c.client_id && (
+                <a
+                  href={`/clients/${c.client_id}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn btn-primary btn-sm"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', flexShrink: 0 }}
+                >
+                  <ExternalLink size={13} /> Open client portal
+                </a>
+              )}
             </div>
 
             {/* Standalone quotes (no project) */}
