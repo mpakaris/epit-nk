@@ -25,7 +25,6 @@ import {
   Mail,
   MapPin,
   Percent,
-  Edit3,
   Trash2,
   AlertCircle,
   CheckCircle2,
@@ -47,7 +46,6 @@ export default function AdminClientsPage() {
 
   const [searchQuery, setSearchQuery] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [editingClient, setEditingClient] = useState(null);
   const [confirmModal, setConfirmModal] = useState(null);
   const [alertModal, setAlertModal] = useState(null);
   const [successMsg, setSuccessMsg] = useState('');
@@ -100,25 +98,6 @@ export default function AdminClientsPage() {
     setFormShares(activeCollectiveId ? [activeCollectiveId] : []);
     setFormSharesInitial([]); setFormSharesGdpr(false);
     setFormError('');
-    setEditingClient(null);
-    setShowCreateModal(true);
-  };
-
-  const openEditModal = (client) => {
-    const initialShares = client.client_collective_shares?.map(s => s.collective_id) || [];
-    setFormName(client.name);
-    setFormCompanyName(client.company_name || '');
-    setFormTaxNumber(client.tax_number || '');
-    setFormAddress(client.address || '');
-    setFormPhone(client.phone || '');
-    setFormEmail(client.email || '');
-    setFormNotes(client.notes || '');
-    setFormDiscount((client.discount_percent || 0).toString());
-    setFormShares(initialShares);
-    setFormSharesInitial(initialShares);
-    setFormSharesGdpr(false);
-    setFormError('');
-    setEditingClient(client);
     setShowCreateModal(true);
   };
 
@@ -152,26 +131,16 @@ export default function AdminClientsPage() {
         email:        formEmail.trim(),
         notes:        formNotes.trim(),
       };
-      if (editingClient) {
-        await updateClient(editingClient.id, {
-          ...sharedFields,
-          discount_percent:   parseFloat(formDiscount) || 0,
-          collectiveShares:   formShares,
-          sharesGdprConfirmed: !hasNewShares || formSharesGdpr,
-        });
-        setSuccessMsg(t('successUpdated'));
-      } else {
-        await createClient({
-          ...sharedFields,
-          discountPercent:    parseFloat(formDiscount) || 0,
-          companyName:        formCompanyName.trim() || null,
-          taxNumber:          formTaxNumber.trim()   || null,
-          gdprConsent:        formGdpr,
-          collectiveShares:   formShares,
-          sharesGdprConfirmed: formShares.length === 0 || formSharesGdpr,
-        });
-        setSuccessMsg(t('successCreated'));
-      }
+      await createClient({
+        ...sharedFields,
+        discountPercent:    parseFloat(formDiscount) || 0,
+        companyName:        formCompanyName.trim() || null,
+        taxNumber:          formTaxNumber.trim()   || null,
+        gdprConsent:        formGdpr,
+        collectiveShares:   formShares,
+        sharesGdprConfirmed: formShares.length === 0 || formSharesGdpr,
+      });
+      setSuccessMsg(t('successCreated'));
       setShowCreateModal(false);
     } catch (err) {
       setFormError(err.message || tc('error'));
@@ -195,9 +164,7 @@ export default function AdminClientsPage() {
   };
 
   const hasNewShares = formShares.some(id => !formSharesInitial.includes(id));
-  const submitDisabled = isSubmitting
-    || (!editingClient && !formGdpr)
-    || (hasNewShares && !formSharesGdpr);
+  const submitDisabled = isSubmitting || !formGdpr || (hasNewShares && !formSharesGdpr);
 
   const renderClientCard = (client, isOwn) => {
     const stats = getClientStats(client.id);
@@ -238,14 +205,9 @@ export default function AdminClientsPage() {
             )}
           </div>
           {isOwn && (
-            <div style={{ display: 'flex', gap: '0.35rem', flexShrink: 0 }}>
-              <button type="button" onClick={e => { e.stopPropagation(); openEditModal(client); }} className="btn btn-secondary btn-sm" title={t('editTitle')}>
-                <Edit3 size={13} />
-              </button>
-              <button type="button" onClick={e => { e.stopPropagation(); handleDelete(client); }} className="btn btn-danger btn-sm" title={t('deleteTitle')}>
-                <Trash2 size={13} />
-              </button>
-            </div>
+            <button type="button" onClick={e => { e.stopPropagation(); handleDelete(client); }} className="btn btn-danger btn-sm" title={t('deleteTitle')}>
+              <Trash2 size={13} />
+            </button>
           )}
         </div>
 
@@ -364,7 +326,7 @@ export default function AdminClientsPage() {
       <Modal
         isOpen={showCreateModal}
         onClose={() => setShowCreateModal(false)}
-        title={editingClient ? t('editClient') : t('createClient')}
+        title={t('createClient')}
       >
         {formError && (
           <div style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', color: 'var(--danger-text)', padding: '0.65rem', borderRadius: 'var(--radius-md)', fontSize: '0.825rem', display: 'flex', alignItems: 'center', gap: '0.45rem', marginBottom: '0.85rem' }}>
@@ -411,7 +373,7 @@ export default function AdminClientsPage() {
             <textarea id="c-notes" rows={2} className="form-control" value={formNotes} onChange={(e) => setFormNotes(e.target.value)} placeholder="Egyéb tudnivalók az ügyfélről..." />
           </div>
 
-          {!editingClient && (
+          {(
             <label style={{ display: 'flex', alignItems: 'flex-start', gap: '0.6rem', padding: '0.75rem', borderRadius: 'var(--radius-md)', background: 'var(--bg-subtle)', border: `1px solid ${formGdpr ? 'var(--success-border)' : 'var(--border-subtle)'}`, cursor: 'pointer', marginTop: '0.5rem', marginBottom: '0.75rem', transition: 'border-color 0.15s' }}>
               <input type="checkbox" checked={formGdpr} onChange={e => setFormGdpr(e.target.checked)} style={{ marginTop: '0.15rem', flexShrink: 0, accentColor: 'var(--accent)', width: 15, height: 15 }} />
               <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
@@ -456,8 +418,8 @@ export default function AdminClientsPage() {
             <button type="button" className="btn btn-secondary btn-sm" onClick={() => setShowCreateModal(false)}>{tc('cancel')}</button>
             <button type="submit" className="btn btn-primary btn-sm" disabled={submitDisabled}>
               {isSubmitting
-                ? <><Loader2 size={13} className="animate-spin" />{editingClient ? t('modifying') : t('creating')}</>
-                : editingClient ? t('modify') : tc('create')}
+                ? <><Loader2 size={13} className="animate-spin" />{t('creating')}</>
+                : tc('create')}
             </button>
           </div>
         </form>

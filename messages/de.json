@@ -587,7 +587,9 @@
     "msgSentOk": "Nachricht gesendet",
     "newMessageTitle": "Neue Nachricht senden",
     "newMessagePlaceholder": "Nachrichtentext...",
-    "newMsgErr": "Fehler beim Senden"
+    "newMsgErr": "Fehler beim Senden",
+    "detailTabMessages": "Nachrichten",
+    "autoSaved": "Gespeichert"
   },
   "calendar": {
     "pageTitle": "Kalender",

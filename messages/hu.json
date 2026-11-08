@@ -534,7 +534,9 @@
     "msgSentOk": "Üzenet elküldve",
     "newMessageTitle": "Új üzenet küldése",
     "newMessagePlaceholder": "Üzenet szövege...",
-    "newMsgErr": "Hiba az üzenet küldésekor"
+    "newMsgErr": "Hiba az üzenet küldésekor",
+    "detailTabMessages": "Üzenetek",
+    "autoSaved": "Mentve"
   },
   "calendar": {
     "pageTitle": "Naptár",
