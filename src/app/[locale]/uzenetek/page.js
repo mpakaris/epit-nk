@@ -273,7 +273,7 @@ export default function UzenetekPage() {
         {!isDemoMode && (
           <button
             type="button"
-            onClick={() => { setShowCompose(true); setComposeError(''); setComposeClientId(''); setComposeMsg(''); }}
+            onClick={() => { setShowCompose(true); setComposeError(''); setComposeRecipient(''); setComposeMsg(''); }}
             aria-label={tcl('newMessage')}
             style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 40, height: 40, borderRadius: '50%', background: 'var(--primary)', color: '#fff', border: 'none', cursor: 'pointer', flexShrink: 0 }}
           >
