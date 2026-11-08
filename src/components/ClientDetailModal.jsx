@@ -107,57 +107,63 @@ function Bubble({ msg, isYou, locale }) {
   );
 }
 
-// Messages tab content
+// Messages tab — all threads expanded, messages visible immediately
 function ClientThreads({ clientId, t, tc }) {
   const locale = useLocale();
-  const [threads, setThreads]       = useState(null);
-  const [openId,  setOpenId]        = useState(null);
-  const [reply,   setReply]         = useState('');
-  const [sending, setSending]       = useState(false);
-  const [sendErr, setSendErr]       = useState('');
-  const [newMsg,  setNewMsg]        = useState('');
-  const [creating, setCreating]     = useState(false);
-  const [showNew,  setShowNew]      = useState(false);
+  const [threads,  setThreads]  = useState(null);
+  const [replies,  setReplies]  = useState({});   // threadId → reply text
+  const [sending,  setSending]  = useState(null); // threadId being sent
+  const [sendErr,  setSendErr]  = useState({});   // threadId → error
+  const [newMsg,   setNewMsg]   = useState('');
+  const [creating, setCreating] = useState(false);
+  const [showNew,  setShowNew]  = useState(false);
   const bottomRef = useRef(null);
 
   const load = () =>
     fetch(`/api/threads?client_id=${clientId}`)
       .then(r => r.ok ? r.json() : { threads: [] })
-      .then(d => setThreads(d.threads || []))
+      .then(d => {
+        const loaded = d.threads || [];
+        setThreads(loaded);
+        // Mark all unread as read
+        loaded.forEach(th => {
+          if (th.unread_count > 0) {
+            fetch(`/api/threads/${th.id}/read`, { method: 'PATCH' })
+              .then(() => window.dispatchEvent(new CustomEvent('epitek:msg-read')))
+              .catch(() => {});
+          }
+        });
+      })
       .catch(() => setThreads([]));
 
   useEffect(() => { load(); }, [clientId]);
 
+  // Scroll to bottom after messages load
   useEffect(() => {
-    if (openId && threads) {
-      const thread = threads.find(t => t.id === openId);
-      if (thread?.unread_count > 0) {
-        fetch(`/api/threads/${openId}/read`, { method: 'PATCH' })
-          .then(() => window.dispatchEvent(new CustomEvent('epitek:msg-read')))
-          .catch(() => {});
-        setThreads(prev => prev.map(t => t.id === openId ? { ...t, unread_count: 0 } : t));
-      }
+    if (threads?.length) {
       setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'instant' }), 50);
     }
-  }, [openId, threads?.find?.(t => t.id === openId)?.messages?.length]);
+  }, [threads?.length]);
 
   const handleReply = async (threadId) => {
-    if (!reply.trim() || sending) return;
-    setSending(true); setSendErr('');
+    const msg = (replies[threadId] || '').trim();
+    if (!msg || sending === threadId) return;
+    setSending(threadId); setSendErr(prev => ({ ...prev, [threadId]: '' }));
     try {
       const res = await fetch(`/api/threads/${threadId}/messages`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: reply.trim() }),
+        body: JSON.stringify({ message: msg }),
       });
       if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || t('newMsgErr'));
-      const { message: msg } = await res.json();
+      const { message: newM } = await res.json();
       setThreads(prev => prev.map(th => th.id === threadId
-        ? { ...th, messages: [...(th.messages || []), msg] }
+        ? { ...th, messages: [...(th.messages || []), newM] }
         : th
       ));
-      setReply('');
-    } catch (e) { setSendErr(e.message); }
-    finally { setSending(false); }
+      setReplies(prev => ({ ...prev, [threadId]: '' }));
+    } catch (e) {
+      setSendErr(prev => ({ ...prev, [threadId]: e.message }));
+    } finally { setSending(null); }
   };
 
   const handleNewThread = async () => {
@@ -170,9 +176,8 @@ function ClientThreads({ clientId, t, tc }) {
       });
       if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || t('newMsgErr'));
       const { thread_id, message } = await res.json();
-      const newThread = { id: thread_id, quote_id: null, messages: [message], unread_count: 0 };
-      setThreads(prev => [newThread, ...(prev || [])]);
-      setNewMsg(''); setShowNew(false); setOpenId(thread_id);
+      setThreads(prev => [{ id: thread_id, quote_id: null, messages: [message], unread_count: 0 }, ...(prev || [])]);
+      setNewMsg(''); setShowNew(false);
     } catch { /* non-fatal */ }
     finally { setCreating(false); }
   };
@@ -187,7 +192,7 @@ function ClientThreads({ clientId, t, tc }) {
 
   return (
     <div>
-      {/* New message composer */}
+      {/* New message button (only when no general thread exists yet) */}
       {!hasGeneral && !showNew && (
         <button type="button" onClick={() => setShowNew(true)} className="btn btn-secondary btn-sm"
           style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.75rem' }}>
@@ -214,46 +219,48 @@ function ClientThreads({ clientId, t, tc }) {
         <p style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.825rem', padding: '1.5rem 0' }}>{t('noConversations')}</p>
       )}
 
-      {/* Thread list */}
+      {/* All threads expanded — messages always visible */}
       {threads.map(thread => {
-        const isOpen = openId === thread.id;
-        const title  = thread.quote_id ? t('quoteThread', { title: thread.quote_title || '' }) : t('generalThread');
+        const title = thread.quote_id ? t('quoteThread', { title: thread.quote_title || '' }) : t('generalThread');
+        const isSendingThis = sending === thread.id;
         return (
-          <div key={thread.id} className="card" style={{ marginBottom: '0.5rem', overflow: 'hidden' }}>
-            {/* Thread header — tap to expand */}
-            <button type="button" onClick={() => setOpenId(isOpen ? null : thread.id)}
-              style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.65rem 0.85rem', background: isOpen ? 'var(--bg-subtle)' : 'transparent', border: 'none', cursor: 'pointer', textAlign: 'left' }}>
-              <MessageSquare size={14} style={{ color: 'var(--accent)', flexShrink: 0 }} />
-              <span style={{ flex: 1, fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{title}</span>
-              {thread.unread_count > 0 && (
-                <span style={{ background: 'var(--danger)', color: '#fff', borderRadius: 99, fontSize: '0.63rem', fontWeight: 700, minWidth: 16, height: 16, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '0 4px', flexShrink: 0 }}>
-                  {thread.unread_count}
-                </span>
-              )}
-            </button>
-
-            {/* Messages + reply — shown when open */}
-            {isOpen && (
-              <>
-                <div style={{ maxHeight: 240, overflowY: 'auto', padding: '0.65rem 0.85rem', borderTop: '1px solid var(--border-subtle)' }}>
-                  {(thread.messages || []).map(msg => (
-                    <Bubble key={msg.id} msg={msg} isYou={msg.sender_type === 'user'} locale={locale} />
-                  ))}
-                  <div ref={bottomRef} />
-                </div>
-                <div style={{ padding: '0.5rem 0.85rem', borderTop: '1px solid var(--border-subtle)', display: 'flex', gap: '0.4rem', alignItems: 'flex-end' }}>
-                  <textarea value={reply} onChange={e => setReply(e.target.value)}
-                    onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleReply(thread.id); } }}
-                    placeholder={t('replyPlaceholder')} rows={1}
-                    style={{ flex: 1, border: '1.5px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: '0.4rem 0.6rem', fontSize: '0.84rem', fontFamily: 'inherit', resize: 'none', outline: 'none', maxHeight: 72, overflowY: 'auto', lineHeight: 1.5, background: 'var(--bg-base)' }} />
-                  <button type="button" onClick={() => handleReply(thread.id)} disabled={sending || !reply.trim()} className="btn btn-primary btn-sm"
-                    style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: '0.25rem', padding: '0.4rem 0.65rem' }}>
-                    <Send size={12} /> {sending ? t('sending') : t('sendReply')}
-                  </button>
-                </div>
-                {sendErr && <p style={{ padding: '0 0.85rem 0.4rem', fontSize: '0.75rem', color: 'var(--danger-text)', margin: 0 }}>{sendErr}</p>}
-              </>
+          <div key={thread.id} className="card" style={{ marginBottom: '0.65rem', overflow: 'hidden' }}>
+            {/* Thread label — only shown when multiple threads exist */}
+            {threads.length > 1 && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.5rem 0.85rem', background: 'var(--bg-subtle)', borderBottom: '1px solid var(--border-subtle)' }}>
+                <MessageSquare size={12} style={{ color: 'var(--accent)', flexShrink: 0 }} />
+                <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)' }}>{title}</span>
+              </div>
             )}
+
+            {/* Messages */}
+            <div style={{ padding: '0.75rem 0.85rem', maxHeight: 260, overflowY: 'auto' }}>
+              {(thread.messages || []).length === 0 && (
+                <p style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.8rem', margin: '0.5rem 0' }}>{t('noConversations')}</p>
+              )}
+              {(thread.messages || []).map(msg => (
+                <Bubble key={msg.id} msg={msg} isYou={msg.sender_type === 'user'} locale={locale} />
+              ))}
+              <div ref={bottomRef} />
+            </div>
+
+            {/* Reply input */}
+            <div style={{ padding: '0.5rem 0.85rem', borderTop: '1px solid var(--border-subtle)', display: 'flex', gap: '0.4rem', alignItems: 'flex-end' }}>
+              <textarea
+                value={replies[thread.id] || ''}
+                onChange={e => setReplies(prev => ({ ...prev, [thread.id]: e.target.value }))}
+                onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleReply(thread.id); } }}
+                placeholder={t('replyPlaceholder')} rows={1}
+                style={{ flex: 1, border: '1.5px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: '0.4rem 0.6rem', fontSize: '0.84rem', fontFamily: 'inherit', resize: 'none', outline: 'none', maxHeight: 72, overflowY: 'auto', lineHeight: 1.5, background: 'var(--bg-base)' }}
+              />
+              <button type="button" onClick={() => handleReply(thread.id)}
+                disabled={isSendingThis || !(replies[thread.id] || '').trim()}
+                className="btn btn-primary btn-sm"
+                style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: '0.25rem', padding: '0.4rem 0.65rem' }}>
+                <Send size={12} /> {isSendingThis ? t('sending') : t('sendReply')}
+              </button>
+            </div>
+            {sendErr[thread.id] && <p style={{ padding: '0 0.85rem 0.4rem', fontSize: '0.75rem', color: 'var(--danger-text)', margin: 0 }}>{sendErr[thread.id]}</p>}
           </div>
         );
       })}
