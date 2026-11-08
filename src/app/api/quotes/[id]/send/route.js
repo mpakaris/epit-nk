@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { sendEmail } from '@/lib/email';
-import { EMAIL_TEMPLATES, fillTemplate, wrapEmail, buildOfferDetailHtml, buildPortalCtaHtml } from '@/lib/emailTemplates';
+import { getEmailContent, wrapEmail, buildOfferDetailHtml, buildPortalCtaHtml } from '@/lib/emailTemplates';
 import { generateOfferPdf } from '@/lib/generateOfferPdf';
 import { logAudit } from '@/lib/audit';
 import { globalRateLimit } from '@/lib/rateLimitGlobal';
@@ -60,8 +60,8 @@ export async function POST(request, { params }) {
   const taxAmount  = Math.round(netTotal * taxRate / 100);
   const grossTotal = netTotal + taxAmount;
 
-  const tpl = EMAIL_TEMPLATES.offer_sent;
   const sections = quote.quote_sections || [];
+  const locale   = profile.locale || 'hu';
   const vars = {
     client_name:        client.name,
     offer_title:        quote.title,
@@ -74,11 +74,14 @@ export async function POST(request, { params }) {
     sender_name:        profile.display_name || '',
   };
 
-  const locale    = profile.locale || 'hu';
-  const portalUrl = `${process.env.NEXT_PUBLIC_APP_URL}/portal?email=${encodeURIComponent(client.email)}`;
-  const subject   = fillTemplate(tpl.subject, vars);
-  const bodyHtml  = fillTemplate(tpl.bodyHtml, vars) + buildPortalCtaHtml(portalUrl, locale);
-  const html      = wrapEmail(bodyHtml, `Árajánlat: ${quote.title}`, locale);
+  // Use production domain — NEXT_PUBLIC_APP_URL is localhost in dev
+  const rawAppUrl = process.env.NEXT_PUBLIC_APP_URL || '';
+  const appUrl    = rawAppUrl.includes('localhost') ? 'https://okosszaki.hu' : (rawAppUrl || 'https://okosszaki.hu');
+  const portalUrl = `${appUrl}/portal?email=${encodeURIComponent(client.email)}&lang=${locale}`;
+
+  const { subject, bodyHtml: rawBody } = getEmailContent('offer_sent', locale, vars);
+  const bodyHtml = rawBody + buildPortalCtaHtml(portalUrl, locale);
+  const html     = wrapEmail(bodyHtml, subject, locale);
 
   // Generate PDF from the real print page
   let pdfBuffer;

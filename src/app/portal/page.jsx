@@ -18,8 +18,13 @@ function PortalLoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const prefillEmail = searchParams.get('email') || (typeof window !== 'undefined' ? (localStorage.getItem(PORTAL_EMAIL_KEY) || '') : '');
-  const [locale] = useLandingLocale();
+  const langParam = searchParams.get('lang') || '';
+  const [locale, setLocale] = useLandingLocale();
   const i = PORTAL_I18N[locale] || PORTAL_I18N.hu;
+
+  useEffect(() => {
+    if (['hu', 'de', 'en'].includes(langParam)) setLocale(langParam);
+  }, [langParam]);
 
   const [supabase] = useState(() => createClient());
   const [step, setStep]         = useState('email');
