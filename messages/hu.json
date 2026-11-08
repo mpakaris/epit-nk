@@ -2113,5 +2113,17 @@
     "history": "Előzmény",
     "open": "Megnyitás",
     "markRead": "Olvasottnak jelölés"
+  },
+  "osszes": {
+    "backLink": "Kezdőlap",
+    "personalWorkspace": "Személyes",
+    "collectiveWorkspace": "Kollektíva",
+    "pageSubtitle": "Felmérések, ajánlatok és projektek egy helyen",
+    "searchPlaceholder": "Keresés cím vagy ügyfél szerint…",
+    "emptySearch": "Nincs találat.",
+    "emptyWorkspace": "Nincsenek dokumentumok ebben a munkaterületen.",
+    "sectionSurveys": "Felmérések",
+    "sectionQuotes": "Ajánlatok",
+    "sectionProjects": "Projektek"
   }
 }

@@ -2113,5 +2113,17 @@
     "history": "Verlauf",
     "open": "Öffnen",
     "markRead": "Als gelesen markieren"
+  },
+  "osszes": {
+    "backLink": "Startseite",
+    "personalWorkspace": "Persönlich",
+    "collectiveWorkspace": "Kollektiv",
+    "pageSubtitle": "Messungen, Angebote und Projekte an einem Ort",
+    "searchPlaceholder": "Suche nach Titel oder Kunde…",
+    "emptySearch": "Keine Ergebnisse.",
+    "emptyWorkspace": "Keine Dokumente in diesem Arbeitsbereich.",
+    "sectionSurveys": "Messungen",
+    "sectionQuotes": "Angebote",
+    "sectionProjects": "Projekte"
   }
 }

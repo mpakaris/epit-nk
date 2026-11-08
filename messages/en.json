@@ -2113,5 +2113,17 @@
     "history": "History",
     "open": "Open",
     "markRead": "Mark as read"
+  },
+  "osszes": {
+    "backLink": "Home",
+    "personalWorkspace": "Personal",
+    "collectiveWorkspace": "Collective",
+    "pageSubtitle": "Surveys, quotes and projects in one place",
+    "searchPlaceholder": "Search by title or client…",
+    "emptySearch": "No results.",
+    "emptyWorkspace": "No documents in this workspace.",
+    "sectionSurveys": "Surveys",
+    "sectionQuotes": "Quotes",
+    "sectionProjects": "Projects"
   }
 }

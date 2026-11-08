@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
+import { getTranslations } from 'next-intl/server';
 import ProjectsListClient from './ProjectsListClient';
 import PageSpinner from '@/components/PageSpinner';
 
@@ -15,6 +16,7 @@ export default function ProjectsListPage() {
 }
 
 async function ProjectsListContent() {
+  const t = await getTranslations('projects');
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/login');
@@ -133,7 +135,7 @@ async function ProjectsListContent() {
 
   const collectives = (memberships || []).map(m => ({
     id:   m.collective_id,
-    name: m.collectives?.name || 'Kollektíva',
+    name: m.collectives?.name || t('collective'),
     role: m.role,
   }));
 

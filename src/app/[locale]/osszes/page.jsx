@@ -8,14 +8,10 @@ import { useApp } from '@/context/AppContext';
 import { ChevronLeft, ClipboardList, FileText, Folder, Search } from 'lucide-react';
 import PageSpinner from '@/components/PageSpinner';
 import CompactRow from '@/components/mobile/CompactRow';
-
-const SECTIONS = [
-  { key: 'felmeres', label: 'Felmérések', icon: ClipboardList, color: '#2563eb' },
-  { key: 'ajanlat',  label: 'Ajánlatok',  icon: FileText,      color: '#7c3aed' },
-  { key: 'projekt',  label: 'Projektek',  icon: Folder,        color: '#059669' },
-];
+import { useTranslations } from 'next-intl';
 
 function OsszesContent() {
+  const t = useTranslations('osszes');
   const { loading, dataReady, clients, isDemoMode } = useApp();
   const navPrefix = isDemoMode ? '/demo' : '';
   const AppLink = isDemoMode ? Link : LocaleLink;
@@ -41,13 +37,19 @@ function OsszesContent() {
 
   if (loading || !dataReady || fetching) return <PageSpinner />;
 
+  const SECTIONS = [
+    { key: 'felmeres', label: t('sectionSurveys'), icon: ClipboardList, color: '#2563eb' },
+    { key: 'ajanlat',  label: t('sectionQuotes'),  icon: FileText,      color: '#7c3aed' },
+    { key: 'projekt',  label: t('sectionProjects'), icon: Folder,       color: '#059669' },
+  ];
+
   // Pick the right slice of combined data based on ?workspace= param
   let surveys, quotes, projects, workspaceName;
   if (!workspace || workspace === 'personal') {
     surveys  = combined?.personal?.surveys  || [];
     quotes   = combined?.personal?.quotes   || [];
     projects = combined?.personal?.projects || [];
-    workspaceName = 'Személyes';
+    workspaceName = t('personalWorkspace');
   } else {
     const col = (combined?.collectives || []).find(c => c.id === workspace);
     const sharedSurveys  = combined?.shared?.surveys  || [];
@@ -56,7 +58,7 @@ function OsszesContent() {
     surveys  = sharedSurveys.filter(s => s.collective_id === workspace);
     quotes   = sharedQuotes.filter(q => q.collective_id === workspace);
     projects = sharedProjects.filter(p => p.collective_id === workspace);
-    workspaceName = col?.name || 'Kollektíva';
+    workspaceName = col?.name || t('collectiveWorkspace');
   }
 
   const norm = s => (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
@@ -91,7 +93,7 @@ function OsszesContent() {
           }}
         >
           <ChevronLeft size={18} strokeWidth={1.75} aria-hidden="true" />
-          Kezdőlap
+          {t('backLink')}
         </AppLink>
         <h1 style={{ fontSize: 32, fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.025em', lineHeight: '38px', marginBottom: 16 }}>
           {workspaceName}
@@ -100,7 +102,7 @@ function OsszesContent() {
           <Search size={18} className="search-icon" aria-hidden="true" />
           <input
             type="search"
-            placeholder="Keresés cím vagy ügyfél szerint…"
+            placeholder={t('searchPlaceholder')}
             value={search}
             onChange={e => setSearch(e.target.value)}
           />
@@ -112,7 +114,7 @@ function OsszesContent() {
         <div className="page-header-row">
           <div>
             <h1 className="page-title">{workspaceName}</h1>
-            <p className="page-subtitle">Felmérések, ajánlatok és projektek egy helyen</p>
+            <p className="page-subtitle">{t('pageSubtitle')}</p>
           </div>
         </div>
       </div>
@@ -122,7 +124,7 @@ function OsszesContent() {
         <input
           type="text"
           className="form-control"
-          placeholder="Keresés cím vagy ügyfél szerint…"
+          placeholder={t('searchPlaceholder')}
           value={search}
           onChange={e => setSearch(e.target.value)}
           style={{ maxWidth: 400 }}
@@ -132,7 +134,7 @@ function OsszesContent() {
       {isEmpty ? (
         <div style={{ textAlign: 'center', padding: '3rem 1.5rem', color: 'var(--text-muted)' }}>
           <p style={{ fontSize: '0.9rem', margin: 0 }}>
-            {search ? 'Nincs találat.' : 'Nincsenek dokumentumok ebben a munkaterületen.'}
+            {search ? t('emptySearch') : t('emptyWorkspace')}
           </p>
         </div>
       ) : (
