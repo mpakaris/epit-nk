@@ -249,8 +249,8 @@ export default function AdminClientsPage() {
             <h1 className="page-title">{t('pageTitle')}</h1>
             <p className="page-subtitle">{t('pageSubtitle')}</p>
           </div>
-          <button type="button" onClick={openCreateModal} aria-label={t('new')} style={{ width: 36, height: 36, borderRadius: '50%', background: 'var(--primary)', color: '#fff', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-            <Plus size={18} strokeWidth={2.5} />
+          <button type="button" onClick={openCreateModal} aria-label={t('new')} className="btn" style={{ width: 40, height: 40, borderRadius: '50%', background: 'var(--primary)', color: '#fff', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, padding: 0 }}>
+            <Plus size={20} strokeWidth={2.5} />
           </button>
         </div>
       </div>
