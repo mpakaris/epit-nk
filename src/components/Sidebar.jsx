@@ -11,7 +11,7 @@ import {
   Building2, LayoutDashboard, FolderKanban, Users, BookUser,
   FileText, Calendar, User, LogOut, ShieldAlert,
   ChevronLeft, ChevronRight, Eye, X, Menu, ClipboardList, Ruler, Lightbulb,
-  Globe, ImageIcon, UsersRound, CreditCard, Package, MessageSquare,
+  Globe, ImageIcon, UsersRound, CreditCard, Package, MessageSquare, Mail,
 } from 'lucide-react';
 import FloatingNav from './mobile/FloatingNav';
 import NotificationBell from './NotificationBell';
@@ -437,6 +437,19 @@ export default function Sidebar() {
         </AppLink>
 
         {impersonating && <Eye size={15} style={{ flexShrink: 0, color: '#7c3aed' }} />}
+
+        {!isSuperAdmin && !isDemoMode && (
+          <AppLink
+            href={`${navPrefix}/uzenetek`}
+            style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', width: 40, height: 40, flexShrink: 0, color: 'var(--text-secondary)', textDecoration: 'none' }}
+            aria-label={t('nav.messages')}
+          >
+            <Mail size={20} />
+            {msgUnread > 0 && (
+              <span style={{ position: 'absolute', top: 7, right: 7, width: 8, height: 8, borderRadius: '50%', background: '#f97316', border: '1.5px solid var(--bg-base)' }} />
+            )}
+          </AppLink>
+        )}
 
         <button type="button" className="mobile-menu-btn" onClick={() => setMobileOpen(true)} aria-label={t('menu')} style={{ flexShrink: 0 }}>
           <Menu size={20} />
