@@ -56,7 +56,8 @@
       "myProfile": "Profilom",
       "subscription": "Előfizetés",
       "companyDetails": "Céges adatok",
-      "users": "Felhasználók"
+      "users": "Felhasználók",
+      "messages": "Üzenetek"
     },
     "tiers": {
       "premium": "⭐ Prémium",
@@ -519,7 +520,21 @@
     "detailQuotesCount": "{count} ajánlat",
     "detailInvoiced": "Számlázott",
     "detailProjectsCount": "{count} projekt",
-    "detailNameRequired": "A név megadása kötelező!"
+    "detailNameRequired": "A név megadása kötelező!",
+    "messagesSection": "Üzenetek",
+    "newMessage": "Új üzenet",
+    "replyPlaceholder": "Írj üzenetet...",
+    "sendReply": "Küldés",
+    "sending": "Küldés...",
+    "quoteThread": "Ajánlathoz: {title}",
+    "generalThread": "Általános üzenetváltás",
+    "youLabel": "Te",
+    "clientLabel": "Ügyfél",
+    "noConversations": "Nincsenek üzenetváltások",
+    "msgSentOk": "Üzenet elküldve",
+    "newMessageTitle": "Új üzenet küldése",
+    "newMessagePlaceholder": "Üzenet szövege...",
+    "newMsgErr": "Hiba az üzenet küldésekor"
   },
   "calendar": {
     "pageTitle": "Naptár",
@@ -2066,5 +2081,23 @@
     "colorSlate": "Antracit",
     "colorBlack": "Fekete",
     "colorWhite": "Semleges"
+  },
+  "messages": {
+    "pageTitle": "Üzenetek",
+    "pageSubtitle": "Ügyfelekkel folytatott üzenetváltásaid",
+    "emptyTitle": "Nincsenek üzenetek",
+    "emptyText": "Amikor egy ügyfél kérdést tesz fel, vagy te küldöd az első üzenetet, az itt jelenik meg.",
+    "unreadCount": "{n} olvasatlan",
+    "openConversation": "Megnyitás",
+    "tabClients": "Ügyfelek",
+    "tabTeam": "Csapat",
+    "teamChatTitle": "Csapat chat",
+    "teamDiscussionTitle": "Csapat megbeszélés",
+    "teamChatEmpty": "Nincs üzenet. Kezdj el egy megbeszélést a csapatoddal!",
+    "sendPlaceholder": "Üzenet küldése a csapatnak…",
+    "sendBtn": "Küldés",
+    "sending": "Küldés…",
+    "sendError": "Hiba a küldés során. Kérjük, próbáld újra.",
+    "teamChatSubtitle": "Csak a kollektíva tagjai látják ezeket az üzeneteket."
   }
 }

@@ -1,9 +1,9 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { Link as LocaleLink } from '@/navigation';
-import { useParams } from 'next/navigation';
+import { useParams, useSearchParams } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
 import { useTranslations } from 'next-intl';
 import { formatMoney, formatDate } from '@/lib/constants';
@@ -19,16 +19,274 @@ import {
   ShieldCheck,
   Copy,
   Check,
-  ExternalLink
+  ExternalLink,
+  MessageSquare,
+  Send,
+  Plus,
 } from 'lucide-react';
 import PageSpinner from '@/components/PageSpinner';
 import StatusBadge from '@/components/StatusBadge';
 
+function relativeTime(isoStr) {
+  if (!isoStr) return '';
+  const diff  = Date.now() - new Date(isoStr).getTime();
+  const mins  = Math.floor(diff / 60000);
+  const hours = Math.floor(diff / 3600000);
+  const days  = Math.floor(diff / 86400000);
+  if (mins < 1)  return 'Most';
+  if (mins < 60) return `${mins} perce`;
+  if (hours < 24) return `${hours} órája`;
+  if (days < 7)  return `${days} napja`;
+  return new Date(isoStr).toLocaleDateString('hu-HU', { month: 'short', day: 'numeric' });
+}
+
+function MessageBubble({ msg, isYou }) {
+  return (
+    <div style={{ display: 'flex', justifyContent: isYou ? 'flex-end' : 'flex-start', marginBottom: '0.5rem' }}>
+      <div style={{
+        maxWidth: '80%',
+        background: isYou ? 'var(--accent)' : 'var(--bg-subtle)',
+        color: isYou ? '#fff' : 'var(--text-primary)',
+        borderRadius: isYou ? '12px 12px 2px 12px' : '12px 12px 12px 2px',
+        padding: '0.55rem 0.85rem',
+        fontSize: '0.875rem',
+        lineHeight: 1.5,
+        whiteSpace: 'pre-wrap',
+        wordBreak: 'break-word',
+      }}>
+        {msg.body}
+        <div style={{ fontSize: '0.63rem', marginTop: '0.25rem', opacity: 0.65, textAlign: isYou ? 'right' : 'left' }}>
+          {relativeTime(msg.created_at)}
+          {isYou && !msg.read_at && <span style={{ marginLeft: '0.3rem' }}>✓</span>}
+          {isYou && msg.read_at && <span style={{ marginLeft: '0.3rem' }}>✓✓</span>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ThreadCard({ thread, quotes, t, onMessageSent }) {
+  const [reply, setReply]       = useState('');
+  const [sending, setSending]   = useState(false);
+  const [error, setError]       = useState('');
+  const bottomRef               = useRef(null);
+  const quote = quotes.find(q => q.id === thread.quote_id);
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [thread.messages?.length]);
+
+  // Mark thread as read on mount
+  useEffect(() => {
+    if (thread.unread_count > 0) {
+      fetch(`/api/threads/${thread.id}/read`, { method: 'PATCH' }).catch(() => {});
+    }
+  }, [thread.id, thread.unread_count]);
+
+  const handleSend = async () => {
+    if (!reply.trim()) return;
+    setSending(true); setError('');
+    try {
+      const res = await fetch(`/api/threads/${thread.id}/messages`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: reply.trim() }),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        throw new Error(d.error || t('newMsgErr'));
+      }
+      const { message: newMsg } = await res.json();
+      setReply('');
+      onMessageSent(thread.id, newMsg);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const title = quote ? t('quoteThread', { title: quote.title }) : t('generalThread');
+
+  return (
+    <div className="card" style={{ padding: 0, overflow: 'hidden', marginBottom: '0.75rem' }}>
+      {/* Thread header */}
+      <div style={{ padding: '0.65rem 1rem', background: 'var(--bg-subtle)', borderBottom: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+        <MessageSquare size={14} style={{ color: 'var(--accent)', flexShrink: 0 }} />
+        <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-primary)', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {title}
+        </span>
+        {thread.unread_count > 0 && (
+          <span style={{ background: 'var(--danger)', color: '#fff', borderRadius: 99, fontSize: '0.63rem', fontWeight: 700, minWidth: 16, height: 16, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '0 4px', flexShrink: 0 }}>
+            {thread.unread_count}
+          </span>
+        )}
+      </div>
+
+      {/* Messages */}
+      <div style={{ padding: '0.85rem 1rem', maxHeight: 300, overflowY: 'auto' }}>
+        {(thread.messages || []).map(msg => (
+          <MessageBubble key={msg.id} msg={msg} isYou={msg.sender_type === 'user'} />
+        ))}
+        <div ref={bottomRef} />
+      </div>
+
+      {/* Reply input */}
+      <div style={{ padding: '0.65rem 1rem', borderTop: '1px solid var(--border-subtle)', display: 'flex', gap: '0.5rem', alignItems: 'flex-end' }}>
+        <textarea
+          value={reply}
+          onChange={e => setReply(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
+          placeholder={t('replyPlaceholder')}
+          rows={1}
+          style={{ flex: 1, minWidth: 0, border: '1.5px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: '0.45rem 0.65rem', fontSize: '0.875rem', fontFamily: 'inherit', resize: 'none', outline: 'none', maxHeight: 80, overflowY: 'auto', lineHeight: 1.5, background: 'var(--bg-base)' }}
+        />
+        <button
+          type="button"
+          onClick={handleSend}
+          disabled={sending || !reply.trim()}
+          className="btn btn-primary btn-sm"
+          style={{ flexShrink: 0, padding: '0.45rem 0.75rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}
+        >
+          <Send size={13} /> {sending ? t('sending') : t('sendReply')}
+        </button>
+      </div>
+      {error && <p style={{ padding: '0 1rem 0.5rem', fontSize: '0.78rem', color: 'var(--danger)', margin: 0 }}>{error}</p>}
+    </div>
+  );
+}
+
+function ClientMessages({ clientId, quotes, t }) {
+  const [threads, setThreads]       = useState(null);
+  const [showNew, setShowNew]       = useState(false);
+  const [newMsg, setNewMsg]         = useState('');
+  const [sendingNew, setSendingNew] = useState(false);
+  const [newMsgErr, setNewMsgErr]   = useState('');
+
+  useEffect(() => {
+    fetch(`/api/threads?client_id=${clientId}`)
+      .then(r => r.ok ? r.json() : { threads: [] })
+      .then(d => setThreads(d.threads || []))
+      .catch(() => setThreads([]));
+  }, [clientId]);
+
+  const handleMessageSent = (threadId, newMessage) => {
+    setThreads(prev => (prev || []).map(th =>
+      th.id === threadId ? { ...th, messages: [...(th.messages || []), newMessage] } : th
+    ));
+  };
+
+  const handleNewThread = async () => {
+    if (!newMsg.trim()) return;
+    setSendingNew(true); setNewMsgErr('');
+    try {
+      const res = await fetch('/api/threads', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ client_id: clientId, message: newMsg.trim() }),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        throw new Error(d.error || t('newMsgErr'));
+      }
+      const { thread_id, message } = await res.json();
+      const newThread = {
+        id: thread_id,
+        quote_id: null,
+        messages: [message],
+        unread_count: 0,
+      };
+      setThreads(prev => [newThread, ...(prev || [])]);
+      setNewMsg('');
+      setShowNew(false);
+    } catch (e) {
+      setNewMsgErr(e.message);
+    } finally {
+      setSendingNew(false);
+    }
+  };
+
+  if (threads === null) return (
+    <div style={{ display: 'flex', justifyContent: 'center', padding: '1.5rem 0' }}>
+      <div style={{ width: 20, height: 20, borderRadius: '50%', border: '2px solid var(--accent)', borderTopColor: 'transparent', animation: 'spin 0.8s linear infinite' }} />
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+    </div>
+  );
+
+  const hasGeneralThread = threads.some(t => !t.quote_id);
+
+  return (
+    <div>
+      {/* New general message button */}
+      {!hasGeneralThread && !showNew && (
+        <button
+          type="button"
+          onClick={() => setShowNew(true)}
+          className="btn btn-secondary btn-sm"
+          style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.75rem' }}
+        >
+          <Plus size={14} /> {t('newMessage')}
+        </button>
+      )}
+
+      {/* New general message composer */}
+      {showNew && (
+        <div className="card" style={{ padding: '1rem', marginBottom: '0.75rem' }}>
+          <div style={{ fontSize: '0.8rem', fontWeight: 700, marginBottom: '0.5rem', color: 'var(--text-primary)' }}>
+            {t('newMessageTitle')}
+          </div>
+          <textarea
+            autoFocus
+            value={newMsg}
+            onChange={e => setNewMsg(e.target.value)}
+            placeholder={t('newMessagePlaceholder')}
+            rows={3}
+            style={{ width: '100%', boxSizing: 'border-box', border: '1.5px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: '0.5rem 0.75rem', fontSize: '0.875rem', fontFamily: 'inherit', resize: 'vertical', outline: 'none', marginBottom: '0.65rem' }}
+          />
+          {newMsgErr && <p style={{ color: 'var(--danger)', fontSize: '0.78rem', margin: '0 0 0.5rem' }}>{newMsgErr}</p>}
+          <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+            <button type="button" onClick={() => { setShowNew(false); setNewMsg(''); setNewMsgErr(''); }} className="btn btn-secondary btn-sm">
+              Mégse
+            </button>
+            <button
+              type="button"
+              onClick={handleNewThread}
+              disabled={sendingNew || !newMsg.trim()}
+              className="btn btn-primary btn-sm"
+              style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}
+            >
+              <Send size={13} /> {sendingNew ? t('sending') : t('sendReply')}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Threads */}
+      {threads.length === 0 && !showNew && (
+        <div style={{ textAlign: 'center', padding: '1.5rem', color: 'var(--text-muted)', fontSize: '0.875rem' }}>
+          {t('noConversations')}
+        </div>
+      )}
+      {threads.map(thread => (
+        <ThreadCard
+          key={thread.id}
+          thread={thread}
+          quotes={quotes}
+          t={t}
+          onMessageSent={handleMessageSent}
+        />
+      ))}
+    </div>
+  );
+}
+
 export default function ClientDetailPage() {
   const { id } = useParams();
+  const searchParams = useSearchParams();
+  const activeThread = searchParams.get('thread');
   const { isAdmin, loading, dataReady, clients, quotes, quoteEntries, projects, invoices, isDemoMode, userCurrency } = useApp();
   const fmt = (n) => formatMoney(n, userCurrency);
-  const t = useTranslations('clients');
+  const t  = useTranslations('clients');
   const tc = useTranslations('common');
   const navPrefix = isDemoMode ? '/demo' : '';
   const AppLink = isDemoMode ? Link : LocaleLink;
@@ -194,6 +452,16 @@ export default function ClientDetailPage() {
           <div className="stat-sub">{t('totalExpenses', { amount: fmt(totalInvoiceValue) })}</div>
         </div>
       </div>
+
+      {/* Messages */}
+      {!isDemoMode && (
+        <div style={{ marginBottom: '1.75rem' }}>
+          <h2 style={{ fontSize: '1.15rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.75rem' }}>
+            <MessageSquare size={18} color="var(--accent)" /> {t('messagesSection')}
+          </h2>
+          <ClientMessages clientId={id} quotes={clientQuotes} t={t} />
+        </div>
+      )}
 
       {/* Quotes */}
       <div style={{ marginBottom: '0.75rem' }}>

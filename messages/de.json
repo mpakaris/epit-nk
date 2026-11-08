@@ -109,7 +109,8 @@
       "myProfile": "Mein Profil",
       "subscription": "Abonnement",
       "companyDetails": "Firmendaten",
-      "users": "Benutzer"
+      "users": "Benutzer",
+      "messages": "Nachrichten"
     },
     "tiers": {
       "premium": "⭐ Premium",
@@ -572,7 +573,21 @@
     "detailQuotesCount": "{count} Angebot",
     "detailInvoiced": "Abgerechnet",
     "detailProjectsCount": "{count} Projekt",
-    "detailNameRequired": "Name ist erforderlich!"
+    "detailNameRequired": "Name ist erforderlich!",
+    "messagesSection": "Nachrichten",
+    "newMessage": "Neue Nachricht",
+    "replyPlaceholder": "Nachricht schreiben...",
+    "sendReply": "Senden",
+    "sending": "Senden...",
+    "quoteThread": "Angebot: {title}",
+    "generalThread": "Allgemeines Gespräch",
+    "youLabel": "Du",
+    "clientLabel": "Kunde",
+    "noConversations": "Keine Gespräche",
+    "msgSentOk": "Nachricht gesendet",
+    "newMessageTitle": "Neue Nachricht senden",
+    "newMessagePlaceholder": "Nachrichtentext...",
+    "newMsgErr": "Fehler beim Senden"
   },
   "calendar": {
     "pageTitle": "Kalender",
@@ -2066,5 +2081,23 @@
     "colorSlate": "Anthrazit",
     "colorBlack": "Schwarz",
     "colorWhite": "Neutral"
+  },
+  "messages": {
+    "pageTitle": "Nachrichten",
+    "pageSubtitle": "Gespräche mit deinen Kunden",
+    "emptyTitle": "Keine Nachrichten",
+    "emptyText": "Wenn ein Kunde eine Frage stellt oder du eine Nachricht sendest, erscheint sie hier.",
+    "unreadCount": "{n} ungelesen",
+    "openConversation": "Öffnen",
+    "tabClients": "Kunden",
+    "tabTeam": "Team",
+    "teamChatTitle": "Team-Chat",
+    "teamDiscussionTitle": "Team-Besprechung",
+    "teamChatEmpty": "Noch keine Nachrichten. Starte ein Gespräch mit deinem Team!",
+    "sendPlaceholder": "Nachricht an das Team senden…",
+    "sendBtn": "Senden",
+    "sending": "Senden…",
+    "sendError": "Fehler beim Senden. Bitte erneut versuchen.",
+    "teamChatSubtitle": "Diese Nachrichten sind nur für Kollektiv-Mitglieder sichtbar."
   }
 }

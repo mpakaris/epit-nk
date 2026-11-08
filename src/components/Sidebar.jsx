@@ -11,9 +11,10 @@ import {
   Building2, LayoutDashboard, FolderKanban, Users, BookUser,
   FileText, Calendar, User, LogOut, ShieldAlert,
   ChevronLeft, ChevronRight, Eye, X, Menu, ClipboardList, Ruler, Lightbulb,
-  Globe, ImageIcon, UsersRound, CreditCard, Package,
+  Globe, ImageIcon, UsersRound, CreditCard, Package, MessageSquare,
 } from 'lucide-react';
 import FloatingNav from './mobile/FloatingNav';
+import NotificationBell from './NotificationBell';
 
 // Build a reverse map of localized-first-segment → canonical-first-segment
 // so we can highlight the correct nav item regardless of the user's locale.
@@ -41,7 +42,7 @@ function toCanonicalPathname(pathname) {
   return pathname;
 }
 
-function buildNavItems(isSuperAdmin, isAdmin, impersonating, websiteUnread = 0, prefix = '', invitationCount = 0, counts = {}, t) {
+function buildNavItems(isSuperAdmin, isAdmin, impersonating, websiteUnread = 0, prefix = '', invitationCount = 0, counts = {}, t, msgUnread = 0) {
   if (isSuperAdmin && !impersonating) {
     return [
       { key: 'sa-entitasok',  href: '/superadmin',              label: 'Entities',  icon: Building2,    exact: true },
@@ -60,6 +61,7 @@ function buildNavItems(isSuperAdmin, isAdmin, impersonating, websiteUnread = 0, 
     { href: prefix + '/katalogus',    label: t('nav.catalogue'),      icon: Package },
     { divider: true, key: 'd-kapcs',  group: t('groups.contacts') },
     { href: prefix + '/ugyfelek',     label: t('nav.clients'),        icon: BookUser,  count: counts.clients },
+    { href: prefix + '/uzenetek',     label: t('nav.messages'),       icon: MessageSquare, badge: msgUnread },
     { href: prefix + '/kollektivak',  label: t('nav.collectives'),    icon: UsersRound, count: counts.collectives, badge: invitationCount },
     { divider: true, key: 'd-egyeb',  group: t('groups.other') },
     { href: prefix + '/naptar',       label: t('nav.calendar'),       icon: Calendar },
@@ -105,6 +107,7 @@ export default function Sidebar() {
   const [websiteUnread, setWebsiteUnread] = useState(0);
   const [invitationCount, setInvitationCount] = useState(0);
   const [totalCounts, setTotalCounts] = useState(null);
+  const [msgUnread, setMsgUnread] = useState(0);
   const lastScrollY = React.useRef(0);
 
   useEffect(() => {
@@ -138,6 +141,15 @@ export default function Sidebar() {
       .then(d => { if (d) setTotalCounts(d); })
       .catch(() => {});
   }, [currentUser, isSuperAdmin, impersonating, isDemoMode]);
+
+  // Fetch unread client message count for the Üzenetek badge
+  useEffect(() => {
+    if (!currentUser || isSuperAdmin || impersonating || isDemoMode) return;
+    fetch('/api/messages/unread-count')
+      .then(r => r.ok ? r.json() : { count: 0 })
+      .then(d => setMsgUnread(d.count || 0))
+      .catch(() => {});
+  }, [currentUser, isSuperAdmin, impersonating, isDemoMode, pathname]);
 
   useEffect(() => {
     document.documentElement.style.setProperty('--sidebar-w', collapsed ? '60px' : '240px');
@@ -210,7 +222,7 @@ export default function Sidebar() {
     collectives: (effectiveCollectives || []).length,
   } : {};
 
-  const navItems = buildNavItems(isSuperAdmin, isAdmin, impersonating, websiteUnread, navPrefix, invitationCount, counts, t);
+  const navItems = buildNavItems(isSuperAdmin, isAdmin, impersonating, websiteUnread, navPrefix, invitationCount, counts, t, msgUnread);
   const homeHref = isSuperAdmin && !impersonating ? '/superadmin' : (navPrefix + '/dashboard');
 
   const initials = (effectiveUser?.display_name || '?')
@@ -311,6 +323,13 @@ export default function Sidebar() {
           )}
         </nav>
 
+
+        {/* Notification bell */}
+        {!isSuperAdmin && !impersonating && !isDemoMode && (
+          <div style={{ padding: '0 0.5rem 0.1rem' }}>
+            <NotificationBell collapsed={collapsed} isDemoMode={isDemoMode} />
+          </div>
+        )}
 
         {/* User section — avatar + name links to /profil, logout icon stays */}
         <div className="sidebar-user" style={{ padding: '0.6rem 0.5rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
@@ -464,6 +483,13 @@ export default function Sidebar() {
                 )
               )}
             </nav>
+
+            {/* Notification bell in mobile drawer */}
+            {!isSuperAdmin && !impersonating && !isDemoMode && (
+              <div style={{ padding: '0 0.75rem 0.5rem' }}>
+                <NotificationBell collapsed={false} isDemoMode={isDemoMode} />
+              </div>
+            )}
 
             <div className="drawer-user" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
               {/* Avatar */}

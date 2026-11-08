@@ -109,7 +109,8 @@
       "myProfile": "My profile",
       "subscription": "Subscription",
       "companyDetails": "Company details",
-      "users": "Users"
+      "users": "Users",
+      "messages": "Messages"
     },
     "tiers": {
       "premium": "⭐ Premium",
@@ -572,7 +573,21 @@
     "detailQuotesCount": "{count} offer",
     "detailInvoiced": "Invoiced",
     "detailProjectsCount": "{count} project",
-    "detailNameRequired": "Name is required!"
+    "detailNameRequired": "Name is required!",
+    "messagesSection": "Messages",
+    "newMessage": "New message",
+    "replyPlaceholder": "Write a message...",
+    "sendReply": "Send",
+    "sending": "Sending...",
+    "quoteThread": "Quote: {title}",
+    "generalThread": "General conversation",
+    "youLabel": "You",
+    "clientLabel": "Client",
+    "noConversations": "No conversations",
+    "msgSentOk": "Message sent",
+    "newMessageTitle": "Send new message",
+    "newMessagePlaceholder": "Message text...",
+    "newMsgErr": "Error sending message"
   },
   "calendar": {
     "pageTitle": "Calendar",
@@ -2066,5 +2081,23 @@
     "colorSlate": "Slate",
     "colorBlack": "Black",
     "colorWhite": "Neutral"
+  },
+  "messages": {
+    "pageTitle": "Messages",
+    "pageSubtitle": "Conversations with your clients",
+    "emptyTitle": "No messages",
+    "emptyText": "When a client asks a question or you send the first message, it will appear here.",
+    "unreadCount": "{n} unread",
+    "openConversation": "Open",
+    "tabClients": "Clients",
+    "tabTeam": "Team",
+    "teamChatTitle": "Team chat",
+    "teamDiscussionTitle": "Team discussion",
+    "teamChatEmpty": "No messages yet. Start a conversation with your team!",
+    "sendPlaceholder": "Send a message to the team…",
+    "sendBtn": "Send",
+    "sending": "Sending…",
+    "sendError": "Failed to send. Please try again.",
+    "teamChatSubtitle": "Only collective members can see these messages."
   }
 }

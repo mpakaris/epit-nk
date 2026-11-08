@@ -40,6 +40,7 @@ import WorkTypeSelector, { WORK_TYPES } from './components/WorkTypeSelector';
 import RoomModal from './components/RoomModal';
 import ProjectEditModal from './components/ProjectEditModal';
 import PortalShareSection from './components/PortalShareSection';
+import CollectiveChatSection from '@/components/CollectiveChatSection';
 
 
 const CARD_HEADER_BG = '#334155';
@@ -1320,6 +1321,14 @@ export default function ProjectDetailClient({
         diaryEntries={diaryEntriesByProject[project.id] || []}
         canManage={canManageProject}
       />
+
+      {/* Collective team discussion (US-MSG-022) */}
+      {project.collective_id && !isDemoMode && (
+        <CollectiveChatSection
+          collectiveId={project.collective_id}
+          projectId={project.id}
+        />
+      )}
 
       </div>
 

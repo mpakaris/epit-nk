@@ -24,6 +24,7 @@ import useMobile from '@/hooks/useMobile';
 import SectionCard from './components/SectionCard';
 import SectionAddForm from './components/SectionAddForm';
 import ClientComments from './components/ClientComments';
+import CollectiveChatSection from '@/components/CollectiveChatSection';
 import { TYPE_ICONS, TYPE_COLORS, QUOTE_ENTRY_LABELS, sortEntries } from './components/constants';
 
 const EMPTY_ENTRY_FORM = { entry_type: 'material', work_description: '', quantity: '', unit: 'db', unit_price: '', flat_amount: '', notes: '', user_id: '' };
@@ -1032,6 +1033,14 @@ export default function QuoteDetailPage() {
 
       {/* Client comment history */}
       {canModify && <ClientComments quoteId={id} />}
+
+      {/* Collective team discussion (US-MSG-022) */}
+      {quote.collective_id && !isDemoMode && (
+        <CollectiveChatSection
+          collectiveId={quote.collective_id}
+          quoteId={id}
+        />
+      )}
 
       {/* Entry modal */}
       <Modal isOpen={showEntryModal} onClose={() => { setShowEntryModal(false); setPendingEntries([]); }} title={editingEntryId ? t('entryModalEdit') : t('entryModalAdd')}>

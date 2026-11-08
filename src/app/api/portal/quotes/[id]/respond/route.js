@@ -68,6 +68,56 @@ export async function POST(request, { params }) {
     client_name:  client.name,
   });
 
+  // For 'question': find or create a thread, then insert the message
+  if (action === 'question' && comment.trim()) {
+    let thread = null;
+    const { data: existing } = await admin
+      .from('threads')
+      .select('id')
+      .eq('owner_id', quote.owner_id)
+      .eq('client_id', quote.client_id)
+      .eq('quote_id', id)
+      .maybeSingle();
+    if (existing) {
+      thread = existing;
+    } else {
+      const { data: created } = await admin
+        .from('threads')
+        .insert({ type: 'client', owner_id: quote.owner_id, client_id: quote.client_id, quote_id: id })
+        .select('id').single();
+      thread = created;
+    }
+    if (thread) {
+      await admin.from('messages').insert({
+        thread_id:        thread.id,
+        sender_type:      'client',
+        sender_client_id: client.id,
+        body:             comment.trim(),
+      });
+    }
+  }
+
+  // Write in-app notification for contractor
+  const notifTitles = {
+    accepted: `Elfogadott ajánlat: ${quote.title}`,
+    rejected: `Elutasított ajánlat: ${quote.title}`,
+    question: `Kérdés érkezett: ${quote.title}`,
+  };
+  const notifTypes = {
+    accepted: 'quote_accepted',
+    rejected: 'quote_rejected',
+    question: 'client_question',
+  };
+  await admin.from('notifications').insert({
+    user_id:     quote.owner_id,
+    type:        notifTypes[action],
+    title:       notifTitles[action],
+    body:        comment.trim() ? `${client.name}: ${comment.trim().slice(0, 120)}` : client.name,
+    link:        `/ajanlatok/${id}`,
+    source_type: 'quote',
+    source_id:   id,
+  });
+
   // Send email notification to contractor
   if (contractorEmail) {
     try {
