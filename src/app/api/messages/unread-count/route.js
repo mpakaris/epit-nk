@@ -9,20 +9,41 @@ export async function GET() {
 
   const admin = createAdminClient();
 
-  // Count messages in threads owned by user where sender is client and not yet read
-  const { data: threads } = await admin.from('threads')
-    .select('id')
-    .eq('owner_id', user.id)
-    .eq('type', 'client');
+  // Client threads: unread messages from clients
+  const { data: clientThreads } = await admin.from('threads')
+    .select('id').eq('owner_id', user.id).eq('type', 'client');
 
-  if (!threads?.length) return Response.json({ count: 0 });
+  // Direct threads: threads where user is owner or recipient
+  const { data: ownedDirect } = await admin.from('threads')
+    .select('id').eq('owner_id', user.id).eq('type', 'direct');
+  const { data: receivedDirect } = await admin.from('threads')
+    .select('id').eq('recipient_user_id', user.id).eq('type', 'direct');
 
-  const threadIds = threads.map(t => t.id);
-  const { count } = await admin.from('messages')
-    .select('*', { count: 'exact', head: true })
-    .in('thread_id', threadIds)
-    .eq('sender_type', 'client')
-    .is('read_at', null);
+  const clientThreadIds = (clientThreads || []).map(t => t.id);
+  const directThreadIds = [...new Set([
+    ...(ownedDirect   || []).map(t => t.id),
+    ...(receivedDirect || []).map(t => t.id),
+  ])];
 
-  return Response.json({ count: count ?? 0 });
+  let count = 0;
+
+  if (clientThreadIds.length) {
+    const { count: c } = await admin.from('messages')
+      .select('*', { count: 'exact', head: true })
+      .in('thread_id', clientThreadIds)
+      .eq('sender_type', 'client')
+      .is('read_at', null);
+    count += c ?? 0;
+  }
+
+  if (directThreadIds.length) {
+    const { count: c } = await admin.from('messages')
+      .select('*', { count: 'exact', head: true })
+      .in('thread_id', directThreadIds)
+      .neq('sender_user_id', user.id)
+      .is('read_at', null);
+    count += c ?? 0;
+  }
+
+  return Response.json({ count });
 }

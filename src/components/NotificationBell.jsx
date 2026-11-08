@@ -1,8 +1,10 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Bell, X, Check, CheckCheck, ExternalLink } from 'lucide-react';
+import { Bell, X, Check, CheckCheck, ExternalLink, ArrowLeft } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { useTranslations, useLocale } from 'next-intl';
+import useMobile from '@/hooks/useMobile';
 
 const TYPE_ICON = {
   quote_accepted:    { icon: '✅', bg: '#f0fdf4', border: '#bbf7d0', color: '#15803d' },
@@ -11,23 +13,28 @@ const TYPE_ICON = {
   client_message:    { icon: '📩', bg: '#eff6ff', border: '#bfdbfe', color: '#1d4ed8' },
   collective_message:{ icon: '👥', bg: '#f5f3ff', border: '#ddd6fe', color: '#7c3aed' },
   collective_activity:{ icon: '🏗', bg: '#fff7ed', border: '#fed7aa', color: '#c2410c' },
+  direct_message:     { icon: '💬', bg: '#eff6ff', border: '#bfdbfe', color: '#1d4ed8' },
   member_joined:     { icon: '🤝', bg: '#f0fdf4', border: '#bbf7d0', color: '#15803d' },
 };
 
-function relativeTime(isoStr) {
-  const diff = Date.now() - new Date(isoStr).getTime();
+function relativeTime(isoStr, locale = 'hu') {
+  const diff  = Date.now() - new Date(isoStr).getTime();
   const mins  = Math.floor(diff / 60000);
   const hours = Math.floor(diff / 3600000);
   const days  = Math.floor(diff / 86400000);
-  if (mins < 1)  return 'Most';
-  if (mins < 60) return `${mins} perce`;
-  if (hours < 24) return `${hours} órája`;
-  if (days < 7)  return `${days} napja`;
-  return new Date(isoStr).toLocaleDateString('hu-HU', { month: 'short', day: 'numeric' });
+  const rtf   = new Intl.RelativeTimeFormat(locale, { numeric: 'auto' });
+  if (mins < 1)   return rtf.format(0, 'minute');
+  if (mins < 60)  return rtf.format(-mins, 'minute');
+  if (hours < 24) return rtf.format(-hours, 'hour');
+  if (days < 7)   return rtf.format(-days, 'day');
+  return new Date(isoStr).toLocaleDateString(locale, { month: 'short', day: 'numeric' });
 }
 
 export default function NotificationBell({ collapsed = false, isDemoMode = false }) {
-  const router = useRouter();
+  const router   = useRouter();
+  const t        = useTranslations('notifications');
+  const locale   = useLocale();
+  const isMobile = useMobile();
   const [open, setOpen]               = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -105,7 +112,7 @@ export default function NotificationBell({ collapsed = false, isDemoMode = false
               .catch(() => {});
           }
         }}
-        title="Értesítések"
+        title={t('title')}
         style={{
           position: 'relative',
           display: 'flex',
@@ -128,7 +135,7 @@ export default function NotificationBell({ collapsed = false, isDemoMode = false
         onMouseLeave={e => { if (!open) e.currentTarget.style.background = 'none'; }}
       >
         <Bell size={collapsed ? 18 : 17} style={{ flexShrink: 0 }} />
-        {!collapsed && <span>Értesítések</span>}
+        {!collapsed && <span>{t('title')}</span>}
 
         {/* Badge */}
         {unreadCount > 0 && (
@@ -147,11 +154,19 @@ export default function NotificationBell({ collapsed = false, isDemoMode = false
         <>
           <div
             onClick={() => setOpen(false)}
-            style={{ position: 'fixed', inset: 0, zIndex: 400 }}
+            style={{ position: 'fixed', inset: 0, zIndex: isMobile ? 499 : 400 }}
           />
           <div
             ref={panelRef}
-            style={{
+            style={isMobile ? {
+              position: 'fixed',
+              inset: 0,
+              background: 'var(--bg-card)',
+              zIndex: 500,
+              display: 'flex',
+              flexDirection: 'column',
+              overflowY: 'auto',
+            } : {
               position: 'fixed',
               top: 0,
               bottom: 0,
@@ -167,25 +182,37 @@ export default function NotificationBell({ collapsed = false, isDemoMode = false
             }}
           >
             {/* Panel header */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '1rem 1rem 0.75rem', borderBottom: '1px solid var(--border-subtle)', flexShrink: 0 }}>
-              <Bell size={16} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
-              <span style={{ flex: 1, fontWeight: 800, fontSize: '0.9rem', color: 'var(--text-primary)' }}>Értesítések</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: isMobile ? '0.9rem 1rem' : '1rem 1rem 0.75rem', borderBottom: '1px solid var(--border-subtle)', flexShrink: 0 }}>
+              {isMobile ? (
+                <button
+                  type="button"
+                  onClick={() => setOpen(false)}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', padding: '0.2rem', borderRadius: 'var(--radius-sm)', marginRight: '0.1rem' }}
+                >
+                  <ArrowLeft size={20} />
+                </button>
+              ) : (
+                <Bell size={16} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
+              )}
+              <span style={{ flex: 1, fontWeight: 800, fontSize: '0.9rem', color: 'var(--text-primary)' }}>{t('title')}</span>
               {unreadNotifs.length > 0 && (
                 <button
                   type="button"
                   onClick={markAllRead}
                   style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.75rem', fontWeight: 700, color: 'var(--accent)', background: 'none', border: 'none', cursor: 'pointer', padding: '0.2rem 0.4rem', borderRadius: 'var(--radius-sm)' }}
                 >
-                  <CheckCheck size={13} /> Mind olvasott
+                  <CheckCheck size={13} /> {t('markAllRead')}
                 </button>
               )}
-              <button
-                type="button"
-                onClick={() => setOpen(false)}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', padding: '0.2rem', borderRadius: 'var(--radius-sm)' }}
-              >
-                <X size={16} />
-              </button>
+              {!isMobile && (
+                <button
+                  type="button"
+                  onClick={() => setOpen(false)}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', padding: '0.2rem', borderRadius: 'var(--radius-sm)' }}
+                >
+                  <X size={16} />
+                </button>
+              )}
             </div>
 
             {/* Notifications list */}
@@ -193,7 +220,7 @@ export default function NotificationBell({ collapsed = false, isDemoMode = false
                 {notifications.length === 0 && (
                 <div style={{ padding: '2.5rem 1rem', textAlign: 'center' }}>
                   <Bell size={28} style={{ color: 'var(--border-subtle)', marginBottom: '0.5rem', display: 'block', margin: '0 auto 0.5rem' }} />
-                  <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)', margin: 0 }}>Nincs értesítés.</p>
+                  <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)', margin: 0 }}>{t('empty')}</p>
                 </div>
               )}
 
@@ -201,10 +228,10 @@ export default function NotificationBell({ collapsed = false, isDemoMode = false
               {unreadNotifs.length > 0 && (
                 <div>
                   <div style={{ padding: '0.5rem 1rem 0.25rem', fontSize: '0.62rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--text-muted)' }}>
-                    Olvasatlan ({unreadNotifs.length})
+                    {t('unread', { count: unreadNotifs.length })}
                   </div>
                   {unreadNotifs.map(n => (
-                    <NotifRow key={n.id} notif={n} onRead={() => markRead([n.id])} onClick={() => handleNotifClick(n)} />
+                    <NotifRow key={n.id} notif={n} onRead={() => markRead([n.id])} onClick={() => handleNotifClick(n)} t={t} locale={locale} />
                   ))}
                 </div>
               )}
@@ -213,10 +240,10 @@ export default function NotificationBell({ collapsed = false, isDemoMode = false
               {readNotifs.length > 0 && (
                 <div>
                   <div style={{ padding: '0.75rem 1rem 0.25rem', fontSize: '0.62rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--text-muted)', borderTop: unreadNotifs.length > 0 ? '1px solid var(--border-subtle)' : 'none' }}>
-                    Előzmény
+                    {t('history')}
                   </div>
                   {readNotifs.map(n => (
-                    <NotifRow key={n.id} notif={n} onRead={null} onClick={() => handleNotifClick(n)} />
+                    <NotifRow key={n.id} notif={n} onRead={null} onClick={() => handleNotifClick(n)} t={t} locale={locale} />
                   ))}
                 </div>
               )}
@@ -228,7 +255,7 @@ export default function NotificationBell({ collapsed = false, isDemoMode = false
   );
 }
 
-function NotifRow({ notif, onRead, onClick }) {
+function NotifRow({ notif, onRead, onClick, t, locale }) {
   const cfg   = TYPE_ICON[notif.type] || TYPE_ICON.client_message;
   const isNew = !notif.read_at;
 
@@ -267,10 +294,10 @@ function NotifRow({ notif, onRead, onClick }) {
           </p>
         )}
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.3rem' }}>
-          <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>{relativeTime(notif.created_at)}</span>
+          <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>{relativeTime(notif.created_at, locale)}</span>
           {notif.link && (
             <span style={{ fontSize: '0.68rem', color: 'var(--accent)', display: 'flex', alignItems: 'center', gap: '0.15rem' }}>
-              <ExternalLink size={9} /> Megnyitás
+              <ExternalLink size={9} /> {t('open')}
             </span>
           )}
         </div>
@@ -281,7 +308,7 @@ function NotifRow({ notif, onRead, onClick }) {
         <button
           type="button"
           onClick={e => { e.stopPropagation(); onRead(); }}
-          title="Olvasottnak jelölés"
+          title={t('markRead')}
           style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex', alignItems: 'flex-start', padding: '0.15rem 0', flexShrink: 0, borderRadius: 'var(--radius-sm)', transition: 'color 0.12s' }}
           onMouseEnter={e => e.currentTarget.style.color = 'var(--accent)'}
           onMouseLeave={e => e.currentTarget.style.color = 'var(--text-muted)'}

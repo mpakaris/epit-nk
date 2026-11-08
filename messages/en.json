@@ -2098,6 +2098,18 @@
     "sendBtn": "Send",
     "sending": "Sending…",
     "sendError": "Failed to send. Please try again.",
-    "teamChatSubtitle": "Only collective members can see these messages."
+    "teamChatSubtitle": "Only collective members can see these messages.",
+    "noClientsHint": "Add a client first on the Clients page.",
+    "clientLabel": "Client",
+    "teamMembersSection": "Team members"
+  },
+  "notifications": {
+    "title": "Notifications",
+    "markAllRead": "Mark all read",
+    "empty": "No notifications.",
+    "unread": "Unread ({count})",
+    "history": "History",
+    "open": "Open",
+    "markRead": "Mark as read"
   }
 }

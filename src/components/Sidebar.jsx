@@ -150,10 +150,15 @@ export default function Sidebar() {
   // Fetch unread client message count for the Üzenetek badge
   useEffect(() => {
     if (!currentUser || isSuperAdmin || impersonating || isDemoMode) return;
-    fetch('/api/messages/unread-count')
-      .then(r => r.ok ? r.json() : { count: 0 })
-      .then(d => setMsgUnread(d.count || 0))
-      .catch(() => {});
+    const fetchCount = () => {
+      fetch('/api/messages/unread-count')
+        .then(r => r.ok ? r.json() : { count: 0 })
+        .then(d => setMsgUnread(d.count || 0))
+        .catch(() => {});
+    };
+    fetchCount();
+    window.addEventListener('epitek:msg-read', fetchCount);
+    return () => window.removeEventListener('epitek:msg-read', fetchCount);
   }, [currentUser, isSuperAdmin, impersonating, isDemoMode, pathname]);
 
   useEffect(() => {
@@ -516,8 +521,8 @@ export default function Sidebar() {
             )}
 
             <nav className="drawer-nav">
-              {navItems.map(item =>
-                item.divider ? (
+              {navItems.map((item, idx) => {
+                const node = item.divider ? (
                   <div key={item.key} className="drawer-divider">
                     {item.group && <span className="sidebar-group-label">{item.group}</span>}
                   </div>
@@ -553,16 +558,20 @@ export default function Sidebar() {
                       </span>
                     )}
                   </AppLink>
-                )
-              )}
-            </nav>
+                );
 
-            {/* Notification bell in mobile drawer */}
-            {!isSuperAdmin && !impersonating && !isDemoMode && (
-              <div style={{ padding: '0 0.75rem 0.5rem' }}>
-                <NotificationBell collapsed={false} isDemoMode={isDemoMode} />
-              </div>
-            )}
+                return (
+                  <React.Fragment key={item.key || item.href || idx}>
+                    {node}
+                    {idx === 0 && !isSuperAdmin && !impersonating && !isDemoMode && (
+                      <div style={{ padding: '0 0.25rem' }}>
+                        <NotificationBell collapsed={false} isDemoMode={isDemoMode} />
+                      </div>
+                    )}
+                  </React.Fragment>
+                );
+              })}
+            </nav>
 
             <div className="drawer-user" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
               {/* Avatar */}

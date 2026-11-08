@@ -2098,6 +2098,18 @@
     "sendBtn": "Küldés",
     "sending": "Küldés…",
     "sendError": "Hiba a küldés során. Kérjük, próbáld újra.",
-    "teamChatSubtitle": "Csak a kollektíva tagjai látják ezeket az üzeneteket."
+    "teamChatSubtitle": "Csak a kollektíva tagjai látják ezeket az üzeneteket.",
+    "noClientsHint": "Először adj hozzá egy ügyfelet az Ügyfelek oldalon.",
+    "clientLabel": "Ügyfél",
+    "teamMembersSection": "Kollektíva tagjai"
+  },
+  "notifications": {
+    "title": "Értesítések",
+    "markAllRead": "Mind olvasott",
+    "empty": "Nincs értesítés.",
+    "unread": "Olvasatlan ({count})",
+    "history": "Előzmény",
+    "open": "Megnyitás",
+    "markRead": "Olvasottnak jelölés"
   }
 }

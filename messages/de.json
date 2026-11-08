@@ -2098,6 +2098,18 @@
     "sendBtn": "Senden",
     "sending": "Senden…",
     "sendError": "Fehler beim Senden. Bitte erneut versuchen.",
-    "teamChatSubtitle": "Diese Nachrichten sind nur für Kollektiv-Mitglieder sichtbar."
+    "teamChatSubtitle": "Diese Nachrichten sind nur für Kollektiv-Mitglieder sichtbar.",
+    "noClientsHint": "Füge zuerst einen Kunden auf der Kundenseite hinzu.",
+    "clientLabel": "Kunde",
+    "teamMembersSection": "Team-Mitglieder"
+  },
+  "notifications": {
+    "title": "Benachrichtigungen",
+    "markAllRead": "Alle gelesen",
+    "empty": "Keine Benachrichtigungen.",
+    "unread": "Ungelesen ({count})",
+    "history": "Verlauf",
+    "open": "Öffnen",
+    "markRead": "Als gelesen markieren"
   }
 }
