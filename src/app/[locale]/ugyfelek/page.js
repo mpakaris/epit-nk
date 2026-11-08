@@ -25,7 +25,6 @@ import {
   Mail,
   MapPin,
   Percent,
-  Trash2,
   AlertCircle,
   CheckCircle2,
   FileText,
@@ -204,11 +203,6 @@ export default function AdminClientsPage() {
               <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '0.3rem' }}>{client.notes}</p>
             )}
           </div>
-          {isOwn && (
-            <button type="button" onClick={e => { e.stopPropagation(); handleDelete(client); }} className="btn btn-danger btn-sm" title={t('deleteTitle')}>
-              <Trash2 size={13} />
-            </button>
-          )}
         </div>
 
         <div style={{ display: 'flex', gap: '0.4rem', marginTop: 'auto', paddingTop: '0.5rem', borderTop: '1px solid var(--border-subtle)', flexWrap: 'wrap' }}>
