@@ -355,36 +355,41 @@ export default function UzenetekPage() {
                       <MessageSquare size={16} style={{ color: thread.unread_count > 0 ? '#fff' : 'var(--text-muted)' }} />
                     </div>
 
-                    {/* Content */}
+                    {/* Content — each piece on its own line */}
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.15rem' }}>
-                        <span style={{ fontWeight: 700, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {/* Row 1: name + unread badge */}
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem', marginBottom: '0.2rem' }}>
+                        <span style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {thread.type === 'direct' ? thread.other_name : thread.client_name || '—'}
                         </span>
-                        {thread.quote_title && (
-                          <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', background: 'var(--bg-subtle)', borderRadius: 99, padding: '0.1rem 0.4rem', border: '1px solid var(--border-subtle)', flexShrink: 0, maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {thread.quote_title}
+                        {thread.unread_count > 0 && (
+                          <span style={{ background: 'var(--danger)', color: '#fff', borderRadius: 99, fontSize: '0.65rem', fontWeight: 700, minWidth: 16, height: 16, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '0 4px', flexShrink: 0 }}>
+                            {thread.unread_count}
                           </span>
                         )}
                       </div>
+
+                      {/* Row 2: quote tag */}
+                      {thread.quote_title && (
+                        <div style={{ marginBottom: '0.2rem' }}>
+                          <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', background: 'var(--bg-subtle)', borderRadius: 99, padding: '0.1rem 0.5rem', border: '1px solid var(--border-subtle)' }}>
+                            {thread.quote_title}
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Row 3: last message preview */}
                       {thread.last_message && (
-                        <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: '0.2rem' }}>
                           {thread.last_message.sender_type === 'user' ? '→ ' : ''}{thread.last_message.body}
                         </div>
                       )}
-                    </div>
 
-                    {/* Right side */}
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.25rem', flexShrink: 0 }}>
+                      {/* Row 4: timestamp */}
                       {thread.last_message && (
-                        <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>
+                        <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>
                           {relativeTime(thread.last_message.created_at, locale)}
-                        </span>
-                      )}
-                      {thread.unread_count > 0 && (
-                        <span style={{ background: 'var(--danger)', color: '#fff', borderRadius: 99, fontSize: '0.65rem', fontWeight: 700, minWidth: 16, height: 16, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '0 4px' }}>
-                          {thread.unread_count}
-                        </span>
+                        </div>
                       )}
                     </div>
                   </div>
