@@ -265,17 +265,15 @@ export default function SAPortalViewPage() {
                   {projects.length} {projects.length === 1 ? 'project' : 'projects'}
                 </div>
               </div>
-              {c.client_id && (
-                <a
-                  href={`/clients/${c.client_id}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="btn btn-primary btn-sm"
-                  style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', flexShrink: 0 }}
-                >
-                  <ExternalLink size={13} /> Open client portal
-                </a>
-              )}
+              <a
+                href={`/portal/dashboard?as=${encodeURIComponent(clientEmail)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn btn-primary btn-sm"
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', flexShrink: 0 }}
+              >
+                <ExternalLink size={13} /> Open client portal
+              </a>
             </div>
 
             {/* Standalone quotes (no project) */}
