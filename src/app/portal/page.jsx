@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { createClient } from '@/lib/supabase/client';
 import { Loader2, ArrowRight, RotateCcw } from 'lucide-react';
 import { PORTAL_I18N } from '@/lib/landingI18n';
 import { useLandingLocale } from '@/hooks/useLandingLocale';
@@ -11,8 +10,7 @@ const BRAND = '#0f172a';
 const ACCENT = '#2563eb';
 const FONT = "'Plus Jakarta Sans', system-ui, sans-serif";
 
-const PORTAL_AUTH_KEY   = 'portal_auth_at';
-const PORTAL_EMAIL_KEY  = 'portal_email';
+const PORTAL_EMAIL_KEY = 'portal_email';
 
 function PortalLoginForm() {
   const router = useRouter();
@@ -22,11 +20,6 @@ function PortalLoginForm() {
   const [locale, setLocale] = useLandingLocale();
   const i = PORTAL_I18N[locale] || PORTAL_I18N.hu;
 
-  useEffect(() => {
-    if (['hu', 'de', 'en'].includes(langParam)) setLocale(langParam);
-  }, [langParam]);
-
-  const [supabase] = useState(() => createClient());
   const [step, setStep]         = useState('email');
   const [email, setEmail]       = useState(prefillEmail);
   const [code, setCode]         = useState('');
@@ -36,11 +29,16 @@ function PortalLoginForm() {
   const [cooldown, setCooldown] = useState(0);
   const codeRef = useRef(null);
 
+  // Apply ?lang= param once
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) router.replace('/portal/dashboard');
-      else setChecking(false);
-    });
+    if (['hu', 'de', 'en'].includes(langParam)) setLocale(langParam);
+  }, [langParam]);
+
+  // Check if already logged in via portal cookie
+  useEffect(() => {
+    fetch('/api/portal/session')
+      .then(r => r.ok ? router.replace('/portal/dashboard') : setChecking(false))
+      .catch(() => setChecking(false));
   }, []);
 
   useEffect(() => {
@@ -56,17 +54,19 @@ function PortalLoginForm() {
     setLoading(true);
     setError('');
     try {
-      const { error } = await supabase.auth.signInWithOtp({
-        email: trimmed,
-        options: { shouldCreateUser: true },
+      const res = await fetch('/api/portal/otp/request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: trimmed, lang: locale }),
       });
-      if (error) throw error;
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || i.errGeneric);
       localStorage.setItem(PORTAL_EMAIL_KEY, trimmed);
       setStep('otp');
       setCooldown(60);
       setTimeout(() => codeRef.current?.focus(), 100);
-    } catch (e) {
-      setError(e.message || i.errGeneric);
+    } catch (err) {
+      setError(err.message || i.errGeneric);
     } finally {
       setLoading(false);
     }
@@ -78,16 +78,16 @@ function PortalLoginForm() {
     setLoading(true);
     setError('');
     try {
-      const { error } = await supabase.auth.verifyOtp({
-        email: email.trim().toLowerCase(),
-        token: code.trim(),
-        type: 'email',
+      const res = await fetch('/api/portal/otp/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim().toLowerCase(), code: code.trim() }),
       });
-      if (error) throw error;
-      localStorage.setItem(PORTAL_AUTH_KEY, String(Date.now()));
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || i.errInvalidOtp);
       router.replace('/portal/dashboard');
-    } catch (e) {
-      setError(i.errInvalidOtp);
+    } catch (err) {
+      setError(err.message || i.errInvalidOtp);
     } finally {
       setLoading(false);
     }

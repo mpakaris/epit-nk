@@ -1,23 +1,28 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { r2PublicUrl } from '@/lib/r2';
+import { getPortalSession } from '@/lib/portalSession';
 
 export async function GET(request) {
-  const supabase = await createClient();
-  const { data: { user }, error: authErr } = await supabase.auth.getUser();
-  if (authErr || !user) return Response.json({ error: 'Unauthenticated' }, { status: 401 });
-
   const admin = createAdminClient();
 
-  // Superadmin can query any email via ?email=X
+  // Superadmin can query any email via ?email=X (authenticated via Supabase)
   const { searchParams } = new URL(request.url);
   const asEmail = searchParams.get('email');
+
+  let email;
   if (asEmail) {
+    const supabase = await createClient();
+    const { data: { user }, error: authErr } = await supabase.auth.getUser();
+    if (authErr || !user) return Response.json({ error: 'Unauthenticated' }, { status: 401 });
     const { data: profile } = await admin.from('profiles').select('role').eq('id', user.id).single();
     if (profile?.role !== 'superadmin') return Response.json({ error: 'Forbidden' }, { status: 403 });
+    email = asEmail.toLowerCase();
+  } else {
+    const session = await getPortalSession();
+    if (!session) return Response.json({ error: 'Unauthenticated' }, { status: 401 });
+    email = session.email;
   }
-
-  const email = (asEmail || user.email).toLowerCase();
 
   // All client records with this email across all contractors
   const { data: clientRecords } = await admin
@@ -191,5 +196,5 @@ export async function GET(request) {
     };
   });
 
-  return Response.json({ contractors, email: user.email });
+  return Response.json({ contractors, email });
 }

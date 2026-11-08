@@ -1,15 +1,14 @@
-import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { getPortalSession } from '@/lib/portalSession';
 
-// GET /api/portal/threads — returns all threads with messages for the OTP-authenticated client
+// GET /api/portal/threads — returns all threads with messages for the cookie-authenticated client
 // Polled every 30s by the portal dashboard for live updates
 export async function GET() {
-  const supabase = await createClient();
-  const { data: { user }, error: authErr } = await supabase.auth.getUser();
-  if (authErr || !user) return Response.json({ error: 'Unauthenticated' }, { status: 401 });
+  const session = await getPortalSession();
+  if (!session) return Response.json({ error: 'Unauthenticated' }, { status: 401 });
 
   const admin = createAdminClient();
-  const email = user.email.toLowerCase();
+  const email = session.email;
 
   // Find all client records with this email
   const { data: clientRecords } = await admin.from('clients')

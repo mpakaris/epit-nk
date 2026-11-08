@@ -466,6 +466,44 @@ ${validUntil ? `<p style="margin:12px 0 0;font-size:12px;color:#94a3b8;text-alig
 }
 
 /**
+ * Build the OTP login-code email body.
+ * @param {string} code     — 6-digit code
+ * @param {string} [locale]
+ */
+export function buildOtpEmailHtml(code, locale = 'hu') {
+  const l = lang(locale);
+  const copy = {
+    hu: {
+      heading: 'Belépési kód',
+      body:    'Az alábbi kóddal léphet be az ügyfélkapuján:',
+      expiry:  'A kód 15 percig érvényes.',
+      note:    'Ha nem Ön kérte ezt a kódot, hagyja figyelmen kívül ezt az e-mailt.',
+    },
+    de: {
+      heading: 'Anmeldecode',
+      body:    'Verwenden Sie den folgenden Code, um sich in Ihrem Kundenportal anzumelden:',
+      expiry:  'Der Code ist 15 Minuten lang gültig.',
+      note:    'Falls Sie diesen Code nicht angefordert haben, ignorieren Sie diese E-Mail.',
+    },
+    en: {
+      heading: 'Login code',
+      body:    'Use the following code to log in to your client portal:',
+      expiry:  'The code is valid for 15 minutes.',
+      note:    "If you didn't request this code, please ignore this email.",
+    },
+  };
+  const c = copy[l] || copy.hu;
+  return `
+<h2 style="margin:0 0 16px;font-size:20px;font-weight:800;color:#1e293b;">${c.heading}</h2>
+<p style="margin:0 0 20px;font-size:15px;color:#334155;line-height:1.6;">${c.body}</p>
+<div style="margin:0 auto 24px;padding:18px 24px;background:#f0f9ff;border:2px solid #bae6fd;border-radius:12px;text-align:center;letter-spacing:0.25em;font-size:2rem;font-weight:900;font-family:monospace;color:#0369a1;">
+  ${code}
+</div>
+<p style="margin:0 0 8px;font-size:13px;color:#64748b;">${c.expiry}</p>
+<p style="margin:0;font-size:12px;color:#94a3b8;">${c.note}</p>`;
+}
+
+/**
  * Build the client portal CTA block appended to every client-facing email.
  * @param {string} portalUrl  — full URL including ?email=… pre-fill param
  * @param {string} [locale]

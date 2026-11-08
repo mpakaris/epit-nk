@@ -1,15 +1,14 @@
-import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { sendEmail } from '@/lib/email';
 import { wrapEmail } from '@/lib/emailTemplates';
 import { logAudit } from '@/lib/audit';
+import { getPortalSession } from '@/lib/portalSession';
 
 export async function POST(request, { params }) {
   const { id } = await params;
 
-  const supabase = await createClient();
-  const { data: { user }, error: authErr } = await supabase.auth.getUser();
-  if (authErr || !user) return Response.json({ error: 'Unauthenticated' }, { status: 401 });
+  const session = await getPortalSession();
+  if (!session) return Response.json({ error: 'Unauthenticated' }, { status: 401 });
 
   const body = await request.json().catch(() => ({}));
   const { action, comment = '' } = body;
@@ -34,7 +33,7 @@ export async function POST(request, { params }) {
     .from('clients')
     .select('id, name')
     .eq('id', quote.client_id)
-    .ilike('email', user.email.toLowerCase())
+    .ilike('email', session.email)
     .is('deleted_at', null).single();
 
   if (!client) return Response.json({ error: 'Forbidden' }, { status: 403 });
@@ -64,7 +63,7 @@ export async function POST(request, { params }) {
     quote_id:     id,
     action,
     comment:      comment.trim() || null,
-    client_email: user.email,
+    client_email: session.email,
     client_name:  client.name,
   });
 
@@ -138,7 +137,7 @@ export async function POST(request, { params }) {
           <tr><td style="padding:8px 12px;background:#f8fafc;border:1px solid #e2e8f0;font-weight:700;width:120px;">Ajánlat</td>
               <td style="padding:8px 12px;border:1px solid #e2e8f0;">${quote.title}</td></tr>
           <tr><td style="padding:8px 12px;background:#f8fafc;border:1px solid #e2e8f0;font-weight:700;">Ügyfél</td>
-              <td style="padding:8px 12px;border:1px solid #e2e8f0;">${client.name} (${user.email})</td></tr>
+              <td style="padding:8px 12px;border:1px solid #e2e8f0;">${client.name} (${session.email})</td></tr>
         </table>
         ${comment.trim() ? `
           <div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:16px;margin:16px 0;">
@@ -151,7 +150,7 @@ export async function POST(request, { params }) {
       `;
       await sendEmail({
         to: contractorEmail,
-        replyTo: user.email,
+        replyTo: session.email,
         subject: subjectMap[action],
         html: wrapEmail(bodyHtml, subjectMap[action]),
       });
@@ -165,8 +164,8 @@ export async function POST(request, { params }) {
   };
   logAudit({
     entityId:   quote.owner_id,
-    userId:     user.id,
-    userName:   client.name || user.email,
+    userId:     quote.owner_id,
+    userName:   client.name || session.email,
     action:     actionLabels[action],
     targetType: 'quote',
     targetId:   id,

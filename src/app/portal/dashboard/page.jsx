@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, useCallback, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { createClient } from '@/lib/supabase/client';
 import {
   Loader2, LogOut, CheckCircle2, XCircle, ChevronDown, ChevronUp,
   ArrowLeft, FileDown, FileText, Hammer, Building2,
@@ -18,8 +17,6 @@ const ACCENT = '#2563eb';
 const FONT = "'Plus Jakarta Sans', system-ui, sans-serif";
 
 const ACTIVE_STATUSES = new Set(['active', 'in_progress', 'in-progress']);
-const PORTAL_AUTH_KEY = 'portal_auth_at';
-const PORTAL_SESSION_MS = 48 * 60 * 60 * 1000; // 48 hours
 
 // entry sort order: material → labour → transport → equipment → other
 const ENTRY_ORDER = { material: 0, labour: 1, transport: 2, equipment: 3, other: 4 };
@@ -744,7 +741,6 @@ function PortalDashboard() {
   const [locale]     = useLandingLocale();
   const i            = PORTAL_I18N[locale] || PORTAL_I18N.hu;
 
-  const [supabase]        = useState(() => createClient());
   const [email, setEmail] = useState('');
   const [saMode, setSaMode]           = useState(false);
   const [contractors, setContractors] = useState([]);
@@ -766,17 +762,14 @@ function PortalDashboard() {
         })
         .catch(() => router.replace('/portal'));
     } else {
-      supabase.auth.getSession().then(({ data: { session } }) => {
-        if (!session) { router.replace('/portal'); return; }
-        const authAt = localStorage.getItem(PORTAL_AUTH_KEY);
-        if (!authAt || (Date.now() - Number(authAt)) > PORTAL_SESSION_MS) {
-          localStorage.removeItem(PORTAL_AUTH_KEY);
-          supabase.auth.signOut().then(() => router.replace('/portal'));
-          return;
-        }
-        setEmail(session.user.email || '');
-        fetchData(null);
-      });
+      fetch('/api/portal/session')
+        .then(r => r.ok ? r.json() : null)
+        .then(session => {
+          if (!session) { router.replace('/portal'); return; }
+          setEmail(session.email);
+          fetchData(null);
+        })
+        .catch(() => router.replace('/portal'));
     }
   }, [asEmail]);
 
@@ -844,8 +837,7 @@ function PortalDashboard() {
   };
 
   const handleLogout = async () => {
-    localStorage.removeItem(PORTAL_AUTH_KEY);
-    await supabase.auth.signOut();
+    await fetch('/api/portal/logout', { method: 'POST' });
     router.replace('/portal');
   };
 

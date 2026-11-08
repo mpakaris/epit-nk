@@ -1,20 +1,29 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { generateOfferPdf } from '@/lib/generateOfferPdf';
+import { getPortalSession } from '@/lib/portalSession';
 
 // Client-accessible PDF download for portal quotes.
-// Auth: OTP session (the client's email must match the quote's client record)
-// SA: superadmin can download any portal-visible quote.
+// Auth: portal cookie session (regular clients) or Supabase auth (superadmin).
 export async function GET(request, { params }) {
-  const supabase = await createClient();
-  const { data: { user }, error: authErr } = await supabase.auth.getUser();
-  if (authErr || !user) return Response.json({ error: 'Unauthenticated' }, { status: 401 });
-
   const { id } = await params;
   const admin = createAdminClient();
 
-  const { data: profile } = await admin.from('profiles').select('role').eq('id', user.id).single();
-  const isSuperAdmin = profile?.role === 'superadmin';
+  let clientEmail = null;
+  let isSuperAdmin = false;
+
+  const session = await getPortalSession();
+  if (session) {
+    clientEmail = session.email;
+  } else {
+    // Fallback: superadmin via Supabase auth
+    const supabase = await createClient();
+    const { data: { user }, error: authErr } = await supabase.auth.getUser();
+    if (authErr || !user) return Response.json({ error: 'Unauthenticated' }, { status: 401 });
+    const { data: profile } = await admin.from('profiles').select('role').eq('id', user.id).single();
+    if (profile?.role !== 'superadmin') return Response.json({ error: 'Forbidden' }, { status: 403 });
+    isSuperAdmin = true;
+  }
 
   const { data: quote } = await admin
     .from('quotes')
@@ -29,7 +38,7 @@ export async function GET(request, { params }) {
     if (!quote.portal_visible) return Response.json({ error: 'Forbidden' }, { status: 403 });
     const { data: clientRecord } = await admin
       .from('clients').select('email').eq('id', quote.client_id).is('deleted_at', null).single();
-    if (!clientRecord || clientRecord.email.toLowerCase() !== user.email.toLowerCase()) {
+    if (!clientRecord || clientRecord.email.toLowerCase() !== clientEmail) {
       return Response.json({ error: 'Forbidden' }, { status: 403 });
     }
   }
