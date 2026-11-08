@@ -466,6 +466,42 @@ ${validUntil ? `<p style="margin:12px 0 0;font-size:12px;color:#94a3b8;text-alig
 }
 
 /**
+ * Build the client portal CTA block appended to every client-facing email.
+ * @param {string} portalUrl  — full URL including ?email=… pre-fill param
+ * @param {string} [locale]
+ */
+export function buildPortalCtaHtml(portalUrl, locale = 'hu') {
+  const l = lang(locale);
+  const copy = {
+    hu: {
+      title:  'Tekintse meg ajánlatait és projektjeit az ügyfélkapuján',
+      btn:    'Ügyfélkapu megnyitása →',
+      note:   'Belépéshez csak az e-mail cím szükséges – regisztráció nem szükséges.',
+    },
+    de: {
+      title:  'Sehen Sie Ihre Angebote und Projekte im Kundenportal',
+      btn:    'Kundenportal öffnen →',
+      note:   'Für den Zugang benötigen Sie nur Ihre E-Mail-Adresse – keine Registrierung erforderlich.',
+    },
+    en: {
+      title:  'View all your quotes and projects in the client portal',
+      btn:    'Open client portal →',
+      note:   'Only your email address is needed to log in – no registration required.',
+    },
+  };
+  const c = copy[l] || copy.hu;
+  return `
+<div style="margin-top:28px;padding:16px 20px;background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px;text-align:center;">
+  <p style="margin:0 0 10px;font-size:13px;color:#0369a1;font-weight:700;">📋 ${c.title}</p>
+  <a href="${portalUrl}"
+     style="display:inline-block;padding:10px 22px;background:#2563eb;color:#fff;font-size:14px;font-weight:800;border-radius:8px;text-decoration:none;margin-bottom:10px;">
+    ${c.btn}
+  </a>
+  <p style="margin:0;font-size:11px;color:#64748b;line-height:1.5;">${c.note}</p>
+</div>`;
+}
+
+/**
  * Build a compact totals-only summary block (kept for other uses).
  */
 export function buildOfferSummaryHtml({ netTotal, taxRate, taxAmount, grossTotal, validUntil }) {

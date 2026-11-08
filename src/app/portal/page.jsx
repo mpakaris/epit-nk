@@ -11,12 +11,13 @@ const BRAND = '#0f172a';
 const ACCENT = '#2563eb';
 const FONT = "'Plus Jakarta Sans', system-ui, sans-serif";
 
-const PORTAL_AUTH_KEY = 'portal_auth_at';
+const PORTAL_AUTH_KEY   = 'portal_auth_at';
+const PORTAL_EMAIL_KEY  = 'portal_email';
 
 function PortalLoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const prefillEmail = searchParams.get('email') || '';
+  const prefillEmail = searchParams.get('email') || (typeof window !== 'undefined' ? (localStorage.getItem(PORTAL_EMAIL_KEY) || '') : '');
   const [locale] = useLandingLocale();
   const i = PORTAL_I18N[locale] || PORTAL_I18N.hu;
 
@@ -55,6 +56,7 @@ function PortalLoginForm() {
         options: { shouldCreateUser: true },
       });
       if (error) throw error;
+      localStorage.setItem(PORTAL_EMAIL_KEY, trimmed);
       setStep('otp');
       setCooldown(60);
       setTimeout(() => codeRef.current?.focus(), 100);

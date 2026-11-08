@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { sendEmail } from '@/lib/email';
-import { EMAIL_TEMPLATES, fillTemplate, wrapEmail, buildOfferDetailHtml } from '@/lib/emailTemplates';
+import { EMAIL_TEMPLATES, fillTemplate, wrapEmail, buildOfferDetailHtml, buildPortalCtaHtml } from '@/lib/emailTemplates';
 import { generateOfferPdf } from '@/lib/generateOfferPdf';
 import { logAudit } from '@/lib/audit';
 import { globalRateLimit } from '@/lib/rateLimitGlobal';
@@ -20,7 +20,7 @@ export async function POST(request, { params }) {
   const attachTerms = body.attachTerms !== false; // default true
 
   const admin = createAdminClient();
-  const { data: profile } = await admin.from('profiles').select('role, display_name, terms_pdf_url, terms_pdf_name').eq('id', user.id).single();
+  const { data: profile } = await admin.from('profiles').select('role, display_name, locale, terms_pdf_url, terms_pdf_name').eq('id', user.id).single();
   if (!profile) return Response.json({ error: 'Forbidden' }, { status: 403 });
 
   const { data: quote } = await admin
@@ -74,8 +74,11 @@ export async function POST(request, { params }) {
     sender_name:        profile.display_name || '',
   };
 
-  const subject = fillTemplate(tpl.subject, vars);
-  const html    = wrapEmail(fillTemplate(tpl.bodyHtml, vars), `Árajánlat: ${quote.title}`);
+  const locale    = profile.locale || 'hu';
+  const portalUrl = `${process.env.NEXT_PUBLIC_APP_URL}/portal?email=${encodeURIComponent(client.email)}`;
+  const subject   = fillTemplate(tpl.subject, vars);
+  const bodyHtml  = fillTemplate(tpl.bodyHtml, vars) + buildPortalCtaHtml(portalUrl, locale);
+  const html      = wrapEmail(bodyHtml, `Árajánlat: ${quote.title}`, locale);
 
   // Generate PDF from the real print page
   let pdfBuffer;
