@@ -9,8 +9,11 @@ export async function GET(request) {
   if (authErr || !user) return Response.json({ error: 'Unauthenticated' }, { status: 401 });
 
   const admin = createAdminClient();
-  // When SA is in god mode, return the impersonated user's profile + subscription data
-  const effectiveUserId = await resolveEffectiveUserId(request, user, admin);
+  // ?real=1 → always return the caller's own profile (used by AppContext init
+  // so SA's role is not overwritten by the impersonated user's role on reload).
+  const url = new URL(request.url);
+  const real = url.searchParams.get('real');
+  const effectiveUserId = real ? user.id : await resolveEffectiveUserId(request, user, admin);
 
   let { data: profile, error } = await admin
     .from('profiles')

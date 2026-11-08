@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { useTranslations } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
 import Link from 'next/link';
 import { Link as LocaleLink } from '@/navigation';
 import { usePathname, useRouter } from 'next/navigation';
@@ -94,6 +94,11 @@ export default function Sidebar() {
   const tc = useTranslations('common');
   const { currentUser, isSuperAdmin, isAdmin, impersonating, stopImpersonation, logout, collectives, effectiveCollectives, isDemoMode, surveys, quotes, projects, clients } = useApp();
   const effectiveUser = impersonating || currentUser;
+  const currentLocale = useLocale();
+  const handleSALocale = (lang) => {
+    document.cookie = `NEXT_LOCALE=${lang};path=/;max-age=31536000;SameSite=Lax`;
+    window.location.reload();
+  };
   const navPrefix = isDemoMode ? '/demo' : '';
   // For non-demo: map the localized browser URL back to the canonical internal path
   // so active-state checks work regardless of locale (e.g. /angebote → /ajanlatok).
@@ -212,7 +217,7 @@ export default function Sidebar() {
 
   if (!currentUser && pathname === '/login') return null;
   if (!currentUser) return null;
-  if (pathname.startsWith('/naplo/') || pathname.startsWith('/clients/') || pathname.startsWith('/szakemberek/') || pathname.startsWith('/demo/szakemberek/') || pathname.startsWith('/invitations/') || pathname.startsWith('/impressum') || pathname.startsWith('/adatkezeles') || pathname.startsWith('/aszf') || pathname.startsWith('/about')) return null;
+  if (pathname.startsWith('/naplo/') || pathname.startsWith('/szakemberek/') || pathname.startsWith('/demo/szakemberek/') || pathname.startsWith('/invitations/') || pathname.startsWith('/impressum') || pathname.startsWith('/adatkezeles') || pathname.startsWith('/aszf') || pathname.startsWith('/about')) return null;
 
   const counts = (!isSuperAdmin || impersonating) ? {
     surveys:     totalCounts ? totalCounts.surveys  : (surveys  || []).filter(s => s.status !== 'done').length,
@@ -266,6 +271,33 @@ export default function Sidebar() {
                 </button>
               </>
             )}
+          </div>
+        )}
+
+        {/* SA language toggle — cookie-only, no DB write */}
+        {isSuperAdmin && !collapsed && (
+          <div style={{ display: 'flex', gap: '0.25rem', padding: '0.3rem 0.6rem' }}>
+            {['hu', 'en', 'de'].map(lang => (
+              <button
+                key={lang}
+                type="button"
+                onClick={() => handleSALocale(lang)}
+                style={{
+                  background: currentLocale === lang ? 'var(--primary)' : 'var(--bg-subtle)',
+                  color: currentLocale === lang ? '#fff' : 'var(--text-muted)',
+                  border: '1px solid var(--border-subtle)',
+                  borderRadius: 'var(--radius-pill)',
+                  fontSize: '0.65rem',
+                  fontWeight: 700,
+                  padding: '0.15rem 0.45rem',
+                  cursor: 'pointer',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.05em',
+                }}
+              >
+                {lang}
+              </button>
+            ))}
           </div>
         )}
 
@@ -439,6 +471,33 @@ export default function Sidebar() {
                 >
                   <X size={11} /> {t('exitGodMode')}
                 </button>
+              </div>
+            )}
+
+            {/* SA language toggle in mobile drawer — cookie-only, no DB write */}
+            {isSuperAdmin && (
+              <div style={{ display: 'flex', gap: '0.25rem', padding: '0.3rem 1rem 0.1rem' }}>
+                {['hu', 'en', 'de'].map(lang => (
+                  <button
+                    key={lang}
+                    type="button"
+                    onClick={() => handleSALocale(lang)}
+                    style={{
+                      background: currentLocale === lang ? 'var(--primary)' : 'var(--bg-subtle)',
+                      color: currentLocale === lang ? '#fff' : 'var(--text-muted)',
+                      border: '1px solid var(--border-subtle)',
+                      borderRadius: 'var(--radius-pill)',
+                      fontSize: '0.7rem',
+                      fontWeight: 700,
+                      padding: '0.2rem 0.55rem',
+                      cursor: 'pointer',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.05em',
+                    }}
+                  >
+                    {lang}
+                  </button>
+                ))}
               </div>
             )}
 

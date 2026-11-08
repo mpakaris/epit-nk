@@ -831,10 +831,10 @@ export default function QuoteDetailPage() {
           <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '0.55rem' }}>
             <span style={{ fontSize: '0.85rem', color: 'var(--accent)', fontWeight: 600 }}>{t('clientPortalVisible')}</span>
             <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
-              <button type="button" onClick={() => { const url = `${window.location.origin}/clients/${client.id}`; navigator.clipboard.writeText(url).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000); }); }} className="btn btn-secondary btn-sm" style={{ fontSize: '0.78rem' }}>
+              <button type="button" onClick={() => { const url = `${window.location.origin}/portal${client.email ? `?email=${encodeURIComponent(client.email)}` : ''}`; navigator.clipboard.writeText(url).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000); }); }} className="btn btn-secondary btn-sm" style={{ fontSize: '0.78rem' }}>
                 {copied ? <><CheckCircle2 size={13} /> {t('copied')}</> : <><Copy size={13} /> {t('copyLink')}</>}
               </button>
-              <Link href={`/clients/${client.id}`} target="_blank" className="btn btn-secondary btn-sm" style={{ fontSize: '0.78rem' }}><ExternalLink size={13} /> {t('openPortal')}</Link>
+              <Link href={`/portal${client.email ? `?email=${encodeURIComponent(client.email)}` : ''}`} target="_blank" className="btn btn-secondary btn-sm" style={{ fontSize: '0.78rem' }}><ExternalLink size={13} /> {t('openPortal')}</Link>
             </div>
           </div>
         </div>

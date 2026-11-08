@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 
 const HIDDEN_PREFIXES = [
-  '/feltoltes', '/clients/', '/szakemberek/',
+  '/feltoltes', '/szakemberek/',
   '/invitations/', '/impressum', '/adatkezeles', '/aszf', '/about',
   '/naplo/', '/portal',
 ];

@@ -291,13 +291,13 @@ export default function ClientDetailPage() {
   const navPrefix = isDemoMode ? '/demo' : '';
   const AppLink = isDemoMode ? Link : LocaleLink;
   const [copied, setCopied] = useState(false);
-  const [portalUrl, setPortalUrl] = useState(`/clients/${id}`);
 
-  React.useEffect(() => {
-    setPortalUrl(`${window.location.origin}/clients/${id}`);
-  }, [id]);
+  const portalUrl = client?.email
+    ? `${typeof window !== 'undefined' ? window.location.origin : ''}/portal?email=${encodeURIComponent(client.email)}`
+    : null;
 
   const copyPortalUrl = () => {
+    if (!portalUrl) return;
     navigator.clipboard.writeText(portalUrl).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
@@ -400,42 +400,24 @@ export default function ClientDetailPage() {
                   {t('clientPortalLoginInfo')}{' '}
                   <strong style={{ color: 'var(--accent)', fontFamily: 'var(--font-mono)' }}>{client.email}</strong>
                 </div>
-                <div style={{ fontSize: '0.775rem', color: 'var(--text-muted)' }}>
-                  {t('clientPortalUrlDesc')}
+                <div style={{ fontSize: '0.775rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {portalUrl}
                 </div>
               </div>
-              <a href="/portal" target="_blank" rel="noopener noreferrer" className="btn btn-primary btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', flexShrink: 0 }}>
-                <ExternalLink size={13} /> {t('openPortalBtn')}
-              </a>
+              <div style={{ display: 'flex', gap: '0.5rem', flexShrink: 0 }}>
+                <button type="button" onClick={copyPortalUrl} className="btn btn-secondary btn-sm">
+                  {copied ? <><Check size={13} /> {t('copiedBtn')}</> : <><Copy size={13} /> {t('copyBtn')}</>}
+                </button>
+                <a href={portalUrl} target="_blank" rel="noopener noreferrer" className="btn btn-primary btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+                  <ExternalLink size={13} /> {t('openPortalBtn')}
+                </a>
+              </div>
             </div>
           ) : (
             <div style={{ fontSize: '0.825rem', color: 'var(--warning-text)', background: 'var(--warning-bg)', border: '1px solid var(--warning-border)', borderRadius: 'var(--radius-md)', padding: '0.5rem 0.75rem' }}>
               {t('noEmailForPortal')}
             </div>
           )}
-        </div>
-
-        {/* Divider */}
-        <div style={{ height: 1, background: 'var(--border-subtle)', margin: '0.85rem 0' }} />
-
-        {/* Contractor-scoped legacy portal */}
-        <div>
-          <div style={{ fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', marginBottom: '0.35rem' }}>
-            {t('ownViewLabel')}
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', flexWrap: 'wrap' }}>
-            <div style={{ fontSize: '0.825rem', color: 'var(--accent)', fontFamily: 'var(--font-mono)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, minWidth: 0 }}>
-              {portalUrl}
-            </div>
-            <div style={{ display: 'flex', gap: '0.5rem', flexShrink: 0 }}>
-              <button type="button" onClick={copyPortalUrl} className="btn btn-secondary btn-sm">
-                {copied ? <><Check size={13} /> {t('copiedBtn')}</> : <><Copy size={13} /> {t('copyBtn')}</>}
-              </button>
-              <a href={`/clients/${id}`} target="_blank" rel="noopener noreferrer" className="btn btn-secondary btn-sm">
-                <ExternalLink size={13} /> {t('previewBtn')}
-              </a>
-            </div>
-          </div>
         </div>
       </div>
 

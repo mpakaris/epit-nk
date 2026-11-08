@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
-import { useRouter } from 'next/navigation';
+import React, { useState, useEffect, useRef, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { Loader2, ArrowRight, RotateCcw } from 'lucide-react';
 import { PORTAL_I18N } from '@/lib/landingI18n';
@@ -11,14 +11,18 @@ const BRAND = '#0f172a';
 const ACCENT = '#2563eb';
 const FONT = "'Plus Jakarta Sans', system-ui, sans-serif";
 
-export default function PortalLoginPage() {
+const PORTAL_AUTH_KEY = 'portal_auth_at';
+
+function PortalLoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const prefillEmail = searchParams.get('email') || '';
   const [locale] = useLandingLocale();
   const i = PORTAL_I18N[locale] || PORTAL_I18N.hu;
 
   const [supabase] = useState(() => createClient());
   const [step, setStep]         = useState('email');
-  const [email, setEmail]       = useState('');
+  const [email, setEmail]       = useState(prefillEmail);
   const [code, setCode]         = useState('');
   const [loading, setLoading]   = useState(false);
   const [checking, setChecking] = useState(true);
@@ -73,6 +77,7 @@ export default function PortalLoginPage() {
         type: 'email',
       });
       if (error) throw error;
+      localStorage.setItem(PORTAL_AUTH_KEY, String(Date.now()));
       router.replace('/portal/dashboard');
     } catch (e) {
       setError(i.errInvalidOtp);
@@ -163,4 +168,8 @@ export default function PortalLoginPage() {
       <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
     </div>
   );
+}
+
+export default function PortalLoginPage() {
+  return <Suspense><PortalLoginForm /></Suspense>;
 }

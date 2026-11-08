@@ -356,7 +356,7 @@ const FEATURE_STATICS = [
   { id: 'offer',    Preview: OfferPreview,               imageFirst: false, demoHref: '/demo/ajanlatok'  },
   { id: 'projects', Preview: ProjectsListPreview,          imageFirst: true, demoHref: '/demo/projektek' },
   { id: 'website',  Preview: WebsitePreview,             imageFirst: false, demoHref: '/demo/weboldalam' },
-  { id: 'portal',   Preview: ClientPortalPreview,        imageFirst: true,  demoHref: '/clients/demo', comingSoon: true },
+  { id: 'portal',   Preview: ClientPortalPreview,        imageFirst: true,  demoHref: '/portal' },
 ];
 
 // ─── Single feature row ───────────────────────────────────────────────────────

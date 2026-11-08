@@ -222,12 +222,70 @@ Migration 053 drops old `entity_id` columns. Migration 054 (pending) drops `enti
 
 ## Superadmin God Mode
 
-SA impersonates any user:
-- Cookie `god_mode_user` = impersonated user's UUID
-- Cookie `god_mode_entity` = their active collective UUID (empty = personal)
-- `entity/data` route reads these cookies when `profile.role === 'superadmin'`
-- `src/lib/godMode.js` → `resolveEffectiveUserId()` handles cookie parsing
-- `refreshSupabaseData` checks `sessionStorage.getItem('god_mode')` to confirm active impersonation before overwriting SA's global state
+### Identity layers
+
+| State | Lives in | Meaning |
+|---|---|---|
+| `currentUser` | AppContext React state | SA's **own** profile. Must always be SA. |
+| `impersonating` | AppContext React state | Impersonated user's profile. `null` = not impersonating. |
+| `effectiveUser` | Derived: `impersonating \|\| currentUser` | What the UI sees. |
+
+`isSuperAdmin` is derived from `currentUser.role`, not `effectiveUser.role`.
+The context value exposes `currentUser: effectiveUser` to consumers, plus `realUser: currentUser` as the escape hatch for SA's own identity.
+
+### Cookies & SessionStorage
+
+| Cookie | Value | Lifetime | Used by |
+|---|---|---|---|
+| `god_mode_user` | Impersonated user UUID | Session (tab close) | `/api/entity/data`, `/api/auth/profile` |
+| `god_mode_entity` | Active collective UUID (empty = personal) | Session | `/api/entity/data` |
+
+`sessionStorage['god_mode']` — JSON snapshot of `impersonating` profile. Written by a `useEffect` that watches `impersonating`. Read on page reload to restore cookies and re-hydrate `setImpersonating`.
+
+### Non-negotiable God Mode rules
+
+**GM-1: `currentUser` is always SA's own profile.**
+Never populate `currentUser` from an impersonated user's data. `fetchProfile()` in `init()` must always call `/api/auth/profile?real=1` to bypass god_mode_user cookie resolution.
+
+**GM-2: `/api/auth/profile` GET — `?real=1` flag.**
+When `?real=1` is present, skip `resolveEffectiveUserId` and return the authenticated caller's own profile. `init()` always uses `?real=1`. All other callers may omit it.
+
+**GM-3: Two context-switchers, never confused.**
+
+| Function | When to use | Side effect |
+|---|---|---|
+| `setActiveContext(id)` | Regular user switching their own workspace | Writes `profiles.active_collective_id` to DB |
+| `switchImpersonatingContext(id)` | SA switching the impersonated user's visible context | Cookie-only, no DB write |
+
+The workspace switcher UI must call the right one based on `!!impersonating`. AppContext already exposes `setActiveContext` as a dispatcher that routes to `switchImpersonatingContext` during impersonation — do not bypass this wrapper.
+
+**GM-4: Audit log actor = real SA, not effective user.**
+When a mutation occurs while SA is impersonating, audit logs must use:
+- `userId: user.id` (JWT holder = real SA)
+- `details: { on_behalf_of: effectiveId }` when `effectiveId !== user.id`
+
+**GM-5: SA-only routes under `/api/superadmin/` must not call `resolveEffectiveUserId`.**
+They accept an explicit `userId` / `entityId` from the request body and operate on that target directly.
+
+**GM-6: `resolveEffectiveUserId` — only on dual-mode routes.**
+Only add it to routes explicitly designed to work for both regular users and SA-impersonating. Currently: `/api/entity/data`. Do not add it to new routes by default.
+
+**GM-7: SA language change is cookie-only.**
+SA's page-language preference must never be written to `profiles.locale`. The SA language toggle sets `NEXT_LOCALE` cookie + reloads. No `PATCH /api/auth/profile`.
+
+**GM-8: Cookie lifecycle order.**
+
+Start impersonation:
+1. Set cookies (`setGodCookie`) first
+2. Set React state (`setImpersonating`) — triggers sessionStorage write via useEffect
+3. Fetch data (`_loadEntityData`)
+4. Navigate
+
+Stop impersonation:
+1. Clear React state (`setImpersonating(null)`) — triggers sessionStorage removal
+2. Clear cookies
+3. Refresh SA's own data (`refreshSupabaseData(currentUser)`)
+4. Navigate to `/superadmin`
 
 ---
 
@@ -323,7 +381,7 @@ const { data: profile } = await admin.from('profiles')
 | `generateOfferPdf.js` | Puppeteer: renders `/ajanlatok/[id]/nyomtatas` → PDF for email attachment |
 | `audit.js` | `logAudit()` — fire-and-forget write to `audit_logs` table |
 | `websiteThemes.js` | `COLOR_SCHEMES` + `TYPOGRAPHY` for the website builder |
-| `godMode.js` | `resolveEffectiveUserId()` — superadmin cookie parsing |
+| `godMode.js` | `resolveEffectiveUserId(request, user, admin)` — reads `god_mode_user` cookie; returns impersonated user's ID when SA is active, otherwise caller's own ID. Only use in dual-mode routes. See GM-5/GM-6. |
 
 ---
 
@@ -672,6 +730,11 @@ Any route or UI that creates a resource (quote, survey, project, collective) mus
 - **`user_id` from request body** — always set `user_id: user.id` server-side on inserts; never trust the client.
 - **Membership check without role** — checking only `active` status is not enough for document creation; must also verify `role === 'owner' || role === 'admin'`.
 - **Superadmin bypass in new routes** — do not add `isSuperAdmin` escape hatches to new routes; SA uses DB access.
+- **`fetchProfile()` without `?real=1`** — `init()` in AppContext must always use `/api/auth/profile?real=1`; omitting it causes SA to inherit the impersonated user's role on page reload (BUG-1). See GM-1/GM-2.
+- **`resolveEffectiveUserId` in new routes** — only add to dual-mode routes (like `/api/entity/data`). Do not add to new API routes by default. See GM-6.
+- **Audit log using `effectiveUserId` as actor** — when a route calls `resolveEffectiveUserId`, the `logAudit` call must use `userId: user.id` (real SA), not `effectiveUserId`. Add `details: { on_behalf_of: effectiveUserId }` when they differ. See GM-4.
+- **SA language toggle writing to DB** — the SA locale pill in the Sidebar sets the `NEXT_LOCALE` cookie only; it must never call `PATCH /api/auth/profile`. See GM-7.
+- **Wrong context switcher during impersonation** — `setActiveContext` as exposed by AppContext is already a safe dispatcher; it calls `switchImpersonatingContext` (cookie-only) during impersonation. Do not call `setActiveContext` directly from `godModeActions` or bypass the dispatcher. See GM-3.
 - **`flexWrap: 'wrap'` on banner rows** — see rule 11.
 - **Single-layer permission check** — every mutation needs both a client-side guard AND an API-side guard; see rule 12.
 - **Fail-open secret check** — `if (process.env.SECRET && value !== process.env.SECRET)` is wrong; use `if (!process.env.SECRET || value !== process.env.SECRET)`. See rule 14.

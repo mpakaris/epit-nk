@@ -18,6 +18,8 @@ const ACCENT = '#2563eb';
 const FONT = "'Plus Jakarta Sans', system-ui, sans-serif";
 
 const ACTIVE_STATUSES = new Set(['active', 'in_progress', 'in-progress']);
+const PORTAL_AUTH_KEY = 'portal_auth_at';
+const PORTAL_SESSION_MS = 48 * 60 * 60 * 1000; // 48 hours
 
 // entry sort order: material → labour → transport → equipment → other
 const ENTRY_ORDER = { material: 0, labour: 1, transport: 2, equipment: 3, other: 4 };
@@ -766,6 +768,12 @@ function PortalDashboard() {
     } else {
       supabase.auth.getSession().then(({ data: { session } }) => {
         if (!session) { router.replace('/portal'); return; }
+        const authAt = localStorage.getItem(PORTAL_AUTH_KEY);
+        if (!authAt || (Date.now() - Number(authAt)) > PORTAL_SESSION_MS) {
+          localStorage.removeItem(PORTAL_AUTH_KEY);
+          supabase.auth.signOut().then(() => router.replace('/portal'));
+          return;
+        }
         setEmail(session.user.email || '');
         fetchData(null);
       });
@@ -835,7 +843,11 @@ function PortalDashboard() {
     });
   };
 
-  const handleLogout = async () => { await supabase.auth.signOut(); router.replace('/portal'); };
+  const handleLogout = async () => {
+    localStorage.removeItem(PORTAL_AUTH_KEY);
+    await supabase.auth.signOut();
+    router.replace('/portal');
+  };
 
   const totalPending = contractors.reduce((s, c) => {
     const sp = (c.standaloneQuotes || []).filter(q => q.status === 'sent').length;

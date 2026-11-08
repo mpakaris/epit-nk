@@ -119,7 +119,8 @@ export async function POST(request) {
     }
   }
 
-  logAudit({ userId: effectiveUserId, userName: '', action: 'Website media uploaded', targetType: 'website', targetId: website.id, details: { type, count: results.length } });
+  const impersonation = effectiveUserId !== user.id ? { on_behalf_of: effectiveUserId } : {};
+  logAudit({ userId: user.id, userName: '', action: 'Website media uploaded', targetType: 'website', targetId: website.id, details: { type, count: results.length, ...impersonation } });
   return Response.json({ files: results });
 }
 
@@ -138,7 +139,8 @@ export async function DELETE(request) {
     return Response.json({ error: 'Forbidden' }, { status: 403 });
   }
 
+  const impersonation = effectiveUserId !== user.id ? { on_behalf_of: effectiveUserId } : {};
   await deleteFromR2(r2_key);
-  logAudit({ userId: effectiveUserId, userName: '', action: 'Website media deleted', targetType: 'website', details: { r2_key } });
+  logAudit({ userId: user.id, userName: '', action: 'Website media deleted', targetType: 'website', details: { r2_key, ...impersonation } });
   return Response.json({ success: true });
 }

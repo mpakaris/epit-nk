@@ -69,19 +69,20 @@ export async function POST(request) {
     const { data: profile } = await admin.from('profiles').select('display_name').eq('id', effectiveUserId).single();
     const userName = profile?.display_name || user.email;
 
+    const impersonation = effectiveUserId !== user.id ? { on_behalf_of: effectiveUserId } : {};
     if (action === 'publish') {
       await admin.from('user_websites').update({
         status: 'published',
         published_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       }).eq('id', existing.id);
-      logAudit({ entityId: effectiveUserId, userId: effectiveUserId, userName, action: 'Website published', targetType: 'website', targetId: existing.id, targetName: existing.slug || existing.id });
+      logAudit({ entityId: effectiveUserId, userId: user.id, userName, action: 'Website published', targetType: 'website', targetId: existing.id, targetName: existing.slug || existing.id, details: impersonation });
     } else if (action === 'unpublish') {
       await admin.from('user_websites').update({
         status: 'draft',
         updated_at: new Date().toISOString(),
       }).eq('id', existing.id);
-      logAudit({ entityId: effectiveUserId, userId: effectiveUserId, userName, action: 'Website unpublished', targetType: 'website', targetId: existing.id, targetName: existing.slug || existing.id });
+      logAudit({ entityId: effectiveUserId, userId: user.id, userName, action: 'Website unpublished', targetType: 'website', targetId: existing.id, targetName: existing.slug || existing.id, details: impersonation });
     } else if (action === 'update_slug' && slug) {
       const cleanSlug = slug.toLowerCase().trim();
       if (cleanSlug.length < 3) {
@@ -98,7 +99,7 @@ export async function POST(request) {
         slug: cleanSlug,
         updated_at: new Date().toISOString(),
       }).eq('id', existing.id);
-      logAudit({ entityId: effectiveUserId, userId: effectiveUserId, userName, action: 'Website slug changed', targetType: 'website', targetId: existing.id, targetName: cleanSlug, details: { old_slug: existing.slug } });
+      logAudit({ entityId: effectiveUserId, userId: user.id, userName, action: 'Website slug changed', targetType: 'website', targetId: existing.id, targetName: cleanSlug, details: { old_slug: existing.slug, ...impersonation } });
     } else if (Object.keys(websiteFields).length > 0) {
       await admin.from('user_websites').update({
         ...websiteFields,

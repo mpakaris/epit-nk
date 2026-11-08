@@ -131,7 +131,7 @@ async function sendTestEmail(type, to) {
         client_name:       'Minta Ügyfél',
         offer_title:       'Festési munkák – Minta utca 12.',
         offer_summary_html: summaryHtml,
-        offer_url:         `${APP_URL}/clients/TEST_CLIENT_ID`,
+        offer_url:         `${APP_URL}/portal`,
         sender_name:       'Nagy Péter',
       });
       await sendEmail({ to, subject, html: wrapEmail(bodyHtml + '<p style="color:#dc2626;font-size:0.72rem;margin-top:1rem;">[TESZT EMAIL — nincs PDF csatolva]</p>', subject) });

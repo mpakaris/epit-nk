@@ -110,7 +110,9 @@ export function AppProvider({ children }) {
 
   // ---- Profile fetch ----------------------------------------------------------
   const fetchProfile = async () => {
-    const res = await fetch('/api/auth/profile');
+    // Always use ?real=1 so the GET handler bypasses god_mode_user cookie and
+    // returns the real SA profile (not the impersonated user's profile).
+    const res = await fetch('/api/auth/profile?real=1');
     if (res.status === 401) return null;
     if (!res.ok) throw new Error(`profile ${res.status}`);
     const { profile, collectives: c } = await res.json();
@@ -379,7 +381,11 @@ export function AppProvider({ children }) {
         collectives: effectiveCollectives,
         effectiveCollectives,
         allMemberships,
-        setActiveContext,
+        // Always safe to call: routes to switchImpersonatingContext (cookie-only)
+        // during impersonation so SA's own DB record is never touched.
+        setActiveContext: (collectiveId) => impersonating
+          ? switchImpersonatingContext(collectiveId)
+          : setActiveContext(collectiveId),
         switchImpersonatingContext,
         // God Mode
         startImpersonation,
