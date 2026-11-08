@@ -566,13 +566,13 @@ export default function QuoteDetailPage() {
           });
           const sectionEntries = entries.filter(e => e.section_id === section.id);
           for (const e of sectionEntries) {
-            await createQuoteEntry(newSection.id, e.entry_type, e.work_description, e.quantity, e.unit, e.unit_price, e.amount_huf, e.notes || '', null, currentUser.id);
+            await createQuoteEntry({ quoteId: newQuote.id, userId: currentUser.id, workDescription: e.work_description, amountHuf: e.amount_huf, notes: e.notes || '', entryType: e.entry_type, quantity: e.quantity, unit: e.unit, unitPrice: e.unit_price, sectionId: newSection.id });
           }
         }
         // Unsectioned entries
         const general = entries.filter(e => !e.section_id);
         for (const e of general) {
-          await createQuoteEntry(null, e.entry_type, e.work_description, e.quantity, e.unit, e.unit_price, e.amount_huf, e.notes || '', null, currentUser.id);
+          await createQuoteEntry({ quoteId: newQuote.id, userId: currentUser.id, workDescription: e.work_description, amountHuf: e.amount_huf, notes: e.notes || '', entryType: e.entry_type, quantity: e.quantity, unit: e.unit, unitPrice: e.unit_price, sectionId: null });
         }
       }
       setShowDuplicateModal(false);
@@ -901,7 +901,7 @@ export default function QuoteDetailPage() {
               <label className="form-label">{t('client')}</label>
               <div style={{ display: 'flex', gap: '0.65rem', alignItems: 'center' }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <ClientSelect value={metaClientId} onChange={e => { setMetaClientId(e.target.value); autoSaveMeta({ clientId: e.target.value }); }} clients={clients} />
+                  <ClientSelect value={metaClientId} onChange={e => { const cid = e.target.value; setMetaClientId(cid); updateQuote(id, { client_id: cid || null }).catch(err => setAlertModal({ message: err.message })); }} clients={clients} />
                 </div>
                 <button type="button" onClick={() => setShowNewClientModal(true)} className="btn btn-secondary btn-sm" style={{ whiteSpace: 'nowrap', flexShrink: 0 }}>
                   <Plus size={14} /> {t('newClientButton')}
