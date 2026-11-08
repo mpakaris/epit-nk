@@ -4,6 +4,10 @@ const withNextIntl = createNextIntlPlugin('./src/i18n/request.js');
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Keep @react-pdf/renderer out of the webpack bundle so its internal font
+  // file references (helvetica.cjs etc.) resolve correctly at runtime in prod.
+  serverExternalPackages: ['@react-pdf/renderer'],
+
   // Cap upload request bodies at 25 MB (10 files × ~2.5 MB each after WebP compression)
   experimental: {
     serverActions: { bodySizeLimit: '25mb' },
