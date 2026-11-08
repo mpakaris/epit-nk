@@ -532,10 +532,9 @@ export default function Sidebar() {
                     href={item.href}
                     className={`drawer-link ${isActive(item, pathname) ? 'active' : ''}`}
                     onClick={() => setMobileOpen(false)}
-                    style={{ paddingLeft: '2.5rem', fontSize: '0.875rem' }}
+                    style={{ paddingLeft: '1.5rem' }}
                   >
-                    <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem', lineHeight: 1, flexShrink: 0, marginRight: '-0.25rem' }}>└</span>
-                    <item.icon size={18} />
+                    <item.icon size={20} />
                     <span>{item.label}</span>
                   </AppLink>
                 ) : (

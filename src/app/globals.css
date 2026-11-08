@@ -1370,10 +1370,21 @@ input[type="month"] {
   font-weight: 700;
 }
 
-.drawer-divider {
+.drawer-divider:not(:has(.sidebar-group-label)) {
   height: 1px;
   background: var(--border-subtle);
   margin: 0.5rem 0.85rem;
+}
+
+.drawer-divider:has(.sidebar-group-label) {
+  height: auto;
+  background: transparent;
+  margin: 0.9rem 0.85rem 0.1rem;
+}
+
+.drawer-divider .sidebar-group-label {
+  font-size: 0.75rem;
+  opacity: 1;
 }
 
 .drawer-user {
