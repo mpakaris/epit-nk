@@ -4,6 +4,7 @@ Reference designs for the new mobile UI. Scope of this first drop: **Dashboard +
 
 - `screens/*.dc.html` — design sources (Design Component files). Open them in a browser via any static server, or read them as spec: layout, sizes, copy, states and behaviour are all in the markup and the `<script>` block of each file. `_shared.css` holds the shared classes.
 - `tokens.css` — colour/shape/touch tokens to port into the app (scoped under `.m-root`).
+- `DESIGN_SPEC.md` — what the design is and why: concept, colour, layout system, per-screen behaviour, states, a11y, known deviations. Read first.
 - `AGENT_BRIEF.md` — what to build, in what order, and the rules.
 - `FUNCTION_MAP.md` — every screen → existing repo files, APIs and i18n namespaces (the functions are kept; only the UI changes).
 
