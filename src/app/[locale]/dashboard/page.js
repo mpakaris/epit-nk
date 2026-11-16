@@ -3,7 +3,9 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
+import { detectMobile } from '@/lib/detectMobile';
 import DashboardClient from './DashboardClient';
+import DashboardMobile from './mobile/DashboardMobile';
 import PageSpinner from '@/components/PageSpinner';
 
 export default function DashboardPage() {
@@ -22,7 +24,7 @@ async function DashboardContent() {
   const admin = createAdminClient();
   const { data: profile } = await admin
     .from('profiles')
-    .select('id, role, active_collective_id, display_name')
+    .select('id, role, active_collective_id, display_name, locale, currency, subscription_tier')
     .eq('id', user.id)
     .single();
 
@@ -44,11 +46,19 @@ async function DashboardContent() {
   }
 
   const currentUser = {
-    id:           effectiveUserId,
-    email:        user.email,
-    display_name: profile.display_name || user.email,
-    role:         profile.role,
+    id:                effectiveUserId,
+    email:             user.email,
+    display_name:      profile.display_name || user.email,
+    role:              profile.role,
+    locale:            profile.locale,
+    currency:          profile.currency,
+    subscription_tier: profile.subscription_tier,
   };
+
+  const isMobile = await detectMobile();
+  if (isMobile) {
+    return <DashboardMobile currentUser={currentUser} />;
+  }
 
   const isPersonal = !collectiveId;
 

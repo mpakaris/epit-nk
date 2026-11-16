@@ -2134,6 +2134,55 @@ div[style*="overflowX"]::-webkit-scrollbar { display: none; }
   }
 }
 
+/* ============================================================
+   MOBILE PODS TOKENS  (scope: .m-root)
+   Two colour channels — workspace identity and document type.
+   Never mix them. See design/mobile/tokens.css for rationale.
+   ============================================================ */
+
+.m-root {
+  /* Neutrals */
+  --m-canvas: #EDEBE5;
+  --m-sheet:  #FBFAF7;
+  --m-card:   #FFFFFF;
+  --m-ink:    #0E1116;
+  --m-ink-2:  #5A5F68;
+  --m-line:   #EDEBE5;
+  --m-danger: #B71C1C; --m-danger-bg: #FDECEC;
+  --m-ok:     #14532D; --m-ok-bg:     #E7F4EC;
+  --m-warn-bg:#FFF1E0;
+
+  /* Document type colours — own the header + deep body + accent */
+  --m-survey:       #0A7F72;
+  --m-survey-deep:  #06302C;
+  --m-survey-tint:  #D9F2EE;
+  --m-survey-ink:   #0A5C53;
+  --m-offer:        #6D3FD1;
+  --m-offer-deep:   #1C1038;
+  --m-offer-tint:   #EDE7FB;
+  --m-offer-ink:    #4A2796;
+  --m-project:      #1F2A3C;
+  --m-project-deep: #0B0F17;
+  --m-project-tint: #E3E7EE;
+  --m-project-ink:  #1F2A3C;
+
+  /* Workspace identity colours — pod strip, dock "+", workspace chip only */
+  --m-ws-personal:      #15181E; --m-ws-personal-deep: #0D0F13;
+  --m-ws-cobalt:        #2F5BFF; --m-ws-cobalt-deep:   #0E1840;
+  --m-ws-orange:        #FF8A2B; --m-ws-orange-deep:   #241409;
+  --m-ws-teal:          #0A7F72; --m-ws-teal-deep:     #06302C;
+  --m-ws-rose:          #E11D48; --m-ws-rose-deep:     #3B0618;
+  --m-ws-violet:        #7C3AED; --m-ws-violet-deep:   #1C1038;
+
+  /* Shape / touch */
+  --m-r-card:   26px;
+  --m-r-btn:    30px;
+  --m-r-header: 0 0 32px 32px;
+  --m-r-sheet:  32px 32px 0 0;
+  --m-tap:      48px;
+  --m-cta:      60px;
+}
+
 /* ── Bottom sheet → desktop modal ── */
 /* Mobile: slides up from the bottom */
 .bs-panel {
