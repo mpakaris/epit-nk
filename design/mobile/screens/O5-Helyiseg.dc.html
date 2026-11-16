@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="hu"><head><meta charset="utf-8"><title>OkosSzaki — Új helyiség</title><script src="./support.js"></script></head>
+<body><x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&amp;family=Plus+Jakarta+Sans:wght@500;600;700&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}
+button,input,textarea{font-family:inherit}
+button{cursor:pointer}
+*{scrollbar-width:none;-ms-overflow-style:none}
+*::-webkit-scrollbar{display:none;width:0;height:0}
+body{margin:0}
+button,input,textarea{font-family:inherit}
+button{cursor:pointer}
+*{scrollbar-width:none;-ms-overflow-style:none}
+*::-webkit-scrollbar{display:none;width:0;height:0}
+.root{position:relative;width:390px;height:844px;overflow:hidden;background:#EDEBE5;color:#0E1116;font-family:'Plus Jakarta Sans',system-ui,sans-serif}
+.scroll{position:absolute;inset:0;z-index:1;overflow-y:auto;box-sizing:border-box;padding:0 0 170px}
+.hd{position:relative;overflow:hidden;box-sizing:border-box;padding:18px 16px 20px;border-radius:0 0 32px 32px;display:flex;flex-direction:column;gap:12px}
+.glow{position:absolute;right:-90px;top:-120px;width:300px;height:300px;border-radius:150px}
+.top{position:relative;display:flex;align-items:center;justify-content:space-between}
+.rnd{width:48px;height:48px;border:0;border-radius:24px;display:flex;align-items:center;justify-content:center;padding:0}
+.pill{height:36px;padding:0 14px;border-radius:18px;font-size:13px;font-weight:700;display:inline-flex;align-items:center;gap:8px}
+.ttl{position:relative;margin:0;font-family:'Bricolage Grotesque',sans-serif;font-size:30px;font-weight:700;letter-spacing:-.02em;line-height:1.1}
+.kick{position:relative;font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+.sub{position:relative;font-size:15px;font-weight:600}
+.body{padding:16px 16px 0;display:flex;flex-direction:column;gap:14px}
+.card{box-sizing:border-box;border-radius:26px;background:#fff;box-shadow:0 1px 0 rgba(14,17,22,.05),0 14px 26px -18px rgba(14,17,22,.35)}
+.lbl{font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#5A5F68}
+.h2{margin:0;font-family:'Bricolage Grotesque',sans-serif;font-size:22px;font-weight:700}
+.fld{width:100%;box-sizing:border-box;height:56px;border:0;border-radius:20px;background:#fff;padding:0 16px;font-size:17px;font-weight:500;color:#0E1116;box-shadow:0 1px 0 rgba(14,17,22,.05),0 10px 20px -16px rgba(14,17,22,.4)}
+.fld::placeholder{color:#6B7078}
+.chip{height:52px;padding:0 18px;border:0;border-radius:26px;font-size:15px;font-weight:700;display:inline-flex;align-items:center;gap:8px;color:#0E1116}
+.bar{position:absolute;z-index:20;left:0;right:0;bottom:0;box-sizing:border-box;padding:28px 16px 18px;background:linear-gradient(to top,#EDEBE5 70%,rgba(237,235,229,0));display:flex;gap:10px}
+.pri{flex:1;height:60px;border:0;border-radius:30px;background:#0E1116;color:#fff;font-size:17px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:10px;box-shadow:0 14px 26px -12px rgba(14,17,22,.6)}
+.sq{flex:none;width:60px;height:60px;border:0;border-radius:30px;background:#fff;color:#0E1116;display:flex;align-items:center;justify-content:center;box-shadow:0 10px 22px -10px rgba(14,17,22,.4)}
+.ic{flex:none;width:44px;height:44px;border-radius:15px;background:#F1F1F3;color:#1A1D23;display:flex;align-items:center;justify-content:center}
+.row{width:100%;min-height:64px;box-sizing:border-box;padding:10px 14px;border:0;border-radius:22px;background:#fff;color:#0E1116;text-align:left;display:flex;align-items:center;gap:12px;font-size:16px;font-weight:700;box-shadow:0 1px 0 rgba(14,17,22,.05),0 12px 22px -18px rgba(14,17,22,.35)}
+.scrim{position:absolute;inset:0;z-index:40;border:0;padding:0;background:rgba(14,17,22,.5)}
+.sheet{position:absolute;z-index:50;left:0;right:0;bottom:0;box-sizing:border-box;padding:10px 16px 18px;border-radius:32px 32px 0 0;background:#FBFAF7;display:flex;flex-direction:column;gap:12px;max-height:90%;overflow-y:auto}
+.grab{align-self:center;flex:none;width:44px;height:5px;border-radius:3px;background:#D5D2C8}
+.sh{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.sht{font-family:'Bricolage Grotesque',sans-serif;font-size:25px;font-weight:700;line-height:1.1}
+.x{width:48px;height:48px;border:0;border-radius:24px;background:#EFEDE6;color:#0E1116;display:flex;align-items:center;justify-content:center;flex:none}
+.sw{flex:none;width:64px;height:38px;border-radius:19px;position:relative}
+.sw>i{position:absolute;top:4px;width:30px;height:30px;border-radius:15px;background:#fff;box-shadow:0 2px 6px rgba(14,17,22,.3)}
+.badge{height:26px;padding:0 10px;border-radius:13px;font-size:12px;font-weight:700;display:inline-flex;align-items:center;gap:4px;background:#F0F0F2;color:#2B3038;flex:none}
+.m{font-size:13px;font-weight:600;color:#5A5F68}
+.n{font-family:'Bricolage Grotesque',sans-serif;font-weight:700;letter-spacing:-.02em}
+.stat{flex:1;box-sizing:border-box;padding:10px 12px;border-radius:18px}
+
+.root{background:var(--deep);color:#fff}
+.hd{border-radius:0 0 32px 32px}
+.bar{background:linear-gradient(to top,var(--deep) 65%,rgba(0,0,0,0))}
+.card{color:#0E1116;box-shadow:inset 0 1px 0 #fff,0 16px 26px -14px rgba(0,0,0,.7),0 3px 6px -2px rgba(0,0,0,.3)}
+.row{color:#0E1116;box-shadow:inset 0 1px 0 #fff,0 14px 22px -14px rgba(0,0,0,.7),0 3px 6px -2px rgba(0,0,0,.3)}
+.sheet,.sht{color:#0E1116}
+.h2{color:#fff}
+.lbl{color:rgba(255,255,255,.78)}
+.sheet .lbl{color:#5A5F68}
+.sq{color:#0E1116}
+.sheet .row{box-shadow:0 1px 0 rgba(14,17,22,.05),0 12px 22px -18px rgba(14,17,22,.35)}
+
+</style>
+</helmet>
+<div class="root" style="--deep: #1C1038">
+ <div class="scroll" style="padding-bottom: 190px">
+  <header class="hd" style="background: #6D3FD1; color: #fff; padding-bottom: 18px">
+   <span class="glow" aria-hidden="true" style="background: rgba(255,255,255,0.10)"></span>
+   <div class="top">
+    <button class="rnd" aria-label="Bezárás" style="background: rgba(255,255,255,0.18); color: #fff"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    <span class="pill" style="background: rgba(255,255,255,0.18)">{{mode}}</span>
+    <button class="rnd" onClick="{{toDelete}}" aria-label="Szekció törlése" style="background: rgba(255,255,255,0.18); color: #fff"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 7h14M10 7V4h4v3M7 7l1 13h8l1-13"/></svg></button>
+   </div>
+   <span class="kick" style="color: rgba(255,255,255,0.85)">Lakásfelújítás, teljes</span>
+   <h1 class="ttl">{{heading}}</h1>
+  </header>
+  <div class="body">
+   <div style="box-sizing: border-box; padding: 12px 16px; border-radius: 22px; background: #EDE7FB; color: #3B2279; display: flex; gap: 12px; align-items: flex-start; font-size: 14px; font-weight: 600; line-height: 1.4"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 8a4 4 0 108 0 4 4 0 10-8 0M4 21c0-4 3.6-6.5 8-6.5s8 2.5 8 6.5"/></svg><span>Közreműködőként saját helyiséget adhatsz hozzá; ezt csak te és a tulajdonos szerkesztheti.</span></div>
+   <label style="display: flex; flex-direction: column; gap: 6px"><span style="font-size: 15px; font-weight: 700; color: #fff">Helyiség neve *</span><span style="position: relative"><input class="fld" placeholder="pl. Fürdőszoba, Konyha…" value="Fürdőszoba" style="padding-right: 64px"><button aria-label="Diktálás" style="position: absolute; right: 6px; top: 6px; width: 44px; height: 44px; border: 0; border-radius: 22px; background: #EDE7FB; color: #4A2796; display: flex; align-items: center; justify-content: center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a3 3 0 013 3v5a3 3 0 01-6 0V6a3 3 0 013-3zM6 11a6 6 0 0012 0M12 17v4"/></svg></button></span></label>
+   <span class="lbl">Méretek</span>
+   <div style="display: flex; gap: 10px"><label style="display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 0"><span style="font-size: 14px; font-weight: 700; color: #fff">Szél. (m)</span><input class="fld" inputmode="decimal" value="{{w}}" onInput="{{on_w}}" style="text-align: center; font-size: 22px; font-weight: 700; padding: 0 8px"></label><label style="display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 0"><span style="font-size: 14px; font-weight: 700; color: #fff">Hossz. (m)</span><input class="fld" inputmode="decimal" value="{{l}}" onInput="{{on_l}}" style="text-align: center; font-size: 22px; font-weight: 700; padding: 0 8px"></label><label style="display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 0"><span style="font-size: 14px; font-weight: 700; color: #fff">Magass. (m)</span><input class="fld" inputmode="decimal" value="{{h}}" onInput="{{on_h}}" style="text-align: center; font-size: 22px; font-weight: 700; padding: 0 8px"></label></div>
+   <div style="display: flex; gap: 10px"><div style="display: flex; flex-direction: column; gap: 6px; flex: 1"><span style="font-size: 14px; font-weight: 700; color: #fff">Ablak (db)</span><div style="display: flex; align-items: center; justify-content: space-between; background: #fff; border-radius: 28px; height: 60px; padding: 0 6px"><button onClick="{{winMinus}}" aria-label="Ablak (db) −1" style="width: 48px; height: 48px; border: 0; border-radius: 24px; background: #F1F1F3; color: #0E1116; display: flex; align-items: center; justify-content: center"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/></svg></button><b class="n" style="font-size: 24px; color: #0E1116">{{win}}</b><button onClick="{{winPlus}}" aria-label="Ablak (db) +1" style="width: 48px; height: 48px; border: 0; border-radius: 24px; background: #6D3FD1; color: #fff; display: flex; align-items: center; justify-content: center"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg></button></div></div><div style="display: flex; flex-direction: column; gap: 6px; flex: 1"><span style="font-size: 14px; font-weight: 700; color: #fff">Ajtó (db)</span><div style="display: flex; align-items: center; justify-content: space-between; background: #fff; border-radius: 28px; height: 60px; padding: 0 6px"><button onClick="{{doorMinus}}" aria-label="Ajtó (db) −1" style="width: 48px; height: 48px; border: 0; border-radius: 24px; background: #F1F1F3; color: #0E1116; display: flex; align-items: center; justify-content: center"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/></svg></button><b class="n" style="font-size: 24px; color: #0E1116">{{door}}</b><button onClick="{{doorPlus}}" aria-label="Ajtó (db) +1" style="width: 48px; height: 48px; border: 0; border-radius: 24px; background: #6D3FD1; color: #fff; display: flex; align-items: center; justify-content: center"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg></button></div></div></div>
+   <div class="card" style="padding: 14px 16px; display: flex; gap: 8px"><span class="stat" style="background: #F7F5EF"><span class="m">Alapterület</span><br><b class="n" style="font-size: 22px; color: #4A2796">{{area}} m²</b></span><span class="stat" style="background: #F7F5EF"><span class="m">Falfel. (m²)</span><br><b class="n" style="font-size: 22px">{{wall}}</b></span></div>
+   <div style="display: flex; gap: 10px"><label style="display: flex; flex-direction: column; gap: 6px; flex: 1"><span style="font-size: 14px; font-weight: 700; color: #fff">Kezdés</span><input class="fld" value="2026. dec. 1."></label><label style="display: flex; flex-direction: column; gap: 6px; flex: 1"><span style="font-size: 14px; font-weight: 700; color: #fff">Befejezés</span><input class="fld" value="2026. dec. 9."></label></div>
+   <label style="display: flex; flex-direction: column; gap: 6px"><span style="font-size: 15px; font-weight: 700; color: #fff">Leírás</span><textarea class="fld" rows="3" placeholder="Elvégzendő munkák, állapot…" style="height: 96px; padding: 14px 16px; resize: none"></textarea></label>
+   <span class="lbl">Fotók</span>
+   <div style="display: flex; gap: 10px; overflow-x: auto"><button aria-label="Fotó hozzáadása" style="flex: none; width: 96px; height: 96px; border: 2px dashed rgba(255,255,255,0.4); border-radius: 24px; background: transparent; color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; font-size: 13px; font-weight: 700"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h4l2-3h4l2 3h4v11H4zM12 11a3.5 3.5 0 100 7 3.5 3.5 0 000-7"/></svg>Fotó</button><sc-for list="{{photos}}" as="p" hint-placeholder-count="3"><span style="position: relative; flex: none; width: 96px; height: 96px; border-radius: 24px; background: {{p.bg}}"><button aria-label="Fotó törlése" style="position: absolute; right: 4px; top: 4px; width: 36px; height: 36px; border: 0; border-radius: 18px; background: rgba(14,17,22,0.7); color: #fff; display: flex; align-items: center; justify-content: center"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></span></sc-for></div>
+  </div>
+ </div>
+ <div class="bar"><button class="pri" style="background: #6D3FD1; color: #fff">{{saveLabel}}<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg></button></div>
+
+ <sc-if value="{{isDel}}" hint-placeholder-val="{{ false }}">
+  <button class="scrim" onClick="{{close}}" aria-label="Bezárás"></button>
+  <div class="sheet" role="alertdialog" aria-label="Törlés megerősítése"><span class="grab"></span>
+   <span class="sht">Szekció törlése</span>
+   <span style="font-size: 16px; font-weight: 500; line-height: 1.45">Biztosan törölni kívánja „Fürdőszoba” szekciót? 4 tétel is törlődik.</span>
+   <button onClick="{{close}}" style="height: 60px; border: 0; border-radius: 30px; background: #B71C1C; color: #fff; font-size: 17px; font-weight: 700">Igen, törlés</button>
+   <button onClick="{{close}}" style="height: 60px; border: 0; border-radius: 30px; background: #EFEDE6; color: #0E1116; font-size: 17px; font-weight: 700">Mégse</button>
+  </div>
+ </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  state = { w: '2,4', l: '3,1', h: '2,6', win: 1, door: 1, del: false, edit: false };
+  renderVals() {
+    const st = this.state;
+    const n = (v) => parseFloat(String(v).replace(',', '.')) || 0;
+    const f = (v) => (Math.round(v * 10) / 10).toString().replace('.', ',');
+    const area = n(st.w) * n(st.l);
+    const wall = 2 * (n(st.w) + n(st.l)) * n(st.h) - st.win * 1.4 - st.door * 1.9;
+    const up = (k) => (e) => this.setState({ [k]: e.target.value });
+    return {
+      mode: st.edit ? 'Szerkesztés' : 'Új szekció', heading: st.edit ? 'Fürdőszoba' : 'Új helyiség', saveLabel: st.edit ? 'Mentés' : 'Helyiség hozzáadása',
+      w: st.w, l: st.l, h: st.h, on_w: up('w'), on_l: up('l'), on_h: up('h'),
+      win: st.win, door: st.door, winMinus: () => this.setState({ win: Math.max(0, st.win - 1) }), winPlus: () => this.setState({ win: st.win + 1 }), doorMinus: () => this.setState({ door: Math.max(0, st.door - 1) }), doorPlus: () => this.setState({ door: st.door + 1 }),
+      area: f(area), wall: f(wall), photos: [{ bg: 'linear-gradient(135deg,#D8C7B1,#B09A7F)' }, { bg: 'linear-gradient(135deg,#C9CFDB,#9AA3B5)' }],
+      isDel: st.del, toDelete: () => this.setState({ del: true }), close: () => this.setState({ del: false })
+    };
+  }
+}
+</script></body></html>

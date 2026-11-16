@@ -19,6 +19,18 @@ Reference designs for the new mobile UI. Scope of this first drop: **Dashboard +
 | `S5-Tetelek.dc.html` | Items + dictation/AI + item drawer | `/felmeres/[id]` (items) |
 | `S6-Alaprajz.dc.html` | Floor-plan AI analysis | `/felmeres/[id]` (layout) |
 
+### Offer module (drop 2)
+| File | Screen | Repo route |
+|---|---|---|
+| `O1-Lista.dc.html` | Offer list | `/ajanlatok` |
+| `O2-UjAjanlat.dc.html` | New offer (destination, survey picker, client, VAT) | `/ajanlatok/uj` |
+| `O3-Reszletek.dc.html` | Offer detail (totals, portal, sections, status, history, copy) | `/ajanlatok/[id]` |
+| `O4-Tetelek.dc.html` | Item editor (dictation, AI, batch delete) | `/ajanlatok/[id]` |
+| `O5-Helyiseg.dc.html` | New/edit room | `/ajanlatok/[id]` |
+| `O6-Muveletek.dc.html` | Send, accept → project, reject | `/ajanlatok/[id]` |
+| `O7-Pdf.dc.html` | Preview / PDF | `/ajanlatok/[id]/nyomtatas` |
+Offer is designed but **not in the first implementation scope** (Dashboard + Survey first). The O-files contain "Demó:" helper buttons (role switch, step advance) — do not implement those.
+
 ## Known gaps in this drop (be explicit, do not guess)
 1. `A-Pods.dc.html` is the approved home look, but it does **not yet** show the repo dashboard functions: pending collective invitations, pending transfer requests, stat cards (total cost / active projects / invoices), latest-activity feed. Build them in the same visual language (see AGENT_BRIEF §Dashboard); a design pass for them is still open.
 2. Offer and Project colours are proposed tokens; their screens are not designed yet.

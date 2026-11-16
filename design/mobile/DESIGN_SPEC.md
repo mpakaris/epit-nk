@@ -50,6 +50,17 @@ Entry types: Anyag (material), Munkadíj (labour), Eszközbérlés (equipment), 
 ### 5.7 Floor-plan analysis (S6)
 Upload/photograph → confirm sheet ("Elemezzük az alaprajzot AI-val…") → scanning animation (teal scan line) → detected rooms as selectable rows with editable name and measured cells (Sz, H, m², door, window); confirm creates rooms. Rooms already existing are dimmed and not re-created.
 
+### 5.8 Offer module (violet)
+Same document-screen frame as Survey, type colour **violet** `#6D3FD1` (deep `#1C1038`, tint `#EDE7FB`, ink `#4A2796`). Status badge colours: Vázlat grey, Kiküldve orange, Elfogadva green, Elutasítva red; the same colours are the thin top bar of each list card.
+- **List (O1):** pod stack like Survey; filter chips by status; card = title, client · date, large gross total, status badge, optional lines (portal-visible, pending transfer, read-only, project created).
+- **New (O2):** step 1 destination (contributors get a note: personal offer, transfer later); step 2 form; survey picker is a bottom sheet with a context sentence and grouped lists.
+- **Detail (O3):** header shows the gross total (36 px) and status. Cards in order: totals, client + portal link, general data, rooms (expandable, entries as tinted type tiles, own rooms tagged "Saját"), areas, client comments, history. Sticky bar primary changes with status: Küldés (draft) → Elfogadás → Projekt (sent; resend as secondary round button) → Projekt megtekintése (accepted) / Lehetőségeim (rejected). Contributors see a violet explanatory note and a disabled primary.
+- **Items (O4):** large dictation button, AI-suggest button, queue of pending items, type chips, qty stepper (60 px buttons) + unit chips, live line total. Select mode for batch delete.
+- **Room (O5):** big numeric fields for W/L/H, steppers for windows/doors, live floor and wall area, photo strip.
+- **Flows (O6):** send confirm → 4-step progress → done; blocked states (no email, incomplete profile); accept confirm → progress → success/error; reject confirm.
+- **PDF (O7):** paper preview on the dark body, colour dots, collapsible missing-data card, one download button.
+Entry type tiles: Anyag blue `#E4ECFA/#2B4C9B`, Munkadíj green `#E2F3E8/#14532D`, Eszköz amber `#FFF1E0/#8A4200`, Szállítás violet-tint `#EDE7FB/#4A2796`, Egyéb grey `#F1F1F3/#2B3038`. These replace the hardcoded `TYPE_COLORS` in `ajanlatok/[id]/components/constants.js` — tokenise them.
+
 ## 6. States every screen must handle
 Loading skeletons (not spinners on dark), empty (illustration-free, one sentence + primary action), error (danger card + retry), offline (changes queue; show banner — if not supported in code today, show error + retry and flag it), read-only/locked, contributor-restricted, free-tier limit reached (upgrade prompt via existing subscription flow).
 

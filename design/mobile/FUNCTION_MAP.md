@@ -35,3 +35,30 @@ Paths relative to repo root. `[l]` = `src/app/[locale]`. i18n namespaces are in 
 
 ## Not in this drop
 Offers, Projects (+ diary, invoices), Clients, Calendar, Messages, Ideas, Catalogue, Profile, Collectives, Subscription, Website builder, Client portal.
+
+---
+
+## OFFER module (design drop 2) — violet
+
+Routes: `[l]/ajanlatok/page.js`, `[l]/ajanlatok/uj/page.js`, `[l]/ajanlatok/[id]/page.js` (1.7k lines, + `components/SectionCard`, `SectionAddForm`, `SectionPhotoZone`, `AreaSummary`, `ClientComments`), `[l]/ajanlatok/[id]/nyomtatas/page.js`. i18n ns `quotes`, `offerPrint`. Status ids: `draft|sent|accepted|rejected` (`QUOTE_STATUSES`). Entry types: `QUOTE_ENTRY_TYPES`; units `QUANTITY_UNITS`.
+
+### Offer list — `O1-Lista.dc.html`
+`GET /api/quotes`, `components/mobile/DocumentListPage.jsx`. Status filter (Összes/Vázlat/Kiküldve/Elfogadva/Elutasítva), search by title/client, card: title, client, date, gross total, status, "visible on client portal" (sent), pending transfer (`useTransferRequests`, retract), locked (accepted/rejected), "project created". Row ⋯: open, preview/PDF (owner only), copy, transfer to collective (personal + owner + no pending + has collectives, not demo), retract transfer, delete (soft, owner/collective owner; contributor sees explanation). Basic-tier quote limit (rule 9).
+
+### New offer — `O2-UjAjanlat.dc.html`
+`[l]/ajanlatok/uj/page.js` (existing `mobileStep` 1/2), `POST /api/quotes`. Step 1 destination (contributor in collective ⇒ personal offer + later transfer, per CLAUDE.md table). Step 2: title*, optional survey (picker = `GET /api/surveys/for-offer-template`: personal + same-collective only, grouped, context text, inactive toggle, search; `?from_survey=` preset), client (`ClientSelect`, new client with GDPR), location, work type, description, planned start/end, VAT % (default `currentUser.default_tax_percent` ?? 27). Survey import: `POST /api/quotes/[id]/import-survey`, media copy: `copy-survey-media`, `duplicate-survey-media`.
+
+### Offer detail — `O3-Reszletek.dc.html`
+`PATCH/DELETE /api/quotes/[id]`. Totals net / VAT / gross; client + discount badge; client-portal link (copy / open `/clients/[id]`) once not draft; general data (offer number, valid until, payment deadline days, method, deposit %, warranty months, other terms footnote, dates, location, work type) edited in one sheet — saving on a `sent` offer asks to revert to draft (`statusRevert*` keys); sections (rooms) with entries sorted by type (`sortEntries`), own-vs-others ownership (contributors edit only own: `created_by`/`user_id`), area summary, client comments (`/api/quotes/[id]/client-comments`), history (`GET /api/quotes/[id]/history`, load more), duplicate (`duplicateTitle/What`; copies client and/or sections+entries), delete, locked banner + "Lehetőségeim" for accepted/rejected. Owner/Admin only: send, accept, reject, reset to draft, edit meta, preview/PDF.
+
+### Items — `O4-Tetelek.dc.html`
+`POST /api/quotes/[id]/entries`, `PATCH/DELETE .../entries/[entryId]`; dictation → `POST /api/quotes/[id]/parse-entry`; AI suggestions from the room → `POST /api/quotes/[id]/sections/[sectionId]/generate-entries`; queue several then add ("Hozzáadás (N db)", "+ Következő"); material/labour = qty × unit price, others flat `amount_huf`; contractor select (collective only, default self; `user_id` set server-side); notes; batch delete (`handleBatchDelete`, own entries only).
+
+### New room / section — `O5-Helyiseg.dc.html`
+`POST /api/quotes/[id]/sections`, `PATCH/DELETE .../sections/[sectionId]` (delete removes its entries — confirm shows count). Fields: name*, W/L/H, windows, doors, wall area (auto), dates, description, photos (`SectionPhotoZone`, R2 upload via `mediaGate`). Contributors may add their own section.
+
+### Send / accept / reject — `O6-Muveletek.dc.html`
+`POST /api/quotes/[id]/send` (Puppeteer PDF + SMTP, rate limit 10/h, audit log; steps: PDF → message → recipients → sending), blocked when client has no email; profile-incomplete warning (company name, city, tax no.); terms (ÁSZF) attached indicator; demo mode never sends. `POST /api/quotes/[id]/accept` creates the project (personal or collective workspace); success → view project; error → retry. Reject / reset-to-draft via `PATCH`. Status changes are Owner/Admin only.
+
+### PDF preview — `O7-Pdf.dc.html`
+`[l]/ajanlatok/[id]/nyomtatas/page.js`, `GET /api/quotes/[id]/pdf` (`lib/generateOfferPdf.js`). Accent colour picker (10 colours), missing-data checklist (company name, tax no., phone, bank account, client, offer number, valid until, terms) with "where to fix" links, download PDF (demo: unavailable). Owner only.

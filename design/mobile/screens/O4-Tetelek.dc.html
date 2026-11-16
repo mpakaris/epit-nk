@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="hu"><head><meta charset="utf-8"><title>OkosSzaki — Tételek</title><script src="./support.js"></script></head>
+<body><x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&amp;family=Plus+Jakarta+Sans:wght@500;600;700&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}
+button,input,textarea{font-family:inherit}
+button{cursor:pointer}
+*{scrollbar-width:none;-ms-overflow-style:none}
+*::-webkit-scrollbar{display:none;width:0;height:0}
+body{margin:0}
+button,input,textarea{font-family:inherit}
+button{cursor:pointer}
+*{scrollbar-width:none;-ms-overflow-style:none}
+*::-webkit-scrollbar{display:none;width:0;height:0}
+.root{position:relative;width:390px;height:844px;overflow:hidden;background:#EDEBE5;color:#0E1116;font-family:'Plus Jakarta Sans',system-ui,sans-serif}
+.scroll{position:absolute;inset:0;z-index:1;overflow-y:auto;box-sizing:border-box;padding:0 0 170px}
+.hd{position:relative;overflow:hidden;box-sizing:border-box;padding:18px 16px 20px;border-radius:0 0 32px 32px;display:flex;flex-direction:column;gap:12px}
+.glow{position:absolute;right:-90px;top:-120px;width:300px;height:300px;border-radius:150px}
+.top{position:relative;display:flex;align-items:center;justify-content:space-between}
+.rnd{width:48px;height:48px;border:0;border-radius:24px;display:flex;align-items:center;justify-content:center;padding:0}
+.pill{height:36px;padding:0 14px;border-radius:18px;font-size:13px;font-weight:700;display:inline-flex;align-items:center;gap:8px}
+.ttl{position:relative;margin:0;font-family:'Bricolage Grotesque',sans-serif;font-size:30px;font-weight:700;letter-spacing:-.02em;line-height:1.1}
+.kick{position:relative;font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+.sub{position:relative;font-size:15px;font-weight:600}
+.body{padding:16px 16px 0;display:flex;flex-direction:column;gap:14px}
+.card{box-sizing:border-box;border-radius:26px;background:#fff;box-shadow:0 1px 0 rgba(14,17,22,.05),0 14px 26px -18px rgba(14,17,22,.35)}
+.lbl{font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#5A5F68}
+.h2{margin:0;font-family:'Bricolage Grotesque',sans-serif;font-size:22px;font-weight:700}
+.fld{width:100%;box-sizing:border-box;height:56px;border:0;border-radius:20px;background:#fff;padding:0 16px;font-size:17px;font-weight:500;color:#0E1116;box-shadow:0 1px 0 rgba(14,17,22,.05),0 10px 20px -16px rgba(14,17,22,.4)}
+.fld::placeholder{color:#6B7078}
+.chip{height:52px;padding:0 18px;border:0;border-radius:26px;font-size:15px;font-weight:700;display:inline-flex;align-items:center;gap:8px;color:#0E1116}
+.bar{position:absolute;z-index:20;left:0;right:0;bottom:0;box-sizing:border-box;padding:28px 16px 18px;background:linear-gradient(to top,#EDEBE5 70%,rgba(237,235,229,0));display:flex;gap:10px}
+.pri{flex:1;height:60px;border:0;border-radius:30px;background:#0E1116;color:#fff;font-size:17px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:10px;box-shadow:0 14px 26px -12px rgba(14,17,22,.6)}
+.sq{flex:none;width:60px;height:60px;border:0;border-radius:30px;background:#fff;color:#0E1116;display:flex;align-items:center;justify-content:center;box-shadow:0 10px 22px -10px rgba(14,17,22,.4)}
+.ic{flex:none;width:44px;height:44px;border-radius:15px;background:#F1F1F3;color:#1A1D23;display:flex;align-items:center;justify-content:center}
+.row{width:100%;min-height:64px;box-sizing:border-box;padding:10px 14px;border:0;border-radius:22px;background:#fff;color:#0E1116;text-align:left;display:flex;align-items:center;gap:12px;font-size:16px;font-weight:700;box-shadow:0 1px 0 rgba(14,17,22,.05),0 12px 22px -18px rgba(14,17,22,.35)}
+.scrim{position:absolute;inset:0;z-index:40;border:0;padding:0;background:rgba(14,17,22,.5)}
+.sheet{position:absolute;z-index:50;left:0;right:0;bottom:0;box-sizing:border-box;padding:10px 16px 18px;border-radius:32px 32px 0 0;background:#FBFAF7;display:flex;flex-direction:column;gap:12px;max-height:90%;overflow-y:auto}
+.grab{align-self:center;flex:none;width:44px;height:5px;border-radius:3px;background:#D5D2C8}
+.sh{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.sht{font-family:'Bricolage Grotesque',sans-serif;font-size:25px;font-weight:700;line-height:1.1}
+.x{width:48px;height:48px;border:0;border-radius:24px;background:#EFEDE6;color:#0E1116;display:flex;align-items:center;justify-content:center;flex:none}
+.sw{flex:none;width:64px;height:38px;border-radius:19px;position:relative}
+.sw>i{position:absolute;top:4px;width:30px;height:30px;border-radius:15px;background:#fff;box-shadow:0 2px 6px rgba(14,17,22,.3)}
+.badge{height:26px;padding:0 10px;border-radius:13px;font-size:12px;font-weight:700;display:inline-flex;align-items:center;gap:4px;background:#F0F0F2;color:#2B3038;flex:none}
+.m{font-size:13px;font-weight:600;color:#5A5F68}
+.n{font-family:'Bricolage Grotesque',sans-serif;font-weight:700;letter-spacing:-.02em}
+.stat{flex:1;box-sizing:border-box;padding:10px 12px;border-radius:18px}
+
+.root{background:var(--deep);color:#fff}
+.hd{border-radius:0 0 32px 32px}
+.bar{background:linear-gradient(to top,var(--deep) 65%,rgba(0,0,0,0))}
+.card{color:#0E1116;box-shadow:inset 0 1px 0 #fff,0 16px 26px -14px rgba(0,0,0,.7),0 3px 6px -2px rgba(0,0,0,.3)}
+.row{color:#0E1116;box-shadow:inset 0 1px 0 #fff,0 14px 22px -14px rgba(0,0,0,.7),0 3px 6px -2px rgba(0,0,0,.3)}
+.sheet,.sht{color:#0E1116}
+.h2{color:#fff}
+.lbl{color:rgba(255,255,255,.78)}
+.sheet .lbl{color:#5A5F68}
+.sq{color:#0E1116}
+.sheet .row{box-shadow:0 1px 0 rgba(14,17,22,.05),0 12px 22px -18px rgba(14,17,22,.35)}
+
+</style>
+</helmet>
+<div class="root" style="--deep: #1C1038">
+ <div class="scroll" style="padding-bottom: 190px">
+  <header class="hd" style="background: #6D3FD1; color: #fff; padding-bottom: 18px">
+   <span class="glow" aria-hidden="true" style="background: rgba(255,255,255,0.10)"></span>
+   <div class="top">
+    <button class="rnd" aria-label="Vissza" style="background: rgba(255,255,255,0.18); color: #fff"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg></button>
+    <span class="pill" style="background: rgba(255,255,255,0.18)">{{pillText}}</span>
+    <button class="rnd" onClick="{{toggleSelect}}" aria-label="Kijelölés" style="background: {{selBg}}; color: {{selFg}}"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg></button>
+   </div>
+   <span class="kick" style="color: rgba(255,255,255,0.85)">Fürdőszoba · 7,4 m²</span>
+   <h1 class="ttl">{{heading}}</h1>
+  </header>
+
+  <div class="body">
+   <!-- existing entries (select / batch delete mode) -->
+   <sc-if value="{{selectMode}}" hint-placeholder-val="{{ false }}">
+    <span style="font-size: 15px; font-weight: 600; color: rgba(255,255,255,0.86)">Jelöld ki a törölni kívánt tételeket. Csak a saját tételeid jelölhetők ki.</span>
+    <sc-for list="{{existing}}" as="x" hint-placeholder-count="4"><button onClick="{{x.pick}}" aria-pressed="{{x.on}}" class="row" style="min-height: 68px; opacity: {{x.op}}"><span style="flex: none; width: 30px; height: 30px; border-radius: 10px; border: 2px solid {{x.ring}}; background: {{x.fill}}; color: #fff; display: flex; align-items: center; justify-content: center"><sc-if value="{{x.on}}" hint-placeholder-val="{{ false }}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg></sc-if></span><span style="flex: 1; display: flex; flex-direction: column; line-height: 1.25"><b style="font-size: 16px">{{x.name}}</b><span class="m">{{x.sub}}</span></span><span class="n" style="font-size: 16px">{{x.amt}}</span></button></sc-for>
+   </sc-if>
+
+   <sc-if value="{{notSelect}}" hint-placeholder-val="{{ true }}">
+   <!-- dictation + AI -->
+   <div style="display: flex; gap: 10px">
+    <button onClick="{{dictate}}" style="flex: 1; min-height: 72px; box-sizing: border-box; padding: 0 16px; border: 0; border-radius: 26px; background: {{dBg}}; color: {{dFg}}; display: flex; align-items: center; gap: 12px; font-size: 16px; font-weight: 700; text-align: left"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a3 3 0 013 3v5a3 3 0 01-6 0V6a3 3 0 013-3zM6 11a6 6 0 0012 0M12 17v4"/></svg><span style="flex: 1; line-height: 1.2">{{dLabel}}</span></button>
+    <button onClick="{{openAi}}" aria-label="Tételek generálása" style="flex: none; min-height: 72px; width: 72px; border: 0; border-radius: 26px; background: #fff; color: #4A2796; display: flex; align-items: center; justify-content: center"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2 5 5 2-5 2-2 5-2-5-5-2 5-2zM19 16l1 2 2 1-2 1-1 2-1-2-2-1 2-1z"/></svg></button>
+   </div>
+   <sc-if value="{{aiLine}}" hint-placeholder-val="{{ true }}"><span style="box-sizing: border-box; padding: 12px 14px; border-radius: 18px; background: {{aiBg}}; color: {{aiFg}}; font-size: 15px; font-weight: 600; line-height: 1.4; display: flex; gap: 10px; align-items: flex-start"><span style="flex: 1">{{aiLine}}</span><sc-if value="{{aiRetry}}" hint-placeholder-val="{{ false }}"><button onClick="{{dictate}}" style="min-height: 36px; border: 0; border-radius: 18px; padding: 0 14px; background: #fff; color: #9B1C1C; font-weight: 700">Újra</button></sc-if></span></sc-if>
+
+   <!-- pending queue -->
+   <sc-if value="{{hasPending}}" hint-placeholder-val="{{ true }}">
+    <span class="lbl">Hozzáadásra kész: {{pendingCount}} db</span>
+    <sc-for list="{{pending}}" as="p" hint-placeholder-count="2"><div class="card" style="padding: 10px 14px; display: flex; align-items: center; gap: 10px; min-height: 64px"><span style="flex: none; width: 40px; height: 40px; border-radius: 13px; background: {{p.bg}}; color: {{p.fg}}; display: flex; align-items: center; justify-content: center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="{{p.icon}}"/></svg></span><span style="flex: 1; display: flex; flex-direction: column; line-height: 1.25"><b style="font-size: 15px">{{p.name}}</b><span class="m">{{p.sub}}</span></span><span class="n" style="font-size: 16px">{{p.amt}}</span><button onClick="{{p.rm}}" aria-label="Törlés" style="width: 44px; height: 44px; border: 0; border-radius: 22px; background: #FDECEC; color: #B71C1C; display: flex; align-items: center; justify-content: center"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div></sc-for>
+   </sc-if>
+
+   <!-- type -->
+   <span class="lbl">Tétel:</span>
+   <div style="display: flex; flex-wrap: wrap; gap: 8px"><sc-for list="{{types}}" as="t" hint-placeholder-count="5"><button onClick="{{t.pick}}" aria-pressed="{{t.on}}" class="chip" style="background: {{t.bg}}; color: {{t.fg}}; box-shadow: {{t.shadow}}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="{{t.icon}}"/></svg>{{t.label}}</button></sc-for></div>
+   <span style="font-size: 14px; font-weight: 600; color: rgba(255,255,255,0.8)">{{typeDesc}}</span>
+
+   <!-- fields -->
+   <label style="display: flex; flex-direction: column; gap: 6px"><span style="font-size: 15px; font-weight: 700; color: #fff">Megnevezés *</span><span style="position: relative"><input class="fld" placeholder="{{namePh}}" value="{{name}}" onInput="{{onName}}" style="padding-right: 64px"><button aria-label="Diktálás" style="position: absolute; right: 6px; top: 6px; width: 44px; height: 44px; border: 0; border-radius: 22px; background: #EDE7FB; color: #4A2796; display: flex; align-items: center; justify-content: center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a3 3 0 013 3v5a3 3 0 01-6 0V6a3 3 0 013-3zM6 11a6 6 0 0012 0M12 17v4"/></svg></button></span></label>
+   <sc-if value="{{isQty}}" hint-placeholder-val="{{ true }}">
+    <div style="display: flex; flex-direction: column; gap: 8px"><span style="font-size: 15px; font-weight: 700; color: #fff">Mennyiség</span>
+     <div style="display: flex; align-items: center; gap: 10px"><button onClick="{{qMinus}}" aria-label="Kevesebb" style="flex: none; width: 60px; height: 60px; border: 0; border-radius: 30px; background: #fff; color: #0E1116; display: flex; align-items: center; justify-content: center"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/></svg></button><span class="n" style="flex: 1; text-align: center; font-size: 40px; color: #fff">{{qty}}</span><button onClick="{{qPlus}}" aria-label="Több" style="flex: none; width: 60px; height: 60px; border: 0; border-radius: 30px; background: #fff; color: #0E1116; display: flex; align-items: center; justify-content: center"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg></button></div></div>
+    <div style="display: flex; flex-direction: column; gap: 8px"><span style="font-size: 15px; font-weight: 700; color: #fff">Egység</span><div style="display: flex; flex-wrap: wrap; gap: 8px"><sc-for list="{{units}}" as="u" hint-placeholder-count="11"><button onClick="{{u.pick}}" aria-pressed="{{u.on}}" class="chip" style="height: 48px; padding: 0 16px; background: {{u.bg}}; color: {{u.fg}}">{{u.label}}</button></sc-for></div></div>
+    <label style="display: flex; flex-direction: column; gap: 6px"><span style="font-size: 15px; font-weight: 700; color: #fff">Egységár (Ft)</span><input class="fld" inputmode="numeric" value="{{price}}" onInput="{{onPrice}}"></label>
+   </sc-if>
+   <sc-if value="{{isFlat}}" hint-placeholder-val="{{ false }}"><label style="display: flex; flex-direction: column; gap: 6px"><span style="font-size: 15px; font-weight: 700; color: #fff">Összeg (Ft) *</span><input class="fld" inputmode="numeric" value="{{price}}" onInput="{{onPrice}}"></label></sc-if>
+   <sc-if value="{{showContractor}}" hint-placeholder-val="{{ true }}"><div style="display: flex; flex-direction: column; gap: 8px"><span style="font-size: 15px; font-weight: 700; color: #fff">Kivitelező</span><div style="display: flex; flex-wrap: wrap; gap: 8px"><sc-for list="{{people}}" as="p" hint-placeholder-count="3"><button onClick="{{p.pick}}" aria-pressed="{{p.on}}" class="chip" style="background: {{p.bg}}; color: {{p.fg}}">{{p.label}}</button></sc-for></div></div></sc-if>
+   <label style="display: flex; flex-direction: column; gap: 6px"><span style="font-size: 15px; font-weight: 700; color: #fff">Megjegyzés (opcionális)</span><input class="fld" placeholder="pl. Anyaggal együtt, 2. emelet"></label>
+   <div class="card" style="padding: 14px 16px; display: flex; align-items: baseline; justify-content: space-between"><span style="font-size: 15px; font-weight: 700; color: #5A5F68">Összeg</span><span class="n" style="font-size: 30px; color: #4A2796">{{lineTotal}}</span></div>
+   </sc-if>
+  </div>
+ </div>
+
+ <div class="bar">
+  <sc-if value="{{selectMode}}" hint-placeholder-val="{{ false }}"><button onClick="{{toDel}}" class="pri" style="background: {{delBg}}; color: #fff"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 7h14M10 7V4h4v3M7 7l1 13h8l1-13"/></svg>{{delLabel}}</button></sc-if>
+  <sc-if value="{{notSelect}}" hint-placeholder-val="{{ true }}">
+   <sc-if value="{{isAdd}}" hint-placeholder-val="{{ true }}"><button onClick="{{another}}" aria-label="Következő" class="sq" style="width: auto; padding: 0 18px; gap: 6px; font-size: 15px; font-weight: 700"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>Következő</button></sc-if>
+   <button onClick="{{save}}" class="pri" style="background: #6D3FD1; color: #fff">{{saveLabel}}<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg></button>
+  </sc-if>
+ </div>
+
+ <sc-if value="{{mode}}" hint-placeholder-val="{{ false }}"><button class="scrim" onClick="{{close}}" aria-label="Bezárás"></button></sc-if>
+
+ <sc-if value="{{isAi}}" hint-placeholder-val="{{ false }}">
+  <div class="sheet" role="dialog" aria-label="Tételek generálása" style="max-height: 90%"><span class="grab"></span>
+   <div class="sh"><span class="sht">Tételek generálása</span><button class="x" onClick="{{close}}" aria-label="Bezárás"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+   <span style="font-size: 15px; font-weight: 600; color: #4A4F57; line-height: 1.4">A helyiség adataiból (7,4 m² padló, 2,6 m magas, 1 ablak, 1 ajtó) javasolunk tételeket. Jelöld ki, amit hozzáadnál.</span>
+   <sc-for list="{{sug}}" as="g" hint-placeholder-count="5"><button onClick="{{g.pick}}" aria-pressed="{{g.on}}" class="row" style="min-height: 68px; box-shadow: {{g.shadow}}"><span style="flex: none; width: 30px; height: 30px; border-radius: 10px; border: 2px solid {{g.ring}}; background: {{g.fill}}; color: #fff; display: flex; align-items: center; justify-content: center"><sc-if value="{{g.on}}" hint-placeholder-val="{{ false }}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg></sc-if></span><span style="flex: 1; display: flex; flex-direction: column; line-height: 1.25"><b style="font-size: 16px">{{g.name}}</b><span class="m">{{g.sub}}</span></span></button></sc-for>
+   <button onClick="{{addSug}}" style="height: 60px; border: 0; border-radius: 30px; background: #6D3FD1; color: #fff; font-size: 17px; font-weight: 700">Hozzáadás ({{sugCount}} db)</button>
+  </div>
+ </sc-if>
+
+ <sc-if value="{{isDel}}" hint-placeholder-val="{{ false }}">
+  <div class="sheet" role="alertdialog" aria-label="Törlés megerősítése"><span class="grab"></span>
+   <span class="sht">Tétel törlése</span>
+   <span style="font-size: 16px; font-weight: 500; line-height: 1.45">Biztosan törölni kívánja a kijelölt {{delCount}} tételt? Az ajánlat összege ennek megfelelően csökken.</span>
+   <button onClick="{{doDelete}}" style="height: 60px; border: 0; border-radius: 30px; background: #B71C1C; color: #fff; font-size: 17px; font-weight: 700">Igen, törlés</button>
+   <button onClick="{{close}}" style="height: 60px; border: 0; border-radius: 30px; background: #EFEDE6; color: #0E1116; font-size: 17px; font-weight: 700">Mégse</button>
+  </div>
+ </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  state = { edit: false, type: 'material', name: 'Csempe 30×60', qty: 18, unit: 'm²', price: '6400', pending: [{ t: 'labour', name: 'Csempe rakás', qty: 18, unit: 'm²', price: 4800 }], who: 0, ai: null, mode: null, select: false, sel: [], sug: [0, 1, 2] };
+  renderVals() {
+    const st = this.state;
+    const fmt = (n) => Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ') + ' Ft';
+    const TY = [['material', 'Anyag', 'Építőanyag, burkolat, festék…', '#E4ECFA', '#2B4C9B', 'M3 8l9-5 9 5v8l-9 5-9-5zM3 8l9 5 9-5M12 13v8', 'pl. Gipszkarton lap 12,5mm'], ['labour', 'Munkadíj', 'Saját vagy alvállalkozói munka', '#E2F3E8', '#14532D', 'M14 6l4 4M5 19l8-8M12 5l3-2 6 6-2 3z', 'pl. Gipszkarton szerelés'], ['equipment', 'Eszközbérlés', 'Gép, állvány, szerszám bérlés', '#FFF1E0', '#8A4200', 'M15 6a4 4 0 00-5 5L4 17l3 3 6-6a4 4 0 005-5l-3 3-2-2z', 'pl. Állványzat bérlés'], ['transport', 'Szállítás', 'Fuvar, konténer, fuvarozás', '#EDE7FB', '#4A2796', 'M3 6h11v10H3zM14 9h4l3 3v4h-7zM7 18h.01M17 18h.01', 'pl. Konténer, fuvar'], ['other', 'Egyéb', 'Engedély, hatóság, vegyes', '#F1F1F3', '#2B3038', 'M5 12h.01M12 12h.01M19 12h.01', 'pl. Hatósági díj']];
+    const T = TY.find((x) => x[0] === st.type);
+    const qtyType = st.type === 'material' || st.type === 'labour';
+    const price = parseInt(String(st.price).replace(/\D/g, '') || '0', 10);
+    const line = qtyType ? st.qty * price : price;
+    const nm = st.edit ? 'Csempe 30×60' : st.name;
+    const set = (mode) => () => this.setState({ mode });
+    const UN = ['h', 'db', 'm', 'fm', 'm²', 'm³', 'kg', 't', 'l', 'zsák', 'csomag'];
+    const AI = { listening: ['Hallgatlak… mondd el a tételt, pl. „húsz négyzetméter csempe, hatezer-négyszáz forint négyzetméterenként”.', '#EDE7FB', '#3B2279'], working: ['Átirat: „húsz négyzetméter csempe…” · Feldolgozás…', '#EDE7FB', '#3B2279'], done: ['Kitöltve: Csempe 30×60 · 20 m² · 6 400 Ft. Ellenőrizd és add hozzá.', '#E7F4EC', '#14532D'], error: ['Nem sikerült értelmezni. Próbáld újra, vagy add meg kézzel.', '#FDECEC', '#9B1C1C'] };
+    const nextAi = { null: 'listening', listening: 'working', working: 'done', done: 'error', error: 'listening' };
+    const ai = st.ai ? AI[st.ai] : null;
+    const people = ['Saját magam (Te)', 'Gábor K.', 'Zsolt S.'].map((p, i) => ({ label: p, on: st.who === i, bg: st.who === i ? '#fff' : 'rgba(255,255,255,0.14)', fg: st.who === i ? '#0E1116' : '#fff', pick: () => this.setState({ who: i }) }));
+    const EX = [['material', 'Csempe 30×60', '18 × 6 400 Ft', 115200, true], ['labour', 'Csempe rakás', '18 × 4 800 Ft', 86400, true], ['transport', 'Törmelék elszállítás', 'átalány', 45000, true], ['material', 'Konyhai csaptelep (Gábor K.)', '1 × 28 000 Ft', 28000, false]];
+    const SG = [['Régi burkolat bontása', '7,4 m² · Munkadíj'], ['Aljzat előkészítés, glettelés', '7,4 m² · Munkadíj'], ['Csempe 30×60 (fal + padló)', '21 m² · Anyag'], ['Ragasztó, fugázó', '6 zsák · Anyag'], ['Törmelék elszállítás', 'átalány · Szállítás']];
+    return {
+      heading: st.edit ? 'Tétel szerkesztése' : 'Tételek hozzáadása', pillText: st.select ? st.sel.length + ' kijelölve' : (st.edit ? 'Szerkesztés' : st.pending.length + ' db készen'),
+      selectMode: st.select, notSelect: !st.select, toggleSelect: () => this.setState({ select: !st.select, sel: [] }), selBg: st.select ? '#fff' : 'rgba(255,255,255,0.18)', selFg: st.select ? '#4A2796' : '#fff',
+      existing: EX.map((x, i) => ({ name: x[1], sub: x[2], amt: fmt(x[3]), op: x[4] ? 1 : 0.5, on: st.sel.includes(i), ring: st.sel.includes(i) ? '#6D3FD1' : '#C9C5BA', fill: st.sel.includes(i) ? '#6D3FD1' : 'transparent', pick: () => x[4] && this.setState({ sel: st.sel.includes(i) ? st.sel.filter((y) => y !== i) : st.sel.concat(i) }) })),
+      delBg: st.sel.length ? '#B71C1C' : '#6B6F78', delLabel: 'Törlés (' + st.sel.length + ')', toDel: st.sel.length ? set('del') : () => {}, delCount: st.sel.length,
+      dictate: () => this.setState({ ai: nextAi[st.ai] }), dBg: st.ai === 'listening' ? '#B71C1C' : '#fff', dFg: st.ai === 'listening' ? '#fff' : '#0E1116', dLabel: st.ai === 'listening' ? 'Hallgatlak… koppints a leállításhoz' : 'Diktálj tételt',
+      aiLine: ai ? ai[0] : '', aiBg: ai ? ai[1] : '', aiFg: ai ? ai[2] : '', aiRetry: st.ai === 'error',
+      hasPending: !st.edit && st.pending.length > 0, pendingCount: st.pending.length,
+      pending: st.pending.map((p, i) => { const ty = TY.find((x) => x[0] === p.t); const q = p.t === 'material' || p.t === 'labour'; return { name: p.name, sub: q ? p.qty + ' ' + p.unit + ' × ' + fmt(p.price) : ty[1] + ' · átalány', amt: fmt(q ? p.qty * p.price : p.price), bg: ty[3], fg: ty[4], icon: ty[5], rm: () => this.setState({ pending: st.pending.filter((_, j) => j !== i) }) }; }),
+      types: TY.map((t) => ({ label: t[1], icon: t[5], on: st.type === t[0], bg: st.type === t[0] ? '#fff' : t[3], fg: st.type === t[0] ? '#4A2796' : t[4], shadow: st.type === t[0] ? '0 0 0 3px #6D3FD1' : 'none', pick: () => this.setState({ type: t[0] }) })),
+      typeDesc: T[2], namePh: T[6], name: nm, onName: (e) => this.setState({ name: e.target.value }),
+      isQty: qtyType, isFlat: !qtyType, qty: st.qty, qMinus: () => this.setState({ qty: Math.max(0, st.qty - 1) }), qPlus: () => this.setState({ qty: st.qty + 1 }),
+      units: UN.map((u) => ({ label: u, on: st.unit === u, bg: st.unit === u ? '#fff' : 'rgba(255,255,255,0.14)', fg: st.unit === u ? '#0E1116' : '#fff', pick: () => this.setState({ unit: u }) })),
+      price: String(st.price), onPrice: (e) => this.setState({ price: e.target.value }), showContractor: true, people, lineTotal: fmt(line),
+      isAdd: !st.edit, saveLabel: st.edit ? 'Módosítás' : 'Hozzáadás (' + (st.pending.length + 1) + ' db)',
+      another: () => this.setState({ pending: st.pending.concat({ t: st.type, name: nm, qty: st.qty, unit: st.unit, price }), name: '', price: '0', qty: 1 }), save: set(null),
+      mode: !!st.mode, close: set(null), isAi: st.mode === 'ai', isDel: st.mode === 'del', openAi: set('ai'),
+      sug: SG.map((g, i) => ({ name: g[0], sub: g[1], on: st.sug.includes(i), ring: st.sug.includes(i) ? '#6D3FD1' : '#C9C5BA', fill: st.sug.includes(i) ? '#6D3FD1' : 'transparent', shadow: st.sug.includes(i) ? '0 0 0 3px #6D3FD1' : '0 1px 0 rgba(14,17,22,0.05)', pick: () => this.setState({ sug: st.sug.includes(i) ? st.sug.filter((y) => y !== i) : st.sug.concat(i) }) })),
+      sugCount: st.sug.length, addSug: set(null), doDelete: () => this.setState({ mode: null, select: false, sel: [] })
+    };
+  }
+}
+</script></body></html>
