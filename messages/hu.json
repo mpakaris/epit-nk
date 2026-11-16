@@ -2226,6 +2226,14 @@
     "filterActive": "Aktív",
     "filterClosed": "Lezárt",
     "filterReopened": "Újranyitva",
-    "filterInactive": "Inaktív"
+    "filterInactive": "Inaktív",
+    "team": "Csapat",
+    "memberCount": "{count} tag",
+    "cancel": "Mégse",
+    "searchPlaceholder": "Keresés cím, ügyfél, helyszín alapján…",
+    "noResults": "Nincs találat",
+    "noResultsHint": "Próbáljon más keresési feltételt.",
+    "collectiveNudge": "Hozz létre egy kollektívát és oszd meg a felméréseidet.",
+    "surveyLimitReached": "Elérted az ingyenes felmérések korlátját (5). Válts Prémiumra a korlátlan használathoz."
   }
 }

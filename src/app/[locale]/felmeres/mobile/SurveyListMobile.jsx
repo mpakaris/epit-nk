@@ -56,7 +56,7 @@ function SurveyCard({ survey, client, isTeam, onMore }) {
         {isTeam && (
           <span style={{ position: 'absolute', left: 10, top: 10, height: 26, padding: '0 10px 0 8px', borderRadius: 13, background: '#fff', color: '#166534', fontSize: 12, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 5, boxShadow: '0 2px 6px rgba(14,17,22,0.25)' }}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true"><path d="M9 8a3 3 0 106 0 3 3 0 10-6 0M4 20c0-3 2.7-5 5-5M20 20c0-3-2.7-5-5-5M7 20c0-2.2 2.2-4 5-4s5 1.8 5 4"/></svg>
-            Csapat
+            {t('team')}
           </span>
         )}
         <span style={{ position: 'absolute', right: 10, bottom: 8, height: 24, padding: '0 9px', borderRadius: 12, background: 'rgba(14,17,22,0.78)', color: '#fff', fontSize: 12, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 5 }}>
@@ -175,7 +175,7 @@ function TransferSheet({ survey, collectives, onSend, onClose }) {
               <span style={{ flexShrink: 0, width: 14, height: 14, borderRadius: 7, background: color.bg }} />
               <span style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
                 <span>{col.name}</span>
-                <span style={{ fontSize: 13, fontWeight: 600, color: '#5A5F68' }}>{col.role === 'owner' ? 'Tulajdonos' : 'Tag'} · {col.member_count || 0} tag</span>
+                <span style={{ fontSize: 13, fontWeight: 600, color: '#5A5F68' }}>{col.role === 'owner' ? t('roleOwner') : t('roleContributor')} · {t('memberCount', { count: col.member_count || 0 })}</span>
               </span>
               <span style={{ flexShrink: 0, width: 28, height: 28, borderRadius: 14, border: `2px solid ${isOn ? color.bg : '#C9C5BA'}`, background: isOn ? color.bg : 'transparent', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 {isOn && <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.4" strokeLinecap="round" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg>}
@@ -208,7 +208,7 @@ function DeleteSheet({ survey, isTeam, onConfirm, onClose }) {
         {t('deleteConfirmTitle')}
       </button>
       <button onClick={onClose} style={{ height: 60, border: 0, borderRadius: 30, background: '#EFEDE6', color: 'var(--m-ink)', fontSize: 17, fontWeight: 700, cursor: 'pointer' }}>
-        Mégse
+        {tM('cancel')}
       </button>
     </div>
   );
@@ -302,8 +302,8 @@ export default function SurveyListMobile() {
         onMenu={() => setSheet('menu')}
       />
 
-      {/* Scroll body */}
-      <div style={{ paddingTop: 72, paddingBottom: 170, display: 'flex', flexDirection: 'column', gap: 10, padding: '72px 16px 170px' }}>
+      {/* Scroll body — paddingTop matches PageHeader height (100px) + 8px gap */}
+      <div style={{ padding: '108px 16px 170px', display: 'flex', flexDirection: 'column', gap: 10 }}>
         {workspaces.map(ws => {
           const isActive = ws.id === activePodId;
           const colors = ws.isPersonal ? PERSONAL_COLOR : podColor(ws.id);
@@ -370,7 +370,7 @@ export default function SurveyListMobile() {
                     <input
                       type="search"
                       aria-label={t('personal')}
-                      placeholder="Keresés cím, ügyfél, helyszín alapján…"
+                      placeholder={t('searchPlaceholder')}
                       value={search}
                       onChange={e => setSearch(e.target.value)}
                       style={{ width: '100%', boxSizing: 'border-box', height: 56, border: 0, borderRadius: 28, background: '#fff', paddingLeft: 48, paddingRight: 16, fontSize: 17, fontWeight: 500, color: 'var(--m-ink)', boxShadow: '0 1px 0 rgba(14,17,22,0.05), 0 10px 20px -16px rgba(14,17,22,0.4)' }}
@@ -393,8 +393,8 @@ export default function SurveyListMobile() {
                   {/* Empty state */}
                   {filteredSurveys.length === 0 && (
                     <div style={{ boxSizing: 'border-box', borderRadius: 26, background: '#fff', boxShadow: 'inset 0 1px 0 #fff, 0 16px 26px -14px rgba(0,0,0,0.7)', padding: 22, textAlign: 'center' }}>
-                      <b style={{ fontSize: 17 }}>Nincs találat</b>
-                      <div style={{ marginTop: 4, fontSize: 13, fontWeight: 600, color: '#5A5F68' }}>Próbáljon más keresési feltételt.</div>
+                      <b style={{ fontSize: 17 }}>{t('noResults')}</b>
+                      <div style={{ marginTop: 4, fontSize: 13, fontWeight: 600, color: '#5A5F68' }}>{t('noResultsHint')}</div>
                     </div>
                   )}
 
@@ -422,7 +422,7 @@ export default function SurveyListMobile() {
                   {/* Personal nudge */}
                   {ws.isPersonal && (
                     <div style={{ boxSizing: 'border-box', padding: '12px 14px', borderRadius: 20, border: '2px dashed rgba(255,255,255,0.28)', color: 'rgba(255,255,255,0.86)', fontSize: 14, fontWeight: 600, lineHeight: 1.4 }}>
-                      Hozz létre egy kollektívát és oszd meg a felméréseidet.
+                      {t('collectiveNudge')}
                     </div>
                   )}
                 </div>

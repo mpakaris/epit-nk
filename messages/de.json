@@ -2226,6 +2226,14 @@
     "filterActive": "Aktiv",
     "filterClosed": "Abgeschlossen",
     "filterReopened": "Wiedereröffnet",
-    "filterInactive": "Inaktiv"
+    "filterInactive": "Inaktiv",
+    "team": "Team",
+    "memberCount": "{count} Mitglieder",
+    "cancel": "Abbrechen",
+    "searchPlaceholder": "Suche nach Titel, Kunde, Ort…",
+    "noResults": "Keine Ergebnisse",
+    "noResultsHint": "Versuche andere Suchkriterien.",
+    "collectiveNudge": "Erstelle ein Kollektiv und teile deine Aufmaße.",
+    "surveyLimitReached": "Du hast das Limit für kostenlose Aufmaße (5) erreicht. Wechsle zu Premium für unbegrenzte Nutzung."
   }
 }

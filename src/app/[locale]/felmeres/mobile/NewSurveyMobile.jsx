@@ -7,11 +7,10 @@ import { useApp } from '@/context/AppContext';
 import { isEffectivePremium } from '@/lib/subscriptionLimits';
 import { PERSONAL_COLOR, podColor } from '@/lib/podColor';
 
-const DEFAULT_ROOMS = ['Nappali', 'Fürdő', 'Konyha', 'Hálószoba', 'Kert', 'Folyosó'];
-
 export default function NewSurveyMobile() {
   const t = useTranslations('mobilePods');
   const tS = useTranslations('surveys');
+  const DEFAULT_ROOMS = tS.raw('defaultRooms');
   const router = useRouter();
   const {
     currentUser, collectives, clients, surveys,
@@ -65,7 +64,7 @@ export default function NewSurveyMobile() {
 
     // Subscription limit check
     if (profile && !isEffectivePremium(profile) && surveys.length >= 5) {
-      setError('Elérted az ingyenes felmérések korlátját (5). Válts Prémiumra a korlátlan használathoz.');
+      setError(t('surveyLimitReached'));
       return;
     }
 

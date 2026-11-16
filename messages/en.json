@@ -2226,6 +2226,14 @@
     "filterActive": "Active",
     "filterClosed": "Closed",
     "filterReopened": "Reopened",
-    "filterInactive": "Inactive"
+    "filterInactive": "Inactive",
+    "team": "Team",
+    "memberCount": "{count} members",
+    "cancel": "Cancel",
+    "searchPlaceholder": "Search by title, client, location…",
+    "noResults": "No results",
+    "noResultsHint": "Try different search criteria.",
+    "collectiveNudge": "Create a collective and share your surveys.",
+    "surveyLimitReached": "You've reached the free survey limit (5). Upgrade to Premium for unlimited use."
   }
 }

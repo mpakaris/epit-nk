@@ -133,7 +133,7 @@ export default function DashboardMobile({ currentUser }) {
       />
 
       {/* Scrollable body: starts below header (108px), ends above dock (190px) */}
-      <div style={{ paddingTop: 108, paddingBottom: 190, display: 'flex', flexDirection: 'column', gap: 14, padding: '108px 16px 190px' }}>
+      <div style={{ padding: '108px 16px 190px', display: 'flex', flexDirection: 'column', gap: 14 }}>
 
         {/* Invitation / transfer banners */}
         {pendingInvitations.length > 0 && (

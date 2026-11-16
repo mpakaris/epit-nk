@@ -123,7 +123,7 @@ export default function PodStack({ workspaces, activeId, onActivate, onCreateIn,
             rows = catDocs.slice(0, 3);
             rowsHeading = t('recent', { type: CAT_META[cat]?.pluralLabel || '' });
             title = CAT_META[cat]?.pluralLabel || '';
-            showAll = catDocs.length > 3;
+            showAll = true;
             showAllCount = catDocs.length;
             back = () => setView('home');
           } else {
@@ -272,10 +272,10 @@ export default function PodStack({ workspaces, activeId, onActivate, onCreateIn,
                 )}
               </div>
 
-              {/* Show all button */}
-              {showAll && (
+              {/* Show all button — navigates to the real list page */}
+              {showAll && cat && (
                 <button
-                  onClick={() => setView('list')}
+                  onClick={() => router.push(p(`/${CAT_META[cat].route}`))}
                   style={{ width: '100%', minHeight: 52, border: 0, borderRadius: 26, background: colors.bg, color: fg, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontSize: 15, fontWeight: 700, cursor: 'pointer' }}
                 >
                   {t('showAll', { count: showAllCount })}
