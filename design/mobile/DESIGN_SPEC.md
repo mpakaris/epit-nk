@@ -71,6 +71,12 @@ The **most serious** document type: header `#263248`, deep body `#0B0F17`, tint 
 - **Diary (P6), Payment plan (P7), Portal sharing (P8):** list + sheet patterns as above; toggles are 64×38 switches.
 Category colours (navy ramp, no rainbow): Anyag `#263248`, Munka `#4A6FA5`, Szerszám `#8A94A8`, Szállítás `#B7BFCC`, Engedély `#D5DAE3`, Egyéb `#E3E7EE`.
 
+### 5.10 Clients module (rose — proposed)
+Header `#B8456B`, deep body `#2A0F1A`, tint `#F8E4EC`, ink `#8A2B4C`. Avatar circles use a small colour set per client. List (C1): segmented Saját / Velem megosztott, search, cards with count badges, tap = action sheet. Form (C2): all fields, GDPR checkbox card (required), share switch reveals collective checkboxes + second consent. Detail (C3): 3 stat cards, contact card with badges, 4 tabs, portal card, bar CTA changes per tab. Messages (C4): thread chips, bubbles (you = rose, client = white), composer in the bar. Portal (C5): link actions in the bar; warning card when no e-mail.
+
+### 5.11 Profile module (stone — proposed)
+Header `#44413B`, deep body `#121110`, tint `#ECEAE5`. Hub (U1) with grouped rows; sub-screens use sticky Mentés bar and toast "Adatok elmentve!". Currency pills are disabled once set. Cancel/restore flows use sheets with a confirm + result sheet; delete-account requires typing TÖRLÉS before the red button activates.
+
 ## 6. States every screen must handle
 Loading skeletons (not spinners on dark), empty (illustration-free, one sentence + primary action), error (danger card + retry), offline (changes queue; show banner — if not supported in code today, show error + retry and flag it), read-only/locked, contributor-restricted, free-tier limit reached (upgrade prompt via existing subscription flow).
 

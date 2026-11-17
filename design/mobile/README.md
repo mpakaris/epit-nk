@@ -44,7 +44,28 @@ Offer is designed but **not in the first implementation scope** (Dashboard + Sur
 | `P8-Portal.dc.html` | Client-portal sharing | `/projektek/[id]` |
 Not in the first implementation scope. "Demó:" buttons are mock helpers, do not build them.
 
+### Clients module (drop 4) — rose, colour PROPOSED
+| File | Screen | Route |
+|---|---|---|
+| `C1-Lista.dc.html` | List: Saját / Velem megosztott, search, action sheet, delete confirm | `/ugyfelek` |
+| `C2-Urlap.dc.html` | New / edit client: GDPR consent, sharing with collectives + share consent | `/ugyfelek/uj`, create modal |
+| `C3-Reszletek.dc.html` | Detail: stats, contact, tabs Ajánlatok/Projektek/Felmérések/Üzenetek, portal block | `/ugyfelek/[id]`, `ClientDetailModal` |
+| `C4-Uzenetek.dc.html` | Message threads (quote thread / general), reply, new message | detail → Üzenetek |
+| `C5-Portal.dc.html` | Portal link: copy / open / preview, own-view label, no-email warning | detail → portal block |
+
+### Profile module (drop 4) — stone, colour PROPOSED
+| File | Screen | Route |
+|---|---|---|
+| `U1-Attekintes.dc.html` | Overview hub, trial banner, danger row | `/profil` |
+| `U2-Adatok.dc.html` | Display name, e-mail, invoice header (name, company, address, tax, bank, website) | `/profil#szamla` |
+| `U3-Alapertekek.dc.html` | Offer defaults (VAT, validity, payment, deposit, warranty, footnote) + ÁSZF PDF upload/replace/delete | `/profil#szamla`, `#aszf` |
+| `U4-Elofizetes.dc.html` / `U4b-Proba.dc.html` | Subscription: Premium state / trial+Basic state, cancel, restore, collective subs, result modals | `/profil#elofizetes` |
+| `U5-Nyelv.dc.html` | Language (hu/de/en), write-once currency, collective workspaces link | `/profil#preferences` |
+| `U6-Biztonsag.dc.html` | Password change, logout, delete account (type TÖRLÉS) | `/profil` |
+
 ## Known gaps in this drop (be explicit, do not guess)
 1. `A-Pods.dc.html` is the approved home look, but it does **not yet** show the repo dashboard functions: pending collective invitations, pending transfer requests, stat cards (total cost / active projects / invoices), latest-activity feed. Build them in the same visual language (see AGENT_BRIEF §Dashboard); a design pass for them is still open.
 2. Offer and Project colours are proposed tokens; their screens are not designed yet.
 3. Floor-plan / strings in the HTML are demo Hungarian copy. Real UI strings must come from `messages/*.json` (see brief).
+
+- Drop 4: the Clients (rose) and Profile (stone) colours are **proposals**. C2 is shown in create mode; edit mode reuses it (title "Ügyfél szerkesztése", CTA "Módosítás"). Client portal public page `/clients/[id]` and `/portal` (OTP) are not designed yet. Shared clients (C1 second tab) are read-only: no edit/delete actions.

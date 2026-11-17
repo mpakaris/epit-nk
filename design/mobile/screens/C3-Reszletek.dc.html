@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="hu"><head><meta charset="utf-8"><title>OkosSzaki — Ügyfél részletek</title><script src="./support.js"></script></head>
+<body><x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&amp;family=Plus+Jakarta+Sans:wght@500;600;700&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}
+button,input,textarea{font-family:inherit}
+button{cursor:pointer}
+*{scrollbar-width:none;-ms-overflow-style:none}
+*::-webkit-scrollbar{display:none;width:0;height:0}
+body{margin:0}
+button,input,textarea{font-family:inherit}
+button{cursor:pointer}
+*{scrollbar-width:none;-ms-overflow-style:none}
+*::-webkit-scrollbar{display:none;width:0;height:0}
+.root{position:relative;width:390px;height:844px;overflow:hidden;background:#EDEBE5;color:#0E1116;font-family:'Plus Jakarta Sans',system-ui,sans-serif}
+.scroll{position:absolute;inset:0;z-index:1;overflow-y:auto;box-sizing:border-box;padding:0 0 170px}
+.hd{position:relative;overflow:hidden;box-sizing:border-box;padding:18px 16px 20px;border-radius:0 0 32px 32px;display:flex;flex-direction:column;gap:12px}
+.glow{position:absolute;right:-90px;top:-120px;width:300px;height:300px;border-radius:150px}
+.top{position:relative;display:flex;align-items:center;justify-content:space-between}
+.rnd{width:48px;height:48px;border:0;border-radius:24px;display:flex;align-items:center;justify-content:center;padding:0}
+.pill{height:36px;padding:0 14px;border-radius:18px;font-size:13px;font-weight:700;display:inline-flex;align-items:center;gap:8px}
+.ttl{position:relative;margin:0;font-family:'Bricolage Grotesque',sans-serif;font-size:30px;font-weight:700;letter-spacing:-.02em;line-height:1.1}
+.kick{position:relative;font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+.sub{position:relative;font-size:15px;font-weight:600}
+.body{padding:16px 16px 0;display:flex;flex-direction:column;gap:14px}
+.card{box-sizing:border-box;border-radius:26px;background:#fff;box-shadow:0 1px 0 rgba(14,17,22,.05),0 14px 26px -18px rgba(14,17,22,.35)}
+.lbl{font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#5A5F68}
+.h2{margin:0;font-family:'Bricolage Grotesque',sans-serif;font-size:22px;font-weight:700}
+.fld{width:100%;box-sizing:border-box;height:56px;border:0;border-radius:20px;background:#fff;padding:0 16px;font-size:17px;font-weight:500;color:#0E1116;box-shadow:0 1px 0 rgba(14,17,22,.05),0 10px 20px -16px rgba(14,17,22,.4)}
+.fld::placeholder{color:#6B7078}
+.chip{height:52px;padding:0 18px;border:0;border-radius:26px;font-size:15px;font-weight:700;display:inline-flex;align-items:center;gap:8px;color:#0E1116}
+.bar{position:absolute;z-index:20;left:0;right:0;bottom:0;box-sizing:border-box;padding:28px 16px 18px;background:linear-gradient(to top,#EDEBE5 70%,rgba(237,235,229,0));display:flex;gap:10px}
+.pri{flex:1;height:60px;border:0;border-radius:30px;background:#0E1116;color:#fff;font-size:17px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:10px;box-shadow:0 14px 26px -12px rgba(14,17,22,.6)}
+.sq{flex:none;width:60px;height:60px;border:0;border-radius:30px;background:#fff;color:#0E1116;display:flex;align-items:center;justify-content:center;box-shadow:0 10px 22px -10px rgba(14,17,22,.4)}
+.ic{flex:none;width:44px;height:44px;border-radius:15px;background:#F1F1F3;color:#1A1D23;display:flex;align-items:center;justify-content:center}
+.row{width:100%;min-height:64px;box-sizing:border-box;padding:10px 14px;border:0;border-radius:22px;background:#fff;color:#0E1116;text-align:left;display:flex;align-items:center;gap:12px;font-size:16px;font-weight:700;box-shadow:0 1px 0 rgba(14,17,22,.05),0 12px 22px -18px rgba(14,17,22,.35)}
+.scrim{position:absolute;inset:0;z-index:40;border:0;padding:0;background:rgba(14,17,22,.5)}
+.sheet{position:absolute;z-index:50;left:0;right:0;bottom:0;box-sizing:border-box;padding:10px 16px 18px;border-radius:32px 32px 0 0;background:#FBFAF7;display:flex;flex-direction:column;gap:12px;max-height:90%;overflow-y:auto}
+.grab{align-self:center;flex:none;width:44px;height:5px;border-radius:3px;background:#D5D2C8}
+.sh{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.sht{font-family:'Bricolage Grotesque',sans-serif;font-size:25px;font-weight:700;line-height:1.1}
+.x{width:48px;height:48px;border:0;border-radius:24px;background:#EFEDE6;color:#0E1116;display:flex;align-items:center;justify-content:center;flex:none}
+.sw{flex:none;width:64px;height:38px;border-radius:19px;position:relative}
+.sw>i{position:absolute;top:4px;width:30px;height:30px;border-radius:15px;background:#fff;box-shadow:0 2px 6px rgba(14,17,22,.3)}
+.badge{height:26px;padding:0 10px;border-radius:13px;font-size:12px;font-weight:700;display:inline-flex;align-items:center;gap:4px;background:#F0F0F2;color:#2B3038;flex:none}
+.m{font-size:13px;font-weight:600;color:#5A5F68}
+.n{font-family:'Bricolage Grotesque',sans-serif;font-weight:700;letter-spacing:-.02em}
+.stat{flex:1;box-sizing:border-box;padding:10px 12px;border-radius:18px}
+
+.root{background:var(--deep);color:#fff}
+.hd{border-radius:0 0 32px 32px}
+.bar{background:linear-gradient(to top,var(--deep) 65%,rgba(0,0,0,0))}
+.card{color:#0E1116;box-shadow:inset 0 1px 0 #fff,0 16px 26px -14px rgba(0,0,0,.7),0 3px 6px -2px rgba(0,0,0,.3)}
+.row{color:#0E1116;box-shadow:inset 0 1px 0 #fff,0 14px 22px -14px rgba(0,0,0,.7),0 3px 6px -2px rgba(0,0,0,.3)}
+.sheet,.sht{color:#0E1116}
+.h2{color:#fff}
+.lbl{color:rgba(255,255,255,.78)}
+.sheet .lbl{color:#5A5F68}
+.sq{color:#0E1116}
+.sheet .row{box-shadow:0 1px 0 rgba(14,17,22,.05),0 12px 22px -18px rgba(14,17,22,.35)}
+
+</style>
+</helmet>
+<div class="root" style="--deep: #2A0F1A">
+ <div class="scroll" style="padding-bottom: 190px">
+  <header class="hd" style="background: #B8456B; color: #fff">
+   <span class="glow" aria-hidden="true" style="background: rgba(255,255,255,0.08)"></span>
+   <div class="top"><button class="rnd" aria-label="Vissza az ügyfelekhez" style="background: rgba(255,255,255,0.18); color: #fff"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg></button><span class="pill" style="background: rgba(255,255,255,0.18)">Csak a tiéd</span><button class="rnd" onClick="{{openMenu}}" aria-label="Műveletek" style="background: rgba(255,255,255,0.18); color: #fff"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h.01M12 12h.01M19 12h.01"/></svg></button></div>
+   <span class="kick" style="color: rgba(255,255,255,0.85)">Ügyfél · Személyes</span>
+   <h1 class="ttl">Horváth Béla</h1>
+   <span class="sub" style="color: rgba(255,255,255,0.92)">Horváth Kft.</span>
+  </header>
+  <div class="body">
+   <div style="display: flex; gap: 10px"><div class="card" style="flex: 1; min-width: 0; padding: 12px; display: flex; flex-direction: column; gap: 2px"><span class="m">Összes ajánlat</span><span class="n" style="font-size: 20px; white-space: nowrap">3 840 000 Ft</span><span class="m">3 ajánlat</span></div><div class="card" style="flex: 1; min-width: 0; padding: 12px; display: flex; flex-direction: column; gap: 2px"><span class="m">Számlázott</span><span class="n" style="font-size: 20px; white-space: nowrap">2 100 000 Ft</span><span class="m">2 projekt</span></div><div class="card" style="flex: 1; min-width: 0; padding: 12px; display: flex; flex-direction: column; gap: 2px"><span class="m">Kiadás</span><span class="n" style="font-size: 20px; white-space: nowrap">1 270 000 Ft</span><span class="m">összesen</span></div></div>
+   <div class="card" style="padding: 8px 14px; display: flex; flex-direction: column"><span style="display: flex; align-items: center; gap: 12px; min-height: 44px"><span class="ic" style="background: #F8E4EC; color: #8A2B4C"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 005 5L15 13l5 2v4a2 2 0 01-2 2A15 15 0 013 6a2 2 0 012-2z"/></svg></span><span style="flex: 1; font-size: 16px; font-weight: 600; min-width: 0">+36 70 123 4567</span></span><span style="display: flex; align-items: center; gap: 12px; min-height: 44px"><span class="ic" style="background: #F8E4EC; color: #8A2B4C"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18v12H3zM3 7l9 7 9-7"/></svg></span><span style="flex: 1; font-size: 16px; font-weight: 600; min-width: 0">horvath.bela@example.com</span></span><span style="display: flex; align-items: center; gap: 12px; min-height: 44px"><span class="ic" style="background: #F8E4EC; color: #8A2B4C"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11l8-7 8 7v9H4z"/></svg></span><span style="flex: 1; font-size: 16px; font-weight: 600; min-width: 0">1052 Budapest, Ráday u. 8.</span></span><span style="display: flex; gap: 6px; flex-wrap: wrap; padding: 6px 0 8px"><span class="badge" style="background: #E7F4EC; color: #14532D"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg>GDPR hozzájárulás</span><span class="badge" style="background: #F8E4EC; color: #8A2B4C">5% hűségkedvezmény</span><span class="badge"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 8a3 3 0 106 0 3 3 0 10-6 0M3 20c0-3 2.7-5 6-5M21 20c0-3-2.7-5-6-5M7 20c0-2.2 2.2-4 5-4s5 1.8 5 4"/></svg>2 kollektívával megosztva</span></span></div>
+   <div style="display: flex; gap: 6px; background: rgba(255,255,255,0.12); padding: 4px; border-radius: 28px"><sc-for list="{{tabs}}" as="t" hint-placeholder-count="2"><button onClick="{{t.pick}}" aria-pressed="{{t.on}}" style="flex: 1; min-width: 0; height: 48px; border: 0; border-radius: 24px; background: {{t.bg}}; color: {{t.fg}}; font-size: 14px; font-weight: 700; white-space: nowrap">{{t.label}}</button></sc-for></div>
+   <sc-if value="{{isQ}}" hint-placeholder-val="{{ true }}"><sc-for list="{{quotes}}" as="x" hint-placeholder-count="3"><button class="card" style="padding: 12px 14px; border: 0; text-align: left; color: #0E1116; display: flex; align-items: center; gap: 12px"><span style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px"><b style="font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{x.t}}</b><span class="m">{{x.d}}</span><span class="badge" style="align-self: flex-start; background: {{x.bg}}; color: {{x.fg}}">{{x.st}}</span></span><span class="n" style="font-size: 18px; white-space: nowrap">{{x.a}}</span></button></sc-for><sc-if value="{{noQ}}" hint-placeholder-val="{{ false }}"><span class="m" style="color: rgba(255,255,255,0.8)">Nincs ajánlat ehhez az ügyfélhez.</span></sc-if></sc-if>
+   <sc-if value="{{isP}}" hint-placeholder-val="{{ false }}"><sc-for list="{{projects}}" as="x" hint-placeholder-count="2"><button class="card" style="padding: 12px 14px; border: 0; text-align: left; color: #0E1116; display: flex; align-items: center; gap: 12px"><span class="ic" style="background: #E3E7EE; color: #263248"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h6l2 2h10v11H3z"/></svg></span><span style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px"><b style="font-size: 16px">{{x.t}}</b><span class="m">{{x.d}}</span></span><span class="n" style="font-size: 16px; white-space: nowrap">{{x.a}}</span></button></sc-for></sc-if>
+   <sc-if value="{{isS}}" hint-placeholder-val="{{ false }}"><button class="card" style="padding: 12px 14px; border: 0; text-align: left; color: #0E1116; display: flex; align-items: center; gap: 12px"><span class="ic" style="background: #D9F2EE; color: #0A5C53"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17L17 3l4 4L7 21zM8 12l2 2M11 9l2 2M14 6l2 2"/></svg></span><span style="flex: 1; display: flex; flex-direction: column; gap: 3px"><b style="font-size: 16px">Fürdőszoba felmérés</b><span class="m">3 helyiség · 2026. nov. 12.</span></span></button></sc-if>
+   <sc-if value="{{isM}}" hint-placeholder-val="{{ false }}"><sc-for list="{{threads}}" as="x" hint-placeholder-count="2"><button class="card" style="padding: 12px 14px; border: 0; text-align: left; color: #0E1116; display: flex; align-items: center; gap: 12px"><span class="ic" style="background: #F8E4EC; color: #8A2B4C"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H9l-5 4z"/></svg></span><span style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px"><b style="font-size: 16px">{{x.t}}</b><span class="m" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{x.last}}</span></span><sc-if value="{{x.unread}}" hint-placeholder-val="{{ false }}"><span style="flex: none; width: 12px; height: 12px; border-radius: 6px; background: #B8456B"></span></sc-if></button></sc-for></sc-if>
+   <div class="card" style="padding: 14px; display: flex; flex-direction: column; gap: 10px; background: #F8E4EC; box-shadow: none; color: #8A2B4C"><span style="display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 17px"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a9 9 0 100 18 9 9 0 000-18zM3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/></svg>Ügyfél portál</span><span style="font-size: 14px; font-weight: 600; line-height: 1.4">Az ügyfél a saját e-mail-címével tud belépni, és látja az ajánlatait, projektjeit.</span><div style="display: flex; gap: 8px"><button onClick="{{copy}}" style="flex: 1; height: 52px; border: 0; border-radius: 26px; background: #B8456B; color: #fff; font-size: 15px; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 8px"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 9h11v11H9zM5 15V4h11"/></svg>{{copyLabel}}</button><button style="flex: 1; height: 52px; border: 0; border-radius: 26px; background: #fff; color: #8A2B4C; font-size: 15px; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 8px"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>Megnyitás</button></div></div>
+  </div>
+ </div>
+ <div class="bar"><sc-if value="{{isM}}" hint-placeholder-val="{{ false }}"><button class="pri" style="background: #B8456B; color: #fff"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>Új üzenet</button></sc-if><sc-if value="{{notM}}" hint-placeholder-val="{{ true }}"><button class="pri" style="background: #fff; color: #8A2B4C"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>{{cta}}</button></sc-if></div>
+ <sc-if value="{{mode}}" hint-placeholder-val="{{ false }}"><button class="scrim" onClick="{{close}}" aria-label="Bezárás"></button></sc-if>
+ <sc-if value="{{isMenu}}" hint-placeholder-val="{{ false }}"><div class="sheet" role="dialog" aria-label="Műveletek"><span class="grab"></span><span class="sht">Horváth Béla</span><button class="row" onClick="{{close}}" style="min-height: 60px;"><span class="ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20l4-1L19 8l-3-3L5 16zM14 7l3 3"/></svg></span><span style="flex: 1; display: flex; flex-direction: column; line-height: 1.2">Szerkesztés</span></button><button class="row" onClick="{{close}}" style="min-height: 60px;"><span class="ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12zM12 9a3 3 0 100 6 3 3 0 000-6"/></svg></span><span style="flex: 1; display: flex; flex-direction: column; line-height: 1.2">Portál előnézet</span></button><button class="row" onClick="{{close}}" style="min-height: 60px; color: #B71C1C"><span class="ic" style="background: #FDECEC; color: #B71C1C"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 7h14M10 7V4h4v3M7 7l1 13h8l1-13"/></svg></span><span style="flex: 1; display: flex; flex-direction: column; line-height: 1.2">Törlés</span></button></div></sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  state = { tab: 'q', mode: null, copied: false };
+  renderVals() {
+    const st = this.state;
+    const TABS = [['q', 'Ajánlatok (3)'], ['p', 'Projektek (2)'], ['s', 'Felmérések (1)'], ['m', 'Üzenetek']];
+    const ST = { Elfogadva: ['#E7F4EC', '#14532D'], Elküldve: ['#EDE7FB', '#4A2796'], Piszkozat: ['#F0F0F2', '#2B3038'] };
+    const Q = [['Fürdőszoba felújítás', '2026. nov. 14.', 'Elfogadva', '1 840 000 Ft'], ['Konyha burkolás', '2026. okt. 2.', 'Elküldve', '1 220 000 Ft'], ['Előszoba festés', '2026. szept. 8.', 'Piszkozat', '780 000 Ft']];
+    return {
+      tabs: TABS.map((t) => ({ label: t[1], on: st.tab === t[0], bg: st.tab === t[0] ? '#fff' : 'transparent', fg: st.tab === t[0] ? '#8A2B4C' : '#fff', pick: () => this.setState({ tab: t[0] }) })),
+      isQ: st.tab === 'q', isP: st.tab === 'p', isS: st.tab === 's', isM: st.tab === 'm', notM: st.tab !== 'm', noQ: false,
+      quotes: Q.map((x) => ({ t: x[0], d: x[1], st: x[2], bg: ST[x[2]][0], fg: ST[x[2]][1], a: x[3] })),
+      projects: [{ t: 'Lakásfelújítás, teljes', d: '2026. aug. – okt. · Lezárva', a: '1 270 000 Ft kiadás' }, { t: 'Erkély burkolás', d: '2026. máj. · Lezárva', a: '240 000 Ft kiadás' }],
+      threads: [{ t: 'Ajánlathoz: Fürdőszoba felújítás', last: 'Ügyfél: Rendben, jöhet a kezdés hétfőn.', unread: true }, { t: 'Általános üzenetváltás', last: 'Te: Holnap 8-kor érkezünk.', unread: false }],
+      cta: st.tab === 'q' ? 'Új ajánlat' : st.tab === 'p' ? 'Új projekt' : 'Új felmérés',
+      copy: () => { this.setState({ copied: true }); setTimeout(() => this.setState({ copied: false }), 1800); }, copyLabel: st.copied ? 'Másolva!' : 'Link másolása',
+      mode: !!st.mode, close: () => this.setState({ mode: null }), openMenu: () => this.setState({ mode: 'menu' }), isMenu: st.mode === 'menu'
+    };
+  }
+}
+</script></body></html>

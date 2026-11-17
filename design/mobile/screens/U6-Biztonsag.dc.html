@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="hu"><head><meta charset="utf-8"><title>OkosSzaki — Biztonság</title><script src="./support.js"></script></head>
+<body><x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&amp;family=Plus+Jakarta+Sans:wght@500;600;700&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}
+button,input,textarea{font-family:inherit}
+button{cursor:pointer}
+*{scrollbar-width:none;-ms-overflow-style:none}
+*::-webkit-scrollbar{display:none;width:0;height:0}
+body{margin:0}
+button,input,textarea{font-family:inherit}
+button{cursor:pointer}
+*{scrollbar-width:none;-ms-overflow-style:none}
+*::-webkit-scrollbar{display:none;width:0;height:0}
+.root{position:relative;width:390px;height:844px;overflow:hidden;background:#EDEBE5;color:#0E1116;font-family:'Plus Jakarta Sans',system-ui,sans-serif}
+.scroll{position:absolute;inset:0;z-index:1;overflow-y:auto;box-sizing:border-box;padding:0 0 170px}
+.hd{position:relative;overflow:hidden;box-sizing:border-box;padding:18px 16px 20px;border-radius:0 0 32px 32px;display:flex;flex-direction:column;gap:12px}
+.glow{position:absolute;right:-90px;top:-120px;width:300px;height:300px;border-radius:150px}
+.top{position:relative;display:flex;align-items:center;justify-content:space-between}
+.rnd{width:48px;height:48px;border:0;border-radius:24px;display:flex;align-items:center;justify-content:center;padding:0}
+.pill{height:36px;padding:0 14px;border-radius:18px;font-size:13px;font-weight:700;display:inline-flex;align-items:center;gap:8px}
+.ttl{position:relative;margin:0;font-family:'Bricolage Grotesque',sans-serif;font-size:30px;font-weight:700;letter-spacing:-.02em;line-height:1.1}
+.kick{position:relative;font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+.sub{position:relative;font-size:15px;font-weight:600}
+.body{padding:16px 16px 0;display:flex;flex-direction:column;gap:14px}
+.card{box-sizing:border-box;border-radius:26px;background:#fff;box-shadow:0 1px 0 rgba(14,17,22,.05),0 14px 26px -18px rgba(14,17,22,.35)}
+.lbl{font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#5A5F68}
+.h2{margin:0;font-family:'Bricolage Grotesque',sans-serif;font-size:22px;font-weight:700}
+.fld{width:100%;box-sizing:border-box;height:56px;border:0;border-radius:20px;background:#fff;padding:0 16px;font-size:17px;font-weight:500;color:#0E1116;box-shadow:0 1px 0 rgba(14,17,22,.05),0 10px 20px -16px rgba(14,17,22,.4)}
+.fld::placeholder{color:#6B7078}
+.chip{height:52px;padding:0 18px;border:0;border-radius:26px;font-size:15px;font-weight:700;display:inline-flex;align-items:center;gap:8px;color:#0E1116}
+.bar{position:absolute;z-index:20;left:0;right:0;bottom:0;box-sizing:border-box;padding:28px 16px 18px;background:linear-gradient(to top,#EDEBE5 70%,rgba(237,235,229,0));display:flex;gap:10px}
+.pri{flex:1;height:60px;border:0;border-radius:30px;background:#0E1116;color:#fff;font-size:17px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:10px;box-shadow:0 14px 26px -12px rgba(14,17,22,.6)}
+.sq{flex:none;width:60px;height:60px;border:0;border-radius:30px;background:#fff;color:#0E1116;display:flex;align-items:center;justify-content:center;box-shadow:0 10px 22px -10px rgba(14,17,22,.4)}
+.ic{flex:none;width:44px;height:44px;border-radius:15px;background:#F1F1F3;color:#1A1D23;display:flex;align-items:center;justify-content:center}
+.row{width:100%;min-height:64px;box-sizing:border-box;padding:10px 14px;border:0;border-radius:22px;background:#fff;color:#0E1116;text-align:left;display:flex;align-items:center;gap:12px;font-size:16px;font-weight:700;box-shadow:0 1px 0 rgba(14,17,22,.05),0 12px 22px -18px rgba(14,17,22,.35)}
+.scrim{position:absolute;inset:0;z-index:40;border:0;padding:0;background:rgba(14,17,22,.5)}
+.sheet{position:absolute;z-index:50;left:0;right:0;bottom:0;box-sizing:border-box;padding:10px 16px 18px;border-radius:32px 32px 0 0;background:#FBFAF7;display:flex;flex-direction:column;gap:12px;max-height:90%;overflow-y:auto}
+.grab{align-self:center;flex:none;width:44px;height:5px;border-radius:3px;background:#D5D2C8}
+.sh{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.sht{font-family:'Bricolage Grotesque',sans-serif;font-size:25px;font-weight:700;line-height:1.1}
+.x{width:48px;height:48px;border:0;border-radius:24px;background:#EFEDE6;color:#0E1116;display:flex;align-items:center;justify-content:center;flex:none}
+.sw{flex:none;width:64px;height:38px;border-radius:19px;position:relative}
+.sw>i{position:absolute;top:4px;width:30px;height:30px;border-radius:15px;background:#fff;box-shadow:0 2px 6px rgba(14,17,22,.3)}
+.badge{height:26px;padding:0 10px;border-radius:13px;font-size:12px;font-weight:700;display:inline-flex;align-items:center;gap:4px;background:#F0F0F2;color:#2B3038;flex:none}
+.m{font-size:13px;font-weight:600;color:#5A5F68}
+.n{font-family:'Bricolage Grotesque',sans-serif;font-weight:700;letter-spacing:-.02em}
+.stat{flex:1;box-sizing:border-box;padding:10px 12px;border-radius:18px}
+
+.root{background:var(--deep);color:#fff}
+.hd{border-radius:0 0 32px 32px}
+.bar{background:linear-gradient(to top,var(--deep) 65%,rgba(0,0,0,0))}
+.card{color:#0E1116;box-shadow:inset 0 1px 0 #fff,0 16px 26px -14px rgba(0,0,0,.7),0 3px 6px -2px rgba(0,0,0,.3)}
+.row{color:#0E1116;box-shadow:inset 0 1px 0 #fff,0 14px 22px -14px rgba(0,0,0,.7),0 3px 6px -2px rgba(0,0,0,.3)}
+.sheet,.sht{color:#0E1116}
+.h2{color:#fff}
+.lbl{color:rgba(255,255,255,.78)}
+.sheet .lbl{color:#5A5F68}
+.sq{color:#0E1116}
+.sheet .row{box-shadow:0 1px 0 rgba(14,17,22,.05),0 12px 22px -18px rgba(14,17,22,.35)}
+
+</style>
+</helmet>
+<div class="root" style="--deep: #121110">
+ <div class="scroll" style="padding-bottom: 190px">
+  <header class="hd" style="background: #44413B; color: #fff">
+   <span class="glow" aria-hidden="true" style="background: rgba(255,255,255,0.08)"></span>
+   <div class="top"><button class="rnd" aria-label="Vissza" style="background: rgba(255,255,255,0.18); color: #fff"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg></button><span class="pill" style="background: rgba(255,255,255,0.18)">Profil</span><span style="width: 48px"></span></div>
+   <span class="kick" style="color: rgba(255,255,255,0.85)">Fiók</span>
+   <h1 class="ttl">Biztonság</h1>
+   <span class="sub" style="color: rgba(255,255,255,0.92)">Jelszó és fiókkezelés</span>
+  </header>
+  <div class="body">
+   <sc-if value="{{err}}" hint-placeholder-val="{{ false }}"><div role="alert" style="padding: 12px 14px; border-radius: 18px; background: #FDECEC; color: #B71C1C; font-size: 14px; font-weight: 700">{{err}}</div></sc-if>
+   <label style="display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 0"><span style="font-size: 14px; font-weight: 700">Jelenlegi jelszó</span><input class="fld" placeholder="" value=""></label><label style="display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 0"><span style="font-size: 14px; font-weight: 700">Új jelszó</span><input class="fld" placeholder="Min. 8 karakter, 1 nagybetű, 1 szám" value=""></label><label style="display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 0"><span style="font-size: 14px; font-weight: 700">Jelszó megerősítése</span><input class="fld" placeholder="Ismételd meg az új jelszót" value=""></label>
+   <span class="m" style="color: rgba(255,255,255,0.78)">Min. 8 karakter, 1 nagybetű, 1 szám.</span>
+   <button onClick="{{savePw}}" class="pri" style="background: #fff; color: #44413B; flex: none"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 10a4 4 0 11-3 3.8L4 21v-3l2-2v-2h2l3.5-3.5"/></svg>Jelszó mentése</button>
+   <button style="min-height: 56px; border: 0; border-radius: 28px; background: rgba(255,255,255,0.16); color: #fff; font-size: 16px; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 8px"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 4H5v16h5M15 8l5 4-5 4M20 12H9"/></svg>Kijelentkezés</button>
+   <div class="card" style="padding: 14px; margin-top: 10px; display: flex; flex-direction: column; gap: 10px; outline: 2px solid #E8B4B4"><b style="font-size: 17px; color: #B71C1C">Veszélyes zóna</b><span style="font-size: 14px; font-weight: 500; line-height: 1.45">A fiók törlése végleges. Személyes adataid és az előfizetésed megszűnik.</span><button onClick="{{toDelete}}" style="min-height: 56px; border: 0; border-radius: 28px; background: #FDECEC; color: #B71C1C; font-size: 16px; font-weight: 700">Fiók törlése</button></div>
+  </div>
+ </div>
+ <sc-if value="{{mode}}" hint-placeholder-val="{{ false }}"><button class="scrim" onClick="{{close}}" aria-label="Bezárás"></button></sc-if>
+ <sc-if value="{{isDel}}" hint-placeholder-val="{{ false }}"><div class="sheet" role="dialog" aria-label="Fiók törlése"><span class="grab"></span><span class="sht" style="color: #B71C1C">Fiók törlése</span><span style="font-size: 15px; font-weight: 500; line-height: 1.45">A fiók törlése végleges. Személyes adataid és a Prémium előfizetésed megszűnik, a kollektívák tulajdonjogát át kell adnod.</span><span style="font-size: 14px; font-weight: 700">A megerősítéshez írd be: TÖRLÉS</span><input class="fld" value="{{word}}" onInput="{{onWord}}" placeholder="TÖRLÉS"><button onClick="{{doDel}}" style="height: 60px; border: 0; border-radius: 30px; background: {{delBg}}; color: #fff; font-size: 17px; font-weight: 700">{{delLabel}}</button><button onClick="{{close}}" style="height: 60px; border: 0; border-radius: 30px; background: #EFEDE6; color: #0E1116; font-size: 17px; font-weight: 700">Mégse</button></div></sc-if>
+ <sc-if value="{{toast}}" hint-placeholder-val="{{ false }}"><div role="status" style="position: absolute; z-index: 60; left: 16px; right: 16px; top: 18px; padding: 14px 16px; border-radius: 22px; background: #14532D; color: #fff; font-size: 15px; font-weight: 700">{{toast}}</div></sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  state = { mode: null, word: '', err: '', toast: '', busy: false };
+  renderVals() {
+    const st = this.state;
+    const ok = st.word.trim() === 'TÖRLÉS';
+    return {
+      err: st.err, savePw: () => { this.setState({ err: 'A jelszónak legalább 8 karakter, 1 nagybetű és 1 szám kell.' }); },
+      toDelete: () => this.setState({ mode: 'del', word: '' }), mode: !!st.mode, close: () => this.setState({ mode: null }), isDel: st.mode === 'del',
+      word: st.word, onWord: (e) => this.setState({ word: e.target.value }),
+      delBg: ok ? '#B71C1C' : '#C9A5A5', delLabel: st.busy ? 'Törlés…' : 'Fiók végleges törlése',
+      doDel: () => { if (!ok) return; this.setState({ busy: true }); setTimeout(() => this.setState({ busy: false, mode: null, toast: 'Fiók törölve.' }), 800); }, toast: st.toast
+    };
+  }
+}
+</script></body></html>

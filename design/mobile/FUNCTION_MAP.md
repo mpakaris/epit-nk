@@ -92,3 +92,32 @@ Routes: `[l]/projektek/page.js` + `ProjectsListClient.jsx`, `[l]/projektek/uj/pa
 
 ### Portal sharing — `P8-Portal.dc.html`
 `PortalShareSection.jsx`, `/api/media-items?document_type=project&document_id=`; per-item share toggles for Számlák, Munkadíj, Média, Napló, "share all", client link `/clients/[id]`; hint when no client is assigned. Owner/admin only.
+
+
+# Clients (C1–C5)
+Routes: `[l]/ugyfelek/page.js`, `ugyfelek/uj/page.js`, `ugyfelek/[id]/page.js`, `components/ClientDetailModal.jsx`, `ClientSelect`. APIs: `/api/clients` (+`[id]`). i18n namespace `clients`. Rules: clients are ALWAYS personal (`owner_id`, GDPR); soft delete; contributors never own/manage clients.
+
+### C1 List — `C1-Lista.dc.html`
+Tabs `myClients` / `sharedClients`, search (`searchPlaceholder`), card: name, company, phone, badges quotesCount/projectsCount/collectivesCount, loyalty discount. Empty states `emptyMine`/`noResults`. Actions sheet: open, edit, copy portal link, delete (`deleteConfirmTitle/Message`, soft delete, `successDeleted`). Shared clients: no edit/delete.
+
+### C2 Form — `C2-Urlap.dc.html`
+`POST/PATCH /api/clients`. Fields: contactName*, companyName, taxNumber, address, phone, email*, discount %, notes. Required `gdprConfirmText` (`gdprRequired`). Optional share with collectives (`shareWithCollectives`, per-collective checkboxes, required `shareGdprConfirmText` → `shareConsentRequired`). Notice `gdprNotice`. CTA createClient/modify; creating/modifying states; `createError` via AlertModal.
+
+### C3 Detail — `C3-Reszletek.dc.html`
+Stats totalQuoteValue / detailInvoiced / totalExpenses, contact (`detailNoContact`), loyalty badge, tabs detailTabQuotes/Projects/Surveys/Messages with empty strings (`noQuotesForClient`, `noProjectsForClient`, `noSurveysForClient`), quote `detailsBtn`, portal block.
+
+### C4 Messages — `C4-Uzenetek.dc.html`
+Threads `quoteThread` + `generalThread`, bubbles youLabel/clientLabel, reply (`replyPlaceholder`, `sendReply`, `sending`), `newMessage` sheet (`newMessageTitle`, `newMessagePlaceholder`), `msgSentOk`, `newMsgErr`, `noConversations`.
+
+### C5 Portal — `C5-Portal.dc.html`
+`clientPortalLabel`, `clientPortalLoginInfo`, `clientPortalUrlDesc`, `copyPortalLink`/`copiedBtn`, `openPortalBtn`, `previewBtn`, `ownViewLabel`, `noEmailForPortal`.
+
+# Profile (U1–U6)
+Route `[l]/profil/page.js` (1.5k lines, anchors `#elofizetes`, `#szamla`, `#aszf`, `#preferences`). APIs: `/api/auth/profile` (+`terms-pdf`), `/api/auth/account`, `/api/auth/request-password-reset`, `/api/subscriptions/{cancel,resume}`, `/api/checkout` (+`activate`), `/api/billing/portal`. i18n namespace `profile`. SA language toggle is cookie-only (GM-7); currency is write-once.
+
+- **U1** hub: header badge `subscriptionBadge*`, `trialBannerText`, rows to every section, `logout`, `deleteAccount`, `contactQuestion`.
+- **U2** `displayName`(+hint), `email`, invoice header: firstName, lastName, companyName(optional), street, streetNumber, zip, city, taxNumber, phone(in repo under invoice form), bankAccount, bankName, website. One save → `saved`/`invoiceSaved`. **Field-to-section mapping in repo differs slightly (phone, VAT sit in the invoice form); keep ONE form/PATCH.**
+- **U3** defaultVat, offerValidity, paymentMethod, paymentDeadline, deposit, warranty, otherTerms; ÁSZF: uploadPdf/replacePdf/uploading/uploadedAt, delete, PDF error alert.
+- **U4/U4b** plan cards (planBasicName/planPremiumName/planFree), `upgradeToPremium(Now)`, `planRedirecting`, `securePayment`, active subs (`subActive`, `subCancels`, `subNextRenewal`, `scheduledCancelNote`), `managePayment`, `premiumCancel*` (owned collectives warning), `cancelCollective*`, `premiumRestore`/`subResumeBtn`, result modals (`cancelSuccessModalTitle`, `premiumCanceledTitle`, `resumeSuccess*`, `upgradeSuccess*`/`upgradeError*`), collective sizes small/medium/large.
+- **U5** languageLabel + `languageNote`, currencyLabel + `currencyNote` (write-once: disabled after set), collectiveWorkspaces* + `collectiveManageBtn`.
+- **U6** passwordChange (current/new/confirm, min 8, 1 uppercase, 1 digit), `logout`, `dangerZone`, `deleteConfirmPrompt`/`deleteConfirmWord` (TÖRLÉS), `dangerWarningPremium`/`dangerWarningBasic`, `deleting`.

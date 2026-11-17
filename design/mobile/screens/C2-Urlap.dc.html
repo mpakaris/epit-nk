@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="hu"><head><meta charset="utf-8"><title>OkosSzaki — Új ügyfél</title><script src="./support.js"></script></head>
+<body><x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&amp;family=Plus+Jakarta+Sans:wght@500;600;700&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}
+button,input,textarea{font-family:inherit}
+button{cursor:pointer}
+*{scrollbar-width:none;-ms-overflow-style:none}
+*::-webkit-scrollbar{display:none;width:0;height:0}
+body{margin:0}
+button,input,textarea{font-family:inherit}
+button{cursor:pointer}
+*{scrollbar-width:none;-ms-overflow-style:none}
+*::-webkit-scrollbar{display:none;width:0;height:0}
+.root{position:relative;width:390px;height:844px;overflow:hidden;background:#EDEBE5;color:#0E1116;font-family:'Plus Jakarta Sans',system-ui,sans-serif}
+.scroll{position:absolute;inset:0;z-index:1;overflow-y:auto;box-sizing:border-box;padding:0 0 170px}
+.hd{position:relative;overflow:hidden;box-sizing:border-box;padding:18px 16px 20px;border-radius:0 0 32px 32px;display:flex;flex-direction:column;gap:12px}
+.glow{position:absolute;right:-90px;top:-120px;width:300px;height:300px;border-radius:150px}
+.top{position:relative;display:flex;align-items:center;justify-content:space-between}
+.rnd{width:48px;height:48px;border:0;border-radius:24px;display:flex;align-items:center;justify-content:center;padding:0}
+.pill{height:36px;padding:0 14px;border-radius:18px;font-size:13px;font-weight:700;display:inline-flex;align-items:center;gap:8px}
+.ttl{position:relative;margin:0;font-family:'Bricolage Grotesque',sans-serif;font-size:30px;font-weight:700;letter-spacing:-.02em;line-height:1.1}
+.kick{position:relative;font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+.sub{position:relative;font-size:15px;font-weight:600}
+.body{padding:16px 16px 0;display:flex;flex-direction:column;gap:14px}
+.card{box-sizing:border-box;border-radius:26px;background:#fff;box-shadow:0 1px 0 rgba(14,17,22,.05),0 14px 26px -18px rgba(14,17,22,.35)}
+.lbl{font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#5A5F68}
+.h2{margin:0;font-family:'Bricolage Grotesque',sans-serif;font-size:22px;font-weight:700}
+.fld{width:100%;box-sizing:border-box;height:56px;border:0;border-radius:20px;background:#fff;padding:0 16px;font-size:17px;font-weight:500;color:#0E1116;box-shadow:0 1px 0 rgba(14,17,22,.05),0 10px 20px -16px rgba(14,17,22,.4)}
+.fld::placeholder{color:#6B7078}
+.chip{height:52px;padding:0 18px;border:0;border-radius:26px;font-size:15px;font-weight:700;display:inline-flex;align-items:center;gap:8px;color:#0E1116}
+.bar{position:absolute;z-index:20;left:0;right:0;bottom:0;box-sizing:border-box;padding:28px 16px 18px;background:linear-gradient(to top,#EDEBE5 70%,rgba(237,235,229,0));display:flex;gap:10px}
+.pri{flex:1;height:60px;border:0;border-radius:30px;background:#0E1116;color:#fff;font-size:17px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:10px;box-shadow:0 14px 26px -12px rgba(14,17,22,.6)}
+.sq{flex:none;width:60px;height:60px;border:0;border-radius:30px;background:#fff;color:#0E1116;display:flex;align-items:center;justify-content:center;box-shadow:0 10px 22px -10px rgba(14,17,22,.4)}
+.ic{flex:none;width:44px;height:44px;border-radius:15px;background:#F1F1F3;color:#1A1D23;display:flex;align-items:center;justify-content:center}
+.row{width:100%;min-height:64px;box-sizing:border-box;padding:10px 14px;border:0;border-radius:22px;background:#fff;color:#0E1116;text-align:left;display:flex;align-items:center;gap:12px;font-size:16px;font-weight:700;box-shadow:0 1px 0 rgba(14,17,22,.05),0 12px 22px -18px rgba(14,17,22,.35)}
+.scrim{position:absolute;inset:0;z-index:40;border:0;padding:0;background:rgba(14,17,22,.5)}
+.sheet{position:absolute;z-index:50;left:0;right:0;bottom:0;box-sizing:border-box;padding:10px 16px 18px;border-radius:32px 32px 0 0;background:#FBFAF7;display:flex;flex-direction:column;gap:12px;max-height:90%;overflow-y:auto}
+.grab{align-self:center;flex:none;width:44px;height:5px;border-radius:3px;background:#D5D2C8}
+.sh{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.sht{font-family:'Bricolage Grotesque',sans-serif;font-size:25px;font-weight:700;line-height:1.1}
+.x{width:48px;height:48px;border:0;border-radius:24px;background:#EFEDE6;color:#0E1116;display:flex;align-items:center;justify-content:center;flex:none}
+.sw{flex:none;width:64px;height:38px;border-radius:19px;position:relative}
+.sw>i{position:absolute;top:4px;width:30px;height:30px;border-radius:15px;background:#fff;box-shadow:0 2px 6px rgba(14,17,22,.3)}
+.badge{height:26px;padding:0 10px;border-radius:13px;font-size:12px;font-weight:700;display:inline-flex;align-items:center;gap:4px;background:#F0F0F2;color:#2B3038;flex:none}
+.m{font-size:13px;font-weight:600;color:#5A5F68}
+.n{font-family:'Bricolage Grotesque',sans-serif;font-weight:700;letter-spacing:-.02em}
+.stat{flex:1;box-sizing:border-box;padding:10px 12px;border-radius:18px}
+
+.root{background:var(--deep);color:#fff}
+.hd{border-radius:0 0 32px 32px}
+.bar{background:linear-gradient(to top,var(--deep) 65%,rgba(0,0,0,0))}
+.card{color:#0E1116;box-shadow:inset 0 1px 0 #fff,0 16px 26px -14px rgba(0,0,0,.7),0 3px 6px -2px rgba(0,0,0,.3)}
+.row{color:#0E1116;box-shadow:inset 0 1px 0 #fff,0 14px 22px -14px rgba(0,0,0,.7),0 3px 6px -2px rgba(0,0,0,.3)}
+.sheet,.sht{color:#0E1116}
+.h2{color:#fff}
+.lbl{color:rgba(255,255,255,.78)}
+.sheet .lbl{color:#5A5F68}
+.sq{color:#0E1116}
+.sheet .row{box-shadow:0 1px 0 rgba(14,17,22,.05),0 12px 22px -18px rgba(14,17,22,.35)}
+
+</style>
+</helmet>
+<div class="root" style="--deep: #2A0F1A">
+ <div class="scroll" style="padding-bottom: 190px">
+  <header class="hd" style="background: #B8456B; color: #fff">
+   <span class="glow" aria-hidden="true" style="background: rgba(255,255,255,0.08)"></span>
+   <div class="top"><button class="rnd" aria-label="Vissza" style="background: rgba(255,255,255,0.18); color: #fff"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg></button><span class="pill" style="background: rgba(255,255,255,0.18)">Személyes</span><span style="width: 48px"></span></div>
+   <span class="kick" style="color: rgba(255,255,255,0.85)">{{kick}}</span>
+   <h1 class="ttl">{{title}}</h1>
+   <span class="sub" style="color: rgba(255,255,255,0.92)">{{sub}}</span>
+  </header>
+  <div class="body">
+   <sc-if value="{{err}}" hint-placeholder-val="{{ false }}"><div role="alert" style="padding: 12px 14px; border-radius: 18px; background: #FDECEC; color: #B71C1C; font-size: 14px; font-weight: 700; display: flex; gap: 8px; align-items: center"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8v5M12 16h.01M12 3l10 18H2z"/></svg>{{err}}</div></sc-if>
+   <label style="display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 0"><span style="font-size: 14px; font-weight: 700">Kapcsolattartó neve *</span><input class="fld" placeholder="Horváth Béla" value=""></label>
+   <div style="display: flex; gap: 10px"><label style="display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 0"><span style="font-size: 14px; font-weight: 700">Cégnév</span><input class="fld" placeholder="Horváth Kft." value=""></label><label style="display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 0"><span style="font-size: 14px; font-weight: 700">Adószám</span><input class="fld" placeholder="12345678-1-42" value=""></label></div>
+   <label style="display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 0"><span style="font-size: 14px; font-weight: 700">Cím</span><input class="fld" placeholder="1052 Budapest, Ráday u. 8." value=""></label>
+   <div style="display: flex; gap: 10px"><label style="display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 0"><span style="font-size: 14px; font-weight: 700">Telefon</span><input class="fld" placeholder="+36 70 …" value=""></label><label style="display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 0"><span style="font-size: 14px; font-weight: 700">E-mail *</span><input class="fld" placeholder="horvath.bela@example.com" value=""></label></div>
+   <label style="display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 0"><span style="font-size: 14px; font-weight: 700">Hűségkedvezmény (%)</span><input class="fld" placeholder="" value="0"></label>
+   <label style="display: flex; flex-direction: column; gap: 6px"><span style="font-size: 14px; font-weight: 700">Megjegyzés</span><textarea class="fld" style="height: 96px; padding: 14px 16px; resize: none" placeholder="Pl. kapukód, preferált időpont"></textarea></label>
+   <div class="card" style="padding: 12px 14px; display: flex; gap: 10px; align-items: center; background: #F8E4EC; box-shadow: none; color: #8A2B4C"><span style="flex: none"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/></svg></span><span style="font-size: 13px; font-weight: 700; line-height: 1.35">Az ügyféladatok mindig személyesek, kollektívában sem láthatók — kivéve, ha te megosztod.</span></div>
+   <button onClick="{{toggleGdpr}}" role="checkbox" aria-checked="{{gdpr.on}}" style="width: 100%; border: 0; border-radius: 22px; background: #fff; color: #0E1116; padding: 14px; display: flex; align-items: flex-start; gap: 12px; text-align: left"><span style="flex: none; width: 32px; height: 32px; border-radius: 10px; border: 2px solid {{gdpr.bd}}; background: {{gdpr.bg}}; color: #fff; display: flex; align-items: center; justify-content: center">{{gdpr.mark}}</span><span style="flex: 1; font-size: 14px; font-weight: 600; line-height: 1.4">Megerősítem, hogy az ügyfél hozzájárult az adatai tárolásához.</span></button>
+   <button onClick="{{toggleShare}}" role="switch" aria-checked="{{share.on}}" style="width: 100%; min-height: 60px; border: 0; border-radius: 22px; background: #fff; color: #0E1116; padding: 10px 14px; display: flex; align-items: center; gap: 12px; text-align: left"><span style="flex: 1; display: flex; flex-direction: column; line-height: 1.25"><b style="font-size: 16px">Megosztás kollektívákkal</b><span class="m">Csak az általad kiválasztottakkal</span></span><span class="sw" style="background: {{share.bg}}"><i style="left: {{share.x}}"></i></span></button>
+   <sc-if value="{{share.on}}" hint-placeholder-val="{{ false }}"><div style="display: flex; flex-direction: column; gap: 10px"><span class="lbl">Melyik kollektívákkal?</span><sc-for list="{{cols}}" as="c" hint-placeholder-count="2"><button onClick="{{c.pick}}" role="checkbox" aria-checked="{{c.on}}" style="min-height: 60px; border: 0; border-radius: 22px; background: #fff; color: #0E1116; padding: 10px 14px; display: flex; align-items: center; gap: 12px; text-align: left"><span style="flex: none; width: 36px; height: 36px; border-radius: 12px; background: {{c.color}}"></span><b style="flex: 1; font-size: 16px">{{c.name}}</b><span style="flex: none; width: 32px; height: 32px; border-radius: 10px; border: 2px solid {{c.bd}}; background: {{c.bg}}; color: #fff; display: flex; align-items: center; justify-content: center">{{c.mark}}</span></button></sc-for><button onClick="{{toggleShareGdpr}}" role="checkbox" aria-checked="{{shareGdpr.on}}" style="width: 100%; border: 0; border-radius: 22px; background: #fff; color: #0E1116; padding: 14px; display: flex; align-items: flex-start; gap: 12px; text-align: left"><span style="flex: none; width: 32px; height: 32px; border-radius: 10px; border: 2px solid {{shareGdpr.bd}}; background: {{shareGdpr.bg}}; color: #fff; display: flex; align-items: center; justify-content: center">{{shareGdpr.mark}}</span><span style="flex: 1; font-size: 14px; font-weight: 600; line-height: 1.4">Megerősítem, hogy az ügyfél hozzájárult az adatai megosztásához a kiválasztott kollektívákkal.</span></button></div></sc-if>
+  </div>
+ </div>
+ <div class="bar"><button onClick="{{submit}}" class="pri" style="background: #fff; color: #8A2B4C"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg>{{cta}}</button></div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  state = { gdpr: false, share: false, shareGdpr: false, picked: [0], err: '', edit: false, ok: false };
+  renderVals() {
+    const st = this.state;
+    const CO = [['Ráday u. 8. · Csapat', '#6D3FD1'], ['Hegyvidék brigád', '#0A7F72']];
+    const tg = (k) => () => this.setState({ [k]: !st[k], err: '' });
+    return {
+      kick: st.edit ? 'Szerkesztés' : 'Új ügyfél', title: st.edit ? 'Ügyfél szerkesztése' : 'Új ügyfél létrehozása', sub: 'Az ügyfél mindig a te személyes listádon marad', cta: st.edit ? 'Módosítás' : 'Ügyfél létrehozása',
+      gdpr: { on: !!st.gdpr, bg: st.gdpr ? '#B8456B' : '#C9C5BA', x: st.gdpr ? '30px' : '4px', bd: st.gdpr ? '#B8456B' : '#9A9A9A', mark: st.gdpr ? '✓' : '' }, toggleGdpr: tg('gdpr'),
+      share: { on: !!st.share, bg: st.share ? '#B8456B' : '#C9C5BA', x: st.share ? '30px' : '4px', bd: st.share ? '#B8456B' : '#9A9A9A', mark: st.share ? '✓' : '' }, toggleShare: tg('share'),
+      shareGdpr: { on: !!st.shareGdpr, bg: st.shareGdpr ? '#B8456B' : '#C9C5BA', x: st.shareGdpr ? '30px' : '4px', bd: st.shareGdpr ? '#B8456B' : '#9A9A9A', mark: st.shareGdpr ? '✓' : '' }, toggleShareGdpr: tg('shareGdpr'),
+      cols: CO.map((c, i) => ({ name: c[0], color: c[1], on: st.picked.includes(i), bd: st.picked.includes(i) ? '#B8456B' : '#9A9A9A', bg: st.picked.includes(i) ? '#B8456B' : '#fff', mark: st.picked.includes(i) ? '✓' : '', pick: () => this.setState({ picked: st.picked.includes(i) ? st.picked.filter((x) => x !== i) : st.picked.concat([i]) }) })),
+      err: st.err,
+      submit: () => { if (!st.gdpr) return this.setState({ err: 'Az ügyfél hozzájárulása kötelező!' }); if (st.share && !st.shareGdpr) return this.setState({ err: 'Kérjük erősítse meg az ügyfél hozzájárulását a megosztáshoz.' }); this.setState({ err: '' }); }
+    };
+  }
+}
+</script></body></html>
