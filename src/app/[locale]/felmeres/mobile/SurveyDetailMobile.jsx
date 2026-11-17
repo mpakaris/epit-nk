@@ -143,9 +143,9 @@ function MetaSheet({ survey, clients, onSave, onClose }) {
   );
 }
 
-function RoomCard({ entry, survey, isNewEntry, isOpen, onToggle, onMore, onDims, onItems, enqueue, surveyId }) {
+function RoomCard({ entry, survey, isNewEntry, isOpen, onToggle, onMore, onDims, onItems, enqueue, surveyId, onMediaOpen, itemCount = 0, index = 1 }) {
   const tM = useTranslations('mobilePods');
-  const media = (entry.media || []).slice(0, 3);
+  const allMedia = entry.media || [];
   const photoInputRef = useRef(null);
 
   const w = entry.width_m, l = entry.length_m, h = entry.height_m;
@@ -171,10 +171,8 @@ function RoomCard({ entry, survey, isNewEntry, isOpen, onToggle, onMore, onDims,
           aria-expanded={isOpen}
           style={{ flex: 1, minWidth: 0, minHeight: 84, boxSizing: 'border-box', padding: '12px 8px 12px 16px', border: 0, background: 'transparent', color: '#0E1116', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }}
         >
-          <span style={{ flexShrink: 0, width: 52, height: 52, borderRadius: 17, background: SURVEY_BG, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <path d="M4 8h3l2-3h6l2 3h3v12H4z M8.5 13a3.5 3.5 0 107 0 3.5 3.5 0 10-7 0"/>
-            </svg>
+          <span style={{ flexShrink: 0, width: 52, height: 52, borderRadius: 17, background: SURVEY_BG, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, fontWeight: 700, fontFamily: "'Bricolage Grotesque', sans-serif" }}>
+            {index}
           </span>
           <span style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 3 }}>
             <span style={{ fontSize: 18, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{entry.name}</span>
@@ -199,19 +197,31 @@ function RoomCard({ entry, survey, isNewEntry, isOpen, onToggle, onMore, onDims,
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
             {(entry.window_count > 0) && <Chip label={tM('roomWinBadge', { count: entry.window_count })} />}
             {(entry.door_count > 0)   && <Chip label={tM('roomDoorBadge', { count: entry.door_count })} />}
-            {media.length > 0         && <Chip label={tM('roomPhotoBadge', { count: entry.media.length })} />}
+            {allMedia.length > 0       && <Chip label={tM('roomPhotoBadge', { count: allMedia.length })} />}
           </div>
 
           {/* Photo strip */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6 }}>
             {[0, 1, 2].map(i => {
-              const item = media[i];
-              return (
-                <span key={i} style={{
-                  height: 62, borderRadius: 14,
-                  background: item ? `url(${item.thumbnail_url || item.drive_view_url}) center/cover` : gradFor(i),
-                  display: 'block',
-                }} />
+              const item = allMedia[i];
+              const showOverlay = i === 2 && allMedia.length > 3;
+              const isVideo = item && (item.mime_type?.startsWith('video/') || !item.thumbnail_url);
+              return item ? (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={onMediaOpen}
+                  style={{ height: 62, borderRadius: 14, border: 0, padding: 0, background: isVideo ? '#1A1D22' : `url(${item.thumbnail_url}) center/cover`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', position: 'relative', overflow: 'hidden' }}
+                >
+                  {isVideo && <svg width="18" height="18" viewBox="0 0 24 24" fill="#fff" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>}
+                  {showOverlay && (
+                    <span style={{ position: 'absolute', inset: 0, background: 'rgba(14,17,22,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 700, color: '#fff' }}>
+                      +{allMedia.length - 2}
+                    </span>
+                  )}
+                </button>
+              ) : (
+                <span key={i} style={{ height: 62, borderRadius: 14, background: gradFor(i), display: 'block' }} />
               );
             })}
             {enqueue && (
@@ -234,7 +244,7 @@ function RoomCard({ entry, survey, isNewEntry, isOpen, onToggle, onMore, onDims,
           {/* Action buttons */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
             <button type="button" onClick={onItems} style={{ minHeight: 52, border: 0, borderRadius: 26, background: '#0E1116', color: '#fff', fontSize: 15, fontWeight: 700, cursor: 'pointer' }}>
-              {tM('roomItemsBtn', { count: 0 })}
+              {tM('roomItemsBtn', { count: itemCount })}
             </button>
             <button type="button" onClick={onDims} style={{ minHeight: 52, border: 0, borderRadius: 26, background: '#F1F1F3', color: '#0E1116', fontSize: 15, fontWeight: 700, cursor: 'pointer' }}>
               {tM('roomDimsBtn')}
@@ -427,7 +437,7 @@ export default function SurveyDetailMobile() {
   const {
     loading, dataReady, surveys, quotes, projects, clients, users, collectives,
     currentUser, cacheSurvey, deleteSurvey, updateSurvey,
-    surveyMediaBySurvey, surveyEntriesBySurvey, surveyLayoutsBySurvey, surveyDrawingsBySurvey,
+    surveyMediaBySurvey, surveyEntriesBySurvey, surveyLayoutsBySurvey, surveyDrawingsBySurvey, surveyItemsBySurvey,
     fetchSurveyMedia, uploadSurveyMedia, deleteSurveyMedia,
     createSurveyEntry, deleteSurveyEntry,
     createSurveyDrawing, deleteSurveyDrawing,
@@ -454,7 +464,10 @@ export default function SurveyDetailMobile() {
   const [sketchSaving,        setSketchSaving]        = useState(false);
   const [sketchDirty,         setSketchDirty]         = useState(false);
   const [sketchDiscardConfirm,setSketchDiscardConfirm]= useState(false);
-  const [previewImg,      setPreviewImg]      = useState(null);  // layout image URL to preview
+  const [previewImg,      setPreviewImg]      = useState(null);  // URL to preview (image or video)
+  const [previewIsVideo,  setPreviewIsVideo]  = useState(false);
+  const [roomMediaSheet,  setRoomMediaSheet]  = useState(null);  // entry ID whose media sheet is open
+  const roomMediaInputRef = useRef(null);
   const [previewSketch,   setPreviewSketch]   = useState(null);  // drawing object to preview (read-only)
   const [editingSketch,   setEditingSketch]   = useState(null);  // drawing object being edited
   const [alertMsg,        setAlertMsg]        = useState('');
@@ -528,6 +541,7 @@ export default function SurveyDetailMobile() {
   const entries          = surveyEntriesBySurvey[id]  || [];
   const layouts          = surveyLayoutsBySurvey[id]  || [];
   const drawings         = surveyDrawingsBySurvey[id] || [];
+  const surveyItems      = surveyItemsBySurvey[id]    || [];
   const myCollectiveRole = collectives?.find(c => c.collective_id === survey.collective_id)?.role;
   const isKollektivOwner = myCollectiveRole === 'owner' || myCollectiveRole === 'admin';
   const isOwner          = survey.owner_id === currentUser?.id || survey.created_by === currentUser?.id;
@@ -627,10 +641,10 @@ export default function SurveyDetailMobile() {
   ].filter(Boolean);
 
   const roomMenuItems = [
-    { icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 6a3 3 0 106 0v6a3 3 0 10-6 0zM5 11a7 7 0 0014 0M12 18v3"/></svg>, label: tM('roomDictate'), onClick: () => { closeSheet(); if (activeRoomId) router.push(p(`/felmeres/${id}/tetelek/${activeRoomId}?mode=dictate`)); } },
-    { icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/></svg>, label: tM('roomAiSuggest'), onClick: () => { closeSheet(); if (activeRoomId) router.push(p(`/felmeres/${id}/tetelek/${activeRoomId}?mode=ai`)); } },
     { icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>, label: tM('roomAddItem'), onClick: () => { closeSheet(); if (activeRoomId) router.push(p(`/felmeres/${id}/tetelek/${activeRoomId}?mode=add`)); } },
+    { icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 6a3 3 0 106 0v6a3 3 0 10-6 0zM5 11a7 7 0 0014 0M12 18v3"/></svg>, label: tM('roomDictate'), onClick: () => { closeSheet(); if (activeRoomId) router.push(p(`/felmeres/${id}/tetelek/${activeRoomId}?mode=dictate`)); } },
     { icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v12H4z M8.5 13a3.5 3.5 0 107 0 3.5 3.5 0 10-7 0"/></svg>, label: tM('roomPhotoVideo'), onClick: closeSheet },
+    { icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/></svg>, label: tM('roomAiSuggest'), onClick: () => { closeSheet(); if (activeRoomId) router.push(p(`/felmeres/${id}/tetelek/${activeRoomId}?mode=ai`)); } },
     { icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M16 3l5 5L9 20H4v-5z"/></svg>, label: tM('roomEditAction'), onClick: () => { closeSheet(); if (activeRoomId) router.push(p(`/felmeres/${id}/helyiseg/${activeRoomId}`)); } },
     { icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg>, label: tM('roomDeleteAction'), onClick: closeSheet, danger: true },
   ];
@@ -857,12 +871,13 @@ export default function SurveyDetailMobile() {
           </div>
 
           {/* Room cards */}
-          {entries.map(entry => {
+          {entries.map((entry, idx) => {
             const isNewEntry = survey.status === 'reopened' && survey.done_at && entry.created_at && new Date(entry.created_at) > new Date(survey.done_at);
             return (
               <RoomCard
                 key={entry.id}
                 entry={entry}
+                index={idx + 1}
                 survey={survey}
                 isNewEntry={isNewEntry}
                 isOpen={openRoomId === entry.id}
@@ -872,6 +887,8 @@ export default function SurveyDetailMobile() {
                 onItems={() => router.push(p(`/felmeres/${id}/tetelek/${entry.id}`))}
                 enqueue={canAdd ? enqueue : undefined}
                 surveyId={id}
+                onMediaOpen={() => setRoomMediaSheet(entry.id)}
+                itemCount={surveyItems.filter(it => it.entry_id === entry.id).length}
               />
             );
           })}
@@ -1115,16 +1132,77 @@ export default function SurveyDetailMobile() {
         </div>
       )}
 
-      {/* Image lightbox */}
+      {/* Room media sheet */}
+      {roomMediaSheet && (() => {
+        const sheetEntry = entries.find(e => e.id === roomMediaSheet);
+        if (!sheetEntry) return null;
+        const sheetMedia = sheetEntry.media || [];
+        return (
+          <>
+            <button type="button" onClick={() => setRoomMediaSheet(null)} aria-label={tc('close')} style={{ position: 'fixed', inset: 0, zIndex: 48, border: 0, background: 'rgba(14,17,22,0.5)', cursor: 'pointer' }} />
+            <div role="dialog" aria-label={tM('roomPhotoBadge', { count: sheetMedia.length })} className="pod-sheet" style={{ position: 'fixed', zIndex: 50, left: 0, right: 0, bottom: 0, boxSizing: 'border-box', padding: '10px 16px calc(20px + env(safe-area-inset-bottom))', borderRadius: '32px 32px 0 0', background: '#FBFAF7', display: 'flex', flexDirection: 'column', gap: 14, maxHeight: '82dvh', overflowY: 'auto' }}>
+              <span style={{ alignSelf: 'center', width: 44, height: 5, borderRadius: 3, background: '#D5D2C8', flexShrink: 0 }} />
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexShrink: 0 }}>
+                <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 22, fontWeight: 700, color: '#0E1116' }}>{sheetEntry.name} · {tM('roomPhotoBadge', { count: sheetMedia.length })}</span>
+                <button type="button" onClick={() => setRoomMediaSheet(null)} style={{ width: 44, height: 44, border: 0, borderRadius: 22, background: '#EFEDE6', color: '#0E1116', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                </button>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                {sheetMedia.map(item => {
+                  const isVideo = item.mime_type?.startsWith('video/') || !item.thumbnail_url;
+                  return (
+                  <div key={item.id} style={{ position: 'relative', borderRadius: 16, overflow: 'hidden', aspectRatio: '4/3', background: '#EDEAE0' }}>
+                    <button type="button" onClick={() => { setPreviewImg(item.drive_view_url || item.thumbnail_url); setPreviewIsVideo(isVideo); }} style={{ width: '100%', height: '100%', padding: 0, border: 0, cursor: 'pointer', display: 'block' }}>
+                      {isVideo ? (
+                        <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6, background: '#1A1D22', color: '#fff' }}>
+                          <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
+                          <span style={{ fontSize: 11, fontWeight: 600, opacity: 0.7, maxWidth: '90%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.file_name || 'video'}</span>
+                        </div>
+                      ) : (
+                        <img src={item.thumbnail_url || item.drive_view_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      )}
+                    </button>
+                    {canAdd && (
+                      <button type="button" onClick={() => deleteSurveyMedia(item.id, id, sheetEntry.id, 'photo')} style={{ position: 'absolute', top: 6, right: 6, width: 32, height: 32, borderRadius: 16, border: 0, background: 'rgba(14,17,22,0.65)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true"><path d="M5 7h14M9 7V4h6v3M7 7l1 13h8l1-13"/></svg>
+                      </button>
+                    )}
+                  </div>
+                );
+                })}
+              </div>
+              {canAdd && (
+                <>
+                  <button type="button" onClick={() => roomMediaInputRef.current?.click()} style={{ minHeight: 56, border: 0, borderRadius: 28, background: '#0E1116', color: '#fff', fontSize: 16, fontWeight: 700, cursor: 'pointer' }}>
+                    {tM('roomPhotoVideo')}
+                  </button>
+                  <input ref={roomMediaInputRef} type="file" accept="image/*,video/*" multiple capture="environment" style={{ display: 'none' }} onChange={e => {
+                    const raw = Array.from(e.target.files || []);
+                    e.target.value = '';
+                    if (raw.length && enqueue) enqueue(raw, { surveyId: id, entryId: roomMediaSheet, mediaType: 'photo' });
+                  }} />
+                </>
+              )}
+            </div>
+          </>
+        );
+      })()}
+
+      {/* Image / video lightbox */}
       {previewImg && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 60, background: 'rgba(14,17,22,0.95)', display: 'flex', flexDirection: 'column' }}>
           <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '14px 16px', flexShrink: 0 }}>
-            <button type="button" onClick={() => setPreviewImg(null)} style={{ width: 44, height: 44, border: 0, borderRadius: 22, background: 'rgba(255,255,255,0.14)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+            <button type="button" onClick={() => { setPreviewImg(null); setPreviewIsVideo(false); }} style={{ width: 44, height: 44, border: 0, borderRadius: 22, background: 'rgba(255,255,255,0.14)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12"/></svg>
             </button>
           </div>
           <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16, minHeight: 0 }}>
-            <img src={previewImg} alt="" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', borderRadius: 16 }} />
+            {previewIsVideo ? (
+              <video src={previewImg} controls autoPlay style={{ maxWidth: '100%', maxHeight: '100%', borderRadius: 16 }} />
+            ) : (
+              <img src={previewImg} alt="" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', borderRadius: 16 }} />
+            )}
           </div>
         </div>
       )}
