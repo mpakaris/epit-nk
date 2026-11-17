@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import PageSpinner from '@/components/PageSpinner';
 import { processMediaFile } from '@/lib/mediaGate';
+import SurveyDetailMobile from '../mobile/SurveyDetailMobile';
 import { useUploadQueue } from '@/hooks/useUploadQueue';
 import useMobile from '@/hooks/useMobile';
 import UploadProgressBadge from '@/components/mobile/UploadProgressBadge';
@@ -353,7 +354,7 @@ const DOOR_M2   = 2.0;
 
 
 // ── Main page ─────────────────────────────────────────────────────────────────
-export default function SurveyDetailPage() {
+function SurveyDetailDesktop() {
   const { id } = useParams();
   const router = useRouter();
   const t  = useTranslations('surveyDetail');
@@ -1025,4 +1026,10 @@ export default function SurveyDetailPage() {
       />
     </div>
   );
+}
+
+export default function SurveyDetailPage() {
+  const isMobile = useMobile();
+  if (isMobile) return <SurveyDetailMobile />;
+  return <SurveyDetailDesktop />;
 }

@@ -109,7 +109,7 @@ export default function NewSurveyMobile() {
   const selectedClient = clients?.find(c => c.id === clientId);
 
   return (
-    <div style={{ position: 'relative', minHeight: '100dvh', background: headerDeep, color: '#fff', fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif" }}>
+    <div className="pod-screen-dark" style={{ position: 'relative', minHeight: '100dvh', background: headerDeep, color: '#fff', fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif" }}>
       {/* Scrollable content */}
       <div style={{ overflowY: 'auto', paddingBottom: 170 }}>
 
@@ -282,7 +282,7 @@ export default function NewSurveyMobile() {
       {clientSheet && (
         <>
           <button onClick={() => setClientSheet(false)} aria-label={t('close')} style={{ position: 'fixed', inset: 0, zIndex: 40, border: 0, padding: 0, background: 'rgba(14,17,22,0.5)', cursor: 'pointer' }} />
-          <div role="dialog" aria-label={t('newClient')} style={{ position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 50, boxSizing: 'border-box', padding: `10px 16px calc(18px + env(safe-area-inset-bottom))`, borderRadius: '32px 32px 0 0', background: 'var(--m-sheet)', display: 'flex', flexDirection: 'column', gap: 12, maxHeight: '90%', overflowY: 'auto' }}>
+          <div role="dialog" aria-label={t('newClient')} className="pod-sheet" style={{ position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 50, boxSizing: 'border-box', padding: `10px 16px calc(18px + env(safe-area-inset-bottom))`, borderRadius: '32px 32px 0 0', background: 'var(--m-sheet)', display: 'flex', flexDirection: 'column', gap: 12, maxHeight: '90%', overflowY: 'auto' }}>
             <div style={{ alignSelf: 'center', width: 44, height: 5, borderRadius: 3, background: '#D5D2C8' }} />
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
               <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 25, fontWeight: 700, lineHeight: 1.1 }}>{t('newClient')}</span>

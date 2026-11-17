@@ -7,6 +7,7 @@ import { useApp } from '@/context/AppContext';
 import { useTransferRequests } from '@/hooks/useTransferRequests';
 import { normalizeHU } from '@/lib/utils';
 import { PERSONAL_COLOR, podColor } from '@/lib/podColor';
+import useOnline from '@/hooks/useOnline';
 
 import PageHeader from '@/components/mobile/pods/PageHeader';
 import Dock from '@/components/mobile/pods/Dock';
@@ -101,7 +102,7 @@ function SurveyCard({ survey, client, isTeam, onMore }) {
 function ActionSheet({ survey, isOwner, canTransfer, hasPending, onOpen, onTransfer, onRevoke, onDelete, onClose }) {
   const t = useTranslations('mobilePods');
   return (
-    <div role="dialog" aria-label={t('openAction')} style={{ position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 50, boxSizing: 'border-box', padding: `10px 16px calc(18px + env(safe-area-inset-bottom))`, borderRadius: '32px 32px 0 0', background: 'var(--m-sheet)', display: 'flex', flexDirection: 'column', gap: 12, maxHeight: '90%', overflowY: 'auto' }}>
+    <div role="dialog" aria-label={t('openAction')} className="pod-sheet" style={{ position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 50, boxSizing: 'border-box', padding: `10px 16px calc(18px + env(safe-area-inset-bottom))`, borderRadius: '32px 32px 0 0', background: 'var(--m-sheet)', display: 'flex', flexDirection: 'column', gap: 12, maxHeight: '90%', overflowY: 'auto' }}>
       <div style={{ alignSelf: 'center', width: 44, height: 5, borderRadius: 3, background: '#D5D2C8' }} />
       <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
         <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 22, fontWeight: 700, lineHeight: 1.1 }}>{survey?.title}</span>
@@ -154,7 +155,7 @@ function TransferSheet({ survey, collectives, onSend, onClose }) {
   const { colors: c } = { colors: PERSONAL_COLOR };
 
   return (
-    <div role="dialog" aria-label={t('transferTitle')} style={{ position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 50, boxSizing: 'border-box', padding: `10px 16px calc(18px + env(safe-area-inset-bottom))`, borderRadius: '32px 32px 0 0', background: 'var(--m-sheet)', display: 'flex', flexDirection: 'column', gap: 12, maxHeight: '90%', overflowY: 'auto' }}>
+    <div role="dialog" aria-label={t('transferTitle')} className="pod-sheet" style={{ position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 50, boxSizing: 'border-box', padding: `10px 16px calc(18px + env(safe-area-inset-bottom))`, borderRadius: '32px 32px 0 0', background: 'var(--m-sheet)', display: 'flex', flexDirection: 'column', gap: 12, maxHeight: '90%', overflowY: 'auto' }}>
       <div style={{ alignSelf: 'center', width: 44, height: 5, borderRadius: 3, background: '#D5D2C8' }} />
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
         <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 25, fontWeight: 700, lineHeight: 1.1 }}>{t('transferTitle')}</span>
@@ -196,7 +197,7 @@ function DeleteSheet({ survey, isTeam, onConfirm, onClose }) {
   const tM = useTranslations('mobilePods');
   const photoCount = (survey?._preview_urls || []).length;
   return (
-    <div role="alertdialog" aria-label={t('deleteConfirmTitle')} style={{ position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 50, boxSizing: 'border-box', padding: `10px 16px calc(18px + env(safe-area-inset-bottom))`, borderRadius: '32px 32px 0 0', background: 'var(--m-sheet)', display: 'flex', flexDirection: 'column', gap: 12 }}>
+    <div role="alertdialog" aria-label={t('deleteConfirmTitle')} className="pod-sheet" style={{ position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 50, boxSizing: 'border-box', padding: `10px 16px calc(18px + env(safe-area-inset-bottom))`, borderRadius: '32px 32px 0 0', background: 'var(--m-sheet)', display: 'flex', flexDirection: 'column', gap: 12 }}>
       <div style={{ alignSelf: 'center', width: 44, height: 5, borderRadius: 3, background: '#D5D2C8' }} />
       <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 25, fontWeight: 700 }}>{t('deleteConfirmTitle')}</span>
       <span style={{ fontSize: 16, fontWeight: 500, lineHeight: 1.45 }}>
@@ -230,6 +231,7 @@ export default function SurveyListMobile() {
   const [actionSurvey, setActionSurvey] = useState(null); // { survey, mode: 'action'|'transfer'|'delete' }
 
   const { outgoingTransfers } = useTransferRequests({ dataReady, isDemoMode });
+  const online = useOnline();
 
   const workspaces = useMemo(() => {
     const ws = [
@@ -293,8 +295,26 @@ export default function SurveyListMobile() {
 
   const anySheet = sheet || actionSurvey;
 
+  if (!dataReady) return (
+    <div className="pod-screen" style={{ minHeight: '100dvh', background: 'var(--m-canvas)', padding: '108px 16px 0', display: 'flex', flexDirection: 'column', gap: 10 }}>
+      {[1, 0.75].map((_, i) => (
+        <div key={i} style={{ borderRadius: 28, overflow: 'hidden' }}>
+          <div style={{ height: 64, background: 'rgba(14,17,22,0.1)', animation: 'pulse 1.5s ease-in-out infinite' }} />
+          {i === 0 && (
+            <div style={{ background: 'rgba(14,17,22,0.08)', padding: '18px 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div style={{ height: 56, borderRadius: 28, background: 'rgba(14,17,22,0.08)', animation: 'pulse 1.5s ease-in-out infinite' }} />
+              {[1, 1, 0.7].map((__, j) => (
+                <div key={j} style={{ height: 76, borderRadius: 24, background: 'rgba(14,17,22,0.08)', animation: 'pulse 1.5s ease-in-out infinite', animationDelay: `${j * 120}ms` }} />
+              ))}
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+
   return (
-    <div style={{ position: 'relative', minHeight: '100dvh', background: 'var(--m-canvas)' }}>
+    <div className="pod-screen" style={{ position: 'relative', minHeight: '100dvh', background: 'var(--m-canvas)' }}>
       {/* Top bar */}
       <PageHeader
         onMessages={() => setSheet('messages')}
@@ -304,6 +324,20 @@ export default function SurveyListMobile() {
 
       {/* Scroll body — paddingTop matches PageHeader height (100px) + 8px gap */}
       <div style={{ padding: '108px 16px 170px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+
+        {/* Offline banner */}
+        {!online && (
+          <div style={{ padding: '12px 16px', borderRadius: 20, background: '#FFF1E0', display: 'flex', alignItems: 'center', gap: 10 }}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#8A4200" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true" style={{ flexShrink: 0 }}>
+              <path d="M1 1l22 22M16.72 11.06A10.94 10.94 0 0119 12.55M5 12.55a10.94 10.94 0 015.17-2.39M10.71 5.05A16 16 0 0122.56 9M1.42 9a15.91 15.91 0 014.7-2.88M8.53 16.11a6 6 0 016.95 0M12 20h.01"/>
+            </svg>
+            <span style={{ flex: 1, fontSize: 14, fontWeight: 700, color: '#8A4200' }}>{t('offlineMsg')}</span>
+            <button type="button" onClick={() => window.location.reload()} style={{ height: 36, padding: '0 14px', border: 0, borderRadius: 18, background: '#8A4200', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', flexShrink: 0 }}>
+              {t('offlineRetry')}
+            </button>
+          </div>
+        )}
+
         {workspaces.map(ws => {
           const isActive = ws.id === activePodId;
           const colors = ws.isPersonal ? PERSONAL_COLOR : podColor(ws.id);

@@ -860,6 +860,29 @@ input[type="month"] {
   background: #f8fafc;
 }
 
+/* Skeleton pulse animation */
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.45; }
+}
+
+/* Mobile pod screens — focus rings in type colour */
+.pod-screen :focus-visible {
+  outline: 3px solid #0A7F72;
+  outline-offset: 2px;
+  border-radius: inherit;
+}
+.pod-screen-dark :focus-visible {
+  outline: 3px solid rgba(255, 255, 255, 0.65);
+  outline-offset: 2px;
+  border-radius: inherit;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pod-screen :focus-visible,
+  .pod-screen-dark :focus-visible { outline-style: solid; }
+}
+
 /* Spinner animation */
 @keyframes spin {
   from { transform: rotate(0deg); }
@@ -1735,6 +1758,14 @@ div[style*="overflowX"]::-webkit-scrollbar { display: none; }
   to   { transform: translateY(0); }
 }
 
+.pod-sheet {
+  animation: sheet-slide-up 220ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pod-sheet { animation: none; }
+}
+
 .quicksnap-header {
   display: flex;
   align-items: center;
@@ -2150,7 +2181,11 @@ div[style*="overflowX"]::-webkit-scrollbar { display: none; }
   --m-line:   #EDEBE5;
   --m-danger: #B71C1C; --m-danger-bg: #FDECEC;
   --m-ok:     #14532D; --m-ok-bg:     #E7F4EC;
-  --m-warn-bg:#FFF1E0;
+  --m-warn:   #8A4200; --m-warn-bg:   #FFF1E0;
+  --m-neutral-bg:   #F0F0F2;
+  --m-neutral-text: #2B3038;
+  --m-grab:   #D5D2C8;
+  --m-sheet-btn: #EFEDE6;
 
   /* Document type colours — own the header + deep body + accent */
   --m-survey:       #0A7F72;
@@ -2169,7 +2204,7 @@ div[style*="overflowX"]::-webkit-scrollbar { display: none; }
   /* Workspace identity colours — pod strip, dock "+", workspace chip only */
   --m-ws-personal:      #15181E; --m-ws-personal-deep: #0D0F13;
   --m-ws-cobalt:        #2F5BFF; --m-ws-cobalt-deep:   #0E1840;
-  --m-ws-orange:        #FF8A2B; --m-ws-orange-deep:   #241409;
+  --m-ws-orange:        #FF8A2B; --m-ws-orange-deep:   #241409; --m-ws-orange-tint: #FFF4E5;
   --m-ws-teal:          #0A7F72; --m-ws-teal-deep:     #06302C;
   --m-ws-rose:          #E11D48; --m-ws-rose-deep:     #3B0618;
   --m-ws-violet:        #7C3AED; --m-ws-violet-deep:   #1C1038;
