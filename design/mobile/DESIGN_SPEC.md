@@ -22,7 +22,7 @@ Two channels, never mixed (tokens in `tokens.css`):
 |---|---|---|
 | Workspace | Who/where | pod strip, dock "+", workspace chip |
 | Document type | What | document header, deep body, accents, keypad, selected states |
-Document types: **Survey teal** `#0A7F72` (deep `#06302C`, tint `#D9F2EE`, ink `#0A5C53`); **Offer violet** (proposed); **Project slate-navy** (proposed, most serious, near-black). Workspace palette: Személyes graphite `#15181E`, cobalt `#2F5BFF`, orange `#FF8A2B`, each with a very dark "deep" body variant.
+Document types: **Survey teal** `#0A7F72` (deep `#06302C`, tint `#D9F2EE`, ink `#0A5C53`); **Offer violet** (proposed); **Project slate-navy** `#263248` (deep `#0B0F17`, tint `#E3E7EE`; the most serious). Workspace palette: Személyes graphite `#15181E`, cobalt `#2F5BFF`, orange `#FF8A2B`, each with a very dark "deep" body variant.
 Status colours are independent of both: OK green `#14532D`/`#E7F4EC`, danger `#B71C1C`/`#FDECEC`, warning orange tint `#FFF1E0`, neutral `#F1F1F3`.
 
 ## 4. Layout system
@@ -60,6 +60,16 @@ Same document-screen frame as Survey, type colour **violet** `#6D3FD1` (deep `#1
 - **Flows (O6):** send confirm → 4-step progress → done; blocked states (no email, incomplete profile); accept confirm → progress → success/error; reject confirm.
 - **PDF (O7):** paper preview on the dark body, colour dots, collapsible missing-data card, one download button.
 Entry type tiles: Anyag blue `#E4ECFA/#2B4C9B`, Munkadíj green `#E2F3E8/#14532D`, Eszköz amber `#FFF1E0/#8A4200`, Szállítás violet-tint `#EDE7FB/#4A2796`, Egyéb grey `#F1F1F3/#2B3038`. These replace the hardcoded `TYPE_COLORS` in `ajanlatok/[id]/components/constants.js` — tokenise them.
+
+### 5.9 Project module (slate-navy)
+The **most serious** document type: header `#263248`, deep body `#0B0F17`, tint `#E3E7EE`, ink `#263248`. On the near-black body the primary bar button is **white with navy text** (navy buttons are used inside cream sheets). No second accent colour: progress bars, chips and selected states are navy/grey. Status badges: Aktív green, Szünetel orange, Lezárt slate, Lejárt red.
+- **List (P1):** card = name, client · place, "Elköltve" amount, progress bar vs quote (turns red at ≥ 95%), status badge. Filter chips Összes/Nyitott/Lezárt.
+- **New (P2):** destination → form with required client, optional quote picker (sheet), members chips (collective only).
+- **Detail (P3):** header shows status + date range. Stack: financial summary 2×2, burndown, cost breakdown bars, client + link, member contributions, data, sections, sub-page rows (Kiadások, Napló, Fizetési terv, Portál). Sticky bar: ⋯ + white "Bejegyzés" (opens quick-add sheet: invoice / labour / diary / payment item). Status change = reason sheet (required).
+- **Expenses (P4):** segmented Számlák/Munkaóra, filter chips, cards with category colour strip; invoice and labour editors are tall sheets.
+- **Add invoice (P5):** big camera target → scan animation → review with AI summary banner; multiple invoices as thumbnails.
+- **Diary (P6), Payment plan (P7), Portal sharing (P8):** list + sheet patterns as above; toggles are 64×38 switches.
+Category colours (navy ramp, no rainbow): Anyag `#263248`, Munka `#4A6FA5`, Szerszám `#8A94A8`, Szállítás `#B7BFCC`, Engedély `#D5DAE3`, Egyéb `#E3E7EE`.
 
 ## 6. States every screen must handle
 Loading skeletons (not spinners on dark), empty (illustration-free, one sentence + primary action), error (danger card + retry), offline (changes queue; show banner — if not supported in code today, show error + retry and flag it), read-only/locked, contributor-restricted, free-tier limit reached (upgrade prompt via existing subscription flow).

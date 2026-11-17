@@ -62,3 +62,33 @@ Routes: `[l]/ajanlatok/page.js`, `[l]/ajanlatok/uj/page.js`, `[l]/ajanlatok/[id]
 
 ### PDF preview — `O7-Pdf.dc.html`
 `[l]/ajanlatok/[id]/nyomtatas/page.js`, `GET /api/quotes/[id]/pdf` (`lib/generateOfferPdf.js`). Accent colour picker (10 colours), missing-data checklist (company name, tax no., phone, bank account, client, offer number, valid until, terms) with "where to fix" links, download PDF (demo: unavailable). Owner only.
+
+---
+
+## PROJECT module (design drop 3) — slate-navy
+
+Routes: `[l]/projektek/page.js` + `ProjectsListClient.jsx`, `[l]/projektek/uj/page.js`, `[l]/projektek/[id]/page.js` + `ProjectDetailClient.jsx` (1.7k lines) + `components/` (`BurndownCard`, `CostBreakdownCard`, `CombinedStatsCard`, `InvoiceDetailDrawer`, `LabourEditModal`, `RoomModal`, `ProjectEditModal`, `PaymentPlanModal`, `PortalShareSection`, `DiaryDetailSheet`, `EditDiaryEntryModal`, `WorkTypeSelector`, `EntryMediaGrid`), `[id]/feltoltes/page.js` (invoice upload), `[id]/naplo/uj/page.js` + `[id]/naplo/[entryId]/page.js` (diary). i18n ns `projects`, `projectDetail`, `diary`. Rule 4: projects, invoices, diary entries are soft-deleted; labour entries and payment items follow the existing routes.
+
+### List — `P1-Lista.dc.html`
+`GET /api/projects` (via AppContext). Filter Összes/Nyitott/Lezárt (detail status Aktív/Szünetel/Lejárt shown as badge), search name/client, card: name, client · place, spent, progress vs linked quote, status, pending transfer (`useTransferRequests`, retract), read-only lock. ⋯: open, transfer to collective, retract, delete (soft; contributors cannot delete team projects). Basic tier: 1 project.
+
+### New — `P2-UjProjekt.dc.html`
+`POST /api/projects`. Destination step (same rules as offers; contributor ⇒ personal + transfer). Fields: name*, client* (required, `ClientSelect` + new client with GDPR), optional linked quote (search; excludes rejected unless toggled), location, work type, start/end, description, members (collective: chips, "én" fixed). `POST /api/projects/[id]/members`.
+
+### Detail — `P3-Reszletek.dc.html`
+`PATCH/DELETE /api/projects/[id]`; status flow Aktív ⇄ Szünetel → Lezárt → újranyitás, every change requires a written reason and notifies the collective (`status*Prompt` keys; reason is stored in history: `GET /api/projects/[id]/history?limit=15&offset=`). Cards: financial summary (`CombinedStatsCard`/`calculateProjectFinancials`: total expenses, labour, paid by you, balance credit/debt/settled), burndown vs linked quote, cost breakdown by category, client + client-link copy, member contributions (owner/you/left badges), data (dates, description, linked survey), sections (rooms): `POST/PATCH/DELETE /api/projects/[id]/rooms[/roomId]`, import from accepted quote `POST /api/projects/[id]/rooms/sync-from-quote` (button shows count of new rooms), sub-pages Kiadások/Napló/Fizetési terv/Portál. Read-only banner + "Lehetőségeim" when closed. Contributors: add own invoices/labour/diary only; owner/admin edit project, status, rooms, payment plan, delete.
+
+### Expenses + labour — `P4-Kiadasok.dc.html`
+`/api/invoices` (+`[id]`, `[id]/media`, `[id]/media/[mediaId]`), `/api/invoice-splits` (section split with remaining/over indicator), `/api/labour-entries` (+`[id]`). Filters: search, category (`INVOICE_CATEGORIES`), section, uploader. Invoice drawer: amount, description, date, paid-by, category, split, AI line items table, receipts (add/download/delete), PDF download, delete. Labour: type (`WorkTypeSelector`), date, unit (`LABOUR_UNITS`), quantity, unit price, live total, section, delete. Contributors edit only their own rows (others dimmed).
+
+### Add invoice — `P5-SzamlaUj.dc.html`
+`[id]/feltoltes/page.js`: camera/file/multi upload → `POST /api/ocr` + `POST /api/invoice-ai` (rate limited, no DB side effects) → review per invoice (amount, foreign-currency notice: amount must be entered in HUF, description, category, payer in collectives, section split, items) → save all. Failure → manual entry. Media goes through `processMediaFiles`.
+
+### Diary — `P6-Naplo.dc.html`
+`/api/diary` (+`[id]`, `upload`, `photos/[id]`), share links `/api/diary/share` (+`[id]`, `resolve`) → public `/p/[token]`. List with photo strip, public/private badge, filters; detail sheet; form: date, work type, title, text (dictation → `/api/transcribe`), section, camera/image/video, public toggle (+ client message when public), internal note. Edit/delete own entries only (contributors).
+
+### Payment plan — `P7-Fizetes.dc.html`
+`/api/payment-plan` (+`[id]`, `[id]/files`, `[id]/files/[fileId]`). Items: name, amount, trigger (project start / milestone / date / project end), note, attachments, status Függőben/Fizetve/Törölve, "mark paid", edit, delete; 3-step add flow (Összeg → Mikor? → Részletek). Owner/admin only.
+
+### Portal sharing — `P8-Portal.dc.html`
+`PortalShareSection.jsx`, `/api/media-items?document_type=project&document_id=`; per-item share toggles for Számlák, Munkadíj, Média, Napló, "share all", client link `/clients/[id]`; hint when no client is assigned. Owner/admin only.

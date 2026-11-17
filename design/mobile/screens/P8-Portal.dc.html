@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="hu"><head><meta charset="utf-8"><title>OkosSzaki — Portál megosztás</title><script src="./support.js"></script></head>
+<body><x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&amp;family=Plus+Jakarta+Sans:wght@500;600;700&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}
+button,input,textarea{font-family:inherit}
+button{cursor:pointer}
+*{scrollbar-width:none;-ms-overflow-style:none}
+*::-webkit-scrollbar{display:none;width:0;height:0}
+body{margin:0}
+button,input,textarea{font-family:inherit}
+button{cursor:pointer}
+*{scrollbar-width:none;-ms-overflow-style:none}
+*::-webkit-scrollbar{display:none;width:0;height:0}
+.root{position:relative;width:390px;height:844px;overflow:hidden;background:#EDEBE5;color:#0E1116;font-family:'Plus Jakarta Sans',system-ui,sans-serif}
+.scroll{position:absolute;inset:0;z-index:1;overflow-y:auto;box-sizing:border-box;padding:0 0 170px}
+.hd{position:relative;overflow:hidden;box-sizing:border-box;padding:18px 16px 20px;border-radius:0 0 32px 32px;display:flex;flex-direction:column;gap:12px}
+.glow{position:absolute;right:-90px;top:-120px;width:300px;height:300px;border-radius:150px}
+.top{position:relative;display:flex;align-items:center;justify-content:space-between}
+.rnd{width:48px;height:48px;border:0;border-radius:24px;display:flex;align-items:center;justify-content:center;padding:0}
+.pill{height:36px;padding:0 14px;border-radius:18px;font-size:13px;font-weight:700;display:inline-flex;align-items:center;gap:8px}
+.ttl{position:relative;margin:0;font-family:'Bricolage Grotesque',sans-serif;font-size:30px;font-weight:700;letter-spacing:-.02em;line-height:1.1}
+.kick{position:relative;font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+.sub{position:relative;font-size:15px;font-weight:600}
+.body{padding:16px 16px 0;display:flex;flex-direction:column;gap:14px}
+.card{box-sizing:border-box;border-radius:26px;background:#fff;box-shadow:0 1px 0 rgba(14,17,22,.05),0 14px 26px -18px rgba(14,17,22,.35)}
+.lbl{font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#5A5F68}
+.h2{margin:0;font-family:'Bricolage Grotesque',sans-serif;font-size:22px;font-weight:700}
+.fld{width:100%;box-sizing:border-box;height:56px;border:0;border-radius:20px;background:#fff;padding:0 16px;font-size:17px;font-weight:500;color:#0E1116;box-shadow:0 1px 0 rgba(14,17,22,.05),0 10px 20px -16px rgba(14,17,22,.4)}
+.fld::placeholder{color:#6B7078}
+.chip{height:52px;padding:0 18px;border:0;border-radius:26px;font-size:15px;font-weight:700;display:inline-flex;align-items:center;gap:8px;color:#0E1116}
+.bar{position:absolute;z-index:20;left:0;right:0;bottom:0;box-sizing:border-box;padding:28px 16px 18px;background:linear-gradient(to top,#EDEBE5 70%,rgba(237,235,229,0));display:flex;gap:10px}
+.pri{flex:1;height:60px;border:0;border-radius:30px;background:#0E1116;color:#fff;font-size:17px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:10px;box-shadow:0 14px 26px -12px rgba(14,17,22,.6)}
+.sq{flex:none;width:60px;height:60px;border:0;border-radius:30px;background:#fff;color:#0E1116;display:flex;align-items:center;justify-content:center;box-shadow:0 10px 22px -10px rgba(14,17,22,.4)}
+.ic{flex:none;width:44px;height:44px;border-radius:15px;background:#F1F1F3;color:#1A1D23;display:flex;align-items:center;justify-content:center}
+.row{width:100%;min-height:64px;box-sizing:border-box;padding:10px 14px;border:0;border-radius:22px;background:#fff;color:#0E1116;text-align:left;display:flex;align-items:center;gap:12px;font-size:16px;font-weight:700;box-shadow:0 1px 0 rgba(14,17,22,.05),0 12px 22px -18px rgba(14,17,22,.35)}
+.scrim{position:absolute;inset:0;z-index:40;border:0;padding:0;background:rgba(14,17,22,.5)}
+.sheet{position:absolute;z-index:50;left:0;right:0;bottom:0;box-sizing:border-box;padding:10px 16px 18px;border-radius:32px 32px 0 0;background:#FBFAF7;display:flex;flex-direction:column;gap:12px;max-height:90%;overflow-y:auto}
+.grab{align-self:center;flex:none;width:44px;height:5px;border-radius:3px;background:#D5D2C8}
+.sh{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.sht{font-family:'Bricolage Grotesque',sans-serif;font-size:25px;font-weight:700;line-height:1.1}
+.x{width:48px;height:48px;border:0;border-radius:24px;background:#EFEDE6;color:#0E1116;display:flex;align-items:center;justify-content:center;flex:none}
+.sw{flex:none;width:64px;height:38px;border-radius:19px;position:relative}
+.sw>i{position:absolute;top:4px;width:30px;height:30px;border-radius:15px;background:#fff;box-shadow:0 2px 6px rgba(14,17,22,.3)}
+.badge{height:26px;padding:0 10px;border-radius:13px;font-size:12px;font-weight:700;display:inline-flex;align-items:center;gap:4px;background:#F0F0F2;color:#2B3038;flex:none}
+.m{font-size:13px;font-weight:600;color:#5A5F68}
+.n{font-family:'Bricolage Grotesque',sans-serif;font-weight:700;letter-spacing:-.02em}
+.stat{flex:1;box-sizing:border-box;padding:10px 12px;border-radius:18px}
+
+.root{background:var(--deep);color:#fff}
+.hd{border-radius:0 0 32px 32px}
+.bar{background:linear-gradient(to top,var(--deep) 65%,rgba(0,0,0,0))}
+.card{color:#0E1116;box-shadow:inset 0 1px 0 #fff,0 16px 26px -14px rgba(0,0,0,.7),0 3px 6px -2px rgba(0,0,0,.3)}
+.row{color:#0E1116;box-shadow:inset 0 1px 0 #fff,0 14px 22px -14px rgba(0,0,0,.7),0 3px 6px -2px rgba(0,0,0,.3)}
+.sheet,.sht{color:#0E1116}
+.h2{color:#fff}
+.lbl{color:rgba(255,255,255,.78)}
+.sheet .lbl{color:#5A5F68}
+.sq{color:#0E1116}
+.sheet .row{box-shadow:0 1px 0 rgba(14,17,22,.05),0 12px 22px -18px rgba(14,17,22,.35)}
+
+</style>
+</helmet>
+<div class="root" style="--deep: #0B0F17">
+ <div class="scroll" style="padding-bottom: 190px">
+  <header class="hd" style="background: #263248; color: #fff">
+   <span class="glow" aria-hidden="true" style="background: rgba(255,255,255,0.08)"></span>
+   <div class="top"><button class="rnd" aria-label="Vissza" style="background: rgba(255,255,255,0.18); color: #fff"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg></button><span class="pill" style="background: rgba(255,255,255,0.18)">Csak a tulajdonosnak</span><button class="rnd" onClick="{{toPreview}}" aria-label="Portál megtekintése" style="background: rgba(255,255,255,0.18); color: #fff"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12zM12 9a3 3 0 100 6 3 3 0 000-6"/></svg></button></div>
+   <span class="kick" style="color: rgba(255,255,255,0.85)">Lakásfelújítás, teljes</span>
+   <h1 class="ttl">Portál megosztás</h1>
+   <span class="sub" style="color: rgba(255,255,255,0.92)">Mit lásson Kiss Márta a portálján?</span>
+  </header>
+  <div class="body">
+   <div class="card" style="padding: 14px 16px; display: flex; align-items: center; gap: 12px"><span class="ic" style="background: #E3E7EE; color: #263248"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8h16v-8M12 3v13M7 8l5-5 5 5"/></svg></span><span style="flex: 1; display: flex; flex-direction: column; line-height: 1.25"><b style="font-size: 17px">{{total}} megosztott elem</b><span class="m">Csak amit bekapcsolsz, az látszik az ügyfélnek.</span></span></div>
+   <sc-for list="{{groups}}" as="g" hint-placeholder-count="4">
+    <section class="card" style="overflow: hidden">
+     <button onClick="{{g.toggle}}" aria-expanded="{{g.open}}" style="width: 100%; min-height: 76px; box-sizing: border-box; padding: 12px 16px; border: 0; background: transparent; color: #0E1116; text-align: left; display: flex; align-items: center; gap: 12px"><span class="ic" style="background: #E3E7EE; color: #263248"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="{{g.icon}}"/></svg></span><span style="flex: 1; display: flex; flex-direction: column; line-height: 1.25"><b style="font-size: 17px">{{g.name}}</b><span class="m">{{g.sub}}</span></span><span class="badge" style="background: {{g.bbg}}; color: {{g.bfg}}">{{g.shared}} / {{g.count}}</span></button>
+     <sc-if value="{{g.open}}" hint-placeholder-val="{{ false }}"><div style="padding: 0 16px 14px; display: flex; flex-direction: column; gap: 6px">
+      <sc-if value="{{g.none}}" hint-placeholder-val="{{ false }}"><span class="m" style="padding: 8px 0">{{g.noneText}}</span></sc-if>
+      <sc-for list="{{g.items}}" as="i" hint-placeholder-count="3"><button onClick="{{i.toggle}}" aria-pressed="{{i.on}}" style="min-height: 60px; box-sizing: border-box; padding: 6px 4px 6px 12px; border: 0; border-radius: 16px; background: #F7F5EF; color: #0E1116; display: flex; align-items: center; gap: 10px; text-align: left"><span style="flex: 1; display: flex; flex-direction: column; line-height: 1.25"><b style="font-size: 15px">{{i.name}}</b><span class="m">{{i.sub}}</span></span><span class="sw" style="background: {{i.bg}}; transform: scale(.85)"><i style="left: {{i.left}}"></i></span></button></sc-for>
+      <button onClick="{{g.all}}" style="min-height: 48px; border: 0; border-radius: 24px; background: #E3E7EE; color: #263248; font-size: 14px; font-weight: 700">{{g.allLabel}}</button></div></sc-if>
+    </section>
+   </sc-for>
+   <sc-if value="{{noClient}}" hint-placeholder-val="{{ false }}"><span class="m" style="color: rgba(255,255,255,0.8)">Rendelj ügyfelet a projekthez a portál használatához.</span></sc-if>
+  </div>
+ </div>
+ <div class="bar"><button onClick="{{copy}}" class="pri" style="background: #fff; color: #263248"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 14a4 4 0 005.7 0l3-3a4 4 0 00-5.7-5.7l-1 1M14 10a4 4 0 00-5.7 0l-3 3a4 4 0 005.7 5.7l1-1"/></svg>{{copyLabel}}</button></div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  state = { open: 'inv', copied: false, on: { inv: [true, true, false, true], lab: [true, false, false], med: [false, false, false, false], dia: [true, true, true, false] } };
+  renderVals() {
+    const st = this.state;
+    const D = {
+      inv: ['Számlák', 'M3 4h18v16H3zM3 9h18', 'Számla', ['Csempe 30×60 · 412 000 Ft', 'Gipszkarton + profil · 268 000 Ft', 'Állvány bérlés · 76 000 Ft', 'Konténer + fuvar · 64 000 Ft'], 'Nincsenek számlák ebben a projektben'],
+      lab: ['Munkadíj', 'M12 7v5l3 2M12 3a9 9 0 100 18 9 9 0 000-18z', 'Munka', ['Csempe rakás · 86 400 Ft', 'Glettelés · 173 900 Ft', 'Bontás · 54 000 Ft'], 'Nincsenek munkabejegyzések'],
+      med: ['Média', 'M4 8h4l2-3h4l2 3h4v11H4z', 'Média', ['Fürdő · előtte', 'Fürdő · utána', 'Konyha · állapot', 'Konyha · utána'], 'Nincsenek médiatartalmak'],
+      dia: ['Napló', 'M5 4h11a3 3 0 013 3v13H8a3 3 0 01-3-3z', 'Napló', ['Falazás kész', 'Anyag megérkezett', 'Bontás befejezve', 'Gipszkarton felrakva'], 'Nincsenek naplóbejegyzések']
+    };
+    const total = Object.keys(st.on).reduce((s, k) => s + st.on[k].filter(Boolean).length, 0);
+    const groups = Object.keys(D).map((k) => {
+      const d = D[k], on = st.on[k], n = on.filter(Boolean).length;
+      const upd = (arr) => this.setState({ on: Object.assign({}, st.on, { [k]: arr }) });
+      return { name: d[0], icon: d[1], sub: n ? n + ' megosztva' : 'Nincs megosztott elem', count: d[3].length, shared: n, bbg: n ? '#E3E7EE' : '#F1F1F3', bfg: n ? '#263248' : '#5A5F68',
+        open: st.open === k, toggle: () => this.setState({ open: st.open === k ? null : k }), none: false, noneText: d[4],
+        items: d[3].map((nm, i) => ({ name: nm.split(' · ')[0], sub: nm.split(' · ')[1] || d[2], on: on[i], bg: on[i] ? '#263248' : '#C9C5BA', left: on[i] ? '30px' : '4px', toggle: () => upd(on.map((v, j) => j === i ? !v : v)) })),
+        all: () => upd(on.map(() => n < on.length)), allLabel: n < on.length ? 'Összes megosztása' : 'Összes elrejtése' };
+    });
+    return { total, groups, noClient: false, copy: () => this.setState({ copied: true }), copyLabel: st.copied ? 'Link másolva!' : 'Portál link másolása', toPreview: () => {} };
+  }
+}
+</script></body></html>

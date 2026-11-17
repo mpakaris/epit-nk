@@ -13,8 +13,8 @@
 
   /* DOCUMENT TYPE colours: own the header + deep body + accent of a document screen */
   --m-survey: #0A7F72;  --m-survey-deep: #06302C; --m-survey-tint: #D9F2EE; --m-survey-ink: #0A5C53;
-  --m-offer:  #6D3FD1;  --m-offer-deep:  #1C1038; --m-offer-tint:  #EDE7FB; --m-offer-ink:  #4A2796;  /* PROPOSED, not yet designed */
-  --m-project:#1F2A3C;  --m-project-deep:#0B0F17; --m-project-tint:#E3E7EE; --m-project-ink:#1F2A3C;  /* PROPOSED: slate-navy, the serious one */
+  --m-offer:  #6D3FD1;  --m-offer-deep:  #1C1038; --m-offer-tint:  #EDE7FB; --m-offer-ink:  #4A2796;  /* designed in drop 2 */
+  --m-project:#263248;  --m-project-deep:#0B0F17; --m-project-tint:#E3E7EE; --m-project-ink:#263248;  /* slate-navy, the serious one (designed in drop 3) */
 
   /* WORKSPACE identity colours: pod strips, dock "+" and workspace chip only */
   --m-ws-personal: #15181E; --m-ws-personal-deep: #0D0F13;
