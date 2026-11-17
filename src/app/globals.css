@@ -2173,6 +2173,7 @@ div[style*="overflowX"]::-webkit-scrollbar { display: none; }
 
 .m-root {
   /* Neutrals */
+  --deep:     #0D0F13;
   --m-canvas: #EDEBE5;
   --m-sheet:  #FBFAF7;
   --m-card:   #FFFFFF;

@@ -19,7 +19,7 @@ import { CreateSheet, NotifSheet, MessagesSheet, MenuSheet, DaySheet } from '@/c
 const CARD_SHADOW = 'inset 0 1px 0 #fff, 0 16px 26px -14px rgba(0,0,0,0.70), 0 3px 6px -2px rgba(0,0,0,0.30)';
 
 // ─── Compact "Folytasd" row card ──────────────────────────────────────────────
-function ContinueCard({ title, meta, type, href, onClick }) {
+function ContinueCard({ title, meta, type, badge, onClick }) {
   const TYPE_COLOR = {
     survey: 'var(--m-survey)',
     quote:  'var(--m-offer)',
@@ -42,6 +42,16 @@ function ContinueCard({ title, meta, type, href, onClick }) {
           <b style={{ fontSize: 16, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{title}</b>
           {meta && <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--m-ink-2)' }}>{meta}</span>}
         </span>
+        {badge && (
+          <span style={{
+            flexShrink: 0, padding: '0 8px', height: 22, borderRadius: 'var(--radius-pill)',
+            fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.03em',
+            display: 'inline-flex', alignItems: 'center',
+            background: 'var(--m-neutral-bg)', color: 'var(--m-neutral-text)',
+          }}>
+            {badge}
+          </span>
+        )}
       </span>
     </button>
   );
@@ -407,7 +417,7 @@ export default function DashboardMobile({ currentUser }) {
   // ── Loading skeleton ────────────────────────────────────────────────────────
   if (!dataReady) {
     return (
-      <div className="pod-screen" style={{ padding: '108px 16px 0', minHeight: '100dvh', background: 'var(--m-canvas)', display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <div className="pod-screen-dark" style={{ padding: '108px 16px 0', minHeight: '100dvh', background: 'var(--deep)', display: 'flex', flexDirection: 'column', gap: 14 }}>
         {[1, 0].map((_, i) => (
           <div key={i} style={{ borderRadius: 28, overflow: 'hidden' }}>
             <div style={{ height: 72, background: 'rgba(14,17,22,0.1)', animation: 'pulse 1.5s ease-in-out infinite' }} />
@@ -426,7 +436,7 @@ export default function DashboardMobile({ currentUser }) {
 
   // ── Main render ─────────────────────────────────────────────────────────────
   return (
-    <div className="pod-screen" style={{ position: 'relative', minHeight: '100dvh', background: 'var(--m-canvas)', overflowX: 'hidden' }}>
+    <div className="pod-screen-dark" style={{ position: 'relative', minHeight: '100dvh', background: 'var(--deep)', overflowX: 'hidden' }}>
       {/* Fixed top header */}
       <PageHeader
         onMessages={() => setSheet('messages')}
@@ -589,6 +599,7 @@ export default function DashboardMobile({ currentUser }) {
                         title={lastSurvey.title || lastSurvey.name}
                         meta={meta}
                         type="survey"
+                        badge={tDash('continueBadgeSurvey')}
                         onClick={() => router.push(p(`/felmeres/${lastSurvey.id}`))}
                       />
                     );
@@ -603,6 +614,7 @@ export default function DashboardMobile({ currentUser }) {
                         title={lastQuote.title}
                         meta={meta}
                         type="quote"
+                        badge={QUOTE_STATUS[lastQuote.status] || lastQuote.status}
                         onClick={() => router.push(p(`/ajanlatok/${lastQuote.id}`))}
                       />
                     );
@@ -612,12 +624,14 @@ export default function DashboardMobile({ currentUser }) {
                     const fin = calculateProjectFinancials(lastProject, invoices || [], labourEntries || [], [], currentUser?.id);
                     const totalSpent = fin.totalCost + fin.totalLabourValue;
                     const meta = [client?.name, totalSpent > 0 ? `${fmt(totalSpent)} kiadás` : null].filter(Boolean).join(' · ');
+                    const projBadge = lastProject.status === 'closed' ? tDash('continueBadgeProjectClosed') : tDash('continueBadgeProjectActive');
                     return (
                       <ContinueCard
                         key={lastProject.id}
                         title={lastProject.name}
                         meta={meta}
                         type="project"
+                        badge={projBadge}
                         onClick={() => router.push(p(`/projektek/${lastProject.id}`))}
                       />
                     );
@@ -805,7 +819,7 @@ export default function DashboardMobile({ currentUser }) {
       </div>
 
       {/* Bottom scrim */}
-      <div aria-hidden="true" style={{ position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 10, height: 150, background: 'linear-gradient(to bottom, rgba(237,235,229,0) 0%, var(--m-canvas) 62%)', pointerEvents: 'none' }} />
+      <div aria-hidden="true" style={{ position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 10, height: 150, background: 'linear-gradient(to bottom, rgba(13,15,19,0) 0%, var(--deep) 62%)', pointerEvents: 'none' }} />
 
       {/* Floating dock */}
       <Dock

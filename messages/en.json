@@ -89,7 +89,10 @@
     "trListTitle": "Transfer requests",
     "trDecision": "Decide at the document",
     "closeBtn": "Close",
-    "labourFallback": "Labour entry"
+    "labourFallback": "Labour entry",
+    "continueBadgeSurvey": "Survey",
+    "continueBadgeProjectActive": "Active",
+    "continueBadgeProjectClosed": "Closed"
   },
   "sidebar": {
     "expand": "Expand",

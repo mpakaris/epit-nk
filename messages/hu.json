@@ -1306,7 +1306,10 @@
     "trListTitle": "Áthelyezési kérelmek",
     "trDecision": "Döntés a dokumentumnál",
     "closeBtn": "Bezár",
-    "labourFallback": "Munkadíj bejegyzés"
+    "labourFallback": "Munkadíj bejegyzés",
+    "continueBadgeSurvey": "Felmérés",
+    "continueBadgeProjectActive": "Aktív",
+    "continueBadgeProjectClosed": "Lezárt"
   },
   "mobile": {
     "floatingNav": {

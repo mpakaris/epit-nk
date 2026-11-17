@@ -89,7 +89,10 @@
     "trListTitle": "Übertragungsanfragen",
     "trDecision": "Entscheidung am Dokument",
     "closeBtn": "Schließen",
-    "labourFallback": "Arbeitseintrag"
+    "labourFallback": "Arbeitseintrag",
+    "continueBadgeSurvey": "Aufmaß",
+    "continueBadgeProjectActive": "Aktiv",
+    "continueBadgeProjectClosed": "Abgeschlossen"
   },
   "sidebar": {
     "expand": "Ausklappen",
