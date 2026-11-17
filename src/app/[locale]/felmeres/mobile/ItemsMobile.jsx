@@ -97,28 +97,33 @@ function ItemRow({ item, onEdit, tS }) {
 
 // ── Suggestion row ─────────────────────────────────────────────────────────────
 
-function SuggestionRow({ item, selected, onToggle }) {
+function SuggestionRow({ item, selected, onToggle, onReject, tM }) {
   const m = TYPE_META[inferType(item)] || TYPE_META.other;
   return (
-    <button
-      type="button"
-      onClick={onToggle}
-      style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', boxSizing: 'border-box', border: `1.5px solid ${selected ? m.fg : m.border}`, borderRadius: 18, background: selected ? m.bg : '#fff', cursor: 'pointer', textAlign: 'left', marginBottom: 6 }}
-    >
-      <span style={{ flexShrink: 0, width: 22, height: 22, borderRadius: 11, border: `2px solid ${selected ? m.fg : '#C9C5BA'}`, background: selected ? m.fg : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        {selected && <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg>}
-      </span>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 15, fontWeight: 600, color: '#0E1116', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.description}</div>
-        <div style={{ fontSize: 12, color: m.fg, fontWeight: 700, marginTop: 1 }}>
-          {item.quantity != null ? `${Number(item.quantity).toLocaleString('hu-HU')} ` : ''}
-          {item.unit || ''}
+    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+      <button
+        type="button"
+        onClick={onToggle}
+        style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', boxSizing: 'border-box', border: `1.5px solid ${selected ? m.fg : m.border}`, borderRadius: 18, background: selected ? m.bg : '#fff', cursor: 'pointer', textAlign: 'left' }}
+      >
+        <span style={{ flexShrink: 0, width: 22, height: 22, borderRadius: 11, border: `2px solid ${selected ? m.fg : '#C9C5BA'}`, background: selected ? m.fg : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          {selected && <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg>}
+        </span>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 15, fontWeight: 600, color: '#0E1116', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.description}</div>
+          <div style={{ fontSize: 12, color: m.fg, fontWeight: 700, marginTop: 1 }}>
+            {item.quantity != null ? `${Number(item.quantity).toLocaleString('hu-HU')} ` : ''}
+            {item.unit || ''}
+          </div>
         </div>
-      </div>
-      <span style={{ flexShrink: 0, padding: '3px 8px', borderRadius: 10, background: m.bg, border: `1px solid ${m.border}`, fontSize: 11, fontWeight: 700, color: m.fg, whiteSpace: 'nowrap' }}>
-        {inferType(item)}
-      </span>
-    </button>
+        <span style={{ flexShrink: 0, padding: '3px 8px', borderRadius: 10, background: m.bg, border: `1px solid ${m.border}`, fontSize: 11, fontWeight: 700, color: m.fg, whiteSpace: 'nowrap' }}>
+          {inferType(item)}
+        </span>
+      </button>
+      <button type="button" onClick={onReject} aria-label={tM('itemsRejectBtn')} style={{ flexShrink: 0, width: 36, height: 36, border: 0, borderRadius: 18, background: '#F1F1F3', color: '#5A5F68', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
   );
 }
 
@@ -280,6 +285,7 @@ export default function ItemsMobile() {
   const {
     loading, dataReady, surveys,
     surveyEntriesBySurvey, surveyItemsBySurvey,
+    fetchSurveyMedia,
     createSurveyItem, updateSurveyItem, deleteSurveyItem,
     generateSurveyEntryItems, updateSurveyEntry,
     isDemoMode,
@@ -294,6 +300,7 @@ export default function ItemsMobile() {
   const [delConfirm,   setDelConfirm]   = useState(null); // item to delete
   const [anySheet,     setAnySheet]     = useState(false);
   const [audioTrigger, setAudioTrigger] = useState(0);
+  const [detailLoading, setDetailLoading] = useState(false);
   const autoTriggered = useRef(false);
 
   // Derive items
@@ -307,6 +314,16 @@ export default function ItemsMobile() {
   const grouped = TYPE_ORDER
     .map(type => ({ type, items: confirmed.filter(i => inferType(i) === type) }))
     .filter(g => g.items.length > 0);
+
+  // On direct page load, entries/items may not be in cache yet — fetch them
+  const fetchedRef = useRef(false);
+  useEffect(() => {
+    if (!dataReady || fetchedRef.current) return;
+    if (surveyEntriesBySurvey[surveyId] !== undefined) return; // already loaded
+    fetchedRef.current = true;
+    setDetailLoading(true);
+    fetchSurveyMedia(surveyId).catch(() => {}).finally(() => setDetailLoading(false));
+  }, [dataReady, surveyId, surveyEntriesBySurvey, fetchSurveyMedia]);
 
   // Auto-trigger from ?mode= param
   useEffect(() => {
@@ -389,6 +406,16 @@ export default function ItemsMobile() {
     );
   };
 
+  const handleRejectAll = async () => {
+    await Promise.allSettled(
+      suggestions.map(i => deleteSurveyItem(surveyId, i.id).catch(() => {}))
+    );
+  };
+
+  const handleRejectOne = async (id) => {
+    await deleteSurveyItem(surveyId, id).catch(() => {});
+  };
+
   const handleSaveItem = async (fields) => {
     if (addSheet?.mode === 'edit') {
       await updateSurveyItem(surveyId, addSheet.item.id, fields);
@@ -409,7 +436,7 @@ export default function ItemsMobile() {
     return next;
   });
 
-  if (loading || !dataReady) return (
+  if (loading || !dataReady || detailLoading) return (
     <div className="pod-screen-dark" style={{ minHeight: '100dvh', background: SURVEY_DEEP }}>
       <div style={{ height: 140, background: SURVEY_BG, borderRadius: '0 0 32px 32px', opacity: 0.7, animation: 'pulse 1.5s ease-in-out infinite' }} />
       <div style={{ padding: '16px 16px 0', display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -536,9 +563,14 @@ export default function ItemsMobile() {
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={SURVEY_BG} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/></svg>
                   <span style={{ fontSize: 14, fontWeight: 700, color: '#0E1116' }}>{tM('itemsSuggestionBadge')}</span>
                 </div>
-                <button type="button" onClick={handleAcceptAll} style={{ height: 32, padding: '0 12px', border: 0, borderRadius: 16, background: SURVEY_BG, color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
-                  {tM('itemsAcceptAllBtn')}
-                </button>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <button type="button" onClick={handleRejectAll} style={{ height: 32, padding: '0 12px', border: '1.5px solid #D5D2C8', borderRadius: 16, background: '#fff', color: '#5A5F68', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+                    {tM('itemsRejectAllBtn')}
+                  </button>
+                  <button type="button" onClick={handleAcceptAll} style={{ height: 32, padding: '0 12px', border: 0, borderRadius: 16, background: SURVEY_BG, color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+                    {tM('itemsAcceptAllBtn')}
+                  </button>
+                </div>
               </div>
               <div style={{ padding: '10px 12px 12px' }}>
                 {suggestions.map(item => (
@@ -547,6 +579,8 @@ export default function ItemsMobile() {
                     item={item}
                     selected={selectedIds.has(item.id)}
                     onToggle={() => toggleSelect(item.id)}
+                    onReject={() => handleRejectOne(item.id)}
+                    tM={tM}
                   />
                 ))}
                 {selectedIds.size > 0 && (

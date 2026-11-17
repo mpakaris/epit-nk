@@ -767,6 +767,7 @@ input[type="month"] {
   padding: 1rem;
   animation: fadeIn 0.15s ease-out;
   touch-action: none;
+  pointer-events: auto;
 }
 
 .modal-dialog {

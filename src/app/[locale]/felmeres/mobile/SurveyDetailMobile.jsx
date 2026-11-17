@@ -11,6 +11,7 @@ import AudioRecorder from '@/components/AudioRecorder';
 import DrawingPad from '@/components/DrawingPad';
 import useOnline from '@/hooks/useOnline';
 import AnalyzeLayoutSheet from './AnalyzeLayoutSheet';
+import { RoomEditorSheet } from './RoomEditorMobile';
 
 const SURVEY_BG   = '#0A7F72';
 const SURVEY_DEEP = '#06302C';
@@ -143,15 +144,24 @@ function MetaSheet({ survey, clients, onSave, onClose }) {
   );
 }
 
-function RoomCard({ entry, survey, isNewEntry, isOpen, onToggle, onMore, onDims, onItems, enqueue, surveyId, onMediaOpen, itemCount = 0, index = 1 }) {
+function RoomCard({ entry, survey, isNewEntry, isOpen, onToggle, onMore, onDims, onItems, enqueue, surveyId, onMediaOpen, onSketchOpen, onAddSketch, drawings = [], itemCount = 0, index = 1 }) {
   const tM = useTranslations('mobilePods');
+  const tS = useTranslations('surveyDetail');
   const allMedia = entry.media || [];
   const photoInputRef = useRef(null);
 
   const w = entry.width_m, l = entry.length_m, h = entry.height_m;
   const dimsLabel = w && l
-    ? `${f(w)} × ${f(l)} m${h ? ` · ${f(h)} m` : ''}`
+    ? `${f(w)} m × ${f(l)} m${h ? ` · ${f(h)} m` : ''}`
     : null;
+
+  const entryFloor     = entry.size_m2 || (w && l ? w * l : 0);
+  const entryWallGross = (w && l && h) ? 2 * (w + l) * h : 0;
+  const entryWin       = entry.window_count || 0;
+  const entryDoor      = entry.door_count   || 0;
+  const entryOpenings  = entryWin * WINDOW_M2 + entryDoor * DOOR_M2;
+  const entryWallNet   = Math.max(0, entryWallGross - entryOpenings);
+  const hasAreaData    = entryFloor > 0 || entryWallGross > 0;
 
   const GRAD_SEED = entry.id || '';
   const gradFor = (i) => PHOTO_GRADS[(GRAD_SEED.charCodeAt(i % GRAD_SEED.length) + i) % PHOTO_GRADS.length];
@@ -197,48 +207,81 @@ function RoomCard({ entry, survey, isNewEntry, isOpen, onToggle, onMore, onDims,
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
             {(entry.window_count > 0) && <Chip label={tM('roomWinBadge', { count: entry.window_count })} />}
             {(entry.door_count > 0)   && <Chip label={tM('roomDoorBadge', { count: entry.door_count })} />}
-            {allMedia.length > 0       && <Chip label={tM('roomPhotoBadge', { count: allMedia.length })} />}
           </div>
 
-          {/* Photo strip */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6 }}>
-            {[0, 1, 2].map(i => {
-              const item = allMedia[i];
-              const showOverlay = i === 2 && allMedia.length > 3;
-              const isVideo = item && (item.mime_type?.startsWith('video/') || !item.thumbnail_url);
-              return item ? (
-                <button
-                  key={i}
-                  type="button"
-                  onClick={onMediaOpen}
-                  style={{ height: 62, borderRadius: 14, border: 0, padding: 0, background: isVideo ? '#1A1D22' : `url(${item.thumbnail_url}) center/cover`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', position: 'relative', overflow: 'hidden' }}
-                >
-                  {isVideo && <svg width="18" height="18" viewBox="0 0 24 24" fill="#fff" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>}
-                  {showOverlay && (
-                    <span style={{ position: 'absolute', inset: 0, background: 'rgba(14,17,22,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 700, color: '#fff' }}>
-                      +{allMedia.length - 2}
-                    </span>
-                  )}
-                </button>
-              ) : (
-                <span key={i} style={{ height: 62, borderRadius: 14, background: gradFor(i), display: 'block' }} />
-              );
-            })}
-            {enqueue && (
+          {/* Media: 2 columns — photos | drawings */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+
+            {/* Photos col */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#5A5F68' }}>
+                {tM('roomMediaPhotos')}{allMedia.length > 0 ? ` · ${allMedia.length}` : ''}
+              </span>
               <button
                 type="button"
-                onClick={() => photoInputRef.current?.click()}
-                aria-label={tM('roomPhotoVideo')}
-                style={{ height: 62, border: '2px dashed #C9C5BA', borderRadius: 14, background: 'transparent', color: '#5A5F68', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+                onClick={onMediaOpen}
+                style={{ height: 76, borderRadius: 14, border: 0, padding: 0, overflow: 'hidden', cursor: 'pointer', display: 'grid', gridTemplateColumns: allMedia.length > 1 ? '1fr 1fr' : '1fr', gap: 2, background: '#F0EDE6' }}
               >
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+                {allMedia.length > 0 ? allMedia.slice(0, 2).map((item, i) => {
+                  const isVideo = item.mime_type?.startsWith('video/') || !item.thumbnail_url;
+                  const isLast  = i === 1 && allMedia.length > 2;
+                  return (
+                    <span key={item.id} style={{ position: 'relative', background: isVideo ? '#1A1D22' : `url(${item.thumbnail_url}) center/cover`, display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+                      {isVideo && <svg width="16" height="16" viewBox="0 0 24 24" fill="#fff" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>}
+                      {isLast && <span style={{ position: 'absolute', inset: 0, background: 'rgba(14,17,22,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, color: '#fff' }}>+{allMedia.length - 1}</span>}
+                    </span>
+                  );
+                }) : (
+                  <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#B0ADA6' }}>
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v12H4z"/><circle cx="12" cy="13" r="3"/></svg>
+                  </span>
+                )}
               </button>
-            )}
-            <input ref={photoInputRef} type="file" accept="image/*,video/*" multiple capture="environment" style={{ display: 'none' }} onChange={e => {
-              const raw = Array.from(e.target.files || []);
-              e.target.value = '';
-              if (raw.length && enqueue) enqueue(raw, { surveyId, entryId: entry.id, mediaType: 'photo' });
-            }} />
+              {enqueue && (
+                <button type="button" onClick={() => photoInputRef.current?.click()} style={{ height: 34, border: '1.5px dashed #C9C5BA', borderRadius: 10, background: 'transparent', color: '#5A5F68', fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+                  {tM('roomPhotoVideo')}
+                </button>
+              )}
+              <input ref={photoInputRef} type="file" accept="image/*,video/*" multiple capture="environment" style={{ display: 'none' }} onChange={e => {
+                const raw = Array.from(e.target.files || []);
+                e.target.value = '';
+                if (raw.length && enqueue) enqueue(raw, { surveyId, entryId: entry.id, mediaType: 'photo' });
+              }} />
+            </div>
+
+            {/* Drawings col */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#5A5F68' }}>
+                {tM('roomMediaSketches')}{drawings.length > 0 ? ` · ${drawings.length}` : ''}
+              </span>
+              <button
+                type="button"
+                onClick={onSketchOpen}
+                style={{ height: 76, borderRadius: 14, border: 0, padding: 0, overflow: 'hidden', cursor: 'pointer', display: 'grid', gridTemplateColumns: drawings.length > 1 ? '1fr 1fr' : '1fr', gap: 2, background: '#F7F5EF' }}
+              >
+                {drawings.length > 0 ? drawings.slice(0, 2).map((d, i) => {
+                  const isLast = i === 1 && drawings.length > 2;
+                  return (
+                    <span key={d.id} style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', overflow: 'hidden' }}>
+                      <span style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }} dangerouslySetInnerHTML={{ __html: d.svg_data?.replace(/<svg/, '<svg style="width:100%;height:100%;object-fit:contain;pointer-events:none"') || '' }} />
+                      {isLast && <span style={{ position: 'absolute', inset: 0, background: 'rgba(14,17,22,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, color: '#fff' }}>+{drawings.length - 1}</span>}
+                    </span>
+                  );
+                }) : (
+                  <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#B0ADA6' }}>
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" aria-hidden="true"><path d="M12 19l7-7-3-3-7 7v3h3zM16 5l3 3"/></svg>
+                  </span>
+                )}
+              </button>
+              {onAddSketch && (
+                <button type="button" onClick={onAddSketch} style={{ height: 34, border: '1.5px dashed #C9C5BA', borderRadius: 10, background: 'transparent', color: '#5A5F68', fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+                  {tM('propAddSketch')}
+                </button>
+              )}
+            </div>
+
           </div>
 
           {/* Action buttons */}
@@ -250,6 +293,40 @@ function RoomCard({ entry, survey, isNewEntry, isOpen, onToggle, onMore, onDims,
               {tM('roomDimsBtn')}
             </button>
           </div>
+
+          {/* Per-section area summary */}
+          {hasAreaData && (
+            <div style={{ padding: '10px 12px', borderRadius: 18, background: '#F7F6F2', display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: '#5A5F68', marginBottom: 4 }}>
+                {tS('areaSummaryHeader')}
+              </span>
+              {entryFloor > 0 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, fontWeight: 600, padding: '4px 0', borderTop: '1px solid #ECEAE4', color: '#0E1116' }}>
+                  <span>{tS('areaSummaryFloor')}</span>
+                  <b>{f(entryFloor)} m²</b>
+                </div>
+              )}
+              {entryWallGross > 0 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, fontWeight: 600, padding: '4px 0', borderTop: '1px solid #ECEAE4', color: '#0E1116' }}>
+                  <span>{tS('areaSummaryWallGross')}</span>
+                  <b>{f(entryWallGross)} m²</b>
+                </div>
+              )}
+              {(entryWin > 0 || entryDoor > 0) && entryWallGross > 0 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, fontWeight: 600, padding: '4px 0', borderTop: '1px solid #ECEAE4', color: '#9B1C1C' }}>
+                  <span>{tS('areaSummaryDeductions', { windowCount: entryWin, doorCount: entryDoor })}</span>
+                  <b>−{f(entryOpenings)} m²</b>
+                </div>
+              )}
+              {entryWallNet > 0 && (entryWin > 0 || entryDoor > 0) && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, fontWeight: 600, padding: '4px 0', borderTop: '1px solid #ECEAE4', color: '#0E1116' }}>
+                  <span>{tS('areaSummaryWallNet')}</span>
+                  <b>{f(entryWallNet)} m²</b>
+                </div>
+              )}
+              <span style={{ fontSize: 11, fontWeight: 600, color: '#9B9690', marginTop: 2 }}>{tS('areaSummaryFootnote')}</span>
+            </div>
+          )}
         </div>
       )}
     </article>
@@ -456,10 +533,8 @@ export default function SurveyDetailMobile() {
   const [directSurvey,   setDirectSurvey]   = useState(null);
   const [directFetching, setDirectFetching] = useState(false);
   const [appSheet,       setAppSheet]       = useState(null);
-  const [addRoomSheet,    setAddRoomSheet]    = useState(false);
-  const [newRoomName,     setNewRoomName]     = useState('');
-  const [roomSaving,      setRoomSaving]      = useState(false);
   const [analyzeSheet,    setAnalyzeSheet]    = useState(false);
+  const [editRoomEntry,   setEditRoomEntry]   = useState(null); // entry object to edit in sheet
   const [showSketch,          setShowSketch]          = useState(false);
   const [sketchSaving,        setSketchSaving]        = useState(false);
   const [sketchDirty,         setSketchDirty]         = useState(false);
@@ -467,6 +542,8 @@ export default function SurveyDetailMobile() {
   const [previewImg,      setPreviewImg]      = useState(null);  // URL to preview (image or video)
   const [previewIsVideo,  setPreviewIsVideo]  = useState(false);
   const [roomMediaSheet,  setRoomMediaSheet]  = useState(null);  // entry ID whose media sheet is open
+  const [roomSketchSheet, setRoomSketchSheet] = useState(null);  // entry ID whose sketch sheet is open
+  const [sketchEntryId,   setSketchEntryId]   = useState(null);  // null = survey-level, entryId = section-level
   const roomMediaInputRef = useRef(null);
   const [previewSketch,   setPreviewSketch]   = useState(null);  // drawing object to preview (read-only)
   const [editingSketch,   setEditingSketch]   = useState(null);  // drawing object being edited
@@ -555,12 +632,6 @@ export default function SurveyDetailMobile() {
   const linkedQuote   = quotes.find(q => q.survey_id === id);
   const linkedProject = projects.find(p => p.survey_id === id);
 
-  const totalFloor     = entries.reduce((s, e) => s + (e.size_m2 || (e.width_m && e.length_m ? e.width_m * e.length_m : 0)), 0);
-  const totalWallGross = entries.reduce((s, e) => (!e.width_m || !e.length_m || !e.height_m) ? s : s + 2 * (e.width_m + e.length_m) * e.height_m, 0);
-  const totalWin       = entries.reduce((s, e) => s + (e.window_count || 0), 0);
-  const totalDoor      = entries.reduce((s, e) => s + (e.door_count  || 0), 0);
-  const totalOpenings  = totalWin * WINDOW_M2 + totalDoor * DOOR_M2;
-  const totalWallNet   = Math.max(0, totalWallGross - totalOpenings);
 
   // ── Handlers ────────────────────────────────────────────────────────────────
 
@@ -594,15 +665,8 @@ export default function SurveyDetailMobile() {
     } catch {}
   };
 
-  const handleAddRoom = async () => {
-    if (!newRoomName.trim()) return;
-    setRoomSaving(true);
-    try {
-      await createSurveyEntry(id, { name: newRoomName.trim() });
-      setNewRoomName('');
-      setAddRoomSheet(false);
-    } catch {}
-    setRoomSaving(false);
+  const handleAddRoom = async (fields) => {
+    await createSurveyEntry(id, fields);
   };
 
   const handleMetaSave = async (fields) => {
@@ -642,10 +706,7 @@ export default function SurveyDetailMobile() {
 
   const roomMenuItems = [
     { icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>, label: tM('roomAddItem'), onClick: () => { closeSheet(); if (activeRoomId) router.push(p(`/felmeres/${id}/tetelek/${activeRoomId}?mode=add`)); } },
-    { icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 6a3 3 0 106 0v6a3 3 0 10-6 0zM5 11a7 7 0 0014 0M12 18v3"/></svg>, label: tM('roomDictate'), onClick: () => { closeSheet(); if (activeRoomId) router.push(p(`/felmeres/${id}/tetelek/${activeRoomId}?mode=dictate`)); } },
-    { icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v12H4z M8.5 13a3.5 3.5 0 107 0 3.5 3.5 0 10-7 0"/></svg>, label: tM('roomPhotoVideo'), onClick: closeSheet },
-    { icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/></svg>, label: tM('roomAiSuggest'), onClick: () => { closeSheet(); if (activeRoomId) router.push(p(`/felmeres/${id}/tetelek/${activeRoomId}?mode=ai`)); } },
-    { icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M16 3l5 5L9 20H4v-5z"/></svg>, label: tM('roomEditAction'), onClick: () => { closeSheet(); if (activeRoomId) router.push(p(`/felmeres/${id}/helyiseg/${activeRoomId}`)); } },
+    { icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M16 3l5 5L9 20H4v-5z"/></svg>, label: tM('roomEditAction'), onClick: () => { closeSheet(); if (activeRoomId) setEditRoomEntry(entries.find(e => e.id === activeRoomId) || null); } },
     { icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg>, label: tM('roomDeleteAction'), onClick: closeSheet, danger: true },
   ];
 
@@ -656,7 +717,7 @@ export default function SurveyDetailMobile() {
     delete:  { title: t('confirmTitle'), msg: `Véglegesen törlöd: „${survey.title}"? Ez nem vonható vissza.`, btn: t('deleteBtn'), bg: '#B71C1C', onConfirm: () => { handleDelete(); closeSheet(); } },
   };
 
-  const anySheet = !!(sheet || appSheet || addRoomSheet || analyzeSheet);
+  const anySheet = !!(sheet || appSheet || analyzeSheet || editRoomEntry || roomSketchSheet);
 
   const contextPill = workspaceName;
 
@@ -816,7 +877,7 @@ export default function SurveyDetailMobile() {
                     </div>
                   )}
                   {canEditMeta && (
-                    <button type="button" onClick={() => setShowSketch(true)} style={{ minHeight: 48, border: 0, borderRadius: 24, background: '#F1F1F3', color: '#0E1116', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>
+                    <button type="button" onClick={() => { setSketchEntryId(null); setShowSketch(true); }} style={{ minHeight: 48, border: 0, borderRadius: 24, background: '#F1F1F3', color: '#0E1116', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>
                       {tM('propAddSketch')}
                     </button>
                   )}
@@ -883,11 +944,14 @@ export default function SurveyDetailMobile() {
                 isOpen={openRoomId === entry.id}
                 onToggle={() => setOpenRoomId(prev => prev === entry.id ? null : entry.id)}
                 onMore={() => { setActiveRoomId(entry.id); setActiveRoomName(entry.name); setSheet('room'); }}
-                onDims={() => router.push(p(`/felmeres/${id}/helyiseg/${entry.id}`))}
+                onDims={() => setEditRoomEntry(entry)}
                 onItems={() => router.push(p(`/felmeres/${id}/tetelek/${entry.id}`))}
                 enqueue={canAdd ? enqueue : undefined}
                 surveyId={id}
                 onMediaOpen={() => setRoomMediaSheet(entry.id)}
+                onSketchOpen={() => setRoomSketchSheet(entry.id)}
+                onAddSketch={canAdd ? () => { setSketchEntryId(entry.id); setEditingSketch(null); setShowSketch(true); } : undefined}
+                drawings={(surveyDrawingsBySurvey[id] || []).filter(d => d.entry_id === entry.id)}
                 itemCount={surveyItems.filter(it => it.entry_id === entry.id).length}
               />
             );
@@ -897,33 +961,12 @@ export default function SurveyDetailMobile() {
           {canAdd && entries.length < 30 && (
             <button
               type="button"
-              onClick={() => setAddRoomSheet(true)}
+              onClick={() => setEditRoomEntry('new')}
               style={{ minHeight: 60, border: '2px dashed #B9B5AA', borderRadius: 26, background: 'transparent', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, fontSize: 16, fontWeight: 700, cursor: 'pointer' }}
             >
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
               {tM('addRoomDashed')}
             </button>
-          )}
-
-          {/* Area summary */}
-          {entries.length > 0 && (
-            <section style={{ padding: 16, borderRadius: 26, background: '#fff', color: '#0E1116', display: 'flex', flexDirection: 'column', gap: 8, boxShadow: 'inset 0 1px 0 #fff, 0 16px 26px -14px rgba(0,0,0,0.7)' }}>
-              <h2 style={{ margin: 0, fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 19, fontWeight: 700 }}>
-                {t('areaSummaryHeader')}
-              </h2>
-              {[
-                { label: t('areaSummaryFloor'),     value: `${f(totalFloor)} m²` },
-                { label: t('areaSummaryWallGross'), value: `${f(totalWallGross)} m²` },
-                { label: t('areaSummaryDeductions', { windowCount: totalWin, doorCount: totalDoor }), value: `−${f(totalOpenings)} m²`, danger: true },
-                { label: t('areaSummaryWallNet'),   value: `${f(totalWallNet)} m²` },
-              ].map(row => (
-                <div key={row.label} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 15, fontWeight: 600, padding: '6px 0', borderTop: '1px solid #ECEAE4', color: row.danger ? '#9B1C1C' : '#0E1116' }}>
-                  <span>{row.label}</span>
-                  <b>{row.value}</b>
-                </div>
-              ))}
-              <span style={{ fontSize: 13, fontWeight: 600, color: '#5A5F68' }}>{t('areaSummaryFootnote')}</span>
-            </section>
           )}
 
           {/* Linked */}
@@ -971,7 +1014,7 @@ export default function SurveyDetailMobile() {
       {anySheet && (
         <button
           type="button"
-          onClick={() => { setSheet(null); setConfirmOp(null); setAppSheet(null); setAddRoomSheet(false); setAnalyzeSheet(false); }}
+          onClick={() => { setSheet(null); setConfirmOp(null); setAppSheet(null); setAnalyzeSheet(false); setEditRoomEntry(null); setRoomSketchSheet(null); }}
           aria-label={tc('close')}
           style={{ position: 'fixed', inset: 0, zIndex: 40, border: 0, padding: 0, background: 'rgba(14,17,22,0.5)', cursor: 'pointer' }}
         />
@@ -1015,30 +1058,6 @@ export default function SurveyDetailMobile() {
       {sheet === 'confirm' && confirmOp && CONFIRMS[confirmOp] && (
         <div role="alertdialog" className="pod-sheet" style={{ position: 'fixed', zIndex: 50, left: 0, right: 0, bottom: 0, boxSizing: 'border-box', padding: '10px 16px calc(18px + env(safe-area-inset-bottom))', borderRadius: '32px 32px 0 0', background: '#FBFAF7', display: 'flex', flexDirection: 'column', gap: 12 }}>
           <ConfirmSheet {...CONFIRMS[confirmOp]} onClose={closeSheet} />
-        </div>
-      )}
-
-      {/* Add room sheet */}
-      {addRoomSheet && (
-        <div role="dialog" aria-label={tM('addRoomDashed')} className="pod-sheet" style={{ position: 'fixed', zIndex: 50, left: 0, right: 0, bottom: 0, boxSizing: 'border-box', padding: '10px 16px calc(18px + env(safe-area-inset-bottom))', borderRadius: '32px 32px 0 0', background: '#FBFAF7', display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <span style={{ alignSelf: 'center', width: 44, height: 5, borderRadius: 3, background: '#D5D2C8' }} />
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
-            <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 25, fontWeight: 700, color: '#0E1116' }}>{tM('addRoomDashed')}</span>
-            <button type="button" onClick={() => setAddRoomSheet(false)} style={{ width: 48, height: 48, border: 0, borderRadius: 24, background: '#EFEDE6', color: '#0E1116', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }} aria-label={tc('close')}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
-            </button>
-          </div>
-          <input
-            autoFocus
-            value={newRoomName}
-            onChange={e => setNewRoomName(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && handleAddRoom()}
-            placeholder={t('entryNamePlaceholder')}
-            style={{ height: 56, border: 0, borderRadius: 20, background: '#fff', padding: '0 16px', fontSize: 17, fontWeight: 500, color: '#0E1116', boxShadow: '0 1px 0 rgba(14,17,22,0.05),0 10px 20px -16px rgba(14,17,22,0.4)', width: '100%', boxSizing: 'border-box' }}
-          />
-          <button type="button" onClick={handleAddRoom} disabled={roomSaving || !newRoomName.trim()} style={{ height: 60, border: 0, borderRadius: 30, background: '#0E1116', color: '#fff', fontSize: 17, fontWeight: 700, cursor: 'pointer', opacity: roomSaving || !newRoomName.trim() ? 0.6 : 1 }}>
-            {roomSaving ? tc('saving') : tc('create')}
-          </button>
         </div>
       )}
 
@@ -1112,7 +1131,7 @@ export default function SurveyDetailMobile() {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
             {drawings.filter(d => !d.entry_id).map(d => (
               <div key={d.id} style={{ position: 'relative', borderRadius: 16, overflow: 'hidden', aspectRatio: '4/3', background: '#F7F5EF', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <button type="button" onClick={() => { if (canEditMeta) { setSheet(null); setEditingSketch(d); setShowSketch(true); } else { setPreviewSketch(d); } }} style={{ width: '100%', height: '100%', padding: 8, boxSizing: 'border-box', border: 0, background: 'transparent', cursor: 'pointer' }}
+                <button type="button" onClick={() => { if (canEditMeta) { setSheet(null); setSketchEntryId(null); setEditingSketch(d); setShowSketch(true); } else { setPreviewSketch(d); } }} style={{ width: '100%', height: '100%', padding: 8, boxSizing: 'border-box', border: 0, background: 'transparent', cursor: 'pointer' }}
                   dangerouslySetInnerHTML={{ __html: d.svg_data?.replace(/<svg/, '<svg style="width:100%;height:100%;display:block;pointer-events:none"') || '' }}
                 />
                 {canEditMeta && (
@@ -1124,7 +1143,7 @@ export default function SurveyDetailMobile() {
             ))}
           </div>
           {canEditMeta && (
-            <button type="button" onClick={() => { closeSheet(); setShowSketch(true); }} style={{ minHeight: 56, border: 0, borderRadius: 28, background: '#0E1116', color: '#fff', fontSize: 16, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+            <button type="button" onClick={() => { closeSheet(); setSketchEntryId(null); setShowSketch(true); }} style={{ minHeight: 56, border: 0, borderRadius: 28, background: '#0E1116', color: '#fff', fontSize: 16, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
               {tM('propAddSketch')}
             </button>
@@ -1183,6 +1202,50 @@ export default function SurveyDetailMobile() {
                     if (raw.length && enqueue) enqueue(raw, { surveyId: id, entryId: roomMediaSheet, mediaType: 'photo' });
                   }} />
                 </>
+              )}
+            </div>
+          </>
+        );
+      })()}
+
+      {/* Section sketch sheet */}
+      {roomSketchSheet && (() => {
+        const sketchEntry  = entries.find(e => e.id === roomSketchSheet);
+        if (!sketchEntry) return null;
+        const entryDrawings = drawings.filter(d => d.entry_id === roomSketchSheet);
+        return (
+          <>
+            <button type="button" onClick={() => setRoomSketchSheet(null)} aria-label={tc('close')} style={{ position: 'fixed', inset: 0, zIndex: 48, border: 0, background: 'rgba(14,17,22,0.5)', cursor: 'pointer' }} />
+            <div role="dialog" aria-label={sketchEntry.name} className="pod-sheet" style={{ position: 'fixed', zIndex: 50, left: 0, right: 0, bottom: 0, boxSizing: 'border-box', padding: '10px 16px calc(20px + env(safe-area-inset-bottom))', borderRadius: '32px 32px 0 0', background: '#FBFAF7', display: 'flex', flexDirection: 'column', gap: 14, maxHeight: '82dvh', overflowY: 'auto' }}>
+              <span style={{ alignSelf: 'center', width: 44, height: 5, borderRadius: 3, background: '#D5D2C8', flexShrink: 0 }} />
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexShrink: 0 }}>
+                <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 22, fontWeight: 700, color: '#0E1116' }}>{sketchEntry.name} · {tM('roomMediaSketches')}</span>
+                <button type="button" onClick={() => setRoomSketchSheet(null)} style={{ width: 44, height: 44, border: 0, borderRadius: 22, background: '#EFEDE6', color: '#0E1116', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                </button>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                {entryDrawings.map(d => (
+                  <div key={d.id} style={{ position: 'relative', borderRadius: 16, overflow: 'hidden', aspectRatio: '4/3', background: '#F0EDE6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <button
+                      type="button"
+                      onClick={() => { if (canAdd) { setRoomSketchSheet(null); setSketchEntryId(roomSketchSheet); setEditingSketch(d); setShowSketch(true); } else { setPreviewSketch(d); } }}
+                      style={{ width: '100%', height: '100%', padding: 8, boxSizing: 'border-box', border: 0, background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                      dangerouslySetInnerHTML={{ __html: d.svg_data?.replace(/<svg/, '<svg style="width:100%;height:100%;display:block;pointer-events:none"') || '' }}
+                    />
+                    {canAdd && (
+                      <button type="button" onClick={() => deleteSurveyDrawing(id, d.id)} style={{ position: 'absolute', top: 6, right: 6, width: 32, height: 32, borderRadius: 16, border: 0, background: 'rgba(14,17,22,0.65)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true"><path d="M5 7h14M9 7V4h6v3M7 7l1 13h8l1-13"/></svg>
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+              {canAdd && (
+                <button type="button" onClick={() => { setRoomSketchSheet(null); setSketchEntryId(roomSketchSheet); setEditingSketch(null); setShowSketch(true); }} style={{ minHeight: 56, border: 0, borderRadius: 28, background: '#0E1116', color: '#fff', fontSize: 16, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+                  {tM('propAddSketch')}
+                </button>
               )}
             </div>
           </>
@@ -1255,7 +1318,7 @@ export default function SurveyDetailMobile() {
                       finalSvg = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="800" height="760" viewBox="0 0 800 760">${oldInner}${newInner}</svg>`;
                       await deleteSurveyDrawing(id, editingSketch.id);
                     }
-                    await createSurveyDrawing(id, { svg_data: finalSvg });
+                    await createSurveyDrawing(id, { svg_data: finalSvg, entry_id: sketchEntryId });
                     setShowSketch(false);
                     setEditingSketch(null);
                     setSketchDirty(false);
@@ -1297,6 +1360,23 @@ export default function SurveyDetailMobile() {
             onCreated={() => fetchSurveyMedia(id).catch(() => {})}
             onClose={() => setAnalyzeSheet(false)}
             createSurveyEntry={createSurveyEntry}
+          />
+        </div>
+      )}
+
+      {/* Room editor sheet */}
+      {editRoomEntry && (
+        <div
+          role="dialog"
+          aria-label={editRoomEntry === 'new' ? tM('addRoomDashed') : editRoomEntry.name}
+          className="pod-sheet"
+          style={{ position: 'fixed', zIndex: 50, left: 0, right: 0, bottom: 0, boxSizing: 'border-box', padding: '10px 16px calc(20px + env(safe-area-inset-bottom))', borderRadius: '32px 32px 0 0', background: '#FBFAF7', display: 'flex', flexDirection: 'column', gap: 14, maxHeight: '92dvh', overflowY: 'auto' }}
+        >
+          <RoomEditorSheet
+            entry={editRoomEntry === 'new' ? null : editRoomEntry}
+            surveyId={id}
+            onClose={() => setEditRoomEntry(null)}
+            onCreate={handleAddRoom}
           />
         </div>
       )}
