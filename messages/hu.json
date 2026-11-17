@@ -1999,7 +1999,7 @@
     "deleteSurveyPermanent": " Véglegesen törlődik: {items}. Ez nem vonható vissza.",
     "deleteSurveyNoUndo": " Ez nem vonható vissza.",
     "deleteMediaConfirm": "Biztosan törölni kívánja ezt a fájlt?",
-    “deleteEntryConfirm”: “Biztosan törölni kívánja „{name}” szekciót?{detail}”,
+    "deleteEntryConfirm": "Biztosan törölni kívánja „{name}” szekciót?{detail}",
     "deleteEntryWith": " Ezzel együtt törlődik: {items}.",
     "archiveRestoreTitle": "Visszaállítás aktívra",
     "archiveInactivateTitle": "Inaktiválás",

@@ -1999,7 +1999,7 @@
     "deleteSurveyPermanent": " Endgültig gelöscht: {items}. Dies kann nicht rückgängig gemacht werden.",
     "deleteSurveyNoUndo": " Dies kann nicht rückgängig gemacht werden.",
     "deleteMediaConfirm": "Möchten Sie diese Datei wirklich löschen?",
-    “deleteEntryConfirm”: “Möchten Sie den Abschnitt „{name}” wirklich löschen?{detail}”,
+    "deleteEntryConfirm": "Möchten Sie den Abschnitt „{name}” wirklich löschen?{detail}",
     "deleteEntryWith": " Wird zusammen gelöscht: {items}.",
     "archiveRestoreTitle": "Als aktiv wiederherstellen",
     "archiveInactivateTitle": "Deaktivieren",
