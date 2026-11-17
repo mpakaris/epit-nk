@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import PageSpinner from '@/components/PageSpinner';
 import useMobile from '@/hooks/useMobile';
+import OfferDetailMobile from '../mobile/OfferDetailMobile';
 import SectionCard from './components/SectionCard';
 import SectionAddForm from './components/SectionAddForm';
 import ClientComments from './components/ClientComments';
@@ -348,6 +349,8 @@ export default function QuoteDetailPage() {
     setMetaWarrantyMonths(quote.warranty_months != null ? String(quote.warranty_months) : '0');
     setMetaInitialized(true);
   }, [quote, metaInitialized]);
+
+  if (isMobile) return <OfferDetailMobile quoteId={id} />;
 
   if (loading || !dataReady || fallbackFetching) return <PageSpinner />;
   if (!quote) return (

@@ -14,6 +14,7 @@ import PageSpinner from '@/components/PageSpinner';
 import WorkspacePicker from '@/components/mobile/WorkspacePicker';
 import SharingBanner from '@/components/mobile/SharingBanner';
 import useMobile from '@/hooks/useMobile';
+import OfferNewMobile from '../mobile/OfferNewMobile';
 import { formatDate } from '@/lib/constants';
 import {
   ArrowLeft, Check, Loader2, Plus, Ruler, User, Search, X,
@@ -190,6 +191,8 @@ function NewQuotePageInner() {
       setIsSubmitting(false);
     }
   };
+
+  if (isMobile) return <OfferNewMobile />;
 
   if (loading || !dataReady) return <PageSpinner />;
 

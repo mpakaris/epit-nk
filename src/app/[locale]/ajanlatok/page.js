@@ -9,8 +9,11 @@ import { QUOTE_STATUSES } from '@/lib/constants';
 import { FileText } from 'lucide-react';
 import ItemCard from '@/components/mobile/ItemCard';
 import DocumentListPage from '@/components/mobile/DocumentListPage';
+import useMobile from '@/hooks/useMobile';
+import OfferListMobile from './mobile/OfferListMobile';
 
 export default function QuotesListPage() {
+  const isMobile = useMobile();
   const t = useTranslations('quotes');
   const {
     currentUser, loading, dataReady,
@@ -22,6 +25,8 @@ export default function QuotesListPage() {
 
   const [statusFilter, setStatusFilter] = useState('all');
   const { outgoingTransfers } = useTransferRequests({ dataReady, isDemoMode });
+
+  if (isMobile) return <OfferListMobile />;
 
   const applyFilter = (list, search) => {
     const q = normalizeHU(search);
