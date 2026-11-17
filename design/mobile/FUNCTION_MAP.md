@@ -121,3 +121,13 @@ Route `[l]/profil/page.js` (1.5k lines, anchors `#elofizetes`, `#szamla`, `#aszf
 - **U4/U4b** plan cards (planBasicName/planPremiumName/planFree), `upgradeToPremium(Now)`, `planRedirecting`, `securePayment`, active subs (`subActive`, `subCancels`, `subNextRenewal`, `scheduledCancelNote`), `managePayment`, `premiumCancel*` (owned collectives warning), `cancelCollective*`, `premiumRestore`/`subResumeBtn`, result modals (`cancelSuccessModalTitle`, `premiumCanceledTitle`, `resumeSuccess*`, `upgradeSuccess*`/`upgradeError*`), collective sizes small/medium/large.
 - **U5** languageLabel + `languageNote`, currencyLabel + `currencyNote` (write-once: disabled after set), collectiveWorkspaces* + `collectiveManageBtn`.
 - **U6** passwordChange (current/new/confirm, min 8, 1 uppercase, 1 digit), `logout`, `dangerZone`, `deleteConfirmPrompt`/`deleteConfirmWord` (TÖRLÉS), `dangerWarningPremium`/`dangerWarningBasic`, `deleting`.
+
+
+# Dashboard additions (H1–H2)
+Files: `[l]/dashboard/DashboardClient.jsx`, `dashboard/page.js`. APIs: `GET /api/collectives/my-invitations`, `GET /api/transfer-requests`, `GET /api/workspace/combined`. i18n namespace `dashboard`. Demo mode skips invitation/transfer fetches.
+- **Banners:** `invitedSingle` / `invitedMultiple`, `invitedBy`, `transferSingle` / `transferMultiple`, `requestedBy`, `view` → `/kollektivak`.
+- **Folytasd** (`continueSection`): last survey, quote, project as cards (`CompactRow`).
+- **Stats:** `statTotalCost`, `statActiveProjects`, `statInvoices` (+ `*Sub`).
+- **Activity:** `latestActivity`, `noActivity`, `invoiceFallback`, `diaryFallback`.
+- **Lists:** `projectsSection`, `latestSurveys`, `latestQuotes`, `viewAll`, quote status badges `quoteStatus.*`.
+- **Empty:** `emptyTitle`, `emptySubtitle`, `quickCards.*`, `createFirst*`/`create`.

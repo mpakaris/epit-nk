@@ -63,9 +63,16 @@ Not in the first implementation scope. "Demó:" buttons are mock helpers, do not
 | `U5-Nyelv.dc.html` | Language (hu/de/en), write-once currency, collective workspaces link | `/profil#preferences` |
 | `U6-Biztonsag.dc.html` | Password change, logout, delete account (type TÖRLÉS) | `/profil` |
 
+### Dashboard additions (drop 5)
+| File | Screen | Route |
+|---|---|---|
+| `H1-Kezdolap.dc.html` | Full home: invitation + transfer banners (with list sheets), Folytasd cards, 3 stat cards, latest activity, Projektek / latest surveys / latest quotes, "Új dokumentum" sheet | `/dashboard` |
+| `H2-Kezdolap-ures.dc.html` | Empty state for a new user ("Hol tartasz most?", three create tiles, createFirst* rows) | `/dashboard` |
+
 ## Known gaps in this drop (be explicit, do not guess)
 1. `A-Pods.dc.html` is the approved home look, but it does **not yet** show the repo dashboard functions: pending collective invitations, pending transfer requests, stat cards (total cost / active projects / invoices), latest-activity feed. Build them in the same visual language (see AGENT_BRIEF §Dashboard); a design pass for them is still open.
 2. Offer and Project colours are proposed tokens; their screens are not designed yet.
 3. Floor-plan / strings in the HTML are demo Hungarian copy. Real UI strings must come from `messages/*.json` (see brief).
 
 - Drop 4: the Clients (rose) and Profile (stone) colours are **proposals**. C2 is shown in create mode; edit mode reuses it (title "Ügyfél szerkesztése", CTA "Módosítás"). Client portal public page `/clients/[id]` and `/portal` (OTP) are not designed yet. Shared clients (C1 second tab) are read-only: no edit/delete actions.
+- Drop 5: invitation/transfer banners in the repo only link to `/kollektivak` ("Megtekintés"); the sheets in H1 are a preview list whose button goes there too — accept/decline stays on that page. Collective context shows per-collective sections with an "Összes" link each (`/osszes?workspace=<id>`); not drawn separately. Dashboard still uses the A-Pods dock/pods for workspace switching.
