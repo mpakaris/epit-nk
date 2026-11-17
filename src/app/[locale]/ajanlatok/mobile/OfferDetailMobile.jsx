@@ -7,7 +7,7 @@
  */
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useApp } from '@/context/AppContext';
 import { formatMoney, formatDate } from '@/lib/constants';
@@ -70,6 +70,7 @@ export default function OfferDetailMobile({ quoteId }) {
 
   const navPrefix = isDemoMode ? '/demo' : '';
   const p = useCallback((path) => `${navPrefix}${path}`, [navPrefix]);
+  const searchParams = useSearchParams();
 
   const [quote, setQuote] = useState(null);
   const [sections, setSections] = useState([]);
@@ -110,6 +111,11 @@ export default function OfferDetailMobile({ quoteId }) {
   }, [quoteId]);
 
   const quoteData = useMemo(() => quotes.find(q => q.id === quoteId), [quotes, quoteId]);
+
+  // Auto-open dup sheet when arriving from list with ?copy=1
+  useEffect(() => {
+    if (quoteData && searchParams.get('copy') === '1') setMode('dup');
+  }, [quoteData, searchParams]);
 
   // Sync local state from context whenever the quote data changes.
   useEffect(() => {

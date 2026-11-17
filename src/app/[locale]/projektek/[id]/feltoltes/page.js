@@ -12,6 +12,8 @@ import {
   Check, Loader2, X, FileText, Package, Wrench, Truck, FileCheck,
   MoreHorizontal, HardHat, PenLine,
 } from 'lucide-react';
+import useMobile from '@/hooks/useMobile';
+import InvoiceUploadMobile from '../../mobile/InvoiceUploadMobile';
 
 const CATEGORY_ICONS = {
   'Anyag':            Package,
@@ -193,7 +195,9 @@ function InvoiceItemCard({ item, rooms, onUpdate, onRemove }) {
 export default function MobileUploadPage() {
   const { id }    = useParams();
   const router    = useRouter();
+  const isMobile  = useMobile();
   const { createInvoice, uploadInvoiceImage, projectRooms, isDemoMode } = useApp();
+
   const navPrefix = isDemoMode ? '/demo' : '';
   const AppLink = isDemoMode ? Link : LocaleLink;
   const rooms     = (projectRooms || []).filter(r => r.project_id === id);
@@ -205,6 +209,8 @@ export default function MobileUploadPage() {
   const cameraInputRef  = useRef(null);
   const galleryInputRef = useRef(null);
   const pdfInputRef     = useRef(null);
+
+  if (isMobile) return <InvoiceUploadMobile projectId={id} />;
 
   // ── Item helpers ─────────────────────────────────────────────────────────
 

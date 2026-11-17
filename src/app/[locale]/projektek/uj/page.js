@@ -14,9 +14,12 @@ import {
   ArrowLeft, AlertCircle, Check, Loader2, Plus, FileText, Search, X,
   User, Users, ChevronDown,
 } from 'lucide-react';
+import useMobile from '@/hooks/useMobile';
+import ProjectNewMobile from '../mobile/ProjectNewMobile';
 
 export default function NewProjectPage() {
   const router = useRouter();
+  const isMobile = useMobile();
   const {
     loading, dataReady, clients, quotes, effectiveCollectives,
     currentUser, isDemoMode, refreshSupabaseData,
@@ -41,6 +44,8 @@ export default function NewProjectPage() {
 
   const [error, setError]           = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  if (isMobile) return <ProjectNewMobile />;
 
   const selectedCollective = collectives.find(c => c.id === collectiveId);
   const isContributorCollective = !!(collectiveId && selectedCollective?.role !== 'owner' && selectedCollective?.role !== 'admin');

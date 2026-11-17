@@ -10,6 +10,7 @@ import { PERSONAL_COLOR, podColor } from '@/lib/podColor';
 import useOnline from '@/hooks/useOnline';
 
 import PageHeader from '@/components/mobile/pods/PageHeader';
+import PodList from '@/components/mobile/pods/PodList';
 import Dock from '@/components/mobile/pods/Dock';
 import { NotifSheet, MessagesSheet, MenuSheet } from '@/components/mobile/pods/Sheets';
 
@@ -34,7 +35,7 @@ const PHOTO_GRADS = [
   'linear-gradient(135deg,#D3C8CF,#A593A0)',
 ];
 
-function SurveyCard({ survey, client, isTeam, onMore }) {
+function SurveyCard({ survey, client, isTeam, onOpen, onMore }) {
   const t = useTranslations('mobilePods');
   const st = surveyStatus(survey);
   const sc = STATUS_COLORS[st] || STATUS_COLORS.active;
@@ -43,7 +44,7 @@ function SurveyCard({ survey, client, isTeam, onMore }) {
   const pendingTo = survey._pendingTo || '';
 
   return (
-    <article style={{ position: 'relative', overflow: 'hidden', borderRadius: 26, background: '#FFFFFF', boxShadow: 'inset 0 1px 0 #fff, 0 16px 26px -14px rgba(0,0,0,0.7), 0 3px 6px -2px rgba(0,0,0,0.3)', opacity: survey.archived_at ? 0.85 : 1 }}>
+    <article style={{ position: 'relative', overflow: 'hidden', borderRadius: 26, background: '#FFFFFF', color: 'var(--m-ink)', boxShadow: 'inset 0 1px 0 #fff, 0 16px 26px -14px rgba(0,0,0,0.7), 0 3px 6px -2px rgba(0,0,0,0.3)', opacity: survey.archived_at ? 0.85 : 1 }}>
       {/* Photo strip */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 2, height: 72 }}>
         {[0, 1, 2].map(i => {
@@ -66,8 +67,8 @@ function SurveyCard({ survey, client, isTeam, onMore }) {
         </span>
       </div>
 
-      {/* Card body */}
-      <div style={{ boxSizing: 'border-box', padding: '14px 64px 14px 16px', display: 'flex', flexDirection: 'column', gap: 8, minHeight: 84 }}>
+      {/* Card body — tap opens the survey */}
+      <button onClick={onOpen} style={{ width: '100%', boxSizing: 'border-box', padding: '14px 64px 14px 16px', border: 0, background: 'transparent', textAlign: 'left', display: 'flex', flexDirection: 'column', gap: 8, minHeight: 84, cursor: 'pointer' }}>
         <span style={{ fontSize: 18, fontWeight: 700, lineHeight: 1.25, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
           {survey.title}
         </span>
@@ -85,7 +86,7 @@ function SurveyCard({ survey, client, isTeam, onMore }) {
             {t('transferPending', { to: pendingTo })}
           </span>
         )}
-      </div>
+      </button>
 
       {/* ⋯ button */}
       <button
@@ -233,20 +234,23 @@ export default function SurveyListMobile() {
   const { outgoingTransfers } = useTransferRequests({ dataReady, isDemoMode });
   const online = useOnline();
 
-  const workspaces = useMemo(() => {
-    const ws = [
-      { id: 'personal', isPersonal: true, name: t('personal'), sub: t('personalSub'), surveys: surveys.filter(s => !s.collective_id) },
-      ...(collectives || []).map(col => ({
-        id: col.collective_id,
-        isPersonal: false,
-        name: col.name,
-        sub: `${t('collective')} · ${col.role === 'owner' ? t('roleOwner') : col.role === 'admin' ? t('roleAdmin') : t('roleContributor')}`,
-        surveys: surveys.filter(s => s.collective_id === col.collective_id),
-        canCreate: col.role === 'owner' || col.role === 'admin',
-      })),
-    ];
-    return ws;
-  }, [surveys, collectives, t]);
+  const workspaces = useMemo(() => [
+    {
+      id: 'personal', isPersonal: true,
+      name: t('personal'), sub: t('personalSub'),
+      surveys: surveys.filter(s => !s.collective_id),
+      count: surveys.filter(s => !s.collective_id).length,
+    },
+    ...(collectives || []).map(col => ({
+      id: col.collective_id,
+      isPersonal: false,
+      name: col.name,
+      sub: `${t('collective')} · ${col.role === 'owner' ? t('roleOwner') : col.role === 'admin' ? t('roleAdmin') : t('roleContributor')}`,
+      surveys: surveys.filter(s => s.collective_id === col.collective_id),
+      count: surveys.filter(s => s.collective_id === col.collective_id).length,
+      canCreate: col.role === 'owner' || col.role === 'admin',
+    })),
+  ], [surveys, collectives, t]);
 
   const activeWs = workspaces.find(w => w.id === activePodId) || workspaces[0];
   const activeColors = activeWs?.isPersonal ? PERSONAL_COLOR : podColor(activeWs?.id || '');
@@ -338,132 +342,68 @@ export default function SurveyListMobile() {
           </div>
         )}
 
-        {workspaces.map(ws => {
-          const isActive = ws.id === activePodId;
-          const colors = ws.isPersonal ? PERSONAL_COLOR : podColor(ws.id);
-          const { bg, deep, fg, soft, glass, glow } = colors;
-          const memberInitials = (ws.members || []).slice(0, 3).map(m => (m.display_name || m.email || '?').slice(0, 2).toUpperCase());
+        <PodList
+          workspaces={workspaces}
+          activeId={activePodId}
+          onActivate={setActivePodId}
+          moduleLabel={t('surveys')}
+          onBack={() => router.push(p('/dashboard'))}
+          renderBody={(ws) => (
+            <>
+              {/* Search */}
+              <label style={{ position: 'relative', display: 'block' }}>
+                <span style={{ position: 'absolute', left: 18, top: '50%', marginTop: -10, color: '#5A5F68', display: 'flex' }}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true"><path d="M4 11a7 7 0 1014 0 7 7 0 10-14 0M20 20l-4-4"/></svg>
+                </span>
+                <input type="search" aria-label={t('searchPlaceholder')} placeholder={t('searchPlaceholder')} value={search} onChange={e => setSearch(e.target.value)}
+                  style={{ width: '100%', boxSizing: 'border-box', height: 56, border: 0, borderRadius: 28, background: '#fff', paddingLeft: 48, paddingRight: 16, fontSize: 17, fontWeight: 500, color: 'var(--m-ink)', boxShadow: '0 1px 0 rgba(14,17,22,0.05), 0 10px 20px -16px rgba(14,17,22,0.4)' }}
+                />
+              </label>
 
-          return (
-            <section
-              key={ws.id}
-              style={{ flexShrink: 0, borderRadius: 28, overflow: 'hidden', background: deep, color: '#fff', boxShadow: '0 24px 40px -24px rgba(14,17,22,0.5)' }}
-            >
-              {/* Strip */}
-              <div style={{ position: 'relative', height: 64, overflow: 'hidden', background: bg, color: fg }}>
-                <span aria-hidden="true" style={{ position: 'absolute', right: -90, top: -130, width: 280, height: 280, borderRadius: 140, background: glow, pointerEvents: 'none' }} />
-                <button
-                  onClick={() => !isActive && setActivePodId(ws.id)}
-                  aria-label={`${ws.name} ${t('open')}`}
-                  aria-pressed={isActive}
-                  style={{ position: 'relative', width: '100%', height: 64, boxSizing: 'border-box', padding: '0 16px 0 14px', border: 0, background: 'transparent', color: 'inherit', display: 'flex', alignItems: 'center', gap: 12, textAlign: 'left', cursor: isActive ? 'default' : 'pointer' }}
-                >
-                  <span style={{ flexShrink: 0, width: 42, height: 42, borderRadius: 21, background: glass, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    {ws.isPersonal
-                      ? <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 018 0v3"/></svg>
-                      : <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c0-3.5 2.9-6 6.5-6s6.5 2.5 6.5 6M16 5a3.5 3.5 0 010 7M18 14c2.2.6 3.5 2.6 3.5 6"/></svg>
-                    }
-                  </span>
-                  <span style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 1 }}>
-                    <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 20, fontWeight: 700, letterSpacing: '-0.01em', lineHeight: 1.15, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{ws.name}</span>
-                    <span style={{ fontSize: 13, fontWeight: 500, color: soft }}>{ws.sub}</span>
-                  </span>
-                  <span style={{ flexShrink: 0, display: 'flex', alignItems: 'center', paddingLeft: 8 }}>
-                    {memberInitials.map((ini, idx) => (
-                      <span key={idx} style={{ width: 30, height: 30, marginLeft: -9, borderRadius: 15, background: '#fff', color: 'var(--m-ink)', border: `2px solid ${bg}`, boxSizing: 'border-box', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700 }}>{ini}</span>
-                    ))}
-                    <span style={{ marginLeft: 8, minWidth: 26, height: 26, padding: '0 8px', boxSizing: 'border-box', borderRadius: 13, background: '#fff', color: 'var(--m-ink)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700 }}>
-                      {ws.surveys.length}
-                    </span>
-                  </span>
-                </button>
+              {/* Filter chips */}
+              <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 2 }}>
+                {FILTERS.map(f => {
+                  const isOn = f.key === filter;
+                  return (
+                    <button key={f.key} onClick={() => setFilter(f.key)} aria-pressed={isOn}
+                      style={{ height: 44, padding: '0 16px', border: 0, borderRadius: 26, fontSize: 15, fontWeight: 700, background: isOn ? '#fff' : 'rgba(255,255,255,0.14)', color: isOn ? 'var(--m-ink)' : '#fff', flexShrink: 0, cursor: 'pointer' }}>
+                      {f.label}
+                    </button>
+                  );
+                })}
               </div>
 
-              {/* Expanded body */}
-              {isActive && (
-                <div style={{ boxSizing: 'border-box', padding: '18px 16px 24px', display: 'flex', flexDirection: 'column', gap: 14 }}>
-                  {/* Top bar: back (goes to dashboard), title, create button */}
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
-                    <button onClick={() => router.push(p('/dashboard'))} style={{ height: 48, padding: '0 18px 0 12px', border: 0, borderRadius: 24, background: '#fff', color: 'var(--m-ink)', display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, fontWeight: 700, boxShadow: 'inset 0 1px 0 rgba(255,255,255,1), 0 16px 26px -14px rgba(0,0,0,0.7)', cursor: 'pointer' }}>
-                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>
-                      {ws.name}
-                    </button>
-                    <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 22, fontWeight: 700 }}>{t('surveys')}</span>
-                    {ws.canCreate !== false && (
-                      <button onClick={() => router.push(p('/felmeres/uj'))} aria-label={t('newSurvey')} style={{ width: 48, height: 48, border: 0, borderRadius: 24, background: bg, color: fg, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
-                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
-                      </button>
-                    )}
-                  </div>
-
-                  {/* Search */}
-                  <label style={{ position: 'relative', display: 'block' }}>
-                    <span style={{ position: 'absolute', left: 18, top: '50%', marginTop: -10, color: '#5A5F68', display: 'flex' }}>
-                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true"><path d="M4 11a7 7 0 1014 0 7 7 0 10-14 0M20 20l-4-4"/></svg>
-                    </span>
-                    <input
-                      type="search"
-                      aria-label={t('personal')}
-                      placeholder={t('searchPlaceholder')}
-                      value={search}
-                      onChange={e => setSearch(e.target.value)}
-                      style={{ width: '100%', boxSizing: 'border-box', height: 56, border: 0, borderRadius: 28, background: '#fff', paddingLeft: 48, paddingRight: 16, fontSize: 17, fontWeight: 500, color: 'var(--m-ink)', boxShadow: '0 1px 0 rgba(14,17,22,0.05), 0 10px 20px -16px rgba(14,17,22,0.4)' }}
-                    />
-                  </label>
-
-                  {/* Filter chips */}
-                  <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 2 }}>
-                    {FILTERS.map(f => {
-                      const isOn = f.key === filter;
-                      return (
-                        <button key={f.key} onClick={() => setFilter(f.key)} aria-pressed={isOn}
-                          style={{ height: 44, padding: '0 16px', border: 0, borderRadius: 26, fontSize: 15, fontWeight: 700, background: isOn ? '#fff' : 'rgba(255,255,255,0.14)', color: isOn ? 'var(--m-ink)' : '#fff', flexShrink: 0, cursor: 'pointer' }}>
-                          {f.label}
-                        </button>
-                      );
-                    })}
-                  </div>
-
-                  {/* Empty state */}
-                  {filteredSurveys.length === 0 && (
-                    <div style={{ boxSizing: 'border-box', borderRadius: 26, background: '#fff', boxShadow: 'inset 0 1px 0 #fff, 0 16px 26px -14px rgba(0,0,0,0.7)', padding: 22, textAlign: 'center' }}>
-                      <b style={{ fontSize: 17 }}>{t('noResults')}</b>
-                      <div style={{ marginTop: 4, fontSize: 13, fontWeight: 600, color: '#5A5F68' }}>{t('noResultsHint')}</div>
-                    </div>
-                  )}
-
-                  {/* Survey cards */}
-                  {filteredSurveys.map(survey => {
-                    const client = clients.find(c => c.id === survey.client_id);
-                    const isOwner = survey.owner_id === currentUser?.id || survey.created_by === currentUser?.id;
-                    const pendingReq = (outgoingTransfers || []).find(r => r.document_id === survey.id);
-                    const surveyWithMeta = {
-                      ...survey,
-                      _pendingTransfer: !!pendingReq,
-                      _pendingTo: pendingReq?.target_collective_name || '',
-                    };
-                    return (
-                      <SurveyCard
-                        key={survey.id}
-                        survey={surveyWithMeta}
-                        client={client}
-                        isTeam={!ws.isPersonal}
-                        onMore={() => setActionSurvey({ survey: surveyWithMeta, isOwner, canTransfer: ws.isPersonal && isOwner && !pendingReq && (collectives || []).length > 0 && !isDemoMode, hasPending: !!pendingReq, mode: 'action' })}
-                      />
-                    );
-                  })}
-
-                  {/* Personal nudge */}
-                  {ws.isPersonal && (
-                    <div style={{ boxSizing: 'border-box', padding: '12px 14px', borderRadius: 20, border: '2px dashed rgba(255,255,255,0.28)', color: 'rgba(255,255,255,0.86)', fontSize: 14, fontWeight: 600, lineHeight: 1.4 }}>
-                      {t('collectiveNudge')}
-                    </div>
-                  )}
+              {/* Empty state */}
+              {filteredSurveys.length === 0 && (
+                <div style={{ borderRadius: 26, background: '#fff', boxShadow: 'inset 0 1px 0 #fff, 0 16px 26px -14px rgba(0,0,0,0.7)', padding: 22, textAlign: 'center' }}>
+                  <b style={{ fontSize: 17 }}>{t('noResults')}</b>
+                  <div style={{ marginTop: 4, fontSize: 13, fontWeight: 600, color: '#5A5F68' }}>{t('noResultsHint')}</div>
                 </div>
               )}
-            </section>
-          );
-        })}
+
+              {/* Survey cards */}
+              {filteredSurveys.map(survey => {
+                const client = clients.find(c => c.id === survey.client_id);
+                const isOwner = survey.owner_id === currentUser?.id || survey.created_by === currentUser?.id;
+                const pendingReq = (outgoingTransfers || []).find(r => r.document_id === survey.id);
+                const surveyWithMeta = { ...survey, _pendingTransfer: !!pendingReq, _pendingTo: pendingReq?.target_collective_name || '' };
+                return (
+                  <SurveyCard key={survey.id} survey={surveyWithMeta} client={client} isTeam={!ws.isPersonal}
+                    onOpen={() => router.push(p(`/felmeres/${survey.id}`))}
+                    onMore={() => setActionSurvey({ survey: surveyWithMeta, isOwner, canTransfer: ws.isPersonal && isOwner && !pendingReq && (collectives || []).length > 0 && !isDemoMode, hasPending: !!pendingReq, mode: 'action' })}
+                  />
+                );
+              })}
+
+              {/* Personal nudge */}
+              {ws.isPersonal && (collectives || []).length === 0 && (
+                <div style={{ padding: '12px 14px', borderRadius: 20, border: '2px dashed rgba(255,255,255,0.28)', color: 'rgba(255,255,255,0.86)', fontSize: 14, fontWeight: 600, lineHeight: 1.4 }}>
+                  {t('collectiveNudge')}
+                </div>
+              )}
+            </>
+          )}
+        />
       </div>
 
       {/* Bottom scrim */}
@@ -472,7 +412,7 @@ export default function SurveyListMobile() {
       {/* Dock */}
       <Dock
         onCreatePress={() => router.push(p('/felmeres/uj'))}
-        activePodColor={activeColors}
+        activePodColor={{ plusBg: '#0A7F72', plusFg: '#FFFFFF' }}
         activePodName={activeWs?.name}
         activeTab="surveys"
       />

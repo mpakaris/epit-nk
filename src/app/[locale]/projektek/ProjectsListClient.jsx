@@ -23,6 +23,7 @@ import WorkspaceSectionHeader from '@/components/mobile/WorkspaceSectionHeader';
 import ExpandButton from '@/components/mobile/ExpandButton';
 import useMobile from '@/hooks/useMobile';
 import { collectiveColor } from '@/lib/collectiveColor';
+import ProjectsListMobile from './mobile/ProjectsListMobile';
 
 const PREVIEW_COUNT = 3;
 
@@ -135,6 +136,9 @@ export default function ProjectsListClient({
     if (searchParams.get('create') === '1') openCreate();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
+
+  // Mobile pods early return — all hooks above
+  if (isMobile) return <ProjectsListMobile />;
 
   const openCreate = () => {
     setProjName(''); setProjDesc(''); setProjStart(''); setProjEnd('');

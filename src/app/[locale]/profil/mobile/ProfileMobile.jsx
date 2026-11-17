@@ -1,0 +1,945 @@
+'use client';
+
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
+import { useTranslations, useLocale } from 'next-intl';
+import { useApp } from '@/context/AppContext';
+import { formatDate } from '@/lib/constants';
+import { isEffectivePremium } from '@/lib/subscriptionLimits';
+
+const BG      = '#44413B';
+const DEEP    = '#121110';
+const TINT    = '#ECEAE5';
+const CARD_SH = 'inset 0 1px 0 #fff, 0 16px 26px -14px rgba(0,0,0,.70), 0 3px 6px -2px rgba(0,0,0,.30)';
+const ROW_SH  = 'inset 0 1px 0 #fff, 0 14px 22px -14px rgba(0,0,0,.70), 0 3px 6px -2px rgba(0,0,0,.30)';
+
+function getInitials(name = '') {
+  return name.split(/\s+/).map(w => w[0]).filter(Boolean).slice(0, 2).join('').toUpperCase() || '?';
+}
+
+// ── Shared micro-components ───────────────────────────────────────────────────
+
+const ChevL = () => <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M15 6l-6 6 6 6"/></svg>;
+const ChevR = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M9 6l6 6-6 6"/></svg>;
+const CheckSvg = () => <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12l5 5 9-10"/></svg>;
+const SpinSvg = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{ animation: 'mpspin 1s linear infinite' }}><path d="M21 12a9 9 0 1 1-18 0"/></svg>;
+
+function Hdr({ onBack, pill, kick, title, sub, children }) {
+  return (
+    <header style={{
+      position: 'relative', overflow: 'hidden', boxSizing: 'border-box',
+      padding: '18px 16px 20px', borderRadius: '0 0 32px 32px',
+      background: BG, color: '#fff', display: 'flex', flexDirection: 'column', gap: 12,
+    }}>
+      <span aria-hidden style={{ position: 'absolute', right: -90, top: -120, width: 300, height: 300, borderRadius: 150, background: 'rgba(255,255,255,0.08)' }} />
+      <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <button onClick={onBack} aria-label="Vissza" style={{ width: 48, height: 48, border: 0, borderRadius: 24, background: 'rgba(255,255,255,0.18)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, cursor: 'pointer' }}>
+          <ChevL />
+        </button>
+        <span style={{ height: 36, padding: '0 14px', borderRadius: 18, fontSize: 13, fontWeight: 700, display: 'inline-flex', alignItems: 'center', background: 'rgba(255,255,255,0.18)' }}>{pill}</span>
+        <span style={{ width: 48 }} />
+      </div>
+      {kick && <span style={{ position: 'relative', fontSize: 13, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.85)' }}>{kick}</span>}
+      <h1 style={{ position: 'relative', margin: 0, fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 30, fontWeight: 700, letterSpacing: '-0.02em', lineHeight: 1.1 }}>{title}</h1>
+      {sub && <span style={{ position: 'relative', fontSize: 15, fontWeight: 600, color: 'rgba(255,255,255,0.92)' }}>{sub}</span>}
+      {children}
+    </header>
+  );
+}
+
+function SecLabel({ children }) {
+  return <span style={{ fontSize: 13, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.78)' }}>{children}</span>;
+}
+
+function NavRow({ icon, title, subtitle, onClick, danger }) {
+  return (
+    <button onClick={onClick} style={{
+      width: '100%', minHeight: 64, boxSizing: 'border-box', padding: '10px 14px', border: 0,
+      borderRadius: 22, background: '#fff', color: danger ? '#B71C1C' : '#0E1116',
+      textAlign: 'left', display: 'flex', alignItems: 'center', gap: 12,
+      fontSize: 16, fontWeight: 700, cursor: 'pointer', boxShadow: ROW_SH,
+    }}>
+      <span style={{ flexShrink: 0, width: 44, height: 44, borderRadius: 15, background: danger ? '#FDECEC' : '#F1F1F3', color: danger ? '#B71C1C' : '#1A1D23', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        {icon}
+      </span>
+      <span style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', lineHeight: 1.25 }}>
+        <span>{title}</span>
+        {subtitle && <span style={{ fontSize: 13, fontWeight: 600, color: '#5A5F68' }}>{subtitle}</span>}
+      </span>
+      <span style={{ flexShrink: 0, color: '#8A8F98' }}><ChevR /></span>
+    </button>
+  );
+}
+
+function Fld({ label, children }) {
+  return (
+    <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+      {label && <span style={{ fontSize: 14, fontWeight: 700, color: '#fff' }}>{label}</span>}
+      {children}
+    </label>
+  );
+}
+
+function FldInput({ value, onChange, placeholder, disabled, type = 'text', textarea }) {
+  const base = {
+    width: '100%', boxSizing: 'border-box', border: 0, borderRadius: 20,
+    background: '#fff', padding: '0 16px', fontSize: 17, fontWeight: 500, color: '#0E1116',
+    boxShadow: '0 1px 0 rgba(14,17,22,.05),0 10px 20px -16px rgba(14,17,22,.4)',
+    opacity: disabled ? 0.65 : 1,
+  };
+  if (textarea) return <textarea value={value} onChange={onChange} placeholder={placeholder} style={{ ...base, height: 96, padding: '14px 16px', resize: 'none', fontFamily: 'inherit' }} />;
+  return <input type={type} value={value} onChange={onChange} placeholder={placeholder} disabled={disabled} style={{ ...base, height: 56 }} />;
+}
+
+function SaveBar({ onSave, label, busy }) {
+  return (
+    <div style={{ position: 'sticky', bottom: 0, zIndex: 20, padding: '28px 16px 18px', background: `linear-gradient(to top,${DEEP} 70%,rgba(0,0,0,0))`, display: 'flex' }}>
+      <button onClick={onSave} disabled={busy} style={{
+        flex: 1, height: 60, border: 0, borderRadius: 30, background: '#fff', color: BG,
+        fontSize: 17, fontWeight: 700, cursor: 'pointer',
+        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
+        boxShadow: '0 14px 26px -12px rgba(14,17,22,.4)', opacity: busy ? 0.7 : 1,
+      }}>
+        {busy ? <SpinSvg /> : <CheckSvg />}
+        {label}
+      </button>
+    </div>
+  );
+}
+
+function Toast({ msg }) {
+  if (!msg) return null;
+  return (
+    <div role="status" style={{ position: 'fixed', zIndex: 60, left: 16, right: 16, top: 18, padding: '14px 16px', borderRadius: 22, background: '#14532D', color: '#fff', fontSize: 15, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 10 }}>
+      <CheckSvg />{msg}
+    </div>
+  );
+}
+
+function Sheet({ open, onClose, title, children }) {
+  if (!open) return null;
+  return (
+    <>
+      <button onClick={onClose} aria-label="Bezárás" style={{ position: 'fixed', inset: 0, zIndex: 40, border: 0, padding: 0, background: 'rgba(14,17,22,.5)', cursor: 'pointer' }} />
+      <div style={{ position: 'fixed', zIndex: 50, left: 0, right: 0, bottom: 0, boxSizing: 'border-box', padding: '10px 16px 24px', borderRadius: '32px 32px 0 0', background: '#FBFAF7', display: 'flex', flexDirection: 'column', gap: 12, maxHeight: '90vh', overflowY: 'auto' }}>
+        <span style={{ alignSelf: 'center', flexShrink: 0, width: 44, height: 5, borderRadius: 3, background: '#D5D2C8' }} />
+        {title && (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+            <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 25, fontWeight: 700, lineHeight: 1.1, color: '#0E1116' }}>{title}</span>
+            <button onClick={onClose} style={{ width: 48, height: 48, border: 0, borderRadius: 24, background: '#EFEDE6', color: '#0E1116', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+            </button>
+          </div>
+        )}
+        {children}
+      </div>
+    </>
+  );
+}
+
+// ── Main component ────────────────────────────────────────────────────────────
+
+export default function ProfileMobile() {
+  const router  = useRouter();
+  const { currentUser, logout, changePassword, isDemoMode, collectives, updateDisplayName, refreshSupabaseData } = useApp();
+  const t       = useTranslations('profile');
+  const tc      = useTranslations('common');
+  const tColl   = useTranslations('collectives');
+  const locale  = useLocale();
+
+  const [section, setSection] = useState(null); // null | 'data' | 'defaults' | 'subscription' | 'language' | 'security'
+  const [toast, setToast]     = useState('');
+  const flash = useCallback((msg) => { setToast(msg); setTimeout(() => setToast(''), 2200); }, []);
+
+  // ── Profile fields ────────────────────────────────────────────────────────────
+  const [loadingProfile, setLoadingProfile] = useState(true);
+  const [displayName,       setDisplayName]       = useState('');
+  const [firstName,         setFirstName]         = useState('');
+  const [lastName,          setLastName]          = useState('');
+  const [companyName,       setCompanyName]       = useState('');
+  const [street,            setStreet]            = useState('');
+  const [streetNumber,      setStreetNumber]      = useState('');
+  const [zip,               setZip]               = useState('');
+  const [city,              setCity]              = useState('');
+  const [taxNumber,         setTaxNumber]         = useState('');
+  const [phone,             setPhone]             = useState('');
+  const [bankAccount,       setBankAccount]       = useState('');
+  const [bankName,          setBankName]          = useState('');
+  const [defaultTaxPct,     setDefaultTaxPct]     = useState('27');
+  const [offerValidityDays, setOfferValidityDays] = useState('30');
+  const [offerTermsText,    setOfferTermsText]    = useState('');
+  const [paymentDeadlineDays, setPaymentDeadlineDays] = useState('8');
+  const [paymentMethod,       setPaymentMethod]       = useState('');
+  const [depositPercent,      setDepositPercent]      = useState('0');
+  const [warrantyMonths,      setWarrantyMonths]      = useState('0');
+  const [termsPdfUrl,         setTermsPdfUrl]         = useState(null);
+  const [termsPdfName,        setTermsPdfName]        = useState(null);
+  const [termsPdfUploadedAt,  setTermsPdfUploadedAt]  = useState(null);
+  const [scheduledDeletionAt, setScheduledDeletionAt] = useState(null);
+  const [saving, setSaving] = useState(false);
+
+  // ── Subscription state ────────────────────────────────────────────────────────
+  const [premiumSubId,            setPremiumSubId]            = useState(null);
+  const [collectiveSubs,          setCollectiveSubs]          = useState([]);
+  const [premiumIsScheduledCancel, setPremiumIsScheduledCancel] = useState(false);
+  const [premiumCancelAt,         setPremiumCancelAt]         = useState(null);
+  const [premiumRenewalAt,        setPremiumRenewalAt]        = useState(null);
+  const [subSheet,                setSubSheet]                = useState(null);
+  const [subOkData,               setSubOkData]               = useState(null);
+  const [subBusy,                 setSubBusy]                 = useState(false);
+  const [checkoutBusy,            setCheckoutBusy]            = useState(false);
+  const [checkoutIframeUrl,       setCheckoutIframeUrl]       = useState(null);
+  const [upgradeModal,            setUpgradeModal]            = useState(null);
+  const [alertSheet,              setAlertSheet]              = useState(null);
+
+  // ── Password state ────────────────────────────────────────────────────────────
+  const [currentPw, setCurrentPw] = useState('');
+  const [newPw,     setNewPw]     = useState('');
+  const [confirmPw, setConfirmPw] = useState('');
+  const [pwSaving,  setPwSaving]  = useState(false);
+  const [pwErr,     setPwErr]     = useState('');
+
+  // ── Delete account ────────────────────────────────────────────────────────────
+  const [deleteSheet, setDeleteSheet] = useState(false);
+  const [deleteWord,  setDeleteWord]  = useState('');
+  const [deleting,    setDeleting]    = useState(false);
+
+  // ── PDF ───────────────────────────────────────────────────────────────────────
+  const [uploadingPdf, setUploadingPdf] = useState(false);
+  const [pdfError,     setPdfError]     = useState('');
+  const pdfRef = useRef(null);
+
+  // ── Locale ────────────────────────────────────────────────────────────────────
+  const [savingLocale, setSavingLocale] = useState(false);
+
+  // Derived
+  const isPremium  = currentUser?.is_subscription_premium ?? false;
+  const isOnTrial  = !isPremium && currentUser?.subscription_tier === 'trial'
+    && currentUser?.trial_ends_at && new Date(currentUser.trial_ends_at) > new Date();
+  const trialDays  = isOnTrial ? Math.max(0, Math.ceil((new Date(currentUser.trial_ends_at) - new Date()) / 86400000)) : 0;
+  const userCurrency = currentUser?.currency || 'HUF';
+
+  // ── Load profile data ─────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (isDemoMode) {
+      setDisplayName('Nemes Péter'); setFirstName('Péter'); setLastName('Nemes');
+      setCompanyName('Nemes Felújító E.V.'); setStreet('Ráday utca'); setStreetNumber('8.');
+      setZip('1092'); setCity('Budapest'); setTaxNumber('12345678-1-42');
+      setPhone('+36 70 555 0123'); setBankAccount('11773016-11111018'); setBankName('OTP Bank');
+      setDefaultTaxPct('27'); setOfferValidityDays('30'); setPaymentDeadlineDays('8');
+      setLoadingProfile(false);
+      return;
+    }
+    fetch('/api/auth/profile')
+      .then(r => r.json())
+      .then(({ profile, premiumSub, ownedCollectiveSubs }) => {
+        if (!profile) return;
+        setCollectiveSubs(ownedCollectiveSubs ?? []);
+        setDisplayName(profile.display_name || '');
+        setFirstName(profile.first_name || '');
+        setLastName(profile.last_name || '');
+        setCompanyName(profile.company_name || '');
+        setStreet(profile.street || '');
+        setStreetNumber(profile.street_number || '');
+        setZip(profile.zip || '');
+        setCity(profile.city || '');
+        setTaxNumber(profile.tax_number || '');
+        setDefaultTaxPct(profile.default_tax_percent != null ? String(profile.default_tax_percent) : '27');
+        setPhone(profile.phone || '');
+        setBankAccount(profile.bank_account || '');
+        setBankName(profile.bank_name || '');
+        setOfferValidityDays(profile.offer_validity_days != null ? String(profile.offer_validity_days) : '30');
+        setOfferTermsText(profile.offer_terms_text || '');
+        setPaymentDeadlineDays(profile.payment_deadline_days != null ? String(profile.payment_deadline_days) : '8');
+        setPaymentMethod(profile.payment_method || '');
+        setDepositPercent(profile.deposit_percent != null ? String(profile.deposit_percent) : '0');
+        setWarrantyMonths(profile.warranty_months != null ? String(profile.warranty_months) : '0');
+        setTermsPdfUrl(profile.terms_pdf_url || null);
+        setTermsPdfName(profile.terms_pdf_name || null);
+        setTermsPdfUploadedAt(profile.terms_pdf_uploaded_at || null);
+        setScheduledDeletionAt(profile.scheduled_deletion_at || null);
+        setPremiumSubId(premiumSub?.creem_subscription_id || null);
+        setPremiumIsScheduledCancel(premiumSub?.status === 'scheduled_cancel');
+        setPremiumCancelAt(premiumSub?.status === 'scheduled_cancel' ? (premiumSub.period_end || null) : null);
+        setPremiumRenewalAt(premiumSub?.status !== 'scheduled_cancel' ? (premiumSub?.period_end || null) : null);
+      })
+      .finally(() => setLoadingProfile(false));
+  }, [isDemoMode]);
+
+  // Creem activation — handle ?upgraded=1 redirect on mobile
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const stored = sessionStorage.getItem('creem_upgrade_result');
+    if (stored) { try { setUpgradeModal(JSON.parse(stored)); } catch {} return; }
+    const params = new URLSearchParams(window.location.search);
+    if (!params.has('upgraded')) return;
+    window.history.replaceState({}, '', '/profil');
+    const subscriptionId = params.get('subscription_id');
+    const customerId     = params.get('customer_id');
+    const productId      = params.get('product_id');
+    const finish = (status) => { sessionStorage.setItem('creem_upgrade_result', JSON.stringify({ status, productId: productId ?? null })); window.location.replace('/profil'); };
+    if (subscriptionId) {
+      fetch('/api/checkout/activate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ subscriptionId, customerId }) })
+        .then(res => finish(res.ok ? 'success' : 'error')).catch(() => finish('error'));
+    } else { finish('error'); }
+  }, []);
+
+  // ── Handlers ──────────────────────────────────────────────────────────────────
+
+  const handleSaveProfile = async () => {
+    setSaving(true);
+    try {
+      const res = await fetch('/api/auth/profile', {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          display_name:  displayName.trim() || null,
+          first_name:    firstName.trim()   || null,
+          last_name:     lastName.trim()    || null,
+          company_name:  companyName.trim() || null,
+          street:        street.trim()      || null,
+          street_number: streetNumber.trim()|| null,
+          zip:           zip.trim()         || null,
+          city:          city.trim()        || null,
+          tax_number:    taxNumber.trim()   || null,
+          phone:         phone.trim()       || null,
+          bank_account:  bankAccount.trim() || null,
+          bank_name:     bankName.trim()    || null,
+        }),
+      });
+      if (!res.ok) { const d = await res.json(); throw new Error(d.error || t('saveError')); }
+      if (displayName.trim()) updateDisplayName(displayName.trim());
+      flash(t('invoiceSaved'));
+    } catch (err) { setAlertSheet({ title: tc('error'), msg: err.message }); }
+    finally { setSaving(false); }
+  };
+
+  const handleSaveDefaults = async () => {
+    setSaving(true);
+    try {
+      const res = await fetch('/api/auth/profile', {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          default_tax_percent:   defaultTaxPct !== '' ? Number(defaultTaxPct) : 27,
+          offer_validity_days:   offerValidityDays !== '' ? Number(offerValidityDays) : 30,
+          offer_terms_text:      offerTermsText.trim() || null,
+          payment_deadline_days: paymentDeadlineDays !== '' ? Number(paymentDeadlineDays) : 8,
+          payment_method:        paymentMethod.trim() || null,
+          deposit_percent:       depositPercent !== '' ? Number(depositPercent) : 0,
+          warranty_months:       warrantyMonths !== '' ? Number(warrantyMonths) : 0,
+        }),
+      });
+      if (!res.ok) { const d = await res.json(); throw new Error(d.error || t('saveError')); }
+      flash(t('invoiceSaved'));
+    } catch (err) { setAlertSheet({ title: tc('error'), msg: err.message }); }
+    finally { setSaving(false); }
+  };
+
+  const handlePdfUpload = async (e) => {
+    const file = e.target.files?.[0]; if (!file) return;
+    setPdfError(''); setUploadingPdf(true);
+    try {
+      const fd = new FormData(); fd.append('file', file);
+      const res  = await fetch('/api/auth/profile/terms-pdf', { method: 'POST', body: fd });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Hiba a feltöltéskor');
+      setTermsPdfUrl(data.terms_pdf_url); setTermsPdfName(data.terms_pdf_name); setTermsPdfUploadedAt(data.terms_pdf_uploaded_at || null);
+      flash(t('saved'));
+    } catch (err) { setPdfError(err.message); }
+    finally { setUploadingPdf(false); e.target.value = ''; }
+  };
+
+  const handlePdfDelete = async () => {
+    setUploadingPdf(true);
+    try {
+      const res = await fetch('/api/auth/profile/terms-pdf', { method: 'DELETE' });
+      if (!res.ok) throw new Error('Hiba a törléskor');
+      setTermsPdfUrl(null); setTermsPdfName(null); setTermsPdfUploadedAt(null);
+    } catch (err) { setPdfError(err.message); }
+    finally { setUploadingPdf(false); }
+  };
+
+  const handleSaveLocale = async (newLocale) => {
+    if (savingLocale || newLocale === locale) return;
+    setSavingLocale(true);
+    try {
+      const res = await fetch('/api/auth/profile', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ locale: newLocale }) });
+      if (!res.ok) { flash(t('saveError')); return; }
+      document.cookie = `NEXT_LOCALE=${newLocale};path=/;max-age=31536000;SameSite=Lax`;
+      window.location.reload();
+    } finally { setSavingLocale(false); }
+  };
+
+  const handleChangePassword = async () => {
+    setPwErr('');
+    if (newPw.length < 8) { setPwErr('A jelszónak legalább 8 karakterből kell állnia!'); return; }
+    if (!/[A-Z]/.test(newPw)) { setPwErr('A jelszónak tartalmaznia kell legalább 1 nagybetűt!'); return; }
+    if (!/[0-9]/.test(newPw)) { setPwErr('A jelszónak tartalmaznia kell legalább 1 számot!'); return; }
+    if (newPw !== confirmPw) { setPwErr('A jelszavak nem egyeznek!'); return; }
+    setPwSaving(true);
+    try {
+      await changePassword(newPw);
+      flash(t('passwordSaved'));
+      setCurrentPw(''); setNewPw(''); setConfirmPw('');
+    } catch (err) { setPwErr(err.message || 'Hiba a jelszóváltoztatáskor'); }
+    finally { setPwSaving(false); }
+  };
+
+  const handleDeleteAccount = async () => {
+    if (deleteWord.trim() !== 'TÖRLÉS') return;
+    setDeleting(true);
+    try {
+      const res  = await fetch('/api/auth/account', { method: 'DELETE' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setDeleteSheet(false); logout();
+    } catch (err) { setAlertSheet({ title: tc('error'), msg: err.message || 'Hiba történt.' }); }
+    finally { setDeleting(false); }
+  };
+
+  const handleCancelPremium = async () => {
+    if (!premiumSubId) { setAlertSheet({ title: tc('error'), msg: 'Nem található előfizetés-azonosító.' }); return; }
+    setSubBusy(true);
+    try {
+      const res  = await fetch('/api/subscriptions/cancel', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ subscriptionId: premiumSubId }) });
+      const data = await res.json();
+      if (res.ok) {
+        setPremiumIsScheduledCancel(true); setPremiumCancelAt(data.subscription_period_end ?? null); setSubSheet(null);
+        setSubOkData({ title: t('premiumCanceledTitle'), text: data.subscription_period_end ? t('premiumActiveUntilDate', { date: formatDate(data.subscription_period_end) }) : t('premiumActiveUntilPeriod') });
+        setSubSheet('ok');
+      } else { setAlertSheet({ title: tc('error'), msg: data.error || t('cancelErrorMsg') }); }
+    } catch { setAlertSheet({ title: tc('error'), msg: t('cancelErrorMsg') }); }
+    finally { setSubBusy(false); }
+  };
+
+  const handleResumePremium = async () => {
+    if (!premiumSubId) { setAlertSheet({ title: tc('error'), msg: 'Nem található előfizetés-azonosító.' }); return; }
+    setSubBusy(true);
+    try {
+      const res = await fetch('/api/subscriptions/resume', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ subscriptionId: premiumSubId }) });
+      if (res.ok) { setPremiumIsScheduledCancel(false); setPremiumCancelAt(null); flash(t('resumeSuccessTitle')); }
+      else { const d = await res.json(); setAlertSheet({ title: tc('error'), msg: d.error || t('resumeErrorMsg') }); }
+    } catch { setAlertSheet({ title: tc('error'), msg: t('resumeErrorMsg') }); }
+    finally { setSubBusy(false); }
+  };
+
+  const handleCancelCollective = async (collective) => {
+    setSubBusy(true);
+    try {
+      const res  = await fetch('/api/subscriptions/cancel', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ subscriptionId: collective.creem_subscription_id, collectiveId: collective.collective_id }) });
+      const data = await res.json();
+      setSubSheet(null);
+      if (res.ok) {
+        const end = data.subscription_period_end ?? null;
+        setCollectiveSubs(prev => prev.map(c => c.collective_id === collective.collective_id ? { ...c, subscription_status: 'scheduled_cancel', subscription_period_end: end } : c));
+        flash(t('cancelSuccessModalTitle'));
+      } else { setAlertSheet({ title: tc('error'), msg: data.error || t('cancelErrorMsg') }); }
+    } catch { setAlertSheet({ title: tc('error'), msg: t('cancelErrorMsg') }); }
+    finally { setSubBusy(false); }
+  };
+
+  const handleCheckout = async () => {
+    const productId = process.env.NEXT_PUBLIC_CREEM_PREMIUM_PRODUCT_ID;
+    if (!productId) return;
+    setCheckoutBusy(true);
+    try {
+      const res  = await fetch('/api/checkout', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ productId, successUrl: '/checkout-popup-success?checkout_type=premium' }) });
+      const data = await res.json();
+      if (!data.checkoutUrl) { setAlertSheet({ title: tc('error'), msg: data.error || 'Hiba a fizetési folyamat indításakor.' }); setCheckoutBusy(false); return; }
+
+      const handleSuccess = async (payload) => {
+        window.removeEventListener('storage', onStorage);
+        window.removeEventListener('message', onMessage);
+        setCheckoutIframeUrl(null); localStorage.removeItem('creem_checkout_done');
+        try {
+          const r = await fetch('/api/checkout/activate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ subscriptionId: payload.subscriptionId, customerId: payload.customerId }) });
+          setUpgradeModal({ status: r.ok ? 'success' : 'error', productId: payload.productId ?? productId });
+          if (r.ok) refreshSupabaseData();
+        } catch { setUpgradeModal({ status: 'error', productId }); }
+        setCheckoutBusy(false);
+      };
+      const onStorage = (e) => { if (e.key !== 'creem_checkout_done') return; let d; try { d = JSON.parse(e.newValue); } catch { return; } if (d?.checkoutType !== 'premium') return; handleSuccess(d); };
+      const onMessage = (e) => { if (e.origin !== window.location.origin) return; if (e.data?.type !== 'creem_checkout_success') return; if (e.data?.checkoutType !== 'premium') return; handleSuccess(e.data); };
+      window.addEventListener('storage', onStorage);
+      window.addEventListener('message', onMessage);
+      setCheckoutIframeUrl(data.checkoutUrl);
+    } catch { setAlertSheet({ title: tc('error'), msg: 'Hiba a fizetési folyamat indításakor.' }); setCheckoutBusy(false); }
+  };
+
+  // ── Screens ───────────────────────────────────────────────────────────────────
+
+  const root = { minHeight: '100vh', background: DEEP, color: '#fff', fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif" };
+
+  const renderSecurity = () => (
+    <div style={root}>
+      <style>{`@keyframes mpspin{to{transform:rotate(360deg)}}`}</style>
+      <div style={{ paddingBottom: 170 }}>
+        <Hdr onBack={() => setSection(null)} pill={t('pageTitle')} kick={t('security')} title={t('security')} sub="Jelszó és fiókkezelés" />
+        <div style={{ padding: '16px 16px 0', display: 'flex', flexDirection: 'column', gap: 14 }}>
+          {pwErr && <div role="alert" style={{ padding: '12px 14px', borderRadius: 18, background: '#FDECEC', color: '#B71C1C', fontSize: 14, fontWeight: 700 }}>{pwErr}</div>}
+          <Fld label={t('currentPassword')}><FldInput type="password" value={currentPw} onChange={e => setCurrentPw(e.target.value)} /></Fld>
+          <Fld label={t('newPassword')}><FldInput type="password" value={newPw} onChange={e => setNewPw(e.target.value)} placeholder={t('newPasswordPlaceholder')} /></Fld>
+          <Fld label={t('passwordConfirm')}><FldInput type="password" value={confirmPw} onChange={e => setConfirmPw(e.target.value)} placeholder={t('passwordRepeatPlaceholder')} /></Fld>
+          <span style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,0.78)' }}>Min. 8 karakter, 1 nagybetű, 1 szám.</span>
+          <button onClick={handleChangePassword} disabled={pwSaving} style={{ minHeight: 60, border: 0, borderRadius: 30, background: '#fff', color: BG, fontSize: 17, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, opacity: pwSaving ? 0.7 : 1 }}>
+            {pwSaving ? <SpinSvg /> : <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 10a4 4 0 11-3 3.8L4 21v-3l2-2v-2h2l3.5-3.5"/></svg>}
+            {t('passwordSave')}
+          </button>
+          <button onClick={() => !isDemoMode && logout()} style={{ minHeight: 56, border: 0, borderRadius: 28, background: 'rgba(255,255,255,0.16)', color: '#fff', fontSize: 16, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 8 }}>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 4H5v16h5M15 8l5 4-5 4M20 12H9"/></svg>
+            {t('logout')}
+          </button>
+          <div style={{ padding: 14, marginTop: 10, borderRadius: 26, border: '2px solid #E8B4B4', display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <b style={{ fontSize: 17, color: '#B71C1C' }}>{t('dangerZone')}</b>
+            <span style={{ fontSize: 14, fontWeight: 500, lineHeight: 1.45 }}>{isPremium ? t('dangerWarningPremium') : t('dangerWarningBasic')}</span>
+            <button onClick={() => setDeleteSheet(true)} style={{ minHeight: 56, border: 0, borderRadius: 28, background: '#FDECEC', color: '#B71C1C', fontSize: 16, fontWeight: 700, cursor: 'pointer' }}>{t('deleteAccount')}</button>
+          </div>
+        </div>
+      </div>
+      <Sheet open={deleteSheet} onClose={() => { setDeleteSheet(false); setDeleteWord(''); }} title={t('deleteAccount')}>
+        <span style={{ fontSize: 15, fontWeight: 500, lineHeight: 1.45, color: '#0E1116' }}>{isPremium ? t('dangerWarningPremium') : t('dangerWarningBasic')}</span>
+        <span style={{ fontSize: 14, fontWeight: 700, color: '#0E1116' }}>{t('deleteConfirmPrompt')}</span>
+        <FldInput value={deleteWord} onChange={e => setDeleteWord(e.target.value)} placeholder={t('deleteConfirmWord')} />
+        <button onClick={handleDeleteAccount} disabled={deleting || deleteWord.trim() !== 'TÖRLÉS'} style={{ height: 60, border: 0, borderRadius: 30, fontSize: 17, fontWeight: 700, cursor: 'pointer', background: deleteWord.trim() === 'TÖRLÉS' ? '#B71C1C' : '#C9A5A5', color: '#fff' }}>
+          {deleting ? t('deleting') : t('deleteAccountFinal')}
+        </button>
+        <button onClick={() => { setDeleteSheet(false); setDeleteWord(''); }} style={{ height: 60, border: 0, borderRadius: 30, background: '#EFEDE6', color: '#0E1116', fontSize: 17, fontWeight: 700, cursor: 'pointer' }}>{tc('cancel')}</button>
+      </Sheet>
+    </div>
+  );
+
+  const renderLanguage = () => {
+    const langs = [{ code: 'hu', label: 'Magyar' }, { code: 'de', label: 'Deutsch' }, { code: 'en', label: 'English' }];
+    const currencies = ['HUF', 'EUR', 'GBP', 'USD'];
+    return (
+      <div style={root}>
+        <style>{`@keyframes mpspin{to{transform:rotate(360deg)}}`}</style>
+        <div style={{ paddingBottom: 60 }}>
+          <Hdr onBack={() => setSection(null)} pill={t('pageTitle')} kick={t('accountSection')} title={t('preferencesTitle')} sub={t('preferencesSubtitle')} />
+          <div style={{ padding: '16px 16px 0', display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <SecLabel>{t('languageLabel')}</SecLabel>
+            <div style={{ display: 'flex', gap: 8 }}>
+              {langs.map(l => { const on = l.code === locale; return (
+                <button key={l.code} onClick={() => handleSaveLocale(l.code)} style={{ flex: 1, height: 60, border: 0, borderRadius: 30, cursor: 'pointer', background: on ? '#fff' : 'rgba(255,255,255,0.14)', color: on ? BG : '#fff', fontSize: 17, fontWeight: 700, opacity: savingLocale && !on ? 0.6 : 1 }}>{l.label}</button>
+              ); })}
+            </div>
+            <span style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,0.78)' }}>{t('languageNote')}</span>
+            <SecLabel>{t('currencyLabel')}</SecLabel>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {currencies.map(cur => { const on = cur === userCurrency; const locked = userCurrency && !on; return (
+                <button key={cur} disabled={locked} style={{ flex: 1, minWidth: 70, height: 60, border: 0, borderRadius: 30, cursor: locked ? 'default' : 'pointer', background: on ? '#fff' : 'rgba(255,255,255,0.14)', color: on ? BG : '#fff', fontSize: 17, fontWeight: 700, opacity: locked ? 0.45 : 1 }}>{cur}</button>
+              ); })}
+            </div>
+            <div style={{ padding: '12px 14px', borderRadius: 18, display: 'flex', gap: 10, alignItems: 'center', background: TINT, color: BG, fontSize: 13, fontWeight: 700, lineHeight: 1.35 }}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><path d="M6 11h12v9H6zM9 11V8a3 3 0 016 0v3"/></svg>
+              {t('currencyNote')}
+            </div>
+            <SecLabel>{t('collectiveWorkspacesTitle')}</SecLabel>
+            <div style={{ background: '#fff', borderRadius: 26, padding: 14, display: 'flex', flexDirection: 'column', gap: 12, boxShadow: CARD_SH }}>
+              <span style={{ fontSize: 15, fontWeight: 500, lineHeight: 1.45, color: '#0E1116' }}>{t('collectiveWorkspacesDesc')}</span>
+              {(collectives || []).map(c => (
+                <span key={c.collective_id} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <span style={{ flexShrink: 0, width: 36, height: 36, borderRadius: 12, background: '#6D3FD1' }} />
+                  <b style={{ flex: 1, fontSize: 16, color: '#0E1116' }}>{c.name}</b>
+                  <span style={{ height: 26, padding: '0 10px', borderRadius: 13, fontSize: 12, fontWeight: 700, background: '#F0F0F2', color: '#2B3038', display: 'inline-flex', alignItems: 'center' }}>{tColl(c.role || 'contributor')}</span>
+                </span>
+              ))}
+              <button onClick={() => router.push('/kollektivak')} style={{ minHeight: 56, border: 0, borderRadius: 28, background: BG, color: '#fff', fontSize: 16, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 8a3 3 0 106 0 3 3 0 10-6 0M3 20c0-3 2.7-5 6-5M21 20c0-3-2.7-5-6-5M7 20c0-2.2 2.2-4 5-4s5 1.8 5 4"/></svg>
+                {t('collectiveManageBtn')}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderSubscription = () => {
+    const subBadge = premiumIsScheduledCancel
+      ? { label: t('subCancels'), bg: '#FFF4E5', fg: '#6B3A00' }
+      : { label: t('subActive'), bg: '#E7F4EC', fg: '#14532D' };
+    const subNote = premiumIsScheduledCancel
+      ? (premiumCancelAt ? t('subActiveUntil', { date: formatDate(premiumCancelAt) }) : t('subActiveUntilPeriod'))
+      : (premiumRenewalAt ? t('subNextRenewal', { date: formatDate(premiumRenewalAt) }) : t('subRenewsMonthly'));
+    return (
+      <div style={root}>
+        <style>{`@keyframes mpspin{to{transform:rotate(360deg)}}`}</style>
+        <div style={{ paddingBottom: 170 }}>
+          <Hdr onBack={() => setSection(null)} pill={t('pageTitle')} kick={t('accountSection')} title={t('subscription')} sub={t('subscriptionSubtitle')} />
+          <div style={{ padding: '16px 16px 0', display: 'flex', flexDirection: 'column', gap: 14 }}>
+            {isOnTrial && (
+              <div style={{ padding: 14, borderRadius: 26, display: 'flex', gap: 12, alignItems: 'center', background: '#FFF4E5', color: '#6B3A00', boxShadow: 'none' }}>
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><path d="M4 11h16v9H4zM3 7h18v4H3zM12 7v13M12 7c-2-4-6-3-5 0 1 1 5 0 5 0zM12 7c2-4 6-3 5 0-1 1-5 0-5 0z"/></svg>
+                <span style={{ flex: 1, fontSize: 15, fontWeight: 700, lineHeight: 1.35 }}>{t('trialBannerText', { days: trialDays })}</span>
+              </div>
+            )}
+            {premiumIsScheduledCancel && (
+              <div style={{ padding: 14, borderRadius: 26, background: '#FFF4E5', color: '#6B3A00', fontSize: 15, fontWeight: 700, lineHeight: 1.4, boxShadow: 'none' }}>
+                {premiumCancelAt ? t('scheduledCancelNote', { date: formatDate(premiumCancelAt) }) : t('scheduledCancelNoDate')}
+              </div>
+            )}
+            <div style={{ display: 'flex', gap: 10 }}>
+              <div style={{ flex: 1, padding: 14, borderRadius: 26, background: '#fff', boxShadow: CARD_SH, display: 'flex', flexDirection: 'column', gap: 6, opacity: isPremium ? 0.7 : 1 }}>
+                <b style={{ fontSize: 17, color: '#0E1116' }}>{t('planBasicName')}</b>
+                <span style={{ fontSize: 24, fontWeight: 700, fontFamily: "'Bricolage Grotesque', sans-serif", color: '#0E1116' }}>{t('planFree')}</span>
+                <span style={{ fontSize: 13, fontWeight: 600, color: '#5A5F68' }}>{t('planFreeNote')} · 5 felmérés, 5 ajánlat, 1 projekt</span>
+              </div>
+              <div style={{ flex: 1, padding: 14, borderRadius: 26, background: '#fff', boxShadow: CARD_SH, outline: '3px solid #fff', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 17, fontWeight: 700, color: '#0E1116' }}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M3 8l4 4 5-7 5 7 4-4-2 11H5z"/></svg>
+                  {t('planPremiumName')}
+                </span>
+                <span style={{ fontSize: 24, fontWeight: 700, fontFamily: "'Bricolage Grotesque', sans-serif", color: '#0E1116' }}>6 999 Ft</span>
+                <span style={{ fontSize: 13, fontWeight: 600, color: '#5A5F68' }}>{t('subPerMonthVat')} · minden korlátlan</span>
+              </div>
+            </div>
+            {!isPremium && (
+              <>
+                <button onClick={handleCheckout} disabled={checkoutBusy} style={{ height: 60, border: 0, borderRadius: 30, background: '#fff', color: BG, fontSize: 17, fontWeight: 700, cursor: 'pointer', flex: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, opacity: checkoutBusy ? 0.7 : 1 }}>
+                  {checkoutBusy && <SpinSvg />}
+                  {checkoutBusy ? t('planRedirecting') : (isOnTrial ? t('upgradeToPremiumNow') : t('upgradeToPremium'))}
+                </button>
+                <span style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,0.8)', textAlign: 'center' }}>{t('securePayment')}</span>
+              </>
+            )}
+            {isPremium && (
+              <>
+                <SecLabel>{t('activeSubs')}</SecLabel>
+                <div style={{ background: '#fff', borderRadius: 26, padding: 14, display: 'flex', flexDirection: 'column', gap: 10, boxShadow: CARD_SH }}>
+                  <span style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <b style={{ fontSize: 17, color: '#0E1116' }}>{t('planPremiumName')}</b>
+                    <span style={{ height: 26, padding: '0 10px', borderRadius: 13, fontSize: 12, fontWeight: 700, background: subBadge.bg, color: subBadge.fg, display: 'inline-flex', alignItems: 'center' }}>{subBadge.label}</span>
+                  </span>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: '#5A5F68' }}>{subNote}</span>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button onClick={() => {}} style={{ flex: 1, minHeight: 52, border: 0, borderRadius: 26, background: '#EFEDE6', color: '#0E1116', fontSize: 15, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18v12H3zM3 10h18M7 15h4"/></svg>
+                      {t('managePayment')}
+                    </button>
+                    <button onClick={() => premiumIsScheduledCancel ? handleResumePremium() : setSubSheet('cancelPrem')} disabled={subBusy} style={{ flex: 1, minHeight: 52, border: 0, borderRadius: 26, fontSize: 15, fontWeight: 700, cursor: 'pointer', background: premiumIsScheduledCancel ? '#14532D' : '#FDECEC', color: premiumIsScheduledCancel ? '#fff' : '#B71C1C' }}>
+                      {subBusy ? t('subResumingBtn') : (premiumIsScheduledCancel ? t('subResumeBtn') : t('premiumCancel'))}
+                    </button>
+                  </div>
+                </div>
+                {collectiveSubs.map(c => (
+                  <div key={c.collective_id} style={{ background: '#fff', borderRadius: 26, padding: 14, display: 'flex', flexDirection: 'column', gap: 10, boxShadow: CARD_SH }}>
+                    <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <span style={{ width: 28, height: 28, borderRadius: 9, background: '#6D3FD1', flexShrink: 0 }} />
+                        <b style={{ fontSize: 16, color: '#0E1116' }}>{c.name}</b>
+                      </span>
+                      <span style={{ height: 26, padding: '0 10px', borderRadius: 13, fontSize: 12, fontWeight: 700, background: '#F0F0F2', color: '#2B3038', display: 'inline-flex', alignItems: 'center' }}>
+                        {c.members_count <= 3 ? t('collectiveSmall') : c.members_count <= 7 ? t('collectiveMedium') : t('collectiveLarge')}
+                      </span>
+                    </span>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: '#5A5F68' }}>1 999 Ft / fő / hó + ÁFA{c.subscription_period_end ? ` · ${formatDate(c.subscription_period_end)}` : ''}</span>
+                    {c.subscription_status !== 'scheduled_cancel' && (
+                      <button onClick={() => setSubSheet({ type: 'cancelCol', collective: c })} style={{ minHeight: 48, border: 0, borderRadius: 24, background: '#FDECEC', color: '#B71C1C', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>
+                        {t('cancelSubscriptionBtn')}
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </>
+            )}
+          </div>
+        </div>
+
+        <Sheet open={subSheet === 'cancelPrem'} onClose={() => setSubSheet(null)} title={t('premiumCancelTitle')}>
+          <span style={{ fontSize: 16, fontWeight: 500, lineHeight: 1.45, color: '#0E1116' }}>{t('premiumCancelContent')}</span>
+          <button onClick={handleCancelPremium} disabled={subBusy} style={{ height: 60, border: 0, borderRadius: 30, background: '#B71C1C', color: '#fff', fontSize: 17, fontWeight: 700, cursor: 'pointer' }}>
+            {subBusy ? t('cancelingBtn') : t('cancelSubscriptionBtn')}
+          </button>
+          <button onClick={() => setSubSheet(null)} style={{ height: 60, border: 0, borderRadius: 30, background: '#EFEDE6', color: '#0E1116', fontSize: 17, fontWeight: 700, cursor: 'pointer' }}>{t('keepSubscriptionBtn')}</button>
+        </Sheet>
+
+        <Sheet open={subSheet?.type === 'cancelCol'} onClose={() => setSubSheet(null)} title={t('cancelCollectiveTitle')}>
+          {subSheet?.type === 'cancelCol' && (
+            <>
+              <span style={{ fontSize: 16, fontWeight: 500, lineHeight: 1.45, color: '#0E1116' }}>{t('cancelCollectiveConfirmText', { name: subSheet.collective.name })}</span>
+              <button onClick={() => handleCancelCollective(subSheet.collective)} disabled={subBusy} style={{ height: 60, border: 0, borderRadius: 30, background: '#B71C1C', color: '#fff', fontSize: 17, fontWeight: 700, cursor: 'pointer' }}>
+                {subBusy ? t('cancelingBtn') : t('cancelSubscriptionBtn')}
+              </button>
+              <button onClick={() => setSubSheet(null)} style={{ height: 60, border: 0, borderRadius: 30, background: '#EFEDE6', color: '#0E1116', fontSize: 17, fontWeight: 700, cursor: 'pointer' }}>{t('keepSubscriptionBtn')}</button>
+            </>
+          )}
+        </Sheet>
+
+        <Sheet open={subSheet === 'ok'} onClose={() => setSubSheet(null)}>
+          {subOkData && (
+            <>
+              <span style={{ alignSelf: 'center', width: 64, height: 64, borderRadius: 32, background: '#E7F4EC', color: '#14532D', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><CheckSvg /></span>
+              <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 25, fontWeight: 700, textAlign: 'center', color: '#0E1116' }}>{subOkData.title}</span>
+              <span style={{ fontSize: 16, fontWeight: 500, lineHeight: 1.45, textAlign: 'center', color: '#0E1116' }}>{subOkData.text}</span>
+              <button onClick={() => setSubSheet(null)} style={{ height: 60, border: 0, borderRadius: 30, background: '#263248', color: '#fff', fontSize: 17, fontWeight: 700, cursor: 'pointer' }}>{t('ok')}</button>
+            </>
+          )}
+        </Sheet>
+
+        {checkoutIframeUrl && (
+          <div style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(3px)' }}>
+            <div style={{ position: 'absolute', inset: 0 }} onClick={() => { setCheckoutIframeUrl(null); localStorage.removeItem('creem_checkout_done'); setCheckoutBusy(false); }} />
+            <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '92vh', borderRadius: '16px 16px 0 0', overflow: 'hidden', background: '#fff', display: 'flex', flexDirection: 'column' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.6rem 1rem 0.5rem', borderBottom: '1px solid #e2e8f0', background: '#f8fafc', flexShrink: 0 }}>
+                <span style={{ fontSize: '0.78rem', fontWeight: 700, color: '#64748b' }}>{t('securePayment')}</span>
+                <button onClick={() => { setCheckoutIframeUrl(null); localStorage.removeItem('creem_checkout_done'); setCheckoutBusy(false); }} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', color: '#64748b' }}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                </button>
+              </div>
+              <iframe src={checkoutIframeUrl} style={{ flex: 1, border: 'none', width: '100%' }} title={t('securePayment')} />
+            </div>
+          </div>
+        )}
+
+        {upgradeModal && (
+          <div style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+            <div style={{ background: '#fff', borderRadius: 26, padding: '2.5rem 2rem', maxWidth: 440, width: '100%', textAlign: 'center', boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
+              <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>{upgradeModal.status === 'success' ? '🎉' : '😔'}</div>
+              <h2 style={{ margin: '0 0 0.6rem', fontSize: '1.25rem', fontWeight: 900, color: '#0E1116' }}>{upgradeModal.status === 'success' ? t('upgradeSuccessTitle') : t('upgradeErrorTitle')}</h2>
+              <p style={{ margin: '0 0 1.75rem', fontSize: '0.9rem', lineHeight: 1.6, color: '#5A5F68' }}>{upgradeModal.status === 'success' ? t('upgradeSuccessDesc') : t('upgradeErrorDesc')}</p>
+              <button onClick={() => { sessionStorage.removeItem('creem_upgrade_result'); setUpgradeModal(null); if (upgradeModal.status === 'success') refreshSupabaseData(); }} style={{ padding: '0.75rem 2rem', border: 0, borderRadius: 30, background: BG, color: '#fff', fontSize: 15, fontWeight: 700, cursor: 'pointer' }}>{t('continueBtn')}</button>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const renderDefaults = () => (
+    <div style={root}>
+      <style>{`@keyframes mpspin{to{transform:rotate(360deg)}}`}</style>
+      <div style={{ paddingBottom: 190 }}>
+        <Hdr onBack={() => setSection(null)} pill={t('pageTitle')} kick={t('myDataSection')} title={t('offerDefaultsTitle')} sub={t('offerDefaultsSubtitle')} />
+        <div style={{ padding: '16px 16px 0', display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div style={{ display: 'flex', gap: 10 }}>
+            <label style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: 1, minWidth: 0 }}>
+              <span style={{ fontSize: 14, fontWeight: 700, color: '#fff' }}>{t('defaultVat')} (%)</span>
+              <FldInput value={defaultTaxPct} onChange={e => setDefaultTaxPct(e.target.value)} />
+            </label>
+            <label style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: 1, minWidth: 0 }}>
+              <span style={{ fontSize: 14, fontWeight: 700, color: '#fff' }}>{t('offerValidity')} {t('offerValidityUnit')}</span>
+              <FldInput value={offerValidityDays} onChange={e => setOfferValidityDays(e.target.value)} />
+            </label>
+          </div>
+          <Fld label={t('paymentMethod')}><FldInput value={paymentMethod} onChange={e => setPaymentMethod(e.target.value)} placeholder={t('paymentMethodPlaceholder')} /></Fld>
+          <div style={{ display: 'flex', gap: 10 }}>
+            <label style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: 1, minWidth: 0 }}>
+              <span style={{ fontSize: 14, fontWeight: 700, color: '#fff' }}>{t('paymentDeadline')} {t('paymentDeadlineUnit')}</span>
+              <FldInput value={paymentDeadlineDays} onChange={e => setPaymentDeadlineDays(e.target.value)} />
+            </label>
+            <label style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: 1, minWidth: 0 }}>
+              <span style={{ fontSize: 14, fontWeight: 700, color: '#fff' }}>{t('deposit')} {t('depositUnit')}</span>
+              <FldInput value={depositPercent} onChange={e => setDepositPercent(e.target.value)} />
+            </label>
+          </div>
+          <div style={{ display: 'flex', gap: 10 }}>
+            <label style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: 1, minWidth: 0 }}>
+              <span style={{ fontSize: 14, fontWeight: 700, color: '#fff' }}>{t('warranty')} {t('warrantyUnit')}</span>
+              <FldInput value={warrantyMonths} onChange={e => setWarrantyMonths(e.target.value)} />
+            </label>
+            <span style={{ flex: 1 }} />
+          </div>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <span style={{ fontSize: 14, fontWeight: 700, color: '#fff' }}>{t('otherTerms')} {t('otherTermsUnit')}</span>
+            <FldInput value={offerTermsText} onChange={e => setOfferTermsText(e.target.value)} textarea />
+          </label>
+          <SecLabel>{t('termsTitle')}</SecLabel>
+          <span style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,0.75)' }}>{t('termsSubtitle')}</span>
+          {pdfError && <div role="alert" style={{ padding: '12px 14px', borderRadius: 18, background: '#FDECEC', color: '#B71C1C', fontSize: 14, fontWeight: 700 }}>{pdfError}</div>}
+          {termsPdfName ? (
+            <>
+              <div style={{ background: '#fff', borderRadius: 26, padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 12, boxShadow: CARD_SH }}>
+                <span style={{ flexShrink: 0, width: 44, height: 44, borderRadius: 15, background: TINT, color: BG, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M7 3h7l4 4v14H7zM14 3v5h4M10 13h5M10 17h5"/></svg>
+                </span>
+                <span style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  <b style={{ fontSize: 16, color: '#0E1116' }}>{termsPdfName}</b>
+                  {termsPdfUploadedAt && <span style={{ fontSize: 13, fontWeight: 600, color: '#5A5F68' }}>{t('uploadedAt')} {formatDate(termsPdfUploadedAt)}</span>}
+                </span>
+              </div>
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button onClick={() => pdfRef.current?.click()} disabled={uploadingPdf} style={{ flex: 1, height: 56, border: 0, borderRadius: 28, background: '#fff', color: BG, fontSize: 16, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M12 16V4M7 9l5-5 5 5M4 20h16"/></svg>
+                  {uploadingPdf ? t('uploading') : t('replacePdf')}
+                </button>
+                <button onClick={handlePdfDelete} disabled={uploadingPdf} aria-label="Törlés" style={{ flexShrink: 0, width: 56, height: 56, border: 0, borderRadius: 28, background: '#FDECEC', color: '#B71C1C', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 7h14M10 7V4h4v3M7 7l1 13h8l1-13"/></svg>
+                </button>
+              </div>
+            </>
+          ) : (
+            <button onClick={() => pdfRef.current?.click()} disabled={uploadingPdf} style={{ minHeight: 96, border: '2px dashed rgba(255,255,255,0.45)', borderRadius: 26, background: 'transparent', color: '#fff', fontSize: 16, fontWeight: 700, cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+              <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 16V4M7 9l5-5 5 5M4 20h16"/></svg>
+              {uploadingPdf ? t('uploading') : t('uploadPdf')}
+            </button>
+          )}
+          <input ref={pdfRef} type="file" accept="application/pdf" style={{ display: 'none' }} onChange={handlePdfUpload} />
+        </div>
+      </div>
+      <SaveBar onSave={handleSaveDefaults} label={saving ? t('saving') : t('save')} busy={saving} />
+    </div>
+  );
+
+  const renderData = () => (
+    <div style={root}>
+      <style>{`@keyframes mpspin{to{transform:rotate(360deg)}}`}</style>
+      <div style={{ paddingBottom: 190 }}>
+        <Hdr onBack={() => setSection(null)} pill={t('pageTitle')} kick={t('myDataSection')} title={t('invoiceHeader')} sub={t('invoiceHeaderSubtitle')} />
+        <div style={{ padding: '16px 16px 0', display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <Fld label={t('displayName')}>
+            <FldInput value={displayName} onChange={e => setDisplayName(e.target.value)} />
+          </Fld>
+          <span style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,0.75)' }}>{t('displayNameHint')}</span>
+          <Fld label={t('email')}>
+            <FldInput value={currentUser?.email || ''} disabled />
+          </Fld>
+          <div style={{ padding: '12px 14px', borderRadius: 18, display: 'flex', gap: 10, alignItems: 'center', background: TINT, color: BG, fontSize: 13, fontWeight: 700, lineHeight: 1.35 }}>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><path d="M7 3h7l4 4v14H7zM14 3v5h4"/></svg>
+            {t('invoiceHeaderSubtitle')}
+          </div>
+          <div style={{ display: 'flex', gap: 10 }}>
+            <label style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: 1, minWidth: 0 }}>
+              <span style={{ fontSize: 14, fontWeight: 700, color: '#fff' }}>{t('firstName')}</span>
+              <FldInput value={firstName} onChange={e => setFirstName(e.target.value)} />
+            </label>
+            <label style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: 1, minWidth: 0 }}>
+              <span style={{ fontSize: 14, fontWeight: 700, color: '#fff' }}>{t('lastName')}</span>
+              <FldInput value={lastName} onChange={e => setLastName(e.target.value)} />
+            </label>
+          </div>
+          <Fld label={`${t('companyName')} ${t('companyNameOptional')}`}>
+            <FldInput value={companyName} onChange={e => setCompanyName(e.target.value)} />
+          </Fld>
+          <div style={{ display: 'flex', gap: 10 }}>
+            <label style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: 1, minWidth: 0 }}>
+              <span style={{ fontSize: 14, fontWeight: 700, color: '#fff' }}>{t('street')}</span>
+              <FldInput value={street} onChange={e => setStreet(e.target.value)} />
+            </label>
+            <label style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: 1, minWidth: 0 }}>
+              <span style={{ fontSize: 14, fontWeight: 700, color: '#fff' }}>{t('streetNumber')}</span>
+              <FldInput value={streetNumber} onChange={e => setStreetNumber(e.target.value)} />
+            </label>
+          </div>
+          <div style={{ display: 'flex', gap: 10 }}>
+            <label style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: 1, minWidth: 0 }}>
+              <span style={{ fontSize: 14, fontWeight: 700, color: '#fff' }}>{t('zip')}</span>
+              <FldInput value={zip} onChange={e => setZip(e.target.value)} />
+            </label>
+            <label style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: 1, minWidth: 0 }}>
+              <span style={{ fontSize: 14, fontWeight: 700, color: '#fff' }}>{t('city')}</span>
+              <FldInput value={city} onChange={e => setCity(e.target.value)} />
+            </label>
+          </div>
+          <Fld label={t('taxNumber')}><FldInput value={taxNumber} onChange={e => setTaxNumber(e.target.value)} /></Fld>
+          <div style={{ display: 'flex', gap: 10 }}>
+            <label style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: 1, minWidth: 0 }}>
+              <span style={{ fontSize: 14, fontWeight: 700, color: '#fff' }}>{t('bankAccount')}</span>
+              <FldInput value={bankAccount} onChange={e => setBankAccount(e.target.value)} />
+            </label>
+            <label style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: 1, minWidth: 0 }}>
+              <span style={{ fontSize: 14, fontWeight: 700, color: '#fff' }}>{t('bankName')}</span>
+              <FldInput value={bankName} onChange={e => setBankName(e.target.value)} />
+            </label>
+          </div>
+          <Fld label={t('phone')}><FldInput value={phone} onChange={e => setPhone(e.target.value)} /></Fld>
+        </div>
+      </div>
+      <SaveBar onSave={handleSaveProfile} label={saving ? t('saving') : t('save')} busy={saving} />
+    </div>
+  );
+
+  const renderOverview = () => {
+    const tierPill = isPremium ? t('subscriptionBadgePremium') : (isOnTrial ? t('subscriptionBadgeTrial') : t('subscriptionBadgeBasic'));
+    const initials = getInitials(displayName || currentUser?.display_name || currentUser?.email || '');
+    const localeLabel = { hu: 'Magyar', de: 'Deutsch', en: 'English' }[locale] || locale;
+    const subRowSub = isPremium
+      ? (premiumIsScheduledCancel ? t('scheduledCancelNoDate') : (premiumRenewalAt ? t('subNextRenewal', { date: formatDate(premiumRenewalAt) }) : t('subRenewsMonthly')))
+      : (isOnTrial ? t('trialBannerText', { days: trialDays }) : t('planFree'));
+
+    return (
+      <div style={{ minHeight: '100vh', background: DEEP, color: '#fff', fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif" }}>
+        <style>{`@keyframes mpspin{to{transform:rotate(360deg)}}`}</style>
+        <div style={{ paddingBottom: 60 }}>
+          <header style={{ position: 'relative', overflow: 'hidden', boxSizing: 'border-box', padding: '18px 16px 20px', borderRadius: '0 0 32px 32px', background: BG, color: '#fff', display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <span aria-hidden style={{ position: 'absolute', right: -90, top: -120, width: 300, height: 300, borderRadius: 150, background: 'rgba(255,255,255,0.08)' }} />
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <button onClick={() => router.back()} aria-label="Vissza" style={{ width: 48, height: 48, border: 0, borderRadius: 24, background: 'rgba(255,255,255,0.18)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, cursor: 'pointer' }}><ChevL /></button>
+              <span style={{ height: 36, padding: '0 14px', borderRadius: 18, fontSize: 13, fontWeight: 700, display: 'inline-flex', alignItems: 'center', background: 'rgba(255,255,255,0.18)' }}>{tierPill}</span>
+              <span style={{ width: 48 }} />
+            </div>
+            <span style={{ position: 'relative', fontSize: 13, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.85)' }}>{t('accountSection')}</span>
+            <h1 style={{ position: 'relative', margin: 0, fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 30, fontWeight: 700, letterSpacing: '-0.02em', lineHeight: 1.1 }}>{t('pageTitle')}</h1>
+            <span style={{ position: 'relative', fontSize: 15, fontWeight: 600, color: 'rgba(255,255,255,0.92)' }}>{currentUser?.email}</span>
+            <span style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 12, marginTop: 4 }}>
+              <span style={{ width: 64, height: 64, borderRadius: 32, background: '#fff', color: BG, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 26, fontWeight: 700, flexShrink: 0 }}>{initials}</span>
+              <span style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <b style={{ fontSize: 18 }}>{displayName || currentUser?.display_name || '—'}</b>
+                <span style={{ height: 26, padding: '0 10px', borderRadius: 13, fontSize: 12, fontWeight: 700, background: '#fff', color: BG, alignSelf: 'flex-start', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M3 8l4 4 5-7 5 7 4-4-2 11H5z"/></svg>
+                  {tierPill}
+                </span>
+              </span>
+            </span>
+          </header>
+
+          <div style={{ padding: '16px 16px 0', display: 'flex', flexDirection: 'column', gap: 14 }}>
+            {isOnTrial && (
+              <div style={{ padding: 14, borderRadius: 26, display: 'flex', gap: 12, alignItems: 'center', background: '#FFF4E5', color: '#6B3A00', boxShadow: 'none' }}>
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><path d="M4 11h16v9H4zM3 7h18v4H3zM12 7v13M12 7c-2-4-6-3-5 0 1 1 5 0 5 0zM12 7c2-4 6-3 5 0-1 1-5 0-5 0z"/></svg>
+                <span style={{ flex: 1 }}>
+                  <b style={{ display: 'block', fontSize: 16 }}>{t('trialBannerText', { days: trialDays })}</b>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: '#8A5A1A' }}>{t('planPremiumName')} funkciók elérhetők.</span>
+                </span>
+              </div>
+            )}
+
+            <SecLabel>{t('myDataSection')}</SecLabel>
+            <NavRow icon={<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 8a4 4 0 108 0 4 4 0 10-8 0M4 21c0-4 3.6-6.5 8-6.5s8 2.5 8 6.5"/></svg>} title={t('personalDataTitle')} subtitle={t('personalDataSubtitle')} onClick={() => setSection('data')} />
+            <NavRow icon={<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 10l9-6 9 6M5 10v8M10 10v8M14 10v8M19 10v8M3 20h18"/></svg>} title={t('invoiceHeader')} subtitle={t('invoiceHeaderShortSubtitle')} onClick={() => setSection('data')} />
+            <NavRow icon={<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M7 3h7l4 4v14H7zM14 3v5h4M10 13h5M10 17h5"/></svg>} title={t('offerDefaultsTitle')} subtitle={t('offerDefaultsSubtitle')} onClick={() => setSection('defaults')} />
+            <NavRow icon={<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M7 3h7l4 4v14H7zM14 3v5h4M10 13h5M10 17h5"/></svg>} title={t('termsTitle').replace(' (ÁSZF)', '')} subtitle={termsPdfName ? `${termsPdfName} · feltöltve` : t('uploadPdf')} onClick={() => setSection('defaults')} />
+
+            <SecLabel>{t('accountSection')}</SecLabel>
+            <NavRow icon={<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 8l4 4 5-7 5 7 4-4-2 11H5z"/></svg>} title={t('subscription')} subtitle={subRowSub} onClick={() => setSection('subscription')} />
+            <NavRow icon={<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 8a3 3 0 106 0 3 3 0 10-6 0M3 20c0-3 2.7-5 6-5M21 20c0-3-2.7-5-6-5M7 20c0-2.2 2.2-4 5-4s5 1.8 5 4"/></svg>} title={t('collectiveWorkspacesTitle')} subtitle={collectives?.length ? `${collectives.length} kollektíva` : undefined} onClick={() => setSection('language')} />
+            <NavRow icon={<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 5h8M8 3v2M5 5c1 4 4 7 7 8M11 5c-1 4-4 7-8 9M13 20l4-9 4 9M14.5 17h5"/></svg>} title={t('preferencesTitle')} subtitle={`${localeLabel} · ${userCurrency}`} onClick={() => setSection('language')} />
+
+            <SecLabel>{t('security')}</SecLabel>
+            <NavRow icon={<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 10a4 4 0 11-3 3.8L4 21v-3l2-2v-2h2l3.5-3.5"/></svg>} title={t('passwordChange')} onClick={() => setSection('security')} />
+            <NavRow icon={<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 4H5v16h5M15 8l5 4-5 4M20 12H9"/></svg>} title={t('logout')} onClick={() => { if (!isDemoMode) logout(); }} />
+            <NavRow icon={<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 7h14M10 7V4h4v3M7 7l1 13h8l1-13"/></svg>} title={t('deleteAccount')} subtitle={t('deleteAccountSubtitle')} onClick={() => { setSection('security'); }} danger />
+
+            <p style={{ margin: '4px 0 0', textAlign: 'center', fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,0.75)' }}>{t('contactQuestion')} info@epitunk.hu</p>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  if (loadingProfile) return (
+    <div style={{ minHeight: '100vh', background: DEEP, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <style>{`@keyframes mpspin{to{transform:rotate(360deg)}}`}</style>
+      <SpinSvg />
+    </div>
+  );
+
+  return (
+    <>
+      <Toast msg={toast} />
+      <Sheet open={!!alertSheet} onClose={() => setAlertSheet(null)} title={alertSheet?.title}>
+        {alertSheet && (
+          <>
+            <span style={{ fontSize: 16, fontWeight: 500, lineHeight: 1.45, color: '#0E1116' }}>{alertSheet.msg}</span>
+            <button onClick={() => setAlertSheet(null)} style={{ height: 60, border: 0, borderRadius: 30, background: '#0E1116', color: '#fff', fontSize: 17, fontWeight: 700, cursor: 'pointer' }}>{tc('ok')}</button>
+          </>
+        )}
+      </Sheet>
+      {!section && renderOverview()}
+      {section === 'data'         && renderData()}
+      {section === 'defaults'     && renderDefaults()}
+      {section === 'subscription' && renderSubscription()}
+      {section === 'language'     && renderLanguage()}
+      {section === 'security'     && renderSecurity()}
+    </>
+  );
+}

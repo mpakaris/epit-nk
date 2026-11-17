@@ -4,8 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useApp } from '@/context/AppContext';
-import { formatMoney, formatDate } from '@/lib/constants';
-import { calculateProjectFinancials } from '@/lib/calculations';
+import { formatMoney } from '@/lib/constants';
 import { PERSONAL_COLOR, podColor } from '@/lib/podColor';
 import useOnline from '@/hooks/useOnline';
 
@@ -97,13 +96,13 @@ function ActivityRow({ icon: Icon, iconBg, iconColor, title, meta, amount, isLas
 function SectionHeader({ icon, title, onViewAll, tAll }) {
   return (
     <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 6 }}>
-      <span style={{ display: 'flex', alignItems: 'center', gap: 8, fontFamily: 'var(--font-heading, "Bricolage Grotesque", sans-serif)', fontSize: 20, fontWeight: 700, color: '#fff' }}>
+      <span style={{ display: 'flex', alignItems: 'center', gap: 8, fontFamily: 'var(--font-heading, "Bricolage Grotesque", sans-serif)', fontSize: 20, fontWeight: 700, color: 'var(--m-ink)' }}>
         {icon}
         {title}
       </span>
       <button
         onClick={onViewAll}
-        style={{ minHeight: 44, padding: '0 6px', border: 0, background: 'transparent', color: 'rgba(255,255,255,0.88)', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}
+        style={{ minHeight: 44, padding: '0 6px', border: 0, background: 'transparent', color: 'var(--m-ink)', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}
       >
         {tAll} →
       </button>
@@ -283,10 +282,9 @@ export default function DashboardMobile({ currentUser }) {
   const router = useRouter();
   const {
     projects, quotes, surveys, clients, collectives,
-    invoices, labourEntries, diaryEntriesByProject,
     activeCollectiveId, setActiveContext,
     isDemoMode, userCurrency,
-    dataReady,
+    loading, dataReady,
   } = useApp();
 
   const p = (path) => isDemoMode ? `/demo${path}` : path;
@@ -377,47 +375,11 @@ export default function DashboardMobile({ currentUser }) {
 
   const online = useOnline();
 
-  // ── Derived data for the new sections ──────────────────────────────────────
-  const activeInvoices = (invoices || []).filter(i => !i.deleted_at);
-
-  // Activity items (invoices, labour, diary) sorted by date, up to 5
-  const activityItems = [
-    ...activeInvoices.map(i => ({ ...i, _type: 'invoice', _date: i.created_at })),
-    ...(labourEntries || []).map(i => ({ ...i, _type: 'labour', _date: i.date || i.created_at })),
-    ...Object.values(diaryEntriesByProject || {}).flat().map(i => ({ ...i, _type: 'diary', _date: i.entry_date || i.created_at })),
-  ].sort((a, b) => new Date(b._date) - new Date(a._date)).slice(0, 5);
-
-  // "Folytasd": last survey, quote, project
-  const lastSurvey  = [...surveys].sort((a, b) => new Date(b.updated_at || b.created_at) - new Date(a.updated_at || a.created_at))[0];
-  const lastQuote   = [...quotes].sort((a, b) => new Date(b.updated_at || b.created_at) - new Date(a.updated_at || a.created_at))[0];
-  const lastProject = [...projects].sort((a, b) => new Date(b.updated_at || b.created_at) - new Date(a.updated_at || a.created_at))[0];
-  const continueItems = [lastSurvey, lastQuote, lastProject].filter(Boolean);
-
-  // Stat cards
-  const totalCostStat = activeInvoices.reduce((s, i) => s + Number(i.value_huf || 0), 0);
-  const activeProjectCount = projects.length;
-  const invoiceCount = activeInvoices.length;
-
-  // Recent lists (up to 2 each)
-  const recentProjects = [...projects].slice(0, 2);
-  const recentSurveys  = [...surveys].slice(0, 2);
-  const recentQuotes   = [...quotes].slice(0, 2);
-
-  // Empty state check
-  const isEmptyUser = dataReady && surveys.length === 0 && quotes.length === 0 && projects.length === 0;
-
-  // Quote status labels
-  const QUOTE_STATUS = {
-    draft:    tDash('quoteStatus.draft'),
-    sent:     tDash('quoteStatus.sent'),
-    accepted: tDash('quoteStatus.accepted'),
-    rejected: tDash('quoteStatus.rejected'),
-  };
 
   // ── Loading skeleton ────────────────────────────────────────────────────────
-  if (!dataReady) {
+  if (loading || !dataReady) {
     return (
-      <div className="pod-screen-dark" style={{ padding: '108px 16px 0', minHeight: '100dvh', background: 'var(--deep)', display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <div className="pod-screen" style={{ padding: '108px 16px 0', minHeight: '100dvh', background: 'var(--m-canvas)', display: 'flex', flexDirection: 'column', gap: 14 }}>
         {[1, 0].map((_, i) => (
           <div key={i} style={{ borderRadius: 28, overflow: 'hidden' }}>
             <div style={{ height: 72, background: 'rgba(14,17,22,0.1)', animation: 'pulse 1.5s ease-in-out infinite' }} />
@@ -436,7 +398,7 @@ export default function DashboardMobile({ currentUser }) {
 
   // ── Main render ─────────────────────────────────────────────────────────────
   return (
-    <div className="pod-screen-dark" style={{ position: 'relative', minHeight: '100dvh', background: 'var(--deep)', overflowX: 'hidden' }}>
+    <div className="pod-screen" style={{ position: 'relative', minHeight: '100dvh', background: 'var(--m-canvas)', overflowX: 'hidden' }}>
       {/* Fixed top header */}
       <PageHeader
         onMessages={() => setSheet('messages')}
@@ -521,294 +483,10 @@ export default function DashboardMobile({ currentUser }) {
         {/* Weekly calendar */}
         <WeekCalendar events={calendarEvents} onDayPress={openDay} />
 
-        {/* ── EMPTY STATE (H2) ─────────────────────────────────────────────── */}
-        {isEmptyUser ? (
-          <>
-            {/* Title */}
-            <h2 style={{ margin: 0, fontFamily: 'var(--font-heading, "Bricolage Grotesque", sans-serif)', fontSize: 26, fontWeight: 700, color: '#fff' }}>{tDash('emptyTitle')}</h2>
-            <p style={{ margin: 0, fontSize: 16, fontWeight: 500, color: 'rgba(255,255,255,0.85)' }}>{tDash('emptySubtitle')}</p>
-
-            {/* Three big coloured create tiles */}
-            <EmptyCreateTile
-              color="var(--m-survey)"
-              icon={IcoRuler}
-              title={tDash('quickCards.newSurvey')}
-              desc={tDash('quickCards.newSurveyDesc')}
-              onClick={() => router.push(p('/felmeres/uj'))}
-            />
-            <EmptyCreateTile
-              color="var(--m-offer)"
-              icon={IcoDoc}
-              title={tDash('quickCards.newQuote')}
-              desc={tDash('quickCards.newQuoteDesc')}
-              onClick={() => router.push(p('/ajanlatok/uj'))}
-            />
-            <EmptyCreateTile
-              color="var(--m-project)"
-              icon={IcoFolder}
-              title={tDash('quickCards.newProject')}
-              desc={tDash('quickCards.newProjectDesc')}
-              onClick={() => router.push(p('/projektek/uj'))}
-            />
-
-            {/* createFirst rows */}
-            <span style={{ fontSize: 13, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.78)', marginTop: 6 }}>{tDash('projectsSection')}</span>
-            <CreateFirstRow
-              iconBg="var(--m-project-tint)" iconColor="var(--m-project)"
-              icon={IcoPlus}
-              title={tDash('createFirstProject')}
-              desc={tDash('createFirstProjectDesc')}
-              onClick={() => router.push(p('/projektek/uj'))}
-            />
-
-            <span style={{ fontSize: 13, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.78)' }}>{tDash('latestSurveys')}</span>
-            <CreateFirstRow
-              iconBg="var(--m-survey-tint)" iconColor="var(--m-survey-ink)"
-              icon={IcoPlus}
-              title={tDash('createFirstSurvey')}
-              desc={tDash('createFirstSurveyDesc')}
-              onClick={() => router.push(p('/felmeres/uj'))}
-            />
-
-            <span style={{ fontSize: 13, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.78)' }}>{tDash('latestQuotes')}</span>
-            <CreateFirstRow
-              iconBg="var(--m-offer-tint)" iconColor="var(--m-offer-ink)"
-              icon={IcoPlus}
-              title={tDash('createFirstQuote')}
-              desc={tDash('createFirstQuoteDesc')}
-              onClick={() => router.push(p('/ajanlatok/uj'))}
-            />
-
-            <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,0.7)', textAlign: 'center' }}>{tDash('noActivity')}</p>
-          </>
-        ) : (
-          <>
-            {/* ── FULL HOME STATE (H1) ───────────────────────────────────── */}
-
-            {/* Folytasd cards */}
-            {continueItems.length > 0 && (
-              <>
-                <span style={{ fontSize: 13, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.78)' }}>{tDash('continueSection')}</span>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  {lastSurvey && (() => {
-                    const client = (clients || []).find(c => c.id === lastSurvey.client_id);
-                    const meta = [client?.name, lastSurvey.entries_count ? `${lastSurvey.entries_count} helyiség` : null].filter(Boolean).join(' · ');
-                    return (
-                      <ContinueCard
-                        key={lastSurvey.id}
-                        title={lastSurvey.title || lastSurvey.name}
-                        meta={meta}
-                        type="survey"
-                        badge={tDash('continueBadgeSurvey')}
-                        onClick={() => router.push(p(`/felmeres/${lastSurvey.id}`))}
-                      />
-                    );
-                  })()}
-                  {lastQuote && (() => {
-                    const client = (clients || []).find(c => c.id === lastQuote.client_id);
-                    const total = lastQuote.total_gross ? fmt(lastQuote.total_gross) : null;
-                    const meta = [client?.name, total].filter(Boolean).join(' · ');
-                    return (
-                      <ContinueCard
-                        key={lastQuote.id}
-                        title={lastQuote.title}
-                        meta={meta}
-                        type="quote"
-                        badge={QUOTE_STATUS[lastQuote.status] || lastQuote.status}
-                        onClick={() => router.push(p(`/ajanlatok/${lastQuote.id}`))}
-                      />
-                    );
-                  })()}
-                  {lastProject && (() => {
-                    const client = (clients || []).find(c => c.id === lastProject.client_id);
-                    const fin = calculateProjectFinancials(lastProject, invoices || [], labourEntries || [], [], currentUser?.id);
-                    const totalSpent = fin.totalCost + fin.totalLabourValue;
-                    const meta = [client?.name, totalSpent > 0 ? `${fmt(totalSpent)} kiadás` : null].filter(Boolean).join(' · ');
-                    const projBadge = lastProject.status === 'closed' ? tDash('continueBadgeProjectClosed') : tDash('continueBadgeProjectActive');
-                    return (
-                      <ContinueCard
-                        key={lastProject.id}
-                        title={lastProject.name}
-                        meta={meta}
-                        type="project"
-                        badge={projBadge}
-                        onClick={() => router.push(p(`/projektek/${lastProject.id}`))}
-                      />
-                    );
-                  })()}
-                </div>
-              </>
-            )}
-
-            {/* Stat cards (3 in a row) */}
-            <div style={{ display: 'flex', gap: 8 }}>
-              <StatMini label={tDash('statTotalCost')} value={fmt(totalCostStat)} sub={tDash('statTotalCostSub')} />
-              <StatMini label={tDash('statActiveProjects')} value={String(activeProjectCount)} sub={tDash('statActiveProjectsSub')} />
-              <StatMini label={tDash('statInvoices')} value={String(invoiceCount)} sub={tDash('statInvoicesSub')} />
-            </div>
-
-            {/* Latest activity card */}
-            <div style={{ padding: '14px 14px 4px', borderRadius: 26, background: '#fff', boxShadow: CARD_SHADOW }}>
-              <span style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 700, fontSize: 17, color: 'var(--m-ink)', paddingBottom: 4 }}>
-                {IcoActivity}
-                {tDash('latestActivity')}
-              </span>
-              {activityItems.length === 0 ? (
-                <p style={{ fontSize: 14, color: 'var(--m-ink-2)', padding: '10px 0', margin: 0 }}>{tDash('noActivity')}</p>
-              ) : (
-                activityItems.map((item) => {
-                  const proj = (projects || []).find(pr => pr.id === item.project_id);
-                  if (item._type === 'invoice') {
-                    return (
-                      <ActivityRow
-                        key={item.id}
-                        icon={IcoReceipt}
-                        iconBg="var(--m-project-tint)"
-                        iconColor="var(--m-project)"
-                        title={item.description || tDash('invoiceFallback')}
-                        meta={[item.uploader_name, proj?.name, formatDate(item.created_at)].filter(Boolean).join(' · ')}
-                        amount={fmt(item.value_huf)}
-                      />
-                    );
-                  }
-                  if (item._type === 'labour') {
-                    return (
-                      <ActivityRow
-                        key={item.id}
-                        icon={IcoHammer}
-                        iconBg="var(--m-project-tint)"
-                        iconColor="var(--m-project)"
-                        title={item.labour_type || tDash('labourFallback')}
-                        meta={[proj?.name, formatDate(item._date)].filter(Boolean).join(' · ')}
-                        amount={item.value_huf ? fmt(item.value_huf) : null}
-                      />
-                    );
-                  }
-                  if (item._type === 'diary') {
-                    return (
-                      <ActivityRow
-                        key={item.id}
-                        icon={IcoDiary}
-                        iconBg="var(--m-project-tint)"
-                        iconColor="var(--m-project)"
-                        title={item.title || tDash('diaryFallback')}
-                        meta={[proj?.name, formatDate(item._date)].filter(Boolean).join(' · ')}
-                        amount={null}
-                      />
-                    );
-                  }
-                  return null;
-                })
-              )}
-            </div>
-
-            {/* Latest projects section */}
-            <SectionHeader
-              icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 7h6l2 2h10v11H3z"/></svg>}
-              title={tDash('projectsSection')}
-              onViewAll={() => router.push(p('/projektek'))}
-              tAll={tDash('viewAll')}
-            />
-            {recentProjects.length === 0 ? (
-              <CreateFirstRow
-                iconBg="var(--m-project-tint)" iconColor="var(--m-project)"
-                icon={IcoPlus}
-                title={tDash('createFirstProject')}
-                desc={tDash('createFirstProjectDesc')}
-                onClick={() => router.push(p('/projektek/uj'))}
-              />
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {recentProjects.map(proj => {
-                  const client = (clients || []).find(c => c.id === proj.client_id);
-                  const fin = calculateProjectFinancials(proj, invoices || [], labourEntries || [], [], currentUser?.id);
-                  const meta = [client?.name, `${fin.projectInvoices.length} db számla`].filter(Boolean).join(' · ');
-                  return (
-                    <LatestRow
-                      key={proj.id}
-                      title={proj.name}
-                      meta={meta}
-                      accent="var(--m-project)"
-                      onClick={() => router.push(p(`/projektek/${proj.id}`))}
-                    />
-                  );
-                })}
-              </div>
-            )}
-
-            {/* Latest surveys section */}
-            <SectionHeader
-              icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 17L17 3l4 4L7 21zM8 12l2 2M11 9l2 2M14 6l2 2"/></svg>}
-              title={tDash('latestSurveys')}
-              onViewAll={() => router.push(p('/felmeres'))}
-              tAll={tDash('viewAll')}
-            />
-            {recentSurveys.length === 0 ? (
-              <CreateFirstRow
-                iconBg="var(--m-survey-tint)" iconColor="var(--m-survey-ink)"
-                icon={IcoPlus}
-                title={tDash('createFirstSurvey')}
-                desc={tDash('createFirstSurveyDesc')}
-                onClick={() => router.push(p('/felmeres/uj'))}
-              />
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {recentSurveys.map(s => {
-                  const client = (clients || []).find(c => c.id === s.client_id);
-                  const meta = [client?.name, formatDate(s.date || s.created_at)].filter(Boolean).join(' · ');
-                  return (
-                    <LatestRow
-                      key={s.id}
-                      title={s.title || s.name}
-                      meta={meta}
-                      accent="var(--m-survey)"
-                      onClick={() => router.push(p(`/felmeres/${s.id}`))}
-                    />
-                  );
-                })}
-              </div>
-            )}
-
-            {/* Latest quotes section */}
-            <SectionHeader
-              icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M7 3h7l4 4v14H7zM14 3v5h4M10 13h5M10 17h5"/></svg>}
-              title={tDash('latestQuotes')}
-              onViewAll={() => router.push(p('/ajanlatok'))}
-              tAll={tDash('viewAll')}
-            />
-            {recentQuotes.length === 0 ? (
-              <CreateFirstRow
-                iconBg="var(--m-offer-tint)" iconColor="var(--m-offer-ink)"
-                icon={IcoPlus}
-                title={tDash('createFirstQuote')}
-                desc={tDash('createFirstQuoteDesc')}
-                onClick={() => router.push(p('/ajanlatok/uj'))}
-              />
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {recentQuotes.map(q => {
-                  const total = q.total_gross ? fmt(q.total_gross) : null;
-                  const badge = QUOTE_STATUS[q.status] || q.status;
-                  const badgeCfg = QUOTE_BADGE[q.status] || QUOTE_BADGE.draft;
-                  return (
-                    <LatestRow
-                      key={q.id}
-                      title={q.title}
-                      meta={total}
-                      accent="var(--m-offer)"
-                      badge={badge}
-                      badgeBg={badgeCfg.bg}
-                      badgeColor={badgeCfg.color}
-                      onClick={() => router.push(p(`/ajanlatok/${q.id}`))}
-                    />
-                  );
-                })}
-              </div>
-            )}
-          </>
-        )}
-
         {/* Pod stack (always shown at bottom) */}
+        <span style={{ fontSize: 13, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--m-ink-2)', marginTop: 8 }}>
+          {tPods('workspacesTitle')}
+        </span>
         <PodStack
           workspaces={workspaces}
           activeId={activePodId}
@@ -819,7 +497,7 @@ export default function DashboardMobile({ currentUser }) {
       </div>
 
       {/* Bottom scrim */}
-      <div aria-hidden="true" style={{ position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 10, height: 150, background: 'linear-gradient(to bottom, rgba(13,15,19,0) 0%, var(--deep) 62%)', pointerEvents: 'none' }} />
+      <div aria-hidden="true" style={{ position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 10, height: 150, background: 'linear-gradient(to bottom, rgba(237,235,229,0) 0%, var(--m-canvas) 62%)', pointerEvents: 'none' }} />
 
       {/* Floating dock */}
       <Dock

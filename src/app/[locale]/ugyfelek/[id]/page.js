@@ -6,6 +6,8 @@ import { Link as LocaleLink } from '@/navigation';
 import { useParams, useSearchParams } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
 import { useTranslations } from 'next-intl';
+import useMobile from '@/hooks/useMobile';
+import ClientDetailMobile from '../mobile/ClientDetailMobile';
 import { formatMoney, formatDate } from '@/lib/constants';
 import {
   ArrowLeft,
@@ -282,6 +284,7 @@ function ClientMessages({ clientId, quotes, t }) {
 
 export default function ClientDetailPage() {
   const { id } = useParams();
+  const isMobile = useMobile();
   const searchParams = useSearchParams();
   const activeThread = searchParams.get('thread');
   const { isAdmin, loading, dataReady, clients, quotes, quoteEntries, projects, invoices, isDemoMode, userCurrency } = useApp();
@@ -291,6 +294,8 @@ export default function ClientDetailPage() {
   const navPrefix = isDemoMode ? '/demo' : '';
   const AppLink = isDemoMode ? Link : LocaleLink;
   const [copied, setCopied] = useState(false);
+
+  if (isMobile) return <ClientDetailMobile clientId={id} />;
 
   const portalUrl = client?.email
     ? `${typeof window !== 'undefined' ? window.location.origin : ''}/portal?email=${encodeURIComponent(client.email)}`

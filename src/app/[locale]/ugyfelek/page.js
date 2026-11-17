@@ -3,6 +3,8 @@
 import React, { useState, useEffect, useRef, Suspense } from 'react';
 import { useTranslations } from 'next-intl';
 import { useApp } from '@/context/AppContext';
+import useMobile from '@/hooks/useMobile';
+import ClientsListMobile from './mobile/ClientsListMobile';
 import { useSearchParams } from 'next/navigation';
 
 // Tiny helper that watches ?create=1 — must live inside <Suspense>
@@ -39,6 +41,7 @@ import PageSpinner from '@/components/PageSpinner';
 import ClientDetailModal from '@/components/ClientDetailModal';
 
 export default function AdminClientsPage() {
+  const isMobile = useMobile();
   const t = useTranslations('clients');
   const tc = useTranslations('common');
   const { currentUser, loading, dataReady, activeCollectiveId, clients, quotes, projects, collectives, createClient, updateClient, deleteClient } = useApp();
@@ -65,6 +68,8 @@ export default function AdminClientsPage() {
   const [formSharesGdpr, setFormSharesGdpr] = useState(false);
 
   const [selectedClientId, setSelectedClientId] = useState(null);
+
+  if (isMobile) return <ClientsListMobile />;
 
   if (loading || !dataReady) return <PageSpinner />;
 

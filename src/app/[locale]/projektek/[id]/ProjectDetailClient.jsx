@@ -41,6 +41,7 @@ import RoomModal from './components/RoomModal';
 import ProjectEditModal from './components/ProjectEditModal';
 import PortalShareSection from './components/PortalShareSection';
 import CollectiveChatSection from '@/components/CollectiveChatSection';
+import ProjectDetailMobile from '../mobile/ProjectDetailMobile';
 
 
 const CARD_HEADER_BG = '#334155';
@@ -428,6 +429,9 @@ export default function ProjectDetailClient({
     syncedRef.current = true;
     syncRoomsFromQuote(project.id).catch(() => {});
   }, [project.id, projectRooms.length, quotes]);
+
+  // Mobile pods early return — all hooks above
+  if (isMobile) return <ProjectDetailMobile projectId={project.id} />;
 
   // Room management
   const linkedQuoteForRooms = (quotes || []).find(q => q.project_id === project.id);

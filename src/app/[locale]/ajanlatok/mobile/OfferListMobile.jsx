@@ -2,7 +2,8 @@
 
 /**
  * O1 — Offer list (mobile pods view)
- * Dark body (#1C1038), violet accent (#6D3FD1), pod-stack layout.
+ * Sand body (#EDEBE5), violet accent (#6D3FD1), pod-stack layout.
+ * Individual pod section cards carry the dark violet body — not the page wrapper.
  */
 
 import { useState, useMemo, useCallback } from 'react';
@@ -12,12 +13,14 @@ import { useApp } from '@/context/AppContext';
 import { useTransferRequests } from '@/hooks/useTransferRequests';
 import { normalizeHU } from '@/lib/utils';
 import { formatMoney, formatDate } from '@/lib/constants';
-import { PERSONAL_COLOR, podColor } from '@/lib/podColor';
+import { podColor } from '@/lib/podColor';
 import useOnline from '@/hooks/useOnline';
 
 import PageHeader from '@/components/mobile/pods/PageHeader';
+import PodList from '@/components/mobile/pods/PodList';
 import Dock from '@/components/mobile/pods/Dock';
 import { NotifSheet, MessagesSheet, MenuSheet } from '@/components/mobile/pods/Sheets';
+import TransferToCollectiveModal from '@/components/TransferToCollectiveModal';
 
 // ─── Status config ────────────────────────────────────────────────────────────
 const STATUS_STYLE = {
@@ -34,7 +37,7 @@ function OfferSkeleton() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
       {[0, 1, 2].map(i => (
-        <div key={i} style={{ borderRadius: 26, background: 'rgba(255,255,255,0.08)', height: 100, animation: 'pulse 1.4s ease-in-out infinite' }} />
+        <div key={i} style={{ borderRadius: 26, background: 'rgba(109,63,209,0.08)', height: 100, animation: 'pulse 1.4s ease-in-out infinite' }} />
       ))}
     </div>
   );
@@ -172,7 +175,8 @@ function DeleteSheet({ quote, isTeam, onConfirm, onClose, t }) {
 
 // ─── Main component ───────────────────────────────────────────────────────────
 export default function OfferListMobile() {
-  const t = useTranslations('quotes');
+  const t     = useTranslations('quotes');
+  const tPods = useTranslations('mobilePods');
   const router = useRouter();
   const isOnline = useOnline();
   const {
@@ -184,8 +188,10 @@ export default function OfferListMobile() {
   const navPrefix = isDemoMode ? '/demo' : '';
   const p = useCallback((path) => `${navPrefix}${path}`, [navPrefix]);
 
-  const [activeSheet, setActiveSheet] = useState(null); // 'menu' | 'notif' | 'messages' | 'action' | 'delete'
+  const [activePodId, setActivePodId] = useState(() => activeCollectiveId || 'personal');
+  const [activeSheet, setActiveSheet] = useState(null);
   const [selectedQuote, setSelectedQuote] = useState(null);
+  const [transferModal, setTransferModal] = useState(null);
   const [statusFilter, setStatusFilter] = useState('all');
   const [search, setSearch] = useState('');
 
@@ -193,17 +199,27 @@ export default function OfferListMobile() {
 
   const liveQuotes = useMemo(() => (quotes || []).filter(q => !q.deleted_at), [quotes]);
 
-  const filteredQuotes = useMemo(() => {
-    const q = normalizeHU(search);
-    return liveQuotes.filter(quote => {
-      const matchStatus = statusFilter === 'all' || quote.status === statusFilter;
-      const client = clients.find(c => c.id === quote.client_id);
-      const matchSearch = !q || normalizeHU(quote.title).includes(q) || normalizeHU(client?.name || '').includes(q);
-      return matchStatus && matchSearch;
-    });
-  }, [liveQuotes, statusFilter, search, clients]);
+  // Workspace-grouped pods
+  const workspaces = useMemo(() => [
+    {
+      id: 'personal', isPersonal: true,
+      name: tPods('personal'), sub: tPods('personalSub'),
+      quotes: liveQuotes.filter(q => !q.collective_id),
+      count: liveQuotes.filter(q => !q.collective_id).length,
+      canCreate: true,
+    },
+    ...(userMemberships || []).map(col => ({
+      id: col.collective_id,
+      isPersonal: false,
+      name: col.name,
+      sub: `${tPods('collective')} · ${col.role === 'owner' ? tPods('roleOwner') : col.role === 'admin' ? tPods('roleAdmin') : tPods('roleContributor')}`,
+      quotes: liveQuotes.filter(q => q.collective_id === col.collective_id),
+      count: liveQuotes.filter(q => q.collective_id === col.collective_id).length,
+      canCreate: col.role === 'owner' || col.role === 'admin',
+    })),
+  ], [liveQuotes, userMemberships, tPods]);
 
-  const hasCollectives = userMemberships.length > 0;
+  const hasCollectives = (userMemberships || []).length > 0;
 
   const openMore = useCallback((quote) => {
     const pending = outgoingTransfers.find(r => r.document_id === quote.id);
@@ -211,171 +227,111 @@ export default function OfferListMobile() {
     setActiveSheet('action');
   }, [outgoingTransfers]);
 
-  const handleOpen = useCallback(() => {
-    if (!selectedQuote) return;
-    setActiveSheet(null);
-    router.push(p(`/ajanlatok/${selectedQuote.id}`));
-  }, [selectedQuote, router, p]);
+  const handleOpen         = useCallback(() => { if (!selectedQuote) return; setActiveSheet(null); router.push(p(`/ajanlatok/${selectedQuote.id}`)); }, [selectedQuote, router, p]);
+  const handlePdf          = useCallback(() => { if (!selectedQuote) return; setActiveSheet(null); router.push(p(`/ajanlatok/${selectedQuote.id}/nyomtatas`)); }, [selectedQuote, router, p]);
+  const handleCopy         = useCallback(() => { if (!selectedQuote) return; setActiveSheet(null); router.push(p(`/ajanlatok/${selectedQuote.id}?copy=1`)); }, [selectedQuote, router, p]);
+  const handleTransfer     = useCallback(() => { if (!selectedQuote) return; setActiveSheet(null); setTransferModal({ documentId: selectedQuote.id, documentTitle: selectedQuote.title }); }, [selectedQuote]);
+  const handleRevoke       = useCallback(async () => { if (!selectedQuote?._pendingReq) return; setActiveSheet(null); await retractTransfer(selectedQuote._pendingReq.id); }, [selectedQuote, retractTransfer]);
+  const handleDeleteConfirm = useCallback(async () => { if (!selectedQuote) return; setActiveSheet(null); await deleteQuote(selectedQuote.id); }, [selectedQuote, deleteQuote]);
 
-  const handlePdf = useCallback(() => {
-    if (!selectedQuote) return;
-    setActiveSheet(null);
-    window.open(p(`/ajanlatok/${selectedQuote.id}/nyomtatas`), '_blank');
-  }, [selectedQuote, p]);
-
-  const handleCopy = useCallback(() => {
-    if (!selectedQuote) return;
-    setActiveSheet(null);
-    router.push(p(`/ajanlatok/${selectedQuote.id}?copy=1`));
-  }, [selectedQuote, router, p]);
-
-  const handleTransfer = useCallback(() => {
-    setActiveSheet(null);
-    // Transfer logic handled by existing TransferToCollectiveModal on the detail page
-    router.push(p(`/ajanlatok/${selectedQuote?.id}`));
-  }, [selectedQuote, router, p]);
-
-  const handleRevoke = useCallback(async () => {
-    if (!selectedQuote?._pendingReq) return;
-    setActiveSheet(null);
-    await retractTransfer(selectedQuote._pendingReq.id);
-  }, [selectedQuote, retractTransfer]);
-
-  const handleDeleteConfirm = useCallback(async () => {
-    if (!selectedQuote) return;
-    setActiveSheet(null);
-    await deleteQuote(selectedQuote.id);
-  }, [selectedQuote, deleteQuote]);
-
-  const FILTERS = ['all', 'draft', 'sent', 'accepted', 'rejected'];
+  const FILTERS      = ['all', 'draft', 'sent', 'accepted', 'rejected'];
   const filterLabels = { all: t('filterAll'), draft: t('statusDraft'), sent: t('statusSent'), accepted: t('statusAccepted'), rejected: t('statusRejected') };
 
-  const isOwner = selectedQuote ? (selectedQuote.owner_id === currentUser?.id || selectedQuote.created_by === currentUser?.id) : false;
+  const isOwner    = selectedQuote ? (selectedQuote.owner_id === currentUser?.id || selectedQuote.created_by === currentUser?.id) : false;
   const canTransfer = isOwner && !selectedQuote?.collective_id && hasCollectives && !isDemoMode;
-  const isTeam = !!selectedQuote?.collective_id;
-
-  const isLoading = loading || !dataReady;
+  const isTeam     = !!selectedQuote?.collective_id;
+  const isLoading  = loading || !dataReady;
 
   return (
-    <div className="pod-screen-dark m-root" style={{ minHeight: '100dvh', background: 'var(--m-offer-deep, #1C1038)', color: '#fff', fontFamily: 'var(--font-main, "Plus Jakarta Sans", system-ui, sans-serif)', overflowX: 'hidden' }}>
-      {/* Offline banner */}
-      {!isOnline && (
-        <div style={{ position: 'sticky', top: 0, zIndex: 30, background: '#B71C1C', color: '#fff', padding: '10px 16px', fontSize: 14, fontWeight: 700, textAlign: 'center' }}>
-          {t('offlineBanner')}
-        </div>
-      )}
-
+    <div className="pod-screen m-root" style={{ position: 'relative', minHeight: '100dvh', background: 'var(--m-canvas, #EDEBE5)', color: 'var(--m-ink, #0E1116)', fontFamily: 'var(--font-main, "Plus Jakarta Sans", system-ui, sans-serif)', overflowX: 'hidden' }}>
       <PageHeader
         onMenu={() => setActiveSheet('menu')}
         onMessages={() => setActiveSheet('messages')}
-        onNotif={() => setActiveSheet('notif')}
+        onNotifications={() => setActiveSheet('notif')}
       />
 
-      {/* Scrollable content */}
-      <div style={{ padding: '0 16px 190px', display: 'flex', flexDirection: 'column', gap: 10, marginTop: 72 }}>
+      {/* Scrollable content — paddingTop 108px clears the 100px PageHeader */}
+      <div style={{ padding: '108px 16px 190px', display: 'flex', flexDirection: 'column', gap: 10 }}>
 
-        {/* Pod header row */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 4 }}>
-          <button
-            onClick={() => router.push(p('/'))}
-            style={{ height: 48, padding: '0 18px 0 12px', border: 0, borderRadius: 24, background: 'rgba(255,255,255,0.12)', color: '#fff', display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, fontWeight: 700, cursor: 'pointer' }}
-          >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>
-            {t('back')}
-          </button>
-          <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 22, fontWeight: 700 }}>{t('pageTitle')}</span>
-          <button
-            aria-label={t('new')}
-            onClick={() => router.push(p('/ajanlatok/uj'))}
-            style={{ width: 48, height: 48, border: 0, borderRadius: 24, background: 'var(--m-offer, #6D3FD1)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
-          >
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
-          </button>
-        </div>
-
-        {/* Search */}
-        <label style={{ position: 'relative', display: 'block' }}>
-          <span style={{ position: 'absolute', left: 18, top: '50%', marginTop: -10, color: '#5A5F68', display: 'flex' }} aria-hidden="true">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M4 11a7 7 0 1014 0 7 7 0 10-14 0M20 20l-4-4"/></svg>
-          </span>
-          <input
-            type="search"
-            aria-label={t('searchPlaceholder')}
-            placeholder={t('searchPlaceholder')}
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            style={{ width: '100%', boxSizing: 'border-box', height: 56, border: 0, borderRadius: 28, background: 'rgba(255,255,255,0.12)', paddingLeft: 48, paddingRight: 16, fontSize: 16, fontWeight: 500, color: '#fff', outline: 0 }}
-          />
-        </label>
-
-        {/* Status filters */}
-        <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 2 }}>
-          {FILTERS.map(f => {
-            const on = statusFilter === f;
-            return (
-              <button
-                key={f}
-                onClick={() => setStatusFilter(f)}
-                aria-pressed={on}
-                style={{ height: 44, padding: '0 16px', border: 0, borderRadius: 26, fontSize: 15, fontWeight: 700, background: on ? '#fff' : 'rgba(255,255,255,0.14)', color: on ? 'var(--m-ink, #0E1116)' : '#fff', flexShrink: 0, cursor: 'pointer' }}
-              >
-                {filterLabels[f]}
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Body */}
-        {isLoading ? (
-          <OfferSkeleton />
-        ) : filteredQuotes.length === 0 ? (
-          <div style={{ borderRadius: 26, background: 'rgba(255,255,255,0.08)', padding: 22, textAlign: 'center' }}>
-            <b style={{ fontSize: 17, color: '#fff' }}>{statusFilter !== 'all' || search ? t('emptyTitleSearch') : t('emptyTitle')}</b>
-            <div style={{ marginTop: 4, fontSize: 14, fontWeight: 600, color: 'rgba(255,255,255,0.7)' }}>
-              {statusFilter !== 'all' || search ? t('emptyTextSearch') : t('emptyText')}
-            </div>
-            {!search && statusFilter === 'all' && (
-              <button
-                onClick={() => router.push(p('/ajanlatok/uj'))}
-                style={{ marginTop: 14, height: 48, padding: '0 20px', border: 0, borderRadius: 24, background: 'var(--m-offer, #6D3FD1)', color: '#fff', fontSize: 15, fontWeight: 700, cursor: 'pointer' }}
-              >
-                {t('new')}
-              </button>
-            )}
+        {!isOnline && (
+          <div style={{ padding: '10px 16px', borderRadius: 20, background: '#B71C1C', color: '#fff', fontSize: 14, fontWeight: 700, textAlign: 'center' }}>
+            {t('offlineBanner')}
           </div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {filteredQuotes.map(quote => {
+        )}
+
+        <PodList
+          workspaces={workspaces}
+          activeId={activePodId}
+          onActivate={setActivePodId}
+          moduleLabel={t('pageTitle')}
+          onBack={() => router.push(p('/dashboard'))}
+          renderBody={(ws) => {
+            const q = normalizeHU(search);
+            const wsFiltered = (ws.quotes || []).filter(quote => {
               const client = clients.find(c => c.id === quote.client_id);
-              const pending = outgoingTransfers.find(r => r.document_id === quote.id);
-              return (
-                <OfferCard
-                  key={quote.id}
-                  quote={{ ...quote, _pendingTransfer: !!pending }}
-                  client={client}
-                  t={t}
-                  userCurrency={userCurrency}
-                  onMore={() => openMore({ ...quote, _pendingTransfer: !!pending, _pendingReq: pending })}
-                />
-              );
-            })}
-          </div>
-        )}
+              return (statusFilter === 'all' || quote.status === statusFilter)
+                && (!q || normalizeHU(quote.title).includes(q) || normalizeHU(client?.name || '').includes(q));
+            });
+            return (
+              <>
+                {/* Search */}
+                <label style={{ position: 'relative', display: 'block' }}>
+                  <span style={{ position: 'absolute', left: 18, top: '50%', marginTop: -10, color: '#5A5F68', display: 'flex' }} aria-hidden="true">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M4 11a7 7 0 1014 0 7 7 0 10-14 0M20 20l-4-4"/></svg>
+                  </span>
+                  <input type="search" aria-label={t('searchPlaceholder')} placeholder={t('searchPlaceholder')} value={search} onChange={e => setSearch(e.target.value)}
+                    style={{ width: '100%', boxSizing: 'border-box', height: 56, border: 0, borderRadius: 28, background: '#fff', paddingLeft: 48, paddingRight: 16, fontSize: 16, fontWeight: 500, color: 'var(--m-ink)', boxShadow: '0 1px 0 rgba(14,17,22,0.05), 0 10px 20px -16px rgba(14,17,22,0.4)', outline: 0 }}
+                  />
+                </label>
 
-        {/* Collective nudge */}
-        {!hasCollectives && !isLoading && (
-          <div style={{ boxSizing: 'border-box', padding: '12px 14px', borderRadius: 20, border: '2px dashed rgba(255,255,255,0.28)', color: 'rgba(255,255,255,0.86)', fontSize: 14, fontWeight: 600, lineHeight: 1.4 }}>
-            {t('nudge')}
-          </div>
-        )}
+                {/* Status filter chips */}
+                <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 2 }}>
+                  {FILTERS.map(f => {
+                    const on = statusFilter === f;
+                    return (
+                      <button key={f} onClick={() => setStatusFilter(f)} aria-pressed={on}
+                        style={{ height: 44, padding: '0 16px', border: 0, borderRadius: 26, fontSize: 15, fontWeight: 700, background: on ? '#fff' : 'rgba(255,255,255,0.14)', color: on ? 'var(--m-ink)' : '#fff', flexShrink: 0, cursor: 'pointer' }}>
+                        {filterLabels[f]}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Body */}
+                {isLoading ? <OfferSkeleton /> : wsFiltered.length === 0 ? (
+                  <div style={{ borderRadius: 26, background: 'rgba(255,255,255,0.08)', padding: 22, textAlign: 'center' }}>
+                    <b style={{ fontSize: 17, color: '#fff' }}>{statusFilter !== 'all' || search ? t('emptyTitleSearch') : t('emptyTitle')}</b>
+                    <div style={{ marginTop: 4, fontSize: 14, fontWeight: 600, color: 'rgba(255,255,255,0.65)' }}>{statusFilter !== 'all' || search ? t('emptyTextSearch') : t('emptyText')}</div>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    {wsFiltered.map(quote => {
+                      const client  = clients.find(c => c.id === quote.client_id);
+                      const pending = outgoingTransfers.find(r => r.document_id === quote.id);
+                      return <OfferCard key={quote.id} quote={{ ...quote, _pendingTransfer: !!pending }} client={client} t={t} userCurrency={userCurrency} onMore={() => openMore({ ...quote, _pendingTransfer: !!pending, _pendingReq: pending })} />;
+                    })}
+                  </div>
+                )}
+
+                {/* Collective nudge for personal pod */}
+                {ws.isPersonal && !hasCollectives && !isLoading && (
+                  <div style={{ padding: '12px 14px', borderRadius: 20, border: '2px dashed rgba(255,255,255,0.28)', color: 'rgba(255,255,255,0.86)', fontSize: 14, fontWeight: 600, lineHeight: 1.4 }}>
+                    {t('nudge')}
+                  </div>
+                )}
+              </>
+            );
+          }}
+        />
       </div>
 
       {/* Dock */}
       <Dock
         activeTab="quotes"
-        onAdd={() => router.push(p('/ajanlatok/uj'))}
+        onCreatePress={() => router.push(p('/ajanlatok/uj'))}
+        activePodColor={{ plusBg: '#6D3FD1', plusFg: '#FFFFFF' }}
         onMessages={() => setActiveSheet('messages')}
-        onNotif={() => setActiveSheet('notif')}
+        onNotifications={() => setActiveSheet('notif')}
       />
 
       {/* Sheets */}
@@ -407,6 +363,14 @@ export default function OfferListMobile() {
       {activeSheet === 'notif'    && <NotifSheet    onClose={() => setActiveSheet(null)} />}
       {activeSheet === 'messages' && <MessagesSheet onClose={() => setActiveSheet(null)} />}
       {activeSheet === 'menu'     && <MenuSheet     onClose={() => setActiveSheet(null)} />}
+
+      <TransferToCollectiveModal
+        isOpen={!!transferModal}
+        onClose={() => setTransferModal(null)}
+        documentType="quote"
+        documentId={transferModal?.documentId}
+        documentTitle={transferModal?.documentTitle}
+      />
     </div>
   );
 }

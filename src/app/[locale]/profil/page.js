@@ -14,6 +14,7 @@ import { Link as LocaleLink } from '@/navigation';
 import { isEffectivePremium } from '@/lib/subscriptionLimits';
 import Modal, { AlertModal } from '@/components/Modal';
 import useMobile from '@/hooks/useMobile';
+import ProfileMobile from './mobile/ProfileMobile';
 
 // ── Pricing plans ─────────────────────────────────────────────────────────────
 // PLANS is built inside the component via getPlans(t) so strings are translated
@@ -679,6 +680,8 @@ export default function ProfilPage() {
       <Loader2 size={20} className="animate-spin" />
     </div>
   );
+
+  if (isMobile) return <ProfileMobile />;
 
   const initials = getInitials(displayName || currentUser?.display_name);
 
