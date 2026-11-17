@@ -31,10 +31,6 @@ const TYPE_COLORS = {
   other:     { bg: '#F1F1F3', fg: '#2B3038', icon: 'M5 12h.01M12 12h.01M19 12h.01' },
 };
 
-function fmt(n) {
-  return Math.round(n || 0).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ') + ' Ft';
-}
-
 function InfoRow({ label, value }) {
   return (
     <span style={{ display: 'flex', justifyContent: 'space-between', gap: 12, fontSize: 15 }}>
@@ -459,9 +455,9 @@ export default function OfferDetailMobile({ quoteId }) {
               <span style={{ fontSize: 13, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#5A5F68' }}>{t('offerAreas')}</span>
               <span style={{ display: 'flex', gap: 8 }}>
                 {[
-                  ['Padló', `${(totalFloor).toFixed(1)} m²`],
-                  ['Fal', `${(Math.max(0, totalWall)).toFixed(0)} m²`],
-                  ['Mennyezet', `${(totalFloor).toFixed(1)} m²`],
+                  [t('areaFloor'), `${(totalFloor).toFixed(1)} m²`],
+                  [t('areaWall'), `${(Math.max(0, totalWall)).toFixed(0)} m²`],
+                  [t('areaCeiling'), `${(totalFloor).toFixed(1)} m²`],
                 ].map(([label, val]) => (
                   <span key={label} style={{ flex: 1, boxSizing: 'border-box', padding: '10px 12px', borderRadius: 18, background: '#F7F5EF' }}>
                     <span style={{ fontSize: 13, fontWeight: 600, color: '#5A5F68', display: 'block' }}>{label}</span>
