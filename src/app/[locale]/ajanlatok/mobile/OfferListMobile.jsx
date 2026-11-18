@@ -44,7 +44,7 @@ function OfferSkeleton() {
 }
 
 // ─── Offer card ───────────────────────────────────────────────────────────────
-function OfferCard({ quote, client, t, userCurrency, onMore }) {
+function OfferCard({ quote, client, t, userCurrency, onOpen, onMore }) {
   const st = STATUS_STYLE[quote.status] || STATUS_STYLE.draft;
   const isLocked = quote.status === 'accepted' || quote.status === 'rejected';
   const statusLabel = t(`status${(quote.status || 'draft').charAt(0).toUpperCase() + (quote.status || 'draft').slice(1)}`);
@@ -58,7 +58,7 @@ function OfferCard({ quote, client, t, userCurrency, onMore }) {
       {/* Card body */}
       <button
         aria-label={`${t('openAction')}: ${quote.title}`}
-        onClick={onMore}
+        onClick={onOpen}
         style={{ width: '100%', boxSizing: 'border-box', padding: '14px 64px 12px 16px', border: 0, background: 'transparent', color: 'var(--m-ink)', textAlign: 'left', display: 'flex', flexDirection: 'column', gap: 6, minHeight: 84, cursor: 'pointer' }}
       >
         <span style={{ fontSize: 18, fontWeight: 700, lineHeight: 1.25, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -308,7 +308,7 @@ export default function OfferListMobile() {
                     {wsFiltered.map(quote => {
                       const client  = clients.find(c => c.id === quote.client_id);
                       const pending = outgoingTransfers.find(r => r.document_id === quote.id);
-                      return <OfferCard key={quote.id} quote={{ ...quote, _pendingTransfer: !!pending }} client={client} t={t} userCurrency={userCurrency} onMore={() => openMore({ ...quote, _pendingTransfer: !!pending, _pendingReq: pending })} />;
+                      return <OfferCard key={quote.id} quote={{ ...quote, _pendingTransfer: !!pending }} client={client} t={t} userCurrency={userCurrency} onOpen={() => router.push(p(`/ajanlatok/${quote.id}`))} onMore={() => openMore({ ...quote, _pendingTransfer: !!pending, _pendingReq: pending })} />;
                     })}
                   </div>
                 )}

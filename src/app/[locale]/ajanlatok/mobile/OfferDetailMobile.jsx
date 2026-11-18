@@ -35,7 +35,7 @@ function InfoRow({ label, value }) {
   return (
     <span style={{ display: 'flex', justifyContent: 'space-between', gap: 12, fontSize: 15 }}>
       <span style={{ color: '#5A5F68', fontWeight: 600 }}>{label}</span>
-      <span style={{ fontWeight: 700, textAlign: 'right' }}>{value || '—'}</span>
+      <span style={{ fontWeight: 700, textAlign: 'right', color: 'var(--m-ink)' }}>{value || '—'}</span>
     </span>
   );
 }
@@ -60,12 +60,14 @@ function EntryTile({ entry, userCurrency }) {
 }
 
 export default function OfferDetailMobile({ quoteId }) {
-  const t = useTranslations('quotes');
+  const t  = useTranslations('quotes');
+  const tM = useTranslations('mobilePods');
+  const tc = useTranslations('common');
   const router = useRouter();
   const isOnline = useOnline();
   const {
     quotes = [], clients = [], currentUser, isDemoMode, userCurrency,
-    collectives: userMemberships = [],
+    collectives: userMemberships = [], createClient, deleteQuoteSection,
   } = useApp();
 
   const navPrefix = isDemoMode ? '/demo' : '';
@@ -82,10 +84,27 @@ export default function OfferDetailMobile({ quoteId }) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [alertModal, setAlertModal] = useState({ open: false, message: '' });
+  const [sendEmail, setSendEmail] = useState('');
+  const [sendLoading, setSendLoading] = useState(false);
+  const [clientSearch, setClientSearch] = useState('');
+  const [quickName, setQuickName] = useState('');
+  const [quickEmail, setQuickEmail] = useState('');
+  const [quickGdpr, setQuickGdpr] = useState(false);
+  const [quickLoading, setQuickLoading] = useState(false);
+  const [sectionMenuId,    setSectionMenuId]    = useState(null);
+  const [sectionEditTarget, setSectionEditTarget] = useState(null); // null | 'new' | section obj
   const [metaForm, setMetaForm] = useState({});
   const [dupTitle, setDupTitle] = useState('');
   const [dupClient, setDupClient] = useState(true);
   const [dupSecs, setDupSecs] = useState(true);
+
+  const refreshSections = useCallback(async () => {
+    const res = await fetch(`/api/quotes/${quoteId}/sections`).catch(() => null);
+    if (res?.ok) {
+      const data = await res.json().catch(() => ({}));
+      setSections(data.sections || []);
+    }
+  }, [quoteId]);
 
   // Load quote detail
   useEffect(() => {
@@ -127,14 +146,13 @@ export default function OfferDetailMobile({ quoteId }) {
         offer_number: quoteData.offer_number || '',
         location: quoteData.location || '',
         work_type: quoteData.work_type || '',
-        planned_start: quoteData.planned_start || '',
-        planned_end: quoteData.planned_end || '',
+        planned_start: quoteData.start_date || '',
+        planned_end: quoteData.end_date || '',
         valid_until: quoteData.valid_until || '',
-        payment_deadline: quoteData.payment_deadline || '',
         payment_method: quoteData.payment_method || '',
-        deposit_pct: quoteData.deposit_pct || '',
-        warranty_months: quoteData.warranty_months || '',
-        other_terms: quoteData.other_terms || '',
+        deposit_pct: quoteData.deposit_percent != null ? String(quoteData.deposit_percent) : '',
+        warranty_months: quoteData.warranty_months != null ? String(quoteData.warranty_months) : '',
+        other_terms: quoteData.offer_terms_text || '',
       });
       setDupTitle(`${quoteData.title} ${t('duplicateSuffix')}`);
     }, 0);
@@ -163,11 +181,11 @@ export default function OfferDetailMobile({ quoteId }) {
 
   // Area totals
   const totalFloor = useMemo(() => (sections || []).reduce((s, sec) => {
-    const w = parseFloat(sec.width) || 0, l = parseFloat(sec.length) || 0;
+    const w = parseFloat(sec.width_m) || 0, l = parseFloat(sec.length_m) || 0;
     return s + w * l;
   }, 0), [sections]);
   const totalWall = useMemo(() => (sections || []).reduce((s, sec) => {
-    const w = parseFloat(sec.width) || 0, l = parseFloat(sec.length) || 0, h = parseFloat(sec.height) || 0;
+    const w = parseFloat(sec.width_m) || 0, l = parseFloat(sec.length_m) || 0, h = parseFloat(sec.height_m) || 0;
     const wins = (sec.window_count || 0) * 1.4, doors = (sec.door_count || 0) * 1.9;
     return s + 2 * (w + l) * h - wins - doors;
   }, 0), [sections]);
@@ -176,13 +194,28 @@ export default function OfferDetailMobile({ quoteId }) {
     if (!quote) return;
     if (quote.status === 'sent') { setMode('revert'); return; }
     setSaving(true);
-    const res = await fetch(`/api/quotes/${quoteId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(metaForm) });
+    const orNull = (v) => (v === '' || v == null) ? null : v;
+    const payload = {
+      title:            metaForm.title,
+      offer_number:     orNull(metaForm.offer_number),
+      location:         orNull(metaForm.location),
+      work_type:        orNull(metaForm.work_type),
+      start_date:       orNull(metaForm.planned_start),
+      end_date:         orNull(metaForm.planned_end),
+      valid_until:      orNull(metaForm.valid_until),
+      payment_method:   orNull(metaForm.payment_method),
+      deposit_percent:  metaForm.deposit_pct !== '' ? Number(metaForm.deposit_pct) : null,
+      warranty_months:  metaForm.warranty_months !== '' ? Number(metaForm.warranty_months) : null,
+      offer_terms_text: orNull(metaForm.other_terms),
+    };
+    const res = await fetch(`/api/quotes/${quoteId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
     setSaving(false);
     if (!res.ok) {
       const { error } = await res.json().catch(() => ({}));
       setAlertModal({ open: true, message: error || t('saveError') });
       return;
     }
+    setQuote(prev => ({ ...prev, ...payload }));
     setMode(null);
   };
 
@@ -230,6 +263,89 @@ export default function OfferDetailMobile({ quoteId }) {
     setTimeout(() => setCopiedLink(false), 2000);
   };
 
+  const openSendSheet = useCallback(() => {
+    setSendEmail(client?.email || '');
+    setMode('send');
+  }, [client]);
+
+  const handleSend = async () => {
+    const email = sendEmail.trim();
+    if (!email) {
+      setAlertModal({ open: true, message: t('sendNoEmail') });
+      return;
+    }
+    setSendLoading(true);
+    const res = await fetch(`/api/quotes/${quoteId}/send`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ to_email: email }),
+    });
+    setSendLoading(false);
+    if (!res.ok) {
+      const { error } = await res.json().catch(() => ({}));
+      setAlertModal({ open: true, message: error || t('errorUnknown') });
+      return;
+    }
+    setMode(null);
+    setQuote(q => ({ ...q, status: 'sent' }));
+  };
+
+  const handleClientAttach = async (clientId) => {
+    const res = await fetch(`/api/quotes/${quoteId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ client_id: clientId }),
+    });
+    if (!res.ok) {
+      const { error } = await res.json().catch(() => ({}));
+      setAlertModal({ open: true, message: error || t('errorUnknown') });
+      return;
+    }
+    setMode(null);
+    setQuote(q => ({ ...q, client_id: clientId }));
+  };
+
+  const handleQuickCreate = async () => {
+    if (!quickName.trim() || !quickEmail.trim() || !quickGdpr) return;
+    setQuickLoading(true);
+    try {
+      const created = await createClient({
+        name: quickName.trim(),
+        email: quickEmail.trim() || undefined,
+        gdprConsent: true,
+      });
+      await handleClientAttach(created.id);
+    } catch (err) {
+      setAlertModal({ open: true, message: err.message || t('errorUnknown') });
+      setQuickLoading(false);
+    }
+  };
+
+  const handleSectionDelete = async (sectionId) => {
+    try {
+      await deleteQuoteSection(quoteId, sectionId);
+      setSections(prev => prev.filter(s => s.id !== sectionId));
+      setSectionMenuId(null);
+    } catch (err) {
+      setAlertModal({ open: true, message: err.message || t('errorUnknown') });
+    }
+  };
+
+  const handleClientRemove = async () => {
+    const res = await fetch(`/api/quotes/${quoteId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ client_id: null }),
+    });
+    if (!res.ok) {
+      const { error } = await res.json().catch(() => ({}));
+      setAlertModal({ open: true, message: error || t('errorUnknown') });
+      return;
+    }
+    setMode(null);
+    setQuote(q => ({ ...q, client_id: null }));
+  };
+
   if (!quote && !loading) {
     return (
       <div className="pod-screen-dark m-root" style={{ minHeight: '100dvh', background: 'var(--m-offer-deep, #1C1038)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 16, padding: 24 }}>
@@ -245,7 +361,7 @@ export default function OfferDetailMobile({ quoteId }) {
   // Bar config
   const barConfig = (() => {
     const st = quote?.status;
-    if (st === 'draft')    return { label: canOwnerAct ? t('actionSend') : t('memberRestrictionSend'), bg: canOwnerAct ? 'var(--m-offer, #6D3FD1)' : '#B9B5AA', go: () => canOwnerAct && setMode('send') };
+    if (st === 'draft')    return { label: canOwnerAct ? t('actionSend') : t('memberRestrictionSend'), bg: canOwnerAct ? 'var(--m-offer, #6D3FD1)' : '#B9B5AA', go: () => canOwnerAct && openSendSheet() };
     if (st === 'sent')     return { label: canOwnerAct ? t('actionAccept') : t('statusSent'), bg: canOwnerAct ? '#14532D' : '#B9B5AA', go: () => canOwnerAct && setMode('accept') };
     if (st === 'accepted') return { label: t('viewProject'), bg: '#fff', fg: 'var(--m-ink)', go: () => quote?.project_id && router.push(p(`/projektek/${quote.project_id}`)) };
     if (st === 'rejected') return { label: t('lockedOptions'), bg: '#fff', fg: 'var(--m-ink)', go: () => setMode('locked') };
@@ -326,19 +442,42 @@ export default function OfferDetailMobile({ quoteId }) {
 
           {/* Client + portal */}
           <div style={{ boxSizing: 'border-box', borderRadius: 26, background: '#fff', boxShadow: CARD_SHADOW, padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <span style={{ fontSize: 13, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#5A5F68' }}>{t('orderer')}</span>
-            <span style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <span style={{ flexShrink: 0, width: 48, height: 48, borderRadius: 24, background: 'var(--m-offer-tint, #EDE7FB)', color: 'var(--m-offer-ink, #4A2796)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M8 8a4 4 0 108 0 4 4 0 10-8 0M4 21c0-4 3.6-6.5 8-6.5s8 2.5 8 6.5"/></svg>
-              </span>
-              <span style={{ flex: 1, display: 'flex', flexDirection: 'column', lineHeight: 1.25 }}>
-                <b style={{ fontSize: 17 }}>{client?.name || '—'}</b>
-                <span style={{ fontSize: 13, fontWeight: 600, color: '#5A5F68' }}>{client?.email || ''}</span>
-              </span>
-              {client?.discount_pct > 0 && (
-                <span style={{ height: 26, padding: '0 10px', borderRadius: 13, fontSize: 12, fontWeight: 700, background: '#FFF1E0', color: '#8A4200' }}>{client.discount_pct}% {t('discount')}</span>
+            <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: 13, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#5A5F68' }}>{t('orderer')}</span>
+              {canOwnerAct && !isLocked && (
+                <button
+                  aria-label={client ? t('clientMenuTitle') : t('clientAttachAction')}
+                  onClick={() => { setClientSearch(''); setMode(client ? 'clientMenu' : 'clientPicker'); }}
+                  style={{ width: 44, height: 44, margin: '-6px -6px -6px 0', border: 0, borderRadius: 22, background: '#F1F1F3', color: 'var(--m-ink)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+                >
+                  {client
+                    ? <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true"><path d="M4 20l4-1L19 8l-3-3L5 16zM14 7l3 3"/></svg>
+                    : <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+                  }
+                </button>
               )}
             </span>
+            {client ? (
+              <span style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <span style={{ flexShrink: 0, width: 48, height: 48, borderRadius: 24, background: 'var(--m-offer-tint, #EDE7FB)', color: 'var(--m-offer-ink, #4A2796)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M8 8a4 4 0 108 0 4 4 0 10-8 0M4 21c0-4 3.6-6.5 8-6.5s8 2.5 8 6.5"/></svg>
+                </span>
+                <span style={{ flex: 1, display: 'flex', flexDirection: 'column', lineHeight: 1.25 }}>
+                  <b style={{ fontSize: 17, color: 'var(--m-ink)' }}>{client.name}</b>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: '#5A5F68' }}>{client.email || ''}</span>
+                </span>
+                {client?.discount_pct > 0 && (
+                  <span style={{ height: 26, padding: '0 10px', borderRadius: 13, fontSize: 12, fontWeight: 700, background: '#FFF1E0', color: '#8A4200' }}>{client.discount_pct}% {t('discount')}</span>
+                )}
+              </span>
+            ) : (
+              <span style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <span style={{ flexShrink: 0, width: 48, height: 48, borderRadius: 24, background: '#F1F1F3', color: '#8A8F97', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M8 8a4 4 0 108 0 4 4 0 10-8 0M4 21c0-4 3.6-6.5 8-6.5s8 2.5 8 6.5"/></svg>
+                </span>
+                <span style={{ flex: 1, fontSize: 15, fontWeight: 600, color: '#8A8F97' }}>{t('duplicateNoClient')}</span>
+              </span>
+            )}
             {quote?.status !== 'draft' && client?.id && (
               <div style={{ boxSizing: 'border-box', padding: 12, borderRadius: 18, background: '#F4F0FD', display: 'flex', flexDirection: 'column', gap: 10 }}>
                 <span style={{ fontSize: 14, fontWeight: 700, color: '#3B2279', display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -371,12 +510,11 @@ export default function OfferDetailMobile({ quoteId }) {
             {quote && [
               [t('location'), quote.location],
               [t('workType'), quote.work_type],
-              [t('plannedStart'), quote.planned_start ? formatDate(quote.planned_start) : null],
-              [t('plannedEnd'), quote.planned_end ? formatDate(quote.planned_end) : null],
+              [t('plannedStart'), quote.start_date ? formatDate(quote.start_date) : null],
+              [t('plannedEnd'), quote.end_date ? formatDate(quote.end_date) : null],
               [t('validUntil'), quote.valid_until ? formatDate(quote.valid_until) : null],
-              [t('paymentDeadline'), quote.payment_deadline ? `${quote.payment_deadline} ${t('paymentDeadlineUnit')}` : null],
               [t('paymentMethod'), quote.payment_method],
-              [t('depositPct'), quote.deposit_pct ? `${quote.deposit_pct}%` : null],
+              [t('depositPct'), quote.deposit_percent ? `${quote.deposit_percent}%` : null],
               [t('warrantyMonths'), quote.warranty_months ? `${quote.warranty_months} ${t('otherTermsUnit')}` : null],
             ].filter(r => r[1]).map(([k, v], i) => <InfoRow key={i} label={k} value={v} />)}
             <span style={{ fontSize: 12, fontWeight: 600, color: '#5A5F68' }}>{t('createdBy')} {quote?.created_at ? formatDate(quote.created_at) : ''}</span>
@@ -385,8 +523,8 @@ export default function OfferDetailMobile({ quoteId }) {
           {/* Sections */}
           <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <h2 style={{ margin: 0, fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 22, fontWeight: 700, color: '#fff' }}>{t('offerSectionsTitle')}</h2>
-            {!isLocked && (
-              <button onClick={() => router.push(p(`/ajanlatok/${quoteId}/helyiseg`))} style={{ height: 48, padding: '0 16px', border: 0, borderRadius: 24, background: '#fff', color: 'var(--m-ink)', fontSize: 14, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
+            {canOwnerAct && !isLocked && (
+              <button onClick={() => setSectionEditTarget('new')} style={{ height: 48, padding: '0 16px', border: 0, borderRadius: 24, background: '#fff', color: 'var(--m-ink)', fontSize: 14, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
                 {t('sectionNewTitle')}
               </button>
@@ -397,80 +535,28 @@ export default function OfferDetailMobile({ quoteId }) {
             <div style={{ borderRadius: 26, background: 'rgba(255,255,255,0.08)', height: 80, animation: 'pulse 1.4s infinite' }} />
           ) : sections.length === 0 ? (
             <div style={{ borderRadius: 26, background: 'rgba(255,255,255,0.08)', padding: '22px 16px', textAlign: 'center', color: 'rgba(255,255,255,0.7)', fontSize: 15, fontWeight: 600 }}>{t('noRooms')}</div>
-          ) : sections.map(sec => {
-            const isOpen = !!openSections[sec.id];
-            const isMine = sec.created_by === currentUser?.id;
-            const canEdit = !isLocked && (canOwnerAct || isMine);
-            const secTotal = (sec.entries || []).reduce((a, e) => {
-              const isQty = e.entry_type === 'material' || e.entry_type === 'labour';
-              return a + (isQty ? (e.quantity || 0) * (e.unit_price || 0) : (e.flat_amount || 0));
-            }, 0);
-            return (
-              <section key={sec.id} style={{ boxSizing: 'border-box', borderRadius: 26, background: '#fff', boxShadow: CARD_SHADOW, overflow: 'hidden' }}>
-                <button
-                  onClick={() => setOpenSections(prev => ({ ...prev, [sec.id]: !prev[sec.id] }))}
-                  aria-expanded={isOpen}
-                  style={{ width: '100%', minHeight: 76, boxSizing: 'border-box', padding: '12px 16px', border: 0, background: 'transparent', color: 'var(--m-ink)', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }}
-                >
-                  <span style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 3, minWidth: 0 }}>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <b style={{ fontSize: 18 }}>{sec.name}</b>
-                      {isMine && <span style={{ height: 26, padding: '0 10px', borderRadius: 13, fontSize: 12, fontWeight: 700, background: 'var(--m-offer-tint, #EDE7FB)', color: 'var(--m-offer-ink, #4A2796)' }}>{t('offerMine')}</span>}
-                    </span>
-                    <span style={{ fontSize: 13, fontWeight: 600, color: '#5A5F68', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {[sec.width && `${sec.width}×${sec.length} m`, sec.height && `${sec.height} m`, (sec.window_count || 0) + ' ablak', (sec.door_count || 0) + ' ajtó'].filter(Boolean).join(' · ')}
-                    </span>
-                  </span>
-                  <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
-                    <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 700, letterSpacing: '-0.02em', fontSize: 19 }}>{formatMoney(secTotal, userCurrency)}</span>
-                    <span style={{ fontSize: 13, fontWeight: 600, color: '#5A5F68' }}>{(sec.entries || []).length} {t('items')}</span>
-                  </span>
-                </button>
-                {isOpen && (
-                  <div style={{ padding: '0 16px 16px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-                    {(sec.entries || []).length === 0 && <span style={{ fontSize: 13, fontWeight: 600, color: '#5A5F68', padding: '8px 0' }}>{t('noItems')}</span>}
-                    {(sec.entries || []).map(e => <EntryTile key={e.id} entry={e} userCurrency={userCurrency} />)}
-                    {canEdit && (
-                      <span style={{ display: 'flex', gap: 8, marginTop: 4 }}>
-                        <button
-                          onClick={() => router.push(p(`/ajanlatok/${quoteId}/tetelek?section=${sec.id}`))}
-                          style={{ flex: 1, minHeight: 52, border: 0, borderRadius: 26, background: 'var(--m-offer, #6D3FD1)', color: '#fff', fontSize: 15, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, cursor: 'pointer' }}
-                        >
-                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
-                          {t('entryItem')}
-                        </button>
-                        <button
-                          onClick={() => router.push(p(`/ajanlatok/${quoteId}/helyiseg?id=${sec.id}`))}
-                          aria-label={t('offerEditSection')}
-                          style={{ width: 52, height: 52, border: 0, borderRadius: 26, background: '#F1F1F3', color: 'var(--m-ink)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
-                        >
-                          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" aria-hidden="true"><path d="M5 12h.01M12 12h.01M19 12h.01"/></svg>
-                        </button>
-                      </span>
-                    )}
-                    {!isLocked && !canEdit && <span style={{ fontSize: 13, fontWeight: 600, color: '#5A5F68', padding: '4px 2px' }}>{t('offerReadOnlySections')}</span>}
-                  </div>
-                )}
-              </section>
-            );
-          })}
-
-          {/* Area summary */}
-          {sections.length > 0 && (
-            <div style={{ boxSizing: 'border-box', borderRadius: 26, background: '#fff', boxShadow: CARD_SHADOW, padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
-              <span style={{ fontSize: 13, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#5A5F68' }}>{t('offerAreas')}</span>
-              <span style={{ display: 'flex', gap: 8 }}>
-                {[
-                  [t('areaFloor'), `${(totalFloor).toFixed(1)} m²`],
-                  [t('areaWall'), `${(Math.max(0, totalWall)).toFixed(0)} m²`],
-                  [t('areaCeiling'), `${(totalFloor).toFixed(1)} m²`],
-                ].map(([label, val]) => (
-                  <span key={label} style={{ flex: 1, boxSizing: 'border-box', padding: '10px 12px', borderRadius: 18, background: '#F7F5EF' }}>
-                    <span style={{ fontSize: 13, fontWeight: 600, color: '#5A5F68', display: 'block' }}>{label}</span>
-                    <b style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 700, letterSpacing: '-0.02em', fontSize: 20 }}>{val}</b>
-                  </span>
-                ))}
-              </span>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {sections.map((sec, idx) => {
+                const isMine  = sec.created_by === currentUser?.id;
+                const canEdit = !isLocked && (canOwnerAct || isMine);
+                return (
+                  <OfferRoomCard
+                    key={sec.id}
+                    sec={sec}
+                    index={idx + 1}
+                    isOpen={!!openSections[sec.id]}
+                    onToggle={() => setOpenSections(prev => ({ ...prev, [sec.id]: !prev[sec.id] }))}
+                    onMore={() => setSectionMenuId(sec.id)}
+                    onItems={() => router.push(p(`/ajanlatok/${quoteId}/tetelek/${sec.id}`))}
+                    onDims={() => setSectionEditTarget(sec)}
+                    canEdit={canEdit}
+                    isLocked={isLocked}
+                    userCurrency={userCurrency}
+                    tM={tM}
+                  />
+                );
+              })}
             </div>
           )}
 
@@ -507,7 +593,7 @@ export default function OfferDetailMobile({ quoteId }) {
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" aria-hidden="true"><path d="M5 12h.01M12 12h.01M19 12h.01"/></svg>
         </button>
         {quote?.status === 'sent' && canOwnerAct && (
-          <button aria-label={t('actionResend')} onClick={() => setMode('send')} style={{ flexShrink: 0, width: 60, height: 60, border: 0, borderRadius: 30, background: '#fff', color: 'var(--m-ink)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 10px 22px -10px rgba(14,17,22,0.4)' }}>
+          <button aria-label={t('actionResend')} onClick={openSendSheet} style={{ flexShrink: 0, width: 60, height: 60, border: 0, borderRadius: 30, background: '#fff', color: 'var(--m-ink)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 10px 22px -10px rgba(14,17,22,0.4)' }}>
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true"><path d="M4 12l16-8-6 16-3-6z"/></svg>
           </button>
         )}
@@ -521,8 +607,8 @@ export default function OfferDetailMobile({ quoteId }) {
       </div>
 
       {/* Sheets */}
-      {mode && (
-        <div onClick={() => setMode(null)} style={{ position: 'fixed', inset: 0, zIndex: 40, background: 'rgba(14,17,22,0.5)' }} role="button" tabIndex={0} aria-label={t('close')} onKeyDown={e => e.key === 'Enter' && setMode(null)} />
+      {(mode || sectionMenuId || sectionEditTarget) && (
+        <div onClick={() => { setMode(null); setSectionMenuId(null); setSectionEditTarget(null); }} style={{ position: 'fixed', inset: 0, zIndex: 40, background: 'rgba(14,17,22,0.5)' }} role="button" tabIndex={0} aria-label={t('close')} onKeyDown={e => { if (e.key === 'Enter') { setMode(null); setSectionMenuId(null); setSectionEditTarget(null); } }} />
       )}
 
       {/* Action menu */}
@@ -534,8 +620,8 @@ export default function OfferDetailMobile({ quoteId }) {
             <span style={{ fontSize: 13, fontWeight: 600, color: '#5A5F68' }}>{quote?.title} · {statusLabel}</span>
           </div>
           {canOwnerAct && <SheetRowInline icon="pdf" label={t('actionPreviewPdf')} onClick={() => { setMode(null); router.push(p(`/ajanlatok/${quoteId}/nyomtatas`)); }} />}
-          {quote?.status === 'draft' && canOwnerAct && <SheetRowInline icon="send" label={t('actionSend')} onClick={() => setMode('send')} />}
-          {quote?.status === 'sent' && canOwnerAct && <SheetRowInline icon="send" label={t('actionResend')} onClick={() => setMode('send')} />}
+          {quote?.status === 'draft' && canOwnerAct && <SheetRowInline icon="send" label={t('actionSend')} onClick={() => { setMode(null); openSendSheet(); }} />}
+          {quote?.status === 'sent' && canOwnerAct && <SheetRowInline icon="send" label={t('actionResend')} onClick={() => { setMode(null); openSendSheet(); }} />}
           {quote?.status === 'sent' && canOwnerAct && <SheetRowInline icon="check" label={t('actionAccept')} onClick={() => setMode('accept')} />}
           {quote?.status === 'sent' && canOwnerAct && <SheetRowInline icon="x" label={t('actionReject')} onClick={() => setMode('reject')} />}
           {isLocked && canOwnerAct && <SheetRowInline icon="reset" label={t('actionReset')} onClick={() => setMode('revert')} />}
@@ -554,39 +640,95 @@ export default function OfferDetailMobile({ quoteId }) {
             <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 25, fontWeight: 700, lineHeight: 1.1, color: 'var(--m-ink)' }}>{t('basicData')}</span>
             <CloseBtn onClick={() => setMode(null)} />
           </div>
-          {[
-            [t('metaTitle'), 'title', 'text'],
-            [t('offerNumber'), 'offer_number', 'text'],
-            [t('location'), 'location', 'text'],
-            [t('workType'), 'work_type', 'text'],
-            [t('plannedStart'), 'planned_start', 'date'],
-            [t('plannedEnd'), 'planned_end', 'date'],
-            [t('validUntil'), 'valid_until', 'date'],
-            [t('paymentDeadline'), 'payment_deadline', 'number'],
-            [t('paymentMethod'), 'payment_method', 'text'],
-            [t('depositPct'), 'deposit_pct', 'number'],
-            [t('warrantyMonths'), 'warranty_months', 'number'],
-          ].map(([label, key, type]) => (
-            <label key={key} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--m-ink)' }}>{label}</span>
-              <input
-                type={type}
-                value={metaForm[key] || ''}
-                onChange={e => setMetaForm(f => ({ ...f, [key]: e.target.value }))}
-                style={{ width: '100%', boxSizing: 'border-box', height: 56, border: 0, borderRadius: 20, background: '#fff', padding: '0 16px', fontSize: 17, fontWeight: 500, color: 'var(--m-ink)', boxShadow: '0 1px 0 rgba(14,17,22,0.05), 0 10px 20px -16px rgba(14,17,22,0.4)' }}
-              />
-            </label>
-          ))}
-          <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--m-ink)' }}>{t('otherTermsLabel', { unit: '' })}</span>
-            <textarea
-              value={metaForm.other_terms || ''}
-              onChange={e => setMetaForm(f => ({ ...f, other_terms: e.target.value }))}
-              rows={3}
-              style={{ width: '100%', boxSizing: 'border-box', height: 88, border: 0, borderRadius: 20, background: '#fff', padding: '14px 16px', fontSize: 17, fontWeight: 500, color: 'var(--m-ink)', resize: 'none', boxShadow: '0 1px 0 rgba(14,17,22,0.05), 0 10px 20px -16px rgba(14,17,22,0.4)' }}
-            />
-          </label>
-          <button onClick={handleSaveMeta} disabled={saving} style={{ height: 60, border: 0, borderRadius: 30, background: 'var(--m-offer, #6D3FD1)', color: '#fff', fontSize: 17, fontWeight: 700, cursor: 'pointer' }}>{saving ? '…' : t('actionSave')}</button>
+          {/* helper: purple ring on required+empty, gray otherwise */}
+          {(() => {
+            const sh = (key, req = false) => ({
+              boxShadow: req && !(metaForm[key] || '').trim()
+                ? '0 4px 20px -4px rgba(109,63,209,0.55)'
+                : '0 1px 0 rgba(14,17,22,0.05), 0 10px 20px -16px rgba(14,17,22,0.4)',
+            });
+            const inp = { width: '100%', boxSizing: 'border-box', height: 56, border: 0, borderRadius: 20, background: '#fff', padding: '0 16px', fontSize: 17, fontWeight: 500, color: 'var(--m-ink)', outline: 0 };
+            const lbl = { display: 'flex', flexDirection: 'column', gap: 6 };
+            const lbTxt = { fontSize: 14, fontWeight: 700, color: 'var(--m-ink)' };
+            const METHODS = [
+              { key: 'cash',     label: t('paymentMethodCash') },
+              { key: 'transfer', label: t('paymentMethodTransfer') },
+              { key: 'card',     label: t('paymentMethodCard') },
+            ];
+            return (
+              <>
+                <label style={lbl}>
+                  <span style={lbTxt}>{t('metaTitle')}</span>
+                  <input type="text" value={metaForm.title || ''} onChange={e => setMetaForm(f => ({ ...f, title: e.target.value }))} style={{ ...inp, ...sh('title', true) }} />
+                </label>
+                <label style={lbl}>
+                  <span style={lbTxt}>{t('offerNumber')}</span>
+                  <input type="text" value={metaForm.offer_number || ''} onChange={e => setMetaForm(f => ({ ...f, offer_number: e.target.value }))} style={{ ...inp, ...sh('offer_number') }} />
+                </label>
+                <label style={lbl}>
+                  <span style={lbTxt}>{t('location')}</span>
+                  <input type="text" value={metaForm.location || ''} onChange={e => setMetaForm(f => ({ ...f, location: e.target.value }))} style={{ ...inp, ...sh('location') }} />
+                </label>
+                <label style={lbl}>
+                  <span style={lbTxt}>{t('workType')}</span>
+                  <input type="text" value={metaForm.work_type || ''} onChange={e => setMetaForm(f => ({ ...f, work_type: e.target.value }))} style={{ ...inp, ...sh('work_type') }} />
+                </label>
+                <div style={{ display: 'flex', gap: 10 }}>
+                  <label style={{ ...lbl, flex: 1 }}>
+                    <span style={lbTxt}>{t('plannedStart')}</span>
+                    <input type="date" value={metaForm.planned_start || ''} onChange={e => setMetaForm(f => ({ ...f, planned_start: e.target.value }))} style={{ ...inp, ...sh('planned_start'), padding: '0 10px' }} />
+                  </label>
+                  <label style={{ ...lbl, flex: 1 }}>
+                    <span style={lbTxt}>{t('plannedEnd')}</span>
+                    <input type="date" value={metaForm.planned_end || ''} onChange={e => setMetaForm(f => ({ ...f, planned_end: e.target.value }))} style={{ ...inp, ...sh('planned_end'), padding: '0 10px' }} />
+                  </label>
+                </div>
+                <label style={lbl}>
+                  <span style={lbTxt}>{t('validUntil')} *</span>
+                  <input type="date" value={metaForm.valid_until || ''} onChange={e => setMetaForm(f => ({ ...f, valid_until: e.target.value }))} style={{ ...inp, ...sh('valid_until', true), padding: '0 10px' }} />
+                </label>
+                <div style={lbl}>
+                  <span style={lbTxt}>{t('paymentMethod')}</span>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    {METHODS.map(({ key, label }) => {
+                      const sel = metaForm.payment_method === key;
+                      return (
+                        <button key={key} onClick={() => setMetaForm(f => ({ ...f, payment_method: f.payment_method === key ? '' : key }))}
+                          style={{ flex: 1, height: 52, border: 0, borderRadius: 18, background: sel ? 'var(--m-offer, #6D3FD1)' : '#fff', color: sel ? '#fff' : 'var(--m-ink)', fontSize: 14, fontWeight: 700, cursor: 'pointer', boxShadow: sel ? 'none' : '0 1px 0 rgba(14,17,22,0.05), 0 10px 20px -16px rgba(14,17,22,0.4)' }}
+                        >{label}</button>
+                      );
+                    })}
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: 10 }}>
+                  <label style={{ ...lbl, flex: 1 }}>
+                    <span style={lbTxt}>{t('depositPct')}</span>
+                    <input type="number" value={metaForm.deposit_pct || ''} onChange={e => setMetaForm(f => ({ ...f, deposit_pct: e.target.value }))} style={{ ...inp, ...sh('deposit_pct') }} />
+                  </label>
+                  <label style={{ ...lbl, flex: 1 }}>
+                    <span style={lbTxt}>{t('warrantyMonths')}</span>
+                    <input type="number" value={metaForm.warranty_months || ''} onChange={e => setMetaForm(f => ({ ...f, warranty_months: e.target.value }))} style={{ ...inp, ...sh('warranty_months') }} />
+                  </label>
+                </div>
+                <label style={lbl}>
+                  <span style={lbTxt}>{t('otherTermsLabel', { unit: '' })}</span>
+                  <textarea value={metaForm.other_terms || ''} onChange={e => setMetaForm(f => ({ ...f, other_terms: e.target.value }))} rows={3}
+                    style={{ width: '100%', boxSizing: 'border-box', height: 88, border: 0, borderRadius: 20, background: '#fff', padding: '14px 16px', fontSize: 17, fontWeight: 500, color: 'var(--m-ink)', resize: 'none', outline: 0, ...sh('other_terms') }}
+                  />
+                </label>
+              </>
+            );
+          })()}
+          {(() => {
+            const canSave = !saving && (metaForm.title || '').trim() && (metaForm.valid_until || '').trim();
+            return (
+              <div style={{ paddingTop: 8, paddingBottom: 4 }}>
+                <button onClick={handleSaveMeta} disabled={!canSave} style={{ display: 'block', width: '100%', height: 60, border: 0, borderRadius: 30, background: canSave ? 'var(--m-offer, #6D3FD1)' : '#B9B5AA', color: '#fff', fontSize: 17, fontWeight: 700, cursor: canSave ? 'pointer' : 'default' }}>
+                  {saving ? '…' : t('actionSave')}
+                </button>
+              </div>
+            );
+          })()}
         </div>
       )}
 
@@ -671,8 +813,52 @@ export default function OfferDetailMobile({ quoteId }) {
         </div>
       )}
 
-      {/* Send / Accept / Reject — delegated to separate page */}
-      {(mode === 'send' || mode === 'accept' || mode === 'reject') && (
+      {/* Send email sheet */}
+      {mode === 'send' && (
+        <div role="dialog" aria-label={t('sendTitle')} className="pod-sheet" style={{ position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 50, boxSizing: 'border-box', padding: `10px 16px calc(18px + env(safe-area-inset-bottom))`, borderRadius: '32px 32px 0 0', background: 'var(--m-sheet, #FBFAF7)', display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div style={{ alignSelf: 'center', width: 44, height: 5, borderRadius: 3, background: '#D5D2C8' }} />
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+            <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 25, fontWeight: 700, lineHeight: 1.1, color: 'var(--m-ink)' }}>{t('sendTitle')}</span>
+            <CloseBtn onClick={() => setMode(null)} />
+          </div>
+          {client && (
+            <span style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, fontWeight: 600, color: '#5A5F68' }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true"><path d="M8 8a4 4 0 108 0 4 4 0 10-8 0M4 21c0-4 3.6-6.5 8-6.5s8 2.5 8 6.5"/></svg>
+              {client.name}
+            </span>
+          )}
+          <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--m-ink)' }}>{t('sendEmailLabel')}</span>
+            <input
+              type="email"
+              autoComplete="email"
+              autoFocus
+              value={sendEmail}
+              onChange={e => setSendEmail(e.target.value)}
+              placeholder="pl. ugyfel@email.hu"
+              style={{ width: '100%', boxSizing: 'border-box', height: 56, border: 0, borderRadius: 20, background: '#fff', padding: '0 16px', fontSize: 17, fontWeight: 500, color: 'var(--m-ink)', boxShadow: '0 1px 0 rgba(14,17,22,0.05), 0 10px 20px -16px rgba(14,17,22,0.4)', outline: 0 }}
+            />
+          </label>
+          <span style={{ fontSize: 13, fontWeight: 600, color: '#5A5F68', padding: '0 2px' }}>
+            {client?.email
+              ? t('sendClientEmailPrefilled')
+              : client
+                ? t('sendNoEmail')
+                : t('sendNoClientHint')}
+          </span>
+          <button
+            onClick={handleSend}
+            disabled={sendLoading || !sendEmail.trim()}
+            style={{ height: 60, border: 0, borderRadius: 30, background: sendLoading || !sendEmail.trim() ? '#B9B5AA' : 'var(--m-offer, #6D3FD1)', color: '#fff', fontSize: 17, fontWeight: 700, cursor: sendLoading || !sendEmail.trim() ? 'default' : 'pointer' }}
+          >
+            {sendLoading ? t('sendInProgress') : t('actionSend')}
+          </button>
+          <button onClick={() => setMode(null)} style={{ height: 60, border: 0, borderRadius: 30, background: '#EFEDE6', color: 'var(--m-ink)', fontSize: 17, fontWeight: 700, cursor: 'pointer' }}>{t('cancel')}</button>
+        </div>
+      )}
+
+      {/* Accept / Reject */}
+      {(mode === 'accept' || mode === 'reject') && (
         <div role="dialog" aria-label={t('actions')} className="pod-sheet" style={{ position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 50, boxSizing: 'border-box', padding: `10px 16px calc(18px + env(safe-area-inset-bottom))`, borderRadius: '32px 32px 0 0', background: 'var(--m-sheet, #FBFAF7)', display: 'flex', flexDirection: 'column', gap: 12 }}>
           <div style={{ alignSelf: 'center', width: 44, height: 5, borderRadius: 3, background: '#D5D2C8' }} />
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
@@ -681,13 +867,168 @@ export default function OfferDetailMobile({ quoteId }) {
           </div>
           <button
             onClick={() => { setMode(null); router.push(p(`/ajanlatok/${quoteId}/muveletek`)); }}
-            style={{ height: 60, border: 0, borderRadius: 30, background: mode === 'reject' ? '#B71C1C' : mode === 'accept' ? '#14532D' : 'var(--m-offer, #6D3FD1)', color: '#fff', fontSize: 17, fontWeight: 700, cursor: 'pointer' }}
+            style={{ height: 60, border: 0, borderRadius: 30, background: mode === 'reject' ? '#B71C1C' : '#14532D', color: '#fff', fontSize: 17, fontWeight: 700, cursor: 'pointer' }}
           >
-            {mode === 'send' ? t('actionSend') : mode === 'accept' ? t('actionAccept') : t('actionReject')}
+            {mode === 'accept' ? t('actionAccept') : t('actionReject')}
           </button>
           <button onClick={() => setMode(null)} style={{ height: 60, border: 0, borderRadius: 30, background: '#EFEDE6', color: 'var(--m-ink)', fontSize: 17, fontWeight: 700, cursor: 'pointer' }}>{t('cancel')}</button>
         </div>
       )}
+
+      {/* Client menu (edit / change / remove) */}
+      {mode === 'clientMenu' && client && (
+        <div role="dialog" aria-label={t('clientMenuTitle')} className="pod-sheet" style={{ position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 50, boxSizing: 'border-box', padding: `10px 16px calc(18px + env(safe-area-inset-bottom))`, borderRadius: '32px 32px 0 0', background: 'var(--m-sheet, #FBFAF7)', display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div style={{ alignSelf: 'center', width: 44, height: 5, borderRadius: 3, background: '#D5D2C8' }} />
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+            <span style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 22, fontWeight: 700, lineHeight: 1.1, color: 'var(--m-ink)' }}>{client.name}</span>
+              <span style={{ fontSize: 13, fontWeight: 600, color: '#5A5F68' }}>{t('orderer')}</span>
+            </span>
+            <CloseBtn onClick={() => setMode(null)} />
+          </div>
+          <SheetRowInline icon="swap" label={t('clientChangeAction')} onClick={() => { setClientSearch(''); setMode('clientPicker'); }} />
+          <SheetRowInline icon="trash" label={t('clientRemoveAction')} onClick={() => { setMode(null); handleClientRemove(); }} danger />
+        </div>
+      )}
+
+      {/* Client picker */}
+      {mode === 'clientPicker' && (
+        <div role="dialog" aria-label={t('clientPickerTitle')} className="pod-sheet" style={{ position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 50, boxSizing: 'border-box', padding: `10px 16px calc(18px + env(safe-area-inset-bottom))`, borderRadius: '32px 32px 0 0', background: 'var(--m-sheet, #FBFAF7)', display: 'flex', flexDirection: 'column', gap: 12, maxHeight: '88%', overflowY: 'auto' }}>
+          <div style={{ alignSelf: 'center', width: 44, height: 5, borderRadius: 3, background: '#D5D2C8' }} />
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+            <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 25, fontWeight: 700, lineHeight: 1.1, color: 'var(--m-ink)' }}>{t('clientPickerTitle')}</span>
+            <CloseBtn onClick={() => setMode(null)} />
+          </div>
+          <label style={{ position: 'relative', display: 'block' }}>
+            <span style={{ position: 'absolute', left: 16, top: '50%', marginTop: -10, color: '#5A5F68', display: 'flex' }} aria-hidden="true">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M4 11a7 7 0 1014 0 7 7 0 10-14 0M20 20l-4-4"/></svg>
+            </span>
+            <input
+              type="search"
+              autoFocus
+              placeholder={t('clientPickerSearch')}
+              value={clientSearch}
+              onChange={e => setClientSearch(e.target.value)}
+              style={{ width: '100%', boxSizing: 'border-box', height: 52, border: 0, borderRadius: 26, background: '#fff', paddingLeft: 46, paddingRight: 16, fontSize: 16, fontWeight: 500, color: 'var(--m-ink)', boxShadow: '0 1px 0 rgba(14,17,22,0.05), 0 10px 20px -16px rgba(14,17,22,0.4)', outline: 0 }}
+            />
+          </label>
+          {(() => {
+            const q = clientSearch.toLowerCase().trim();
+            const filtered = (clients || []).filter(c => !c.deleted_at && (!q || c.name?.toLowerCase().includes(q) || c.email?.toLowerCase().includes(q)));
+            if ((clients || []).filter(c => !c.deleted_at).length === 0) {
+              return <span style={{ fontSize: 14, fontWeight: 600, color: '#5A5F68', padding: '8px 4px' }}>{t('clientPickerNoClients')}</span>;
+            }
+            if (filtered.length === 0) {
+              return <span style={{ fontSize: 14, fontWeight: 600, color: '#5A5F68', padding: '8px 4px' }}>{t('clientPickerEmpty')}</span>;
+            }
+            return filtered.map(c => (
+              <button
+                key={c.id}
+                onClick={() => handleClientAttach(c.id)}
+                style={{ width: '100%', minHeight: 64, boxSizing: 'border-box', padding: '10px 14px', border: 0, borderRadius: 22, background: c.id === quote?.client_id ? 'var(--m-offer-tint, #EDE7FB)' : '#fff', color: 'var(--m-ink)', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 12, boxShadow: '0 1px 0 rgba(14,17,22,0.05), 0 12px 22px -18px rgba(14,17,22,0.35)', cursor: 'pointer' }}
+              >
+                <span style={{ flexShrink: 0, width: 44, height: 44, borderRadius: 15, background: c.id === quote?.client_id ? 'var(--m-offer, #6D3FD1)' : '#F1F1F3', color: c.id === quote?.client_id ? '#fff' : '#1A1D23', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M8 8a4 4 0 108 0 4 4 0 10-8 0M4 21c0-4 3.6-6.5 8-6.5s8 2.5 8 6.5"/></svg>
+                </span>
+                <span style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', lineHeight: 1.3 }}>
+                  <b style={{ fontSize: 16, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.name}</b>
+                  {c.email && <span style={{ fontSize: 13, fontWeight: 600, color: '#5A5F68', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.email}</span>}
+                </span>
+              </button>
+            ));
+          })()}
+          <button
+            onClick={() => { setQuickName(''); setQuickEmail(''); setQuickGdpr(false); setMode('clientQuickCreate'); }}
+            style={{ width: '100%', minHeight: 60, boxSizing: 'border-box', padding: '10px 14px', border: '2px dashed #D5D2C8', borderRadius: 22, background: 'transparent', color: 'var(--m-ink)', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 12, fontSize: 16, fontWeight: 700, cursor: 'pointer' }}
+          >
+            <span style={{ flexShrink: 0, width: 44, height: 44, borderRadius: 15, background: '#F1F1F3', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+            </span>
+            {t('clientNewAction')}
+          </button>
+        </div>
+      )}
+
+      {/* Quick client create */}
+      {mode === 'clientQuickCreate' && (
+        <div role="dialog" aria-label={t('newClientTitle')} className="pod-sheet" style={{ position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 50, boxSizing: 'border-box', padding: `10px 16px calc(18px + env(safe-area-inset-bottom))`, borderRadius: '32px 32px 0 0', background: 'var(--m-sheet, #FBFAF7)', display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div style={{ alignSelf: 'center', width: 44, height: 5, borderRadius: 3, background: '#D5D2C8' }} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <button onClick={() => { setClientSearch(''); setMode('clientPicker'); }} aria-label={t('back')} style={{ width: 44, height: 44, flexShrink: 0, border: 0, borderRadius: 22, background: '#EFEDE6', color: 'var(--m-ink)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>
+            </button>
+            <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 25, fontWeight: 700, lineHeight: 1.1, color: 'var(--m-ink)' }}>{t('newClientTitle')}</span>
+          </div>
+          <span style={{ fontSize: 13, fontWeight: 600, color: '#5A5F68', lineHeight: 1.5, padding: '0 2px' }}>{t('clientQuickCreateHint')}</span>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--m-ink)' }}>{t('newClientNameLabel')}</span>
+            <input
+              type="text"
+              autoFocus
+              value={quickName}
+              onChange={e => setQuickName(e.target.value)}
+              placeholder="Horváth Béla"
+              style={{ width: '100%', boxSizing: 'border-box', height: 56, border: 0, borderRadius: 20, background: '#fff', padding: '0 16px', fontSize: 17, fontWeight: 500, color: 'var(--m-ink)', boxShadow: '0 1px 0 rgba(14,17,22,0.05), 0 10px 20px -16px rgba(14,17,22,0.4)', outline: 0 }}
+            />
+          </label>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--m-ink)' }}>{t('newClientEmailLabel')}</span>
+            <input
+              type="email"
+              autoComplete="email"
+              value={quickEmail}
+              onChange={e => setQuickEmail(e.target.value)}
+              placeholder="email@example.com"
+              style={{ width: '100%', boxSizing: 'border-box', height: 56, border: 0, borderRadius: 20, background: '#fff', padding: '0 16px', fontSize: 17, fontWeight: 500, color: 'var(--m-ink)', boxShadow: '0 1px 0 rgba(14,17,22,0.05), 0 10px 20px -16px rgba(14,17,22,0.4)', outline: 0 }}
+            />
+          </label>
+          <label style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: 14, borderRadius: 20, background: quickGdpr ? '#E7F4EC' : '#fff', border: `1.5px solid ${quickGdpr ? '#86efac' : '#E0E0E0'}`, cursor: 'pointer' }}>
+            <input type="checkbox" checked={quickGdpr} onChange={e => setQuickGdpr(e.target.checked)} style={{ marginTop: 2, flexShrink: 0, accentColor: '#6D3FD1', width: 18, height: 18 }} />
+            <span style={{ fontSize: 14, color: 'var(--m-ink)', lineHeight: 1.45 }}>
+              {t('newClientGdprText')} <span style={{ color: '#B71C1C', fontWeight: 700 }}>*</span>
+            </span>
+          </label>
+          <button
+            onClick={handleQuickCreate}
+            disabled={quickLoading || !quickName.trim() || !quickEmail.trim() || !quickGdpr}
+            style={{ height: 60, border: 0, borderRadius: 30, background: quickLoading || !quickName.trim() || !quickEmail.trim() || !quickGdpr ? '#B9B5AA' : 'var(--m-offer, #6D3FD1)', color: '#fff', fontSize: 17, fontWeight: 700, cursor: quickLoading || !quickName.trim() || !quickEmail.trim() || !quickGdpr ? 'default' : 'pointer' }}
+          >
+            {quickLoading ? '…' : t('clientQuickCreateBtn')}
+          </button>
+        </div>
+      )}
+
+      {/* Section create / edit sheet */}
+      {sectionEditTarget && (
+        <div role="dialog" aria-label={sectionEditTarget === 'new' ? t('sectionNewTitle') : t('offerEditSection')} className="pod-sheet" style={{ position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 50, boxSizing: 'border-box', padding: `10px 16px calc(18px + env(safe-area-inset-bottom))`, borderRadius: '32px 32px 0 0', background: 'var(--m-sheet, #FBFAF7)', display: 'flex', flexDirection: 'column', gap: 12, maxHeight: '90%', overflowY: 'auto' }}>
+          <SectionEditSheet
+            isNew={sectionEditTarget === 'new'}
+            initial={sectionEditTarget !== 'new' ? sectionEditTarget : null}
+            quoteId={quoteId}
+            onSave={async () => { await refreshSections(); setSectionEditTarget(null); }}
+            onClose={() => setSectionEditTarget(null)}
+            t={t}
+          />
+        </div>
+      )}
+
+      {/* Section context menu */}
+      {sectionMenuId && (() => {
+        const menuSec = sections.find(s => s.id === sectionMenuId);
+        if (!menuSec) return null;
+        const isSectionMine   = menuSec.created_by === currentUser?.id;
+        const canEditSection  = !isLocked && (canOwnerAct || isSectionMine);
+        const entryCount      = (menuSec.entries || []).length;
+        return (
+          <div role="dialog" aria-label={menuSec.name} className="pod-sheet" style={{ position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 50, boxSizing: 'border-box', padding: `10px 16px calc(18px + env(safe-area-inset-bottom))`, borderRadius: '32px 32px 0 0', background: 'var(--m-sheet, #FBFAF7)', display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div style={{ alignSelf: 'center', width: 44, height: 5, borderRadius: 3, background: '#D5D2C8' }} />
+            <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 22, fontWeight: 700, lineHeight: 1.1, color: 'var(--m-ink)' }}>{menuSec.name}</span>
+            <SheetRowInline icon="plus" label={tM('roomAddItem')} onClick={() => { setSectionMenuId(null); router.push(p(`/ajanlatok/${quoteId}/tetelek/${sectionMenuId}?mode=add`)); }} />
+            {canEditSection && <SheetRowInline icon="edit" label={tc('edit')} onClick={() => { setSectionMenuId(null); setSectionEditTarget(menuSec); }} />}
+            {canEditSection && <SheetRowInline icon="trash" label={tc('delete')} onClick={() => handleSectionDelete(sectionMenuId)} danger />}
+          </div>
+        );
+      })()}
 
       <AlertModal
         isOpen={alertModal.open}
@@ -696,6 +1037,217 @@ export default function OfferDetailMobile({ quoteId }) {
         type="error"
       />
     </div>
+  );
+}
+
+// ─── Chip ─────────────────────────────────────────────────────────────────────
+function Chip({ label }) {
+  return (
+    <span style={{ height: 26, padding: '0 10px', borderRadius: 13, fontSize: 12, fontWeight: 700, display: 'inline-flex', alignItems: 'center', background: '#F0F0F2', color: '#2B3038' }}>
+      {label}
+    </span>
+  );
+}
+
+// ─── SectionEditSheet ─────────────────────────────────────────────────────────
+function SectionEditSheet({ isNew, initial, quoteId, onSave, onClose, t }) {
+  const [name,    setName]    = useState(() => initial?.name         || '');
+  const [widthM,  setWidthM]  = useState(() => initial?.width_m  != null ? String(initial.width_m)  : '');
+  const [lengthM, setLengthM] = useState(() => initial?.length_m != null ? String(initial.length_m) : '');
+  const [heightM, setHeightM] = useState(() => initial?.height_m != null ? String(initial.height_m) : '');
+  const [windows, setWindows] = useState(() => initial?.window_count != null ? String(initial.window_count) : '0');
+  const [doors,   setDoors]   = useState(() => initial?.door_count   != null ? String(initial.door_count)   : '0');
+  const [saving,  setSaving]  = useState(false);
+  const [err,     setErr]     = useState('');
+
+  const canSave = !saving && name.trim();
+
+  const FLD = { width: '100%', boxSizing: 'border-box', height: 52, border: 0, borderRadius: 18, background: '#fff', padding: '0 14px', fontSize: 16, fontWeight: 500, color: 'var(--m-ink)', boxShadow: '0 1px 0 rgba(14,17,22,0.05),0 8px 16px -12px rgba(14,17,22,0.4)', outline: 0 };
+  const LBL = { fontSize: 13, fontWeight: 700, color: 'var(--m-ink)', display: 'block', marginBottom: 4 };
+
+  const handleSave = async () => {
+    if (!name.trim()) { setErr(t('sectionNameRequired')); return; }
+    setSaving(true);
+    setErr('');
+    const payload = {
+      name: name.trim(),
+      width_m:      widthM  !== '' ? Number(widthM)  : null,
+      length_m:     lengthM !== '' ? Number(lengthM) : null,
+      height_m:     heightM !== '' ? Number(heightM) : null,
+      window_count: parseInt(windows) || 0,
+      door_count:   parseInt(doors)   || 0,
+    };
+    try {
+      const url = isNew
+        ? `/api/quotes/${quoteId}/sections`
+        : `/api/quotes/${quoteId}/sections/${initial.id}`;
+      const res = await fetch(url, {
+        method: isNew ? 'POST' : 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        setErr(d.error || t('sectionSaveError'));
+        setSaving(false);
+        return;
+      }
+      await onSave();
+    } catch {
+      setErr(t('sectionSaveError'));
+      setSaving(false);
+    }
+  };
+
+  return (
+    <>
+      <div style={{ alignSelf: 'center', width: 44, height: 5, borderRadius: 3, background: '#D5D2C8' }} />
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+        <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 25, fontWeight: 700, lineHeight: 1.1, color: 'var(--m-ink)' }}>
+          {isNew ? t('sectionNewTitle') : t('offerEditSection')}
+        </span>
+        <button onClick={onClose} aria-label={t('close')} style={{ width: 44, height: 44, border: 0, borderRadius: 22, background: '#EFEDE6', color: 'var(--m-ink)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+        </button>
+      </div>
+      {err && <span style={{ fontSize: 13, fontWeight: 700, color: '#B71C1C', padding: '0 2px' }}>{err}</span>}
+      <label style={{ display: 'flex', flexDirection: 'column' }}>
+        <span style={LBL}>{t('sectionNameLabel')}</span>
+        <input autoFocus type="text" value={name} onChange={e => setName(e.target.value)} placeholder={t('sectionNamePh')} style={FLD} />
+      </label>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+        <label style={{ display: 'flex', flexDirection: 'column' }}>
+          <span style={LBL}>{t('sectionWidthLabel')}</span>
+          <input type="number" inputMode="decimal" min="0" value={widthM} onChange={e => setWidthM(e.target.value)} placeholder="0" style={FLD} />
+        </label>
+        <label style={{ display: 'flex', flexDirection: 'column' }}>
+          <span style={LBL}>{t('sectionLengthLabel')}</span>
+          <input type="number" inputMode="decimal" min="0" value={lengthM} onChange={e => setLengthM(e.target.value)} placeholder="0" style={FLD} />
+        </label>
+        <label style={{ display: 'flex', flexDirection: 'column' }}>
+          <span style={LBL}>{t('sectionHeightLabel')}</span>
+          <input type="number" inputMode="decimal" min="0" value={heightM} onChange={e => setHeightM(e.target.value)} placeholder="0" style={FLD} />
+        </label>
+        <div />
+        <label style={{ display: 'flex', flexDirection: 'column' }}>
+          <span style={LBL}>{t('sectionWindowsLabel')}</span>
+          <input type="number" inputMode="numeric" min="0" value={windows} onChange={e => setWindows(e.target.value)} placeholder="0" style={FLD} />
+        </label>
+        <label style={{ display: 'flex', flexDirection: 'column' }}>
+          <span style={LBL}>{t('sectionDoorsLabel')}</span>
+          <input type="number" inputMode="numeric" min="0" value={doors} onChange={e => setDoors(e.target.value)} placeholder="0" style={FLD} />
+        </label>
+      </div>
+      <div style={{ paddingTop: 4 }}>
+        <button onClick={handleSave} disabled={!canSave} style={{ display: 'block', width: '100%', height: 60, border: 0, borderRadius: 30, background: canSave ? 'var(--m-offer, #6D3FD1)' : '#B9B5AA', color: '#fff', fontSize: 17, fontWeight: 700, cursor: canSave ? 'pointer' : 'default' }}>
+          {saving ? '…' : t('actionSave')}
+        </button>
+      </div>
+    </>
+  );
+}
+
+// ─── OfferRoomCard ────────────────────────────────────────────────────────────
+function OfferRoomCard({ sec, index, isOpen, onToggle, onMore, onItems, onDims, canEdit, isLocked, userCurrency, tM }) {
+  const tSD = useTranslations('surveyDetail');
+
+  const entryCount = (sec.entries || []).length;
+  const secTotal   = (sec.entries || []).reduce((a, e) => a + Number(e.amount_huf || 0), 0);
+
+  const w = parseFloat(sec.width_m)  || 0;
+  const l = parseFloat(sec.length_m) || 0;
+  const h = parseFloat(sec.height_m) || 0;
+  const dimsLabel = w && l ? `${w}×${l} m${h ? ` · ${h} m` : ''}` : null;
+
+  const floor     = w && l ? w * l : 0;
+  const wallGross = (w && l && h) ? 2 * (w + l) * h : 0;
+  const wins      = (sec.window_count || 0) * 1.5;
+  const doors     = (sec.door_count   || 0) * 2.0;
+  const wallNet   = Math.max(0, wallGross - wins - doors);
+  const hasArea   = floor > 0 || wallGross > 0;
+
+  const f = (n) => String(Number(n).toFixed(1)).replace('.', ',');
+
+  const CARD_SHADOW = 'inset 0 1px 0 #fff, 0 16px 26px -14px rgba(0,0,0,0.70), 0 3px 6px -2px rgba(0,0,0,0.30)';
+
+  return (
+    <article style={{ borderRadius: 26, background: '#fff', overflow: 'hidden', boxShadow: CARD_SHADOW }}>
+      <div style={{ display: 'flex', alignItems: 'center' }}>
+        <button
+          type="button"
+          onClick={onToggle}
+          aria-expanded={isOpen}
+          style={{ flex: 1, minWidth: 0, minHeight: 84, boxSizing: 'border-box', padding: '12px 8px 12px 16px', border: 0, background: 'transparent', color: 'var(--m-ink)', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }}
+        >
+          <span style={{ flexShrink: 0, width: 52, height: 52, borderRadius: 17, background: 'var(--m-offer, #6D3FD1)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, fontWeight: 700, fontFamily: "'Bricolage Grotesque', sans-serif" }}>
+            {index}
+          </span>
+          <span style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 3 }}>
+            <span style={{ fontSize: 18, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--m-ink)' }}>{sec.name}</span>
+            {dimsLabel && <span style={{ fontSize: 14, fontWeight: 600, color: '#4A4F57' }}>{dimsLabel}</span>}
+          </span>
+          {secTotal > 0 && (
+            <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 700, letterSpacing: '-0.02em', fontSize: 18, color: 'var(--m-ink)', flexShrink: 0 }}>
+              {formatMoney(secTotal, userCurrency)}
+            </span>
+          )}
+        </button>
+        <button
+          type="button"
+          onClick={onMore}
+          aria-label="Szekció menü"
+          style={{ flexShrink: 0, width: 48, height: 48, marginRight: 8, border: 0, borderRadius: 24, background: 'transparent', color: 'var(--m-ink)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+        >
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" aria-hidden="true"><path d="M5 12h.01M12 12h.01M19 12h.01"/></svg>
+        </button>
+      </div>
+
+      {isOpen && (
+        <div style={{ padding: '0 14px 14px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {(sec.window_count > 0 || sec.door_count > 0) && (
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              {sec.window_count > 0 && <Chip label={tM('roomWinBadge', { count: sec.window_count })} />}
+              {sec.door_count   > 0 && <Chip label={tM('roomDoorBadge', { count: sec.door_count })} />}
+            </div>
+          )}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+            <button type="button" onClick={onItems} style={{ minHeight: 52, border: 0, borderRadius: 26, background: 'var(--m-offer, #6D3FD1)', color: '#fff', fontSize: 15, fontWeight: 700, cursor: 'pointer' }}>
+              {tM('roomItemsBtn', { count: entryCount })}
+            </button>
+            <button type="button" onClick={onDims} style={{ minHeight: 52, border: 0, borderRadius: 26, background: '#F1F1F3', color: 'var(--m-ink)', fontSize: 15, fontWeight: 700, cursor: 'pointer' }}>
+              {tM('roomDimsBtn')}
+            </button>
+          </div>
+          {hasArea && (
+            <div style={{ padding: '10px 12px', borderRadius: 18, background: '#F7F6F2', display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: '#5A5F68', marginBottom: 4 }}>{tSD('areaSummaryHeader')}</span>
+              {floor > 0 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, fontWeight: 600, padding: '4px 0', borderTop: '1px solid #ECEAE4', color: 'var(--m-ink)' }}>
+                  <span>{tSD('areaSummaryFloor')}</span><b>{f(floor)} m²</b>
+                </div>
+              )}
+              {wallGross > 0 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, fontWeight: 600, padding: '4px 0', borderTop: '1px solid #ECEAE4', color: 'var(--m-ink)' }}>
+                  <span>{tSD('areaSummaryWallGross')}</span><b>{f(wallGross)} m²</b>
+                </div>
+              )}
+              {(sec.window_count > 0 || sec.door_count > 0) && wallGross > 0 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, fontWeight: 600, padding: '4px 0', borderTop: '1px solid #ECEAE4', color: '#9B1C1C' }}>
+                  <span>{tSD('areaSummaryDeductions', { windowCount: sec.window_count || 0, doorCount: sec.door_count || 0 })}</span>
+                  <b>−{f(wins + doors)} m²</b>
+                </div>
+              )}
+              {wallNet > 0 && (sec.window_count > 0 || sec.door_count > 0) && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, fontWeight: 600, padding: '4px 0', borderTop: '1px solid #ECEAE4', color: 'var(--m-ink)' }}>
+                  <span>{tSD('areaSummaryWallNet')}</span><b>{f(wallNet)} m²</b>
+                </div>
+              )}
+              <span style={{ fontSize: 11, fontWeight: 600, color: '#9B9690', marginTop: 2 }}>{tSD('areaSummaryFootnote')}</span>
+            </div>
+          )}
+        </div>
+      )}
+    </article>
   );
 }
 
@@ -710,6 +1262,11 @@ function SheetRowInline({ icon: iconKey, label, onClick, danger }) {
     hist: 'M4 12a8 8 0 108-8M4 4v5h5M12 8v4l3 2',
     trash: 'M5 7h14M10 7V4h4v3M7 7l1 13h8l1-13',
     folder: 'M3 7h6l2 2h10v11H3z',
+    edit: 'M4 20l4-1L19 8l-3-3L5 16zM14 7l3 3',
+    swap: 'M7 16V4m0 0L3 8m4-4l4 4M17 8v12m0 0l4-4m-4 4l-4-4',
+    list: 'M4 6h16M4 12h16M4 18h8',
+    dims: 'M3 7h18M6 7V4M18 7V4M3 17h18M6 17v3M18 17v3',
+    plus: 'M12 5v14M5 12h14',
   };
   return (
     <button onClick={onClick} style={{ width: '100%', minHeight: 60, boxSizing: 'border-box', padding: '10px 14px', border: 0, borderRadius: 22, background: '#fff', color: danger ? '#B71C1C' : 'var(--m-ink)', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 12, fontSize: 16, fontWeight: 700, boxShadow: '0 1px 0 rgba(14,17,22,0.05), 0 12px 22px -18px rgba(14,17,22,0.35)', cursor: 'pointer' }}>

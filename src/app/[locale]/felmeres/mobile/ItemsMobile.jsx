@@ -159,6 +159,18 @@ function ItemSheet({ initial, entryId, surveyId, onSave, onDelete, onClose, tS, 
     setSaving(false);
   };
 
+  const handleSaveAndNext = async () => {
+    if (!desc.trim()) return;
+    setSaving(true);
+    try {
+      await onSave({ description: desc.trim(), entry_type: type, quantity: qty || null, unit: unit || null, notes: notes.trim() || null });
+      setDesc('');
+      setQty(0);
+      setNotes('');
+    } catch {}
+    setSaving(false);
+  };
+
   const handleDelete = async () => {
     setDeleting(true);
     try { await onDelete(); onClose(); } catch {}
@@ -257,6 +269,16 @@ function ItemSheet({ initial, entryId, surveyId, onSave, onDelete, onClose, tS, 
       >
         {saving ? tS('itemsSavingBtn') : isEdit ? tS('itemsModifyBtn') : tS('itemsAddNewBtn')}
       </button>
+      {!isEdit && (
+        <button
+          type="button"
+          onClick={handleSaveAndNext}
+          disabled={saving || !desc.trim()}
+          style={{ height: 54, border: 0, borderRadius: 27, background: '#F1F1F3', color: '#0E1116', fontSize: 16, fontWeight: 700, cursor: 'pointer', opacity: saving || !desc.trim() ? 0.5 : 1 }}
+        >
+          {tS('itemsAddAndNext')}
+        </button>
+      )}
 
       {isEdit && (
         <button
@@ -314,6 +336,9 @@ export default function ItemsMobile() {
   const grouped = TYPE_ORDER
     .map(type => ({ type, items: confirmed.filter(i => inferType(i) === type) }))
     .filter(g => g.items.length > 0);
+
+  const [openPods, setOpenPods] = useState({});
+  const togglePod = (type) => setOpenPods(prev => ({ ...prev, [type]: !prev[type] }));
 
   // On direct page load, entries/items may not be in cache yet — fetch them
   const fetchedRef = useRef(false);
@@ -513,7 +538,7 @@ export default function ItemsMobile() {
           <div style={{ position: 'relative', display: 'flex', gap: 8 }}>
             {allItems.length > 0 && (
               <span style={{ height: 28, padding: '0 12px', borderRadius: 14, fontSize: 13, fontWeight: 700, background: 'rgba(255,255,255,0.22)', color: '#fff', display: 'inline-flex', alignItems: 'center' }}>
-                {allItems.length} tétel
+                {tM('roomItemsBtn', { count: allItems.length })}
               </span>
             )}
             {suggestions.length > 0 && (
@@ -596,21 +621,36 @@ export default function ItemsMobile() {
             </section>
           )}
 
-          {/* Confirmed items grouped by type */}
+          {/* Confirmed items grouped by type — collapsible pods */}
           {grouped.map(({ type, items: typeItems }) => {
-            const m = TYPE_META[type] || TYPE_META.other;
+            const m      = TYPE_META[type] || TYPE_META.other;
+            const isOpen = !!openPods[type];
             return (
-              <section key={type} style={{ background: '#fff', borderRadius: 26, overflow: 'hidden', boxShadow: 'inset 0 1px 0 #fff, 0 16px 26px -14px rgba(0,0,0,0.7)' }}>
-                <div style={{ padding: '12px 16px', borderBottom: '1px solid #ECEAE4' }}>
-                  <span style={{ display: 'inline-flex', alignItems: 'center', height: 26, padding: '0 10px', borderRadius: 13, background: m.bg, color: m.fg, border: `1px solid ${m.border}`, fontSize: 12, fontWeight: 700 }}>
+              <section key={type} style={{ background: m.bg, borderRadius: 26, overflow: 'hidden', boxShadow: `inset 0 1px 0 rgba(255,255,255,0.7), 0 16px 26px -14px rgba(0,0,0,0.7)` }}>
+                <button
+                  type="button"
+                  onClick={() => togglePod(type)}
+                  aria-expanded={isOpen}
+                  style={{ width: '100%', minHeight: 68, boxSizing: 'border-box', padding: '12px 16px', border: 0, background: 'transparent', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }}
+                >
+                  <span style={{ display: 'inline-flex', alignItems: 'center', height: 28, padding: '0 12px', borderRadius: 14, background: m.bg, color: m.fg, border: `1px solid ${m.border}`, fontSize: 13, fontWeight: 700, flexShrink: 0 }}>
                     {TYPE_LABELS[type]}
                   </span>
-                </div>
-                <div style={{ padding: '0 16px 8px' }}>
-                  {typeItems.map(item => (
-                    <ItemRow key={item.id} item={item} onEdit={openEdit} tS={tS} />
-                  ))}
-                </div>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: '#5A5F68', flexShrink: 0 }}>
+                    {typeItems.length}×
+                  </span>
+                  <span style={{ flex: 1 }} />
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#5A5F68" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true" style={{ flexShrink: 0, transition: 'transform .2s', transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}>
+                    <path d="M6 9l6 6 6-6"/>
+                  </svg>
+                </button>
+                {isOpen && (
+                  <div style={{ borderTop: '1px solid #ECEAE4', padding: '0 16px 8px' }}>
+                    {typeItems.map(item => (
+                      <ItemRow key={item.id} item={item} onEdit={openEdit} tS={tS} />
+                    ))}
+                  </div>
+                )}
               </section>
             );
           })}

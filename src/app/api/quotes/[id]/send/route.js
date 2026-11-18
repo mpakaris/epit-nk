@@ -18,6 +18,7 @@ export async function POST(request, { params }) {
 
   const body = await request.json().catch(() => ({}));
   const attachTerms = body.attachTerms !== false; // default true
+  const toEmailOverride = typeof body.to_email === 'string' ? body.to_email.trim() : null;
 
   const admin = createAdminClient();
   const { data: profile } = await admin.from('profiles').select('role, display_name, locale, terms_pdf_url, terms_pdf_name').eq('id', user.id).single();
@@ -49,9 +50,15 @@ export async function POST(request, { params }) {
   if (!isSuperAdmin && !isOwner && !isKollektivOwner)
     return Response.json({ error: 'Csak az ajánlat tulajdonosa küldhet ajánlatot az ügyfélnek.' }, { status: 403 });
 
-  if (!quote.client_id) return Response.json({ error: 'Nincs ügyfél rendelve az ajánlathoz' }, { status: 400 });
-  const { data: client } = await admin.from('clients').select('name, email').eq('id', quote.client_id).is('deleted_at', null).single();
-  if (!client?.email) return Response.json({ error: 'Az ügyfélnek nincs megadva email cím' }, { status: 400 });
+  // Resolve recipient — override wins; fall back to attached client's email
+  let recipientEmail = toEmailOverride || null;
+  let recipientName  = '';
+  if (quote.client_id) {
+    const { data: clientRow } = await admin.from('clients').select('name, email').eq('id', quote.client_id).is('deleted_at', null).single();
+    recipientName = clientRow?.name || '';
+    if (!recipientEmail) recipientEmail = clientRow?.email || null;
+  }
+  if (!recipientEmail) return Response.json({ error: 'Nincs megadva email-cím a küldéshez' }, { status: 400 });
 
   // Totals for email body
   const allEntries = (quote.quote_sections || []).flatMap(s => s.quote_entries || []);
@@ -63,7 +70,7 @@ export async function POST(request, { params }) {
   const sections = quote.quote_sections || [];
   const locale   = profile.locale || 'hu';
   const vars = {
-    client_name:        client.name,
+    client_name:        recipientName,
     offer_title:        quote.title,
     offer_summary_html: buildOfferDetailHtml({
       sections,
@@ -77,7 +84,7 @@ export async function POST(request, { params }) {
   // Use production domain — NEXT_PUBLIC_APP_URL is localhost in dev
   const rawAppUrl = process.env.NEXT_PUBLIC_APP_URL || '';
   const appUrl    = rawAppUrl.includes('localhost') ? 'https://okosszaki.hu' : (rawAppUrl || 'https://okosszaki.hu');
-  const portalUrl = `${appUrl}/portal?email=${encodeURIComponent(client.email)}&lang=${locale}`;
+  const portalUrl = `${appUrl}/portal?email=${encodeURIComponent(recipientEmail)}&lang=${locale}`;
 
   const { subject, bodyHtml: rawBody } = getEmailContent('offer_sent', locale, vars);
   const bodyHtml = rawBody + buildPortalCtaHtml(portalUrl, locale);
@@ -109,7 +116,7 @@ export async function POST(request, { params }) {
 
   try {
     await sendEmail({
-      to: client.email,
+      to: recipientEmail,
       cc: user.email || undefined,
       replyTo: user.email || undefined,
       subject,
@@ -137,7 +144,7 @@ export async function POST(request, { params }) {
     targetType: 'quote',
     targetId:   id,
     targetName: quote.title,
-    details:    { to: client.email },
+    details:    { to: recipientEmail },
   });
 
   return Response.json({ ok: true, quote: updated, sentTo: client.email });

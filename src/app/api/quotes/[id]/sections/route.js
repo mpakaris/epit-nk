@@ -27,6 +27,25 @@ async function getCtx(quoteId) {
   return { user, profile, admin, quote, isOwner, isSuperAdmin };
 }
 
+export async function GET(request, { params }) {
+  const { id: quoteId } = await params;
+  const ctx = await getCtx(quoteId);
+  if (ctx.err) return Response.json({ error: ctx.err }, { status: ctx.status });
+
+  const [secRes, entRes] = await Promise.all([
+    ctx.admin.from('quote_sections').select('*').eq('quote_id', quoteId).order('sort_order').order('created_at'),
+    ctx.admin.from('quote_entries').select('*').eq('quote_id', quoteId).order('created_at'),
+  ]);
+
+  const entries  = entRes.data || [];
+  const sections = (secRes.data || []).map(sec => ({
+    ...sec,
+    entries: entries.filter(e => e.section_id === sec.id),
+  }));
+
+  return Response.json({ sections });
+}
+
 export async function POST(request, { params }) {
   const { id: quoteId } = await params;
   const ctx = await getCtx(quoteId);
