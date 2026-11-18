@@ -13,22 +13,15 @@ const OFFER_INK  = '#4A2796';
 
 const TYPE_ORDER = ['material', 'labour', 'equipment', 'transport', 'other'];
 const TYPE_META  = {
-  material:  { bg: '#eff6ff', fg: '#1d4ed8', border: '#bfdbfe' },
-  labour:    { bg: '#ecfdf5', fg: '#047857', border: '#a7f3d0' },
-  equipment: { bg: '#fffbeb', fg: '#b45309', border: '#fde68a' },
-  transport: { bg: '#faf5ff', fg: '#7e22ce', border: '#e9d5ff' },
-  other:     { bg: '#f1f5f9', fg: '#475569', border: '#cbd5e1' },
+  material:  { bg: '#eff6ff', fg: '#1d4ed8', border: '#bfdbfe', dark: '#1e3a8a' },
+  labour:    { bg: '#fff7ed', fg: '#c2410c', border: '#fed7aa', dark: '#7c2d12' },
+  equipment: { bg: '#f0f9ff', fg: '#0369a1', border: '#bae6fd', dark: '#0f4c5c' },
+  transport: { bg: '#fdf4ff', fg: '#a21caf', border: '#f0abfc', dark: '#5c0a44' },
+  other:     { bg: '#f1f5f9', fg: '#475569', border: '#cbd5e1', dark: '#1e293b' },
 };
-const UNITS_BY_TYPE = {
-  material:  ['m²', 'm', 'fm', 'db', 'kg', 'l', 'zsák', 'csomag', 'm³'],
-  labour:    ['m²', 'm', 'fm', 'db', 'nap', 'h'],
-  equipment: ['nap', 'db', 'h'],
-  transport: ['db', 'km', 'nap'],
-  other:     ['db', 'h', 'nap', 'm²'],
-};
-const DEFAULT_UNIT  = { material: 'm²', labour: 'm²', equipment: 'nap', transport: 'db', other: 'db' };
+const ALL_UNITS = ['m²', 'm', 'fm', 'db', 'kg', 'l', 'zsák', 'csomag', 'm³', 'nap', 'h', 'km'];
+const DEFAULT_UNIT = 'db';
 const UNIT_I18N     = { db: 'itemsUnitDb', nap: 'itemsUnitNap', zsák: 'itemsUnitZsak', csomag: 'itemsUnitCsomag', fm: 'itemsUnitFm', h: 'itemsUnitH' };
-const isQtyType     = (type) => type === 'material' || type === 'labour';
 
 // ─── Entry row ─────────────────────────────────────────────────────────────────
 function EntryRow({ entry, onEdit, t, userCurrency }) {
@@ -64,28 +57,23 @@ function OfferItemSheet({ initial, onSave, onDelete, onClose, t, tS, tc, userCur
   const isEdit = !!initial?.id;
   const [type,       setType]       = useState(() => initial?.entry_type || 'material');
   const [desc,       setDesc]       = useState(() => initial?.work_description || '');
-  const [qty,        setQty]        = useState(() => initial?.quantity != null ? initial.quantity : 1);
-  const [unit,       setUnit]       = useState(() => initial?.unit || DEFAULT_UNIT['material']);
-  const [unitPrice,  setUnitPrice]  = useState(() => initial?.unit_price != null ? String(initial.unit_price) : '');
-  const [flatAmt,    setFlatAmt]    = useState(() => !isQtyType(initial?.entry_type || 'material') && initial?.amount_huf != null ? String(initial.amount_huf) : '');
-  const [notes,      setNotes]      = useState(() => initial?.notes || '');
-  const [saving,     setSaving]     = useState(false);
-  const [deleting,   setDeleting]   = useState(false);
+  const [qty,       setQty]       = useState(() => initial?.quantity  != null ? initial.quantity  : 1);
+  const [unit,      setUnit]      = useState(() => initial?.unit || DEFAULT_UNIT);
+  const [unitPrice, setUnitPrice] = useState(() => initial?.unit_price != null ? String(initial.unit_price) : '');
+  const [notes,     setNotes]     = useState(() => initial?.notes || '');
+  const [saving,    setSaving]    = useState(false);
+  const [deleting,  setDeleting]  = useState(false);
 
-  const iqt    = isQtyType(type);
-  const amount = iqt ? Math.round((qty || 0) * (parseFloat(unitPrice) || 0)) : (parseInt(flatAmt) || 0);
+  const amount = Math.round((qty || 0) * (parseFloat(unitPrice) || 0));
 
-  const handleTypeChange = (tp) => {
-    setType(tp);
-    if (!isEdit) setUnit(DEFAULT_UNIT[tp]);
-  };
+  const handleTypeChange = (tp) => { setType(tp); };
 
   const buildFields = () => ({
     entry_type:       type,
     work_description: desc.trim(),
-    quantity:         iqt ? (qty || null) : null,
-    unit:             iqt ? (unit || null) : null,
-    unit_price:       iqt ? (parseFloat(unitPrice) || null) : null,
+    quantity:         qty || null,
+    unit:             unit || null,
+    unit_price:       parseFloat(unitPrice) || null,
     amount_huf:       amount,
     notes:            notes.trim() || null,
   });
@@ -108,7 +96,6 @@ function OfferItemSheet({ initial, onSave, onDelete, onClose, t, tS, tc, userCur
       setDesc('');
       setQty(1);
       setUnitPrice('');
-      setFlatAmt('');
       setNotes('');
     } catch {}
     setSaving(false);
@@ -127,7 +114,6 @@ function OfferItemSheet({ initial, onSave, onDelete, onClose, t, tS, tc, userCur
     width: '100%', boxSizing: 'border-box', outline: 'none',
     fontFamily: "'Plus Jakarta Sans', sans-serif",
   };
-  const units = UNITS_BY_TYPE[type] || UNITS_BY_TYPE.other;
   const TYPE_LABELS = {
     material: tS('itemsTypeAnyag'), labour: tS('itemsTypeMunkadij'),
     equipment: tS('itemsTypeEszkozberles'), transport: tS('itemsTypeSzallitas'), other: tS('itemsTypeEgyeb'),
@@ -153,7 +139,7 @@ function OfferItemSheet({ initial, onSave, onDelete, onClose, t, tS, tc, userCur
           const on = type === tp;
           return (
             <button key={tp} type="button" onClick={() => handleTypeChange(tp)}
-              style={{ height: 44, border: `1.5px solid ${on ? m.fg : m.border}`, borderRadius: 22, background: on ? m.fg : m.bg, color: on ? '#fff' : m.fg, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+              style={{ height: 44, border: `1.5px solid ${on ? m.dark : m.border}`, borderRadius: 22, background: on ? m.dark : m.bg, color: on ? '#fff' : m.fg, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
               {TYPE_LABELS[tp]}
             </button>
           );
@@ -167,74 +153,59 @@ function OfferItemSheet({ initial, onSave, onDelete, onClose, t, tS, tc, userCur
           placeholder={tS(`itemsPlaceholder${type.charAt(0).toUpperCase() + type.slice(1)}`)} />
       </label>
 
-      {iqt ? (
-        <>
-          {/* Qty stepper + unit chips */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <span style={{ fontSize: 13, fontWeight: 700, color: '#0E1116' }}>{tS('itemsQtyLabel')}</span>
-            <div style={{ display: 'grid', gridTemplateColumns: '4fr 8fr', gap: 12, alignItems: 'center' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-                <button type="button" onClick={() => setQty(q => q + 1)} aria-label="+1"
-                  style={{ width: 44, height: 44, border: 0, borderRadius: 22, background: OFFER_BG, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
-                </button>
-                <input type="text" inputMode="decimal" value={qty || 0}
-                  onChange={e => { const v = parseFloat(e.target.value.replace(/,/g, '.')); setQty(isNaN(v) ? 0 : v); }}
-                  onFocus={e => e.target.select()}
-                  style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 26, fontWeight: 700, width: 44, textAlign: 'center', border: 0, background: 'transparent', outline: 'none', color: '#0E1116', padding: '10px 0' }} />
-                <button type="button" onClick={() => setQty(q => Math.max(0, q - 1))} aria-label="-1"
-                  style={{ width: 44, height: 44, border: 0, borderRadius: 22, background: '#F1F1F3', color: '#0E1116', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true"><path d="M5 12h14"/></svg>
-                </button>
-              </div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                {units.map(u => (
-                  <button key={u} type="button" onClick={() => setUnit(u)}
-                    style={{ height: 44, padding: '0 14px', border: `1.5px solid ${unit === u ? OFFER_BG : '#D5D2C8'}`, borderRadius: 22, background: unit === u ? '#EDE7FB' : '#fff', color: unit === u ? OFFER_INK : '#4A4F57', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
-                    {UNIT_I18N[u] ? tS(UNIT_I18N[u]) : u}
-                  </button>
-                ))}
-              </div>
-            </div>
+      {/* Qty stepper + unit chips */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <span style={{ fontSize: 13, fontWeight: 700, color: '#0E1116' }}>{tS('itemsQtyLabel')}</span>
+        <div style={{ display: 'grid', gridTemplateColumns: '4fr 8fr', gap: 12, alignItems: 'center' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+            <button type="button" onClick={() => setQty(q => q + 1)} aria-label="+1"
+              style={{ width: 44, height: 44, border: 0, borderRadius: 22, background: OFFER_BG, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+            </button>
+            <input type="text" inputMode="decimal" value={qty || 0}
+              onChange={e => { const v = parseFloat(e.target.value.replace(/,/g, '.')); setQty(isNaN(v) ? 0 : v); }}
+              onFocus={e => e.target.select()}
+              style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 26, fontWeight: 700, width: 44, textAlign: 'center', border: 0, background: 'transparent', outline: 'none', color: '#0E1116', padding: '10px 0' }} />
+            <button type="button" onClick={() => setQty(q => Math.max(0, q - 1))} aria-label="-1"
+              style={{ width: 44, height: 44, border: 0, borderRadius: 22, background: '#F1F1F3', color: '#0E1116', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true"><path d="M5 12h14"/></svg>
+            </button>
           </div>
-          {/* Unit price + Total — 2-col */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-            <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <span style={{ fontSize: 13, fontWeight: 700, color: '#0E1116' }}>{t('entryUnitPrice')}</span>
-              <div style={{ position: 'relative' }}>
-                <input type="number" inputMode="numeric" min="0" value={unitPrice} onChange={e => setUnitPrice(e.target.value)} placeholder="0"
-                  style={{ ...FLD, paddingRight: 42 }} />
-                <span style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 11, fontWeight: 700, color: '#8A8F97', pointerEvents: 'none' }}>
-                  {userCurrency}
-                </span>
-              </div>
-            </label>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <span style={{ fontSize: 13, fontWeight: 700, color: '#0E1116' }}>{t('entryTotal')}</span>
-              <div style={{ position: 'relative', height: 56, borderRadius: 18, background: amount > 0 ? '#EDE7FB' : '#F7F5EF', display: 'flex', alignItems: 'center', paddingLeft: 14, paddingRight: 42, boxSizing: 'border-box' }}>
-                <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: amount > 0 ? 18 : 15, fontWeight: 700, letterSpacing: '-0.02em', color: amount > 0 ? OFFER_BG : '#B0ADA6', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {amount > 0 ? amount.toLocaleString('hu-HU') : '0'}
-                </span>
-                <span style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 11, fontWeight: 700, color: amount > 0 ? OFFER_INK : '#B0ADA6', pointerEvents: 'none' }}>
-                  {userCurrency}
-                </span>
-              </div>
-            </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            {ALL_UNITS.map(u => (
+              <button key={u} type="button" onClick={() => setUnit(u)}
+                style={{ height: 44, padding: '0 14px', border: `1.5px solid ${unit === u ? OFFER_BG : '#D5D2C8'}`, borderRadius: 22, background: unit === u ? '#EDE7FB' : '#fff', color: unit === u ? OFFER_INK : '#4A4F57', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+                {UNIT_I18N[u] ? tS(UNIT_I18N[u]) : u}
+              </button>
+            ))}
           </div>
-        </>
-      ) : (
-        <>
-          <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <span style={{ fontSize: 13, fontWeight: 700, color: '#0E1116' }}>{t('entryFlatAmount')}</span>
-            <input type="number" inputMode="numeric" min="0" style={FLD} value={flatAmt} onChange={e => setFlatAmt(e.target.value)} placeholder="0" />
-          </label>
-          {amount > 0 && (
-            <div style={{ padding: '10px 14px', borderRadius: 16, background: '#EDE7FB', display: 'flex', justifyContent: 'flex-end' }}>
-              <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 20, fontWeight: 700, letterSpacing: '-0.02em', color: OFFER_BG }}>{formatMoney(amount, userCurrency)}</span>
-            </div>
-          )}
-        </>
-      )}
+        </div>
+      </div>
+
+      {/* Unit price + Total — 2-col */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+        <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <span style={{ fontSize: 13, fontWeight: 700, color: '#0E1116' }}>{t('entryUnitPrice')}</span>
+          <div style={{ position: 'relative' }}>
+            <input type="number" inputMode="numeric" min="0" value={unitPrice} onChange={e => setUnitPrice(e.target.value)} placeholder="0"
+              style={{ ...FLD, paddingRight: 42 }} />
+            <span style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 11, fontWeight: 700, color: '#8A8F97', pointerEvents: 'none' }}>
+              {userCurrency}
+            </span>
+          </div>
+        </label>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <span style={{ fontSize: 13, fontWeight: 700, color: '#0E1116' }}>{t('entryTotal')}</span>
+          <div style={{ position: 'relative', height: 56, borderRadius: 18, background: amount > 0 ? '#EDE7FB' : '#F7F5EF', display: 'flex', alignItems: 'center', paddingLeft: 14, paddingRight: 42, boxSizing: 'border-box' }}>
+            <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: amount > 0 ? 18 : 15, fontWeight: 700, letterSpacing: '-0.02em', color: amount > 0 ? OFFER_BG : '#B0ADA6', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {amount > 0 ? amount.toLocaleString('hu-HU') : '0'}
+            </span>
+            <span style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 11, fontWeight: 700, color: amount > 0 ? OFFER_INK : '#B0ADA6', pointerEvents: 'none' }}>
+              {userCurrency}
+            </span>
+          </div>
+        </div>
+      </div>
 
       {/* Notes */}
       <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -432,31 +403,31 @@ export default function OfferItemsMobile() {
             const isOpen  = !!openPods[type];
             const subTotal = items.reduce((s, e) => s + Number(e.amount_huf || 0), 0);
             return (
-              <section key={type} style={{ background: m.bg, borderRadius: 26, overflow: 'hidden', boxShadow: `inset 0 1px 0 rgba(255,255,255,0.7), 0 16px 26px -14px rgba(0,0,0,0.7)` }}>
+              <section key={type} style={{ background: m.dark, borderRadius: 26, overflow: 'hidden', boxShadow: `inset 0 1px 0 rgba(255,255,255,0.12), 0 16px 26px -14px rgba(0,0,0,0.7)` }}>
                 <button
                   type="button"
                   onClick={() => togglePod(type)}
                   aria-expanded={isOpen}
                   style={{ width: '100%', minHeight: 68, boxSizing: 'border-box', padding: '12px 16px', border: 0, background: 'transparent', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }}
                 >
-                  <span style={{ display: 'inline-flex', alignItems: 'center', height: 28, padding: '0 12px', borderRadius: 14, background: m.bg, color: m.fg, border: `1px solid ${m.border}`, fontSize: 13, fontWeight: 700, flexShrink: 0 }}>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', height: 28, padding: '0 12px', borderRadius: 14, background: '#fff', color: '#1a1d23', fontSize: 13, fontWeight: 700, flexShrink: 0 }}>
                     {TYPE_LABELS[type]}
                   </span>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: '#5A5F68', flexShrink: 0 }}>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,0.7)', flexShrink: 0 }}>
                     {items.length}×
                   </span>
                   <span style={{ flex: 1 }} />
                   {subTotal > 0 && (
-                    <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 700, letterSpacing: '-0.01em', fontSize: 17, color: 'var(--m-ink, #0E1116)', flexShrink: 0 }}>
+                    <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 700, letterSpacing: '-0.01em', fontSize: 17, color: '#fff', flexShrink: 0 }}>
                       {formatMoney(subTotal, userCurrency)}
                     </span>
                   )}
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#5A5F68" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true" style={{ flexShrink: 0, transition: 'transform .2s', transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.7)" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true" style={{ flexShrink: 0, transition: 'transform .2s', transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}>
                     <path d="M6 9l6 6 6-6"/>
                   </svg>
                 </button>
                 {isOpen && (
-                  <div style={{ borderTop: '1px solid #ECEAE4', padding: '0 16px 8px' }}>
+                  <div style={{ margin: '0 10px 10px', borderRadius: 18, background: '#fff', overflow: 'hidden', padding: '0 12px 4px' }}>
                     {items.map(entry => (
                       <EntryRow key={entry.id} entry={entry} onEdit={openEdit} t={t} userCurrency={userCurrency} />
                     ))}

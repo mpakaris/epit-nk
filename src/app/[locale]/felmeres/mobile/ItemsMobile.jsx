@@ -14,11 +14,11 @@ const SURVEY_INK  = '#0A5C53';
 const TYPE_ORDER = ['material', 'labour', 'equipment', 'transport', 'other'];
 
 const TYPE_META = {
-  material:  { bg: '#eff6ff', fg: '#1d4ed8', border: '#bfdbfe' },
-  labour:    { bg: '#ecfdf5', fg: '#047857', border: '#a7f3d0' },
-  equipment: { bg: '#fffbeb', fg: '#b45309', border: '#fde68a' },
-  transport: { bg: '#faf5ff', fg: '#7e22ce', border: '#e9d5ff' },
-  other:     { bg: '#f1f5f9', fg: '#475569', border: '#cbd5e1' },
+  material:  { bg: '#eff6ff', fg: '#1d4ed8', border: '#bfdbfe', dark: '#1e3a8a' },
+  labour:    { bg: '#fff7ed', fg: '#c2410c', border: '#fed7aa', dark: '#7c2d12' },
+  equipment: { bg: '#f0f9ff', fg: '#0369a1', border: '#bae6fd', dark: '#0f4c5c' },
+  transport: { bg: '#fdf4ff', fg: '#a21caf', border: '#f0abfc', dark: '#5c0a44' },
+  other:     { bg: '#f1f5f9', fg: '#475569', border: '#cbd5e1', dark: '#1e293b' },
 };
 
 const UNITS_BY_TYPE = {
@@ -51,9 +51,9 @@ function TypeChip({ type, label, active, onClick, small }) {
         flexShrink: 0,
         height: small ? 30 : 36,
         padding: small ? '0 10px' : '0 14px',
-        border: `1.5px solid ${active ? m.fg : m.border}`,
+        border: `1.5px solid ${active ? m.dark : m.border}`,
         borderRadius: small ? 15 : 18,
-        background: active ? m.fg : m.bg,
+        background: active ? m.dark : m.bg,
         color: active ? '#fff' : m.fg,
         fontSize: small ? 12 : 13,
         fontWeight: 700,
@@ -202,7 +202,7 @@ function ItemSheet({ initial, entryId, surveyId, onSave, onDelete, onClose, tS, 
               key={t}
               type="button"
               onClick={() => handleTypeChange(t)}
-              style={{ height: 44, border: `1.5px solid ${active ? m.fg : m.border}`, borderRadius: 22, background: active ? m.fg : m.bg, color: active ? '#fff' : m.fg, fontSize: 13, fontWeight: 700, cursor: 'pointer', width: '100%' }}
+              style={{ height: 44, border: `1.5px solid ${active ? m.dark : m.border}`, borderRadius: 22, background: active ? m.dark : m.bg, color: active ? '#fff' : m.fg, fontSize: 13, fontWeight: 700, cursor: 'pointer', width: '100%' }}
             >
               {TYPE_LABELS[t]}
             </button>
@@ -626,26 +626,26 @@ export default function ItemsMobile() {
             const m      = TYPE_META[type] || TYPE_META.other;
             const isOpen = !!openPods[type];
             return (
-              <section key={type} style={{ background: m.bg, borderRadius: 26, overflow: 'hidden', boxShadow: `inset 0 1px 0 rgba(255,255,255,0.7), 0 16px 26px -14px rgba(0,0,0,0.7)` }}>
+              <section key={type} style={{ background: m.dark, borderRadius: 26, overflow: 'hidden', boxShadow: `inset 0 1px 0 rgba(255,255,255,0.12), 0 16px 26px -14px rgba(0,0,0,0.7)` }}>
                 <button
                   type="button"
                   onClick={() => togglePod(type)}
                   aria-expanded={isOpen}
                   style={{ width: '100%', minHeight: 68, boxSizing: 'border-box', padding: '12px 16px', border: 0, background: 'transparent', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }}
                 >
-                  <span style={{ display: 'inline-flex', alignItems: 'center', height: 28, padding: '0 12px', borderRadius: 14, background: m.bg, color: m.fg, border: `1px solid ${m.border}`, fontSize: 13, fontWeight: 700, flexShrink: 0 }}>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', height: 28, padding: '0 12px', borderRadius: 14, background: '#fff', color: '#1a1d23', fontSize: 13, fontWeight: 700, flexShrink: 0 }}>
                     {TYPE_LABELS[type]}
                   </span>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: '#5A5F68', flexShrink: 0 }}>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,0.7)', flexShrink: 0 }}>
                     {typeItems.length}×
                   </span>
                   <span style={{ flex: 1 }} />
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#5A5F68" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true" style={{ flexShrink: 0, transition: 'transform .2s', transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.7)" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true" style={{ flexShrink: 0, transition: 'transform .2s', transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}>
                     <path d="M6 9l6 6 6-6"/>
                   </svg>
                 </button>
                 {isOpen && (
-                  <div style={{ borderTop: '1px solid #ECEAE4', padding: '0 16px 8px' }}>
+                  <div style={{ margin: '0 10px 10px', borderRadius: 18, background: '#fff', overflow: 'hidden', padding: '0 12px 4px' }}>
                     {typeItems.map(item => (
                       <ItemRow key={item.id} item={item} onEdit={openEdit} tS={tS} />
                     ))}
