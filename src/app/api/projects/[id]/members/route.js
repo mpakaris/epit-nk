@@ -49,7 +49,7 @@ export async function PUT(request, { params }) {
     entityId: project.collective_id || user.id,
     userId:   user.id,
     userName: profile.display_name || user.email,
-    action:   'Projekt tagok frissítve',
+    action:   'project.members_updated',
     targetType: 'project',
     targetId:   id,
     targetName: project.name,

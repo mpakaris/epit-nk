@@ -147,10 +147,7 @@ export async function PATCH(request, { params }) {
     return Response.json({ error: error.message }, { status: 400 });
   }
 
-  const statusLabels = { active: 'Aktív', paused: 'Szüneteltetett', closed: 'Lezárt' };
-  const auditAction = fields.status
-    ? `Státusz módosítva: ${statusLabels[fields.status] || fields.status}`
-    : 'Projekt módosítva';
+  const auditAction = fields.status ? 'project.status_changed' : 'project.edited';
   logAudit({
     entityId: ctx.project.collective_id || ctx.user.id,
     userId: ctx.user.id,
@@ -159,12 +156,15 @@ export async function PATCH(request, { params }) {
     targetType: 'project',
     targetId: id,
     targetName: data.name,
-    details: statusReason ? { status_reason: statusReason } : null,
+    details: fields.status
+      ? { status: fields.status, ...(statusReason ? { status_reason: statusReason } : {}) }
+      : null,
   });
 
+  const STATUS_EMAIL_LABELS = { active: 'Aktív', paused: 'Szüneteltetett', closed: 'Lezárt' };
   // Fire-and-forget email notifications to all project members (except the actor)
   if (fields.status) {
-    const newStatusLabel = statusLabels[fields.status] || fields.status;
+    const newStatusLabel = STATUS_EMAIL_LABELS[fields.status] || fields.status;
     const actorName      = ctx.profile.display_name || ctx.user.email;
     const projectUrl     = `${process.env.NEXT_PUBLIC_APP_URL}/projektek/${id}`;
 
@@ -232,7 +232,7 @@ export async function DELETE(request, { params }) {
     entityId: ctx.project.collective_id || ctx.user.id,
     userId: ctx.user.id,
     userName: ctx.profile.display_name || ctx.user.email,
-    action: 'Projekt törölve',
+    action: 'project.deleted',
     targetType: 'project',
     targetId: id,
     targetName: ctx.project.name,

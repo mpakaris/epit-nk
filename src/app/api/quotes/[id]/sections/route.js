@@ -80,8 +80,8 @@ export async function POST(request, { params }) {
   logAudit({
     entityId: ctx.quote.collective_id || ctx.user.id, userId: ctx.user.id,
     userName: ctx.profile.display_name || ctx.user.email,
-    action: 'Szekció hozzáadva', targetType: 'quote', targetId: quoteId,
-    details: { name: section.name },
+    action: 'section.added', targetType: 'quote', targetId: quoteId,
+    details: { name: section.name, entry_count: 0 },
   });
 
   return Response.json({ section }, { status: 201 });

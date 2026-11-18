@@ -93,6 +93,7 @@ export async function DELETE(request, { params }) {
     return Response.json({ error: 'Csak a saját szekciót törölheted.' }, { status: 403 });
 
   const sectionName = ctx.section.name;
+  const { count: entryCount } = await ctx.admin.from('quote_entries').select('id', { count: 'exact', head: true }).eq('section_id', sectionId);
   await ctx.admin.from('quote_entries').update({ section_id: null }).eq('section_id', sectionId);
   const { error } = await ctx.admin.from('quote_sections').delete().eq('id', sectionId).eq('quote_id', quoteId);
   if (error) return Response.json({ error: error.message }, { status: 400 });
@@ -100,8 +101,8 @@ export async function DELETE(request, { params }) {
   logAudit({
     entityId: ctx.quote?.collective_id || ctx.user.id, userId: ctx.user.id,
     userName: ctx.profile?.display_name || ctx.user.email,
-    action: 'Szekció törölve', targetType: 'quote', targetId: quoteId,
-    details: { name: sectionName },
+    action: 'section.deleted', targetType: 'quote', targetId: quoteId,
+    details: { name: sectionName, entry_count: entryCount ?? 0 },
   });
 
   return Response.json({ success: true });

@@ -50,8 +50,8 @@ export async function PATCH(request, { params }) {
     userId:     user.id,
     userName:   profile.display_name || user.email,
     action:     isPortalToggle
-      ? (update.portal_visible ? 'Számla megjelent a portálon' : 'Számla eltávolítva a portálról')
-      : 'Számla módosítva',
+      ? (update.portal_visible ? 'invoice.portal_shown' : 'invoice.portal_hidden')
+      : 'invoice.edited',
     targetType: 'project',
     targetId:   project.id,
     targetName: project.name,
@@ -83,7 +83,7 @@ export async function DELETE(request, { params }) {
     entityId:   project.collective_id || user.id,
     userId:     user.id,
     userName:   profile.display_name || user.email,
-    action:     'Számla törölve',
+    action:     'invoice.deleted',
     targetType: 'project',
     targetId:   project.id,
     targetName: project.name,

@@ -141,7 +141,7 @@ export async function POST(request) {
     entityId: collectiveId || user.id,
     userId: user.id,
     userName: creatorProfile?.display_name || user.email,
-    action: 'Projekt létrehozva',
+    action: 'project.created',
     targetType: 'project',
     targetId: proj.id,
     targetName: proj.name,

@@ -86,7 +86,7 @@ export async function DELETE(request, { params }) {
     entityId:   project.collective_id || user.id,
     userId:     user.id,
     userName:   profile.display_name || user.email,
-    action:     'Munkabejegyzés törölve',
+    action:     'labour.deleted',
     targetType: 'project',
     targetId:   project.id,
     targetName: project.name,

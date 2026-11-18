@@ -44,7 +44,7 @@ export async function POST(request, { params }) {
   logAudit({
     entityId: quote.collective_id || user.id, userId: user.id,
     userName: userName?.display_name || user.email,
-    action: 'Tétel hozzáadva', targetType: 'quote', targetId: quoteId,
+    action: 'entry.added', targetType: 'quote', targetId: quoteId,
     details: { work_description: data.work_description, amount_huf: data.amount_huf, entry_type: data.entry_type },
   });
 

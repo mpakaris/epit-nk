@@ -1427,16 +1427,37 @@ export default function ProjectDetailClient({
             {history.map((entry, idx) => {
               const a  = entry.action || '';
               const d  = entry.details || {};
-              const isInvoiceAdd    = a === 'Számla rögzítve';
-              const isInvoiceEdit   = a === 'Számla módosítva';
-              const isInvoiceDel    = a === 'Számla törölve';
-              const isLabourAdd     = a === 'Munkabejegyzés rögzítve';
-              const isLabourEdit    = a === 'Munkabejegyzés módosítva';
-              const isLabourDel     = a === 'Munkabejegyzés törölve';
-              const isProjectCreate = a.includes('létrehozva');
-              const isProjectEdit   = a === 'Projekt módosítva';
-              const isStatusChange  = a.includes('Státusz módosítva');
-              const isDeleted       = a.includes('törölve');
+
+              const ACTION_LABELS = {
+                'project.created':         t('histActionProjectCreated'),
+                'project.edited':          t('histActionProjectEdited'),
+                'project.deleted':         t('histActionProjectDeleted'),
+                'project.status_changed':  t('histActionProjectStatusChanged'),
+                'project.members_updated': t('histActionProjectMembersUpdated'),
+                'invoice.added':           t('histActionInvoiceAdded'),
+                'invoice.edited':          t('histActionInvoiceEdited'),
+                'invoice.deleted':         t('histActionInvoiceDeleted'),
+                'invoice.portal_shown':    t('histActionInvoicePortalShown'),
+                'invoice.portal_hidden':   t('histActionInvoicePortalHidden'),
+                'labour.added':            t('histActionLabourAdded'),
+                'labour.edited':           t('histActionLabourEdited'),
+                'labour.deleted':          t('histActionLabourDeleted'),
+                'diary_entry.created':     t('histActionDiaryCreated'),
+                'room.created':            t('histActionRoomCreated'),
+                'room.edited':             t('histActionRoomEdited'),
+                'room.deleted':            t('histActionRoomDeleted'),
+              };
+              const actionLabel = ACTION_LABELS[a] || a;
+
+              const isInvoiceAdd    = a === 'invoice.added';
+              const isInvoiceEdit   = a === 'invoice.edited';
+              const isInvoiceDel    = a === 'invoice.deleted';
+              const isLabourAdd     = a === 'labour.added';
+              const isLabourEdit    = a === 'labour.edited';
+              const isLabourDel     = a === 'labour.deleted';
+              const isProjectCreate = a === 'project.created';
+              const isStatusChange  = a === 'project.status_changed';
+              const isDeleted       = a.endsWith('.deleted');
               const isLabour        = isLabourAdd || isLabourEdit || isLabourDel;
               const isInvoice       = isInvoiceAdd || isInvoiceEdit || isInvoiceDel;
 
@@ -1467,7 +1488,7 @@ export default function ProjectDetailClient({
                     <Icon size={15} color={iconColor} strokeWidth={2} />
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontWeight: 600, fontSize: '0.875rem', color: 'var(--text-primary)', marginBottom: '0.15rem' }}>{entry.action}</div>
+                    <div style={{ fontWeight: 600, fontSize: '0.875rem', color: 'var(--text-primary)', marginBottom: '0.15rem' }}>{actionLabel}</div>
                     {sub.length > 0 && <div style={{ fontSize: '0.775rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>{sub.join(' · ')}</div>}
                   </div>
                   <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', flexShrink: 0, textAlign: 'right', marginTop: 2 }}>

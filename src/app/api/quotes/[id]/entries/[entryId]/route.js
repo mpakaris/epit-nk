@@ -49,7 +49,7 @@ export async function PATCH(request, { params }) {
   logAudit({
     entityId: quote?.collective_id || ctx.user.id, userId: ctx.user.id,
     userName: prof?.display_name || ctx.user.email,
-    action: 'Tétel módosítva', targetType: 'quote', targetId: quoteId,
+    action: 'entry.edited', targetType: 'quote', targetId: quoteId,
     details: { work_description: data.work_description, amount_huf: data.amount_huf },
   });
 
@@ -71,7 +71,7 @@ export async function DELETE(request, { params }) {
   logAudit({
     entityId: quote?.collective_id || ctx.user.id, userId: ctx.user.id,
     userName: prof?.display_name || ctx.user.email,
-    action: 'Tétel törölve', targetType: 'quote', targetId: quoteId,
+    action: 'entry.deleted', targetType: 'quote', targetId: quoteId,
     details: { work_description: entryName, amount_huf: entryAmt },
   });
 

@@ -140,12 +140,12 @@ export async function POST(request, { params }) {
     entityId:   quote.collective_id || user.id,
     userId:     user.id,
     userName:   profile.display_name || user.email,
-    action:     'Ajánlat elküldve',
+    action:     'quote.sent',
     targetType: 'quote',
     targetId:   id,
     targetName: quote.title,
     details:    { to: recipientEmail },
   });
 
-  return Response.json({ ok: true, quote: updated, sentTo: client.email });
+  return Response.json({ ok: true, quote: updated, sentTo: recipientEmail });
 }

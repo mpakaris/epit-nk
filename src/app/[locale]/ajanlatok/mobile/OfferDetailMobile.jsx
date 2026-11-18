@@ -6,7 +6,7 @@
  * client comments, history. Sticky action bar changes with status.
  */
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useApp } from '@/context/AppContext';
@@ -67,7 +67,7 @@ export default function OfferDetailMobile({ quoteId }) {
   const isOnline = useOnline();
   const {
     quotes = [], clients = [], currentUser, isDemoMode, userCurrency,
-    collectives: userMemberships = [], createClient, deleteQuoteSection,
+    collectives: userMemberships = [], createClient, deleteQuoteSection, refreshSupabaseData,
   } = useApp();
 
   const navPrefix = isDemoMode ? '/demo' : '';
@@ -76,8 +76,9 @@ export default function OfferDetailMobile({ quoteId }) {
 
   const [quote, setQuote] = useState(null);
   const [sections, setSections] = useState([]);
-  const [comments, setComments] = useState([]);
   const [history, setHistory] = useState([]);
+  const [histLoading, setHistLoading] = useState(false);
+  const [expandedHist, setExpandedHist] = useState(null);
   const [openSections, setOpenSections] = useState({});
   const [mode, setMode] = useState(null); // 'menu'|'meta'|'dup'|'hist'|'delete'|'revert'|'locked'|'send'|'accept'|'reject'
   const [copiedLink, setCopiedLink] = useState(false);
@@ -86,12 +87,18 @@ export default function OfferDetailMobile({ quoteId }) {
   const [alertModal, setAlertModal] = useState({ open: false, message: '' });
   const [sendEmail, setSendEmail] = useState('');
   const [sendLoading, setSendLoading] = useState(false);
+  const [attachTerms, setAttachTerms] = useState(true);
+  const [termsUploading, setTermsUploading] = useState(false);
+  const [localTermsName, setLocalTermsName] = useState(null);
+  const termsFileRef = useRef(null);
   const [clientSearch, setClientSearch] = useState('');
   const [quickName, setQuickName] = useState('');
   const [quickEmail, setQuickEmail] = useState('');
   const [quickGdpr, setQuickGdpr] = useState(false);
   const [quickLoading, setQuickLoading] = useState(false);
   const [sectionMenuId,    setSectionMenuId]    = useState(null);
+  const [openInfoPods,     setOpenInfoPods]     = useState({ summary: true, client: false, general: false });
+  const toggleInfoPod = (key) => setOpenInfoPods(prev => ({ ...prev, [key]: !prev[key] }));
   const [sectionEditTarget, setSectionEditTarget] = useState(null); // null | 'new' | section obj
   const [metaForm, setMetaForm] = useState({});
   const [dupTitle, setDupTitle] = useState('');
@@ -112,14 +119,8 @@ export default function OfferDetailMobile({ quoteId }) {
     const fetchData = async () => {
       setLoading(true);
       try {
-        const [secRes, comRes, histRes] = await Promise.all([
-          fetch(`/api/quotes/${quoteId}/sections`).then(r => r.ok ? r.json() : { sections: [] }),
-          fetch(`/api/quotes/${quoteId}/client-comments`).then(r => r.ok ? r.json() : { comments: [] }),
-          fetch(`/api/quotes/${quoteId}/history?limit=10`).then(r => r.ok ? r.json() : { history: [] }),
-        ]);
+        const secRes = await fetch(`/api/quotes/${quoteId}/sections`).then(r => r.ok ? r.json() : { sections: [] });
         setSections(secRes.sections || []);
-        setComments(comRes.comments || []);
-        setHistory(histRes.history || []);
       } catch {
         // non-critical, show what we have
       } finally {
@@ -152,6 +153,7 @@ export default function OfferDetailMobile({ quoteId }) {
         payment_method: quoteData.payment_method || '',
         deposit_pct: quoteData.deposit_percent != null ? String(quoteData.deposit_percent) : '',
         warranty_months: quoteData.warranty_months != null ? String(quoteData.warranty_months) : '',
+        tax_percent: quoteData.tax_percent != null ? quoteData.tax_percent : 27,
         other_terms: quoteData.offer_terms_text || '',
       });
       setDupTitle(`${quoteData.title} ${t('duplicateSuffix')}`);
@@ -172,10 +174,9 @@ export default function OfferDetailMobile({ quoteId }) {
   const isLocked = quote?.status === 'accepted' || quote?.status === 'rejected';
 
   const net = useMemo(() => (sections || []).reduce((s, sec) => s + (sec.entries || []).reduce((a, e) => {
-    const isQty = e.entry_type === 'material' || e.entry_type === 'labour';
-    return a + (isQty ? (e.quantity || 0) * (e.unit_price || 0) : (e.flat_amount || 0));
+    return a + Number(e.amount_huf || 0);
   }, 0), 0), [sections]);
-  const vatPct = quote?.vat_percent ?? 27;
+  const vatPct = quote?.tax_percent ?? 27;
   const vatAmt = net * vatPct / 100;
   const gross = net + vatAmt;
 
@@ -206,6 +207,7 @@ export default function OfferDetailMobile({ quoteId }) {
       payment_method:   orNull(metaForm.payment_method),
       deposit_percent:  metaForm.deposit_pct !== '' ? Number(metaForm.deposit_pct) : null,
       warranty_months:  metaForm.warranty_months !== '' ? Number(metaForm.warranty_months) : null,
+      tax_percent:      metaForm.tax_percent ?? 27,
       offer_terms_text: orNull(metaForm.other_terms),
     };
     const res = await fetch(`/api/quotes/${quoteId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
@@ -265,8 +267,27 @@ export default function OfferDetailMobile({ quoteId }) {
 
   const openSendSheet = useCallback(() => {
     setSendEmail(client?.email || '');
+    setLocalTermsName(null);
     setMode('send');
   }, [client]);
+
+  const handleTermsUpload = async (file) => {
+    if (!file) return;
+    setTermsUploading(true);
+    const fd = new FormData();
+    fd.append('file', file);
+    const res = await fetch('/api/auth/profile/terms-pdf', { method: 'POST', body: fd });
+    setTermsUploading(false);
+    if (!res.ok) {
+      const { error } = await res.json().catch(() => ({}));
+      setAlertModal({ open: true, message: error || t('errorUnknown') });
+      return;
+    }
+    const data = await res.json();
+    setLocalTermsName(data.terms_pdf_name);
+    setAttachTerms(true);
+    refreshSupabaseData?.();
+  };
 
   const handleSend = async () => {
     const email = sendEmail.trim();
@@ -278,7 +299,7 @@ export default function OfferDetailMobile({ quoteId }) {
     const res = await fetch(`/api/quotes/${quoteId}/send`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ to_email: email }),
+      body: JSON.stringify({ to_email: email, attachTerms }),
     });
     setSendLoading(false);
     if (!res.ok) {
@@ -428,35 +449,49 @@ export default function OfferDetailMobile({ quoteId }) {
             </div>
           )}
 
-          {/* Totals */}
-          <div style={{ boxSizing: 'border-box', borderRadius: 26, background: '#fff', boxShadow: CARD_SHADOW, padding: 16, display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <span style={{ fontSize: 13, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#5A5F68' }}>{t('offerTotals')}</span>
+          {/* Pod 1 — Summary */}
+          <InfoPod
+            isOpen={openInfoPods.summary}
+            onToggle={() => toggleInfoPod('summary')}
+            title={t('offerTotals')}
+            headerRight={
+              <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 700, letterSpacing: '-0.02em', fontSize: 20, color: 'var(--m-offer-ink, #4A2796)' }}>
+                {formatMoney(gross, userCurrency)}
+              </span>
+            }
+          >
             <InfoRow label={t('net')} value={formatMoney(net, userCurrency)} />
             <InfoRow label={t('vat', { rate: vatPct })} value={formatMoney(vatAmt, userCurrency)} />
-            <div style={{ height: 1, background: '#EDEBE5' }} />
+            <div style={{ height: 1, background: '#EDEBE5', margin: '4px 0' }} />
             <span style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', fontSize: 16, fontWeight: 700 }}>
-              <span>{t('gross')}</span>
+              <span style={{ color: 'var(--m-ink)' }}>{t('gross')}</span>
               <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 700, letterSpacing: '-0.02em', fontSize: 26, color: 'var(--m-offer-ink, #4A2796)' }}>{formatMoney(gross, userCurrency)}</span>
             </span>
-          </div>
+          </InfoPod>
 
-          {/* Client + portal */}
-          <div style={{ boxSizing: 'border-box', borderRadius: 26, background: '#fff', boxShadow: CARD_SHADOW, padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <span style={{ fontSize: 13, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#5A5F68' }}>{t('orderer')}</span>
-              {canOwnerAct && !isLocked && (
-                <button
-                  aria-label={client ? t('clientMenuTitle') : t('clientAttachAction')}
-                  onClick={() => { setClientSearch(''); setMode(client ? 'clientMenu' : 'clientPicker'); }}
-                  style={{ width: 44, height: 44, margin: '-6px -6px -6px 0', border: 0, borderRadius: 22, background: '#F1F1F3', color: 'var(--m-ink)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
-                >
-                  {client
-                    ? <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true"><path d="M4 20l4-1L19 8l-3-3L5 16zM14 7l3 3"/></svg>
-                    : <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
-                  }
-                </button>
-              )}
-            </span>
+          {/* Pod 2 — Client */}
+          <InfoPod
+            isOpen={openInfoPods.client}
+            onToggle={() => toggleInfoPod('client')}
+            title={t('orderer')}
+            headerRight={
+              client
+                ? <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--m-ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 140 }}>{client.name}</span>
+                : <span style={{ fontSize: 14, fontWeight: 600, color: '#8A8F97' }}>{t('duplicateNoClient')}</span>
+            }
+            action={canOwnerAct && !isLocked ? (
+              <button
+                aria-label={client ? t('clientMenuTitle') : t('clientAttachAction')}
+                onClick={e => { e.stopPropagation(); setClientSearch(''); setMode(client ? 'clientMenu' : 'clientPicker'); }}
+                style={{ flexShrink: 0, width: 36, height: 36, border: 0, borderRadius: 18, background: '#F1F1F3', color: 'var(--m-ink)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+              >
+                {client
+                  ? <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true"><path d="M4 20l4-1L19 8l-3-3L5 16zM14 7l3 3"/></svg>
+                  : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+                }
+              </button>
+            ) : null}
+          >
             {client ? (
               <span style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 <span style={{ flexShrink: 0, width: 48, height: 48, borderRadius: 24, background: 'var(--m-offer-tint, #EDE7FB)', color: 'var(--m-offer-ink, #4A2796)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -495,18 +530,25 @@ export default function OfferDetailMobile({ quoteId }) {
                 </span>
               </div>
             )}
-          </div>
+          </InfoPod>
 
-          {/* General data */}
-          <div style={{ boxSizing: 'border-box', borderRadius: 26, background: '#fff', boxShadow: CARD_SHADOW, padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <span style={{ fontSize: 13, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#5A5F68' }}>{t('generalData')}</span>
-              {canOwnerAct && !isLocked && (
-                <button aria-label={t('offerEditMeta')} onClick={() => setMode('meta')} style={{ width: 48, height: 48, margin: '-8px -8px -8px 0', border: 0, borderRadius: 24, background: '#F1F1F3', color: 'var(--m-ink)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true"><path d="M4 20l4-1L19 8l-3-3L5 16zM14 7l3 3"/></svg>
-                </button>
-              )}
-            </span>
+          {/* Pod 3 — General Data */}
+          <InfoPod
+            isOpen={openInfoPods.general}
+            onToggle={() => toggleInfoPod('general')}
+            title={t('generalData')}
+            headerRight={
+              <span style={{ fontSize: 13, fontWeight: 600, color: '#8A8F97', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 140 }}>
+                {quote?.location || quote?.work_type || quote?.valid_until ? formatDate(quote.valid_until) : ''}
+              </span>
+            }
+            action={canOwnerAct && !isLocked ? (
+              <button aria-label={t('offerEditMeta')} onClick={e => { e.stopPropagation(); setMode('meta'); }}
+                style={{ flexShrink: 0, width: 36, height: 36, border: 0, borderRadius: 18, background: '#F1F1F3', color: 'var(--m-ink)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true"><path d="M4 20l4-1L19 8l-3-3L5 16zM14 7l3 3"/></svg>
+              </button>
+            ) : null}
+          >
             {quote && [
               [t('location'), quote.location],
               [t('workType'), quote.work_type],
@@ -516,9 +558,10 @@ export default function OfferDetailMobile({ quoteId }) {
               [t('paymentMethod'), quote.payment_method],
               [t('depositPct'), quote.deposit_percent ? `${quote.deposit_percent}%` : null],
               [t('warrantyMonths'), quote.warranty_months ? `${quote.warranty_months} ${t('otherTermsUnit')}` : null],
+              [t('vatRate'), `${vatPct}%`],
             ].filter(r => r[1]).map(([k, v], i) => <InfoRow key={i} label={k} value={v} />)}
             <span style={{ fontSize: 12, fontWeight: 600, color: '#5A5F68' }}>{t('createdBy')} {quote?.created_at ? formatDate(quote.created_at) : ''}</span>
-          </div>
+          </InfoPod>
 
           {/* Sections */}
           <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -560,30 +603,7 @@ export default function OfferDetailMobile({ quoteId }) {
             </div>
           )}
 
-          {/* Client comments */}
-          <div style={{ boxSizing: 'border-box', borderRadius: 26, background: '#fff', boxShadow: CARD_SHADOW, padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <span style={{ fontSize: 13, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#5A5F68' }}>{t('offerClientComments')}</span>
-            {comments.length === 0 ? (
-              <span style={{ fontSize: 13, fontWeight: 600, color: '#5A5F68' }}>{t('offerNoComments')}</span>
-            ) : comments.map(c => (
-              <div key={c.id} style={{ display: 'flex', flexDirection: 'column', gap: 2, padding: '10px 12px', borderRadius: 16, background: '#F7F5EF' }}>
-                <span style={{ fontSize: 15, fontWeight: 600, lineHeight: 1.4 }}>{c.comment}</span>
-                <span style={{ fontSize: 13, fontWeight: 600, color: '#5A5F68' }}>{c.created_at ? formatDate(c.created_at) : ''}</span>
-              </div>
-            ))}
-          </div>
 
-          {/* History link */}
-          <button
-            onClick={() => setMode('hist')}
-            style={{ width: '100%', minHeight: 64, boxSizing: 'border-box', padding: '10px 14px', border: 0, borderRadius: 22, background: '#fff', color: 'var(--m-ink)', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 12, fontSize: 16, fontWeight: 700, boxShadow: CARD_SHADOW, cursor: 'pointer' }}
-          >
-            <span style={{ flexShrink: 0, width: 44, height: 44, borderRadius: 15, background: '#F1F1F3', color: '#1A1D23', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M4 12a8 8 0 108-8M4 4v5h5M12 8v4l3 2"/></svg>
-            </span>
-            <span style={{ flex: 1 }}>{t('historyTitle')}</span>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
-          </button>
         </div>
       </div>
 
@@ -626,7 +646,15 @@ export default function OfferDetailMobile({ quoteId }) {
           {quote?.status === 'sent' && canOwnerAct && <SheetRowInline icon="x" label={t('actionReject')} onClick={() => setMode('reject')} />}
           {isLocked && canOwnerAct && <SheetRowInline icon="reset" label={t('actionReset')} onClick={() => setMode('revert')} />}
           <SheetRowInline icon="copy" label={t('actionCopy')} onClick={() => setMode('dup')} />
-          <SheetRowInline icon="hist" label={t('historyTitle')} onClick={() => setMode('hist')} />
+          <SheetRowInline icon="hist" label={t('historyTitle')} onClick={async () => {
+            setMode('hist');
+            setHistLoading(true);
+            try {
+              const r = await fetch(`/api/quotes/${quoteId}/history?limit=20`);
+              const j = r.ok ? await r.json() : { history: [] };
+              setHistory(j.history || []);
+            } catch { /* non-critical */ } finally { setHistLoading(false); }
+          }} />
           {canOwnerAct && <SheetRowInline icon="trash" label={t('actionDelete')} onClick={() => setMode('delete')} danger />}
           {isMember && <span style={{ fontSize: 13, fontWeight: 600, color: '#5A5F68', padding: '0 4px', lineHeight: 1.4 }}>{t('offerMemberCannotDelete')}</span>}
         </div>
@@ -710,6 +738,29 @@ export default function OfferDetailMobile({ quoteId }) {
                     <input type="number" value={metaForm.warranty_months || ''} onChange={e => setMetaForm(f => ({ ...f, warranty_months: e.target.value }))} style={{ ...inp, ...sh('warranty_months') }} />
                   </label>
                 </div>
+                <div style={lbl}>
+                  <span style={lbTxt}>{t('vatRate')}</span>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    {[27, 18, 5, 0].map(v => {
+                      const on = Number(metaForm.tax_percent ?? 27) === v;
+                      return (
+                        <button key={v} type="button" onClick={() => setMetaForm(f => ({ ...f, tax_percent: v }))} aria-pressed={on}
+                          style={{ height: 52, padding: '0 14px', border: 0, borderRadius: 18, background: on ? 'var(--m-offer, #6D3FD1)' : '#fff', color: on ? '#fff' : 'var(--m-ink)', fontSize: 15, fontWeight: 700, cursor: 'pointer', boxShadow: on ? 'none' : '0 1px 0 rgba(14,17,22,0.05), 0 10px 20px -16px rgba(14,17,22,0.4)', flexShrink: 0 }}>
+                          {v}%
+                        </button>
+                      );
+                    })}
+                    <div style={{ flex: 1, minWidth: 0, position: 'relative' }}>
+                      <input
+                        type="number" min="0" max="100"
+                        value={metaForm.tax_percent ?? 27}
+                        onChange={e => setMetaForm(f => ({ ...f, tax_percent: e.target.value === '' ? 0 : Number(e.target.value) }))}
+                        style={{ ...inp, width: '100%', boxSizing: 'border-box', paddingRight: 28 }}
+                      />
+                      <span style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 15, fontWeight: 700, color: 'var(--m-ink)', pointerEvents: 'none' }}>%</span>
+                    </div>
+                  </div>
+                </div>
                 <label style={lbl}>
                   <span style={lbTxt}>{t('otherTermsLabel', { unit: '' })}</span>
                   <textarea value={metaForm.other_terms || ''} onChange={e => setMetaForm(f => ({ ...f, other_terms: e.target.value }))} rows={3}
@@ -773,24 +824,100 @@ export default function OfferDetailMobile({ quoteId }) {
         </div>
       )}
 
+
       {/* History */}
       {mode === 'hist' && (
-        <div role="dialog" aria-label={t('historyTitle')} className="pod-sheet" style={{ position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 50, boxSizing: 'border-box', padding: `10px 16px calc(18px + env(safe-area-inset-bottom))`, borderRadius: '32px 32px 0 0', background: 'var(--m-sheet, #FBFAF7)', display: 'flex', flexDirection: 'column', gap: 12, maxHeight: '88%', overflowY: 'auto' }}>
+        <div role="dialog" aria-label={t('historyTitle')} className="pod-sheet" style={{ position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 50, boxSizing: 'border-box', padding: `10px 16px calc(18px + env(safe-area-inset-bottom))`, borderRadius: '32px 32px 0 0', background: 'var(--m-sheet, #FBFAF7)', display: 'flex', flexDirection: 'column', gap: 8, maxHeight: '88%', overflowY: 'auto' }}>
           <div style={{ alignSelf: 'center', width: 44, height: 5, borderRadius: 3, background: '#D5D2C8' }} />
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 4 }}>
             <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 25, fontWeight: 700, lineHeight: 1.1, color: 'var(--m-ink)' }}>{t('historyTitle')}</span>
             <CloseBtn onClick={() => setMode(null)} />
           </div>
-          {history.length === 0 && <span style={{ fontSize: 14, fontWeight: 600, color: '#5A5F68' }}>{t('historyEmpty')}</span>}
-          {history.map((h, i) => (
-            <span key={i} style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-              <span style={{ flexShrink: 0, width: 12, height: 12, marginTop: 5, borderRadius: 6, background: 'var(--m-offer, #6D3FD1)' }} />
-              <span style={{ flex: 1, display: 'flex', flexDirection: 'column', lineHeight: 1.3 }}>
-                <b style={{ fontSize: 15, color: 'var(--m-ink)' }}>{h.action || h.what}</b>
-                <span style={{ fontSize: 13, fontWeight: 600, color: '#5A5F68' }}>{h.actor || h.who} · {h.created_at ? formatDate(h.created_at) : (h.when || '')}</span>
-              </span>
-            </span>
-          ))}
+          {histLoading && <span style={{ fontSize: 14, fontWeight: 600, color: '#5A5F68' }}>…</span>}
+          {!histLoading && history.length === 0 && <span style={{ fontSize: 14, fontWeight: 600, color: '#5A5F68' }}>{t('historyEmpty')}</span>}
+          {history.map((h) => {
+            const isOpen = expandedHist === h.id;
+            const details = h.details || {};
+            const ACTION_LABELS = {
+              'quote.created':        t('histActionCreated'),
+              'quote.edited':         t('histActionEdited'),
+              'quote.deleted':        t('histActionDeleted'),
+              'quote.sent':           t('histActionSent'),
+              'quote.accepted':       t('histActionAccepted'),
+              'quote.status_changed': t('histActionStatusChanged'),
+              'quote.portal_shown':   t('histActionPortalShown'),
+              'quote.portal_hidden':  t('histActionPortalHidden'),
+              'quote.pdf_downloaded': t('histActionPdfDownloaded'),
+              'section.added':        t('histActionSectionAdded'),
+              'section.deleted':      t('histActionSectionDeleted'),
+              'entry.added':          t('histActionEntryAdded'),
+              'entry.edited':         t('histActionEntryEdited'),
+              'entry.deleted':        t('histActionEntryDeleted'),
+            };
+            const actionLabel = ACTION_LABELS[h.action] || h.action;
+            const ENTRY_TYPE_LABELS = {
+              material: t('entryTypeMaterial'), labour: t('entryTypeLabour'),
+              equipment: t('entryTypeEquipment'), transport: t('entryTypeTransport'), other: t('entryTypeOther'),
+            };
+            const STATUS_LABELS = {
+              draft: t('statusDraft'), sent: t('statusSent'),
+              accepted: t('statusAccepted'), rejected: t('statusRejected'),
+            };
+            const FIELD_LABELS = {
+              title: t('histFieldTitle'), location: t('histFieldLocation'),
+              work_type: t('histFieldWorkType'), description: t('histFieldDescription'),
+              start_date: t('histFieldStartDate'), end_date: t('histFieldEndDate'),
+              client_id: t('histFieldClient'), tax_percent: t('histFieldTax'),
+              offer_number: t('histFieldOfferNumber'), valid_until: t('histFieldValidUntil'),
+              offer_terms_text: t('histFieldTerms'), payment_deadline_days: t('histFieldPaymentDays'),
+              payment_method: t('histFieldPaymentMethod'), deposit_percent: t('histFieldDeposit'),
+              warranty_months: t('histFieldWarranty'),
+            };
+            const translatedFields = details.changed_fields?.map(f => FIELD_LABELS[f] || f);
+            const detailRows = [
+              details.to              && { label: t('histDetailTo'),           value: details.to },
+              details.name            && { label: t('histDetailSection'),      value: details.name },
+              details.entry_count != null && { label: t('histDetailEntryCount'), value: String(details.entry_count) },
+              details.work_description && { label: t('histDetailItem'),        value: details.work_description },
+              details.entry_type      && { label: t('histDetailType'),         value: ENTRY_TYPE_LABELS[details.entry_type] || details.entry_type },
+              details.amount_huf      && { label: t('histDetailAmount'),       value: formatMoney(details.amount_huf, userCurrency) },
+              details.status          && { label: t('histDetailStatus'),       value: STATUS_LABELS[details.status] || details.status },
+              translatedFields?.length && { label: t('histDetailChanged'),     value: translatedFields.join(', ') },
+              details.error           && { label: t('histDetailError'),        value: details.error },
+            ].filter(Boolean);
+            const hasDetails = detailRows.length > 0;
+            return (
+              <button
+                key={h.id}
+                type="button"
+                onClick={() => hasDetails && setExpandedHist(isOpen ? null : h.id)}
+                style={{ width: '100%', border: 0, borderRadius: 18, background: '#fff', padding: '12px 14px', textAlign: 'left', cursor: hasDetails ? 'pointer' : 'default', boxShadow: '0 1px 0 rgba(14,17,22,0.04), 0 6px 14px -8px rgba(14,17,22,0.12)', boxSizing: 'border-box' }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span style={{ flexShrink: 0, width: 10, height: 10, borderRadius: 5, background: 'var(--m-offer, #6D3FD1)', marginTop: 1 }} />
+                  <span style={{ flex: 1, minWidth: 0 }}>
+                    <span style={{ display: 'block', fontSize: 15, fontWeight: 700, color: 'var(--m-ink)', lineHeight: 1.3 }}>{actionLabel}</span>
+                    <span style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#8A8F97', marginTop: 1 }}>{h.user_name} · {h.created_at ? formatDate(h.created_at) : ''}</span>
+                  </span>
+                  {hasDetails && (
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#B0ADA6" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true" style={{ flexShrink: 0, transition: 'transform .18s', transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}>
+                      <path d="M6 9l6 6 6-6"/>
+                    </svg>
+                  )}
+                </div>
+                {isOpen && detailRows.length > 0 && (
+                  <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid #EDEBE5', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    {detailRows.map(({ label, value }) => (
+                      <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
+                        <span style={{ fontSize: 12, fontWeight: 700, color: '#8A8F97', flexShrink: 0 }}>{label}</span>
+                        <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--m-ink)', textAlign: 'right', wordBreak: 'break-all' }}>{value}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </button>
+            );
+          })}
         </div>
       )}
 
@@ -846,6 +973,37 @@ export default function OfferDetailMobile({ quoteId }) {
                 ? t('sendNoEmail')
                 : t('sendNoClientHint')}
           </span>
+          {(() => {
+            const effectiveTermsName = localTermsName || currentUser?.terms_pdf_name;
+            return effectiveTermsName ? (
+              <button
+                type="button"
+                onClick={() => setAttachTerms(v => !v)}
+                style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'none', border: 0, padding: '4px 2px', cursor: 'pointer', textAlign: 'left' }}
+              >
+                <span style={{ flexShrink: 0, width: 24, height: 24, borderRadius: 8, border: `2px solid ${attachTerms ? 'var(--m-offer, #6D3FD1)' : '#B0ADA6'}`, background: attachTerms ? 'var(--m-offer, #6D3FD1)' : '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  {attachTerms && <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" aria-hidden="true"><path d="M5 13l4 4L19 7"/></svg>}
+                </span>
+                <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--m-ink)' }}>{t('sendAttachTerms')} <span style={{ fontWeight: 400, color: '#5A5F68' }}>{effectiveTermsName}</span></span>
+              </button>
+            ) : (
+              <>
+                <input ref={termsFileRef} type="file" accept=".pdf,application/pdf" style={{ display: 'none' }} onChange={e => handleTermsUpload(e.target.files?.[0])} />
+                <button
+                  type="button"
+                  onClick={() => termsFileRef.current?.click()}
+                  disabled={termsUploading}
+                  style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'none', border: `1.5px dashed #B0ADA6`, borderRadius: 16, padding: '12px 14px', cursor: 'pointer', textAlign: 'left', width: '100%', boxSizing: 'border-box', opacity: termsUploading ? 0.6 : 1 }}
+                >
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#8A8F97" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6M12 12v6M9 15l3-3 3 3"/></svg>
+                  <span style={{ flex: 1 }}>
+                    <span style={{ display: 'block', fontSize: 14, fontWeight: 700, color: 'var(--m-ink)' }}>{termsUploading ? t('sendTermsUploading') : t('sendUploadTerms')}</span>
+                    <span style={{ display: 'block', fontSize: 12, fontWeight: 500, color: '#8A8F97' }}>{t('sendNoTerms')}</span>
+                  </span>
+                </button>
+              </>
+            );
+          })()}
           <button
             onClick={handleSend}
             disabled={sendLoading || !sendEmail.trim()}
@@ -1049,6 +1207,35 @@ function Chip({ label }) {
   );
 }
 
+// ─── InfoPod ──────────────────────────────────────────────────────────────────
+function InfoPod({ isOpen, onToggle, title, headerRight, action, children }) {
+  const CARD_SHADOW = 'inset 0 1px 0 #fff, 0 16px 26px -14px rgba(0,0,0,0.70), 0 3px 6px -2px rgba(0,0,0,0.30)';
+  return (
+    <div style={{ boxSizing: 'border-box', borderRadius: 26, background: '#fff', boxShadow: CARD_SHADOW, overflow: 'hidden' }}>
+      <div style={{ width: '100%', minHeight: 64, boxSizing: 'border-box', padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 10 }}>
+        <button
+          type="button"
+          onClick={onToggle}
+          aria-expanded={isOpen}
+          style={{ flex: 1, minWidth: 0, border: 0, background: 'transparent', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', padding: 0 }}
+        >
+          <span style={{ fontSize: 13, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#5A5F68', flexShrink: 0 }}>{title}</span>
+          <span style={{ flex: 1, minWidth: 0, display: 'flex', justifyContent: 'flex-end' }}>{headerRight}</span>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#5A5F68" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true" style={{ flexShrink: 0, transition: 'transform .2s', transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}>
+            <path d="M6 9l6 6 6-6"/>
+          </svg>
+        </button>
+        {action}
+      </div>
+      {isOpen && (
+        <div style={{ borderTop: '1px solid #EDEBE5', padding: '12px 16px 16px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {children}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── SectionEditSheet ─────────────────────────────────────────────────────────
 function SectionEditSheet({ isNew, initial, quoteId, onSave, onClose, t }) {
   const [name,    setName]    = useState(() => initial?.name         || '');
@@ -1183,14 +1370,13 @@ function OfferRoomCard({ sec, index, isOpen, onToggle, onMore, onItems, onDims, 
             {index}
           </span>
           <span style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 3 }}>
-            <span style={{ fontSize: 18, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--m-ink)' }}>{sec.name}</span>
-            {dimsLabel && <span style={{ fontSize: 14, fontWeight: 600, color: '#4A4F57' }}>{dimsLabel}</span>}
+            <span style={{ fontSize: 16, fontWeight: 700, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', color: 'var(--m-ink)', lineHeight: 1.25 }}>{sec.name}</span>
+            {secTotal > 0 && (
+              <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 14, fontWeight: 700, color: '#4A4F57', letterSpacing: '-0.01em' }}>
+                {formatMoney(secTotal, userCurrency)}
+              </span>
+            )}
           </span>
-          {secTotal > 0 && (
-            <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 700, letterSpacing: '-0.02em', fontSize: 18, color: 'var(--m-ink)', flexShrink: 0 }}>
-              {formatMoney(secTotal, userCurrency)}
-            </span>
-          )}
         </button>
         <button
           type="button"

@@ -76,7 +76,7 @@ export async function POST(request, { params }) {
     entityId:   quote.collective_id || user.id,
     userId:     user.id,
     userName:   profile?.display_name || user.email,
-    action:     'Ajánlat elfogadva, projekt létrehozva',
+    action:     'quote.accepted',
     targetType: 'quote',
     targetId:   id,
     targetName: quote.title,

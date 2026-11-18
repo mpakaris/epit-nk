@@ -66,7 +66,7 @@ export async function POST(request) {
     entityId:   project.collective_id || user.id,
     userId:     user.id,
     userName:   callerProfile?.display_name || user.email,
-    action:     'Munkabejegyzés rögzítve',
+    action:     'labour.added',
     targetType: 'project',
     targetId:   projectId,
     targetName: project.name,

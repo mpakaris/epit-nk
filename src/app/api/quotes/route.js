@@ -107,7 +107,7 @@ export async function POST(request) {
     entityId:   collectiveId || user.id,
     userId:     user.id,
     userName:   profile.display_name || user.email,
-    action:     'Ajánlat létrehozva',
+    action:     'quote.created',
     targetType: 'quote',
     targetId:   data.id,
     targetName: data.title,

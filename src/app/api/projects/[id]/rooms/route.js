@@ -71,7 +71,7 @@ export async function POST(request, { params }) {
     entityId: ctx.project.collective_id || ctx.project.owner_id,
     userId: user.id,
     userName: ctx.profile.display_name || user.email,
-    action: 'Helyiség létrehozva',
+    action: 'room.created',
     targetType: 'project_room',
     targetId: room.id,
     targetName: room.name,

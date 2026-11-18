@@ -43,7 +43,7 @@ export async function GET(request, { params }) {
       entityId:   quote.collective_id || user.id,
       userId:     user.id,
       userName:   dlProfile?.display_name || user.email,
-      action:     'PDF letöltve',
+      action:     'quote.pdf_downloaded',
       targetType: 'quote',
       targetId:   id,
       targetName: quote.title,
