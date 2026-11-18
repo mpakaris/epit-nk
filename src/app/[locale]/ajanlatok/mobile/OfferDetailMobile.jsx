@@ -1371,11 +1371,9 @@ function OfferRoomCard({ sec, index, isOpen, onToggle, onMore, onItems, onDims, 
           </span>
           <span style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 3 }}>
             <span style={{ fontSize: 16, fontWeight: 700, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', color: 'var(--m-ink)', lineHeight: 1.25 }}>{sec.name}</span>
-            {secTotal > 0 && (
-              <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 14, fontWeight: 700, color: '#4A4F57', letterSpacing: '-0.01em' }}>
-                {formatMoney(secTotal, userCurrency)}
-              </span>
-            )}
+            <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 14, fontWeight: 700, color: '#4A4F57', letterSpacing: '-0.01em' }}>
+              {formatMoney(secTotal, userCurrency)}
+            </span>
           </span>
         </button>
         <button
