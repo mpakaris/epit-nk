@@ -13,6 +13,7 @@ import { useApp } from '@/context/AppContext';
 import { formatMoney, formatDate } from '@/lib/constants';
 import useOnline from '@/hooks/useOnline';
 import { AlertModal, ConfirmModal } from '@/components/Modal';
+import QuickClientSheet from './QuickClientSheet';
 
 const CARD_SHADOW = 'inset 0 1px 0 #fff, 0 16px 26px -14px rgba(0,0,0,0.70), 0 3px 6px -2px rgba(0,0,0,0.30)';
 
@@ -67,7 +68,7 @@ export default function OfferDetailMobile({ quoteId }) {
   const isOnline = useOnline();
   const {
     quotes = [], clients = [], currentUser, isDemoMode, userCurrency,
-    collectives: userMemberships = [], createClient, deleteQuoteSection, refreshSupabaseData,
+    collectives: userMemberships = [], createClient, deleteQuote, deleteQuoteSection, refreshSupabaseData,
   } = useApp();
 
   const navPrefix = isDemoMode ? '/demo' : '';
@@ -102,10 +103,6 @@ export default function OfferDetailMobile({ quoteId }) {
     return () => el.removeEventListener('scroll', onScroll);
   }, []);
   const [clientSearch, setClientSearch] = useState('');
-  const [quickName, setQuickName] = useState('');
-  const [quickEmail, setQuickEmail] = useState('');
-  const [quickGdpr, setQuickGdpr] = useState(false);
-  const [quickLoading, setQuickLoading] = useState(false);
   const [sectionMenuId,    setSectionMenuId]    = useState(null);
   const [openInfoPods,     setOpenInfoPods]     = useState({ summary: true, client: false, general: false });
   const toggleInfoPod = (key) => setOpenInfoPods(prev => ({ ...prev, [key]: !prev[key] }));
@@ -233,13 +230,12 @@ export default function OfferDetailMobile({ quoteId }) {
 
   const handleDelete = async () => {
     if (!quote) return;
-    const res = await fetch(`/api/quotes/${quoteId}`, { method: 'DELETE' });
-    if (!res.ok) {
-      const { error } = await res.json().catch(() => ({}));
-      setAlertModal({ open: true, message: error || t('errorUnknown') });
-      return;
+    try {
+      await deleteQuote(quoteId);
+      router.push(p('/ajanlatok'));
+    } catch (err) {
+      setAlertModal({ open: true, message: err.message || t('errorUnknown') });
     }
-    router.push(p('/ajanlatok'));
   };
 
   const handleRevert = async () => {
@@ -336,21 +332,6 @@ export default function OfferDetailMobile({ quoteId }) {
     setQuote(q => ({ ...q, client_id: clientId }));
   };
 
-  const handleQuickCreate = async () => {
-    if (!quickName.trim() || !quickEmail.trim() || !quickGdpr) return;
-    setQuickLoading(true);
-    try {
-      const created = await createClient({
-        name: quickName.trim(),
-        email: quickEmail.trim() || undefined,
-        gdprConsent: true,
-      });
-      await handleClientAttach(created.id);
-    } catch (err) {
-      setAlertModal({ open: true, message: err.message || t('errorUnknown') });
-      setQuickLoading(false);
-    }
-  };
 
   const handleSectionDelete = async (sectionId) => {
     try {
@@ -1130,51 +1111,12 @@ export default function OfferDetailMobile({ quoteId }) {
 
       {/* Quick client create */}
       {mode === 'clientQuickCreate' && (
-        <div role="dialog" aria-label={t('newClientTitle')} className="pod-sheet" style={{ position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 50, boxSizing: 'border-box', padding: `10px 16px calc(18px + env(safe-area-inset-bottom))`, borderRadius: '32px 32px 0 0', background: 'var(--m-sheet, #FBFAF7)', display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <div style={{ alignSelf: 'center', width: 44, height: 5, borderRadius: 3, background: '#D5D2C8' }} />
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <button onClick={() => { setClientSearch(''); setMode('clientPicker'); }} aria-label={t('back')} style={{ width: 44, height: 44, flexShrink: 0, border: 0, borderRadius: 22, background: '#EFEDE6', color: 'var(--m-ink)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>
-            </button>
-            <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 25, fontWeight: 700, lineHeight: 1.1, color: 'var(--m-ink)' }}>{t('newClientTitle')}</span>
-          </div>
-          <span style={{ fontSize: 13, fontWeight: 600, color: '#5A5F68', lineHeight: 1.5, padding: '0 2px' }}>{t('clientQuickCreateHint')}</span>
-          <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--m-ink)' }}>{t('newClientNameLabel')}</span>
-            <input
-              type="text"
-              autoFocus
-              value={quickName}
-              onChange={e => setQuickName(e.target.value)}
-              placeholder="Horváth Béla"
-              style={{ width: '100%', boxSizing: 'border-box', height: 56, border: 0, borderRadius: 20, background: '#fff', padding: '0 16px', fontSize: 17, fontWeight: 500, color: 'var(--m-ink)', boxShadow: '0 1px 0 rgba(14,17,22,0.05), 0 10px 20px -16px rgba(14,17,22,0.4)', outline: 0 }}
-            />
-          </label>
-          <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--m-ink)' }}>{t('newClientEmailLabel')}</span>
-            <input
-              type="email"
-              autoComplete="email"
-              value={quickEmail}
-              onChange={e => setQuickEmail(e.target.value)}
-              placeholder="email@example.com"
-              style={{ width: '100%', boxSizing: 'border-box', height: 56, border: 0, borderRadius: 20, background: '#fff', padding: '0 16px', fontSize: 17, fontWeight: 500, color: 'var(--m-ink)', boxShadow: '0 1px 0 rgba(14,17,22,0.05), 0 10px 20px -16px rgba(14,17,22,0.4)', outline: 0 }}
-            />
-          </label>
-          <label style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: 14, borderRadius: 20, background: quickGdpr ? '#E7F4EC' : '#fff', border: `1.5px solid ${quickGdpr ? '#86efac' : '#E0E0E0'}`, cursor: 'pointer' }}>
-            <input type="checkbox" checked={quickGdpr} onChange={e => setQuickGdpr(e.target.checked)} style={{ marginTop: 2, flexShrink: 0, accentColor: '#6D3FD1', width: 18, height: 18 }} />
-            <span style={{ fontSize: 14, color: 'var(--m-ink)', lineHeight: 1.45 }}>
-              {t('newClientGdprText')} <span style={{ color: '#B71C1C', fontWeight: 700 }}>*</span>
-            </span>
-          </label>
-          <button
-            onClick={handleQuickCreate}
-            disabled={quickLoading || !quickName.trim() || !quickEmail.trim() || !quickGdpr}
-            style={{ height: 60, border: 0, borderRadius: 30, background: quickLoading || !quickName.trim() || !quickEmail.trim() || !quickGdpr ? '#B9B5AA' : 'var(--m-offer, #6D3FD1)', color: '#fff', fontSize: 17, fontWeight: 700, cursor: quickLoading || !quickName.trim() || !quickEmail.trim() || !quickGdpr ? 'default' : 'pointer' }}
-          >
-            {quickLoading ? '…' : t('clientQuickCreateBtn')}
-          </button>
-        </div>
+        <QuickClientSheet
+          createClient={createClient}
+          onCreated={async (client) => { await handleClientAttach(client.id); }}
+          onBack={() => { setClientSearch(''); setMode('clientPicker'); }}
+          onClose={() => setMode(null)}
+        />
       )}
 
       {/* Section create / edit sheet */}

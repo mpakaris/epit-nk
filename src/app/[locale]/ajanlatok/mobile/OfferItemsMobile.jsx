@@ -26,7 +26,7 @@ const UNIT_I18N     = { db: 'itemsUnitDb', nap: 'itemsUnitNap', zsák: 'itemsUni
 // ─── Entry row ─────────────────────────────────────────────────────────────────
 function EntryRow({ entry, onEdit, t, userCurrency }) {
   const m   = TYPE_META[entry.entry_type] || TYPE_META.other;
-  const qty = isQtyType(entry.entry_type);
+  const qty = entry.entry_type === 'material' || entry.entry_type === 'labour';
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0', borderTop: '1px solid #ECEAE4' }}>
       <span style={{ width: 8, height: 8, borderRadius: 4, background: m.fg, flexShrink: 0 }} aria-hidden="true" />
@@ -165,7 +165,7 @@ function OfferItemSheet({ initial, onSave, onDelete, onClose, t, tS, tc, userCur
             <input type="text" inputMode="decimal" value={qty || 0}
               onChange={e => { const v = parseFloat(e.target.value.replace(/,/g, '.')); setQty(isNaN(v) ? 0 : v); }}
               onFocus={e => e.target.select()}
-              style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 26, fontWeight: 700, width: 44, textAlign: 'center', border: 0, background: 'transparent', outline: 'none', color: '#0E1116', padding: '10px 0' }} />
+              style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 22, fontWeight: 700, width: 72, textAlign: 'center', border: 0, background: 'transparent', outline: 'none', color: '#0E1116', padding: '10px 0' }} />
             <button type="button" onClick={() => setQty(q => Math.max(0, q - 1))} aria-label="-1"
               style={{ width: 44, height: 44, border: 0, borderRadius: 22, background: '#F1F1F3', color: '#0E1116', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true"><path d="M5 12h14"/></svg>
@@ -243,7 +243,7 @@ export default function OfferItemsMobile() {
   const tS = useTranslations('surveyDetail');
   const tM = useTranslations('mobilePods');
   const tc = useTranslations('common');
-  const { currentUser, isDemoMode, userCurrency, quotes = [] } = useApp();
+  const { currentUser, isDemoMode, userCurrency, quotes = [], refreshSupabaseData } = useApp();
   const quoteTitle = quotes.find(q => q.id === quoteId)?.title || '';
 
   const p = (path) => isDemoMode ? `/demo${path}` : path;
@@ -304,6 +304,7 @@ export default function OfferItemsMobile() {
         if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.error || t('errorUnknown')); }
       }
       await refresh();
+      refreshSupabaseData?.();
     } catch (err) {
       setAlertMsg(err.message || t('errorUnknown'));
       throw err;
@@ -319,6 +320,7 @@ export default function OfferItemsMobile() {
       throw new Error(d.error || t('errorUnknown'));
     }
     await refresh();
+    refreshSupabaseData?.();
   };
 
   const grouped = TYPE_ORDER

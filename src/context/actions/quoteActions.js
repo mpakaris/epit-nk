@@ -55,7 +55,8 @@ export function makeQuoteActions({
   const deleteQuote = async (quoteId) => {
     const res = await fetch(`/api/quotes/${quoteId}`, { method: 'DELETE' });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Hiba az ajánlat törlésekor');
+    // 404 means already deleted — still clean up local state
+    if (!res.ok && res.status !== 404) throw new Error(data.error || 'Hiba az ajánlat törlésekor');
     setQuotes(prev => prev.filter(q => q.id !== quoteId));
     setQuoteEntries(prev => prev.filter(e => e.quote_id !== quoteId));
     setQuoteSections(prev => prev.filter(s => s.quote_id !== quoteId));

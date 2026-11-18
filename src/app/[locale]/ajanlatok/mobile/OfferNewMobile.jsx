@@ -15,6 +15,7 @@ import { PERSONAL_COLOR, podColor } from '@/lib/podColor';
 import { isEffectivePremium } from '@/lib/subscriptionLimits';
 import useOnline from '@/hooks/useOnline';
 import { AlertModal } from '@/components/Modal';
+import QuickClientSheet from './QuickClientSheet';
 
 const VIOLET_DEST = { bg: '#6D3FD1', fg: '#fff', glow: 'rgba(255,255,255,0.10)', glass: 'rgba(255,255,255,0.18)', soft: 'rgba(255,255,255,0.88)', tint: '#EDE7FB', deep: '#1C1038' };
 
@@ -47,12 +48,6 @@ export default function OfferNewMobile() {
   const [surveySearch, setSurveySearch] = useState('');
   const [showInactive, setShowInactive] = useState(false);
   const [newClientSheet, setNewClientSheet] = useState(false);
-  const [ncName, setNcName] = useState('');
-  const [ncPhone, setNcPhone] = useState('');
-  const [ncEmail, setNcEmail] = useState('');
-  const [ncAddress, setNcAddress] = useState('');
-  const [ncGdpr, setNcGdpr] = useState(false);
-  const [ncSaving, setNcSaving] = useState(false);
 
   const isPremium = isEffectivePremium(currentUser);
   const quoteCount = useMemo(() => (quotes || []).filter(q => !q.deleted_at).length, [quotes]);
@@ -110,7 +105,7 @@ export default function OfferNewMobile() {
         work_type: workType.trim() || null,
         planned_start: plannedStart || null,
         planned_end: plannedEnd || null,
-        vat_percent: vat,
+        tax_percent: vat,
         description: description.trim() || null,
         survey_id: surveyId || null,
         collective_id: space !== 'personal' ? space : null,
@@ -134,19 +129,6 @@ export default function OfferNewMobile() {
     }
   };
 
-  const handleNewClient = async () => {
-    if (!ncName.trim()) { return; }
-    setNcSaving(true);
-    try {
-      const res = await fetch('/api/clients', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: ncName.trim(), phone: ncPhone.trim(), email: ncEmail.trim(), address: ncAddress.trim(), gdpr_consented: ncGdpr }) });
-      if (!res.ok) { const { error } = await res.json().catch(() => ({})); setAlertModal({ open: true, message: error || t('saveError') }); return; }
-      const { client } = await res.json();
-      setClientId(client.id);
-      setNewClientSheet(false);
-      setNcName(''); setNcPhone(''); setNcEmail(''); setNcAddress(''); setNcGdpr(false);
-    } catch { setAlertModal({ open: true, message: t('saveError') }); }
-    finally { setNcSaving(false); }
-  };
 
   const dest = { ...VIOLET_DEST };
 
@@ -233,19 +215,28 @@ export default function OfferNewMobile() {
             {/* Survey picker */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               <span style={{ fontSize: 15, fontWeight: 700, color: '#fff' }}>{t('surveyOptional', { note: t('surveyNote') })}</span>
-              <button onClick={() => setSurveySheet(true)} style={{ width: '100%', boxSizing: 'border-box', height: 64, border: 0, borderRadius: 20, background: '#fff', padding: '0 16px', fontSize: 17, fontWeight: 500, color: 'var(--m-ink)', display: 'flex', alignItems: 'center', gap: 10, textAlign: 'left', cursor: 'pointer' }}>
-                <span style={{ flexShrink: 0, width: 40, height: 40, borderRadius: 13, background: dest.tint, color: 'var(--m-offer-ink, #4A2796)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M4 20l4-1L19 8l-3-3L5 16zM14 7l3 3"/></svg>
-                </span>
-                <span style={{ flex: 1, display: 'flex', flexDirection: 'column', lineHeight: 1.2 }}>
-                  <span>{selectedSurvey ? selectedSurvey.title : t('surveysEmpty')}</span>
-                  {selectedSurvey && <span style={{ fontSize: 13, fontWeight: 600, color: '#5A5F68' }}>{selectedSurvey.created_at ? formatDate(selectedSurvey.created_at) : ''}</span>}
-                </span>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
-              </button>
-              {selectedSurvey && (
-                <button onClick={() => setSurveyId(null)} style={{ alignSelf: 'flex-start', minHeight: 44, border: 0, background: 'transparent', color: '#fff', fontSize: 14, fontWeight: 700, textDecoration: 'underline', cursor: 'pointer' }}>{t('offerRemoveSurvey')}</button>
-              )}
+              <div style={{ position: 'relative' }}>
+                <button onClick={() => setSurveySheet(true)} style={{ width: '100%', boxSizing: 'border-box', height: 64, border: 0, borderRadius: 20, background: '#fff', padding: selectedSurvey ? '0 56px 0 16px' : '0 16px', fontSize: 17, fontWeight: 500, color: 'var(--m-ink)', display: 'flex', alignItems: 'center', gap: 10, textAlign: 'left', cursor: 'pointer' }}>
+                  <span style={{ flexShrink: 0, width: 40, height: 40, borderRadius: 13, background: dest.tint, color: 'var(--m-offer-ink, #4A2796)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M4 20l4-1L19 8l-3-3L5 16zM14 7l3 3"/></svg>
+                  </span>
+                  <span style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', lineHeight: 1.2 }}>
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{selectedSurvey ? selectedSurvey.title : t('surveysEmpty')}</span>
+                    {selectedSurvey && <span style={{ fontSize: 13, fontWeight: 600, color: '#5A5F68' }}>{selectedSurvey.created_at ? formatDate(selectedSurvey.created_at) : ''}</span>}
+                  </span>
+                  {!selectedSurvey && <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true" style={{ flexShrink: 0 }}><path d="M6 9l6 6 6-6"/></svg>}
+                </button>
+                {selectedSurvey && (
+                  <button
+                    type="button"
+                    aria-label={t('offerRemoveSurvey')}
+                    onClick={() => setSurveyId(null)}
+                    style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', width: 40, height: 40, border: 0, borderRadius: 20, background: '#F0EDE8', color: '#5A5F68', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* Client */}
@@ -322,8 +313,8 @@ export default function OfferNewMobile() {
         )}
         <button
           onClick={step === 1 ? () => setStep(2) : handleCreate}
-          disabled={saving}
-          style={{ flex: 1, height: 60, border: 0, borderRadius: 30, background: 'var(--m-offer, #6D3FD1)', color: '#fff', fontSize: 17, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, cursor: 'pointer', boxShadow: '0 14px 26px -12px rgba(14,17,22,0.6)' }}
+          disabled={saving || (step === 2 && !title.trim())}
+          style={{ flex: 1, height: 60, border: 0, borderRadius: 30, background: step === 2 && !title.trim() ? '#B9B5AA' : 'var(--m-offer, #6D3FD1)', color: '#fff', fontSize: 17, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, cursor: step === 2 && !title.trim() ? 'default' : 'pointer', boxShadow: step === 2 && !title.trim() ? 'none' : '0 14px 26px -12px rgba(14,17,22,0.6)' }}
         >
           {step === 1 ? t('offerStep1Btn') : (saving ? '…' : t('createQuote'))}
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
@@ -358,7 +349,13 @@ export default function OfferNewMobile() {
               <div key={g.name} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 <span style={{ fontSize: 13, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#5A5F68' }}>{g.name}</span>
                 {g.items.map(sv => (
-                  <button key={sv.id} onClick={() => { setSurveyId(sv.id); setSurveySheet(false); }} style={{ width: '100%', minHeight: 68, boxSizing: 'border-box', padding: '10px 14px', border: 0, borderRadius: 22, background: '#fff', color: 'var(--m-ink)', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 12, fontSize: 16, fontWeight: 700, boxShadow: surveyId === sv.id ? `0 0 0 3px var(--m-offer, #6D3FD1)` : '0 1px 0 rgba(14,17,22,0.05), 0 12px 22px -18px rgba(14,17,22,0.35)', cursor: 'pointer', opacity: sv.archived_at ? 0.7 : 1 }}>
+                  <button key={sv.id} onClick={() => {
+                    setSurveyId(sv.id);
+                    setSurveySheet(false);
+                    if (sv.location  && !location.trim())  setLocation(sv.location);
+                    if (sv.client_id && !clientId)         setClientId(sv.client_id);
+                    if (sv.title     && !title.trim())     setTitle(sv.title);
+                  }} style={{ width: '100%', minHeight: 68, boxSizing: 'border-box', padding: '10px 14px', border: 0, borderRadius: 22, background: '#fff', color: 'var(--m-ink)', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 12, fontSize: 16, fontWeight: 700, boxShadow: surveyId === sv.id ? `0 0 0 3px var(--m-offer, #6D3FD1)` : '0 1px 0 rgba(14,17,22,0.05), 0 12px 22px -18px rgba(14,17,22,0.35)', cursor: 'pointer', opacity: sv.archived_at ? 0.7 : 1 }}>
                     <span style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
                       <b style={{ fontSize: 16 }}>{sv.title}</b>
                       <span style={{ fontSize: 13, fontWeight: 600, color: '#5A5F68' }}>{sv.created_at ? formatDate(sv.created_at) : ''}</span>
@@ -377,35 +374,11 @@ export default function OfferNewMobile() {
 
       {/* New client sheet */}
       {newClientSheet && (
-        <>
-          <div onClick={() => setNewClientSheet(false)} style={{ position: 'fixed', inset: 0, zIndex: 40, background: 'rgba(14,17,22,0.5)' }} role="button" tabIndex={0} aria-label={t('close')} onKeyDown={e => e.key === 'Enter' && setNewClientSheet(false)} />
-          <div role="dialog" aria-label={t('newClientTitle')} className="pod-sheet" style={{ position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 50, boxSizing: 'border-box', padding: `10px 16px calc(18px + env(safe-area-inset-bottom))`, borderRadius: '32px 32px 0 0', background: 'var(--m-sheet, #FBFAF7)', display: 'flex', flexDirection: 'column', gap: 12, maxHeight: '90%', overflowY: 'auto' }}>
-            <div style={{ alignSelf: 'center', width: 44, height: 5, borderRadius: 3, background: '#D5D2C8' }} />
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
-              <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 25, fontWeight: 700, lineHeight: 1.1, color: 'var(--m-ink)' }}>{t('newClientTitle')}</span>
-              <button onClick={() => setNewClientSheet(false)} aria-label={t('close')} style={{ width: 48, height: 48, border: 0, borderRadius: 24, background: '#EFEDE6', color: 'var(--m-ink)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
-              </button>
-            </div>
-            {[
-              [t('newClientNameLabel'), 'text', ncName, setNcName, t('newClientNamePlaceholder')],
-              [t('newClientPhoneLabel'), 'tel', ncPhone, setNcPhone, '+36 70…'],
-              [t('newClientEmailLabel'), 'email', ncEmail, setNcEmail, 'email@…'],
-              [t('newClientAddressLabel'), 'text', ncAddress, setNcAddress, t('newClientAddressPlaceholder')],
-            ].map(([label, type, val, setter, ph]) => (
-              <input key={label} type={type} placeholder={`${label}${label === t('newClientNameLabel') || label === t('newClientEmailLabel') ? ' *' : ''} — ${ph}`} value={val} onChange={e => setter(e.target.value)} style={{ width: '100%', boxSizing: 'border-box', height: 56, border: 0, borderRadius: 20, background: '#fff', padding: '0 16px', fontSize: 17, fontWeight: 500, color: 'var(--m-ink)', boxShadow: '0 1px 0 rgba(14,17,22,0.05), 0 10px 20px -16px rgba(14,17,22,0.4)' }} />
-            ))}
-            <button onClick={() => setNcGdpr(v => !v)} aria-pressed={ncGdpr} style={{ minHeight: 72, boxSizing: 'border-box', padding: '12px 14px', border: 0, borderRadius: 22, background: '#fff', color: 'var(--m-ink)', textAlign: 'left', display: 'flex', gap: 12, alignItems: 'center', boxShadow: `inset 0 0 0 2px ${ncGdpr ? '#2E8B57' : '#C9C5BA'}`, cursor: 'pointer' }}>
-              <span style={{ flexShrink: 0, width: 30, height: 30, borderRadius: 10, border: `2px solid ${ncGdpr ? '#2E8B57' : '#C9C5BA'}`, background: ncGdpr ? '#2E8B57' : 'transparent', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                {ncGdpr && <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.4" strokeLinecap="round" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg>}
-              </span>
-              <span style={{ fontSize: 14, fontWeight: 600, lineHeight: 1.35 }}>{t('newClientGdprText')} *</span>
-            </button>
-            <button onClick={handleNewClient} disabled={ncSaving || !ncGdpr} style={{ height: 60, border: 0, borderRadius: 30, background: ncGdpr ? 'var(--m-ink)' : '#B9B5AA', color: '#fff', fontSize: 17, fontWeight: 700, cursor: 'pointer' }}>
-              {ncSaving ? '…' : t('newClientButton')}
-            </button>
-          </div>
-        </>
+        <QuickClientSheet
+          createClient={createClient}
+          onCreated={(client) => { setClientId(client.id); setNewClientSheet(false); }}
+          onClose={() => setNewClientSheet(false)}
+        />
       )}
 
       <AlertModal
