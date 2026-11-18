@@ -5,7 +5,7 @@
  * Expenses / Diary / Payment plan / Portal as in-screen tabs
  */
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useApp } from '@/context/AppContext';
@@ -98,6 +98,17 @@ export default function ProjectDetailMobile({ projectId }) {
 
   const navPrefix = isDemoMode ? '/demo' : '';
   const p = useCallback((path) => `${navPrefix}${path}`, [navPrefix]);
+
+  const scrollRef    = useRef(null);
+  const [compactBar, setCompactBar] = useState(false);
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const onScroll = () => setCompactBar(el.scrollTop > 80);
+    el.addEventListener('scroll', onScroll, { passive: true });
+    return () => el.removeEventListener('scroll', onScroll);
+  }, []);
 
   const [activeTab, setActiveTab] = useState('expenses');
   const [expensesTab, setExpensesTab] = useState('invoices');
@@ -300,7 +311,18 @@ export default function ProjectDetailMobile({ projectId }) {
         </div>
       )}
 
-      <div style={{ overflowY: 'auto', paddingBottom: canOwnerAct && !isClosed ? 180 : 100 }}>
+      {/* Compact sticky header */}
+      <div style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 28, background: PROJ_BG, padding: '10px 16px', paddingTop: 'max(10px, env(safe-area-inset-top))', display: 'flex', alignItems: 'center', gap: 10, borderRadius: '0 0 22px 22px', boxShadow: '0 4px 20px rgba(0,0,0,0.3)', transform: compactBar && !mode ? 'translateY(0)' : 'translateY(-110%)', transition: 'transform 0.22s cubic-bezier(0.4,0,0.2,1)', pointerEvents: compactBar && !mode ? 'auto' : 'none' }}>
+        <button aria-label={tProj('back')} onClick={() => router.push(p('/projektek'))} style={{ flexShrink: 0, width: 40, height: 40, border: 0, borderRadius: 20, background: 'rgba(255,255,255,0.18)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>
+        </button>
+        <span style={{ flex: 1, minWidth: 0, fontSize: 16, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: '#fff' }}>{project?.name}</span>
+        <button aria-label={t('actionsMenuLabel')} onClick={() => setMode('menu')} style={{ flexShrink: 0, width: 40, height: 40, border: 0, borderRadius: 20, background: 'rgba(255,255,255,0.18)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" aria-hidden="true"><path d="M5 12h.01M12 12h.01M19 12h.01"/></svg>
+        </button>
+      </div>
+
+      <div ref={scrollRef} style={{ overflowY: 'auto', maxHeight: '100dvh', paddingBottom: canOwnerAct && !isClosed ? 180 : 100 }}>
 
         {/* Header */}
         <header style={{ position: 'relative', overflow: 'hidden', boxSizing: 'border-box', padding: '18px 16px 20px', borderRadius: '0 0 32px 32px', background: PROJ_BG, color: '#fff', display: 'flex', flexDirection: 'column', gap: 12 }}>

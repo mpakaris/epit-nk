@@ -560,9 +560,19 @@ export default function SurveyDetailMobile() {
 
   const fetchSurveyMediaRef = useRef(fetchSurveyMedia);
   fetchSurveyMediaRef.current = fetchSurveyMedia;
-  const drawingPadRef = useRef(null);
-  const cacheSurveyRef = useRef(cacheSurvey);
+  const drawingPadRef   = useRef(null);
+  const cacheSurveyRef  = useRef(cacheSurvey);
   cacheSurveyRef.current = cacheSurvey;
+  const scrollRef       = useRef(null);
+  const [compactBar,    setCompactBar] = useState(false);
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const onScroll = () => setCompactBar(el.scrollTop > 80);
+    el.addEventListener('scroll', onScroll, { passive: true });
+    return () => el.removeEventListener('scroll', onScroll);
+  }, []);
 
   useEffect(() => {
     if (!dataReady) return;
@@ -726,8 +736,19 @@ export default function SurveyDetailMobile() {
   return (
     <div className="pod-screen-dark" style={{ position: 'relative', minHeight: '100dvh', background: SURVEY_DEEP, color: '#fff', fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif", overflowX: 'hidden' }}>
 
+      {/* Compact sticky header — slides in after scrolling past the full header */}
+      <div style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 28, background: SURVEY_BG, padding: '10px 16px', paddingTop: 'max(10px, env(safe-area-inset-top))', display: 'flex', alignItems: 'center', gap: 10, borderRadius: '0 0 22px 22px', boxShadow: '0 4px 20px rgba(0,0,0,0.3)', transform: compactBar && !sheet ? 'translateY(0)' : 'translateY(-110%)', transition: 'transform 0.22s cubic-bezier(0.4,0,0.2,1)', pointerEvents: compactBar && !sheet ? 'auto' : 'none' }}>
+        <button type="button" aria-label={tc('back')} onClick={() => router.push(p('/felmeres'))} style={{ flexShrink: 0, width: 40, height: 40, border: 0, borderRadius: 20, background: 'rgba(255,255,255,0.18)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>
+        </button>
+        <span style={{ flex: 1, minWidth: 0, fontSize: 16, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{survey?.title}</span>
+        <button type="button" aria-label={tM('surveyCtxTitle')} onClick={() => setSheet('menu')} style={{ flexShrink: 0, width: 40, height: 40, border: 0, borderRadius: 20, background: 'rgba(255,255,255,0.18)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" aria-hidden="true"><path d="M5 12h.01M12 12h.01M19 12h.01"/></svg>
+        </button>
+      </div>
+
       {/* Scroll container */}
-      <div style={{ position: 'relative', overflowY: 'auto', maxHeight: '100dvh', boxSizing: 'border-box', paddingBottom: 190 }}>
+      <div ref={scrollRef} style={{ position: 'relative', overflowY: 'auto', maxHeight: '100dvh', boxSizing: 'border-box', paddingBottom: 190 }}>
 
         {/* Offline banner */}
         {!online && (
