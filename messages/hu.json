@@ -2563,6 +2563,8 @@
     "itemsConfirmAddBtn": "Hozzáadás ({count})",
     "itemsManualSheetTitle": "Új tétel",
     "itemsDictateBtn": "Diktálás",
+    "comingSoonTitle": "Hamarosan",
+    "comingSoonDictate": "A diktálás funkció fejlesztés alatt áll.",
     "itemsAiBtn": "AI javaslat",
     "itemsSuggestionBadge": "AI javaslat",
     "itemsEditSheetTitle": "Tétel szerkesztése",

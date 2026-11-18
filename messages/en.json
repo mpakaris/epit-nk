@@ -2563,6 +2563,8 @@
     "itemsConfirmAddBtn": "Add ({count})",
     "itemsManualSheetTitle": "New item",
     "itemsDictateBtn": "Dictate",
+    "comingSoonTitle": "Coming soon",
+    "comingSoonDictate": "The dictation feature is under development.",
     "itemsAiBtn": "AI suggest",
     "itemsSuggestionBadge": "AI suggestion",
     "itemsEditSheetTitle": "Edit item",

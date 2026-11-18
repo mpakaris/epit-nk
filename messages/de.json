@@ -2563,6 +2563,8 @@
     "itemsConfirmAddBtn": "Hinzufügen ({count})",
     "itemsManualSheetTitle": "Neue Position",
     "itemsDictateBtn": "Diktieren",
+    "comingSoonTitle": "Demnächst",
+    "comingSoonDictate": "Die Diktierfunktion befindet sich in der Entwicklung.",
     "itemsAiBtn": "KI-Vorschlag",
     "itemsSuggestionBadge": "KI-Vorschlag",
     "itemsEditSheetTitle": "Position bearbeiten",

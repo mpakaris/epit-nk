@@ -322,6 +322,7 @@ export default function ItemsMobile() {
   const [delConfirm,   setDelConfirm]   = useState(null); // item to delete
   const [anySheet,     setAnySheet]     = useState(false);
   const [audioTrigger, setAudioTrigger] = useState(0);
+  const [comingSoon,   setComingSoon]   = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
   const autoTriggered = useRef(false);
 
@@ -672,10 +673,9 @@ export default function ItemsMobile() {
         <div style={{ position: 'fixed', zIndex: 20, left: 0, right: 0, bottom: 0, boxSizing: 'border-box', padding: `24px 16px calc(16px + env(safe-area-inset-bottom))`, background: `linear-gradient(to top, ${SURVEY_DEEP} 65%, rgba(0,0,0,0))`, display: 'flex', gap: 10 }}>
           <button
             type="button"
-            onClick={() => setAudioTrigger(n => n + 1)}
-            disabled={isBusy}
+            onClick={() => setComingSoon(true)}
             aria-label={tM('itemsDictateBtn')}
-            style={{ flexShrink: 0, width: 60, height: 60, border: 0, borderRadius: 30, background: '#fff', color: '#0E1116', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: isBusy ? 'not-allowed' : 'pointer', opacity: isBusy ? 0.5 : 1, boxShadow: '0 10px 22px -10px rgba(14,17,22,0.4)' }}
+            style={{ flexShrink: 0, width: 60, height: 60, border: 0, borderRadius: 30, background: '#fff', color: '#0E1116', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 10px 22px -10px rgba(14,17,22,0.4)' }}
           >
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 6a3 3 0 106 0v6a3 3 0 10-6 0zM5 11a7 7 0 0014 0M12 18v3"/></svg>
           </button>
@@ -728,6 +728,19 @@ export default function ItemsMobile() {
             tc={tc}
           />
         </div>
+      )}
+
+      {/* Coming soon sheet */}
+      {comingSoon && (
+        <>
+          <div onClick={() => setComingSoon(false)} style={{ position: 'fixed', inset: 0, zIndex: 44, background: 'rgba(14,17,22,0.5)' }} />
+          <div role="dialog" className="pod-sheet" style={{ position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 50, boxSizing: 'border-box', padding: `24px 24px calc(28px + env(safe-area-inset-bottom))`, borderRadius: '32px 32px 0 0', background: '#FBFAF7', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, textAlign: 'center' }}>
+            <span style={{ fontSize: 36 }}>🎙️</span>
+            <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 24, fontWeight: 700, color: '#0E1116' }}>{tM('comingSoonTitle')}</span>
+            <span style={{ fontSize: 15, fontWeight: 500, color: '#5A5F68', lineHeight: 1.5 }}>{tM('comingSoonDictate')}</span>
+            <button onClick={() => setComingSoon(false)} style={{ marginTop: 8, height: 56, width: '100%', border: 0, borderRadius: 28, background: '#0E1116', color: '#fff', fontSize: 16, fontWeight: 700, cursor: 'pointer' }}>{tc('ok')}</button>
+          </div>
+        </>
       )}
 
       <style>{`
