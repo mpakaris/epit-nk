@@ -67,8 +67,9 @@ export async function POST(request) {
     }
   }
 
-  const { data: project } = await admin.from('projects').select('collective_id').eq('id', project_id).is('deleted_at', null).single();
+  const { data: project } = await admin.from('projects').select('collective_id, status').eq('id', project_id).is('deleted_at', null).single();
   if (!project) return Response.json({ error: 'Projekt nem található' }, { status: 404 });
+  if (project.status === 'closed' || project.status === 'expired') return Response.json({ error: 'Lezárt projekthez nem lehet adatot hozzáadni.' }, { status: 423 });
 
   const { data: existing } = await admin.from('payment_plan_items').select('sort_order').eq('project_id', project_id).order('sort_order', { ascending: false }).limit(1);
   const nextOrder = ((existing?.[0]?.sort_order ?? -1) + 1);

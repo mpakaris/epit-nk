@@ -21,8 +21,9 @@ export async function POST(request) {
   if (!valueHuf || Number(valueHuf) <= 0) return Response.json({ error: 'Az összeg megadása kötelező!' }, { status: 400 });
 
   // Verify access to the project
-  const { data: project } = await admin.from('projects').select('id, owner_id, created_by, collective_id, name').eq('id', projectId).is('deleted_at', null).single();
+  const { data: project } = await admin.from('projects').select('id, owner_id, created_by, collective_id, name, status').eq('id', projectId).is('deleted_at', null).single();
   if (!project) return Response.json({ error: 'Projekt nem található' }, { status: 404 });
+  if (project.status === 'closed' || project.status === 'expired') return Response.json({ error: 'Lezárt projekthez nem lehet adatot hozzáadni.' }, { status: 423 });
 
   const isSuperAdmin = profile.role === 'superadmin';
   const isOwner = project.owner_id === user.id || project.created_by === user.id;
@@ -52,7 +53,7 @@ export async function POST(request) {
     uploader_name:       callerProfile?.display_name || user.email,
     value_huf:           Math.round(Number(valueHuf)),
     ocr_suggested_value: ocrSuggestedValue ? Math.round(Number(ocrSuggestedValue)) : null,
-    category:            category || 'Egyéb',
+    category:            category || 'other',
     description:         description || '',
     image_url:           imageUrl || '',
     storage_path:        storagePath || '',
