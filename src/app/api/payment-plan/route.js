@@ -86,6 +86,6 @@ export async function POST(request) {
   }]).select().single();
 
   if (error) return Response.json({ error: error.message }, { status: 400 });
-  logAudit({ entityId: project?.collective_id || user.id, userId: user.id, userName: profile.display_name || '', action: 'Payment plan item created', targetType: 'payment_item', targetId: item.id, targetName: item.label, details: { project_id, amount_huf: item.amount_huf } });
+  logAudit({ entityId: project?.collective_id || user.id, userId: user.id, userName: profile.display_name || '', action: 'payment.created', targetType: 'project', targetId: project_id, targetName: item.label, details: { payment_item_id: item.id, amount_huf: item.amount_huf } });
   return Response.json({ item });
 }

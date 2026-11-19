@@ -27,6 +27,17 @@ export const QUOTE_ENTRY_TYPES = [
 export const QUANTITY_UNITS = ['h', 'db', 'm', 'fm', 'm²', 'm³', 'kg', 't', 'l', 'zsák', 'csomag'];
 export const LABOUR_UNITS   = ['h', 'nap', 'm²', 'm', 'fm', 'db'];
 
+// Maps unit storage keys to surveyDetail i18n translation keys.
+// Use with useTranslations('surveyDetail') — falls back to the raw key if no mapping exists.
+export const UNIT_I18N = {
+  db:     'itemsUnitDb',
+  nap:    'itemsUnitNap',
+  zsák:   'itemsUnitZsak',
+  csomag: 'itemsUnitCsomag',
+  fm:     'itemsUnitFm',
+  h:      'itemsUnitH',
+};
+
 export const QUOTE_STATUSES = [
   { id: 'draft',    label: 'Vázlat',     color: 'muted'   },
   { id: 'sent',     label: 'Kiküldve',   color: 'warning' },

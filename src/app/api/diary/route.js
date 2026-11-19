@@ -104,14 +104,14 @@ export async function POST(request) {
   }
 
   logAudit({
-    entityId: ctx.project.collective_id || user.id,
-    userId:   user.id,
-    userName: ctx.profile.display_name,
-    action:   'diary_entry_created',
-    targetType: 'diary_entry',
-    targetId:   entry.id,
+    entityId:   ctx.project.collective_id || user.id,
+    userId:     user.id,
+    userName:   ctx.profile.display_name,
+    action:     'diary.created',
+    targetType: 'project',
+    targetId:   project_id,
     targetName: title.trim(),
-    details: { project_id },
+    details:    { diary_entry_id: entry.id, title: title.trim(), is_public: Boolean(is_public) },
   });
 
   return Response.json({ entry: { ...entry, photos } }, { status: 201 });

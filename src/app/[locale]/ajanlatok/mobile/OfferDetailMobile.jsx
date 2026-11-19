@@ -14,6 +14,7 @@ import { formatMoney, formatDate } from '@/lib/constants';
 import useOnline from '@/hooks/useOnline';
 import { AlertModal, ConfirmModal } from '@/components/Modal';
 import QuickClientSheet from './QuickClientSheet';
+import HistorySheet from '@/components/mobile/pods/HistorySheet';
 
 const CARD_SHADOW = 'inset 0 1px 0 #fff, 0 16px 26px -14px rgba(0,0,0,0.70), 0 3px 6px -2px rgba(0,0,0,0.30)';
 
@@ -79,7 +80,6 @@ export default function OfferDetailMobile({ quoteId }) {
   const [sections, setSections] = useState([]);
   const [history, setHistory] = useState([]);
   const [histLoading, setHistLoading] = useState(false);
-  const [expandedHist, setExpandedHist] = useState(null);
   const [openSections, setOpenSections] = useState({});
   const [mode, setMode] = useState(null); // 'menu'|'meta'|'dup'|'hist'|'delete'|'revert'|'locked'|'send'|'accept'|'reject'
   const [copiedLink, setCopiedLink] = useState(false);
@@ -829,98 +829,48 @@ export default function OfferDetailMobile({ quoteId }) {
 
       {/* History */}
       {mode === 'hist' && (
-        <div role="dialog" aria-label={t('historyTitle')} className="pod-sheet" style={{ position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 50, boxSizing: 'border-box', padding: `10px 16px calc(18px + env(safe-area-inset-bottom))`, borderRadius: '32px 32px 0 0', background: 'var(--m-sheet, #FBFAF7)', display: 'flex', flexDirection: 'column', gap: 8, maxHeight: '88%', overflowY: 'auto' }}>
-          <div style={{ alignSelf: 'center', width: 44, height: 5, borderRadius: 3, background: '#D5D2C8' }} />
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 4 }}>
-            <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 25, fontWeight: 700, lineHeight: 1.1, color: 'var(--m-ink)' }}>{t('historyTitle')}</span>
-            <CloseBtn onClick={() => setMode(null)} />
-          </div>
-          {histLoading && <span style={{ fontSize: 14, fontWeight: 600, color: '#5A5F68' }}>…</span>}
-          {!histLoading && history.length === 0 && <span style={{ fontSize: 14, fontWeight: 600, color: '#5A5F68' }}>{t('historyEmpty')}</span>}
-          {history.map((h) => {
-            const isOpen = expandedHist === h.id;
-            const details = h.details || {};
-            const ACTION_LABELS = {
-              'quote.created':        t('histActionCreated'),
-              'quote.edited':         t('histActionEdited'),
-              'quote.deleted':        t('histActionDeleted'),
-              'quote.sent':           t('histActionSent'),
-              'quote.accepted':       t('histActionAccepted'),
-              'quote.status_changed': t('histActionStatusChanged'),
-              'quote.portal_shown':   t('histActionPortalShown'),
-              'quote.portal_hidden':  t('histActionPortalHidden'),
-              'quote.pdf_downloaded': t('histActionPdfDownloaded'),
-              'section.added':        t('histActionSectionAdded'),
-              'section.deleted':      t('histActionSectionDeleted'),
-              'entry.added':          t('histActionEntryAdded'),
-              'entry.edited':         t('histActionEntryEdited'),
-              'entry.deleted':        t('histActionEntryDeleted'),
-            };
-            const actionLabel = ACTION_LABELS[h.action] || h.action;
-            const ENTRY_TYPE_LABELS = {
-              material: t('entryTypeMaterial'), labour: t('entryTypeLabour'),
-              equipment: t('entryTypeEquipment'), transport: t('entryTypeTransport'), other: t('entryTypeOther'),
-            };
-            const STATUS_LABELS = {
-              draft: t('statusDraft'), sent: t('statusSent'),
-              accepted: t('statusAccepted'), rejected: t('statusRejected'),
-            };
-            const FIELD_LABELS = {
-              title: t('histFieldTitle'), location: t('histFieldLocation'),
-              work_type: t('histFieldWorkType'), description: t('histFieldDescription'),
-              start_date: t('histFieldStartDate'), end_date: t('histFieldEndDate'),
-              client_id: t('histFieldClient'), tax_percent: t('histFieldTax'),
-              offer_number: t('histFieldOfferNumber'), valid_until: t('histFieldValidUntil'),
-              offer_terms_text: t('histFieldTerms'), payment_deadline_days: t('histFieldPaymentDays'),
-              payment_method: t('histFieldPaymentMethod'), deposit_percent: t('histFieldDeposit'),
-              warranty_months: t('histFieldWarranty'),
-            };
-            const translatedFields = details.changed_fields?.map(f => FIELD_LABELS[f] || f);
-            const detailRows = [
-              details.to              && { label: t('histDetailTo'),           value: details.to },
-              details.name            && { label: t('histDetailSection'),      value: details.name },
+        <HistorySheet
+          title={t('historyTitle')}
+          history={history}
+          loading={histLoading}
+          emptyText={t('historyEmpty')}
+          onClose={() => setMode(null)}
+          accentColor="var(--m-offer, #6D3FD1)"
+          userCurrency={userCurrency}
+          actionLabels={{
+            'quote.created':        t('histActionCreated'),
+            'quote.edited':         t('histActionEdited'),
+            'quote.deleted':        t('histActionDeleted'),
+            'quote.sent':           t('histActionSent'),
+            'quote.accepted':       t('histActionAccepted'),
+            'quote.status_changed': t('histActionStatusChanged'),
+            'quote.portal_shown':   t('histActionPortalShown'),
+            'quote.portal_hidden':  t('histActionPortalHidden'),
+            'quote.pdf_downloaded': t('histActionPdfDownloaded'),
+            'section.added':        t('histActionSectionAdded'),
+            'section.deleted':      t('histActionSectionDeleted'),
+            'entry.added':          t('histActionEntryAdded'),
+            'entry.edited':         t('histActionEntryEdited'),
+            'entry.deleted':        t('histActionEntryDeleted'),
+          }}
+          getDetailRows={(details) => {
+            const ENTRY_TYPES = { material: t('entryTypeMaterial'), labour: t('entryTypeLabour'), equipment: t('entryTypeEquipment'), transport: t('entryTypeTransport'), other: t('entryTypeOther') };
+            const STATUSES    = { draft: t('statusDraft'), sent: t('statusSent'), accepted: t('statusAccepted'), rejected: t('statusRejected') };
+            const FIELDS      = { title: t('histFieldTitle'), location: t('histFieldLocation'), work_type: t('histFieldWorkType'), description: t('histFieldDescription'), start_date: t('histFieldStartDate'), end_date: t('histFieldEndDate'), client_id: t('histFieldClient'), tax_percent: t('histFieldTax'), offer_number: t('histFieldOfferNumber'), valid_until: t('histFieldValidUntil'), offer_terms_text: t('histFieldTerms'), payment_deadline_days: t('histFieldPaymentDays'), payment_method: t('histFieldPaymentMethod'), deposit_percent: t('histFieldDeposit'), warranty_months: t('histFieldWarranty') };
+            const translated  = details.changed_fields?.map(f => FIELDS[f] || f);
+            return [
+              details.to               && { label: t('histDetailTo'),         value: details.to },
+              details.name             && { label: t('histDetailSection'),     value: details.name },
               details.entry_count != null && { label: t('histDetailEntryCount'), value: String(details.entry_count) },
               details.work_description && { label: t('histDetailItem'),        value: details.work_description },
-              details.entry_type      && { label: t('histDetailType'),         value: ENTRY_TYPE_LABELS[details.entry_type] || details.entry_type },
-              details.amount_huf      && { label: t('histDetailAmount'),       value: formatMoney(details.amount_huf, userCurrency) },
-              details.status          && { label: t('histDetailStatus'),       value: STATUS_LABELS[details.status] || details.status },
-              translatedFields?.length && { label: t('histDetailChanged'),     value: translatedFields.join(', ') },
-              details.error           && { label: t('histDetailError'),        value: details.error },
+              details.entry_type       && { label: t('histDetailType'),        value: ENTRY_TYPES[details.entry_type] || details.entry_type },
+              details.amount_huf       && { label: t('histDetailAmount'),      value: formatMoney(details.amount_huf, userCurrency) },
+              details.status           && { label: t('histDetailStatus'),      value: STATUSES[details.status] || details.status },
+              translated?.length       && { label: t('histDetailChanged'),     value: translated.join(', ') },
+              details.error            && { label: t('histDetailError'),       value: details.error },
             ].filter(Boolean);
-            const hasDetails = detailRows.length > 0;
-            return (
-              <button
-                key={h.id}
-                type="button"
-                onClick={() => hasDetails && setExpandedHist(isOpen ? null : h.id)}
-                style={{ width: '100%', border: 0, borderRadius: 18, background: '#fff', padding: '12px 14px', textAlign: 'left', cursor: hasDetails ? 'pointer' : 'default', boxShadow: '0 1px 0 rgba(14,17,22,0.04), 0 6px 14px -8px rgba(14,17,22,0.12)', boxSizing: 'border-box' }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <span style={{ flexShrink: 0, width: 10, height: 10, borderRadius: 5, background: 'var(--m-offer, #6D3FD1)', marginTop: 1 }} />
-                  <span style={{ flex: 1, minWidth: 0 }}>
-                    <span style={{ display: 'block', fontSize: 15, fontWeight: 700, color: 'var(--m-ink)', lineHeight: 1.3 }}>{actionLabel}</span>
-                    <span style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#8A8F97', marginTop: 1 }}>{h.user_name} · {h.created_at ? formatDate(h.created_at) : ''}</span>
-                  </span>
-                  {hasDetails && (
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#B0ADA6" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true" style={{ flexShrink: 0, transition: 'transform .18s', transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}>
-                      <path d="M6 9l6 6 6-6"/>
-                    </svg>
-                  )}
-                </div>
-                {isOpen && detailRows.length > 0 && (
-                  <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid #EDEBE5', display: 'flex', flexDirection: 'column', gap: 6 }}>
-                    {detailRows.map(({ label, value }) => (
-                      <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
-                        <span style={{ fontSize: 12, fontWeight: 700, color: '#8A8F97', flexShrink: 0 }}>{label}</span>
-                        <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--m-ink)', textAlign: 'right', wordBreak: 'break-all' }}>{value}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </button>
-            );
-          })}
-        </div>
+          }}
+        />
       )}
 
       {/* Locked options */}
@@ -1098,7 +1048,7 @@ export default function OfferDetailMobile({ quoteId }) {
             ));
           })()}
           <button
-            onClick={() => { setQuickName(''); setQuickEmail(''); setQuickGdpr(false); setMode('clientQuickCreate'); }}
+            onClick={() => setMode('clientQuickCreate')}
             style={{ width: '100%', minHeight: 60, boxSizing: 'border-box', padding: '10px 14px', border: '2px dashed #D5D2C8', borderRadius: 22, background: 'transparent', color: 'var(--m-ink)', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 12, fontSize: 16, fontWeight: 700, cursor: 'pointer' }}
           >
             <span style={{ flexShrink: 0, width: 44, height: 44, borderRadius: 15, background: '#F1F1F3', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>

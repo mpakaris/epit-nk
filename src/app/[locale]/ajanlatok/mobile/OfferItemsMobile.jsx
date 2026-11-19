@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useApp } from '@/context/AppContext';
-import { formatMoney } from '@/lib/constants';
+import { formatMoney, UNIT_I18N } from '@/lib/constants';
 import AudioRecorder from '@/components/AudioRecorder';
 
 const OFFER_BG   = '#6D3FD1';
@@ -21,7 +21,6 @@ const TYPE_META  = {
 };
 const ALL_UNITS = ['m²', 'm', 'fm', 'db', 'kg', 'l', 'zsák', 'csomag', 'm³', 'nap', 'h', 'km'];
 const DEFAULT_UNIT = 'db';
-const UNIT_I18N     = { db: 'itemsUnitDb', nap: 'itemsUnitNap', zsák: 'itemsUnitZsak', csomag: 'itemsUnitCsomag', fm: 'itemsUnitFm', h: 'itemsUnitH' };
 
 // ─── Entry row ─────────────────────────────────────────────────────────────────
 function EntryRow({ entry, onEdit, t, userCurrency }) {

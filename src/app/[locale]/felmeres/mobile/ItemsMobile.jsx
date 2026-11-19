@@ -5,6 +5,7 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useApp } from '@/context/AppContext';
 import AudioRecorder from '@/components/AudioRecorder';
+import { UNIT_I18N } from '@/lib/constants';
 import PageSpinner from '@/components/PageSpinner';
 
 const SURVEY_BG   = '#0A7F72';
@@ -29,8 +30,6 @@ const UNITS_BY_TYPE = {
   other:     ['db', 'h', 'nap', 'm²'],
 };
 const DEFAULT_UNIT = { material: 'm²', labour: 'm²', equipment: 'nap', transport: 'db', other: 'db' };
-// Maps stored unit values → i18n key; universal symbols (m², kg…) need no translation
-const UNIT_I18N = { db: 'itemsUnitDb', nap: 'itemsUnitNap', zsák: 'itemsUnitZsak', csomag: 'itemsUnitCsomag', fm: 'itemsUnitFm', h: 'itemsUnitH' };
 
 function inferType(item) {
   if (item.entry_type && item.entry_type !== 'material') return item.entry_type;

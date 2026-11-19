@@ -2,7 +2,7 @@ export function calculateProjectFinancials(project, invoices = [], labourEntries
   const projectInvoices = invoices.filter(inv => inv.project_id === project.id && !inv.deleted_at);
   const totalCost = projectInvoices.reduce((sum, inv) => sum + Number(inv.value_huf || 0), 0);
 
-  const projectLabour = labourEntries.filter(le => le.project_id === project.id);
+  const projectLabour = labourEntries.filter(le => le.project_id === project.id && le.counts_as_expense !== false);
   const totalLabourValue = projectLabour.reduce((sum, le) => sum + Number(le.value_huf || 0), 0);
 
   // Detect contributors whose membership has since been removed.
