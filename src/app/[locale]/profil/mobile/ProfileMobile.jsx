@@ -168,6 +168,8 @@ export default function ProfileMobile() {
   const [premiumSubStarted,        setPremiumSubStarted]        = useState(null);
   const [premiumBillingCycles,     setPremiumBillingCycles]     = useState(null);
   const [subDetailLoading,         setSubDetailLoading]         = useState(false);
+  const [subHistory,               setSubHistory]               = useState(null); // null = not loaded
+  const [subHistoryLoading,        setSubHistoryLoading]        = useState(false);
   const [collectiveSubs,           setCollectiveSubs]           = useState([]);
   const [premiumIsScheduledCancel, setPremiumIsScheduledCancel] = useState(false);
   const [premiumCancelAt,          setPremiumCancelAt]          = useState(null);
@@ -597,6 +599,14 @@ export default function ProfileMobile() {
                   })
                   .finally(() => setSubDetailLoading(false));
               }
+              // Fetch history every time the sheet opens
+              setSubHistory(null);
+              setSubHistoryLoading(true);
+              fetch('/api/subscriptions/history')
+                .then(r => r.ok ? r.json() : { events: [] })
+                .then(d => setSubHistory(d.events ?? []))
+                .catch(() => setSubHistory([]))
+                .finally(() => setSubHistoryLoading(false));
             }}
           />
           <NavRow
@@ -865,6 +875,74 @@ export default function ProfileMobile() {
               </div>
             ))}
           </>
+        )}
+
+        {/* ── History ──────────────────────────────────────────────── */}
+        <SheetSecLabel>{t('historyTitle')}</SheetSecLabel>
+        {subHistoryLoading && (
+          <span style={{ fontSize: 13, fontWeight: 600, color: '#8A8F98' }}>{t('subLoadingDetails')}</span>
+        )}
+        {!subHistoryLoading && subHistory?.length === 0 && (
+          <span style={{ fontSize: 13, fontWeight: 600, color: '#8A8F98' }}>{t('historyEmpty')}</span>
+        )}
+        {!subHistoryLoading && subHistory?.length > 0 && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+            {subHistory.map((ev, i) => {
+              const isPayment = ev.source === 'creem';
+              const isLast    = i === subHistory.length - 1;
+
+              const { icon, label, color } = (() => {
+                if (isPayment) return {
+                  icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="4" width="22" height="16" rx="2"/><path d="M1 10h22"/></svg>,
+                  label: t('historyPayment'),
+                  color: '#14532D',
+                };
+                if (ev.type === 'activated') return {
+                  icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12l5 5 9-10"/></svg>,
+                  label: t('historyActivated'),
+                  color: '#14532D',
+                };
+                if (ev.type === 'cancelled') return {
+                  icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>,
+                  label: t('historyCancelled'),
+                  color: '#B45309',
+                };
+                if (ev.type === 'resumed') return {
+                  icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M1 4v6h6M23 20v-6h-6"/><path d="M20.49 9A9 9 0 1 0 21 12"/></svg>,
+                  label: t('historyResumed'),
+                  color: '#1D4ED8',
+                };
+                return {
+                  icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>,
+                  label: ev.action?.includes('admin') ? t('historyAdminChange') : t('historyDeactivated'),
+                  color: '#5A5F68',
+                };
+              })();
+
+              const amountStr = isPayment && ev.amount
+                ? ` · ${(ev.amount / 100).toLocaleString('hu-HU')} ${ev.currency}`
+                : '';
+
+              return (
+                <div key={ev.id ?? i} style={{ display: 'flex', gap: 12, paddingBottom: isLast ? 0 : 12 }}>
+                  {/* Timeline dot + line */}
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0, width: 28 }}>
+                    <div style={{ width: 28, height: 28, borderRadius: 14, background: `${color}18`, color, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      {icon}
+                    </div>
+                    {!isLast && <div style={{ width: 1.5, flex: 1, background: '#E8E5DF', marginTop: 4 }} />}
+                  </div>
+                  {/* Content */}
+                  <div style={{ flex: 1, paddingBottom: isLast ? 0 : 12, minWidth: 0 }}>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: '#0E1116' }}>{label}{amountStr}</div>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: '#8A8F98', marginTop: 2 }}>
+                      {ev.date ? new Date(ev.date).toLocaleDateString('hu-HU', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         )}
 
         {/* Forward to full subscription page */}
