@@ -1,7 +1,9 @@
 'use client';
 
+import React from 'react';
 import Link from 'next/link';
-import { useTranslations } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
+import { useRouter } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
 
 function SheetHandle() {
@@ -62,45 +64,139 @@ export function CreateSheet({ activePod, onClose }) {
   );
 }
 
-export function NotifSheet({ notifications, onClose }) {
-  const t = useTranslations('mobilePods');
+const TYPE_DOT = {
+  quote_accepted:     '#15803d',
+  quote_rejected:     '#b91c1c',
+  client_question:    '#1d4ed8',
+  client_message:     '#1d4ed8',
+  collective_message: '#7c3aed',
+  collective_activity:'#c2410c',
+  direct_message:     '#1d4ed8',
+  member_joined:      '#15803d',
+  info:               '#1d4ed8',
+  success:            '#15803d',
+  warning:            '#d97706',
+  announcement:       '#7c3aed',
+  system:             '#475569',
+};
+
+function relativeTimeNotif(isoStr, locale = 'hu') {
+  if (!isoStr) return '';
+  const diff  = Date.now() - new Date(isoStr).getTime();
+  const mins  = Math.floor(diff / 60000);
+  const hours = Math.floor(diff / 3600000);
+  const days  = Math.floor(diff / 86400000);
+  const rtf   = new Intl.RelativeTimeFormat(locale, { numeric: 'auto' });
+  if (mins < 1)   return rtf.format(0, 'minute');
+  if (mins < 60)  return rtf.format(-mins, 'minute');
+  if (hours < 24) return rtf.format(-hours, 'hour');
+  if (days < 7)   return rtf.format(-days, 'day');
+  return new Date(isoStr).toLocaleDateString(locale, { month: 'short', day: 'numeric' });
+}
+
+export function NotifSheet({ notifications, onMarkRead, onMarkAllRead, onClose }) {
+  const t        = useTranslations('mobilePods');
+  const locale   = useLocale();
+  const router   = useRouter();
+  const [expandedId, setExpandedId] = React.useState(null);
+
+  const hasUnread = notifications.some(n => !n.read_at);
+
+  const handleTap = (n) => {
+    if (expandedId === n.id) {
+      setExpandedId(null);
+      return;
+    }
+    setExpandedId(n.id);
+    if (!n.read_at) onMarkRead?.(n.id);
+  };
+
+  const handleOpen = (link) => {
+    onClose?.();
+    router.push(link);
+  };
+
   return (
     <div role="dialog" aria-label={t('notifications')} style={{ position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 50, maxHeight: '78%', boxSizing: 'border-box', overflowY: 'auto', padding: `12px 20px calc(32px + env(safe-area-inset-bottom))`, borderRadius: '32px 32px 0 0', background: 'var(--m-sheet)', display: 'flex', flexDirection: 'column', gap: 12 }}>
       <SheetHandle />
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 26, fontWeight: 700 }}>{t('notifications')}</span>
-        <button style={{ minHeight: 44, padding: '0 14px', border: 0, borderRadius: 22, background: '#EFEDE6', color: 'var(--m-ink)', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>{t('markAllRead')}</button>
+        {hasUnread && (
+          <button onClick={onMarkAllRead} style={{ minHeight: 44, padding: '0 14px', border: 0, borderRadius: 22, background: '#EFEDE6', color: 'var(--m-ink)', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+            {t('markAllRead')}
+          </button>
+        )}
       </div>
+
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {notifications.length === 0 && (
           <div style={{ padding: '24px 0', textAlign: 'center', color: '#5A5F68', fontSize: 14 }}>{t('noNotifications')}</div>
         )}
-        {notifications.map((n, idx) => (
-          <button key={idx} style={{ width: '100%', minHeight: 72, boxSizing: 'border-box', padding: '12px 14px', border: 0, borderRadius: 22, background: '#FFFFFF', color: 'var(--m-ink)', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }}>
-            <span style={{ flexShrink: 0, width: 12, height: 12, borderRadius: 6, background: n.dot || '#5A5F68' }} />
-            <span style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <span style={{ fontSize: 15, fontWeight: n.unread ? 700 : 500, lineHeight: 1.3 }}>{n.title}</span>
-              <span style={{ fontSize: 13, color: '#5A5F68' }}>{n.name} · {n.time}</span>
-            </span>
-            {n.unread && <span aria-label={t('unread')} style={{ flexShrink: 0, width: 10, height: 10, borderRadius: 5, background: 'var(--m-ink)' }} />}
-          </button>
-        ))}
+        {notifications.map(n => {
+          const isUnread   = !n.read_at;
+          const isExpanded = expandedId === n.id;
+          const dot        = TYPE_DOT[n.type] || '#5A5F68';
+
+          return (
+            <div key={n.id} style={{ borderRadius: 22, overflow: 'hidden', background: isUnread && !isExpanded ? '#FFFFFF' : '#F5F5F5' }}>
+              {/* Collapsed row — tap to expand */}
+              <button
+                onClick={() => handleTap(n)}
+                style={{ width: '100%', minHeight: 64, boxSizing: 'border-box', padding: '12px 14px', border: 0, background: 'transparent', color: 'var(--m-ink)', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }}
+              >
+                <span style={{ flexShrink: 0, width: 10, height: 10, borderRadius: 5, background: dot }} />
+                <span style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 1 }}>
+                  <span style={{ fontSize: 15, fontWeight: isUnread ? 700 : 500, lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{n.title}</span>
+                  <span style={{ fontSize: 12, color: '#8A8F97' }}>{relativeTimeNotif(n.created_at, locale)}</span>
+                </span>
+                <span style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  {isUnread && !isExpanded && <span style={{ width: 8, height: 8, borderRadius: 4, background: 'var(--m-ink)' }} />}
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{ transition: 'transform .2s', transform: isExpanded ? 'rotate(180deg)' : 'none', color: '#8A8F97' }} aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+                </span>
+              </button>
+
+              {/* Expanded body */}
+              {isExpanded && (
+                <div style={{ padding: '0 14px 14px 36px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {n.body ? (
+                    <p style={{ margin: 0, fontSize: 14, lineHeight: 1.55, color: '#2B3038', whiteSpace: 'pre-wrap' }}>{n.body}</p>
+                  ) : (
+                    <p style={{ margin: 0, fontSize: 14, color: '#8A8F97', fontStyle: 'italic' }}>{t('noBody')}</p>
+                  )}
+                  {n.link && (
+                    <button
+                      onClick={() => handleOpen(n.link)}
+                      style={{ alignSelf: 'flex-start', minHeight: 38, padding: '0 16px', border: 0, borderRadius: 19, background: 'var(--m-ink)', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}
+                    >
+                      {t('open')} →
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
 }
 
-export function MessagesSheet({ threads, onClose }) {
+export function MessagesSheet({ threads, loading = false, onClose }) {
   const t = useTranslations('mobilePods');
   return (
     <div role="dialog" aria-label={t('messages')} style={{ position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 50, maxHeight: '78%', boxSizing: 'border-box', overflowY: 'auto', padding: `12px 20px calc(32px + env(safe-area-inset-bottom))`, borderRadius: '32px 32px 0 0', background: 'var(--m-sheet)', display: 'flex', flexDirection: 'column', gap: 12 }}>
       <SheetHandle />
       <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 26, fontWeight: 700 }}>{t('messages')}</span>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        {threads.length === 0 && (
+        {loading && (
+          <div style={{ padding: '24px 0', textAlign: 'center' }}>
+            <div style={{ width: 24, height: 24, borderRadius: '50%', border: '2.5px solid var(--m-ink)', borderTopColor: 'transparent', animation: 'spin 0.8s linear infinite', margin: '0 auto' }} />
+          </div>
+        )}
+        {!loading && threads.length === 0 && (
           <div style={{ padding: '24px 0', textAlign: 'center', color: '#5A5F68', fontSize: 14 }}>{t('noMessages')}</div>
         )}
-        {threads.map((thread, idx) => (
+        {!loading && threads.map((thread, idx) => (
           <button key={idx} style={{ width: '100%', minHeight: 76, boxSizing: 'border-box', padding: '10px 14px', border: 0, borderRadius: 22, background: '#FFFFFF', color: 'var(--m-ink)', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }}>
             <span style={{ flexShrink: 0, width: 46, height: 46, borderRadius: 23, background: thread.avatarBg || '#0E1116', color: thread.avatarFg || '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 700 }}>{thread.initials}</span>
             <span style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>

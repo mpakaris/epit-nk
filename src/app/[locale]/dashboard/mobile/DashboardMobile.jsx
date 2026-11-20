@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useApp } from '@/context/AppContext';
@@ -12,7 +12,7 @@ import PageHeader from '@/components/mobile/pods/PageHeader';
 import Dock from '@/components/mobile/pods/Dock';
 import WeekCalendar from '@/components/mobile/pods/WeekCalendar';
 import PodStack from '@/components/mobile/pods/PodStack';
-import { CreateSheet, NotifSheet, MessagesSheet, MenuSheet, DaySheet } from '@/components/mobile/pods/Sheets';
+import { CreateSheet, NotifSheet, /* MessagesSheet, */ MenuSheet, DaySheet } from '@/components/mobile/pods/Sheets';
 
 // ─── Shared card shadow for white cards on dark body ──────────────────────────
 const CARD_SHADOW = 'inset 0 1px 0 #fff, 0 16px 26px -14px rgba(0,0,0,0.70), 0 3px 6px -2px rgba(0,0,0,0.30)';
@@ -276,10 +276,14 @@ const IcoActivity = (
 );
 
 // ─── Main component ────────────────────────────────────────────────────────────
+// MESSAGING DISABLED — restore when messaging is re-introduced
+// function relativeTime(isoStr, locale = 'hu') { ... }
+
 export default function DashboardMobile({ currentUser }) {
   const tPods = useTranslations('mobilePods');
   const tDash = useTranslations('dashboard');
   const router = useRouter();
+  // const locale = useLocale(); // MESSAGING DISABLED
   const {
     projects, quotes, surveys, clients, collectives,
     activeCollectiveId, setActiveContext,
@@ -293,12 +297,20 @@ export default function DashboardMobile({ currentUser }) {
   const [sheet, setSheet] = useState(null); // 'create' | 'notifications' | 'messages' | 'menu' | 'day' | 'inv' | 'tr'
   const [dayData, setDayData] = useState({ date: null, events: [] });
 
+  // MESSAGING DISABLED — restore when messaging is re-introduced
+  // const [msgCount,   setMsgCount]   = useState(0);
+  // const [msgThreads, setMsgThreads] = useState(null);
+
   // Active pod = current active context. Personal = null.
   const [activePodId, setActivePodId] = useState(activeCollectiveId || 'personal');
 
   // Pending banners
   const [pendingInvitations, setPendingInvitations] = useState([]);
   const [pendingTransfers, setPendingTransfers] = useState([]);
+
+  // In-app notifications
+  const [notifList,    setNotifList]    = useState([]);
+  const [notifUnread,  setNotifUnread]  = useState(0);
 
   useEffect(() => {
     if (isDemoMode) return;
@@ -310,7 +322,74 @@ export default function DashboardMobile({ currentUser }) {
       .then(r => r.ok ? r.json() : { requests: [] })
       .then(d => setPendingTransfers(d.requests || []))
       .catch(() => {});
+    fetch('/api/notifications')
+      .then(r => r.ok ? r.json() : { unreadCount: 0, notifications: [] })
+      .then(d => { setNotifUnread(d.unreadCount ?? 0); setNotifList(d.notifications ?? []); })
+      .catch(() => {});
   }, [isDemoMode]);
+
+  const handleMarkNotifRead = (id) => {
+    setNotifList(prev => prev.map(n => n.id === id ? { ...n, read_at: n.read_at || new Date().toISOString() } : n));
+    setNotifUnread(prev => Math.max(0, prev - 1));
+    fetch('/api/notifications', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids: [id] }) }).catch(() => {});
+  };
+
+  const handleMarkAllNotifsRead = () => {
+    setNotifList(prev => prev.map(n => ({ ...n, read_at: n.read_at || new Date().toISOString() })));
+    setNotifUnread(0);
+    fetch('/api/notifications', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ all: true }) }).catch(() => {});
+  };
+
+  // Refresh notifications whenever the notifications sheet is opened
+  useEffect(() => {
+    if (sheet !== 'notifications' || isDemoMode) return;
+    fetch('/api/notifications')
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d) { setNotifUnread(d.unreadCount ?? 0); setNotifList(d.notifications ?? []); } })
+      .catch(() => {});
+  }, [sheet, isDemoMode]);
+
+  // MESSAGING DISABLED — restore both effects when messaging is re-introduced
+  // useEffect(() => {
+  //   if (isDemoMode) return;
+  //   const doFetch = () =>
+  //     fetch('/api/messages/unread-count')
+  //       .then(r => r.ok ? r.json() : null)
+  //       .then(d => { if (d) setMsgCount(d.count ?? 0); })
+  //       .catch(() => {});
+  //   doFetch();
+  //   window.addEventListener('epitek:msg-read', doFetch);
+  //   return () => window.removeEventListener('epitek:msg-read', doFetch);
+  // }, [isDemoMode]);
+  //
+  // useEffect(() => {
+  //   if (sheet !== 'messages' || isDemoMode) return;
+  //   fetch('/api/threads?all=1')
+  //     .then(r => r.ok ? r.json() : { threads: [] })
+  //     .then(d => {
+  //       const transformed = (d.threads || []).map(thread => {
+  //         const name = thread.type === 'direct'
+  //           ? (thread.other_name || '—')
+  //           : (thread.client_name || '—');
+  //         return {
+  //           name,
+  //           initials: name.slice(0, 2).toUpperCase(),
+  //           preview:  thread.last_message?.body || '',
+  //           time:     relativeTime(thread.last_message?.created_at || thread.created_at, locale),
+  //           unread:   thread.unread_count || 0,
+  //           threadId: thread.id,
+  //           avatarBg: thread.unread_count > 0 ? 'var(--m-ink)' : '#EFEDE6',
+  //           avatarFg: thread.unread_count > 0 ? '#fff' : 'var(--m-ink)',
+  //         };
+  //       });
+  //       setMsgThreads(transformed);
+  //     })
+  //     .catch(() => setMsgThreads([]));
+  // }, [sheet, isDemoMode, locale]);
+
+  // Per-workspace data snapshot — preserved across context switches so pods
+  // never flash to 0 while AppContext refetches for the newly active workspace.
+  const wsSnapshot = useRef({});
 
   // Switch active workspace when pod is tapped
   const handleActivate = useCallback((id) => {
@@ -349,7 +428,34 @@ export default function DashboardMobile({ currentUser }) {
     }),
   ];
 
-  const activePod = workspaces.find(w => w.id === activePodId) || workspaces[0];
+  // Persist snapshots whenever a workspace has actual data
+  useEffect(() => {
+    workspaces.forEach(ws => {
+      if ((ws.surveys?.length || 0) + (ws.quotes?.length || 0) + (ws.projects?.length || 0) > 0) {
+        wsSnapshot.current[ws.id] = {
+          surveys:  ws.surveys,
+          quotes:   ws.quotes,
+          projects: ws.projects,
+          clients:  ws.clients,
+        };
+      }
+    });
+  }); // intentionally no deps — run after every render so snapshot stays current
+
+  // Merge live data with snapshot: show snapshot immediately while AppContext loads
+  const stableWorkspaces = workspaces.map(ws => {
+    const snap = wsSnapshot.current[ws.id];
+    if (!snap) return ws;
+    return {
+      ...ws,
+      surveys:  ws.surveys?.length  ? ws.surveys  : snap.surveys,
+      quotes:   ws.quotes?.length   ? ws.quotes   : snap.quotes,
+      projects: ws.projects?.length ? ws.projects : snap.projects,
+      clients:  ws.clients?.length  ? ws.clients  : snap.clients,
+    };
+  });
+
+  const activePod = stableWorkspaces.find(w => w.id === activePodId) || stableWorkspaces[0];
   const activeColors = activePod?.isPersonal ? PERSONAL_COLOR : podColor(activePod?.id || '');
 
   // Build calendar events from projects (deadlines etc.)
@@ -405,7 +511,7 @@ export default function DashboardMobile({ currentUser }) {
         onNotifications={() => setSheet('notifications')}
         onMenu={() => setSheet('menu')}
         msgCount={0}
-        notifCount={pendingInvitations.length + pendingTransfers.length}
+        notifCount={notifUnread}
       />
 
       {/* Scrollable body: starts below header (108px), ends above dock (190px) */}
@@ -488,7 +594,7 @@ export default function DashboardMobile({ currentUser }) {
           {tPods('workspacesTitle')}
         </span>
         <PodStack
-          workspaces={workspaces}
+          workspaces={stableWorkspaces}
           activeId={activePodId}
           onActivate={handleActivate}
           onCreateIn={handleCreateIn}
@@ -524,11 +630,22 @@ export default function DashboardMobile({ currentUser }) {
         />
       )}
       {sheet === 'notifications' && (
-        <NotifSheet notifications={[]} onClose={() => setSheet(null)} />
+        <NotifSheet
+          notifications={notifList}
+          onMarkRead={handleMarkNotifRead}
+          onMarkAllRead={handleMarkAllNotifsRead}
+          onClose={() => setSheet(null)}
+        />
       )}
+      {/* MESSAGING DISABLED — restore when messaging is re-introduced
       {sheet === 'messages' && (
-        <MessagesSheet threads={[]} onClose={() => setSheet(null)} />
+        <MessagesSheet
+          threads={msgThreads ?? []}
+          loading={msgThreads === null}
+          onClose={() => { setSheet(null); setMsgThreads(null); }}
+        />
       )}
+      */}
       {sheet === 'menu' && (
         <MenuSheet
           profile={currentUser}

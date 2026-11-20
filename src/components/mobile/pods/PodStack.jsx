@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useApp } from '@/context/AppContext';
@@ -67,15 +67,8 @@ export default function PodStack({ workspaces, activeId, onActivate, onCreateIn,
   const [view, setView] = useState('home'); // 'home' | 'cat' | 'list'
   const [cat, setCat] = useState(null);     // 'survey' | 'quote' | 'project'
 
-  // Freeze each pod's last-known doc count so it doesn't drop to 0 when
-  // AppContext re-scopes to a different workspace.
-  const countCache = useRef({});
-  useEffect(() => {
-    const ws = workspaces.find(w => w.id === activeId);
-    if (!ws) return;
-    const total = (ws.surveys?.length || 0) + (ws.quotes?.length || 0) + (ws.projects?.length || 0);
-    if (total > 0) countCache.current[activeId] = total;
-  }, [activeId, workspaces]);
+  // countCache removed — DashboardMobile now passes stableWorkspaces which
+  // always holds the last known data via wsSnapshot, so counts never drop to 0.
 
   const order = workspaces.map(w => w.id);
   const ai = order.indexOf(activeId);
@@ -190,7 +183,7 @@ export default function PodStack({ workspaces, activeId, onActivate, onCreateIn,
                   ))}
                   {!isActive && (
                     <span style={{ marginLeft: memberInitials.length > 0 ? 8 : 0, minWidth: 26, height: 26, padding: '0 8px', boxSizing: 'border-box', borderRadius: 13, background: '#FFFFFF', color: 'var(--m-ink)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700 }}>
-                      {countCache.current[ws.id] ?? (surveys.length + quotes.length + projects.length)}
+                      {surveys.length + quotes.length + projects.length}
                     </span>
                   )}
                 </span>

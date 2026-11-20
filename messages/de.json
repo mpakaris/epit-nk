@@ -243,13 +243,12 @@
     "entryAmountZero": "Betrag darf nicht null sein!",
     "entryQuantity": "Menge",
     "entryUnit": "Einheit",
-    "entryUnitPrice": "Einzelpreis (Ft)",
+    "entryUnitPrice": "Stückpreis",
     "entryAmount": "Betrag (Ft) *",
     "entryContractor": "Auftragnehmer",
     "entryMySelf": "Ich selbst ({name})",
     "entryNotes": "Bemerkung (optional)",
     "entryItem": "Position:",
-    "entryUnitPrice": "Stückpreis",
     "entryFlatAmount": "Betrag",
     "entryTotal": "Gesamt",
     "entryAddAnother": "+ Nächste",
@@ -1839,7 +1838,6 @@
     "histActionRoomDeleted": "Raum gelöscht",
     "histActionInvoicePortalShown": "Rechnung im Portal veröffentlicht",
     "histActionInvoicePortalHidden": "Rechnung aus Portal entfernt",
-    "histActionLabourEdited": "Arbeitseintrag bearbeitet",
     "actionsMenuLabel": "Aktionen",
     "addEntryAria": "Eintrag hinzufügen",
     "optionsAria": "Aktionen",
@@ -2693,7 +2691,8 @@
     "offlineMsg": "Keine Internetverbindung.",
     "offlineHint": "Daten werden nicht aktualisiert, solange keine Verbindung besteht.",
     "offlineRetry": "Wiederholen",
-    "workspacesTitle": "Arbeitsbereiche"
+    "workspacesTitle": "Arbeitsbereiche",
+    "noBody": "Kein Textinhalt."
   },
   "transferModal": {
     "stepPickTitle": "In Kollektiv verschieben",

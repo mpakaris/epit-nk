@@ -3,6 +3,8 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { sendEmail } from '@/lib/email';
 import { wrapEmail } from '@/lib/emailTemplates';
 import { logAudit } from '@/lib/audit';
+import { createNotification, createNotifications } from '@/lib/notificationService';
+import { findOrCreateDirectThread, insertMessage, truncateForNotif } from '@/lib/messageService';
 
 // GET /api/threads?client_id=X              — threads with messages for a client
 // GET /api/threads?thread_id=X              — single thread with messages (any type)
@@ -257,12 +259,12 @@ export async function POST(request) {
     }
 
     // Insert message
-    const { data: msg, error: msgErr } = await admin.from('messages')
-      .insert({ thread_id: existingThread.id, sender_type: 'user', sender_user_id: user.id, body: message.trim() })
-      .select('id, body, created_at, sender_type').single();
-    if (msgErr) {
-      logAudit({ entityId: collective_id, userId: user.id, userName: senderName, action: 'Collective message send failed', targetType: 'thread', targetId: existingThread.id, details: { error: msgErr.message } });
-      return Response.json({ error: msgErr.message }, { status: 500 });
+    let msg;
+    try {
+      msg = await insertMessage(admin, { threadId: existingThread.id, senderUserId: user.id, senderType: 'user', body: message.trim() });
+    } catch (e) {
+      logAudit({ entityId: collective_id, userId: user.id, userName: senderName, action: 'Collective message send failed', targetType: 'thread', targetId: existingThread.id, details: { error: e.message } });
+      return Response.json({ error: e.message }, { status: 500 });
     }
 
     // Notify all other active members (US-MSG-021) — no email, in-app only
@@ -271,17 +273,11 @@ export async function POST(request) {
 
     if (otherMembers?.length) {
       const notifLink = project_id ? `/projektek/${project_id}` : quote_id ? `/ajanlatok/${quote_id}` : `/uzenetek`;
-      const truncated = message.trim().length > 80 ? message.trim().substring(0, 80) + '…' : message.trim();
-      const notifs = otherMembers.map(m => ({
-        user_id: m.user_id,
-        type: 'collective_message',
-        title: senderName,
-        body: truncated,
-        link: notifLink,
-        source_type: 'thread',
-        source_id: existingThread.id,
-      }));
-      await admin.from('notifications').insert(notifs);
+      await createNotifications(admin, otherMembers.map(m => ({
+        userId: m.user_id, type: 'collective_message',
+        title: senderName, body: truncateForNotif(message.trim()),
+        link: notifLink, sourceType: 'thread', sourceId: existingThread.id,
+      })));
     }
 
     logAudit({
@@ -305,42 +301,31 @@ export async function POST(request) {
       .select('display_name, company_name').eq('id', user.id).single();
     const senderName = senderProfile?.company_name || senderProfile?.display_name || '—';
 
-    // Find or create: check both directions
-    const { data: existing } = await admin.from('threads')
-      .select('id')
-      .eq('type', 'direct')
-      .or(`and(owner_id.eq.${user.id},recipient_user_id.eq.${recipient_user_id}),and(owner_id.eq.${recipient_user_id},recipient_user_id.eq.${user.id})`)
-      .maybeSingle();
-
+    // Find or create thread
     let threadId;
-    if (existing) {
-      threadId = existing.id;
-    } else {
-      const { data: newThread, error: threadErr } = await admin.from('threads')
-        .insert({ type: 'direct', owner_id: user.id, recipient_user_id })
-        .select('id').single();
-      if (threadErr) {
-        logAudit({ entityId: user.id, userId: user.id, userName: senderName, action: 'Direct thread creation failed', targetType: 'thread', details: { error: threadErr.message } });
-        return Response.json({ error: threadErr.message }, { status: 500 });
-      }
-      threadId = newThread.id;
+    try {
+      threadId = await findOrCreateDirectThread(admin, user.id, recipient_user_id);
+    } catch (e) {
+      logAudit({ entityId: user.id, userId: user.id, userName: senderName, action: 'Direct thread creation failed', targetType: 'thread', details: { error: e.message } });
+      return Response.json({ error: e.message }, { status: 500 });
     }
 
-    const { data: msg, error: msgErr } = await admin.from('messages')
-      .insert({ thread_id: threadId, sender_type: 'user', sender_user_id: user.id, body: message.trim() })
-      .select('id, body, created_at, sender_type').single();
-    if (msgErr) {
-      logAudit({ entityId: user.id, userId: user.id, userName: senderName, action: 'Direct message send failed', targetType: 'thread', targetId: threadId, details: { error: msgErr.message } });
-      return Response.json({ error: msgErr.message }, { status: 500 });
+    let msg;
+    try {
+      msg = await insertMessage(admin, { threadId, senderUserId: user.id, senderType: 'user', body: message.trim() });
+    } catch (e) {
+      logAudit({ entityId: user.id, userId: user.id, userName: senderName, action: 'Direct message send failed', targetType: 'thread', targetId: threadId, details: { error: e.message } });
+      return Response.json({ error: e.message }, { status: 500 });
     }
 
-    // In-app notification to recipient
-    const truncated = message.trim().length > 80 ? message.trim().substring(0, 80) + '…' : message.trim();
-    await admin.from('notifications').insert({
-      user_id: recipient_user_id, type: 'direct_message',
-      title: senderName, body: truncated,
-      link: '/uzenetek', source_type: 'thread', source_id: threadId,
-    }).catch(() => {});
+    // In-app notification to recipient (non-fatal)
+    try {
+      await createNotification(admin, {
+        userId: recipient_user_id, type: 'direct_message',
+        title: senderName, body: truncateForNotif(message.trim()),
+        link: '/uzenetek', sourceType: 'thread', sourceId: threadId,
+      });
+    } catch { /* non-fatal */ }
 
     logAudit({ entityId: user.id, userId: user.id, userName: senderName, action: 'Direct message sent', targetType: 'thread', targetId: threadId, details: { recipient_user_id } });
     return Response.json({ ok: true, thread_id: threadId, message: msg });
@@ -360,17 +345,18 @@ export async function POST(request) {
     .select('display_name, company_name, email').eq('id', user.id).single();
   const contractorName = contractor?.company_name || contractor?.display_name || 'Vállalkozó';
 
-  // Create thread
+  // Create thread (always new for client threads initiated from compose)
   const { data: thread, error: threadErr } = await admin.from('threads')
     .insert({ type: 'client', owner_id: user.id, client_id })
     .select('id').single();
   if (threadErr) return Response.json({ error: threadErr.message }, { status: 500 });
 
-  // Insert message
-  const { data: msg, error: msgErr } = await admin.from('messages')
-    .insert({ thread_id: thread.id, sender_type: 'user', sender_user_id: user.id, body: message.trim() })
-    .select('id, body, created_at').single();
-  if (msgErr) return Response.json({ error: msgErr.message }, { status: 500 });
+  let msg;
+  try {
+    msg = await insertMessage(admin, { threadId: thread.id, senderUserId: user.id, senderType: 'user', body: message.trim() });
+  } catch (e) {
+    return Response.json({ error: e.message }, { status: 500 });
+  }
 
   // Email to client
   if (client.email) {

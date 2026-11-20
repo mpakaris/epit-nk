@@ -3,6 +3,8 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { sendEmail } from '@/lib/email';
 import { wrapEmail } from '@/lib/emailTemplates';
 import { logAudit } from '@/lib/audit';
+import { createNotifications } from '@/lib/notificationService';
+import { insertMessage, truncateForNotif } from '@/lib/messageService';
 
 // POST /api/threads/[id]/messages — send a reply in a thread (client or collective)
 export async function POST(request, { params }) {
@@ -32,12 +34,12 @@ export async function POST(request, { params }) {
       .select('display_name, company_name').eq('id', user.id).single();
     const senderName = senderProfile?.company_name || senderProfile?.display_name || 'Ismeretlen';
 
-    const { data: msg, error: msgErr } = await admin.from('messages')
-      .insert({ thread_id: id, sender_type: 'user', sender_user_id: user.id, body: message.trim() })
-      .select('id, body, created_at, sender_type').single();
-    if (msgErr) {
-      logAudit({ entityId: thread.collective_id, userId: user.id, userName: senderName, action: 'Collective message send failed', targetType: 'thread', targetId: id, details: { error: msgErr.message } });
-      return Response.json({ error: msgErr.message }, { status: 500 });
+    let msg;
+    try {
+      msg = await insertMessage(admin, { threadId: id, senderUserId: user.id, senderType: 'user', body: message.trim() });
+    } catch (e) {
+      logAudit({ entityId: thread.collective_id, userId: user.id, userName: senderName, action: 'Collective message send failed', targetType: 'thread', targetId: id, details: { error: e.message } });
+      return Response.json({ error: e.message }, { status: 500 });
     }
 
     // Notify all other active members (US-MSG-021)
@@ -46,17 +48,11 @@ export async function POST(request, { params }) {
 
     if (otherMembers?.length) {
       const notifLink = thread.project_id ? `/projektek/${thread.project_id}` : thread.quote_id ? `/ajanlatok/${thread.quote_id}` : `/uzenetek`;
-      const truncated = message.trim().length > 80 ? message.trim().substring(0, 80) + '…' : message.trim();
-      const notifs = otherMembers.map(m => ({
-        user_id: m.user_id,
-        type: 'collective_message',
-        title: senderName,
-        body: truncated,
-        link: notifLink,
-        source_type: 'thread',
-        source_id: id,
-      }));
-      await admin.from('notifications').insert(notifs);
+      await createNotifications(admin, otherMembers.map(m => ({
+        userId: m.user_id, type: 'collective_message',
+        title: senderName, body: truncateForNotif(message.trim()),
+        link: notifLink, sourceType: 'thread', sourceId: id,
+      })));
     }
 
     logAudit({
@@ -88,12 +84,12 @@ export async function POST(request, { params }) {
   const contractorName = contractor?.company_name || contractor?.display_name || 'Vállalkozó';
 
   // Insert message
-  const { data: msg, error: msgErr } = await admin.from('messages')
-    .insert({ thread_id: id, sender_type: 'user', sender_user_id: user.id, body: message.trim() })
-    .select('id, body, created_at, sender_type').single();
-  if (msgErr) {
-    logAudit({ entityId: user.id, userId: user.id, userName: contractorName, action: 'Message send failed', targetType: 'thread', targetId: id, details: { error: msgErr.message } });
-    return Response.json({ error: msgErr.message }, { status: 500 });
+  let msg;
+  try {
+    msg = await insertMessage(admin, { threadId: id, senderUserId: user.id, senderType: 'user', body: message.trim() });
+  } catch (e) {
+    logAudit({ entityId: user.id, userId: user.id, userName: contractorName, action: 'Message send failed', targetType: 'thread', targetId: id, details: { error: e.message } });
+    return Response.json({ error: e.message }, { status: 500 });
   }
 
   // Email to client

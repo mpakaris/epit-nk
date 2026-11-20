@@ -22,6 +22,7 @@ export default function PageHeader({ onMessages, onNotifications, onMenu, msgCou
       </span>
 
       <div style={{ display: 'flex', gap: 8 }}>
+        {/* MESSAGING DISABLED — restore when messaging is re-introduced
         <button
           onClick={onMessages}
           aria-label={t('messages') + (msgCount > 0 ? `, ${msgCount} ${t('unread')}` : '')}
@@ -36,6 +37,7 @@ export default function PageHeader({ onMessages, onNotifications, onMenu, msgCou
             </span>
           )}
         </button>
+        */}
 
         <button
           onClick={onNotifications}

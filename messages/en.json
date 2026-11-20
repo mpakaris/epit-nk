@@ -243,13 +243,12 @@
     "entryAmountZero": "Amount cannot be zero!",
     "entryQuantity": "Quantity",
     "entryUnit": "Unit",
-    "entryUnitPrice": "Unit price (Ft)",
+    "entryUnitPrice": "Unit price",
     "entryAmount": "Amount (Ft) *",
     "entryContractor": "Contractor",
     "entryMySelf": "Myself ({name})",
     "entryNotes": "Notes (optional)",
     "entryItem": "Item:",
-    "entryUnitPrice": "Unit price",
     "entryFlatAmount": "Amount",
     "entryTotal": "Total",
     "entryAddAnother": "+ Next",
@@ -1839,7 +1838,6 @@
     "histActionRoomDeleted": "Room deleted",
     "histActionInvoicePortalShown": "Invoice published to portal",
     "histActionInvoicePortalHidden": "Invoice removed from portal",
-    "histActionLabourEdited": "Labour entry edited",
     "actionsMenuLabel": "Actions",
     "addEntryAria": "Add entry",
     "optionsAria": "Actions",
@@ -2693,7 +2691,8 @@
     "offlineMsg": "No internet connection.",
     "offlineHint": "Data won't update until connectivity is restored.",
     "offlineRetry": "Retry",
-    "workspacesTitle": "Workspaces"
+    "workspacesTitle": "Workspaces",
+    "noBody": "No message body."
   },
   "transferModal": {
     "stepPickTitle": "Move to collective",

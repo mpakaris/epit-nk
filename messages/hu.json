@@ -178,13 +178,12 @@
     "entryAmountZero": "Az összeg nem lehet nulla!",
     "entryQuantity": "Mennyiség",
     "entryUnit": "Egység",
-    "entryUnitPrice": "Egységár (Ft)",
+    "entryUnitPrice": "Egységár",
     "entryAmount": "Összeg (Ft) *",
     "entryContractor": "Kivitelező",
     "entryMySelf": "Saját magam ({name})",
     "entryNotes": "Megjegyzés (opcionális)",
     "entryItem": "Tétel:",
-    "entryUnitPrice": "Egységár",
     "entryFlatAmount": "Összeg",
     "entryTotal": "Összesen",
     "entryAddAnother": "+ Következő",
@@ -1839,7 +1838,6 @@
     "histActionRoomDeleted": "Helyiség törölve",
     "histActionInvoicePortalShown": "Számla megjelent a portálon",
     "histActionInvoicePortalHidden": "Számla eltávolítva a portálról",
-    "histActionLabourEdited": "Munkabejegyzés módosítva",
     "actionsMenuLabel": "Műveletek",
     "addEntryAria": "Bejegyzés hozzáadása",
     "optionsAria": "Műveletek",
@@ -2693,7 +2691,8 @@
     "offlineMsg": "Nincs internetkapcsolat.",
     "offlineHint": "Az adatok nem frissülnek, amíg nincs kapcsolat.",
     "offlineRetry": "Újra",
-    "workspacesTitle": "Munkaterületek"
+    "workspacesTitle": "Munkaterületek",
+    "noBody": "Nincs szöveges tartalom."
   },
   "transferModal": {
     "stepPickTitle": "Áthelyezés kollektívába",
