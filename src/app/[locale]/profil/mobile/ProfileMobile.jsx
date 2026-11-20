@@ -397,8 +397,16 @@ export default function ProfileMobile() {
       const res  = await fetch('/api/subscriptions/cancel', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ subscriptionId: premiumSubId }) });
       const data = await res.json();
       if (res.ok) {
-        setPremiumIsScheduledCancel(true); setPremiumCancelAt(data.subscription_period_end ?? null); setSubSheet(null);
-        setSubOkData({ title: t('premiumCanceledTitle'), text: data.subscription_period_end ? t('premiumActiveUntilDate', { date: formatDate(data.subscription_period_end) }) : t('premiumActiveUntilPeriod') });
+        const endDate = data.subscription_period_end ?? null;
+        setPremiumIsScheduledCancel(true);
+        setPremiumCancelAt(endDate);
+        setPremiumRenewalAt(null);
+        setSubSheet(null);
+        setSubOkData({
+          title: t('premiumCanceledTitle'),
+          text:  endDate ? t('premiumActiveUntilDate', { date: formatDate(endDate) }) : t('premiumActiveUntilPeriod'),
+          notes: [t('premiumCanceledDataNote'), t('premiumCanceledResumeHint')],
+        });
         setSubSheet('ok');
       } else { setAlertSheet({ title: tc('error'), msg: data.error || t('cancelErrorMsg') }); }
     } catch { setAlertSheet({ title: tc('error'), msg: t('cancelErrorMsg') }); }
@@ -410,8 +418,17 @@ export default function ProfileMobile() {
     setSubBusy(true);
     try {
       const res = await fetch('/api/subscriptions/resume', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ subscriptionId: premiumSubId }) });
-      if (res.ok) { setPremiumIsScheduledCancel(false); setPremiumCancelAt(null); flash(t('resumeSuccessTitle')); }
-      else { const d = await res.json(); setAlertSheet({ title: tc('error'), msg: d.error || t('resumeErrorMsg') }); }
+      if (res.ok) {
+        setPremiumIsScheduledCancel(false);
+        setPremiumCancelAt(null);
+        setSubSheet(null);
+        setSubOkData({
+          title: t('resumeSuccessTitle'),
+          text:  t('resumeSuccessText'),
+        });
+        setSubSheet('ok');
+        await refreshCurrentUser();
+      } else { const d = await res.json(); setAlertSheet({ title: tc('error'), msg: d.error || t('resumeErrorMsg') }); }
     } catch { setAlertSheet({ title: tc('error'), msg: t('resumeErrorMsg') }); }
     finally { setSubBusy(false); }
   };
@@ -912,7 +929,20 @@ export default function ProfileMobile() {
 
       {/* ── Subscription confirm sub-sheets ───────────────────────────── */}
       <Sheet open={subSheet === 'cancelPrem'} onClose={() => setSubSheet(null)} title={t('premiumCancelTitle')} z={60}>
-        <span style={{ fontSize: 15, fontWeight: 500, lineHeight: 1.45, color: '#0E1116' }}>{t('premiumCancelContent')}</span>
+        {/* Show specific end date if we have it from the live status fetch */}
+        {premiumRenewalAt ? (
+          <div style={{ padding: '12px 14px', borderRadius: 14, background: '#FFF7ED', border: '1px solid #FED7AA' }}>
+            <span style={{ fontSize: 15, fontWeight: 700, color: '#9A3412', display: 'block', marginBottom: 6 }}>
+              {t('premiumCancelContentDate', { date: formatDate(premiumRenewalAt) })}
+            </span>
+            <span style={{ fontSize: 14, fontWeight: 500, color: '#9A3412', lineHeight: 1.5 }}>
+              {t('premiumCanceledDataNote')}
+            </span>
+          </div>
+        ) : (
+          <span style={{ fontSize: 15, fontWeight: 500, lineHeight: 1.45, color: '#0E1116' }}>{t('premiumCancelContent')}</span>
+        )}
+        <span style={{ fontSize: 14, fontWeight: 600, color: '#5A5F68', lineHeight: 1.5 }}>{t('premiumCanceledResumeHint')}</span>
         <button onClick={handleCancelPremium} disabled={subBusy} style={{ height: 60, border: 0, borderRadius: 30, background: '#B71C1C', color: '#fff', fontSize: 17, fontWeight: 700, cursor: 'pointer' }}>
           {subBusy ? t('cancelingBtn') : t('cancelSubscriptionBtn')}
         </button>
@@ -937,6 +967,16 @@ export default function ProfileMobile() {
             <span style={{ alignSelf: 'center', width: 64, height: 64, borderRadius: 32, background: '#E7F4EC', color: '#14532D', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><CheckSvg /></span>
             <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 24, fontWeight: 700, textAlign: 'center', color: '#0E1116' }}>{subOkData.title}</span>
             <span style={{ fontSize: 15, fontWeight: 500, lineHeight: 1.45, textAlign: 'center', color: '#0E1116' }}>{subOkData.text}</span>
+            {subOkData.notes?.length > 0 && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {subOkData.notes.map((note, i) => (
+                  <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 12px', borderRadius: 14, background: '#F5F4F0' }}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#14532D" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: 1 }}><path d="M5 12l5 5 9-10"/></svg>
+                    <span style={{ fontSize: 14, fontWeight: 600, color: '#3A3F47', lineHeight: 1.45 }}>{note}</span>
+                  </div>
+                ))}
+              </div>
+            )}
             <button onClick={() => setSubSheet(null)} style={{ height: 60, border: 0, borderRadius: 30, background: BG, color: '#fff', fontSize: 17, fontWeight: 700, cursor: 'pointer' }}>{t('ok')}</button>
           </>
         )}
