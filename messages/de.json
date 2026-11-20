@@ -1365,7 +1365,16 @@
     "scheduledCancelUntil": "{status} — bis {date}",
     "workspaceLabel": "Arbeitsbereich",
     "personalOption": "Persönlich (privat)",
-    "sharedWarning": "Dieser Inhalt wird mit allen Mitgliedern des Kollektivs geteilt."
+    "sharedWarning": "Dieser Inhalt wird mit allen Mitgliedern des Kollektivs geteilt.",
+    "menuManageSubscription": "Abonnement verwalten",
+    "seats": "Plätze",
+    "seatsUsed": "{used}/{total} belegt",
+    "creating": "Erstellen...",
+    "createBtn": "Erstellen",
+    "createError": "Beim Erstellen ist ein Fehler aufgetreten.",
+    "createSuccess": "Kollektiv erstellt",
+    "showMembers": "Mitglieder anzeigen",
+    "hideMembers": "Mitglieder ausblenden"
   },
   "profile": {
     "pageTitle": "Mein Profil",
@@ -1509,7 +1518,7 @@
     "planBasicFeatures": [
       "Max. 1 Projekt",
       "Max. 5 Aufmaße",
-      "Max. 5 Angebote",
+      "Max. 3 Angebote",
       "Persönliche Website (Fachkräfteprofil)",
       "Zu Kollektiven einladbar"
     ],
@@ -1563,7 +1572,7 @@
     "startCollective": "Kollektiv starten",
     "perPackage": "pro Paket",
     "basicFeature1": "Max. 5 Aufmaße",
-    "basicFeature2": "Max. 5 Angebote",
+    "basicFeature2": "Max. 3 Angebote",
     "basicFeature3": "Max. 1 Projekt",
     "basicFeature4": "Persönliche Website (Handwerker-Profil)",
     "basicFeature5": "Kann in Kollektive eingeladen werden",
@@ -2736,7 +2745,9 @@
     "offlineHint": "Daten werden nicht aktualisiert, solange keine Verbindung besteht.",
     "offlineRetry": "Wiederholen",
     "workspacesTitle": "Arbeitsbereiche",
-    "noBody": "Kein Textinhalt."
+    "noBody": "Kein Textinhalt.",
+    "myCollectives": "Meine Kollektive",
+    "collectives": "Kollektive"
   },
   "transferModal": {
     "stepPickTitle": "In Kollektiv verschieben",

@@ -1300,7 +1300,16 @@
     "scheduledCancelUntil": "{status} — {date}-ig",
     "workspaceLabel": "Munkaterület",
     "personalOption": "Személyes (privát)",
-    "sharedWarning": "Ez a tartalom megosztódik a kollektíva összes tagjával."
+    "sharedWarning": "Ez a tartalom megosztódik a kollektíva összes tagjával.",
+    "menuManageSubscription": "Előfizetés kezelése",
+    "seats": "hely",
+    "seatsUsed": "{used}/{total} foglalt",
+    "creating": "Létrehozás...",
+    "createBtn": "Létrehozás",
+    "createError": "Hiba történt a létrehozáskor.",
+    "createSuccess": "Kollektíva létrehozva",
+    "showMembers": "Tagok megjelenítése",
+    "hideMembers": "Tagok elrejtése"
   },
   "profile": {
     "pageTitle": "Profilom",
@@ -1498,7 +1507,7 @@
     "startCollective": "Kollektíva indítása",
     "perPackage": "csomagonként",
     "basicFeature1": "Max. 5 felmérés",
-    "basicFeature2": "Max. 5 ajánlat",
+    "basicFeature2": "Max. 3 ajánlat",
     "basicFeature3": "Max. 1 projekt",
     "basicFeature4": "Személyes weboldal (szakember profil)",
     "basicFeature5": "Meghívható kollektívákba",
@@ -2736,7 +2745,9 @@
     "offlineHint": "Az adatok nem frissülnek, amíg nincs kapcsolat.",
     "offlineRetry": "Újra",
     "workspacesTitle": "Munkaterületek",
-    "noBody": "Nincs szöveges tartalom."
+    "noBody": "Nincs szöveges tartalom.",
+    "myCollectives": "Kollektíváim",
+    "collectives": "Kollektívák"
   },
   "transferModal": {
     "stepPickTitle": "Áthelyezés kollektívába",

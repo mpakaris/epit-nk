@@ -1365,7 +1365,16 @@
     "resumeMenuTitle": "Restore subscription",
     "workspaceLabel": "Workspace",
     "personalOption": "Personal (private)",
-    "sharedWarning": "This content will be shared with all collective members."
+    "sharedWarning": "This content will be shared with all collective members.",
+    "menuManageSubscription": "Manage subscription",
+    "seats": "seats",
+    "seatsUsed": "{used}/{total} used",
+    "creating": "Creating...",
+    "createBtn": "Create",
+    "createError": "An error occurred while creating.",
+    "createSuccess": "Collective created",
+    "showMembers": "Show members",
+    "hideMembers": "Hide members"
   },
   "profile": {
     "pageTitle": "My profile",
@@ -1509,7 +1518,7 @@
     "planBasicFeatures": [
       "Max. 1 project",
       "Max. 5 surveys",
-      "Max. 5 quotes",
+      "Max. 3 quotes",
       "Personal website (professional profile)",
       "Can be invited to collectives"
     ],
@@ -1563,7 +1572,7 @@
     "startCollective": "Start collective",
     "perPackage": "per package",
     "basicFeature1": "Max. 5 surveys",
-    "basicFeature2": "Max. 5 quotes",
+    "basicFeature2": "Max. 3 quotes",
     "basicFeature3": "Max. 1 project",
     "basicFeature4": "Personal website (tradesperson profile)",
     "basicFeature5": "Can be invited to collectives",
@@ -2736,7 +2745,9 @@
     "offlineHint": "Data won't update until connectivity is restored.",
     "offlineRetry": "Retry",
     "workspacesTitle": "Workspaces",
-    "noBody": "No message body."
+    "noBody": "No message body.",
+    "myCollectives": "My Collectives",
+    "collectives": "Collectives"
   },
   "transferModal": {
     "stepPickTitle": "Move to collective",

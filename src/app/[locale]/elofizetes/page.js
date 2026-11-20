@@ -8,6 +8,8 @@ import { Check, Zap, Star, Building2, Clock, ArrowLeft, AlertCircle, CheckCircle
 import { Link } from '@/navigation';
 import WorkspaceBadge from '@/components/WorkspaceBadge';
 import { isEffectivePremium } from '@/lib/subscriptionLimits';
+import useMobile from '@/hooks/useMobile';
+import ElofizetesPageMobile from './mobile/ElofizetesPageMobile';
 
 function TrialBanner({ trialEndsAt }) {
   const daysLeft = Math.max(0, Math.ceil((new Date(trialEndsAt) - new Date()) / 86400000));
@@ -26,6 +28,12 @@ function TrialBanner({ trialEndsAt }) {
 }
 
 export default function ElofizetesPage() {
+  const isMobile = useMobile();
+  if (isMobile) return <ElofizetesPageMobile />;
+  return <ElofizetesPageDesktop />;
+}
+
+function ElofizetesPageDesktop() {
   const { currentUser, refreshSupabaseData } = useApp();
   const router = useRouter();
   const t = useTranslations('subscription');

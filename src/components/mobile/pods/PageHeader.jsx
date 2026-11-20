@@ -1,9 +1,12 @@
 'use client';
 
+import Link from 'next/link';
 import { useTranslations } from 'next-intl';
+import { useApp } from '@/context/AppContext';
 
 export default function PageHeader({ onMessages, onNotifications, onMenu, msgCount = 0, notifCount = 0 }) {
   const t = useTranslations('mobilePods');
+  const { isDemoMode } = useApp();
 
   return (
     <div style={{
@@ -12,14 +15,17 @@ export default function PageHeader({ onMessages, onNotifications, onMenu, msgCou
       background: 'var(--m-canvas)',
       display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between',
     }}>
-      <span style={{
-        paddingTop: 6,
-        fontFamily: "'Bricolage Grotesque', sans-serif",
-        fontSize: 24, fontWeight: 700, letterSpacing: '-0.02em',
-        color: 'var(--m-ink, #0E1116)',
-      }}>
+      <Link
+        href={isDemoMode ? '/demo/dashboard' : '/dashboard'}
+        style={{
+          paddingTop: 6, textDecoration: 'none',
+          fontFamily: "'Bricolage Grotesque', sans-serif",
+          fontSize: 24, fontWeight: 700, letterSpacing: '-0.02em',
+          color: 'var(--m-ink, #0E1116)',
+        }}
+      >
         okosszaki<span style={{ color: '#2F5BFF' }}>.</span>
-      </span>
+      </Link>
 
       <div style={{ display: 'flex', gap: 8 }}>
         {/* MESSAGING DISABLED — restore when messaging is re-introduced
