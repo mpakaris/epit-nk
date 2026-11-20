@@ -585,13 +585,16 @@ export default function ProfileMobile() {
                   .then(r => r.ok ? r.json() : null)
                   .then(d => {
                     if (!d) return;
+                    // If the stored ID was stale, swap it out so cancel/resume use the correct one
+                    if (d.corrected_subscription_id) setPremiumSubId(d.corrected_subscription_id);
                     if (d.created_at) setPremiumSubStarted(d.created_at);
                     if (d.status === 'scheduled_cancel') {
-                      // period_end = when access actually expires for a scheduled cancellation
                       setPremiumIsScheduledCancel(true);
                       if (d.current_period_end) setPremiumCancelAt(d.current_period_end);
+                    } else if (d.status === 'canceled' || d.status === 'expired') {
+                      // Stale ID and no active replacement found — treat as not cancellable
+                      setPremiumSubId(null);
                     } else {
-                      // next_billing_date is Creem's confirmed next charge date; fall back to period_end
                       const renewal = d.next_billing_date || d.current_period_end;
                       if (renewal) setPremiumRenewalAt(renewal);
                     }
@@ -945,8 +948,8 @@ export default function ProfileMobile() {
           </div>
         )}
 
-        {/* Forward to full subscription page */}
-        <a href="/elofizetes" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, height: 56, border: 0, borderRadius: 28, background: BG, color: '#fff', fontSize: 16, fontWeight: 700, textDecoration: 'none' }}>
+        {/* Forward to full subscription page — flexShrink:0 so the history div can't squish it */}
+        <a href="/elofizetes" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, height: 56, flexShrink: 0, border: 0, borderRadius: 28, background: BG, color: '#fff', fontSize: 16, fontWeight: 700, textDecoration: 'none', marginTop: 4 }}>
           {t('subscriptionPageLink')}
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
         </a>

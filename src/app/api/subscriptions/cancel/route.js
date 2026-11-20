@@ -83,6 +83,16 @@ export async function POST(request) {
     const err = await res.json().catch(() => ({}));
     const msg = Array.isArray(err.message) ? err.message.join(', ') : (err.message || 'Lemondás sikertelen');
     console.error('[subscriptions/cancel] Creem error', res.status, msg);
+
+    // Subscription already canceled/expired in Creem — sync our DB and return friendly message
+    if (res.status === 400 && msg.toLowerCase().includes('canceled')) {
+      await admin.from('subscriptions')
+        .update({ status: 'canceled', updated_at: new Date().toISOString() })
+        .eq('creem_subscription_id', subscriptionId);
+      logAudit({ userId: user.id, userName: user.email, action: 'Subscription cancel skipped — already canceled in Creem', targetType: 'payment', targetId: subscriptionId, details: { creem_status: res.status } });
+      return NextResponse.json({ error: 'Az előfizetés már korábban lemondásra került. Nyisd újra az előfizetési lapot a friss állapot megtekintéséhez.' }, { status: 400 });
+    }
+
     logAudit({ userId: user.id, userName: user.email, action: 'Subscription cancel failed', targetType: 'payment', targetId: subscriptionId, details: { error: msg, creem_status: res.status, collective_id: collectiveId || null } });
     return NextResponse.json({ error: msg }, { status: res.status });
   }
