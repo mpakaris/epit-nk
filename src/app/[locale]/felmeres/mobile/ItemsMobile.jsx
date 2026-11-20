@@ -340,6 +340,13 @@ export default function ItemsMobile() {
   const [openPods, setOpenPods] = useState({});
   const togglePod = (type) => setOpenPods(prev => ({ ...prev, [type]: !prev[type] }));
 
+  // Pin body background to dark so the status-bar area never flashes light
+  useEffect(() => {
+    const prev = document.body.style.background;
+    document.body.style.background = SURVEY_DEEP;
+    return () => { document.body.style.background = prev; };
+  }, []);
+
   // On direct page load, entries/items may not be in cache yet — fetch them
   const fetchedRef = useRef(false);
   useEffect(() => {
@@ -713,7 +720,7 @@ export default function ItemsMobile() {
         <div
           role="dialog"
           aria-label={addSheet.mode === 'edit' ? tM('itemsEditSheetTitle') : tM('itemsManualSheetTitle')}
-          className="pod-sheet" style={{ position: 'fixed', zIndex: 50, left: 0, right: 0, bottom: 0, boxSizing: 'border-box', padding: '10px 16px calc(20px + env(safe-area-inset-bottom))', borderRadius: '32px 32px 0 0', background: '#FBFAF7', display: 'flex', flexDirection: 'column', gap: 12, maxHeight: '92dvh', overflowY: 'auto' }}
+          className="pod-sheet" style={{ position: 'fixed', zIndex: 50, left: 0, right: 0, bottom: 0, boxSizing: 'border-box', padding: '10px 16px calc(20px + env(safe-area-inset-bottom))', borderRadius: '32px 32px 0 0', background: 'var(--m-sheet)', display: 'flex', flexDirection: 'column', gap: 12, maxHeight: '92dvh', overflowY: 'auto' }}
         >
           <ItemSheet
             initial={addSheet.mode === 'edit' ? addSheet.item : null}
@@ -733,7 +740,7 @@ export default function ItemsMobile() {
       {comingSoon && (
         <>
           <div onClick={() => setComingSoon(false)} style={{ position: 'fixed', inset: 0, zIndex: 44, background: 'rgba(14,17,22,0.5)' }} />
-          <div role="dialog" className="pod-sheet" style={{ position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 50, boxSizing: 'border-box', padding: `24px 24px calc(28px + env(safe-area-inset-bottom))`, borderRadius: '32px 32px 0 0', background: '#FBFAF7', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, textAlign: 'center' }}>
+          <div role="dialog" className="pod-sheet" style={{ position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 50, boxSizing: 'border-box', padding: `24px 24px calc(28px + env(safe-area-inset-bottom))`, borderRadius: '32px 32px 0 0', background: 'var(--m-sheet)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, textAlign: 'center' }}>
             <span style={{ fontSize: 36 }}>🎙️</span>
             <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 24, fontWeight: 700, color: '#0E1116' }}>{tM('comingSoonTitle')}</span>
             <span style={{ fontSize: 15, fontWeight: 500, color: '#5A5F68', lineHeight: 1.5 }}>{tM('comingSoonDictate')}</span>

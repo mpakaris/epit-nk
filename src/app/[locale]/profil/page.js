@@ -77,7 +77,7 @@ function UpgradeModal({ status, onClose, t, tc }) {
               <button className="btn btn-secondary" onClick={onClose}>
                 {tc('back')}
               </button>
-              <a href="mailto:info@epitunk.hu" className="btn btn-primary">
+              <a href="mailto:info@okosszaki.hu" className="btn btn-primary">
                 {t('contactBtn')}
               </a>
             </>
@@ -1103,7 +1103,7 @@ export default function ProfilPage() {
         </div>
 
         <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '0.75rem', textAlign: 'center' }}>
-          {t('contactQuestion')} <a href="mailto:info@epitunk.hu" style={{ color: 'var(--accent)' }}>info@epitunk.hu</a>
+          {t('contactQuestion')} <a href="mailto:info@okosszaki.hu" style={{ color: 'var(--accent)' }}>info@okosszaki.hu</a>
         </p>
       </div>
 

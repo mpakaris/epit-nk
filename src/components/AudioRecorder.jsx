@@ -390,7 +390,7 @@ export default function AudioRecorder({ onTranscript, onError, disabled = false,
               boxSizing: 'border-box',
               padding: '10px 20px calc(28px + env(safe-area-inset-bottom))',
               borderRadius: '32px 32px 0 0',
-              background: '#FBFAF7',
+              background: 'var(--m-sheet)',
               display: 'flex', flexDirection: 'column', gap: 16,
               pointerEvents: 'auto',
             }}

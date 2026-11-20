@@ -5,7 +5,7 @@
  * Slate-navy header (#263248), parchment body, pod-stack layout.
  */
 
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useApp } from '@/context/AppContext';
@@ -49,7 +49,7 @@ function ProjectSkeleton() {
 }
 
 // ─── Project card ─────────────────────────────────────────────────────────────
-function ProjectCard({ project, client, spent, quoteTotal, hasPending, pendingToName, t, userCurrency, onMore }) {
+function ProjectCard({ project, client, spent, quoteTotal, hasPending, pendingToName, t, userCurrency, onOpen, onMore }) {
   const st = projectStatusStyle(project.status, t);
   const isClosed = project.status === 'closed' || project.status === 'expired';
   const progress = quoteTotal > 0 ? Math.min(1, spent / quoteTotal) : null;
@@ -59,7 +59,7 @@ function ProjectCard({ project, client, spent, quoteTotal, hasPending, pendingTo
       <div style={{ height: 6, background: st.bar }} />
       <button
         aria-label={`${t('openAction')}: ${project.name}`}
-        onClick={onMore}
+        onClick={onOpen}
         style={{ width: '100%', boxSizing: 'border-box', padding: '14px 64px 12px 16px', border: 0, background: 'transparent', color: 'var(--m-ink)', textAlign: 'left', display: 'flex', flexDirection: 'column', gap: 5, minHeight: 88, cursor: 'pointer' }}
       >
         <span style={{ fontSize: 18, fontWeight: 700, lineHeight: 1.25, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -96,8 +96,8 @@ function ProjectCard({ project, client, spent, quoteTotal, hasPending, pendingTo
         )}
       </button>
       <button
-        onClick={onMore}
-        aria-label={`${t('openAction')}: ${project.name}`}
+        onClick={e => { e.stopPropagation(); onMore(); }}
+        aria-label={t('moreActions')}
         style={{ position: 'absolute', right: 6, top: 20, width: 48, height: 48, border: 0, borderRadius: 24, background: 'transparent', color: 'var(--m-ink)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
       >
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" aria-hidden="true"><path d="M5 12h.01M12 12h.01M19 12h.01"/></svg>
@@ -174,8 +174,16 @@ export default function ProjectsListMobile() {
   const navPrefix = isDemoMode ? '/demo' : '';
   const p = useCallback((path) => `${navPrefix}${path}`, [navPrefix]);
 
-  const [activePodId, setActivePodId] = useState(() => activeCollectiveId || 'personal');
+  const [activePodId, setActivePodId] = useState('personal');
   const [podSwitching, setPodSwitching] = useState(false);
+
+  // Always open on personal on mount; if context was collective, reset it silently
+  useEffect(() => {
+    if (activeCollectiveId !== null && !isDemoMode) {
+      setPodSwitching(true);
+      setActiveContext(null).catch(() => {}).finally(() => setPodSwitching(false));
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleActivate = useCallback(async (id) => {
     if (id === activePodId || podSwitching) return;
@@ -361,7 +369,7 @@ export default function ProjectsListMobile() {
                       const client  = clients.find(c => c.id === project.client_id);
                       const pending = outgoingTransfers.find(r => r.document_id === project.id);
                       return (
-                        <ProjectCard key={project.id} project={project} client={client} spent={getSpent(project)} quoteTotal={getQuoteTotal(project)} hasPending={!!pending} pendingToName={pending?.collective_name || ''} t={t} userCurrency={userCurrency} onMore={() => openMore(project)} />
+                        <ProjectCard key={project.id} project={project} client={client} spent={getSpent(project)} quoteTotal={getQuoteTotal(project)} hasPending={!!pending} pendingToName={pending?.collective_name || ''} t={t} userCurrency={userCurrency} onOpen={() => router.push(p(`/projektek/${project.id}`))} onMore={() => openMore(project)} />
                       );
                     })}
                   </div>

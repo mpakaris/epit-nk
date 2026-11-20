@@ -14,7 +14,7 @@ import AnalyzeLayoutSheet from './AnalyzeLayoutSheet';
 import { RoomEditorSheet } from './RoomEditorMobile';
 
 const SURVEY_BG   = '#0A7F72';
-const SURVEY_DEEP = '#06302C';
+const SURVEY_DEEP = '#121110';
 
 const PHOTO_GRADS = [
   'linear-gradient(135deg,#D8C7B1,#B09A7F)',
@@ -1045,7 +1045,7 @@ export default function SurveyDetailMobile() {
 
       {/* Survey context menu */}
       {sheet === 'menu' && (
-        <div role="dialog" aria-label={tM('surveyCtxTitle')} className="pod-sheet" style={{ position: 'fixed', zIndex: 50, left: 0, right: 0, bottom: 0, boxSizing: 'border-box', padding: '10px 16px calc(18px + env(safe-area-inset-bottom))', borderRadius: '32px 32px 0 0', background: '#FBFAF7', display: 'flex', flexDirection: 'column', gap: 12, maxHeight: '90%', overflowY: 'auto' }}>
+        <div role="dialog" aria-label={tM('surveyCtxTitle')} className="pod-sheet" style={{ position: 'fixed', zIndex: 50, left: 0, right: 0, bottom: 0, boxSizing: 'border-box', padding: '10px 16px calc(18px + env(safe-area-inset-bottom))', borderRadius: '32px 32px 0 0', background: 'var(--m-sheet)', display: 'flex', flexDirection: 'column', gap: 12, maxHeight: '90%', overflowY: 'auto' }}>
           <span style={{ alignSelf: 'center', width: 44, height: 5, borderRadius: 3, background: '#D5D2C8' }} />
           <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 22, fontWeight: 700, color: '#0E1116' }}>{survey.title}</span>
@@ -1059,14 +1059,14 @@ export default function SurveyDetailMobile() {
 
       {/* Meta drawer */}
       {sheet === 'meta' && (
-        <div role="dialog" aria-label={t('metaDrawerTitle')} className="pod-sheet" style={{ position: 'fixed', zIndex: 50, left: 0, right: 0, bottom: 0, boxSizing: 'border-box', padding: '10px 16px calc(18px + env(safe-area-inset-bottom))', borderRadius: '32px 32px 0 0', background: '#FBFAF7', display: 'flex', flexDirection: 'column', gap: 12, maxHeight: '90%', overflowY: 'auto' }}>
+        <div role="dialog" aria-label={t('metaDrawerTitle')} className="pod-sheet" style={{ position: 'fixed', zIndex: 50, left: 0, right: 0, bottom: 0, boxSizing: 'border-box', padding: '10px 16px calc(18px + env(safe-area-inset-bottom))', borderRadius: '32px 32px 0 0', background: 'var(--m-sheet)', display: 'flex', flexDirection: 'column', gap: 12, maxHeight: '90%', overflowY: 'auto' }}>
           <MetaSheet survey={survey} clients={clients} onSave={handleMetaSave} onClose={closeSheet} />
         </div>
       )}
 
       {/* Room menu */}
       {sheet === 'room' && (
-        <div role="dialog" aria-label={tM('roomMenuTitle')} className="pod-sheet" style={{ position: 'fixed', zIndex: 50, left: 0, right: 0, bottom: 0, boxSizing: 'border-box', padding: '10px 16px calc(18px + env(safe-area-inset-bottom))', borderRadius: '32px 32px 0 0', background: '#FBFAF7', display: 'flex', flexDirection: 'column', gap: 12, maxHeight: '90%', overflowY: 'auto' }}>
+        <div role="dialog" aria-label={tM('roomMenuTitle')} className="pod-sheet" style={{ position: 'fixed', zIndex: 50, left: 0, right: 0, bottom: 0, boxSizing: 'border-box', padding: '10px 16px calc(18px + env(safe-area-inset-bottom))', borderRadius: '32px 32px 0 0', background: 'var(--m-sheet)', display: 'flex', flexDirection: 'column', gap: 12, maxHeight: '90%', overflowY: 'auto' }}>
           <span style={{ alignSelf: 'center', width: 44, height: 5, borderRadius: 3, background: '#D5D2C8' }} />
           <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 22, fontWeight: 700, color: '#0E1116' }}>{activeRoomName}</span>
           {roomMenuItems.map((item, i) => (
@@ -1077,14 +1077,14 @@ export default function SurveyDetailMobile() {
 
       {/* Confirm sheet */}
       {sheet === 'confirm' && confirmOp && CONFIRMS[confirmOp] && (
-        <div role="alertdialog" className="pod-sheet" style={{ position: 'fixed', zIndex: 50, left: 0, right: 0, bottom: 0, boxSizing: 'border-box', padding: '10px 16px calc(18px + env(safe-area-inset-bottom))', borderRadius: '32px 32px 0 0', background: '#FBFAF7', display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div role="alertdialog" className="pod-sheet" style={{ position: 'fixed', zIndex: 50, left: 0, right: 0, bottom: 0, boxSizing: 'border-box', padding: '10px 16px calc(18px + env(safe-area-inset-bottom))', borderRadius: '32px 32px 0 0', background: 'var(--m-sheet)', display: 'flex', flexDirection: 'column', gap: 12 }}>
           <ConfirmSheet {...CONFIRMS[confirmOp]} onClose={closeSheet} />
         </div>
       )}
 
       {/* Locked options */}
       {sheet === 'locked' && (
-        <div role="dialog" aria-label={t('readOnly')} className="pod-sheet" style={{ position: 'fixed', zIndex: 50, left: 0, right: 0, bottom: 0, boxSizing: 'border-box', padding: '10px 16px calc(18px + env(safe-area-inset-bottom))', borderRadius: '32px 32px 0 0', background: '#FBFAF7', display: 'flex', flexDirection: 'column', gap: 12, maxHeight: '90%', overflowY: 'auto' }}>
+        <div role="dialog" aria-label={t('readOnly')} className="pod-sheet" style={{ position: 'fixed', zIndex: 50, left: 0, right: 0, bottom: 0, boxSizing: 'border-box', padding: '10px 16px calc(18px + env(safe-area-inset-bottom))', borderRadius: '32px 32px 0 0', background: 'var(--m-sheet)', display: 'flex', flexDirection: 'column', gap: 12, maxHeight: '90%', overflowY: 'auto' }}>
           <span style={{ alignSelf: 'center', width: 44, height: 5, borderRadius: 3, background: '#D5D2C8' }} />
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
             <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 22, fontWeight: 700, color: '#0E1116' }}>{t('readOnly')}</span>
@@ -1101,14 +1101,14 @@ export default function SurveyDetailMobile() {
 
       {/* Property info sheet */}
       {sheet === 'property' && (
-        <div role="dialog" aria-label={t('propertyTitle')} className="pod-sheet" style={{ position: 'fixed', zIndex: 50, left: 0, right: 0, bottom: 0, boxSizing: 'border-box', padding: '10px 16px calc(20px + env(safe-area-inset-bottom))', borderRadius: '32px 32px 0 0', background: '#FBFAF7', display: 'flex', flexDirection: 'column', gap: 14, maxHeight: '92dvh', overflowY: 'auto' }}>
+        <div role="dialog" aria-label={t('propertyTitle')} className="pod-sheet" style={{ position: 'fixed', zIndex: 50, left: 0, right: 0, bottom: 0, boxSizing: 'border-box', padding: '10px 16px calc(20px + env(safe-area-inset-bottom))', borderRadius: '32px 32px 0 0', background: 'var(--m-sheet)', display: 'flex', flexDirection: 'column', gap: 14, maxHeight: '92dvh', overflowY: 'auto' }}>
           <PropInfoSheet survey={survey} surveyId={id} canEdit={canEditMeta} onSave={handlePropSave} onClose={closeSheet} />
         </div>
       )}
 
       {/* Floor plans gallery sheet */}
       {sheet === 'layouts' && (
-        <div role="dialog" aria-label={tM('propFloorPlansCard', { count: layouts.length })} className="pod-sheet" style={{ position: 'fixed', zIndex: 50, left: 0, right: 0, bottom: 0, boxSizing: 'border-box', padding: '10px 16px calc(20px + env(safe-area-inset-bottom))', borderRadius: '32px 32px 0 0', background: '#FBFAF7', display: 'flex', flexDirection: 'column', gap: 14, maxHeight: '82dvh', overflowY: 'auto' }}>
+        <div role="dialog" aria-label={tM('propFloorPlansCard', { count: layouts.length })} className="pod-sheet" style={{ position: 'fixed', zIndex: 50, left: 0, right: 0, bottom: 0, boxSizing: 'border-box', padding: '10px 16px calc(20px + env(safe-area-inset-bottom))', borderRadius: '32px 32px 0 0', background: 'var(--m-sheet)', display: 'flex', flexDirection: 'column', gap: 14, maxHeight: '82dvh', overflowY: 'auto' }}>
           <span style={{ alignSelf: 'center', width: 44, height: 5, borderRadius: 3, background: '#D5D2C8', flexShrink: 0 }} />
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexShrink: 0 }}>
             <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 22, fontWeight: 700, color: '#0E1116' }}>{tM('propFloorPlansCard', { count: layouts.length })}</span>
@@ -1141,7 +1141,7 @@ export default function SurveyDetailMobile() {
 
       {/* Sketches gallery sheet */}
       {sheet === 'sketches' && (
-        <div role="dialog" aria-label={tM('propSketchesCard', { count: drawings.filter(d => !d.entry_id).length })} className="pod-sheet" style={{ position: 'fixed', zIndex: 50, left: 0, right: 0, bottom: 0, boxSizing: 'border-box', padding: '10px 16px calc(20px + env(safe-area-inset-bottom))', borderRadius: '32px 32px 0 0', background: '#FBFAF7', display: 'flex', flexDirection: 'column', gap: 14, maxHeight: '82dvh', overflowY: 'auto' }}>
+        <div role="dialog" aria-label={tM('propSketchesCard', { count: drawings.filter(d => !d.entry_id).length })} className="pod-sheet" style={{ position: 'fixed', zIndex: 50, left: 0, right: 0, bottom: 0, boxSizing: 'border-box', padding: '10px 16px calc(20px + env(safe-area-inset-bottom))', borderRadius: '32px 32px 0 0', background: 'var(--m-sheet)', display: 'flex', flexDirection: 'column', gap: 14, maxHeight: '82dvh', overflowY: 'auto' }}>
           <span style={{ alignSelf: 'center', width: 44, height: 5, borderRadius: 3, background: '#D5D2C8', flexShrink: 0 }} />
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexShrink: 0 }}>
             <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 22, fontWeight: 700, color: '#0E1116' }}>{tM('propSketchesCard', { count: drawings.filter(d => !d.entry_id).length })}</span>
@@ -1180,7 +1180,7 @@ export default function SurveyDetailMobile() {
         return (
           <>
             <button type="button" onClick={() => setRoomMediaSheet(null)} aria-label={tc('close')} style={{ position: 'fixed', inset: 0, zIndex: 48, border: 0, background: 'rgba(14,17,22,0.5)', cursor: 'pointer' }} />
-            <div role="dialog" aria-label={tM('roomPhotoBadge', { count: sheetMedia.length })} className="pod-sheet" style={{ position: 'fixed', zIndex: 50, left: 0, right: 0, bottom: 0, boxSizing: 'border-box', padding: '10px 16px calc(20px + env(safe-area-inset-bottom))', borderRadius: '32px 32px 0 0', background: '#FBFAF7', display: 'flex', flexDirection: 'column', gap: 14, maxHeight: '82dvh', overflowY: 'auto' }}>
+            <div role="dialog" aria-label={tM('roomPhotoBadge', { count: sheetMedia.length })} className="pod-sheet" style={{ position: 'fixed', zIndex: 50, left: 0, right: 0, bottom: 0, boxSizing: 'border-box', padding: '10px 16px calc(20px + env(safe-area-inset-bottom))', borderRadius: '32px 32px 0 0', background: 'var(--m-sheet)', display: 'flex', flexDirection: 'column', gap: 14, maxHeight: '82dvh', overflowY: 'auto' }}>
               <span style={{ alignSelf: 'center', width: 44, height: 5, borderRadius: 3, background: '#D5D2C8', flexShrink: 0 }} />
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexShrink: 0 }}>
                 <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 22, fontWeight: 700, color: '#0E1116' }}>{sheetEntry.name} · {tM('roomPhotoBadge', { count: sheetMedia.length })}</span>
@@ -1237,7 +1237,7 @@ export default function SurveyDetailMobile() {
         return (
           <>
             <button type="button" onClick={() => setRoomSketchSheet(null)} aria-label={tc('close')} style={{ position: 'fixed', inset: 0, zIndex: 48, border: 0, background: 'rgba(14,17,22,0.5)', cursor: 'pointer' }} />
-            <div role="dialog" aria-label={sketchEntry.name} className="pod-sheet" style={{ position: 'fixed', zIndex: 50, left: 0, right: 0, bottom: 0, boxSizing: 'border-box', padding: '10px 16px calc(20px + env(safe-area-inset-bottom))', borderRadius: '32px 32px 0 0', background: '#FBFAF7', display: 'flex', flexDirection: 'column', gap: 14, maxHeight: '82dvh', overflowY: 'auto' }}>
+            <div role="dialog" aria-label={sketchEntry.name} className="pod-sheet" style={{ position: 'fixed', zIndex: 50, left: 0, right: 0, bottom: 0, boxSizing: 'border-box', padding: '10px 16px calc(20px + env(safe-area-inset-bottom))', borderRadius: '32px 32px 0 0', background: 'var(--m-sheet)', display: 'flex', flexDirection: 'column', gap: 14, maxHeight: '82dvh', overflowY: 'auto' }}>
               <span style={{ alignSelf: 'center', width: 44, height: 5, borderRadius: 3, background: '#D5D2C8', flexShrink: 0 }} />
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexShrink: 0 }}>
                 <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 22, fontWeight: 700, color: '#0E1116' }}>{sketchEntry.name} · {tM('roomMediaSketches')}</span>
@@ -1373,7 +1373,7 @@ export default function SurveyDetailMobile() {
           role="dialog"
           aria-label={t('ctxAddLayout')}
           className="pod-sheet"
-          style={{ position: 'fixed', zIndex: 50, left: 0, right: 0, bottom: 0, boxSizing: 'border-box', padding: '10px 16px calc(20px + env(safe-area-inset-bottom))', borderRadius: '32px 32px 0 0', background: '#FBFAF7', display: 'flex', flexDirection: 'column', gap: 14, maxHeight: '92dvh', overflowY: 'auto' }}
+          style={{ position: 'fixed', zIndex: 50, left: 0, right: 0, bottom: 0, boxSizing: 'border-box', padding: '10px 16px calc(20px + env(safe-area-inset-bottom))', borderRadius: '32px 32px 0 0', background: 'var(--m-sheet)', display: 'flex', flexDirection: 'column', gap: 14, maxHeight: '92dvh', overflowY: 'auto' }}
         >
           <AnalyzeLayoutSheet
             surveyId={id}
@@ -1391,7 +1391,7 @@ export default function SurveyDetailMobile() {
           role="dialog"
           aria-label={editRoomEntry === 'new' ? tM('addRoomDashed') : editRoomEntry.name}
           className="pod-sheet"
-          style={{ position: 'fixed', zIndex: 50, left: 0, right: 0, bottom: 0, boxSizing: 'border-box', padding: '10px 16px calc(20px + env(safe-area-inset-bottom))', borderRadius: '32px 32px 0 0', background: '#FBFAF7', display: 'flex', flexDirection: 'column', gap: 14, maxHeight: '92dvh', overflowY: 'auto' }}
+          style={{ position: 'fixed', zIndex: 50, left: 0, right: 0, bottom: 0, boxSizing: 'border-box', padding: '10px 16px calc(20px + env(safe-area-inset-bottom))', borderRadius: '32px 32px 0 0', background: 'var(--m-sheet)', display: 'flex', flexDirection: 'column', gap: 14, maxHeight: '92dvh', overflowY: 'auto' }}
         >
           <RoomEditorSheet
             entry={editRoomEntry === 'new' ? null : editRoomEntry}

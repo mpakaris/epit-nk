@@ -631,8 +631,8 @@ button, input, select, textarea {
 
 .form-control:focus {
   outline: none;
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+  border-color: var(--border-subtle);
+  box-shadow: none;
 }
 
 .form-control::placeholder {
@@ -2181,7 +2181,7 @@ input[type="month"] {
   /* Neutrals */
   --deep:     #0D0F13;
   --m-canvas: #EDEBE5;
-  --m-sheet:  #FBFAF7;
+  --m-sheet:  #F5F5F5;
   --m-card:   #FFFFFF;
   --m-ink:    #0E1116;
   --m-ink-2:  #5A5F68;

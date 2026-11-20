@@ -124,7 +124,7 @@ export default function SuperadminWebsitesPage() {
                   </td>
                   <td className="hide-mobile">
                     <a
-                      href={`/szakemberek/${u.website.slug}`}
+                      href={`/pro/${u.website.slug}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', color: 'var(--accent)', fontSize: '0.82rem', fontFamily: 'var(--font-mono)' }}

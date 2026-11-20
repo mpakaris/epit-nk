@@ -741,6 +741,7 @@ Any route or UI that creates a resource (quote, survey, project, collective) mus
 - **New table without RLS** — every new `CREATE TABLE` in `public` schema must immediately be followed by `ENABLE ROW LEVEL SECURITY` and a deny-all policy. See rule 14.
 - **Webhook without fail-closed signature check** — always verify webhook signatures fail-closed. See rule 15.
 - **Missing audit log on mutation** — every INSERT/UPDATE/DELETE and every external API call (Creem, SMTP, AI) must call `logAudit` for both success and failure. See rule 19.
+- **Curly/smart quotes in JSON files** — the Edit tool can silently introduce Unicode typographic quotes (`"` U+201C, `"` U+201D) instead of straight ASCII `"` (0x22) when writing or replacing strings in `messages/*.json`. JSON only accepts straight quotes as delimiters. After every edit to a locale file, validate with `node -e "JSON.parse(require('fs').readFileSync('messages/hu.json','utf8'))"` (and de/en). If curly quotes appear on a KEY line, fix with a byte-level replacement — never re-edit with the Edit tool, which may re-introduce them.
 
 ### 11. Banner / Notification Row Layout
 Banners with icon + text + action button use different layouts on mobile vs desktop. Always use `useMobile()` — never `flexWrap: 'wrap'` (it creates squished columns on narrow screens).

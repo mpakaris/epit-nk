@@ -22,7 +22,7 @@ export async function generateOfferPdf(quoteId, userId, accentColor = '#2563eb')
       .single(),
     admin
       .from('profiles')
-      .select('display_name, first_name, last_name, company_name, street, street_number, zip, city, tax_number, locale')
+      .select('display_name, first_name, last_name, company_name, street, street_number, zip, city, tax_number, locale, bank_account, bank_name, iban, bic')
       .eq('id', userId)
       .single(),
   ]);

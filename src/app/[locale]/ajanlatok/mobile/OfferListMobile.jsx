@@ -6,7 +6,7 @@
  * Individual pod section cards carry the dark violet body — not the page wrapper.
  */
 
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useApp } from '@/context/AppContext';
@@ -188,8 +188,16 @@ export default function OfferListMobile() {
   const navPrefix = isDemoMode ? '/demo' : '';
   const p = useCallback((path) => `${navPrefix}${path}`, [navPrefix]);
 
-  const [activePodId, setActivePodId] = useState(() => activeCollectiveId || 'personal');
+  const [activePodId, setActivePodId] = useState('personal');
   const [podSwitching, setPodSwitching] = useState(false);
+
+  // Always open on personal on mount; if context was collective, reset it silently
+  useEffect(() => {
+    if (activeCollectiveId !== null && !isDemoMode) {
+      setPodSwitching(true);
+      setActiveContext(null).catch(() => {}).finally(() => setPodSwitching(false));
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleActivate = useCallback(async (id) => {
     if (id === activePodId || podSwitching) return;

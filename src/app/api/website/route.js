@@ -131,12 +131,14 @@ export async function POST(request) {
   }
 
   // Create new website
-  const { slug, trade_id } = body;
+  const { slug, trade_id, locale } = body;
   if (!slug?.trim()) return Response.json({ error: 'Slug kötelező' }, { status: 400 });
+  const validLocales = ['hu', 'de', 'en'];
+  const siteLocale = validLocales.includes(locale) ? locale : 'hu';
 
   const { data: website, error: createErr } = await admin
     .from('user_websites')
-    .insert({ user_id: effectiveUserId, slug: slug.toLowerCase().trim(), trade_id: trade_id || null })
+    .insert({ user_id: effectiveUserId, slug: slug.toLowerCase().trim(), trade_id: trade_id || null, locale: siteLocale })
     .select('*, trade:trades(id, name_hu, slug_prefix)')
     .single();
 

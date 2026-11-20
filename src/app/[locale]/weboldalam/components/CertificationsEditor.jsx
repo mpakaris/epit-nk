@@ -3,7 +3,7 @@
 import { useTranslations } from 'next-intl';
 import ListEditor from './ListEditor';
 
-export default function CertificationsEditor({ content, onChange }) {
+export default function CertificationsEditor({ content, onChange, compact }) {
   const t = useTranslations('website');
   const items = content.items || [];
   return (
@@ -12,6 +12,7 @@ export default function CertificationsEditor({ content, onChange }) {
       onChange={next => onChange({ ...content, items: next })}
       addLabel={t('certAddLabel')}
       totalLimit={8}
+      compact={compact}
       fields={[
         { key: 'title',  placeholder: t('certTitlePlaceholder'), max: 100 },
         { key: 'issuer', placeholder: t('certIssuerPlaceholder'), max: 100 },

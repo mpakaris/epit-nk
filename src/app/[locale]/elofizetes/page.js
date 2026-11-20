@@ -301,7 +301,7 @@ export default function ElofizetesPage() {
       </div>
 
       <p style={{ textAlign: 'center', fontSize: '0.825rem', color: 'var(--text-muted)' }}>
-        {t('contactQuestion')} <a href="mailto:info@epitunk.hu" style={{ color: 'var(--accent)' }}>info@epitunk.hu</a>
+        {t('contactQuestion')} <a href="mailto:info@okosszaki.hu" style={{ color: 'var(--accent)' }}>info@okosszaki.hu</a>
       </p>
     </div>
   );

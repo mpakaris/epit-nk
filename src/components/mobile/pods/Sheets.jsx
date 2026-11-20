@@ -216,7 +216,7 @@ export function MessagesSheet({ threads, loading = false, onClose }) {
   );
 }
 
-export function MenuSheet({ profile, locale, currency, subscriptionLabel, onLogout, onClose }) {
+export function MenuSheet({ profile, subscriptionLabel, onLogout, onClose }) {
   const t = useTranslations('mobilePods');
   const { isDemoMode } = useApp();
   const p = (path) => isDemoMode ? `/demo${path}` : path;
@@ -224,10 +224,8 @@ export function MenuSheet({ profile, locale, currency, subscriptionLabel, onLogo
   const initials = (profile?.display_name || profile?.email || 'TE').slice(0, 2).toUpperCase();
 
   const menuItems = [
-    { label: t('myProfile'),  href: p('/profil'),      icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-6.5 8-6.5s8 2.5 8 6.5"/></svg> },
-    { label: t('companyData'), href: p('/profil#ceg'), icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 7h2M13 7h2M9 11h2M13 11h2M10 21v-4h4v4"/></svg> },
-    { label: t('myWebsite'),   href: p('/weboldalam'), icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/></svg> },
-    { label: t('langCurrency'), href: p('/profil#preferences'), icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 5h9M8.5 3v2M6 5c.5 4 3 7 6.5 9M12 5c-.5 4-3 7-7 9M13 20l4-9 4 9M14.5 17h5"/></svg>, suffix: `${(locale || 'HU').toUpperCase()} · ${currency || 'Ft'}` },
+    { label: t('myProfile'),   href: p('/profil'),      icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-6.5 8-6.5s8 2.5 8 6.5"/></svg> },
+    { label: t('myWebsite'),   href: p('/weboldalam'),  icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/></svg> },
     { label: t('subscription'), href: p('/elofizetes'), icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M3 10h18"/></svg>, badge: subscriptionLabel },
   ];
 

@@ -80,7 +80,7 @@ export default function SectionCard({ section, isPremium, expanded, onToggleExpa
               </span>
             )}
           </div>
-          <p style={{ margin: 0, fontSize: '0.775rem', color: 'var(--text-muted)' }}>{desc}</p>
+          <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-secondary, var(--text-muted))' }}>{desc}</p>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexShrink: 0 }}>
           <PillToggle on={section.enabled} onChange={e => { e.stopPropagation(); onChange({ ...section, enabled: !section.enabled }); }} />

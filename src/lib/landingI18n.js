@@ -40,13 +40,13 @@ export const LANDING_I18N = {
       items: [
         { q: 'Kell-e technikai tudás a használathoz?',        a: 'Semmi. Ha tudsz SMS-t küldeni, az OkosSzakiet is tudod használni. Egyszerű felület, nagy gombok, mobilra tervezve.' },
         { q: 'A saját weboldal valóban ingyenes?',            a: 'Igen. Minden fiókhoz jár egy ingyenes szakemberlap, ahol az ügyfeleid megtekinthetik a munkáidat, képeidet, és ajánlatot kérhetnek.' },
-        { q: 'Meg tudom osztani a projektet alvállalkozóval?', a: 'Igen. Meghívhatsz más szakembereket egy közös munkaterületre, ahol látják a feladatokat és a helyszíni feljegyzéseket, de a saját áraidat és pénzügyeidet nem.' },
+        { q: 'Meg tudom osztani a projektet alvállalkozóval?', a: 'Igen. Meghívhatsz más proet egy közös munkaterületre, ahol látják a feladatokat és a helyszíni feljegyzéseket, de a saját áraidat és pénzügyeidet nem.' },
         { q: 'Mikor éri meg a prémium csomagra váltani?',     a: 'Ha rendszeresen több projekten dolgozol egyszerre, vagy csapatban végezel munkát. A prémium csomaggal korlátlanul használhatsz minden funkciót.' },
       ],
     },
     cta: {
       headline: 'Készen állsz egyszerűbbé tenni a munkádat?',
-      subtitle: 'Csatlakozz azokhoz a szakemberekhez, akik hetente órákat spórolnak az OkosSzakikel.',
+      subtitle: 'Csatlakozz azokhoz a prohez, akik hetente órákat spórolnak az OkosSzakikel.',
       btn:      'Ingyenes próba most',
       note:     'Bankkártya nem szükséges · Beállítás 2 perc alatt',
     },

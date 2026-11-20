@@ -223,7 +223,7 @@ export default function Sidebar() {
 
   if (!currentUser && pathname === '/login') return null;
   if (!currentUser) return null;
-  if (pathname.startsWith('/naplo/') || pathname.startsWith('/szakemberek/') || pathname.startsWith('/demo/szakemberek/') || pathname.startsWith('/invitations/') || pathname.startsWith('/impressum') || pathname.startsWith('/adatkezeles') || pathname.startsWith('/aszf') || pathname.startsWith('/about')) return null;
+  if (pathname.startsWith('/naplo/') || pathname.startsWith('/pro/') || pathname.startsWith('/demo/pro/') || pathname.startsWith('/invitations/') || pathname.startsWith('/impressum') || pathname.startsWith('/adatkezeles') || pathname.startsWith('/aszf') || pathname.startsWith('/about')) return null;
 
   const counts = (!isSuperAdmin || impersonating) ? {
     surveys:     totalCounts ? totalCounts.surveys  : (surveys  || []).filter(s => s.status !== 'done').length,

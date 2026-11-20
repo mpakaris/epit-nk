@@ -3,7 +3,7 @@
 import { useTranslations } from 'next-intl';
 import ListEditor from './ListEditor';
 
-export default function FaqEditor({ content, onChange }) {
+export default function FaqEditor({ content, onChange, compact }) {
   const t = useTranslations('website');
   const items = content.items || [];
   return (
@@ -12,6 +12,7 @@ export default function FaqEditor({ content, onChange }) {
       onChange={next => onChange({ ...content, items: next })}
       addLabel={t('faqAddLabel')}
       totalLimit={6}
+      compact={compact}
       fields={[
         { key: 'question', placeholder: t('faqQuestionPlaceholder'), max: 120 },
         { key: 'answer',   placeholder: t('faqAnswerPlaceholder'), type: 'textarea', max: 300 },

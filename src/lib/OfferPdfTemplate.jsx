@@ -314,7 +314,9 @@ export function OfferPdfTemplate({ quote, client, sections, allEntries, profile,
               ) : null}
               {profile.tax_number   ? <Text style={[s.senderSub, { marginTop: 3 }]}>{tr.taxPrefix} {profile.tax_number}</Text> : null}
               {profile.phone        ? <Text style={s.senderSub}>{profile.phone}</Text> : null}
-              {profile.bank_account ? <Text style={s.senderSub}>{profile.bank_account}{profile.bank_name ? ` · ${profile.bank_name}` : ''}</Text> : null}
+              {(profile.bank_account || profile.bank_name) ? <Text style={s.senderSub}>{[profile.bank_name, profile.bank_account].filter(Boolean).join(' · ')}</Text> : null}
+              {profile.iban         ? <Text style={s.senderSub}>IBAN: {profile.iban}</Text> : null}
+              {profile.bic          ? <Text style={s.senderSub}>BIC: {profile.bic}</Text>  : null}
             </View>
             <View style={{ alignItems: 'flex-end' }}>
               <Text style={[s.badgeTitle, { color: accentColor }]}>{tr.docTitle}</Text>

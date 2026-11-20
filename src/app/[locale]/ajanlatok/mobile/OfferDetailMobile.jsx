@@ -360,7 +360,7 @@ export default function OfferDetailMobile({ quoteId }) {
 
   if (!quote && !loading) {
     return (
-      <div className="pod-screen-dark m-root" style={{ minHeight: '100dvh', background: 'var(--m-offer-deep, #1C1038)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 16, padding: 24 }}>
+      <div className="pod-screen-dark m-root" style={{ minHeight: '100dvh', background: '#121110', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 16, padding: 24 }}>
         <span style={{ fontSize: 17, fontWeight: 700 }}>{t('notFound')}</span>
         <button onClick={() => router.push(p('/ajanlatok'))} style={{ height: 52, padding: '0 20px', border: 0, borderRadius: 26, background: 'var(--m-offer, #6D3FD1)', color: '#fff', fontSize: 15, fontWeight: 700, cursor: 'pointer' }}>{t('back')}</button>
       </div>
@@ -381,7 +381,7 @@ export default function OfferDetailMobile({ quoteId }) {
   })();
 
   return (
-    <div className="pod-screen-dark m-root" style={{ minHeight: '100dvh', background: 'var(--m-offer-deep, #1C1038)', color: '#fff', fontFamily: 'var(--font-main, "Plus Jakarta Sans", system-ui, sans-serif)' }}>
+    <div className="pod-screen-dark m-root" style={{ minHeight: '100dvh', background: '#121110', color: '#fff', fontFamily: 'var(--font-main, "Plus Jakarta Sans", system-ui, sans-serif)' }}>
       {!isOnline && (
         <div style={{ position: 'sticky', top: 0, zIndex: 30, background: '#B71C1C', color: '#fff', padding: '10px 16px', fontSize: 14, fontWeight: 700, textAlign: 'center' }}>
           {t('offlineBanner')}
@@ -610,7 +610,7 @@ export default function OfferDetailMobile({ quoteId }) {
       </div>
 
       {/* Sticky action bar */}
-      <div style={{ position: 'fixed', zIndex: 20, left: 0, right: 0, bottom: 0, boxSizing: 'border-box', padding: `28px 16px calc(18px + env(safe-area-inset-bottom))`, background: 'linear-gradient(to top, var(--m-offer-deep, #1C1038) 65%, rgba(0,0,0,0))', display: 'flex', gap: 10 }}>
+      <div style={{ position: 'fixed', zIndex: 20, left: 0, right: 0, bottom: 0, boxSizing: 'border-box', padding: `28px 16px calc(18px + env(safe-area-inset-bottom))`, background: 'linear-gradient(to top, #121110 65%, rgba(0,0,0,0))', display: 'flex', gap: 10 }}>
         <button aria-label={t('actions')} onClick={() => setMode('menu')} style={{ flexShrink: 0, width: 60, height: 60, border: 0, borderRadius: 30, background: '#fff', color: 'var(--m-ink)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 10px 22px -10px rgba(14,17,22,0.4)' }}>
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" aria-hidden="true"><path d="M5 12h.01M12 12h.01M19 12h.01"/></svg>
         </button>

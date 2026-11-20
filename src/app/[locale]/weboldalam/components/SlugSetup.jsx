@@ -140,8 +140,11 @@ export default function SlugSetup({ displayName, onCreated }) {
         {/* Suggestion chips */}
         {suggestions.length > 0 && (
           <div>
-            <p style={{ margin: '0 0 0.6rem', fontSize: '0.775rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            <p style={{ margin: '0 0 0.2rem', fontSize: '0.775rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
               {t('pickLinkLabel')}
+            </p>
+            <p style={{ margin: '0 0 0.65rem', fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
+              {t('pickLinkDesc')}
             </p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
               {suggestions.map(s => {
@@ -169,7 +172,7 @@ export default function SlugSetup({ displayName, onCreated }) {
                   >
                     <span>
                       <span style={{ color: isSelected ? 'var(--primary)' : 'var(--text-muted)', fontSize: '0.775rem', marginRight: '0.2rem' }}>
-                        epitunk.hu/szakemberek/
+                        okosszaki.hu/pro/
                       </span>
                       <strong>{s}</strong>
                     </span>
@@ -215,7 +218,7 @@ export default function SlugSetup({ displayName, onCreated }) {
                 background: 'var(--bg-subtle)', overflow: 'hidden',
               }}>
                 <span style={{ padding: '0 0.4rem 0 0.75rem', color: 'var(--text-muted)', fontSize: '0.8rem', whiteSpace: 'nowrap', userSelect: 'none' }}>
-                  epitunk.hu/szakemberek/
+                  okosszaki.hu/pro/
                 </span>
                 <input
                   type="text" value={customSlug}

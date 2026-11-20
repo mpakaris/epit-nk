@@ -131,7 +131,7 @@ function MissingSheet({ profile, checklist, navPrefix, quoteId, onClose, onSaved
   return (
     <>
       <div onClick={() => !saving && onClose()} style={{ position: 'fixed', inset: 0, zIndex: 48, background: 'rgba(14,17,22,0.5)' }} />
-      <div role="dialog" aria-label={t('missingSheetTitle')} className="pod-sheet" style={{ position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 50, maxHeight: '90%', overflowY: 'auto', boxSizing: 'border-box', padding: `10px 16px calc(18px + env(safe-area-inset-bottom))`, borderRadius: '32px 32px 0 0', background: '#FBFAF7', display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div role="dialog" aria-label={t('missingSheetTitle')} className="pod-sheet" style={{ position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 50, maxHeight: '90%', overflowY: 'auto', boxSizing: 'border-box', padding: `10px 16px calc(18px + env(safe-area-inset-bottom))`, borderRadius: '32px 32px 0 0', background: 'var(--m-sheet)', display: 'flex', flexDirection: 'column', gap: 12 }}>
         <div style={{ alignSelf: 'center', width: 44, height: 5, borderRadius: 3, background: '#D5D2C8' }} />
         <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 25, fontWeight: 700, color: '#0E1116' }}>{t('missingSheetTitle')}</span>
         <span style={{ fontSize: 16, fontWeight: 500, lineHeight: 1.45, color: '#0E1116' }}>{t('missingSheetBody')}</span>
@@ -206,7 +206,7 @@ function ClientSheet({ quote, offerMissing, onClose, onSaved, t }) {
   return (
     <>
       <div onClick={() => !saving && onClose()} style={{ position: 'fixed', inset: 0, zIndex: 48, background: 'rgba(14,17,22,0.5)' }} />
-      <div role="dialog" aria-label={t('missingClientTitle')} className="pod-sheet" style={{ position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 50, maxHeight: '90%', overflowY: 'auto', boxSizing: 'border-box', padding: `10px 16px calc(18px + env(safe-area-inset-bottom))`, borderRadius: '32px 32px 0 0', background: '#FBFAF7', display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div role="dialog" aria-label={t('missingClientTitle')} className="pod-sheet" style={{ position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 50, maxHeight: '90%', overflowY: 'auto', boxSizing: 'border-box', padding: `10px 16px calc(18px + env(safe-area-inset-bottom))`, borderRadius: '32px 32px 0 0', background: 'var(--m-sheet)', display: 'flex', flexDirection: 'column', gap: 12 }}>
         <div style={{ alignSelf: 'center', width: 44, height: 5, borderRadius: 3, background: '#D5D2C8' }} />
         <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 25, fontWeight: 700, color: '#0E1116' }}>{t('missingClientTitle')}</span>
 

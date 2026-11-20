@@ -649,8 +649,6 @@ export default function DashboardMobile({ currentUser }) {
       {sheet === 'menu' && (
         <MenuSheet
           profile={currentUser}
-          locale={currentUser?.locale}
-          currency={userCurrency}
           subscriptionLabel={currentUser?.subscription_tier === 'trial' ? tPods('trial') : currentUser?.subscription_tier === 'premium' ? tPods('premium') : tPods('basic')}
           onLogout={() => { setSheet(null); router.push('/auth/logout'); }}
           onClose={() => setSheet(null)}

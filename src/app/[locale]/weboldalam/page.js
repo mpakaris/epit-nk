@@ -3,6 +3,8 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslations } from 'next-intl';
 import { useApp } from '@/context/AppContext';
+import WebsiteMobile from './mobile/WebsiteMobile';
+import SlugSetupMobile from './mobile/SlugSetupMobile';
 import {
   Globe, Check, X, Loader2,
   AlertTriangle, ExternalLink, Eye,
@@ -11,6 +13,7 @@ import {
 import PageSpinner from '@/components/PageSpinner';
 import { COLOR_SCHEMES, TYPOGRAPHY } from '@/lib/websiteThemes';
 import { toSlug } from '@/lib/utils';
+import useMobile from '@/hooks/useMobile';
 
 import SlugSetup from './components/SlugSetup';
 import PillToggle from './components/PillToggle';
@@ -166,7 +169,7 @@ export function BuilderEditor({ website: initialWebsite, sections: initialSectio
   const [toast, setToast] = useState(null);
   const [origin, setOrigin] = useState('');
   useEffect(() => { setOrigin(window.location.origin); }, []);
-  const publicUrl = `${origin}/szakemberek/${website.slug}`;
+  const publicUrl = `${origin}/pro/${website.slug}`;
 
   const showToast = useCallback((message) => {
     const id = Date.now();
@@ -291,7 +294,7 @@ export function BuilderEditor({ website: initialWebsite, sections: initialSectio
             <h1 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800 }}>{t('pageHeading')}</h1>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-            <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>epitunk.hu/szakemberek/{website.slug}</span>
+            <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>okosszaki.hu/pro/{website.slug}</span>
             <button type="button" onClick={copyUrl} title={t('copyLinkTitle')} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0.1rem', color: 'var(--text-muted)', display: 'flex' }}>
               {copied ? <Check size={13} style={{ color: '#22c55e' }} /> : <Copy size={13} />}
             </button>
@@ -309,7 +312,7 @@ export function BuilderEditor({ website: initialWebsite, sections: initialSectio
         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
           {/* Preview */}
           <a
-            href={`/szakemberek/${website.slug}?preview=1`}
+            href={`/pro/${website.slug}?preview=1`}
             target="_blank" rel="noopener noreferrer"
             className="btn btn-secondary btn-sm"
             style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}
@@ -546,7 +549,7 @@ export function BuilderEditor({ website: initialWebsite, sections: initialSectio
             <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-start', flexWrap: 'wrap' }}>
               <div style={{ flex: 1, minWidth: 200 }}>
                 <div style={{ display: 'flex', alignItems: 'center', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', overflow: 'hidden', background: 'var(--bg-input, var(--bg-subtle))' }}>
-                  <span style={{ padding: '0.55rem 0.6rem', fontSize: '0.8rem', color: 'var(--text-muted)', borderRight: '1px solid var(--border-subtle)', whiteSpace: 'nowrap', flexShrink: 0 }}>/szakemberek/</span>
+                  <span style={{ padding: '0.55rem 0.6rem', fontSize: '0.8rem', color: 'var(--text-muted)', borderRight: '1px solid var(--border-subtle)', whiteSpace: 'nowrap', flexShrink: 0 }}>/pro/</span>
                   <input
                     type="text"
                     value={settingsSlug}
@@ -635,7 +638,7 @@ export function BuilderEditor({ website: initialWebsite, sections: initialSectio
       )}
 
       <p style={{ marginTop: '1.5rem', fontSize: '0.775rem', color: 'var(--text-muted)', textAlign: 'center' }}>
-        <a href={publicUrl} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary)' }}>epitunk.hu/szakemberek/{website.slug}</a>
+        <a href={publicUrl} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary)' }}>okosszaki.hu/pro/{website.slug}</a>
       </p>
 
       {/* Free user publish warning modal */}
@@ -698,7 +701,8 @@ export function BuilderEditor({ website: initialWebsite, sections: initialSectio
 export default function WeboldaPage() {
   const t = useTranslations('website');
   const { currentUser, isSuperAdmin, impersonating, activeCollectiveId, collectives, dataReady } = useApp();
-  const [website, setWebsite] = useState(undefined); // undefined = loading
+  const isMobile = useMobile();
+  const [website,  setWebsite]  = useState(undefined); // undefined = loading
   const [sections, setSections] = useState([]);
 
   useEffect(() => {
@@ -740,10 +744,28 @@ export default function WeboldaPage() {
   }
 
   if (website === null) {
+    if (isMobile) {
+      return (
+        <SlugSetupMobile
+          displayName={currentUser?.display_name || ''}
+          onCreated={({ website: w, sections: s }) => { setWebsite(w); setSections(s); }}
+        />
+      );
+    }
     return (
       <SlugSetup
         displayName={currentUser?.display_name || ''}
         onCreated={({ website: w, sections: s }) => { setWebsite(w); setSections(s); }}
+      />
+    );
+  }
+
+  if (isMobile) {
+    return (
+      <WebsiteMobile
+        website={website}
+        sections={sections}
+        userEmail={currentUser?.email}
       />
     );
   }
