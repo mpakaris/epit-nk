@@ -481,18 +481,7 @@ export default function OfferDetailMobile({ quoteId }) {
                 ? <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--m-ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 140 }}>{client.name}</span>
                 : <span style={{ fontSize: 14, fontWeight: 600, color: '#8A8F97' }}>{t('duplicateNoClient')}</span>
             }
-            action={canOwnerAct && !isLocked ? (
-              <button
-                aria-label={client ? t('clientMenuTitle') : t('clientAttachAction')}
-                onClick={e => { e.stopPropagation(); setClientSearch(''); setMode(client ? 'clientMenu' : 'clientPicker'); }}
-                style={{ flexShrink: 0, width: 36, height: 36, border: 0, borderRadius: 18, background: '#F1F1F3', color: 'var(--m-ink)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
-              >
-                {client
-                  ? <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true"><path d="M4 20l4-1L19 8l-3-3L5 16zM14 7l3 3"/></svg>
-                  : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
-                }
-              </button>
-            ) : null}
+            action={null}
           >
             {client ? (
               <span style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -532,6 +521,12 @@ export default function OfferDetailMobile({ quoteId }) {
                 </span>
               </div>
             )}
+            {canOwnerAct && !isLocked && (
+              <button onClick={() => { setClientSearch(''); setMode(client ? 'clientMenu' : 'clientPicker'); }} style={{ width: '100%', height: 52, border: 0, borderRadius: 26, background: 'var(--m-offer, #6D3FD1)', color: '#fff', fontSize: 15, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, cursor: 'pointer' }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true"><path d="M4 20l4-1L19 8l-3-3L5 16zM14 7l3 3"/></svg>
+                {tc('edit')}
+              </button>
+            )}
           </InfoPod>
 
           {/* Pod 3 — General Data */}
@@ -544,12 +539,7 @@ export default function OfferDetailMobile({ quoteId }) {
                 {quote?.location || quote?.work_type || quote?.valid_until ? formatDate(quote.valid_until) : ''}
               </span>
             }
-            action={canOwnerAct && !isLocked ? (
-              <button aria-label={t('offerEditMeta')} onClick={e => { e.stopPropagation(); setMode('meta'); }}
-                style={{ flexShrink: 0, width: 36, height: 36, border: 0, borderRadius: 18, background: '#F1F1F3', color: 'var(--m-ink)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true"><path d="M4 20l4-1L19 8l-3-3L5 16zM14 7l3 3"/></svg>
-              </button>
-            ) : null}
+            action={null}
           >
             {quote && [
               [t('location'), quote.location],
@@ -563,6 +553,12 @@ export default function OfferDetailMobile({ quoteId }) {
               [t('vatRate'), `${vatPct}%`],
             ].filter(r => r[1]).map(([k, v], i) => <InfoRow key={i} label={k} value={v} />)}
             <span style={{ fontSize: 12, fontWeight: 600, color: '#5A5F68' }}>{t('createdBy')} {quote?.created_at ? formatDate(quote.created_at) : ''}</span>
+            {canOwnerAct && !isLocked && (
+              <button onClick={() => setMode('meta')} style={{ width: '100%', height: 52, border: 0, borderRadius: 26, background: 'var(--m-offer, #6D3FD1)', color: '#fff', fontSize: 15, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, cursor: 'pointer' }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true"><path d="M4 20l4-1L19 8l-3-3L5 16zM14 7l3 3"/></svg>
+                {tc('edit')}
+              </button>
+            )}
           </InfoPod>
 
           {/* Sections */}
@@ -641,6 +637,7 @@ export default function OfferDetailMobile({ quoteId }) {
             <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 22, fontWeight: 700, lineHeight: 1.1, color: 'var(--m-ink)' }}>{t('actions')}</span>
             <span style={{ fontSize: 13, fontWeight: 600, color: '#5A5F68' }}>{quote?.title} · {statusLabel}</span>
           </div>
+          {canOwnerAct && !isLocked && <SheetRowInline icon="edit" label={tc('edit')} onClick={() => setMode('meta')} />}
           {canOwnerAct && <SheetRowInline icon="pdf" label={t('actionPreviewPdf')} onClick={() => { setMode(null); router.push(p(`/ajanlatok/${quoteId}/nyomtatas`)); }} />}
           {quote?.status === 'draft' && canOwnerAct && <SheetRowInline icon="send" label={t('actionSend')} onClick={() => { setMode(null); openSendSheet(); }} />}
           {quote?.status === 'sent' && canOwnerAct && <SheetRowInline icon="send" label={t('actionResend')} onClick={() => { setMode(null); openSendSheet(); }} />}
