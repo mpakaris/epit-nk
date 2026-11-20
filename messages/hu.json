@@ -1479,7 +1479,14 @@
     "offerDefaultsSubtitle": "Új ajánlatoknál ezek töltődnek elő",
     "myDataSection": "Adataim",
     "accountSection": "Fiók",
-    "deleteAccountSubtitle": "Végleges, nem visszavonható"
+    "deleteAccountSubtitle": "Végleges, nem visszavonható",
+    "subscriptionIdMissing": "Nem található előfizetés-azonosító.",
+    "subscriptionPageLink": "Előfizetés kezelése",
+    "subStartedLabel": "Előfizetés kezdete",
+    "subNextRenewalLabel": "Következő megújítás",
+    "subActiveUntilLabel": "Aktív eddig",
+    "subLoadingDetails": "Betöltés...",
+    "subBillingCyclesLabel": "Számlázási ciklusok"
   },
   "subscription": {
     "pageTitle": "Előfizetés",

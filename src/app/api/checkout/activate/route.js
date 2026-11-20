@@ -50,13 +50,25 @@ export async function POST(request) {
     }, { onConflict: 'creem_subscription_id' });
   }
 
+  const profileUpdate = { is_subscription_premium: true, subscription_tier: 'premium' };
+  if (customerId) profileUpdate.creem_customer_id = customerId;
+
   const { error } = await admin.from('profiles')
-    .update({ is_subscription_premium: true, subscription_tier: 'premium' })
+    .update(profileUpdate)
     .eq('id', user.id);
 
   if (error) {
     console.error('[activate] DB update failed:', error.message);
     return NextResponse.json({ error: 'DB update failed' }, { status: 500 });
+  }
+
+  // Write our user.id as external_id on the Creem customer — enables bidirectional lookup
+  if (customerId) {
+    fetch(`${CREEM_BASE}/v1/customers`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.CREEM_API_KEY },
+      body: JSON.stringify({ customer_id: customerId, external_id: user.id }),
+    }).catch(err => console.error('[activate] failed to set Creem external_id:', err.message));
   }
 
   console.log('[activate] premium granted for user:', user.id);

@@ -165,6 +165,9 @@ export default function ProfileMobile() {
 
   // ── Subscription state ────────────────────────────────────────────────────
   const [premiumSubId,             setPremiumSubId]             = useState(null);
+  const [premiumSubStarted,        setPremiumSubStarted]        = useState(null);
+  const [premiumBillingCycles,     setPremiumBillingCycles]     = useState(null);
+  const [subDetailLoading,         setSubDetailLoading]         = useState(false);
   const [collectiveSubs,           setCollectiveSubs]           = useState([]);
   const [premiumIsScheduledCancel, setPremiumIsScheduledCancel] = useState(false);
   const [premiumCancelAt,          setPremiumCancelAt]          = useState(null);
@@ -245,6 +248,7 @@ export default function ProfileMobile() {
         setTermsPdfName(profile.terms_pdf_name || null);
         setTermsPdfUploadedAt(profile.terms_pdf_uploaded_at || null);
         setPremiumSubId(premiumSub?.creem_subscription_id || null);
+        setPremiumSubStarted(premiumSub?.created_at || null);
         setPremiumIsScheduledCancel(premiumSub?.status === 'scheduled_cancel');
         setPremiumCancelAt(premiumSub?.status === 'scheduled_cancel' ? (premiumSub.period_end || null) : null);
         setPremiumRenewalAt(premiumSub?.status !== 'scheduled_cancel' ? (premiumSub?.period_end || null) : null);
@@ -387,7 +391,7 @@ export default function ProfileMobile() {
   };
 
   const handleCancelPremium = async () => {
-    if (!premiumSubId) { setAlertSheet({ title: tc('error'), msg: 'Nem található előfizetés-azonosító.' }); return; }
+    if (!premiumSubId) { setAlertSheet({ title: tc('error'), msg: t('subscriptionIdMissing') }); return; }
     setSubBusy(true);
     try {
       const res  = await fetch('/api/subscriptions/cancel', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ subscriptionId: premiumSubId }) });
@@ -402,7 +406,7 @@ export default function ProfileMobile() {
   };
 
   const handleResumePremium = async () => {
-    if (!premiumSubId) { setAlertSheet({ title: tc('error'), msg: 'Nem található előfizetés-azonosító.' }); return; }
+    if (!premiumSubId) { setAlertSheet({ title: tc('error'), msg: t('subscriptionIdMissing') }); return; }
     setSubBusy(true);
     try {
       const res = await fetch('/api/subscriptions/resume', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ subscriptionId: premiumSubId }) });
@@ -550,7 +554,33 @@ export default function ProfileMobile() {
             icon={<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 8l4 4 5-7 5 7 4-4-2 11H5z"/></svg>}
             title={t('subscription')}
             subtitle={subRowSub}
-            onClick={() => setOpenSheet('subscription')}
+            onClick={() => {
+              setOpenSheet('subscription');
+              if (premiumSubId) {
+                setSubDetailLoading(true);
+                fetch('/api/subscriptions/status', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ subscriptionId: premiumSubId }),
+                })
+                  .then(r => r.ok ? r.json() : null)
+                  .then(d => {
+                    if (!d) return;
+                    if (d.created_at) setPremiumSubStarted(d.created_at);
+                    if (d.status === 'scheduled_cancel') {
+                      // period_end = when access actually expires for a scheduled cancellation
+                      setPremiumIsScheduledCancel(true);
+                      if (d.current_period_end) setPremiumCancelAt(d.current_period_end);
+                    } else {
+                      // next_billing_date is Creem's confirmed next charge date; fall back to period_end
+                      const renewal = d.next_billing_date || d.current_period_end;
+                      if (renewal) setPremiumRenewalAt(renewal);
+                    }
+                    if (d.billing_cycle_count != null) setPremiumBillingCycles(d.billing_cycle_count);
+                  })
+                  .finally(() => setSubDetailLoading(false));
+              }
+            }}
           />
           <NavRow
             icon={<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 8a3 3 0 106 0 3 3 0 10-6 0M3 20c0-3 2.7-5 6-5M21 20c0-3-2.7-5-6-5M7 20c0-2.2 2.2-4 5-4s5 1.8 5 4"/></svg>}
@@ -732,74 +762,86 @@ export default function ProfileMobile() {
 
       {/* ── Subscription Sheet ─────────────────────────────────────────── */}
       <Sheet open={openSheet === 'subscription'} onClose={() => setOpenSheet(null)} title={t('subscription')}>
+        {/* Trial banner */}
         {isOnTrial && (
-          <div style={{ padding: 12, borderRadius: 18, display: 'flex', gap: 10, alignItems: 'center', background: '#FFF4E5', color: '#6B3A00' }}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><path d="M4 11h16v9H4zM3 7h18v4H3zM12 7v13M12 7c-2-4-6-3-5 0 1 1 5 0 5 0zM12 7c2-4 6-3 5 0-1 1-5 0-5 0z"/></svg>
-            <span style={{ fontSize: 14, fontWeight: 700 }}>{t('trialBannerText', { days: trialDays })}</span>
+          <div style={{ padding: 12, borderRadius: 18, background: '#FFF4E5', color: '#6B3A00', fontSize: 14, fontWeight: 700, lineHeight: 1.4 }}>
+            {t('trialBannerText', { days: trialDays })}
           </div>
         )}
-        {premiumIsScheduledCancel && (
-          <div style={{ padding: 12, borderRadius: 18, background: '#FFF4E5', color: '#6B3A00', fontSize: 13, fontWeight: 700, lineHeight: 1.4 }}>
-            {premiumCancelAt ? t('scheduledCancelNote', { date: formatDate(premiumCancelAt) }) : t('scheduledCancelNoDate')}
-          </div>
-        )}
-        <div style={{ display: 'flex', gap: 10 }}>
-          <div style={{ flex: 1, padding: 14, borderRadius: 20, background: '#F5F4F0', border: '1.5px solid #E8E5DF', display: 'flex', flexDirection: 'column', gap: 4, opacity: isPremium ? 0.65 : 1 }}>
-            <b style={{ fontSize: 15, color: '#0E1116' }}>{t('planBasicName')}</b>
-            <span style={{ fontSize: 22, fontWeight: 700, fontFamily: "'Bricolage Grotesque', sans-serif", color: '#0E1116' }}>{t('planFree')}</span>
-            <span style={{ fontSize: 11, fontWeight: 600, color: '#5A5F68' }}>5 ajánlat · 1 projekt</span>
-          </div>
-          <div style={{ flex: 1, padding: 14, borderRadius: 20, background: '#fff', border: `1.5px solid ${isPremium ? '#14532D' : '#E8E5DF'}`, display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 15, fontWeight: 700, color: '#0E1116' }}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M3 8l4 4 5-7 5 7 4-4-2 11H5z"/></svg>
-              {t('planPremiumName')}
+
+        {/* Current plan card */}
+        <div style={{ background: '#fff', borderRadius: 20, padding: 16, display: 'flex', flexDirection: 'column', gap: 10, boxShadow: 'inset 0 1px 0 #fff, 0 16px 26px -14px rgba(0,0,0,.70), 0 3px 6px -2px rgba(0,0,0,.30)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <b style={{ fontSize: 17, color: '#0E1116' }}>
+              {isPremium ? t('planPremiumName') : isOnTrial ? t('subscriptionBadgeTrial') : t('planBasicName')}
+            </b>
+            <span style={{ height: 24, padding: '0 8px', borderRadius: 12, fontSize: 11, fontWeight: 700, background: subBadge.bg, color: subBadge.fg, display: 'inline-flex', alignItems: 'center' }}>
+              {subBadge.label}
             </span>
-            <span style={{ fontSize: 22, fontWeight: 700, fontFamily: "'Bricolage Grotesque', sans-serif", color: '#0E1116' }}>6 999 Ft</span>
-            <span style={{ fontSize: 11, fontWeight: 600, color: '#5A5F68' }}>{t('subPerMonthVat')} · korlátlan</span>
           </div>
-        </div>
-        {!isPremium && (
-          <>
-            <button onClick={handleCheckout} disabled={checkoutBusy} style={{ height: 60, border: 0, borderRadius: 30, background: BG, color: '#fff', fontSize: 17, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, opacity: checkoutBusy ? 0.7 : 1 }}>
-              {checkoutBusy && <SpinSvg />}
-              {checkoutBusy ? t('planRedirecting') : (isOnTrial ? t('upgradeToPremiumNow') : t('upgradeToPremium'))}
+          {/* Info rows */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {subDetailLoading && (
+              <span style={{ fontSize: 13, fontWeight: 600, color: '#8A8F98' }}>{t('subLoadingDetails')}</span>
+            )}
+            {isOnTrial && currentUser?.trial_ends_at && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14 }}>
+                <span style={{ color: '#5A5F68', fontWeight: 600 }}>{t('subActiveUntilLabel')}</span>
+                <span style={{ fontWeight: 700, color: '#B45309' }}>{formatDate(currentUser.trial_ends_at)}</span>
+              </div>
+            )}
+            {premiumSubStarted && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14 }}>
+                <span style={{ color: '#5A5F68', fontWeight: 600 }}>{t('subStartedLabel')}</span>
+                <span style={{ fontWeight: 700, color: '#0E1116' }}>{formatDate(premiumSubStarted)}</span>
+              </div>
+            )}
+            {premiumRenewalAt && !premiumIsScheduledCancel && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14 }}>
+                <span style={{ color: '#5A5F68', fontWeight: 600 }}>{t('subNextRenewalLabel')}</span>
+                <span style={{ fontWeight: 700, color: '#0E1116' }}>{formatDate(premiumRenewalAt)}</span>
+              </div>
+            )}
+            {premiumIsScheduledCancel && premiumCancelAt && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14 }}>
+                <span style={{ color: '#5A5F68', fontWeight: 600 }}>{t('subActiveUntilLabel')}</span>
+                <span style={{ fontWeight: 700, color: '#B71C1C' }}>{formatDate(premiumCancelAt)}</span>
+              </div>
+            )}
+            {premiumBillingCycles != null && premiumBillingCycles > 0 && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14 }}>
+                <span style={{ color: '#5A5F68', fontWeight: 600 }}>{t('subBillingCyclesLabel')}</span>
+                <span style={{ fontWeight: 700, color: '#0E1116' }}>{premiumBillingCycles}×</span>
+              </div>
+            )}
+          </div>
+
+          {/* Cancel / Resume */}
+          {isPremium && (
+            <button
+              onClick={() => premiumIsScheduledCancel ? handleResumePremium() : setSubSheet('cancelPrem')}
+              disabled={subBusy}
+              style={{ width: '100%', height: 52, border: 0, borderRadius: 26, fontSize: 15, fontWeight: 700, cursor: 'pointer', background: premiumIsScheduledCancel ? '#14532D' : '#FDECEC', color: premiumIsScheduledCancel ? '#fff' : '#B71C1C' }}
+            >
+              {subBusy ? t('subResumingBtn') : (premiumIsScheduledCancel ? t('subResumeBtn') : t('premiumCancel'))}
             </button>
-            <span style={{ fontSize: 13, fontWeight: 600, color: '#5A5F68', textAlign: 'center' }}>{t('securePayment')}</span>
-          </>
-        )}
-        {isPremium && (
+          )}
+        </div>
+
+        {/* Collective subs */}
+        {collectiveSubs.length > 0 && (
           <>
             <SheetSecLabel>{t('activeSubs')}</SheetSecLabel>
-            <div style={{ background: '#fff', borderRadius: 20, padding: 14, display: 'flex', flexDirection: 'column', gap: 10, border: '1.5px solid #E8E5DF' }}>
-              <span style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <b style={{ fontSize: 16, color: '#0E1116' }}>{t('planPremiumName')}</b>
-                <span style={{ height: 24, padding: '0 8px', borderRadius: 12, fontSize: 11, fontWeight: 700, background: subBadge.bg, color: subBadge.fg, display: 'inline-flex', alignItems: 'center' }}>{subBadge.label}</span>
-              </span>
-              <span style={{ fontSize: 13, fontWeight: 600, color: '#5A5F68' }}>{subNote}</span>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <button onClick={() => {}} style={{ flex: 1, minHeight: 48, border: '1.5px solid #E8E5DF', borderRadius: 24, background: '#FAFAF8', color: '#0E1116', fontSize: 14, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18v12H3zM3 10h18M7 15h4"/></svg>
-                  {t('managePayment')}
-                </button>
-                <button onClick={() => premiumIsScheduledCancel ? handleResumePremium() : setSubSheet('cancelPrem')} disabled={subBusy} style={{ flex: 1, minHeight: 48, border: 0, borderRadius: 24, fontSize: 14, fontWeight: 700, cursor: 'pointer', background: premiumIsScheduledCancel ? '#14532D' : '#FDECEC', color: premiumIsScheduledCancel ? '#fff' : '#B71C1C' }}>
-                  {subBusy ? t('subResumingBtn') : (premiumIsScheduledCancel ? t('subResumeBtn') : t('premiumCancel'))}
-                </button>
-              </div>
-            </div>
             {collectiveSubs.map(c => (
-              <div key={c.collective_id} style={{ background: '#fff', borderRadius: 20, padding: 14, display: 'flex', flexDirection: 'column', gap: 10, border: '1.5px solid #E8E5DF' }}>
-                <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{ width: 28, height: 28, borderRadius: 9, background: '#6D3FD1', flexShrink: 0 }} />
-                    <b style={{ fontSize: 15, color: '#0E1116' }}>{c.name}</b>
-                  </span>
+              <div key={c.collective_id} style={{ background: '#fff', borderRadius: 20, padding: 14, display: 'flex', flexDirection: 'column', gap: 10, boxShadow: 'inset 0 1px 0 #fff, 0 16px 26px -14px rgba(0,0,0,.70), 0 3px 6px -2px rgba(0,0,0,.30)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <b style={{ fontSize: 15, color: '#0E1116' }}>{c.name}</b>
                   <span style={{ height: 24, padding: '0 8px', borderRadius: 12, fontSize: 11, fontWeight: 700, background: '#F0F0F2', color: '#2B3038', display: 'inline-flex', alignItems: 'center' }}>
                     {c.members_count <= 3 ? t('collectiveSmall') : c.members_count <= 7 ? t('collectiveMedium') : t('collectiveLarge')}
                   </span>
-                </span>
-                <span style={{ fontSize: 13, fontWeight: 600, color: '#5A5F68' }}>1 999 Ft / fő / hó + ÁFA{c.subscription_period_end ? ` · ${formatDate(c.subscription_period_end)}` : ''}</span>
+                </div>
                 {c.subscription_status !== 'scheduled_cancel' && (
-                  <button onClick={() => setSubSheet({ type: 'cancelCol', collective: c })} style={{ minHeight: 44, border: 0, borderRadius: 22, background: '#FDECEC', color: '#B71C1C', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>
+                  <button onClick={() => setSubSheet({ type: 'cancelCol', collective: c })} style={{ height: 48, border: 0, borderRadius: 24, background: '#FDECEC', color: '#B71C1C', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>
                     {t('cancelSubscriptionBtn')}
                   </button>
                 )}
@@ -807,6 +849,12 @@ export default function ProfileMobile() {
             ))}
           </>
         )}
+
+        {/* Forward to full subscription page */}
+        <a href="/elofizetes" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, height: 56, border: 0, borderRadius: 28, background: BG, color: '#fff', fontSize: 16, fontWeight: 700, textDecoration: 'none' }}>
+          {t('subscriptionPageLink')}
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </a>
       </Sheet>
 
       {/* ── Language & Currency Sheet ──────────────────────────────────── */}

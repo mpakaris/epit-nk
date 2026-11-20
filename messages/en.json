@@ -1544,7 +1544,14 @@
     "offerDefaultsSubtitle": "Pre-filled for new quotes",
     "myDataSection": "My data",
     "accountSection": "Account",
-    "deleteAccountSubtitle": "Permanent, cannot be undone"
+    "deleteAccountSubtitle": "Permanent, cannot be undone",
+    "subscriptionIdMissing": "Subscription ID not found.",
+    "subscriptionPageLink": "Manage subscription",
+    "subStartedLabel": "Subscribed since",
+    "subNextRenewalLabel": "Next renewal",
+    "subActiveUntilLabel": "Active until",
+    "subLoadingDetails": "Loading...",
+    "subBillingCyclesLabel": "Billing cycles"
   },
   "subscription": {
     "pageTitle": "Subscription",

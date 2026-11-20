@@ -1544,7 +1544,14 @@
     "offerDefaultsSubtitle": "Vorausgefüllt für neue Angebote",
     "myDataSection": "Meine Daten",
     "accountSection": "Konto",
-    "deleteAccountSubtitle": "Dauerhaft, nicht rückgängig"
+    "deleteAccountSubtitle": "Dauerhaft, nicht rückgängig",
+    "subscriptionIdMissing": "Abonnement-ID nicht gefunden.",
+    "subscriptionPageLink": "Abonnement verwalten",
+    "subStartedLabel": "Abonniert seit",
+    "subNextRenewalLabel": "Nächste Verlängerung",
+    "subActiveUntilLabel": "Aktiv bis",
+    "subLoadingDetails": "Lädt...",
+    "subBillingCyclesLabel": "Abrechnungszyklen"
   },
   "subscription": {
     "pageTitle": "Abonnement",

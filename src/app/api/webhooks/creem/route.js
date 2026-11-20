@@ -5,6 +5,10 @@ import { sendEmail } from '@/lib/email';
 import { wrapEmail } from '@/lib/emailTemplates';
 import { logAudit } from '@/lib/audit';
 
+const CREEM_BASE = process.env.CREEM_API_KEY?.startsWith('creem_test_')
+  ? 'https://test-api.creem.io'
+  : 'https://api.creem.io';
+
 function verifySignature(payload, signature, secret) {
   const computed = crypto.createHmac('sha256', secret).update(payload).digest('hex');
   return crypto.timingSafeEqual(Buffer.from(computed), Buffer.from(signature));
@@ -207,7 +211,7 @@ export async function POST(request) {
 
   console.log('[creem webhook] eventType:', eventType);
 
-  const userId =
+  let userId =
     payload?.metadata?.userId ||
     payload?.checkout?.metadata?.userId ||
     payload?.metadata?.user_id ||
@@ -231,7 +235,47 @@ export async function POST(request) {
     payload?.period_end           ||
     null;
 
+  const creemCustomerId =
+    payload?.customer?.id ||
+    payload?.customer_id  ||
+    payload?.customerId   ||
+    payload?.checkout?.customer?.id ||
+    null;
+
+  const customerEmail =
+    payload?.customer?.email ||
+    payload?.checkout?.customer?.email ||
+    null;
+
   const family = getProductFamily(productId);
+
+  // Fallback: resolve userId from stored creem_customer_id or email when metadata is missing
+  let resolvedViaFallback = false;
+  if (!userId && creemCustomerId) {
+    const { data: p } = await admin.from('profiles').select('id').eq('creem_customer_id', creemCustomerId).maybeSingle();
+    if (p) { userId = p.id; resolvedViaFallback = true; console.log('[creem webhook] userId resolved via creem_customer_id'); }
+  }
+  if (!userId && customerEmail) {
+    const { data: p } = await admin.from('profiles').select('id').eq('email', customerEmail).maybeSingle();
+    if (p) { userId = p.id; resolvedViaFallback = true; console.log('[creem webhook] userId resolved via customer email'); }
+  }
+
+  // Persist creem_customer_id the first time we see it (only writes when column is NULL)
+  if (userId && creemCustomerId) {
+    await admin.from('profiles')
+      .update({ creem_customer_id: creemCustomerId })
+      .eq('id', userId)
+      .is('creem_customer_id', null);
+  }
+
+  // If we resolved via fallback, backfill external_id on Creem so future webhooks carry metadata.userId
+  if (resolvedViaFallback && userId && creemCustomerId) {
+    fetch(`${CREEM_BASE}/v1/customers`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.CREEM_API_KEY },
+      body: JSON.stringify({ customer_id: creemCustomerId, external_id: userId }),
+    }).catch(err => console.error('[creem webhook] failed to backfill Creem external_id:', err.message));
+  }
 
   console.log('[creem webhook] userId:', userId, '| productId:', productId, '| family:', family, '| subscriptionId:', subscriptionId);
 
