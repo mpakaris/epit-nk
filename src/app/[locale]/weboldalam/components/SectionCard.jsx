@@ -67,7 +67,7 @@ export default function SectionCard({ section, isPremium, expanded, onToggleExpa
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
             <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>{label}</span>
-            {isPremiumSection && (
+            {isPremiumSection && !isPremium && (
               <span style={{
                 fontSize: '0.65rem', fontWeight: 700, padding: '0.1rem 0.4rem',
                 borderRadius: 'var(--radius-pill)',

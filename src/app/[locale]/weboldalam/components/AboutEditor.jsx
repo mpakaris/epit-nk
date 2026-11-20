@@ -4,7 +4,7 @@ import { useState, useRef } from 'react';
 import { useTranslations } from 'next-intl';
 import { Camera, Upload, Loader2, Trash2 } from 'lucide-react';
 
-export default function AboutEditor({ content, onChange, tradeId }) {
+export default function AboutEditor({ content, onChange, tradeId, isPremium }) {
   const t = useTranslations('website');
   const [uploading, setUploading] = useState(false);
   const [uploadErr, setUploadErr] = useState('');
@@ -62,7 +62,7 @@ export default function AboutEditor({ content, onChange, tradeId }) {
       <div>
         <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
           <Camera size={13} /> {t('profilePhotoLabel')}
-          <span style={{ fontSize: '0.7rem', fontWeight: 700, padding: '0.1rem 0.4rem', borderRadius: 99, background: '#fef9c3', color: '#854d0e', border: '1px solid #fde68a' }}>{t('premiumBadge')}</span>
+          {!isPremium && <span style={{ fontSize: '0.7rem', fontWeight: 700, padding: '0.1rem 0.4rem', borderRadius: 99, background: '#fef9c3', color: '#854d0e', border: '1px solid #fde68a' }}>{t('premiumBadge')}</span>}
         </label>
         {content.photo_url ? (
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>

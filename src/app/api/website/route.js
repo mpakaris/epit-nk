@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { resolveEffectiveUserId } from '@/lib/godMode';
 import { logAudit } from '@/lib/audit';
+import { isEffectivePremium } from '@/lib/subscriptionLimits';
 
 const SECTION_ORDER = [
   'hero', 'about', 'services', 'certifications', 'gallery',
@@ -11,7 +12,7 @@ function buildDefaultSections(websiteId) {
   return SECTION_ORDER.map((type, i) => ({
     website_id: websiteId,
     section_type: type,
-    enabled: true,
+    enabled: false,
     content: {},
     order_index: i,
   }));
@@ -30,13 +31,15 @@ export async function GET(request) {
 
   const admin = createAdminClient();
   const effectiveUserId = await resolveEffectiveUserId(request, user, admin);
-  const { data: website } = await admin
-    .from('user_websites')
-    .select('*, trade:trades(id, name_hu, slug_prefix)')
-    .eq('user_id', effectiveUserId)
-    .maybeSingle();
+  const [websiteRes, profileRes] = await Promise.all([
+    admin.from('user_websites').select('*, trade:trades(id, name_hu, slug_prefix)').eq('user_id', effectiveUserId).maybeSingle(),
+    admin.from('profiles').select('is_subscription_premium, subscription_tier, trial_ends_at').eq('id', effectiveUserId).single(),
+  ]);
 
-  if (!website) return Response.json({ website: null, sections: [] });
+  if (!websiteRes.data) return Response.json({ website: null, sections: [] });
+
+  const isPremium = isEffectivePremium(profileRes.data || {});
+  const website = { ...websiteRes.data, is_premium: isPremium };
 
   const { data: sections } = await admin
     .from('website_sections')
@@ -116,18 +119,13 @@ export async function POST(request) {
       }
     }
 
-    const { data: website } = await admin
-      .from('user_websites')
-      .select('*, trade:trades(id, name_hu, slug_prefix)')
-      .eq('id', existing.id)
-      .single();
-    const { data: updatedSections } = await admin
-      .from('website_sections')
-      .select('*')
-      .eq('website_id', existing.id)
-      .order('order_index');
-
-    return Response.json({ website, sections: updatedSections || [] });
+    const [websiteRefresh, profileRefresh, sectionsRefresh] = await Promise.all([
+      admin.from('user_websites').select('*, trade:trades(id, name_hu, slug_prefix)').eq('id', existing.id).single(),
+      admin.from('profiles').select('is_subscription_premium, subscription_tier, trial_ends_at').eq('id', effectiveUserId).single(),
+      admin.from('website_sections').select('*').eq('website_id', existing.id).order('order_index'),
+    ]);
+    const isPremiumPost = isEffectivePremium(profileRefresh.data || {});
+    return Response.json({ website: { ...websiteRefresh.data, is_premium: isPremiumPost }, sections: sectionsRefresh.data || [] });
   }
 
   // Create new website
@@ -148,11 +146,10 @@ export async function POST(request) {
   }
 
   await admin.from('website_sections').insert(buildDefaultSections(website.id));
-  const { data: sections } = await admin
-    .from('website_sections')
-    .select('*')
-    .eq('website_id', website.id)
-    .order('order_index');
-
-  return Response.json({ website, sections: sections || [] }, { status: 201 });
+  const [sectionsCreate, profileCreate] = await Promise.all([
+    admin.from('website_sections').select('*').eq('website_id', website.id).order('order_index'),
+    admin.from('profiles').select('is_subscription_premium, subscription_tier, trial_ends_at').eq('id', effectiveUserId).single(),
+  ]);
+  const isPremiumCreate = isEffectivePremium(profileCreate.data || {});
+  return Response.json({ website: { ...website, is_premium: isPremiumCreate }, sections: sectionsCreate.data || [] }, { status: 201 });
 }

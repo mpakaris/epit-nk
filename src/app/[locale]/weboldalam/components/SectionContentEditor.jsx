@@ -17,7 +17,7 @@ export default function SectionContentEditor({ section, onChange, isPremium, tra
 
   switch (section.section_type) {
     case 'hero':           return <HeroEditor content={c} onChange={update} tradeId={tradeId} />;
-    case 'about':          return <AboutEditor content={c} onChange={update} tradeId={tradeId} />;
+    case 'about':          return <AboutEditor content={c} onChange={update} tradeId={tradeId} isPremium={isPremium} />;
     case 'services':       return <ServicesEditor content={c} onChange={update} isPremium={isPremium} tradeId={tradeId} compact={compact} />;
     case 'certifications': return <CertificationsEditor content={c} onChange={update} compact={compact} />;
     case 'gallery':        return <GalleryEditor content={c} onChange={update} />;

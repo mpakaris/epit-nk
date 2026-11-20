@@ -889,6 +889,8 @@
   },
   "website": {
     "pageTitle": "Weboldalam",
+    "dirtyBanner": "Módosítások még nem láthatók az ügyfeleid számára.",
+    "dirtyBannerBtn": "Közzétesz",
     "podContentDesc": "Szekciók be- és kikapcsolása, tartalmak kitöltése",
     "podDesignDesc": "Stílus, betűtípus és borítóképek testreszabása",
     "podPublishDesc": "Link módosítása, szakma kiválasztása és közzététel",
@@ -937,6 +939,7 @@
     "tradeHeading": "Szakma / tevékenység",
     "tradeDesc": "A kiválasztott szakma befolyásolja az alapértelmezett képeket és a keresési kategóriát.",
     "tradeGeneral": "Általános szakember",
+    "tradeCustomPlaceholder": "Saját megnevezés…",
     "slugSavingButton": "Mentés…",
     "slugSavedButton": "Mentve!",
     "slugSaveButton": "Mentés",

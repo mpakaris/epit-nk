@@ -954,6 +954,8 @@
   },
   "website": {
     "pageTitle": "Meine Website",
+    "dirtyBanner": "Änderungen sind für Ihre Kunden noch nicht sichtbar.",
+    "dirtyBannerBtn": "Veröffentlichen",
     "podContentDesc": "Bereiche aktivieren und Inhalte ausfüllen",
     "podDesignDesc": "Stil, Schriftart und Bannerbilder anpassen",
     "podPublishDesc": "Link, Beruf und Veröffentlichung verwalten",
@@ -1002,6 +1004,7 @@
     "tradeHeading": "Beruf / Tätigkeit",
     "tradeDesc": "Das ausgewählte Gewerk beeinflusst die Standardbilder und die Suchkategorie.",
     "tradeGeneral": "Allgemeiner Handwerker",
+    "tradeCustomPlaceholder": "Eigene Bezeichnung…",
     "slugSavingButton": "Speichern…",
     "slugSavedButton": "Gespeichert!",
     "slugSaveButton": "Speichern",

@@ -6,6 +6,7 @@
 
 export const WEB_I18N = {
   hu: {
+    previewBanner:        'Előnézet — a változások közzététel után lesznek láthatók',
     heroCta:              'Kapcsolatba lépek',
     profilePhotoAlt:      'Profilkép',
     aboutEyebrow:         'Rólam',
@@ -39,6 +40,7 @@ export const WEB_I18N = {
     errNetwork:           'Hálózati hiba, kérjük próbáld újra.',
   },
   de: {
+    previewBanner:        'Vorschau — Änderungen werden nach der Veröffentlichung sichtbar',
     heroCta:              'Kontakt aufnehmen',
     profilePhotoAlt:      'Profilfoto',
     aboutEyebrow:         'Über mich',
@@ -72,6 +74,7 @@ export const WEB_I18N = {
     errNetwork:           'Netzwerkfehler, bitte versuchen Sie es erneut.',
   },
   en: {
+    previewBanner:        'Preview — changes will be visible after publishing',
     heroCta:              'Get in touch',
     profilePhotoAlt:      'Profile photo',
     aboutEyebrow:         'About me',

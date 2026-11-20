@@ -954,6 +954,8 @@
   },
   "website": {
     "pageTitle": "My website",
+    "dirtyBanner": "Your changes are not yet visible to your clients.",
+    "dirtyBannerBtn": "Publish",
     "podContentDesc": "Turn sections on or off and fill in your content",
     "podDesignDesc": "Customise style, typography and banner images",
     "podPublishDesc": "Manage your link, trade and publication settings",
@@ -1002,6 +1004,7 @@
     "tradeHeading": "Trade / activity",
     "tradeDesc": "The selected trade affects the default images and the search category.",
     "tradeGeneral": "General tradesperson",
+    "tradeCustomPlaceholder": "Custom profession…",
     "slugSavingButton": "Saving…",
     "slugSavedButton": "Saved!",
     "slugSaveButton": "Save",

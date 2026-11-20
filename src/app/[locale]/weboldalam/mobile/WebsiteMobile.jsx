@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { useTranslations } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
 import { useApp } from '@/context/AppContext';
 import { COLOR_SCHEMES, TYPOGRAPHY } from '@/lib/websiteThemes';
 import { toSlug } from '@/lib/utils';
@@ -224,8 +224,9 @@ function Toast({ msg }) {
 // ── Main component ────────────────────────────────────────────────────────────
 export default function WebsiteMobile({ website: initialWebsite, sections: initialSections }) {
   const router = useRouter();
-  const t  = useTranslations('website');
-  const tc = useTranslations('common');
+  const t      = useTranslations('website');
+  const tc     = useTranslations('common');
+  const locale = useLocale();
   const { isDemoMode } = useApp();
   const p = (path) => isDemoMode ? `/demo${path}` : path;
 
@@ -240,11 +241,13 @@ export default function WebsiteMobile({ website: initialWebsite, sections: initi
   const [showQr, setShowQr] = useState(false);
   const [toast, setToast] = useState('');
   const [showPublishWarning, setShowPublishWarning] = useState(false);
+  const [isDirty, setIsDirty] = useState(false);
   const [bannerPickerOpen,  setBannerPickerOpen]  = useState(false);
   const [bannerPickerIndex, setBannerPickerIndex] = useState(0);
 
   // Settings
   const [trades, setTrades] = useState([]);
+  const [customTrade, setCustomTrade] = useState(website.custom_trade || '');
   const [settingsSlug, setSettingsSlug]   = useState(website.slug || '');
   const [slugChecking, setSlugChecking]   = useState(false);
   const [slugResult,   setSlugResult]     = useState(null);
@@ -262,7 +265,7 @@ export default function WebsiteMobile({ website: initialWebsite, sections: initi
   const flash = useCallback((msg) => { setToast(msg); setTimeout(() => setToast(''), 2200); }, []);
 
   useEffect(() => {
-    fetch('/api/trades').then(r => r.json()).then(d => setTrades(d.trades || []));
+    fetch(`/api/trades?locale=${locale}`).then(r => r.json()).then(d => setTrades(d.trades || []));
   }, []);
 
   useEffect(() => {
@@ -289,8 +292,9 @@ export default function WebsiteMobile({ website: initialWebsite, sections: initi
 
   const updateTheme = async (next) => {
     setTheme(next);
-    if (isDemoMode) { try { localStorage.setItem(DEMO_WB_LS_KEY, JSON.stringify({ sections, theme: next })); } catch {} flash(t('designModified')); return; }
-    try { const r = await fetch('/api/website', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ theme: next }) }); if (r.ok) flash(t('designSaved')); } catch {}
+    setIsDirty(true);
+    if (isDemoMode) { try { localStorage.setItem(DEMO_WB_LS_KEY, JSON.stringify({ sections, theme: next })); } catch {} return; }
+    try { const r = await fetch('/api/website', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ theme: next }) }); if (r.ok) flash(t('changesSaved')); } catch {}
   };
 
   const updateSection = (updated) => {
@@ -299,6 +303,7 @@ export default function WebsiteMobile({ website: initialWebsite, sections: initi
       if (isDemoMode) { try { localStorage.setItem(DEMO_WB_LS_KEY, JSON.stringify({ sections: next, theme })); } catch {} }
       return next;
     });
+    setIsDirty(true);
     if (isDemoMode) return;
     clearTimeout(saveTimers.current[updated.section_type]);
     saveTimers.current[updated.section_type] = setTimeout(async () => {
@@ -315,19 +320,10 @@ export default function WebsiteMobile({ website: initialWebsite, sections: initi
       if (!sr.ok) return;
       const pr = await fetch('/api/website', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'publish' }) });
       const d = await pr.json();
-      if (pr.ok) { setWebsite(d.website); setSections(d.sections); flash(t('published')); setOpenSheet(null); }
+      if (pr.ok) { setWebsite(d.website); setSections(d.sections); setIsDirty(false); flash(t('published')); setOpenSheet(null); }
     } finally { setPublishing(false); }
   };
 
-  const handleUnpublish = async () => {
-    if (isDemoMode) { flash(t('demoPublishUnavailable')); return; }
-    setPublishing(true);
-    try {
-      const r = await fetch('/api/website', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'unpublish' }) });
-      const d = await r.json();
-      if (r.ok) { setWebsite(d.website); setSections(d.sections); flash(t('unpublished')); }
-    } finally { setPublishing(false); }
-  };
 
   const handleSaveSlug = async () => {
     if (isDemoMode) { flash(t('demoUnavailable')); return; }
@@ -339,7 +335,7 @@ export default function WebsiteMobile({ website: initialWebsite, sections: initi
       const r = await fetch('/api/website', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'update_slug', slug: settingsSlug }) });
       const d = await r.json();
       if (!r.ok) { setSlugSaveErr(d.error || t('savingError')); return; }
-      setWebsite(d.website); setSlugSaveOk(true); setSlugResult(null);
+      setWebsite(d.website); setSlugSaveOk(true); setSlugResult(null); setIsDirty(true);
       flash(t('changesSaved'));
       setTimeout(() => setSlugSaveOk(false), 3000);
     } catch { setSlugSaveErr(t('networkRetry')); }
@@ -349,10 +345,22 @@ export default function WebsiteMobile({ website: initialWebsite, sections: initi
   const handleSaveTrade = async (newTradeId) => {
     if (isDemoMode) { flash(t('demoUnavailable')); return; }
     setSettingsTradeId(newTradeId);
+    setCustomTrade('');
     try {
-      const r = await fetch('/api/website', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ trade_id: newTradeId || null }) });
+      const r = await fetch('/api/website', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ trade_id: newTradeId || null, custom_trade: null }) });
       const d = await r.json();
-      if (r.ok) { setWebsite(d.website); flash(t('changesSaved')); }
+      if (r.ok) { setWebsite(d.website); setIsDirty(true); flash(t('changesSaved')); }
+    } catch {}
+  };
+
+  const handleSaveCustomTrade = async () => {
+    if (isDemoMode) { flash(t('demoUnavailable')); return; }
+    if (!customTrade.trim()) return;
+    setSettingsTradeId('');
+    try {
+      const r = await fetch('/api/website', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ trade_id: null, custom_trade: customTrade.trim() }) });
+      const d = await r.json();
+      if (r.ok) { setWebsite(d.website); setIsDirty(true); flash(t('changesSaved')); }
     } catch {}
   };
 
@@ -448,10 +456,8 @@ export default function WebsiteMobile({ website: initialWebsite, sections: initi
           <span style={{ height: 32, padding: '0 12px', borderRadius: 16, fontSize: 12, fontWeight: 700, display: 'inline-flex', alignItems: 'center', background: isPublished ? '#14532D' : 'rgba(255,255,255,0.18)' }}>
             {isPublished ? t('statusLive') : t('statusNotPublished')}
           </span>
-          <a href={`/pro/${website.slug}?preview=1`} target="_blank" rel="noopener noreferrer"
-            style={{ width: 48, height: 48, border: 0, borderRadius: 24, background: 'rgba(255,255,255,0.18)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', textDecoration: 'none', flexShrink: 0 }}>
-            <EyeSvg />
-          </a>
+
+          <span style={{ width: 48 }} />
         </div>
 
         <span style={{ position: 'relative', fontSize: 13, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.75)' }}>{t('websiteLabel')}</span>
@@ -473,6 +479,17 @@ export default function WebsiteMobile({ website: initialWebsite, sections: initi
           )}
         </div>
       </header>
+
+      {/* ── Dirty banner ─────────────────────────────────────────────── */}
+      {isDirty && (
+        <div style={{ background: '#7A3300', color: '#fff', padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span style={{ flex: 1, fontSize: 13, fontWeight: 600, lineHeight: 1.4 }}>{t('dirtyBanner')}</span>
+          <button onClick={() => website.is_premium ? handlePublish() : setShowPublishWarning(true)} disabled={publishing}
+            style={{ flexShrink: 0, height: 36, padding: '0 14px', border: 0, borderRadius: 18, background: '#fff', color: '#7A3300', fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
+            {publishing ? <SpinSvg s={14} /> : <GlobeSvg />}{t('dirtyBannerBtn')}
+          </button>
+        </div>
+      )}
 
       {/* ── Pods ────────────────────────────────────────────────────────── */}
       <div style={{ padding: '20px 16px 120px', display: 'flex', flexDirection: 'column', gap: 20 }}>
@@ -515,19 +532,17 @@ export default function WebsiteMobile({ website: initialWebsite, sections: initi
 
       </div>
 
-      {/* ── Publish / Unpublish FAB ──────────────────────────────────────── */}
-      <div style={{ position: 'fixed', zIndex: 20, left: 0, right: 0, bottom: 0, boxSizing: 'border-box', padding: `20px 16px calc(18px + env(safe-area-inset-bottom))`, background: `linear-gradient(to top, ${DEEP} 60%, transparent)` }}>
-        {isPublished ? (
-          <button onClick={handleUnpublish} disabled={publishing}
-            style={{ width: '100%', height: 60, border: '2px solid rgba(255,255,255,0.35)', borderRadius: 30, background: 'transparent', color: '#fff', fontSize: 16, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, opacity: publishing ? 0.7 : 1 }}>
-            {publishing ? <SpinSvg /> : null}{t('draftButton')}
-          </button>
-        ) : (
-          <button onClick={() => website.is_premium ? handlePublish() : setShowPublishWarning(true)} disabled={publishing}
-            style={{ width: '100%', height: 60, border: 0, borderRadius: 30, background: HDR, color: '#fff', fontSize: 17, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, opacity: publishing ? 0.7 : 1, boxShadow: '0 14px 26px -12px rgba(14,17,22,0.3)' }}>
-            {publishing ? <SpinSvg s={18} /> : <GlobeSvg />}{t('publishButton')}
-          </button>
-        )}
+      {/* ── Bottom action bar ────────────────────────────────────────────── */}
+      <div style={{ position: 'fixed', zIndex: 20, left: 0, right: 0, bottom: 0, boxSizing: 'border-box', padding: `16px 16px calc(18px + env(safe-area-inset-bottom))`, background: `linear-gradient(to top, ${DEEP} 60%, transparent)`, display: 'flex', gap: 10 }}>
+        <a href={`/pro/${website.slug}?preview=1`} target="_blank" rel="noopener noreferrer"
+          style={{ flexShrink: 0, height: 60, padding: '0 20px', border: 0, borderRadius: 30, background: '#0A7F72', color: '#fff', fontSize: 15, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', textDecoration: 'none' }}>
+          {t('previewButton')}
+        </a>
+        <button onClick={() => website.is_premium ? handlePublish() : setShowPublishWarning(true)} disabled={publishing || (isPublished && !isDirty)}
+          style={{ flex: 1, height: 60, border: 0, borderRadius: 30, background: (isPublished && !isDirty) ? 'rgba(255,255,255,0.15)' : HDR, color: '#fff', fontSize: 17, fontWeight: 700, cursor: (isPublished && !isDirty) ? 'default' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, opacity: publishing ? 0.7 : 1, boxShadow: (isPublished && !isDirty) ? 'none' : '0 14px 26px -12px rgba(14,17,22,0.3)' }}>
+          {publishing ? <SpinSvg s={18} /> : <GlobeSvg />}
+          {isPublished ? t('statusLive') : t('publishButton')}
+        </button>
       </div>
 
       {/* ── Sheet 1: Content ─────────────────────────────────────────────── */}
@@ -636,63 +651,77 @@ export default function WebsiteMobile({ website: initialWebsite, sections: initi
       {/* ── Sheet 3: Publish / Settings ──────────────────────────────────── */}
       <Sheet open={openSheet === 'publish'} onClose={() => setOpenSheet(null)} title={t('tabSettings') + ' & ' + t('publishButton')}>
 
-        {/* Slug */}
-        <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.07em', textTransform: 'uppercase', color: '#8A8F98' }}>{t('publicUrlHeading')}</span>
-        <span style={{ fontSize: 13, fontWeight: 600, color: '#5A5F68', lineHeight: 1.5 }}>okosszaki.hu/pro/<b style={{ color: '#0E1116' }}>{settingsSlug || website.slug}</b></span>
-        <div style={{ display: 'flex', alignItems: 'center', border: '1.5px solid #E8E5DF', borderRadius: 16, background: '#fff', overflow: 'hidden' }}>
-          <span style={{ padding: '0 12px', fontSize: 13, fontWeight: 600, color: '#5A5F68', borderRight: '1px solid #E8E5DF', whiteSpace: 'nowrap', flexShrink: 0, height: 52, display: 'flex', alignItems: 'center' }}>/pro/</span>
-          <input value={settingsSlug} onChange={e => { const v = toSlug(e.target.value) || e.target.value.toLowerCase().replace(/[^a-z0-9-]/g,''); setSettingsSlug(v); setSlugSaveErr(''); setSlugSaveOk(false); checkSettingsSlug(v); }}
-            placeholder="pl. kovacs-peter" style={{ flex: 1, border: 0, background: 'transparent', outline: 'none', padding: '0 14px', fontSize: 16, fontWeight: 500, color: '#0E1116', height: 52 }} />
-          {slugChecking && <SpinSvg s={16} />}
-          {!slugChecking && slugResult && settingsSlug !== website.slug && (
-            slugResult.available
-              ? <span style={{ color: '#14532D', marginRight: 10, fontSize: 20 }}>✓</span>
-              : <span style={{ color: '#B71C1C', marginRight: 10, fontSize: 20 }}>✗</span>
+        {/* Slug card */}
+        <div style={{ background: '#fff', borderRadius: 20, boxShadow: 'inset 0 1px 0 #fff, 0 2px 8px -4px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.06)', overflow: 'hidden' }}>
+          <div style={{ padding: '14px 16px 4px' }}>
+            <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.07em', textTransform: 'uppercase', color: '#8A8F98' }}>{t('publicUrlHeading')}</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', margin: '8px 16px 0' }}>
+            <span style={{ fontSize: 13, fontWeight: 600, color: '#8A8F98', whiteSpace: 'nowrap', flexShrink: 0 }}>okosszaki.hu/pro/</span>
+            <input
+              value={settingsSlug}
+              onChange={e => { const v = toSlug(e.target.value) || e.target.value.toLowerCase().replace(/[^a-z0-9-]/g,''); setSettingsSlug(v); setSlugSaveErr(''); setSlugSaveOk(false); checkSettingsSlug(v); }}
+              onBlur={handleSaveSlug}
+              placeholder="kovacs-peter"
+              style={{ flex: 1, border: 0, outline: 'none', fontSize: 16, fontWeight: 600, color: '#0E1116', background: 'transparent', minWidth: 0 }}
+            />
+            {slugChecking && <span style={{ marginRight: 4 }}><SpinSvg s={16} /></span>}
+            {!slugChecking && slugResult && settingsSlug !== website.slug && (
+              slugResult.available
+                ? <span style={{ color: '#14532D', fontSize: 18, marginRight: 4 }}>✓</span>
+                : <span style={{ color: '#B71C1C', fontSize: 18, marginRight: 4 }}>✗</span>
+            )}
+          </div>
+          {(slugSaveErr || (slugResult?.available && settingsSlug !== website.slug && !slugSaveErr)) && (
+            <span style={{ display: 'block', fontSize: 12, fontWeight: 600, padding: '4px 16px 12px', color: slugSaveErr ? '#B71C1C' : '#14532D' }}>
+              {slugSaveErr || t('slugAvailable')}
+            </span>
           )}
+          {!slugSaveErr && !(slugResult?.available && settingsSlug !== website.slug) && <div style={{ height: 16 }} />}
         </div>
-        {slugSaveErr && <span style={{ fontSize: 13, fontWeight: 700, color: '#B71C1C' }}>{slugSaveErr}</span>}
-        {slugResult?.available && settingsSlug !== website.slug && !slugSaveErr && (
-          <span style={{ fontSize: 13, fontWeight: 700, color: '#14532D' }}>{t('slugAvailable')}</span>
-        )}
-        <button onClick={handleSaveSlug} disabled={slugSaving || settingsSlug === website.slug || settingsSlug.length < 3 || (slugResult !== null && !slugResult.available)}
-          style={{ height: 52, border: 0, borderRadius: 26, background: HDR, color: '#fff', fontSize: 15, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, opacity: (slugSaving || settingsSlug === website.slug) ? 0.5 : 1 }}>
-          {slugSaving ? <SpinSvg s={16} /> : <CheckSvg />}
-          {slugSaving ? t('slugSavingButton') : slugSaveOk ? t('slugSavedButton') : t('slugSaveButton')}
-        </button>
 
-        {/* Trade */}
-        <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.07em', textTransform: 'uppercase', color: '#8A8F98', marginTop: 8 }}>{t('tradeHeading')}</span>
-        <span style={{ fontSize: 13, fontWeight: 600, color: '#5A5F68', lineHeight: 1.5 }}>{t('tradeDesc')}</span>
-        {[{ id: '', name_hu: t('tradeGeneral') }, ...trades].map(trade => {
-          const sel = settingsTradeId === trade.id;
-          return (
-            <button key={trade.id} type="button" onClick={() => handleSaveTrade(trade.id)}
-              style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px', border: `2px solid ${sel ? HDR : '#E8E5DF'}`, borderRadius: 20, background: sel ? '#F0F4FA' : '#fff', color: sel ? HDR : '#0E1116', fontSize: 15, fontWeight: sel ? 700 : 600, cursor: 'pointer', textAlign: 'left' }}>
-              <span>{trade.name_hu}</span>
-              {sel && <CheckSvg />}
-            </button>
-          );
-        })}
+        {/* Trade card */}
+        <div style={{ background: '#fff', borderRadius: 20, boxShadow: 'inset 0 1px 0 #fff, 0 2px 8px -4px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.06)', padding: '14px 16px 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.07em', textTransform: 'uppercase', color: '#8A8F98' }}>{t('tradeHeading')}</span>
 
-        {/* Publish toggle */}
-        <div style={{ marginTop: 8, padding: '14px 16px', borderRadius: 20, background: isPublished ? '#E7F4EC' : '#FFF4E5', border: `1.5px solid ${isPublished ? '#86EFAC' : '#FDE68A'}`, display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <span style={{ fontSize: 15, fontWeight: 700, color: isPublished ? '#14532D' : '#7A3300' }}>
-            {isPublished ? t('statusLive') : t('statusNotPublished')}
-          </span>
-          <span style={{ fontSize: 13, fontWeight: 600, color: isPublished ? '#166534' : '#92400E', lineHeight: 1.5 }}>
-            {isPublished ? `okosszaki.hu/pro/${website.slug}` : t('notPublicDesc')}
-          </span>
-          {isPublished ? (
-            <button onClick={handleUnpublish} disabled={publishing}
-              style={{ height: 52, border: 0, borderRadius: 26, background: '#B71C1C', color: '#fff', fontSize: 15, fontWeight: 700, cursor: 'pointer', opacity: publishing ? 0.7 : 1 }}>
-              {publishing ? tc('saving') : t('draftButton')}
-            </button>
-          ) : (
-            <button onClick={() => website.is_premium ? handlePublish() : setShowPublishWarning(true)} disabled={publishing}
-              style={{ height: 52, border: 0, borderRadius: 26, background: HDR, color: '#fff', fontSize: 15, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, opacity: publishing ? 0.7 : 1 }}>
-              {publishing ? <SpinSvg s={16} /> : <GlobeSvg />}{t('publishButton')}
-            </button>
-          )}
+          {/* Preset list — always selectable */}
+          {[{ id: '', name: t('tradeGeneral') }, ...trades].map(trade => {
+            const sel = !customTrade && settingsTradeId === trade.id;
+            return (
+              <button key={trade.id} type="button"
+                onMouseDown={e => e.preventDefault()}
+                onClick={() => handleSaveTrade(trade.id)}
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px', border: 0, borderRadius: 16, background: sel ? '#0E1116' : '#F5F5F5', color: sel ? '#fff' : '#0E1116', fontSize: 15, fontWeight: 700, cursor: 'pointer', textAlign: 'left', boxShadow: sel ? '0 4px 12px rgba(14,17,22,0.25)' : 'none' }}>
+                <span>{trade.name}</span>
+                {sel && <CheckSvg />}
+              </button>
+            );
+          })}
+
+          {/* Custom text input — alternative to list */}
+          <div style={{ display: 'flex', alignItems: 'center', background: customTrade ? '#0E1116' : '#F5F5F5', borderRadius: 16, overflow: 'hidden', paddingLeft: 16, boxShadow: customTrade ? '0 4px 12px rgba(14,17,22,0.25)' : 'none' }}>
+            <input
+              value={customTrade}
+              onChange={e => setCustomTrade(e.target.value)}
+              onBlur={handleSaveCustomTrade}
+              placeholder={t('tradeCustomPlaceholder')}
+              style={{ flex: 1, border: 0, outline: 'none', background: 'transparent', fontSize: 15, fontWeight: 700, color: customTrade ? '#fff' : '#0E1116', padding: '14px 0', fontFamily: 'inherit' }}
+            />
+            {customTrade && <span style={{ padding: '0 14px', color: '#fff' }}><CheckSvg /></span>}
+          </div>
+        </div>
+
+        {/* Status card */}
+        <div style={{ background: isPublished ? '#E7F4EC' : '#fff', borderRadius: 20, boxShadow: 'inset 0 1px 0 #fff, 0 2px 8px -4px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.06)', padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
+          <span style={{ width: 10, height: 10, borderRadius: 5, background: isPublished ? '#14532D' : '#D5D2C8', flexShrink: 0 }} />
+          <div style={{ flex: 1 }}>
+            <span style={{ display: 'block', fontSize: 15, fontWeight: 700, color: isPublished ? '#14532D' : '#0E1116' }}>
+              {isPublished ? t('statusLive') : t('statusNotPublished')}
+            </span>
+            <span style={{ display: 'block', fontSize: 13, fontWeight: 500, color: isPublished ? '#166534' : '#5A5F68', marginTop: 2 }}>
+              {isPublished ? `okosszaki.hu/pro/${website.slug}` : t('notPublicDesc')}
+            </span>
+          </div>
         </div>
       </Sheet>
 

@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import { useParams } from 'next/navigation';
-import { Phone, Mail, Award, ChevronDown, ChevronUp, Star, Loader2, CheckCircle2, AlertCircle, ArrowRight, Eye, Play, ExternalLink } from 'lucide-react';
+import { Phone, Mail, Award, ChevronDown, ChevronUp, Star, Loader2, CheckCircle2, AlertCircle, ArrowRight, Play, ExternalLink } from 'lucide-react';
 import Lightbox from '@/components/Lightbox';
 import { getWebI18n } from '@/lib/websitePublicI18n';
 
@@ -960,38 +960,14 @@ export default function SzakemberPage() {
       {isPreview && (
         <div style={{
           position: 'fixed', top: 0, left: 0, right: 0, zIndex: 9999,
-          background: '#1e293b', color: '#f8fafc',
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '0.6rem 1rem', gap: '0.75rem',
-          boxShadow: '0 2px 12px rgba(0,0,0,0.3)',
+          background: '#0A7F72', color: '#fff',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          padding: '0.65rem 1rem',
           fontFamily: "'Plus Jakarta Sans', sans-serif",
-          fontSize: '0.825rem',
+          fontSize: '0.825rem', fontWeight: 600,
+          letterSpacing: '0.01em',
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <Eye size={14} style={{ color: '#94a3b8', flexShrink: 0 }} />
-            <span style={{ color: '#94a3b8' }}>Előnézet</span>
-            <span style={{ color: '#334155' }}>·</span>
-            <span style={{ color: website.status === 'published' ? '#22c55e' : '#f97316' }}>
-              {website.status === 'published' ? 'Az oldal élő' : 'Az oldal nincs közzétéve'}
-            </span>
-          </div>
-          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-            {website.status !== 'published' && (
-              <a
-                href="/weboldalam"
-                style={{ padding: '0.3rem 0.75rem', borderRadius: 99, background: '#f97316', color: 'white', textDecoration: 'none', fontSize: '0.775rem', fontWeight: 700 }}
-              >
-                Közzétesz
-              </a>
-            )}
-            <button
-              type="button"
-              onClick={() => window.close()}
-              style={{ background: 'rgba(255,255,255,0.08)', border: 'none', borderRadius: 8, width: 28, height: 28, cursor: 'pointer', color: '#94a3b8', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-            >
-              <XIcon size={14} />
-            </button>
-          </div>
+          {i18n.previewBanner}
         </div>
       )}
 
