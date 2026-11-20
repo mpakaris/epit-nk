@@ -1592,6 +1592,7 @@
     "premiumFeature6": "Unlimited image uploads",
     "collectivePriceLabel": "Premium +",
     "collectiveNote": "You can choose a package during the collective setup process.",
+    "collectiveLockedBanner": "Not available yet. Activate a Premium subscription first.",
     "collectiveFeature1": "Premium subscription required",
     "collectiveFeature2": "Small team: 3 extra seats",
     "collectiveFeature3": "Medium team: 6 extra seats",
@@ -1599,7 +1600,8 @@
     "collectiveFeature5": "Owner pays for everyone",
     "contactQuestion": "Have a question? Write to us:",
     "checkoutError": "An error occurred starting the payment process. Please try again.",
-    "trialDaysLeftBanner": "— {days} days remaining. After that your account switches to the Basic plan."
+    "trialDaysLeftBanner": "— {days} days remaining. After that your account switches to the Basic plan.",
+    "securePayment": "🔒 Secure payment – Creem"
   },
   "mobile": {
     "floatingNav": {

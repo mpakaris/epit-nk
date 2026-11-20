@@ -1527,6 +1527,7 @@
     "premiumFeature6": "Korlátlan képfeltöltés",
     "collectivePriceLabel": "Prémium +",
     "collectiveNote": "A kollektíva indítási folyamatnál választhatsz csomagot.",
+    "collectiveLockedBanner": "Jelenleg nem elérhető. Először aktiválj Premium előfizetést.",
     "collectiveFeature1": "Prémium előfizetés szükséges",
     "collectiveFeature2": "Kis csapat: 3 extra szék",
     "collectiveFeature3": "Közepes csapat: 6 extra szék",
@@ -1534,7 +1535,8 @@
     "collectiveFeature5": "A tulajdonos fizet mindenki helyett",
     "contactQuestion": "Kérdésed van? Írj nekünk:",
     "checkoutError": "Hiba történt a fizetési folyamat indításakor. Kérjük, próbáld újra.",
-    "trialDaysLeftBanner": "— még {days} nap van hátra. Utána a Bázis csomagra vált a fiókod."
+    "trialDaysLeftBanner": "— még {days} nap van hátra. Utána a Bázis csomagra vált a fiókod.",
+    "securePayment": "🔒 Biztonságos fizetés – Creem"
   },
   "dashboard": {
     "viewAll": "Összes",

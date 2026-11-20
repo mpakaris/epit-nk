@@ -14,7 +14,12 @@ export async function POST(request) {
   const admin = createAdminClient();
   const { data: profile } = await admin.from('profiles').select('email').eq('id', user.id).single();
 
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+  // Derive base URL from the actual request host so the success_url is always
+  // same-origin with the browsing context (works with ngrok, localhost, and production).
+  const fwdProto = request.headers.get('x-forwarded-proto')?.split(',')[0]?.trim();
+  const host     = request.headers.get('host') || '';
+  const proto    = fwdProto || (host.startsWith('localhost') ? 'http' : 'https');
+  const baseUrl  = host ? `${proto}://${host}` : (process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000');
   const base = successUrl ? `${baseUrl}${successUrl}` : `${baseUrl}/profil`;
   const returnUrl = `${base}${base.includes('?') ? '&' : '?'}upgraded=1`;
 

@@ -19,7 +19,7 @@ export async function GET() {
 
   const [profilesRes, authRes, membersRes] = await Promise.all([
     admin.from('profiles')
-      .select('id, display_name, email, role, is_subscription_premium, created_at')
+      .select('id, display_name, email, role, is_subscription_premium, subscription_tier, trial_ends_at, created_at')
       .order('display_name'),
     admin.auth.admin.listUsers({ perPage: 1000 }),
     admin.from('collective_members')
@@ -57,6 +57,7 @@ export async function PATCH(request) {
   const { admin } = auth;
 
   const body = await request.json();
+  const now = new Date().toISOString();
 
   // Personal subscription update
   if (body.userId !== undefined) {
@@ -64,15 +65,44 @@ export async function PATCH(request) {
     if (!userId || typeof is_subscription_premium !== 'boolean') {
       return Response.json({ error: 'userId and is_subscription_premium are required' }, { status: 400 });
     }
-    const { error } = await admin
-      .from('profiles')
-      .update({
-        is_subscription_premium,
-        subscription_tier: is_subscription_premium ? 'premium' : 'basic',
-      })
-      .eq('id', userId);
-    if (error) return Response.json({ error: error.message }, { status: 500 });
-    logAudit({ userId: auth.user.id, userName: auth.caller.display_name || '', action: 'Subscription updated by admin', targetType: 'subscription', targetId: userId, details: { is_subscription_premium, tier: is_subscription_premium ? 'premium' : 'basic' } });
+
+    // 1. Update profile flags + clear trial fields when revoking
+    const profileUpdate = {
+      is_subscription_premium,
+      subscription_tier: is_subscription_premium ? 'premium' : 'basic',
+    };
+    if (!is_subscription_premium) {
+      profileUpdate.trial_started_at = null;
+      profileUpdate.trial_ends_at    = null;
+    }
+    const { error: profileErr } = await admin.from('profiles').update(profileUpdate).eq('id', userId);
+    if (profileErr) return Response.json({ error: profileErr.message }, { status: 500 });
+
+    // 2. Keep subscriptions table in sync
+    if (is_subscription_premium) {
+      // Cancel any stale active rows first, then insert an admin-granted row
+      await admin.from('subscriptions')
+        .update({ status: 'canceled', updated_at: now })
+        .eq('user_id', userId)
+        .in('product_family', ['premium', 'bundle'])
+        .in('status', ['active', 'trialing', 'scheduled_cancel', 'paused', 'past_due']);
+      await admin.from('subscriptions').insert({
+        user_id:               userId,
+        creem_subscription_id: null, // admin-granted, no Creem billing attached
+        product_family:        'premium',
+        status:                'active',
+        updated_at:            now,
+      });
+    } else {
+      // Cancel all active premium subscription rows
+      await admin.from('subscriptions')
+        .update({ status: 'canceled', updated_at: now })
+        .eq('user_id', userId)
+        .in('product_family', ['premium', 'bundle'])
+        .in('status', ['active', 'trialing', 'scheduled_cancel', 'paused', 'past_due']);
+    }
+
+    logAudit({ userId: auth.user.id, userName: auth.caller.display_name || '', action: `Subscription ${is_subscription_premium ? 'granted' : 'revoked'} by superadmin`, targetType: 'subscription', targetId: userId, details: { is_subscription_premium, tier: is_subscription_premium ? 'premium' : 'basic' } });
     return Response.json({ ok: true });
   }
 

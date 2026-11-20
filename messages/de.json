@@ -1592,6 +1592,7 @@
     "premiumFeature6": "Unbegrenzte Bild-Uploads",
     "collectivePriceLabel": "Premium +",
     "collectiveNote": "Beim Kollektiv-Einrichtungsprozess kannst du ein Paket wählen.",
+    "collectiveLockedBanner": "Derzeit nicht verfügbar. Aktiviere zuerst ein Premium-Abonnement.",
     "collectiveFeature1": "Premium-Abonnement erforderlich",
     "collectiveFeature2": "Kleines Team: 3 extra Plätze",
     "collectiveFeature3": "Mittleres Team: 6 extra Plätze",
@@ -1599,7 +1600,8 @@
     "collectiveFeature5": "Inhaber zahlt für alle",
     "contactQuestion": "Haben Sie Fragen? Schreiben Sie uns:",
     "checkoutError": "Beim Starten des Zahlungsvorgangs ist ein Fehler aufgetreten. Bitte versuche es erneut.",
-    "trialDaysLeftBanner": "— noch {days} Tage übrig. Danach wechselt dein Konto zum Basis-Plan."
+    "trialDaysLeftBanner": "— noch {days} Tage übrig. Danach wechselt dein Konto zum Basis-Plan.",
+    "securePayment": "🔒 Sichere Zahlung – Creem"
   },
   "mobile": {
     "floatingNav": {

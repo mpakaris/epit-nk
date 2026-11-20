@@ -19,11 +19,13 @@ export default function CheckoutPopupSuccessPage() {
     const inTab = !inIframe && !inPopup;
 
     if (inTab) {
-      // Normal new-tab fallback — redirect to the right page with params
+      // Full-page fallback — redirect back to the originating page with params
       setStatus('redirect');
       const dest = payload.checkoutType === 'kollektiva'
         ? `/kollektivak?kollektiva_upgraded=1&${params.toString()}`
-        : `/profil?upgraded=1&${params.toString()}`;
+        : payload.checkoutType === 'elofizetes_premium'
+          ? `/elofizetes?upgraded=1&${params.toString()}`
+          : `/profil?upgraded=1&${params.toString()}`;
       window.location.replace(dest);
       return;
     }

@@ -283,7 +283,7 @@ export default function SuperadminSubscriptionsPage() {
                         title={u.role === 'superadmin' ? 'Cannot modify superadmin' : undefined}
                       >
                         {u.is_subscription_premium ? <Crown size={13} /> : <Star size={13} />}
-                        {toggling === u.id ? '...' : (u.is_subscription_premium ? 'Premium' : 'Basic')}
+                        {toggling === u.id ? '...' : (u.is_subscription_premium ? 'Premium' : u.subscription_tier === 'trial' ? 'Trial' : 'Basic')}
                       </button>
                     </td>
 

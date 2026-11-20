@@ -122,7 +122,7 @@ function Sheet({ open, onClose, title, children, z = 40 }) {
 // ── Main component ────────────────────────────────────────────────────────────
 export default function ProfileMobile() {
   const router = useRouter();
-  const { currentUser, logout, changePassword, isDemoMode, collectives, updateDisplayName, refreshSupabaseData } = useApp();
+  const { currentUser, logout, changePassword, isDemoMode, collectives, updateDisplayName, refreshSupabaseData, refreshCurrentUser } = useApp();
   const t     = useTranslations('profile');
   const tc    = useTranslations('common');
   const tColl = useTranslations('collectives');
@@ -447,7 +447,7 @@ export default function ProfileMobile() {
         try {
           const r = await fetch('/api/checkout/activate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ subscriptionId: payload.subscriptionId, customerId: payload.customerId }) });
           setUpgradeModal({ status: r.ok ? 'success' : 'error', productId: payload.productId ?? productId });
-          if (r.ok) refreshSupabaseData();
+          if (r.ok) { await refreshCurrentUser(); refreshSupabaseData(); }
         } catch { setUpgradeModal({ status: 'error', productId }); }
         setCheckoutBusy(false);
       };
@@ -975,7 +975,7 @@ export default function ProfileMobile() {
             <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>{upgradeModal.status === 'success' ? '🎉' : '😔'}</div>
             <h2 style={{ margin: '0 0 0.6rem', fontSize: '1.25rem', fontWeight: 900, color: '#0E1116' }}>{upgradeModal.status === 'success' ? t('upgradeSuccessTitle') : t('upgradeErrorTitle')}</h2>
             <p style={{ margin: '0 0 1.75rem', fontSize: '0.9rem', lineHeight: 1.6, color: '#5A5F68' }}>{upgradeModal.status === 'success' ? t('upgradeSuccessDesc') : t('upgradeErrorDesc')}</p>
-            <button onClick={() => { sessionStorage.removeItem('creem_upgrade_result'); setUpgradeModal(null); if (upgradeModal.status === 'success') refreshSupabaseData(); }} style={{ padding: '0.75rem 2rem', border: 0, borderRadius: 30, background: BG, color: '#fff', fontSize: 15, fontWeight: 700, cursor: 'pointer' }}>{t('continueBtn')}</button>
+            <button onClick={() => { sessionStorage.removeItem('creem_upgrade_result'); setUpgradeModal(null); if (upgradeModal.status === 'success') { refreshCurrentUser(); refreshSupabaseData(); } }} style={{ padding: '0.75rem 2rem', border: 0, borderRadius: 30, background: BG, color: '#fff', fontSize: 15, fontWeight: 700, cursor: 'pointer' }}>{t('continueBtn')}</button>
           </div>
         </div>
       )}

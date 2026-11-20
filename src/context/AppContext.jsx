@@ -494,6 +494,25 @@ export function AppProvider({ children }) {
         refreshSupabaseData,
         refreshCollectives: fetchProfile,
         updateDisplayName: (name) => setCurrentUser(prev => prev ? { ...prev, display_name: name } : prev),
+        refreshCurrentUser: async () => {
+          try {
+            const profile = await fetchProfile();
+            if (!profile) return;
+            setCurrentUser(prev => prev ? {
+              ...prev,
+              is_subscription_premium: profile.is_subscription_premium ?? false,
+              subscription_tier:        profile.subscription_tier ?? 'basic',
+              trial_started_at:         profile.trial_started_at ?? null,
+              trial_ends_at:            profile.trial_ends_at ?? null,
+              display_name:             profile.display_name || prev.display_name,
+              must_change_password:     profile.must_change_password ?? false,
+              locale:                   profile.locale   || prev.locale,
+              currency:                 profile.currency || prev.currency,
+            } : prev);
+          } catch (err) {
+            console.error('refreshCurrentUser error:', err);
+          }
+        },
       }}
     >
       {children}
