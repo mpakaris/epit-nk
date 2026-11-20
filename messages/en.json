@@ -792,7 +792,16 @@
     "newProjectBtn": "New project",
     "newSurveyBtn": "New survey",
     "close": "Close",
-    "cancel": "Cancel"
+    "cancel": "Cancel",
+    "sendPortalEmail": "Send via email",
+    "portalEmailSubject": "Client portal access",
+    "portalEmailBody": "Hello!\n\nYou can access your client portal here:\n{url}\n\nBest regards",
+    "sendPortalSheetTitle": "Send portal link by email",
+    "sendPortalEmailLabel": "Send to this address:",
+    "sendPortalSendBtn": "Send",
+    "sendPortalSending": "Sending...",
+    "sendPortalSuccess": "Email sent successfully!",
+    "sendPortalEmailRequired": "Email address is required."
   },
   "calendar": {
     "pageTitle": "Calendar",

@@ -727,7 +727,16 @@
     "newProjectBtn": "Új projekt",
     "newSurveyBtn": "Új felmérés",
     "close": "Bezárás",
-    "cancel": "Mégse"
+    "cancel": "Mégse",
+    "sendPortalEmail": "Küldés emailben",
+    "portalEmailSubject": "Ügyfélportál hozzáférés",
+    "portalEmailBody": "Üdvözlöm!\n\nAz alábbi linken elérheti az ügyfélportálját:\n{url}\n\nÜdvözlettel",
+    "sendPortalSheetTitle": "Portál link küldése emailben",
+    "sendPortalEmailLabel": "Küldés erre a cím:",
+    "sendPortalSendBtn": "Küldés",
+    "sendPortalSending": "Küldés...",
+    "sendPortalSuccess": "Az e-mailt sikeresen elküldtük!",
+    "sendPortalEmailRequired": "Az e-mail-cím megadása kötelező."
   },
   "calendar": {
     "pageTitle": "Naptár",

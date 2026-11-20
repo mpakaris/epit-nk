@@ -792,7 +792,16 @@
     "newProjectBtn": "Neues Projekt",
     "newSurveyBtn": "Neue Aufnahme",
     "close": "Schließen",
-    "cancel": "Abbrechen"
+    "cancel": "Abbrechen",
+    "sendPortalEmail": "Per E-Mail senden",
+    "portalEmailSubject": "Zugang zum Kundenportal",
+    "portalEmailBody": "Guten Tag!\n\nUnter dem folgenden Link erreichen Sie Ihr Kundenportal:\n{url}\n\nMit freundlichen Grüßen",
+    "sendPortalSheetTitle": "Portallink per E-Mail senden",
+    "sendPortalEmailLabel": "Senden an diese Adresse:",
+    "sendPortalSendBtn": "Senden",
+    "sendPortalSending": "Wird gesendet...",
+    "sendPortalSuccess": "E-Mail erfolgreich gesendet!",
+    "sendPortalEmailRequired": "E-Mail-Adresse ist erforderlich."
   },
   "calendar": {
     "pageTitle": "Kalender",

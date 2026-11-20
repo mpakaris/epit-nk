@@ -1,12 +1,12 @@
 'use client';
 
 /**
- * C3–C5 — Client detail with tabs (mobile pods view)
- * Rose header (#B8456B), 4 tabs: Quotes / Projects / Surveys / Messages
- * Portal block always shown. Bottom bar CTA shifts per tab.
+ * Client detail with tabs (mobile pods view)
+ * Rose header, 3 tabs: Quotes / Projects / Surveys
+ * Edit sheet inline — no separate page.
  */
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useApp } from '@/context/AppContext';
@@ -21,17 +21,234 @@ const CLIENTS_INK = '#8A2B4C';
 const CARD_SHADOW = 'inset 0 1px 0 #fff, 0 16px 26px -14px rgba(0,0,0,0.70), 0 3px 6px -2px rgba(0,0,0,0.30)';
 const ROW_SHADOW = 'inset 0 1px 0 #fff, 0 14px 22px -14px rgba(0,0,0,0.70), 0 3px 6px -2px rgba(0,0,0,0.30)';
 
-function relativeTime(isoStr) {
-  if (!isoStr) return '';
-  const diff = Date.now() - new Date(isoStr).getTime();
-  const mins = Math.floor(diff / 60000);
-  const hours = Math.floor(diff / 3600000);
-  const days = Math.floor(diff / 86400000);
-  if (mins < 1) return 'Most';
-  if (mins < 60) return `${mins} perce`;
-  if (hours < 24) return `${hours} órája`;
-  if (days < 7) return `${days} napja`;
-  return new Date(isoStr).toLocaleDateString('hu-HU', { month: 'short', day: 'numeric' });
+function SendPortalSheet({ client, portalUrl, onClose, t }) {
+  const [email, setEmail] = useState(client.email || '');
+  const [sending, setSending] = useState(false);
+  const [sent, setSent] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleSend = async () => {
+    if (!email.trim()) { setError(t('sendPortalEmailRequired')); return; }
+    setSending(true); setError('');
+    try {
+      const res = await fetch(`/api/clients/${client.id}/send-portal`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim() }),
+      });
+      if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.error || 'Hiba'); }
+      setSent(true);
+      setTimeout(onClose, 1600);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <>
+      <button onClick={onClose} aria-label={t('close')} style={{ position: 'fixed', inset: 0, zIndex: 59, background: 'rgba(0,0,0,0.5)', border: 0, cursor: 'default' }} />
+      <div role="dialog" aria-label={t('sendPortalSheetTitle')} style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 60, borderRadius: '28px 28px 0 0', background: '#EFEDE6', padding: '12px 16px calc(env(safe-area-inset-bottom, 0px) + 24px)', display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <span aria-hidden style={{ width: 36, height: 4, borderRadius: 2, background: 'rgba(0,0,0,0.15)', margin: '0 auto', display: 'block' }} />
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span style={{ fontSize: 17, fontWeight: 700, color: 'var(--m-ink)' }}>{t('sendPortalSheetTitle')}</span>
+          <button onClick={onClose} aria-label={t('close')} style={{ width: 36, height: 36, borderRadius: 10, border: 0, background: '#E5E0D8', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden><path d="M18 6L6 18M6 6l12 12" /></svg>
+          </button>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <label style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: '#5A5F68' }}>{t('sendPortalEmailLabel')}</label>
+          <input
+            type="email"
+            value={email}
+            onChange={e => { setEmail(e.target.value); setError(''); }}
+            onKeyDown={e => e.key === 'Enter' && handleSend()}
+            autoFocus
+            style={{ height: 48, borderRadius: 14, border: `1.5px solid ${error ? '#B71C1C' : '#E0DAD0'}`, background: '#fff', color: 'var(--m-ink)', padding: '0 14px', fontSize: 15, fontFamily: 'inherit', outline: 'none' }}
+          />
+          {error && <span style={{ fontSize: 13, color: '#B71C1C', fontWeight: 600 }}>{error}</span>}
+        </div>
+
+        <button
+          onClick={handleSend}
+          disabled={sending || sent}
+          style={{ height: 56, border: 0, borderRadius: 28, background: sent ? '#14532D' : CLIENTS_BG, color: '#fff', fontSize: 17, fontWeight: 700, cursor: sending || sent ? 'default' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, transition: 'background .2s' }}
+        >
+          {sent ? (
+            <><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" aria-hidden><path d="M5 12l5 5 9-10" /></svg>{t('sendPortalSuccess')}</>
+          ) : sending ? t('sendPortalSending') : (
+            <><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden><path d="M4 12l16-8-6 16-3-6z" /></svg>{t('sendPortalSendBtn')}</>
+          )}
+        </button>
+      </div>
+    </>
+  );
+}
+
+const FIELD_INPUT = {
+  width: '100%', boxSizing: 'border-box', height: 48, borderRadius: 14,
+  border: '1.5px solid #E0DAD0', background: '#fff', color: 'var(--m-ink)',
+  padding: '0 14px', fontSize: 15, fontFamily: 'inherit', outline: 'none',
+};
+
+function EField({ label, children, style }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 5, ...style }}>
+      <label style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: '#5A5F68' }}>
+        {label}
+      </label>
+      {children}
+    </div>
+  );
+}
+
+function EditSheet({ client, collectives, onSave, onClose, t }) {
+  const ownedCollectives = collectives.filter(c => c.role === 'owner' || c.role === 'admin');
+  const initShares = (client.client_collective_shares || []).map(s => s.collective_id);
+
+  const [name, setName]           = useState(client.name || '');
+  const [company, setCompany]     = useState(client.company_name || '');
+  const [taxNum, setTaxNum]       = useState(client.tax_number || '');
+  const [address, setAddress]     = useState(client.address || '');
+  const [phone, setPhone]         = useState(client.phone || '');
+  const [email, setEmail]         = useState(client.email || '');
+  const [discount, setDiscount]   = useState(String(client.discount_percent ?? 0));
+  const [notes, setNotes]         = useState(client.notes || '');
+  const [gdpr, setGdpr]           = useState(!!client.gdpr_consented_at);
+  const [shares, setShares]       = useState(initShares);
+  const [sharesInitial]           = useState(initShares);
+  const [sharesGdpr, setSharesGdpr] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [alertModal, setAlertModal] = useState(null);
+
+  const hasNewShares = shares.some(id => !sharesInitial.includes(id));
+  const canSubmit = name.trim() && gdpr && (!hasNewShares || sharesGdpr) && !submitting;
+
+  const toggleShare = (id) => {
+    setShares(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+    setSharesGdpr(false);
+  };
+
+  const handleSubmit = async () => {
+    if (!canSubmit) return;
+    setSubmitting(true);
+    try {
+      await onSave({
+        name: name.trim(),
+        company_name: company.trim() || null,
+        tax_number: taxNum.trim() || null,
+        address: address.trim(),
+        phone: phone.trim(),
+        email: email.trim(),
+        notes: notes.trim(),
+        discount_percent: parseFloat(discount) || 0,
+        collectiveShares: shares,
+        sharesGdprConfirmed: !hasNewShares || sharesGdpr,
+      });
+      onClose();
+    } catch (err) {
+      setAlertModal({ message: err.message || t('createError') });
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <>
+      <button onClick={onClose} aria-label={t('close')} style={{ position: 'fixed', inset: 0, zIndex: 59, background: 'rgba(0,0,0,0.5)', border: 0, cursor: 'default' }} />
+      <div role="dialog" aria-label={t('editClient')} style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 60, maxHeight: '94dvh', borderRadius: '28px 28px 0 0', background: '#EFEDE6', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        {/* Header */}
+        <div style={{ padding: '12px 16px 10px', flexShrink: 0, borderBottom: '1px solid rgba(0,0,0,0.07)' }}>
+          <span aria-hidden style={{ width: 36, height: 4, borderRadius: 2, background: 'rgba(0,0,0,0.15)', margin: '0 auto 12px', display: 'block' }} />
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span style={{ fontSize: 17, fontWeight: 700, color: 'var(--m-ink)' }}>{t('editClient')}</span>
+            <button onClick={onClose} aria-label={t('close')} style={{ width: 36, height: 36, borderRadius: 10, border: 0, background: '#E5E0D8', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden><path d="M18 6L6 18M6 6l12 12" /></svg>
+            </button>
+          </div>
+        </div>
+
+        {/* Scrollable fields */}
+        <div style={{ overflowY: 'auto', flex: 1, padding: '14px 14px 110px' }}>
+          <EField label={t('contactName')}>
+            <input type="text" value={name} onChange={e => setName(e.target.value)} placeholder="Horváth Béla" autoFocus style={FIELD_INPUT} />
+          </EField>
+
+          <div style={{ display: 'flex', gap: 10, marginTop: 10 }}>
+            <EField label={t('companyName')} style={{ flex: 1 }}>
+              <input type="text" value={company} onChange={e => setCompany(e.target.value)} placeholder="Fekete Kft." style={FIELD_INPUT} />
+            </EField>
+            <EField label={t('taxNumber')} style={{ flex: 1 }}>
+              <input type="text" value={taxNum} onChange={e => setTaxNum(e.target.value)} placeholder="12345678-1-01" style={FIELD_INPUT} />
+            </EField>
+          </div>
+
+          <EField label={t('address')} style={{ marginTop: 10 }}>
+            <input type="text" value={address} onChange={e => setAddress(e.target.value)} placeholder="8600 Siófok, Fő utca 12." style={FIELD_INPUT} />
+          </EField>
+
+          <div style={{ display: 'flex', gap: 10, marginTop: 10 }}>
+            <EField label={t('phone')} style={{ flex: 1 }}>
+              <input type="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="+36 70 …" style={FIELD_INPUT} />
+            </EField>
+            <EField label={t('email')} style={{ flex: 1 }}>
+              <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="email@example.com" style={FIELD_INPUT} />
+            </EField>
+          </div>
+
+          <div style={{ display: 'flex', gap: 10, marginTop: 10 }}>
+            <EField label={t('discount')} style={{ flex: 1 }}>
+              <input type="number" min="0" max="100" step="0.5" value={discount} onChange={e => setDiscount(e.target.value)} style={FIELD_INPUT} />
+            </EField>
+            <div style={{ flex: 1 }} />
+          </div>
+
+          <EField label={t('notes')} style={{ marginTop: 10 }}>
+            <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2} placeholder="Megjegyzés…" style={{ ...FIELD_INPUT, height: 'auto', paddingTop: 12, paddingBottom: 12, resize: 'none' }} />
+          </EField>
+
+          {/* GDPR */}
+          <label style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: 14, borderRadius: 16, marginTop: 12, background: gdpr ? '#E7F4EC' : '#fff', border: `1.5px solid ${gdpr ? '#86efac' : '#E0DAD0'}`, cursor: 'pointer' }}>
+            <input type="checkbox" checked={gdpr} onChange={e => setGdpr(e.target.checked)} style={{ marginTop: 2, flexShrink: 0, accentColor: CLIENTS_BG, width: 18, height: 18 }} />
+            <span style={{ fontSize: 14, color: 'var(--m-ink)', lineHeight: 1.45 }}>
+              {t('gdprConfirmText')} <span style={{ color: '#B71C1C', fontWeight: 700 }}>*</span>
+            </span>
+          </label>
+
+          {/* Collective shares */}
+          {ownedCollectives.length > 0 && (
+            <div style={{ padding: 14, borderRadius: 16, marginTop: 10, background: '#fff', border: '1.5px solid #E0DAD0', display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--m-ink)' }}>{t('shareWithCollectives')}</span>
+              {ownedCollectives.map(col => (
+                <label key={col.collective_id} style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: 14, color: 'var(--m-ink)' }}>
+                  <input type="checkbox" checked={shares.includes(col.collective_id)} onChange={() => toggleShare(col.collective_id)} style={{ accentColor: CLIENTS_BG, width: 16, height: 16, flexShrink: 0 }} />
+                  {col.name}
+                </label>
+              ))}
+              {hasNewShares && (
+                <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: 10, borderRadius: 12, background: sharesGdpr ? '#E7F4EC' : '#FFF1E0', border: `1.5px solid ${sharesGdpr ? '#86efac' : '#fcd34d'}`, cursor: 'pointer' }}>
+                  <input type="checkbox" checked={sharesGdpr} onChange={e => setSharesGdpr(e.target.checked)} style={{ marginTop: 2, flexShrink: 0, accentColor: CLIENTS_BG, width: 16, height: 16 }} />
+                  <span style={{ fontSize: 13, color: 'var(--m-ink)', lineHeight: 1.45 }}>
+                    {t('shareGdprConfirmText')} <span style={{ color: '#B71C1C', fontWeight: 700 }}>*</span>
+                  </span>
+                </label>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Sticky save */}
+        <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '14px 14px calc(env(safe-area-inset-bottom, 0px) + 14px)', background: 'linear-gradient(to top, #EFEDE6 70%, transparent)', flexShrink: 0 }}>
+          <button onClick={handleSubmit} disabled={!canSubmit} style={{ width: '100%', height: 56, border: 0, borderRadius: 28, background: canSubmit ? CLIENTS_BG : '#C0BAB4', color: '#fff', fontSize: 17, fontWeight: 700, cursor: canSubmit ? 'pointer' : 'default', transition: 'background .15s' }}>
+            {submitting ? t('modifying') : t('modify')}
+          </button>
+        </div>
+
+        <AlertModal isOpen={!!alertModal} onClose={() => setAlertModal(null)} message={alertModal?.message} />
+      </div>
+    </>
+  );
 }
 
 function StatCard({ label, value, sub }) {
@@ -58,7 +275,6 @@ function SheetRow({ icon: d, label, onClick, danger, sub }) {
   );
 }
 
-// ── Quote status badge ────────────────────────────────────────────────────────
 const QUOTE_STATUS = {
   draft:    { bg: '#F0F0F2', fg: '#2B3038' },
   sent:     { bg: '#EDE7FB', fg: '#4A2796' },
@@ -66,196 +282,21 @@ const QUOTE_STATUS = {
   rejected: { bg: '#FDECEC', fg: '#B71C1C' },
 };
 
-// ── Threads (Messages tab) ────────────────────────────────────────────────────
-function MessagesTab({ clientId, quotes, t, isDemoMode }) {
-  const [threads, setThreads] = useState(null);
-  const [selThread, setSelThread] = useState(null);
-  const [draft, setDraft] = useState('');
-  const [sending, setSending] = useState(false);
-  const [showNew, setShowNew] = useState(false);
-  const [newMsg, setNewMsg] = useState('');
-  const [sendingNew, setSendingNew] = useState(false);
-  const [toast, setToast] = useState(false);
-  const [alertModal, setAlertModal] = useState(null);
-  const bottomRef = useRef(null);
-
-  useEffect(() => {
-    if (isDemoMode) {
-      Promise.resolve().then(() => setThreads([]));
-      return;
-    }
-    fetch(`/api/threads?client_id=${clientId}`)
-      .then(r => r.ok ? r.json() : { threads: [] })
-      .then(d => setThreads(d.threads || []))
-      .catch(() => setThreads([]));
-  }, [clientId, isDemoMode]);
-
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [selThread, threads?.length]);
-
-  const flash = useCallback(() => {
-    setToast(true);
-    setTimeout(() => setToast(false), 2000);
-  }, []);
-
-  const handleSend = async () => {
-    if (!draft.trim() || !selThread) return;
-    setSending(true);
-    try {
-      const res = await fetch(`/api/threads/${selThread.id}/messages`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: draft.trim() }),
-      });
-      if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.error || t('newMsgErr')); }
-      const { message: newMessage } = await res.json();
-      setThreads(prev => (prev || []).map(th =>
-        th.id === selThread.id ? { ...th, messages: [...(th.messages || []), newMessage] } : th
-      ));
-      setSelThread(prev => prev ? { ...prev, messages: [...(prev.messages || []), newMessage] } : prev);
-      setDraft('');
-      flash();
-    } catch (e) {
-      setAlertModal({ message: e.message });
-    } finally {
-      setSending(false);
-    }
-  };
-
-  const handleNewThread = async () => {
-    if (!newMsg.trim()) return;
-    setSendingNew(true);
-    try {
-      const res = await fetch('/api/threads', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ client_id: clientId, message: newMsg.trim() }),
-      });
-      if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.error || t('newMsgErr')); }
-      const { thread_id, message } = await res.json();
-      const newThread = { id: thread_id, quote_id: null, messages: [message], unread_count: 0 };
-      setThreads(prev => [newThread, ...(prev || [])]);
-      setNewMsg(''); setShowNew(false);
-      flash();
-    } catch (e) {
-      setAlertModal({ message: e.message });
-    } finally {
-      setSendingNew(false);
-    }
-  };
-
-  if (threads === null) {
-    return (
-      <div style={{ display: 'flex', justifyContent: 'center', padding: 24 }}>
-        <div style={{ width: 24, height: 24, borderRadius: '50%', border: `2px solid ${CLIENTS_BG}`, borderTopColor: 'transparent', animation: 'spin .8s linear infinite' }} />
-        <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
-      </div>
-    );
-  }
-
-  if (selThread) {
-    const quote = quotes.find(q => q.id === selThread.quote_id);
-    const title = quote ? t('quoteThread', { title: quote.title }) : t('generalThread');
-    return (
-      <div style={{ position: 'relative' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-          <button onClick={() => setSelThread(null)} style={{ width: 36, height: 36, borderRadius: 10, border: 0, background: '#F1F1F3', color: 'var(--m-ink)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }} aria-label={t('backToClients')}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden><path d="M15 6l-6 6 6 6" /></svg>
-          </button>
-          <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--m-ink)', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{title}</span>
-        </div>
-        <div style={{ maxHeight: 320, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 12 }}>
-          {(selThread.messages || []).map((msg, i) => {
-            const isYou = msg.sender_type === 'user';
-            return (
-              <div key={i} style={{ display: 'flex', justifyContent: isYou ? 'flex-end' : 'flex-start' }}>
-                <div style={{ maxWidth: '80%', background: isYou ? CLIENTS_BG : '#fff', color: isYou ? '#fff' : 'var(--m-ink)', borderRadius: isYou ? '12px 12px 2px 12px' : '12px 12px 12px 2px', padding: '8px 12px', fontSize: 14, lineHeight: 1.5, wordBreak: 'break-word' }}>
-                  {msg.body}
-                  <div style={{ fontSize: 10, marginTop: 4, opacity: 0.65, textAlign: isYou ? 'right' : 'left' }}>{relativeTime(msg.created_at)}</div>
-                </div>
-              </div>
-            );
-          })}
-          <div ref={bottomRef} />
-        </div>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <input value={draft} onChange={e => setDraft(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') handleSend(); }} placeholder={t('replyPlaceholder')} aria-label={t('replyPlaceholder')} style={{ flex: 1, height: 48, borderRadius: 24, border: 0, background: '#F1F1F3', padding: '0 16px', fontSize: 14, fontFamily: 'inherit', outline: 'none' }} />
-          <button onClick={handleSend} disabled={sending || !draft.trim()} aria-label={t('sendReply')} style={{ width: 48, height: 48, border: 0, borderRadius: 24, background: CLIENTS_BG, color: '#fff', cursor: draft.trim() ? 'pointer' : 'default', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden><path d="M4 12l16-8-6 16-3-6z" /></svg>
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-      {threads.length === 0 && !showNew && (
-        <p style={{ fontSize: 14, color: '#5A5F68', textAlign: 'center', padding: '12px 0' }}>{t('noConversations')}</p>
-      )}
-      {threads.map((th, i) => {
-        const quote = quotes.find(q => q.id === th.quote_id);
-        const title = quote ? t('quoteThread', { title: quote.title }) : t('generalThread');
-        const last = th.messages?.slice(-1)[0];
-        return (
-          <button key={th.id} onClick={() => setSelThread(th)} style={{ width: '100%', boxSizing: 'border-box', padding: '12px 14px', border: 0, borderRadius: 22, background: '#fff', textAlign: 'left', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 12, boxShadow: ROW_SHADOW }}>
-            <span style={{ flexShrink: 0, width: 44, height: 44, borderRadius: 15, background: CLIENTS_TINT, color: CLIENTS_INK, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden><path d="M4 5h16v11H9l-5 4z" /></svg>
-            </span>
-            <span style={{ flex: 1, minWidth: 0 }}>
-              <span style={{ display: 'block', fontSize: 15, fontWeight: 700, color: 'var(--m-ink)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{title}</span>
-              {last && <span style={{ display: 'block', fontSize: 13, color: '#5A5F68', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{last.body}</span>}
-            </span>
-            {th.unread_count > 0 && (
-              <span style={{ flexShrink: 0, width: 10, height: 10, borderRadius: 5, background: CLIENTS_BG }} aria-hidden />
-            )}
-          </button>
-        );
-      })}
-      {/* New message */}
-      {showNew ? (
-        <div style={{ padding: 12, borderRadius: 22, background: '#fff', boxShadow: ROW_SHADOW, display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <span style={{ fontSize: 14, fontWeight: 700 }}>{t('newMessageTitle')}</span>
-          <textarea value={newMsg} onChange={e => setNewMsg(e.target.value)} placeholder={t('newMessagePlaceholder')} rows={3} style={{ width: '100%', boxSizing: 'border-box', border: '1.5px solid #E0E0E0', borderRadius: 12, padding: '8px 12px', fontSize: 14, fontFamily: 'inherit', resize: 'none', outline: 'none' }} />
-          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-            <button onClick={() => { setShowNew(false); setNewMsg(''); }} style={{ height: 40, padding: '0 16px', border: 0, borderRadius: 20, background: '#F1F1F3', color: 'var(--m-ink)', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>{t('cancel')}</button>
-            <button onClick={handleNewThread} disabled={sendingNew || !newMsg.trim()} style={{ height: 40, padding: '0 16px', border: 0, borderRadius: 20, background: CLIENTS_BG, color: '#fff', fontSize: 14, fontWeight: 700, cursor: newMsg.trim() ? 'pointer' : 'default' }}>
-              {sendingNew ? t('sending') : t('sendReply')}
-            </button>
-          </div>
-        </div>
-      ) : (
-        !threads.some(th => !th.quote_id) && (
-          <button onClick={() => setShowNew(true)} style={{ height: 48, padding: '0 20px', border: 0, borderRadius: 24, background: '#F1F1F3', color: 'var(--m-ink)', fontSize: 14, fontWeight: 700, cursor: 'pointer', alignSelf: 'flex-start' }}>
-            + {t('newMessage')}
-          </button>
-        )
-      )}
-      {toast && (
-        <div role="status" style={{ position: 'fixed', zIndex: 60, top: 18, left: 16, right: 16, padding: '14px 16px', borderRadius: 22, background: '#14532D', color: '#fff', fontSize: 15, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 10 }}>
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" aria-hidden><path d="M5 12l5 5 9-10" /></svg>
-          {t('msgSentOk')}
-        </div>
-      )}
-      <AlertModal isOpen={!!alertModal} onClose={() => setAlertModal(null)} message={alertModal?.message} />
-    </div>
-  );
-}
-
-export default function ClientDetailMobile({ clientId }) {
+export default function ClientDetailMobile({ clientId, onClose }) {
   const t = useTranslations('clients');
   const router = useRouter();
   const isOnline = useOnline();
   const {
     clients = [], quotes = [], quoteEntries = [], projects = [], invoices = [], surveys = [],
-    isDemoMode, userCurrency, currentUser, deleteClient,
-    isAdmin,
+    collectives = [], isDemoMode, userCurrency, updateClient, deleteClient,
   } = useApp();
 
   const navPrefix = isDemoMode ? '/demo' : '';
   const p = useCallback((path) => `${navPrefix}${path}`, [navPrefix]);
 
   const [tab, setTab] = useState('q');
-  const [mode, setMode] = useState(null); // 'menu' | 'del'
+  const [mode, setMode] = useState(null); // 'menu' | 'del' | 'edit'
+  const [showPortalEmail, setShowPortalEmail] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [copied, setCopied] = useState(false);
   const [alertModal, setAlertModal] = useState(null);
@@ -267,7 +308,7 @@ export default function ClientDetailMobile({ clientId }) {
     return (
       <div className="pod-screen-dark" style={{ background: CLIENTS_DEEP, minHeight: '100dvh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16, padding: 24 }}>
         <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 16, fontWeight: 600, textAlign: 'center' }}>{t('clientNotFound')}</p>
-        <button onClick={() => router.push(p('/ugyfelek'))} style={{ height: 52, padding: '0 24px', border: 0, borderRadius: 26, background: CLIENTS_BG, color: '#fff', fontSize: 15, fontWeight: 700, cursor: 'pointer' }}>
+        <button onClick={() => onClose ? onClose() : router.push(p('/ugyfelek'))} style={{ height: 52, padding: '0 24px', border: 0, borderRadius: 26, background: CLIENTS_BG, color: '#fff', fontSize: 15, fontWeight: 700, cursor: 'pointer' }}>
           {t('backToClients')}
         </button>
       </div>
@@ -279,12 +320,10 @@ export default function ClientDetailMobile({ clientId }) {
   const clientProjects = projects.filter(proj => proj.client_id === client.id || quoteProjectIds.has(proj.id));
   const clientSurveys = surveys.filter(s => s.client_id === client.id);
 
-  const totalQuoteValue = clientQuotes.reduce((sum, q) => {
-    return sum + quoteEntries.filter(e => e.quote_id === q.id).reduce((s, e) => s + Number(e.amount_huf || 0), 0);
-  }, 0);
-  const totalInvoices = clientProjects.reduce((sum, proj) => {
-    return sum + invoices.filter(inv => inv.project_id === proj.id).reduce((s, inv) => s + Number(inv.value_huf || 0), 0);
-  }, 0);
+  const totalQuoteValue = clientQuotes.reduce((sum, q) =>
+    sum + quoteEntries.filter(e => e.quote_id === q.id).reduce((s, e) => s + Number(e.amount_huf || 0), 0), 0);
+  const totalInvoices = clientProjects.reduce((sum, proj) =>
+    sum + invoices.filter(inv => inv.project_id === proj.id).reduce((s, inv) => s + Number(inv.value_huf || 0), 0), 0);
 
   const portalUrl = client.email
     ? `${typeof window !== 'undefined' ? window.location.origin : ''}/portal?email=${encodeURIComponent(client.email)}`
@@ -292,16 +331,14 @@ export default function ClientDetailMobile({ clientId }) {
 
   const copyPortalLink = () => {
     if (!portalUrl) return;
-    navigator.clipboard.writeText(portalUrl).then(() => {
-      setCopied(true); setTimeout(() => setCopied(false), 2000);
-    });
+    navigator.clipboard.writeText(portalUrl).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000); });
   };
 
   const handleDelete = async () => {
     setDeleting(true);
     try {
       await deleteClient(client.id);
-      router.push(p('/ugyfelek'));
+      if (onClose) onClose(); else router.push(p('/ugyfelek'));
     } catch (err) {
       setAlertModal({ message: err.message || t('createError') });
       setMode(null);
@@ -314,7 +351,6 @@ export default function ClientDetailMobile({ clientId }) {
     { id: 'q', label: `${t('detailTabQuotes')} (${clientQuotes.length})` },
     { id: 'p', label: `${t('detailTabProjects')} (${clientProjects.length})` },
     { id: 's', label: `${t('detailTabSurveys')} (${clientSurveys.length})` },
-    { id: 'm', label: t('detailTabMessages') },
   ];
 
   const shareCount = client.client_collective_shares?.length || 0;
@@ -322,29 +358,26 @@ export default function ClientDetailMobile({ clientId }) {
   return (
     <div className="pod-screen-dark" style={{ background: CLIENTS_DEEP, minHeight: '100dvh', position: 'relative' }}>
 
-      {/* ── Offline banner ── */}
       {!isOnline && (
         <div role="alert" style={{ position: 'fixed', top: 56, left: 0, right: 0, zIndex: 50, background: '#B71C1C', color: '#fff', padding: '10px 16px', fontSize: 13, fontWeight: 700, textAlign: 'center' }}>
           {t('offlineBanner')}
         </div>
       )}
 
-      {/* ── Header ── */}
       <header style={{ background: CLIENTS_BG, padding: '64px 16px 20px', borderRadius: '0 0 32px 32px', position: 'relative', overflow: 'hidden' }}>
         <span aria-hidden style={{ position: 'absolute', right: -90, top: -120, width: 300, height: 300, borderRadius: 150, background: 'rgba(255,255,255,0.08)' }} />
         <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-          <button onClick={() => router.push(p('/ugyfelek'))} aria-label={t('backToClients')} style={{ width: 48, height: 48, borderRadius: 24, border: 0, background: 'rgba(255,255,255,0.18)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+          <button onClick={() => onClose ? onClose() : router.push(p('/ugyfelek'))} aria-label={t('backToClients')} style={{ width: 48, height: 48, borderRadius: 24, border: 0, background: 'rgba(255,255,255,0.18)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden><path d="M15 6l-6 6 6 6" /></svg>
           </button>
           <span style={{ height: 32, padding: '0 12px', borderRadius: 16, background: 'rgba(255,255,255,0.18)', color: '#fff', fontSize: 13, fontWeight: 700, display: 'inline-flex', alignItems: 'center' }}>
             {isMine ? t('personalWorkspace') : t('sharedLabel')}
           </span>
-          {isMine && (
+          {isMine ? (
             <button onClick={() => setMode('menu')} aria-label={t('actionsLabel')} style={{ width: 48, height: 48, borderRadius: 24, border: 0, background: 'rgba(255,255,255,0.18)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" aria-hidden><path d="M5 12h.01M12 12h.01M19 12h.01" /></svg>
             </button>
-          )}
-          {!isMine && <span style={{ width: 48 }} />}
+          ) : <span style={{ width: 48 }} />}
         </div>
         <span style={{ position: 'relative', fontSize: 11, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.78)', display: 'block', marginBottom: 4 }}>
           {t('detailsTitle')}
@@ -357,16 +390,13 @@ export default function ClientDetailMobile({ clientId }) {
         )}
       </header>
 
-      {/* ── Scrollable body ── */}
-      <div style={{ padding: '16px 16px 220px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div style={{ padding: '16px 16px 100px', display: 'flex', flexDirection: 'column', gap: 12 }}>
 
-        {/* Stats row */}
         <div style={{ display: 'flex', gap: 10 }}>
           <StatCard label={t('detailTotalQuotes')} value={formatMoney(totalQuoteValue, userCurrency)} sub={t('detailQuotesCount', { count: clientQuotes.length })} />
           <StatCard label={t('detailInvoiced')} value={formatMoney(totalInvoices, userCurrency)} sub={t('detailProjectsCount', { count: clientProjects.length })} />
         </div>
 
-        {/* Contact card */}
         <div style={{ borderRadius: 26, background: '#fff', boxShadow: CARD_SHADOW, padding: '8px 14px' }}>
           {client.phone && (
             <a href={`tel:${client.phone}`} style={{ display: 'flex', alignItems: 'center', gap: 12, minHeight: 44, textDecoration: 'none' }}>
@@ -395,7 +425,6 @@ export default function ClientDetailMobile({ clientId }) {
           {!client.phone && !client.email && !client.address && (
             <div style={{ padding: '10px 0', fontSize: 14, color: '#5A5F68' }}>{t('detailNoContact')}</div>
           )}
-          {/* Badges */}
           {(client.gdpr_consented_at || client.discount_percent > 0 || shareCount > 0) && (
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', padding: '6px 0 8px' }}>
               {client.gdpr_consented_at && (
@@ -419,7 +448,6 @@ export default function ClientDetailMobile({ clientId }) {
           )}
         </div>
 
-        {/* Tabs */}
         <div style={{ display: 'flex', gap: 6, background: 'rgba(255,255,255,0.12)', padding: 4, borderRadius: 28 }}>
           {TABS.map(tb => (
             <button key={tb.id} onClick={() => setTab(tb.id)} aria-pressed={tab === tb.id} style={{ flex: 1, minWidth: 0, height: 48, border: 0, borderRadius: 22, background: tab === tb.id ? '#fff' : 'transparent', color: tab === tb.id ? CLIENTS_INK : '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0 4px' }}>
@@ -428,9 +456,7 @@ export default function ClientDetailMobile({ clientId }) {
           ))}
         </div>
 
-        {/* Tab content */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {/* Quotes tab */}
           {tab === 'q' && (clientQuotes.length === 0 ? (
             <p style={{ color: 'rgba(255,255,255,0.65)', fontSize: 14, textAlign: 'center', padding: '8px 0' }}>{t('noQuotesForClient')}</p>
           ) : clientQuotes.map(quote => {
@@ -448,7 +474,6 @@ export default function ClientDetailMobile({ clientId }) {
             );
           }))}
 
-          {/* Projects tab */}
           {tab === 'p' && (clientProjects.length === 0 ? (
             <p style={{ color: 'rgba(255,255,255,0.65)', fontSize: 14, textAlign: 'center', padding: '8px 0' }}>{t('noProjectsForClient')}</p>
           ) : clientProjects.map(proj => {
@@ -467,7 +492,6 @@ export default function ClientDetailMobile({ clientId }) {
             );
           }))}
 
-          {/* Surveys tab */}
           {tab === 's' && (clientSurveys.length === 0 ? (
             <p style={{ color: 'rgba(255,255,255,0.65)', fontSize: 14, textAlign: 'center', padding: '8px 0' }}>{t('noSurveysForClient')}</p>
           ) : clientSurveys.map(surv => (
@@ -481,11 +505,6 @@ export default function ClientDetailMobile({ clientId }) {
               </span>
             </button>
           )))}
-
-          {/* Messages tab */}
-          {tab === 'm' && (
-            <MessagesTab clientId={clientId} quotes={clientQuotes} t={t} isDemoMode={isDemoMode} />
-          )}
         </div>
 
         {/* Portal card */}
@@ -506,10 +525,10 @@ export default function ClientDetailMobile({ clientId }) {
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden><path d="M9 9h11v11H9zM5 15V4h11" /></svg>
                   {copied ? t('copiedBtn') : t('copyPortalLink')}
                 </button>
-                <a href={portalUrl} target="_blank" rel="noopener noreferrer" style={{ flex: 1, height: 52, border: 0, borderRadius: 26, background: '#fff', color: CLIENTS_INK, fontSize: 14, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, textDecoration: 'none' }}>
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden><path d="M5 12h14M13 6l6 6-6 6" /></svg>
-                  {t('openPortalBtn')}
-                </a>
+                <button onClick={() => setShowPortalEmail(true)} style={{ flex: 1, height: 52, border: 0, borderRadius: 26, background: '#fff', color: CLIENTS_INK, fontSize: 14, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden><path d="M3 6h18v12H3zM3 7l9 7 9-7" /></svg>
+                  {t('sendPortalEmail')}
+                </button>
               </div>
             </>
           ) : (
@@ -521,45 +540,23 @@ export default function ClientDetailMobile({ clientId }) {
         </div>
       </div>
 
-      {/* ── Bottom bar ── */}
-      <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 30, background: `linear-gradient(to top, ${CLIENTS_DEEP} 65%, transparent)`, padding: '24px 16px 32px', display: 'flex', flexDirection: 'column', gap: 10 }}>
-        {tab === 'm' ? (
-          <button onClick={() => { /* MessagesTab handles new msg internally */ }} style={{ height: 60, border: 0, borderRadius: 30, background: CLIENTS_BG, color: '#fff', fontSize: 17, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" aria-hidden><path d="M12 5v14M5 12h14" /></svg>
-            {t('newMessage')}
-          </button>
-        ) : (
-          <button
-            onClick={() => {
-              if (tab === 'q') router.push(p(`/ajanlatok/uj?client_id=${clientId}`));
-              else if (tab === 'p') router.push(p(`/projektek/uj?client_id=${clientId}`));
-              else if (tab === 's') router.push(p('/felmeres/uj'));
-            }}
-            style={{ height: 60, border: 0, borderRadius: 30, background: '#fff', color: CLIENTS_INK, fontSize: 17, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}
-          >
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" aria-hidden><path d="M12 5v14M5 12h14" /></svg>
-            {tab === 'q' ? t('newQuoteBtn') : tab === 'p' ? t('newProjectBtn') : t('newSurveyBtn')}
-          </button>
-        )}
-      </div>
 
-      {/* ── Scrim ── */}
-      {mode && (
+      {/* Scrim for menu / del */}
+      {(mode === 'menu' || mode === 'del') && (
         <button onClick={() => setMode(null)} aria-label={t('close')} style={{ position: 'fixed', inset: 0, zIndex: 40, background: 'rgba(0,0,0,0.5)', border: 0, cursor: 'default' }} />
       )}
 
-      {/* ── Menu sheet ── */}
+      {/* Menu sheet */}
       {mode === 'menu' && (
         <div className="pod-sheet" role="dialog" aria-label={t('actionsLabel')} style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 50, background: '#EFEDE6', borderRadius: '28px 28px 0 0', padding: '12px 12px 32px', display: 'flex', flexDirection: 'column', gap: 8 }}>
           <span aria-hidden style={{ width: 36, height: 4, borderRadius: 2, background: 'rgba(0,0,0,0.15)', margin: '0 auto 8px', display: 'block' }} />
           <p style={{ margin: '0 4px 4px', fontSize: 17, fontWeight: 700, color: 'var(--m-ink)' }}>{client.name}</p>
-          <SheetRow icon="M4 20l4-1L19 8l-3-3L5 16zM14 7l3 3" label={t('editClient')} onClick={() => { setMode(null); router.push(p(`/ugyfelek/uj?edit=${clientId}`)); }} />
-          <SheetRow icon="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12zM12 9a3 3 0 100 6 3 3 0 000-6" label={t('previewBtn')} sub={t('clientPortalLabel')} onClick={() => { setMode(null); if (portalUrl) window.open(portalUrl, '_blank'); }} />
+          <SheetRow icon="M4 20l4-1L19 8l-3-3L5 16zM14 7l3 3" label={t('editTitle')} onClick={() => setMode('edit')} />
           <SheetRow icon="M5 7h14M10 7V4h4v3M7 7l1 13h8l1-13" label={t('deleteTitle')} danger onClick={() => setMode('del')} />
         </div>
       )}
 
-      {/* ── Delete confirm sheet ── */}
+      {/* Delete confirm sheet */}
       {mode === 'del' && (
         <div className="pod-sheet" role="dialog" aria-label={t('deleteConfirmTitle')} style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 50, background: '#EFEDE6', borderRadius: '28px 28px 0 0', padding: '12px 12px 32px', display: 'flex', flexDirection: 'column', gap: 8 }}>
           <span aria-hidden style={{ width: 36, height: 4, borderRadius: 2, background: 'rgba(0,0,0,0.15)', margin: '0 auto 8px', display: 'block' }} />
@@ -574,6 +571,29 @@ export default function ClientDetailMobile({ clientId }) {
             {t('cancel')}
           </button>
         </div>
+      )}
+
+      {/* Edit sheet */}
+      {mode === 'edit' && (
+        <EditSheet
+          key={client.id}
+          client={client}
+          collectives={collectives}
+          onSave={(data) => updateClient(client.id, data)}
+          onClose={() => setMode(null)}
+          t={t}
+        />
+      )}
+
+      {/* Send portal email sheet */}
+      {showPortalEmail && (
+        <SendPortalSheet
+          key={client.id + '-portal'}
+          client={client}
+          portalUrl={portalUrl}
+          onClose={() => setShowPortalEmail(false)}
+          t={t}
+        />
       )}
 
       <AlertModal isOpen={!!alertModal} onClose={() => setAlertModal(null)} message={alertModal?.message} />

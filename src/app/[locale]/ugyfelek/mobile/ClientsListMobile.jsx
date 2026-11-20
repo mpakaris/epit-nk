@@ -5,16 +5,13 @@
  * Rose header (#B8456B), parchment body, pod-stack layout.
  */
 
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useApp } from '@/context/AppContext';
-import { formatDate } from '@/lib/constants';
 import useOnline from '@/hooks/useOnline';
-import { AlertModal, ConfirmModal } from '@/components/Modal';
-
-import PageHeader from '@/components/mobile/pods/PageHeader';
 import Dock from '@/components/mobile/pods/Dock';
+import ClientDetailMobile from './ClientDetailMobile';
 
 const CLIENTS_BG = '#B8456B';
 const CLIENTS_DEEP = '#2A0F1A';
@@ -112,26 +109,12 @@ function ClientCard({ client, quotes, projects, isMine, t, onTap }) {
             ))}
           </span>
         </span>
-        {/* More icon */}
+        {/* Chevron */}
         <span style={{ flexShrink: 0, width: 32, height: 32, borderRadius: 10, background: '#F1F1F3', display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: 4 }} aria-hidden="true">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#5A5F68" strokeWidth="2.4" strokeLinecap="round"><path d="M5 12h.01M12 12h.01M19 12h.01" /></svg>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#5A5F68" strokeWidth="2.4" strokeLinecap="round"><path d="M9 18l6-6-6-6" /></svg>
         </span>
       </button>
     </article>
-  );
-}
-
-function SheetRow({ icon: d, label, onClick, danger, sub }) {
-  return (
-    <button onClick={onClick} style={{ width: '100%', minHeight: 60, boxSizing: 'border-box', padding: '10px 14px', border: 0, borderRadius: 22, background: '#fff', color: danger ? '#B71C1C' : 'var(--m-ink)', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 12, fontSize: 16, fontWeight: 700, boxShadow: '0 1px 0 rgba(14,17,22,.05),0 12px 22px -18px rgba(14,17,22,.35)', cursor: 'pointer' }}>
-      <span style={{ flexShrink: 0, width: 44, height: 44, borderRadius: 15, background: danger ? '#FDECEC' : '#F1F1F3', color: danger ? '#B71C1C' : '#1A1D23', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden><path d={d} /></svg>
-      </span>
-      <span style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', lineHeight: 1.2 }}>
-        {label}
-        {sub && <span style={{ fontSize: 12, fontWeight: 500, color: '#5A5F68', marginTop: 1 }}>{sub}</span>}
-      </span>
-    </button>
   );
 }
 
@@ -139,18 +122,13 @@ export default function ClientsListMobile() {
   const t = useTranslations('clients');
   const router = useRouter();
   const isOnline = useOnline();
-  const { loading, dataReady, clients = [], quotes = [], projects = [], isDemoMode, deleteClient, currentUser } = useApp();
+  const { loading, dataReady, clients = [], quotes = [], projects = [], isDemoMode } = useApp();
 
   const navPrefix = isDemoMode ? '/demo' : '';
-  const p = useCallback((path) => `${navPrefix}${path}`, [navPrefix]);
 
   const [seg, setSeg] = useState('mine');
   const [q, setQ] = useState('');
-  const [sheet, setSheet] = useState(null); // { client, isMine }
-  const [delSheet, setDelSheet] = useState(null); // client
-  const [deleting, setDeleting] = useState(false);
-  const [alertModal, setAlertModal] = useState(null);
-  const [copyToast, setCopyToast] = useState(false);
+  const [selectedClientId, setSelectedClientId] = useState(null);
 
   const myClients = useMemo(() => clients.filter(c => !c._shared_via?.length), [clients]);
   const sharedClients = useMemo(() => clients.filter(c => c._shared_via?.length > 0), [clients]);
@@ -173,31 +151,6 @@ export default function ClientsListMobile() {
 
   const list = seg === 'mine' ? filteredMine : filteredShared;
 
-  const handleDelete = async () => {
-    if (!delSheet) return;
-    setDeleting(true);
-    try {
-      await deleteClient(delSheet.id);
-      setDelSheet(null);
-      setSheet(null);
-    } catch (err) {
-      setAlertModal({ message: err.message || t('createError') });
-      setDelSheet(null);
-    } finally {
-      setDeleting(false);
-    }
-  };
-
-  const copyPortalLink = useCallback((client) => {
-    if (!client.email) return;
-    const url = `${window.location.origin}/portal?email=${encodeURIComponent(client.email)}`;
-    navigator.clipboard.writeText(url).then(() => {
-      setCopyToast(true);
-      setTimeout(() => setCopyToast(false), 2000);
-    });
-  }, []);
-
-  const closeSheet = useCallback(() => setSheet(null), []);
 
   if (!dataReady) {
     return (
@@ -212,8 +165,6 @@ export default function ClientsListMobile() {
       </div>
     );
   }
-
-  const isScrim = !!sheet || !!delSheet;
 
   return (
     <div className="pod-screen-dark" style={{ background: CLIENTS_DEEP, minHeight: '100dvh', position: 'relative' }}>
@@ -233,14 +184,11 @@ export default function ClientsListMobile() {
           <button onClick={() => router.back()} aria-label={t('back')} style={{ width: 48, height: 48, borderRadius: 24, border: 0, background: 'rgba(255,255,255,0.18)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden><path d="M15 6l-6 6 6 6" /></svg>
           </button>
-          <button onClick={() => router.push(p('/ugyfelek/uj'))} aria-label={t('new')} style={{ width: 48, height: 48, borderRadius: 24, border: 0, background: 'rgba(255,255,255,0.18)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+          <button onClick={() => router.push(`${navPrefix}/ugyfelek/uj`)} aria-label={t('new')} style={{ width: 48, height: 48, borderRadius: 24, border: 0, background: 'rgba(255,255,255,0.18)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" aria-hidden><path d="M12 5v14M5 12h14" /></svg>
           </button>
         </div>
         {/* Title */}
-        <span style={{ position: 'relative', fontSize: 11, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.78)', display: 'block', marginBottom: 4 }}>
-          {t('pageTitle')}
-        </span>
         <h1 style={{ position: 'relative', margin: 0, fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 30, fontWeight: 700, letterSpacing: '-0.02em', lineHeight: 1.1, color: '#fff' }}>
           {t('pageTitle')}
         </h1>
@@ -253,8 +201,10 @@ export default function ClientsListMobile() {
             onChange={e => setQ(e.target.value)}
             placeholder={t('mobileSearchPlaceholder')}
             aria-label={t('mobileSearchPlaceholder')}
+            className="clients-search"
             style={{ width: '100%', boxSizing: 'border-box', height: 44, borderRadius: 22, border: 0, background: 'rgba(255,255,255,0.14)', color: '#fff', paddingLeft: 40, paddingRight: 16, fontSize: 15, fontWeight: 500, outline: 'none' }}
           />
+          <style>{`.clients-search::placeholder { color: rgba(255,255,255,0.65); }`}</style>
         </div>
         {/* Segment */}
         <div style={{ display: 'flex', gap: 6, background: 'rgba(255,255,255,0.12)', padding: 4, borderRadius: 28, marginTop: 10 }}>
@@ -273,7 +223,7 @@ export default function ClientsListMobile() {
             {q ? t('noResults') : seg === 'mine' ? t('emptyMine') : t('sharedClients', { count: 0 })}
             {!q && seg === 'mine' && (
               <div style={{ marginTop: 16 }}>
-                <button onClick={() => router.push(p('/ugyfelek/uj'))} style={{ height: 52, padding: '0 24px', borderRadius: 26, border: 0, background: CLIENTS_BG, color: '#fff', fontSize: 15, fontWeight: 700, cursor: 'pointer' }}>
+                <button onClick={() => router.push(`${navPrefix}/ugyfelek/uj`)} style={{ height: 52, padding: '0 24px', borderRadius: 26, border: 0, background: CLIENTS_BG, color: '#fff', fontSize: 15, fontWeight: 700, cursor: 'pointer' }}>
                   {t('new')}
                 </button>
               </div>
@@ -288,7 +238,7 @@ export default function ClientsListMobile() {
               projects={projects}
               isMine={seg === 'mine'}
               t={t}
-              onTap={() => setSheet({ client, isMine: seg === 'mine' })}
+              onTap={() => setSelectedClientId(client.id)}
             />
           ))
         )}
@@ -297,71 +247,12 @@ export default function ClientsListMobile() {
       {/* ── Dock ── */}
       <Dock />
 
-      {/* ── Action sheet scrim ── */}
-      {isScrim && (
-        <button className="pod-sheet" onClick={closeSheet} aria-label={t('close')} style={{ position: 'fixed', inset: 0, zIndex: 40, background: 'rgba(0,0,0,0.5)', border: 0, cursor: 'default' }} />
-      )}
-
-      {/* ── Client action sheet ── */}
-      {sheet && !delSheet && (
-        <div className="pod-sheet" role="dialog" aria-label={sheet.client.name} style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 50, background: '#EFEDE6', borderRadius: '28px 28px 0 0', padding: '12px 12px 32px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <span aria-hidden style={{ width: 36, height: 4, borderRadius: 2, background: 'rgba(0,0,0,0.15)', margin: '0 auto 8px', display: 'block' }} />
-          <p style={{ margin: '0 4px 4px', fontSize: 17, fontWeight: 700, color: 'var(--m-ink)' }}>{sheet.client.name}</p>
-          <SheetRow
-            icon="M5 12h14M13 6l6 6-6 6"
-            label={t('detailsBtn')}
-            onClick={() => { closeSheet(); router.push(p(`/ugyfelek/${sheet.client.id}`)); }}
-          />
-          {sheet.isMine && (
-            <SheetRow
-              icon="M4 20l4-1L19 8l-3-3L5 16zM14 7l3 3"
-              label={t('editTitle')}
-              onClick={() => { closeSheet(); router.push(p(`/ugyfelek/uj?edit=${sheet.client.id}`)); }}
-            />
-          )}
-          <SheetRow
-            icon="M10 14a4 4 0 005.7 0l3-3a4 4 0 00-5.7-5.7l-1 1M14 10a4 4 0 00-5.7 0l-3 3a4 4 0 005.7 5.7l1-1"
-            label={t('copyPortalLink')}
-            sub={sheet.client.email ? sheet.client.email : t('noEmailForPortal')}
-            onClick={() => { if (sheet.client.email) { copyPortalLink(sheet.client); closeSheet(); } }}
-          />
-          {sheet.isMine && (
-            <SheetRow
-              icon="M5 7h14M10 7V4h4v3M7 7l1 13h8l1-13"
-              label={t('deleteTitle')}
-              danger
-              onClick={() => { setDelSheet(sheet.client); setSheet(null); }}
-            />
-          )}
+      {/* ── Client detail overlay ── */}
+      {selectedClientId && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 100, overflowY: 'auto', background: CLIENTS_DEEP }}>
+          <ClientDetailMobile clientId={selectedClientId} onClose={() => setSelectedClientId(null)} />
         </div>
       )}
-
-      {/* ── Delete confirm sheet ── */}
-      {delSheet && (
-        <div className="pod-sheet" role="dialog" aria-label={t('deleteConfirmTitle')} style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 50, background: '#EFEDE6', borderRadius: '28px 28px 0 0', padding: '12px 12px 32px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <span aria-hidden style={{ width: 36, height: 4, borderRadius: 2, background: 'rgba(0,0,0,0.15)', margin: '0 auto 8px', display: 'block' }} />
-          <p style={{ margin: '0 4px 4px', fontSize: 17, fontWeight: 700, color: 'var(--m-ink)' }}>{t('deleteConfirmTitle')}</p>
-          <p style={{ margin: '0 4px 8px', fontSize: 15, fontWeight: 500, color: '#5A5F68', lineHeight: 1.45 }}>
-            {t('deleteConfirmMessage', { name: delSheet.name })}
-          </p>
-          <button onClick={handleDelete} disabled={deleting} style={{ height: 60, border: 0, borderRadius: 30, background: '#B71C1C', color: '#fff', fontSize: 17, fontWeight: 700, cursor: deleting ? 'default' : 'pointer' }}>
-            {deleting ? t('deleting') : t('deleteTitle')}
-          </button>
-          <button onClick={() => setDelSheet(null)} style={{ height: 60, border: 0, borderRadius: 30, background: '#EFEDE6', color: 'var(--m-ink)', fontSize: 17, fontWeight: 700, cursor: 'pointer' }}>
-            {t('cancel')}
-          </button>
-        </div>
-      )}
-
-      {/* ── Copy toast ── */}
-      {copyToast && (
-        <div role="status" style={{ position: 'fixed', zIndex: 60, top: 18, left: 16, right: 16, padding: '14px 16px', borderRadius: 22, background: '#14532D', color: '#fff', fontSize: 15, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 10 }}>
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" aria-hidden><path d="M5 12l5 5 9-10" /></svg>
-          {t('copiedBtn')}
-        </div>
-      )}
-
-      <AlertModal isOpen={!!alertModal} onClose={() => setAlertModal(null)} message={alertModal?.message} />
     </div>
   );
 }
