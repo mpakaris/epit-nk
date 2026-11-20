@@ -341,7 +341,7 @@ export function AppProvider({ children }) {
     makeQuoteActions({ quotes, quoteEntries, quoteSections, users, setQuotes, setQuoteEntries, setQuoteSections, setProjects, uid, isAdmin, collectives, effectiveUser, activeCollectiveId, supabase });
 
   const { fetchDiaryEntries, createDiaryEntry, updateDiaryEntry, deleteDiaryEntry, deleteDiaryPhoto, uploadDiaryPhotos } =
-    makeDiaryActions({ setDiaryEntriesByProject, effectiveUser });
+    makeDiaryActions({ diaryEntriesByProject, projects, setDiaryEntriesByProject, uid, isAdmin, collectives, effectiveUser });
 
   // ---- deleteUser wrapper (needs currentUser.id) ------------------------------
   const deleteUserWrapped = (userId) => deleteUser(userId, currentUser?.id);

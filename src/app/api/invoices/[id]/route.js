@@ -17,13 +17,23 @@ async function resolveAccess(user, invoiceId) {
     .is('deleted_at', null).single();
   if (!project) return null;
 
-  const isSuperAdmin  = profile.role === 'superadmin';
+  const isSuperAdmin   = profile.role === 'superadmin';
   const isProjectOwner = project.owner_id === user.id || project.created_by === user.id;
-  const isOwnEntry    = invoice.uploaded_by === user.id;
+  const isOwnEntry     = invoice.uploaded_by === user.id;
 
-  if (!isSuperAdmin && !isProjectOwner && !isOwnEntry) return null;
+  if (isSuperAdmin || isProjectOwner || isOwnEntry) return { admin, profile, invoice, project };
 
-  return { admin, profile, invoice, project };
+  if (project.collective_id) {
+    const { data: mem } = await admin.from('collective_members')
+      .select('role')
+      .eq('collective_id', project.collective_id)
+      .eq('user_id', user.id)
+      .eq('status', 'active')
+      .maybeSingle();
+    if (mem && (mem.role === 'owner' || mem.role === 'admin')) return { admin, profile, invoice, project };
+  }
+
+  return null;
 }
 
 export async function PATCH(request, { params }) {

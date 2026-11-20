@@ -83,12 +83,18 @@ export default function EditDiaryEntryPage() {
   const {
     projects, diaryEntriesByProject, projectRooms: ctxProjectRooms,
     uploadDiaryPhotos, updateDiaryEntry, deleteDiaryPhoto, isDemoMode,
+    currentUser, collectives,
   } = useApp();
   const navPrefix = isDemoMode ? '/demo' : '';
   const AppLink = isDemoMode ? Link : LocaleLink;
 
   const project = projects.find(p => p.id === projectId);
   const entry = (diaryEntriesByProject[projectId] || []).find(e => e.id === entryId);
+
+  const isProjectOwner = project && (project.owner_id === currentUser?.id || project.created_by === currentUser?.id);
+  const isCollOwnerAdmin = collectives?.some(c => c.collective_id === project?.collective_id && (c.role === 'owner' || c.role === 'admin'));
+  const isEntryCreator = entry?.created_by === currentUser?.id;
+  const canEdit = isProjectOwner || isCollOwnerAdmin || isEntryCreator;
 
   const [entryDate, setEntryDate] = useState('');
   const [workType, setWorkType] = useState('');
@@ -211,6 +217,15 @@ export default function EditDiaryEntryPage() {
     return (
       <div className="container" style={{ paddingTop: '2.5rem', textAlign: 'center' }}>
         <h2 style={{ fontSize: '1.2rem', fontWeight: 800, marginBottom: '0.75rem' }}>A bejegyzés nem található</h2>
+        <AppLink href={`${navPrefix}/projektek/${projectId}?tab=naplo`} className="btn btn-secondary btn-sm"><ArrowLeft size={16} /> Vissza</AppLink>
+      </div>
+    );
+  }
+
+  if (!canEdit) {
+    return (
+      <div className="container" style={{ paddingTop: '2.5rem', textAlign: 'center' }}>
+        <h2 style={{ fontSize: '1.2rem', fontWeight: 800, marginBottom: '0.75rem' }}>Nincs jogosultsága szerkeszteni ezt a bejegyzést.</h2>
         <AppLink href={`${navPrefix}/projektek/${projectId}?tab=naplo`} className="btn btn-secondary btn-sm"><ArrowLeft size={16} /> Vissza</AppLink>
       </div>
     );

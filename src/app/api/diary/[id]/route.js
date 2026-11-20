@@ -30,7 +30,7 @@ async function resolveEntry(entryId, userId, profile, admin) {
   return null;
 }
 
-// PATCH /api/diary/[id] — admin or superadmin only
+// PATCH /api/diary/[id] — collective owner/admin or entry creator
 export async function PATCH(request, { params }) {
   const { id } = await params;
   const supabase = await createClient();
@@ -40,9 +40,14 @@ export async function PATCH(request, { params }) {
   if (error) return Response.json({ error }, { status });
 
   const isSuperAdmin = profile.role === 'superadmin';
-  const isAdminRole = profile.role === 'admin';
   const entry = await resolveEntry(id, user.id, profile, admin);
   if (!entry) return Response.json({ error: 'Entry not found or access denied' }, { status: 404 });
+
+  const isCreator = entry.created_by === user.id;
+  if (!isSuperAdmin && !entry.isKollektivOwner && !isCreator) {
+    logAudit({ entityId: entry.project_id, userId: user.id, userName: profile.display_name, action: 'Diary entry edit denied', targetType: 'diary_entry', targetId: id, details: { error: 'Permission denied' } });
+    return Response.json({ error: 'Nincs jogosultsága szerkeszteni ezt a bejegyzést.' }, { status: 403 });
+  }
 
   const body = await request.json();
   const { title, body: entryBody, work_type, internal_note, client_note, entry_date, add_photo_ids, is_public, room_id } = body;
