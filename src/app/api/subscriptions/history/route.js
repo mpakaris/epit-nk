@@ -19,7 +19,10 @@ const HISTORY_ACTIONS = [
 
 function toIso(val) {
   if (!val) return null;
-  const d = new Date(typeof val === 'number' ? val * 1000 : val);
+  // Creem transaction created_at is milliseconds; period_start/end are seconds.
+  // Detect by magnitude: > 1e12 means already milliseconds.
+  const ms = typeof val === 'number' ? (val > 1e12 ? val : val * 1000) : val;
+  const d = new Date(ms);
   return isNaN(d) ? null : d.toISOString();
 }
 
@@ -42,19 +45,26 @@ export async function GET() {
 
   const events = [];
 
-  // ── Audit log events ─────────────────────────────────────────────────────
+  // ── Audit log events — deduplicate same action within 5-minute windows ───
+  const auditSeen = new Set();
   for (const row of (auditRes.data ?? [])) {
     let type = 'status';
     if (row.action.includes('activated') || row.action.includes('granted'))  type = 'activated';
     if (row.action.includes('cancelled') || row.action.includes('revoked'))  type = 'cancelled';
     if (row.action.includes('resumed'))                                       type = 'resumed';
 
+    // Bucket = 5-minute window; skip duplicate action in the same window
+    const bucket = Math.floor(new Date(row.created_at).getTime() / 300_000);
+    const key = `${type}:${bucket}`;
+    if (auditSeen.has(key)) continue;
+    auditSeen.add(key);
+
     events.push({
-      id:     row.id,
-      source: 'audit',
+      id:      row.id,
+      source:  'audit',
       type,
-      action: row.action,
-      date:   row.created_at,
+      action:  row.action,
+      date:    row.created_at,
       details: row.details ?? null,
     });
   }
@@ -90,8 +100,9 @@ export async function GET() {
     }
   }
 
-  // Sort all events newest first, deduplicate by date+type (audit & webhook can overlap)
+  // Sort newest first, cap at 20 items
   events.sort((a, b) => new Date(b.date) - new Date(a.date));
+  const trimmed = events.slice(0, 20);
 
-  return NextResponse.json({ events });
+  return NextResponse.json({ events: trimmed });
 }
