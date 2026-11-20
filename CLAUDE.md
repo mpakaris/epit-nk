@@ -302,6 +302,63 @@ Helper: `isEffectivePremium(profile)` in `src/lib/subscriptionLimits.js` — ret
 Limits stored in `pricing_config` table (admin-editable via `/superadmin/pricing`).
 Trial abuse prevention: `trial_emails` table records email → first user_id; re-registration with same email gets 'basic' not 'trial'.
 
+### Creem payment integration
+
+**Payment provider:** Creem (creem.io) — Merchant of Record, handles billing, tax, and payouts.
+
+**Key env vars:**
+```
+CREEM_API_KEY                              # starts with creem_test_ for test mode
+CREEM_WEBHOOK_SECRET                       # whsec_... — must match Creem dashboard
+NEXT_PUBLIC_CREEM_PREMIUM_PRODUCT_ID       # prod_... — premium product ID
+NEXT_PUBLIC_APP_URL                        # base URL for checkout success_url (see below)
+```
+
+**Checkout flow (mobile `/elofizetes`):**
+1. User taps "Upgrade" → `POST /api/checkout` creates a Creem checkout session
+2. `success_url` is built from the **request `Host` header** (not `NEXT_PUBLIC_APP_URL`) so it always matches the user's browsing origin → prevents cross-origin localStorage blocking
+3. Creem checkout loads in an iframe bottom sheet
+4. After payment, two parallel detection paths close the modal:
+   - **localStorage poll** (400ms): fires if `checkout-popup-success` loads inside the iframe → calls `POST /api/checkout/activate` to verify + write DB
+   - **Webhook poll** (3s): polls `GET /api/auth/profile` → detects when Creem webhook has updated `is_subscription_premium = true` in DB → closes modal without calling activate (DB already updated)
+5. `AppContext.refreshCurrentUser()` syncs the React state → UI switches Basic → Premium without page reload
+
+**Webhooks** (`POST /api/webhooks/creem`):
+- Events handled: `checkout.completed`, `subscription.paid`, `subscription.active`, `subscription.canceled`, `subscription.expired`, `subscription.paused`, `subscription.updated`
+- `grantPremium()` upserts `subscriptions` row + sets `profiles.is_subscription_premium = true` + creates/reactivates the user's inclusive collective
+- `revokePremium()` cancels subscription rows + sets `is_subscription_premium = false` + freezes collective addons
+- Fallback userId resolution: if `metadata.userId` is missing, looks up by `profiles.creem_customer_id` then `profiles.email`
+- Signature verified via HMAC-SHA256 (`CREEM_WEBHOOK_SECRET`), fail-closed
+
+**`profiles.creem_customer_id`** (migration 154):
+- Stored on first activation or first webhook hit
+- Used by `GET /api/billing/portal` as Strategy 0 (skips Creem API lookup)
+- Written back to Creem as `external_id` for bidirectional lookup
+
+**Superadmin override** (`/superadmin/subscriptions`):
+- Toggle Premium on/off per user
+- Keeps `subscriptions` table in sync (upserts active row on grant, cancels rows on revoke)
+- Clears trial fields when revoking
+
+### Local development setup for Creem
+
+Creem webhooks require a publicly accessible URL. `localhost:3000` is not reachable by Creem's servers.
+
+**Required for local testing:**
+1. Run [ngrok](https://ngrok.com): `ngrok http 3000`
+2. Copy the ngrok URL (e.g. `https://abc123.ngrok-free.app`)
+3. Add to `.env.local`: `NEXT_PUBLIC_APP_URL=https://abc123.ngrok-free.app`
+4. In Creem dashboard → Webhooks → set endpoint to `https://abc123.ngrok-free.app/api/webhooks/creem`
+5. Confirm `CREEM_WEBHOOK_SECRET` in `.env.local` matches the Creem dashboard signing secret
+6. **Restart the dev server** after changing `.env.local`
+7. **Browse through the ngrok URL** (not localhost) so the checkout `success_url` and the browser are on the same origin
+
+**Why same-origin matters:** `checkout-popup-success` communicates back to the parent via `localStorage` and `postMessage`. Both are blocked cross-origin. If you open the app at `localhost:3000` but `NEXT_PUBLIC_APP_URL` points to ngrok, the success URL is a different origin → detection fails. Always browse through whichever URL you set as `NEXT_PUBLIC_APP_URL`.
+
+**Ngrok free tier caveat:** The ngrok URL changes every session. Update the Creem dashboard webhook endpoint each time you restart ngrok. Consider a paid ngrok plan with a fixed subdomain for less friction.
+
+**Production:** Set `NEXT_PUBLIC_APP_URL` to the production domain in the server environment. The Creem webhook endpoint in the dashboard should point to `https://yourdomain.com/api/webhooks/creem`. No ngrok needed.
+
 ---
 
 ## Self-Registration Flow
