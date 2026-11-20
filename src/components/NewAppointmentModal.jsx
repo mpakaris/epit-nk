@@ -4,72 +4,25 @@ import React, { useState, useEffect } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useTranslations } from 'next-intl';
 import Modal, { AlertModal } from '@/components/Modal';
+import QuickClientSheet from '@/app/[locale]/ajanlatok/mobile/QuickClientSheet';
 import { Ruler, FileText, FolderKanban, CalendarDays, Plus, Loader2 } from 'lucide-react';
 
 function todayStr() {
   return new Date().toISOString().split('T')[0];
 }
 
-// Inline new-client sub-form
-function NewClientInline({ onCreated, onCancel }) {
-  const { createClient } = useApp();
-  const t = useTranslations('calendar');
-  const [name,  setName]  = useState('');
-  const [phone, setPhone] = useState('');
-  const [email, setEmail] = useState('');
-  const [gdpr,  setGdpr]  = useState(false);
-  const [busy,  setBusy]  = useState(false);
-  const [err,   setErr]   = useState('');
-
-  async function handleCreate() {
-    if (!name.trim()) { setErr(t('clientNameRequired')); return; }
-    if (!gdpr)        { setErr(t('gdprRequired')); return; }
-    setBusy(true);
-    try {
-      const client = await createClient({ name: name.trim(), phone, email, gdprConsent: true });
-      onCreated(client);
-    } catch (e) {
-      setErr(e.message || t('genericError'));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  return (
-    <div style={{
-      background: 'var(--bg-subtle)', border: '1px solid var(--border-subtle)',
-      borderRadius: 'var(--radius-md)', padding: '12px 14px',
-      display: 'flex', flexDirection: 'column', gap: 10,
-    }}>
-      {err && <div style={{ fontSize: 12, color: 'var(--danger-text)' }}>{err}</div>}
-      <input className="form-control" autoFocus placeholder={t('clientNamePh')} value={name} onChange={e => setName(e.target.value)} />
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-        <input className="form-control" type="tel"   placeholder={t('phonePh')} value={phone} onChange={e => setPhone(e.target.value)} />
-        <input className="form-control" type="email" placeholder={t('emailPh')}  value={email} onChange={e => setEmail(e.target.value)} />
-      </div>
-      <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, cursor: 'pointer',
-        padding: '8px 10px', borderRadius: 'var(--radius-md)',
-        background: gdpr ? 'var(--success-bg)' : '#fff',
-        border: `1px solid ${gdpr ? 'var(--success-border)' : 'var(--border-subtle)'}`,
-      }}>
-        <input type="checkbox" checked={gdpr} onChange={e => setGdpr(e.target.checked)}
-          style={{ marginTop: 2, accentColor: 'var(--accent)', flexShrink: 0 }} />
-        <span style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.4 }}>
-          {t('gdprConsent')} <span style={{ color: 'var(--danger-text)' }}>*</span>
-        </span>
-      </label>
-      <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-        <button type="button" className="btn btn-secondary btn-sm" onClick={onCancel}>{t('cancel')}</button>
-        <button type="button" className="btn btn-primary btn-sm" onClick={handleCreate} disabled={busy || !gdpr}>
-          {busy ? <Loader2 size={13} className="animate-spin" /> : null} {t('create')}
-        </button>
-      </div>
-    </div>
-  );
-}
+// Pods-style input — no border, no focus ring
+const INPUT = {
+  width: '100%', boxSizing: 'border-box', height: 52,
+  border: '1px solid var(--border-subtle)', borderRadius: 14,
+  background: '#fff', padding: '0 14px', fontSize: 15,
+  fontWeight: 500, color: 'var(--text-primary)',
+  boxShadow: 'none', outline: 0,
+  WebkitAppearance: 'none',
+};
 
 export default function NewAppointmentModal({ isOpen, onClose, defaultDate }) {
-  const { clients } = useApp();
+  const { clients, createClient } = useApp();
   const t = useTranslations('calendar');
   const LINK_TYPES = [
     { id: null,       label: t('linkNone'),    icon: null          },
@@ -147,7 +100,10 @@ export default function NewAppointmentModal({ isOpen, onClose, defaultDate }) {
             {successMsg}
           </p>
         </div>
-        <button className="btn btn-primary" style={{ width: '100%' }} onClick={onClose}>
+        <button
+          style={{ width: '100%', height: 56, border: 0, borderRadius: 28, background: 'var(--primary)', color: '#fff', fontSize: 16, fontWeight: 700, cursor: 'pointer', marginTop: 4 }}
+          onClick={onClose}
+        >
           {t('close')}
         </button>
       </Modal>
@@ -163,8 +119,8 @@ export default function NewAppointmentModal({ isOpen, onClose, defaultDate }) {
           <div>
             <label className="form-label">{t('titleLabel')}</label>
             <input
-              className="form-control"
               autoFocus
+              style={INPUT}
               placeholder={t('titlePlaceholder')}
               value={title}
               onChange={e => setTitle(e.target.value)}
@@ -176,42 +132,33 @@ export default function NewAppointmentModal({ isOpen, onClose, defaultDate }) {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
             <div>
               <label className="form-label">{t('dateLabel')}</label>
-              <input className="form-control" type="date" value={date} onChange={e => setDate(e.target.value)} />
+              <input type="date" style={INPUT} value={date} onChange={e => setDate(e.target.value)} />
             </div>
             <div>
               <label className="form-label">{t('timeLabel')}</label>
-              <input className="form-control" type="time" value={time} onChange={e => setTime(e.target.value)} />
+              <input type="time" style={INPUT} value={time} onChange={e => setTime(e.target.value)} />
             </div>
           </div>
 
           {/* Client */}
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
-              <label className="form-label" style={{ margin: 0 }}>{t('clientLabel')}</label>
-              {!showNewClient && (
-                <button
-                  type="button"
-                  onClick={() => setShowNewClient(true)}
-                  style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'none', border: 'none',
-                    color: 'var(--accent)', fontSize: 12, fontWeight: 700, cursor: 'pointer', padding: 0 }}
-                >
-                  <Plus size={13} /> {t('newClientBtn')}
-                </button>
-              )}
-            </div>
-            {showNewClient ? (
-              <NewClientInline
-                onCreated={client => { setClientId(client.id); setShowNewClient(false); }}
-                onCancel={() => setShowNewClient(false)}
-              />
-            ) : (
-              <select className="form-control" value={clientId} onChange={e => setClientId(e.target.value)}>
+            <label className="form-label">{t('clientLabel')}</label>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <select style={{ ...INPUT, flex: 1, paddingRight: 36 }} value={clientId} onChange={e => setClientId(e.target.value)}>
                 <option value="">{t('noClientOption')}</option>
                 {(clients || []).map(c => (
                   <option key={c.id} value={c.id}>{c.name}</option>
                 ))}
               </select>
-            )}
+              <button
+                type="button"
+                onClick={() => setShowNewClient(true)}
+                aria-label={t('newClientBtn')}
+                style={{ flexShrink: 0, width: 52, height: 52, border: 0, borderRadius: '50%', background: 'var(--primary)', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              >
+                <Plus size={22} strokeWidth={2.5} />
+              </button>
+            </div>
           </div>
 
           {/* Link type */}
@@ -247,16 +194,39 @@ export default function NewAppointmentModal({ isOpen, onClose, defaultDate }) {
 
           {/* Save */}
           <button
-            className="btn btn-primary"
             onClick={handleSave}
-            disabled={saving || showNewClient}
-            style={{ width: '100%', marginTop: 4 }}
+            disabled={saving}
+            style={{
+              width: '100%', height: 56, border: 0, borderRadius: 28,
+              background: saving ? 'var(--text-muted)' : 'var(--primary)',
+              color: '#fff', fontSize: 16, fontWeight: 700,
+              cursor: saving ? 'default' : 'pointer', marginTop: 4,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+            }}
           >
+            {saving && <Loader2 size={16} className="animate-spin" />}
             {saving ? t('saving') : t('save')}
           </button>
 
         </div>
       </Modal>
+
+      {/* QuickClientSheet — rendered above the modal (zIndex 400 > modal 300) */}
+      {showNewClient && isOpen && (
+        <>
+          <div
+            onClick={() => setShowNewClient(false)}
+            style={{ position: 'fixed', inset: 0, zIndex: 395, background: 'rgba(14,17,22,0.4)' }}
+          />
+          <QuickClientSheet
+            zIndex={400}
+            createClient={createClient}
+            onCreated={client => { setClientId(client.id); setShowNewClient(false); }}
+            onBack={() => setShowNewClient(false)}
+            onClose={() => setShowNewClient(false)}
+          />
+        </>
+      )}
 
       <AlertModal
         isOpen={!!alert}

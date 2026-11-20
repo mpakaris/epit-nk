@@ -26,6 +26,7 @@ export default function PodList({
   moduleLabel,
   onBack,
   renderBody,
+  loadingId,
 }) {
   const t = useTranslations('mobilePods');
 
@@ -133,7 +134,7 @@ export default function PodList({
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     fontSize: 13, fontWeight: 700,
                   }}>
-                    {ws.count ?? 0}
+                    {ws.count == null ? '—' : ws.count}
                   </span>
                 </span>
               </button>
@@ -142,7 +143,13 @@ export default function PodList({
             {/* ── Expanded body ────────────────────────────────────────── */}
             {isActive && (
               <div style={{ boxSizing: 'border-box', padding: '18px 16px 24px', display: 'flex', flexDirection: 'column', gap: 14 }}>
-                {renderBody(ws, colors)}
+                {loadingId === ws.id ? (
+                  <div style={{ display: 'flex', justifyContent: 'center', padding: '32px 0' }}>
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.7)" strokeWidth="2.4" strokeLinecap="round" aria-label="Betöltés" style={{ animation: 'spin 0.8s linear infinite' }}>
+                      <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+                    </svg>
+                  </div>
+                ) : renderBody(ws, colors)}
               </div>
             )}
           </section>

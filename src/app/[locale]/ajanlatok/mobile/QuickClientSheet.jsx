@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 
-export default function QuickClientSheet({ onCreated, onClose, onBack, accentColor = 'var(--m-offer, #6D3FD1)', createClient }) {
+export default function QuickClientSheet({ onCreated, onClose, onBack, accentColor = 'var(--m-offer, #6D3FD1)', createClient, zIndex = 50 }) {
   const t = useTranslations('quotes');
   const [name,    setName]    = useState('');
   const [email,   setEmail]   = useState('');
@@ -29,7 +29,7 @@ export default function QuickClientSheet({ onCreated, onClose, onBack, accentCol
   const INPUT = { width: '100%', boxSizing: 'border-box', height: 56, border: 0, borderRadius: 20, background: '#fff', padding: '0 16px', fontSize: 17, fontWeight: 500, color: 'var(--m-ink)', boxShadow: '0 1px 0 rgba(14,17,22,0.05), 0 10px 20px -16px rgba(14,17,22,0.4)', outline: 0 };
 
   return (
-    <div role="dialog" aria-label={t('newClientTitle')} className="pod-sheet" style={{ position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 50, boxSizing: 'border-box', padding: `10px 16px calc(18px + env(safe-area-inset-bottom))`, borderRadius: '32px 32px 0 0', background: 'var(--m-sheet, #FBFAF7)', display: 'flex', flexDirection: 'column', gap: 12 }}>
+    <div role="dialog" aria-label={t('newClientTitle')} className="pod-sheet" style={{ position: 'fixed', left: 0, right: 0, bottom: 0, zIndex, boxSizing: 'border-box', padding: `10px 16px calc(18px + env(safe-area-inset-bottom))`, borderRadius: '32px 32px 0 0', background: 'var(--m-sheet, #FBFAF7)', display: 'flex', flexDirection: 'column', gap: 12 }}>
       <div style={{ alignSelf: 'center', width: 44, height: 5, borderRadius: 3, background: '#D5D2C8' }} />
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
         <button type="button" onClick={onBack || onClose} aria-label={t('back')} style={{ width: 44, height: 44, flexShrink: 0, border: 0, borderRadius: 22, background: '#EFEDE6', color: 'var(--m-ink)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
@@ -46,7 +46,7 @@ export default function QuickClientSheet({ onCreated, onClose, onBack, accentCol
         <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--m-ink)' }}>{t('newClientEmailLabel')}</span>
         <input type="email" autoComplete="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="email@example.com" style={INPUT} />
       </label>
-      <label style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: 14, borderRadius: 20, background: gdpr ? '#E7F4EC' : '#fff', border: `1.5px solid ${gdpr ? '#86efac' : '#E0E0E0'}`, cursor: 'pointer' }}>
+      <label style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: 14, borderRadius: 20, background: gdpr ? '#E7F4EC' : '#fff', border: '1.5px solid #E0E0E0', cursor: 'pointer' }}>
         <input type="checkbox" checked={gdpr} onChange={e => setGdpr(e.target.checked)} style={{ marginTop: 2, flexShrink: 0, accentColor, width: 18, height: 18 }} />
         <span style={{ fontSize: 14, color: 'var(--m-ink)', lineHeight: 1.45 }}>
           {t('newClientGdprText')} <span style={{ color: '#B71C1C', fontWeight: 700 }}>*</span>

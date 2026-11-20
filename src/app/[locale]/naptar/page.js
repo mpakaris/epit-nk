@@ -14,6 +14,8 @@ import PageSpinner from '@/components/PageSpinner';
 import WorkspaceBadge from '@/components/WorkspaceBadge';
 import NewAppointmentModal from '@/components/NewAppointmentModal';
 import AppointmentDetailModal from '@/components/AppointmentDetailModal';
+import useMobile from '@/hooks/useMobile';
+import CalendarMobile from './mobile/CalendarMobile';
 
 // Midnight-normalised Date from any date-ish value
 function toDay(d) {
@@ -138,6 +140,12 @@ function buildMonthData(y, m, events) {
 }
 
 export default function CalendarPage() {
+  const isMobile = useMobile();
+  if (isMobile) return <CalendarMobile />;
+  return <CalendarDesktop />;
+}
+
+function CalendarDesktop() {
   const { projects, quotes, clients, loading, quoteSections, projectRooms, isDemoMode } = useApp();
   const t = useTranslations('calendar');
   const locale = useLocale();
@@ -339,7 +347,7 @@ export default function CalendarPage() {
                 {/* Day-of-week headers */}
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', borderBottom: '2px solid var(--border-subtle)' }}>
                   {DAYS_LOC.map((d, i) => (
-                    <div key={d} style={{
+                    <div key={i} style={{
                       textAlign: 'center', fontSize: '0.72rem', fontWeight: 700,
                       color: i >= 5 ? 'var(--danger-text)' : 'var(--text-muted)',
                       padding: '0.35rem 0', letterSpacing: '0.04em', textTransform: 'uppercase'
