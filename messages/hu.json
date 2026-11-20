@@ -736,7 +736,19 @@
     "sendPortalSendBtn": "Küldés",
     "sendPortalSending": "Küldés...",
     "sendPortalSuccess": "Az e-mailt sikeresen elküldtük!",
-    "sendPortalEmailRequired": "Az e-mail-cím megadása kötelező."
+    "sendPortalEmailRequired": "Az e-mail-cím megadása kötelező.",
+    "detailSectionOverview": "Áttekintés",
+    "detailSectionContact": "Kapcsolat",
+    "detailSectionDocuments": "Dokumentumok",
+    "detailSectionPortal": "Ügyfélportál",
+    "portalHowItWorks": "Hogyan lép be az ügyfél?",
+    "portalStep1": "Megnyitja a portál linkjét",
+    "portalStep2": "Megadja az email-címét",
+    "portalStep3": "Kap egy 6 jegyű egyszer használatos kódot — ezzel lép be",
+    "companyPlaceholder": "Fekete Kft.",
+    "taxNumberPlaceholder": "12345678-1-01",
+    "addressPlaceholder": "8600 Siófok, Fő utca 12.",
+    "notesPlaceholder": "Megjegyzés…"
   },
   "calendar": {
     "pageTitle": "Naptár",

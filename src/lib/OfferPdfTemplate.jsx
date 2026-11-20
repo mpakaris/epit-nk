@@ -24,12 +24,61 @@ const BG_ALT  = '#f1f5f9';
 const WINDOW_M2 = 1.5;
 const DOOR_M2   = 2.0;
 
-const ENTRY_LABELS = {
-  material:  'Anyag',
-  labour:    'Munkadíj',
-  equipment: 'Eszközb.',
-  transport: 'Szállítás',
-  other:     'Egyéb',
+const PDF_TR = {
+  hu: {
+    docTitle: 'AJÁNLAT', labelNumber: 'Szám:', labelDate: 'Kelt:', labelValidUntil: 'Érvényes:',
+    labelStartDate: 'Kezdés:', labelEndDate: 'Befejezés:', clientSection: 'Megrendelő',
+    noClient: 'Nincs megrendelő megadva.', taxPrefix: 'Adószám:',
+    sectionNum: (n) => `${n}. szakasz`, subtotal: 'Részösszeg',
+    measureFloor: 'Padló:', measureHeight: (h) => `Magasság: ${h} m`,
+    measureWindows: (c) => `${c} ablak`, measureDoors: (c) => `${c} ajtó`,
+    measureNetWall: 'Falfelület (nettó):',
+    colDescription: 'Megnevezés', colType: 'Típus', colQty: 'Menny.', colUnitPrice: 'Egységár', colAmount: 'Összeg',
+    noEntries: 'Nincsenek tételek ebben a szakaszban.', generalItems: 'Általános tételek',
+    netTotal: 'Nettó összeg', vatLine: (r) => `ÁFA (${r}%)`, grossTotal: 'Bruttó összeg',
+    signContractor: 'Vállalkozó aláírása', signClient: 'Megrendelő aláírása',
+    footerValidUntil: 'Az ajánlat érvényes:', footerPaymentDays: 'Fizetési határidő:',
+    footerPaymentDaysUnit: 'nap teljesítéstől', footerDeposit: 'Előleg:',
+    footerDepositSuffix: 'az ajánlat elfogadásakor', footerWarranty: 'Garancia:',
+    footerWarrantyUnit: 'hónap', footerTerms: 'Mellékelt ÁSZF:',
+    typeMaterial: 'Anyag', typeLabour: 'Munkadíj', typeEquipment: 'Eszközb.', typeTransport: 'Szállítás', typeOther: 'Egyéb',
+  },
+  en: {
+    docTitle: 'QUOTATION', labelNumber: 'No.:', labelDate: 'Date:', labelValidUntil: 'Valid until:',
+    labelStartDate: 'Start:', labelEndDate: 'End:', clientSection: 'Client',
+    noClient: 'No client specified.', taxPrefix: 'Tax number:',
+    sectionNum: (n) => `Section ${n}`, subtotal: 'Subtotal',
+    measureFloor: 'Floor:', measureHeight: (h) => `Height: ${h} m`,
+    measureWindows: (c) => `${c} window(s)`, measureDoors: (c) => `${c} door(s)`,
+    measureNetWall: 'Net wall area:',
+    colDescription: 'Description', colType: 'Type', colQty: 'Qty.', colUnitPrice: 'Unit price', colAmount: 'Amount',
+    noEntries: 'No entries in this section.', generalItems: 'General items',
+    netTotal: 'Net total', vatLine: (r) => `VAT (${r}%)`, grossTotal: 'Gross total',
+    signContractor: 'Contractor signature', signClient: 'Client signature',
+    footerValidUntil: 'Offer valid until:', footerPaymentDays: 'Payment due:',
+    footerPaymentDaysUnit: 'days after completion', footerDeposit: 'Deposit:',
+    footerDepositSuffix: 'upon acceptance', footerWarranty: 'Warranty:',
+    footerWarrantyUnit: 'month(s)', footerTerms: 'Attached T&C:',
+    typeMaterial: 'Material', typeLabour: 'Labour', typeEquipment: 'Equipment', typeTransport: 'Transport', typeOther: 'Other',
+  },
+  de: {
+    docTitle: 'ANGEBOT', labelNumber: 'Nr.:', labelDate: 'Datum:', labelValidUntil: 'Gültig bis:',
+    labelStartDate: 'Beginn:', labelEndDate: 'Ende:', clientSection: 'Auftraggeber',
+    noClient: 'Kein Auftraggeber angegeben.', taxPrefix: 'Steuernummer:',
+    sectionNum: (n) => `Abschnitt ${n}`, subtotal: 'Zwischensumme',
+    measureFloor: 'Boden:', measureHeight: (h) => `Höhe: ${h} m`,
+    measureWindows: (c) => `${c} Fenster`, measureDoors: (c) => `${c} Tür(en)`,
+    measureNetWall: 'Nettowandfläche:',
+    colDescription: 'Bezeichnung', colType: 'Typ', colQty: 'Menge', colUnitPrice: 'Einzelpreis', colAmount: 'Betrag',
+    noEntries: 'Keine Positionen in diesem Abschnitt.', generalItems: 'Allgemeine Positionen',
+    netTotal: 'Nettobetrag', vatLine: (r) => `MwSt. (${r}%)`, grossTotal: 'Bruttobetrag',
+    signContractor: 'Unterschrift Auftragnehmer', signClient: 'Unterschrift Auftraggeber',
+    footerValidUntil: 'Angebot gültig bis:', footerPaymentDays: 'Zahlungsfrist:',
+    footerPaymentDaysUnit: 'Tage nach Fertigstellung', footerDeposit: 'Anzahlung:',
+    footerDepositSuffix: 'bei Auftragserteilung', footerWarranty: 'Garantie:',
+    footerWarrantyUnit: 'Monat(e)', footerTerms: 'Anhang AGB:',
+    typeMaterial: 'Material', typeLabour: 'Arbeit', typeEquipment: 'Gerätemiete', typeTransport: 'Transport', typeOther: 'Sonstiges',
+  },
 };
 
 const ENTRY_COLORS = {
@@ -39,11 +88,6 @@ const ENTRY_COLORS = {
   transport: '#7c3aed',
   other:     '#475569',
 };
-
-function formatHUF(n) {
-  const num = Number(n) || 0;
-  return num.toLocaleString('hu-HU') + ' Ft';
-}
 
 function formatDate(str) {
   if (!str) return '';
@@ -56,7 +100,7 @@ function fmtM2(v) {
   return Number(v).toFixed(2).replace('.', ',') + ' m²';
 }
 
-function getMeasurementChips(section) {
+function getMeasurementChips(section, tr) {
   const w    = Number(section.width_m);
   const l    = Number(section.length_m);
   const h    = Number(section.height_m) || 0;
@@ -69,11 +113,11 @@ function getMeasurementChips(section) {
   const netWall   = grossWall != null ? Math.max(0, grossWall - openings) : null;
 
   return [
-    floor     != null && `Padló: ${fmtM2(floor)}`,
-    h > 0             && `Magasság: ${h} m`,
-    wins > 0          && `${wins} ablak`,
-    doors > 0         && `${doors} ajtó`,
-    netWall   != null && `Falfelület (nettó): ${fmtM2(netWall)}`,
+    floor     != null && `${tr.measureFloor} ${fmtM2(floor)}`,
+    h > 0             && tr.measureHeight(h),
+    wins > 0          && tr.measureWindows(wins),
+    doors > 0         && tr.measureDoors(doors),
+    netWall   != null && `${tr.measureNetWall} ${fmtM2(netWall)}`,
   ].filter(Boolean);
 }
 
@@ -162,23 +206,24 @@ const s = StyleSheet.create({
   footerText: { fontSize: 7.5, color: LIGHT, lineHeight: 1.5 },
 });
 
-function TypeBadge({ type }) {
-  const label = ENTRY_LABELS[type] || 'Egyéb';
+function TypeBadge({ type, tr }) {
+  const labelKey = { material: 'typeMaterial', labour: 'typeLabour', equipment: 'typeEquipment', transport: 'typeTransport', other: 'typeOther' };
+  const label = tr[labelKey[type]] || tr.typeOther;
   const color = ENTRY_COLORS[type] || ENTRY_COLORS.other;
   return (
     <Text style={[s.typeBadge, { color, backgroundColor: color + '18' }]}>{label}</Text>
   );
 }
 
-function SectionBlock({ section, entries, index, accentColor }) {
+function SectionBlock({ section, entries, index, accentColor, tr, fmtMoney }) {
   const sectionTotal = entries.reduce((acc, e) => acc + Number(e.amount_huf || 0), 0);
-  const chips = getMeasurementChips(section);
+  const chips = getMeasurementChips(section, tr);
 
   return (
     <View style={s.sectionWrap}>
       <View style={[s.sectionHdr, { borderLeftColor: accentColor }]} wrap={false}>
         <View style={{ flex: 1 }}>
-          <Text style={[s.sectionNum, { color: accentColor }]}>{index + 1}. szakasz</Text>
+          <Text style={[s.sectionNum, { color: accentColor }]}>{tr.sectionNum(index + 1)}</Text>
           <Text style={s.sectionName}>{section.name}</Text>
           {chips.length > 0 && (
             <View style={s.chipRow}>
@@ -189,8 +234,8 @@ function SectionBlock({ section, entries, index, accentColor }) {
         </View>
         {sectionTotal > 0 && (
           <View style={s.sectionSubtotal}>
-            <Text style={s.subtotalLabel}>Részösszeg</Text>
-            <Text style={s.subtotalVal}>{formatHUF(sectionTotal)}</Text>
+            <Text style={s.subtotalLabel}>{tr.subtotal}</Text>
+            <Text style={s.subtotalVal}>{fmtMoney(sectionTotal)}</Text>
           </View>
         )}
       </View>
@@ -198,11 +243,11 @@ function SectionBlock({ section, entries, index, accentColor }) {
       {entries.length > 0 ? (
         <View style={s.table}>
           <View style={s.tableHead}>
-            <Text style={s.thDesc}>Megnevezés</Text>
-            <Text style={s.thType}>Típus</Text>
-            <Text style={s.thQty}>Menny.</Text>
-            <Text style={s.thUnit}>Egységár</Text>
-            <Text style={s.thAmt}>Összeg</Text>
+            <Text style={s.thDesc}>{tr.colDescription}</Text>
+            <Text style={s.thType}>{tr.colType}</Text>
+            <Text style={s.thQty}>{tr.colQty}</Text>
+            <Text style={s.thUnit}>{tr.colUnitPrice}</Text>
+            <Text style={s.thAmt}>{tr.colAmount}</Text>
           </View>
           {entries.map((e, i) => (
             <View key={e.id} style={i % 2 === 0 ? s.trEven : s.trOdd} wrap={false}>
@@ -210,23 +255,29 @@ function SectionBlock({ section, entries, index, accentColor }) {
                 <Text style={s.tdDescMain}>{e.work_description}</Text>
                 {e.notes ? <Text style={s.tdDescNote}>{e.notes}</Text> : null}
               </View>
-              <View style={s.tdType}><TypeBadge type={e.entry_type} /></View>
+              <View style={s.tdType}><TypeBadge type={e.entry_type} tr={tr} /></View>
               <View style={s.tdQty}><Text>{e.quantity != null ? `${e.quantity} ${e.unit || 'db'}` : '—'}</Text></View>
-              <View style={s.tdUnit}><Text>{e.unit_price != null ? formatHUF(e.unit_price) : '—'}</Text></View>
-              <View style={s.tdAmt}><Text>{formatHUF(e.amount_huf)}</Text></View>
+              <View style={s.tdUnit}><Text>{e.unit_price != null ? fmtMoney(e.unit_price) : '—'}</Text></View>
+              <View style={s.tdAmt}><Text>{fmtMoney(e.amount_huf)}</Text></View>
             </View>
           ))}
         </View>
       ) : (
         <View style={s.emptySection}>
-          <Text>Nincsenek tételek ebben a szakaszban.</Text>
+          <Text>{tr.noEntries}</Text>
         </View>
       )}
     </View>
   );
 }
 
-export function OfferPdfTemplate({ quote, client, sections, allEntries, profile, accentColor = DEFAULT_ACCENT }) {
+export function OfferPdfTemplate({ quote, client, sections, allEntries, profile, accentColor = DEFAULT_ACCENT, locale = 'hu' }) {
+  const tr = PDF_TR[locale] || PDF_TR.hu;
+  const fmtMoney = (n) => {
+    const num = Number(n) || 0;
+    return num.toLocaleString('hu-HU') + ' Ft';
+  };
+
   const offerTerms      = quote.offer_terms_text  || null;
   const validUntil      = quote.valid_until ? formatDate(quote.valid_until) : null;
   const termsPdfName    = profile.terms_pdf_name  || null;
@@ -261,18 +312,18 @@ export function OfferPdfTemplate({ quote, client, sections, allEntries, profile,
                   {profile.street ? `, ${[profile.street, profile.street_number].filter(Boolean).join(' ')}` : ''}
                 </Text>
               ) : null}
-              {profile.tax_number   ? <Text style={[s.senderSub, { marginTop: 3 }]}>Adószám: {profile.tax_number}</Text> : null}
+              {profile.tax_number   ? <Text style={[s.senderSub, { marginTop: 3 }]}>{tr.taxPrefix} {profile.tax_number}</Text> : null}
               {profile.phone        ? <Text style={s.senderSub}>{profile.phone}</Text> : null}
               {profile.bank_account ? <Text style={s.senderSub}>{profile.bank_account}{profile.bank_name ? ` · ${profile.bank_name}` : ''}</Text> : null}
             </View>
             <View style={{ alignItems: 'flex-end' }}>
-              <Text style={[s.badgeTitle, { color: accentColor }]}>AJÁNLAT</Text>
+              <Text style={[s.badgeTitle, { color: accentColor }]}>{tr.docTitle}</Text>
               <Text style={s.badgeMeta}>
-                {quote.offer_number ? `Szám: ${quote.offer_number}\n` : ''}
-                {'Kelt: '}{formatDate(quote.created_at?.split('T')[0])}
-                {validUntil ? `\nÉrvényes: ${validUntil}` : ''}
-                {quote.start_date ? `\nKezdés: ${formatDate(quote.start_date)}` : ''}
-                {quote.end_date   ? `\nBefejezés: ${formatDate(quote.end_date)}` : ''}
+                {quote.offer_number ? `${tr.labelNumber} ${quote.offer_number}\n` : ''}
+                {tr.labelDate}{' '}{formatDate(quote.created_at?.split('T')[0])}
+                {validUntil ? `\n${tr.labelValidUntil} ${validUntil}` : ''}
+                {quote.start_date ? `\n${tr.labelStartDate} ${formatDate(quote.start_date)}` : ''}
+                {quote.end_date   ? `\n${tr.labelEndDate} ${formatDate(quote.end_date)}` : ''}
               </Text>
             </View>
           </View>
@@ -282,7 +333,7 @@ export function OfferPdfTemplate({ quote, client, sections, allEntries, profile,
           {/* Client + offer title */}
           <View style={s.clientRow}>
             <View style={{ flex: 1 }}>
-              <Text style={s.clientLabel}>Megrendelő</Text>
+              <Text style={s.clientLabel}>{tr.clientSection}</Text>
               {client ? (
                 <>
                   <Text style={s.clientName}>{client.name}</Text>
@@ -291,7 +342,7 @@ export function OfferPdfTemplate({ quote, client, sections, allEntries, profile,
                   {client.email   ? <Text style={s.clientText}>{client.email}</Text>   : null}
                 </>
               ) : (
-                <Text style={[s.clientText, { fontStyle: 'italic', color: LIGHT }]}>Nincs megrendelő megadva.</Text>
+                <Text style={[s.clientText, { fontStyle: 'italic', color: LIGHT }]}>{tr.noClient}</Text>
               )}
             </View>
             <View style={{ flex: 1, alignItems: 'flex-end' }}>
@@ -316,6 +367,8 @@ export function OfferPdfTemplate({ quote, client, sections, allEntries, profile,
               entries={sortedEntries.filter(e => e.section_id === section.id)}
               index={i}
               accentColor={accentColor}
+              tr={tr}
+              fmtMoney={fmtMoney}
             />
           ))}
 
@@ -323,15 +376,15 @@ export function OfferPdfTemplate({ quote, client, sections, allEntries, profile,
           {unsectioned.length > 0 && (
             <View style={s.sectionWrap}>
               <View style={[s.sectionHdr, { borderLeftColor: LIGHT }]}>
-                <Text style={s.sectionName}>Általános tételek</Text>
+                <Text style={s.sectionName}>{tr.generalItems}</Text>
               </View>
               <View style={s.table}>
                 <View style={s.tableHead}>
-                  <Text style={s.thDesc}>Megnevezés</Text>
-                  <Text style={s.thType}>Típus</Text>
-                  <Text style={s.thQty}>Menny.</Text>
-                  <Text style={s.thUnit}>Egységár</Text>
-                  <Text style={s.thAmt}>Összeg</Text>
+                  <Text style={s.thDesc}>{tr.colDescription}</Text>
+                  <Text style={s.thType}>{tr.colType}</Text>
+                  <Text style={s.thQty}>{tr.colQty}</Text>
+                  <Text style={s.thUnit}>{tr.colUnitPrice}</Text>
+                  <Text style={s.thAmt}>{tr.colAmount}</Text>
                 </View>
                 {unsectioned.map((e, i) => (
                   <View key={e.id} style={i % 2 === 0 ? s.trEven : s.trOdd} wrap={false}>
@@ -339,10 +392,10 @@ export function OfferPdfTemplate({ quote, client, sections, allEntries, profile,
                       <Text style={s.tdDescMain}>{e.work_description}</Text>
                       {e.notes ? <Text style={s.tdDescNote}>{e.notes}</Text> : null}
                     </View>
-                    <View style={s.tdType}><TypeBadge type={e.entry_type} /></View>
+                    <View style={s.tdType}><TypeBadge type={e.entry_type} tr={tr} /></View>
                     <View style={s.tdQty}><Text>{e.quantity != null ? `${e.quantity} ${e.unit || 'db'}` : '—'}</Text></View>
-                    <View style={s.tdUnit}><Text>{e.unit_price != null ? formatHUF(e.unit_price) : '—'}</Text></View>
-                    <View style={s.tdAmt}><Text>{formatHUF(e.amount_huf)}</Text></View>
+                    <View style={s.tdUnit}><Text>{e.unit_price != null ? fmtMoney(e.unit_price) : '—'}</Text></View>
+                    <View style={s.tdAmt}><Text>{fmtMoney(e.amount_huf)}</Text></View>
                   </View>
                 ))}
               </View>
@@ -353,25 +406,25 @@ export function OfferPdfTemplate({ quote, client, sections, allEntries, profile,
           <View style={s.totalsWrap}>
             <View style={s.totalsBox}>
               <View style={s.totalsRow}>
-                <Text style={s.totalsLabel}>Nettó összeg</Text>
-                <Text style={s.totalsVal}>{formatHUF(netTotal)}</Text>
+                <Text style={s.totalsLabel}>{tr.netTotal}</Text>
+                <Text style={s.totalsVal}>{fmtMoney(netTotal)}</Text>
               </View>
               {taxRate > 0 && (
                 <View style={s.totalsRow}>
-                  <Text style={s.totalsLabel}>ÁFA ({taxRate}%)</Text>
-                  <Text style={[s.totalsVal, { color: MUTED, fontWeight: 400 }]}>{formatHUF(taxAmount)}</Text>
+                  <Text style={s.totalsLabel}>{tr.vatLine(taxRate)}</Text>
+                  <Text style={[s.totalsVal, { color: MUTED, fontWeight: 400 }]}>{fmtMoney(taxAmount)}</Text>
                 </View>
               )}
               <View style={[s.totalsGross, { backgroundColor: accentColor }]}>
-                <Text style={s.totalsGrossLabel}>Bruttó összeg</Text>
-                <Text style={s.totalsGrossVal}>{formatHUF(grossTotal)}</Text>
+                <Text style={s.totalsGrossLabel}>{tr.grossTotal}</Text>
+                <Text style={s.totalsGrossVal}>{fmtMoney(grossTotal)}</Text>
               </View>
             </View>
           </View>
 
           {/* Signature */}
           <View style={s.sigGrid}>
-            {['Vállalkozó aláírása', 'Megrendelő aláírása'].map(label => (
+            {[tr.signContractor, tr.signClient].map(label => (
               <View key={label} style={s.sigItem}>
                 <View style={s.sigLine} />
                 <Text style={s.sigLabel}>{label}</Text>
@@ -382,11 +435,11 @@ export function OfferPdfTemplate({ quote, client, sections, allEntries, profile,
           {/* Footer */}
           {(validUntil || paymentDays || depositPct || warrantyMonths || termsPdfName || offerTerms) && (
             <View style={s.footerBox}>
-              {validUntil    && <Text style={s.footerText}>Az ajánlat érvényes: {validUntil}</Text>}
-              {paymentDays   && <Text style={s.footerText}>Fizetési határidő: {paymentDays} nap teljesítéstől{paymentMethod ? `, ${paymentMethod}` : ''}</Text>}
-              {depositPct    && <Text style={s.footerText}>Előleg: {depositPct}%{grossTotal > 0 ? ` (${formatHUF(Math.round(grossTotal * depositPct / 100))})` : ''} az ajánlat elfogadásakor</Text>}
-              {warrantyMonths && <Text style={s.footerText}>Garancia: {warrantyMonths} hónap</Text>}
-              {termsPdfName  && <Text style={s.footerText}>Mellékelt ÁSZF: {termsPdfName}</Text>}
+              {validUntil    && <Text style={s.footerText}>{tr.footerValidUntil} {validUntil}</Text>}
+              {paymentDays   && <Text style={s.footerText}>{tr.footerPaymentDays} {paymentDays} {tr.footerPaymentDaysUnit}{paymentMethod ? `, ${paymentMethod}` : ''}</Text>}
+              {depositPct    && <Text style={s.footerText}>{tr.footerDeposit} {depositPct}%{grossTotal > 0 ? ` (${fmtMoney(Math.round(grossTotal * depositPct / 100))})` : ''} {tr.footerDepositSuffix}</Text>}
+              {warrantyMonths && <Text style={s.footerText}>{tr.footerWarranty} {warrantyMonths} {tr.footerWarrantyUnit}</Text>}
+              {termsPdfName  && <Text style={s.footerText}>{tr.footerTerms} {termsPdfName}</Text>}
               {offerTerms    && <Text style={s.footerText}>{offerTerms}</Text>}
             </View>
           )}

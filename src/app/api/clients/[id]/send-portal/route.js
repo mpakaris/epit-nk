@@ -44,9 +44,10 @@ export async function POST(request, { params }) {
   const senderName = profile.display_name || user.email;
 
   const content = getEmailContent('portal_link_sent', locale, {
-    client_name: client.name,
-    portal_url:  portalUrl,
-    sender_name: senderName,
+    client_name:  client.name,
+    client_email: recipientEmail,
+    portal_url:   portalUrl,
+    sender_name:  senderName,
   });
 
   try {

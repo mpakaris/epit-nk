@@ -36,7 +36,7 @@ function SendPortalSheet({ client, portalUrl, onClose, t }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: email.trim() }),
       });
-      if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.error || 'Hiba'); }
+      if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.error || t('createError')); }
       setSent(true);
       setTimeout(onClose, 1600);
     } catch (err) {
@@ -172,28 +172,28 @@ function EditSheet({ client, collectives, onSave, onClose, t }) {
         {/* Scrollable fields */}
         <div style={{ overflowY: 'auto', flex: 1, padding: '14px 14px 110px' }}>
           <EField label={t('contactName')}>
-            <input type="text" value={name} onChange={e => setName(e.target.value)} placeholder="Horváth Béla" autoFocus style={FIELD_INPUT} />
+            <input type="text" value={name} onChange={e => setName(e.target.value)} placeholder={t('namePlaceholder')} autoFocus style={FIELD_INPUT} />
           </EField>
 
           <div style={{ display: 'flex', gap: 10, marginTop: 10 }}>
             <EField label={t('companyName')} style={{ flex: 1 }}>
-              <input type="text" value={company} onChange={e => setCompany(e.target.value)} placeholder="Fekete Kft." style={FIELD_INPUT} />
+              <input type="text" value={company} onChange={e => setCompany(e.target.value)} placeholder={t('companyPlaceholder')} style={FIELD_INPUT} />
             </EField>
             <EField label={t('taxNumber')} style={{ flex: 1 }}>
-              <input type="text" value={taxNum} onChange={e => setTaxNum(e.target.value)} placeholder="12345678-1-01" style={FIELD_INPUT} />
+              <input type="text" value={taxNum} onChange={e => setTaxNum(e.target.value)} placeholder={t('taxNumberPlaceholder')} style={FIELD_INPUT} />
             </EField>
           </div>
 
           <EField label={t('address')} style={{ marginTop: 10 }}>
-            <input type="text" value={address} onChange={e => setAddress(e.target.value)} placeholder="8600 Siófok, Fő utca 12." style={FIELD_INPUT} />
+            <input type="text" value={address} onChange={e => setAddress(e.target.value)} placeholder={t('addressPlaceholder')} style={FIELD_INPUT} />
           </EField>
 
           <div style={{ display: 'flex', gap: 10, marginTop: 10 }}>
             <EField label={t('phone')} style={{ flex: 1 }}>
-              <input type="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="+36 70 …" style={FIELD_INPUT} />
+              <input type="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder={t('phonePlaceholder')} style={FIELD_INPUT} />
             </EField>
             <EField label={t('email')} style={{ flex: 1 }}>
-              <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="email@example.com" style={FIELD_INPUT} />
+              <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder={t('emailPlaceholder')} style={FIELD_INPUT} />
             </EField>
           </div>
 
@@ -205,7 +205,7 @@ function EditSheet({ client, collectives, onSave, onClose, t }) {
           </div>
 
           <EField label={t('notes')} style={{ marginTop: 10 }}>
-            <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2} placeholder="Megjegyzés…" style={{ ...FIELD_INPUT, height: 'auto', paddingTop: 12, paddingBottom: 12, resize: 'none' }} />
+            <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2} placeholder={t('notesPlaceholder')} style={{ ...FIELD_INPUT, height: 'auto', paddingTop: 12, paddingBottom: 12, resize: 'none' }} />
           </EField>
 
           {/* GDPR */}
@@ -275,6 +275,14 @@ function SheetRow({ icon: d, label, onClick, danger, sub }) {
   );
 }
 
+function SH({ children }) {
+  return (
+    <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.55)', display: 'block', marginTop: 4 }}>
+      {children}
+    </span>
+  );
+}
+
 const QUOTE_STATUS = {
   draft:    { bg: '#F0F0F2', fg: '#2B3038' },
   sent:     { bg: '#EDE7FB', fg: '#4A2796' },
@@ -294,7 +302,7 @@ export default function ClientDetailMobile({ clientId, onClose }) {
   const navPrefix = isDemoMode ? '/demo' : '';
   const p = useCallback((path) => `${navPrefix}${path}`, [navPrefix]);
 
-  const [tab, setTab] = useState('q');
+  const [tab, setTab] = useState('s');
   const [mode, setMode] = useState(null); // 'menu' | 'del' | 'edit'
   const [showPortalEmail, setShowPortalEmail] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -348,9 +356,9 @@ export default function ClientDetailMobile({ clientId, onClose }) {
   };
 
   const TABS = [
+    { id: 's', label: `${t('detailTabSurveys')} (${clientSurveys.length})` },
     { id: 'q', label: `${t('detailTabQuotes')} (${clientQuotes.length})` },
     { id: 'p', label: `${t('detailTabProjects')} (${clientProjects.length})` },
-    { id: 's', label: `${t('detailTabSurveys')} (${clientSurveys.length})` },
   ];
 
   const shareCount = client.client_collective_shares?.length || 0;
@@ -392,11 +400,13 @@ export default function ClientDetailMobile({ clientId, onClose }) {
 
       <div style={{ padding: '16px 16px 100px', display: 'flex', flexDirection: 'column', gap: 12 }}>
 
+        <SH>{t('detailSectionOverview')}</SH>
         <div style={{ display: 'flex', gap: 10 }}>
           <StatCard label={t('detailTotalQuotes')} value={formatMoney(totalQuoteValue, userCurrency)} sub={t('detailQuotesCount', { count: clientQuotes.length })} />
           <StatCard label={t('detailInvoiced')} value={formatMoney(totalInvoices, userCurrency)} sub={t('detailProjectsCount', { count: clientProjects.length })} />
         </div>
 
+        <SH>{t('detailSectionContact')}</SH>
         <div style={{ borderRadius: 26, background: '#fff', boxShadow: CARD_SHADOW, padding: '8px 14px' }}>
           {client.phone && (
             <a href={`tel:${client.phone}`} style={{ display: 'flex', alignItems: 'center', gap: 12, minHeight: 44, textDecoration: 'none' }}>
@@ -448,6 +458,7 @@ export default function ClientDetailMobile({ clientId, onClose }) {
           )}
         </div>
 
+        <SH>{t('detailSectionDocuments')}</SH>
         <div style={{ display: 'flex', gap: 6, background: 'rgba(255,255,255,0.12)', padding: 4, borderRadius: 28 }}>
           {TABS.map(tb => (
             <button key={tb.id} onClick={() => setTab(tb.id)} aria-pressed={tab === tb.id} style={{ flex: 1, minWidth: 0, height: 48, border: 0, borderRadius: 22, background: tab === tb.id ? '#fff' : 'transparent', color: tab === tb.id ? CLIENTS_INK : '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', padding: '0 4px' }}>
@@ -507,13 +518,24 @@ export default function ClientDetailMobile({ clientId, onClose }) {
           )))}
         </div>
 
-        {/* Portal card */}
+        <SH>{t('detailSectionPortal')}</SH>
         <div style={{ borderRadius: 26, background: CLIENTS_TINT, padding: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <span style={{ flexShrink: 0, width: 40, height: 40, borderRadius: 13, background: CLIENTS_BG, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden><path d="M12 3a9 9 0 100 18 9 9 0 000-18zM3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18" /></svg>
             </span>
             <span style={{ flex: 1, fontSize: 16, fontWeight: 700, color: CLIENTS_INK }}>{t('clientPortalLabel')}</span>
+          </div>
+
+          {/* How it works */}
+          <div style={{ background: 'rgba(184,69,107,0.08)', borderRadius: 14, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: CLIENTS_INK }}>{t('portalHowItWorks')}</span>
+            {[t('portalStep1'), t('portalStep2'), t('portalStep3')].map((step, i) => (
+              <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                <span style={{ flexShrink: 0, width: 20, height: 20, borderRadius: 10, background: CLIENTS_BG, color: '#fff', fontSize: 11, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: 1 }}>{i + 1}</span>
+                <span style={{ fontSize: 13, color: CLIENTS_INK, lineHeight: 1.45, fontWeight: 500 }}>{step}</span>
+              </div>
+            ))}
           </div>
           {client.email ? (
             <>

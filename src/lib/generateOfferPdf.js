@@ -22,7 +22,7 @@ export async function generateOfferPdf(quoteId, userId, accentColor = '#2563eb')
       .single(),
     admin
       .from('profiles')
-      .select('display_name, first_name, last_name, company_name, street, street_number, zip, city, tax_number')
+      .select('display_name, first_name, last_name, company_name, street, street_number, zip, city, tax_number, locale')
       .eq('id', userId)
       .single(),
   ]);
@@ -41,7 +41,7 @@ export async function generateOfferPdf(quoteId, userId, accentColor = '#2563eb')
   const allEntries = sections.flatMap(s => s.quote_entries || []);
 
   const buffer = await renderToBuffer(
-    React.createElement(OfferPdfTemplate, { quote, client, sections, allEntries, profile, accentColor })
+    React.createElement(OfferPdfTemplate, { quote, client, sections, allEntries, profile, accentColor, locale: profile.locale || 'hu' })
   );
 
   return Buffer.from(buffer);

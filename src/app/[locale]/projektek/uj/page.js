@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Link as LocaleLink } from '@/navigation';
 import { useRouter } from 'next/navigation';
@@ -22,8 +22,18 @@ export default function NewProjectPage() {
   const isMobile = useMobile();
   const {
     loading, dataReady, clients, quotes, effectiveCollectives,
-    currentUser, isDemoMode, refreshSupabaseData,
+    activeCollectiveId, currentUser, isDemoMode, refreshSupabaseData,
   } = useApp();
+
+  // When in collective context, AppContext.quotes only has collective quotes.
+  const [personalQuotes, setPersonalQuotes] = useState(null);
+  useEffect(() => {
+    if (!activeCollectiveId) return;
+    fetch('/api/quotes')
+      .then(r => r.ok ? r.json() : null)
+      .then(d => d?.quotes && setPersonalQuotes(d.quotes))
+      .catch(() => {});
+  }, [activeCollectiveId]);
 
   const navPrefix = isDemoMode ? '/demo' : '';
   const AppLink = isDemoMode ? Link : LocaleLink;
@@ -49,25 +59,34 @@ export default function NewProjectPage() {
 
   const selectedCollective = collectives.find(c => c.id === collectiveId);
   const isContributorCollective = !!(collectiveId && selectedCollective?.role !== 'owner' && selectedCollective?.role !== 'admin');
-  const selectedQuote      = (quotes || []).find(q => q.id === quoteId);
+
+  // Merge personal quotes (fetched separately when in collective context) with AppContext quotes
+  const allPickerQuotes = (() => {
+    if (!activeCollectiveId || !personalQuotes) return quotes || [];
+    const collectiveQuotes = (quotes || []).filter(q => q.collective_id);
+    return [...personalQuotes, ...collectiveQuotes];
+  })();
+
+  const selectedQuote = allPickerQuotes.find(q => q.id === quoteId);
 
   const norm = s => (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
   const filteredQuotes = quoteSearch
-    ? (quotes || []).filter(q => norm(q.title).includes(norm(quoteSearch)) || norm(q.location || '').includes(norm(quoteSearch)))
-    : (quotes || []);
+    ? allPickerQuotes.filter(q => norm(q.title).includes(norm(quoteSearch)) || norm(q.location || '').includes(norm(quoteSearch)))
+    : allPickerQuotes;
 
   const handleQuoteLink = (id) => {
     setQuoteId(id);
     setQuoteSearch('');
     setShowQuoteDropdown(false);
     if (!id) return;
-    const q = (quotes || []).find(x => x.id === id);
+    const q = allPickerQuotes.find(x => x.id === id);
     if (!q) return;
-    if (!name && q.title)       setName(q.title);
-    if (!clientId && q.client_id) setClientId(q.client_id);
-    if (!startDate && q.start_date) setStartDate(q.start_date);
-    if (!endDate && q.end_date) setEndDate(q.end_date);
-    if (q.collective_id)         setCollectiveId(q.collective_id);
+    if (!name && q.title)                 setName(q.title);
+    if (!clientId && q.client_id)         setClientId(q.client_id);
+    if (!startDate && q.start_date)       setStartDate(q.start_date);
+    if (!endDate && q.end_date)           setEndDate(q.end_date);
+    if (!description && q.description)   setDescription(q.description);
+    if (q.collective_id)                  setCollectiveId(q.collective_id);
   };
 
   const clearQuote = () => {
@@ -218,14 +237,14 @@ export default function NewProjectPage() {
               <Search size={15} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', pointerEvents: 'none' }} />
               <input
                 type="text" className="form-control" style={{ paddingLeft: '2.25rem' }}
-                placeholder={(quotes || []).length === 0 ? 'Még nincs ajánlat' : 'Keresés az ajánlatok között…'}
-                disabled={(quotes || []).length === 0}
+                placeholder={allPickerQuotes.length === 0 ? 'Még nincs ajánlat' : 'Keresés az ajánlatok között…'}
+                disabled={allPickerQuotes.length === 0}
                 value={quoteSearch}
                 onChange={e => { setQuoteSearch(e.target.value); setShowQuoteDropdown(true); }}
                 onFocus={() => setShowQuoteDropdown(true)}
                 onBlur={() => setTimeout(() => setShowQuoteDropdown(false), 150)}
               />
-              {showQuoteDropdown && (quotes || []).length > 0 && (
+              {showQuoteDropdown && allPickerQuotes.length > 0 && (
                 <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 50, background: '#fff', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', boxShadow: '0 4px 16px rgba(0,0,0,0.1)', maxHeight: '220px', overflowY: 'auto', marginTop: '0.25rem' }}>
                   {filteredQuotes.length === 0 ? (
                     <div style={{ padding: '0.85rem 1rem', color: 'var(--text-muted)', fontSize: '0.82rem' }}>Nincs találat</div>

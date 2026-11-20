@@ -3,6 +3,25 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { logAudit } from '@/lib/audit';
 import { isEffectivePremium, checkPersonalLimit } from '@/lib/subscriptionLimits';
 
+// Returns the caller's personal quotes (collective_id IS NULL) regardless of active workspace.
+// Used by the project/survey new-form pickers when the user is in collective context.
+export async function GET(request) {
+  const supabase = await createClient();
+  const { data: { user }, error: authErr } = await supabase.auth.getUser();
+  if (authErr || !user) return Response.json({ error: 'Unauthenticated' }, { status: 401 });
+
+  const admin = createAdminClient();
+  const { data: quotes } = await admin
+    .from('quotes')
+    .select('id, title, location, work_type, description, status, collective_id, client_id, created_at, start_date, end_date, deleted_at')
+    .eq('owner_id', user.id)
+    .is('collective_id', null)
+    .is('deleted_at', null)
+    .order('created_at', { ascending: false });
+
+  return Response.json({ quotes: quotes || [] });
+}
+
 export async function POST(request) {
   const supabase = await createClient();
   const { data: { user }, error: authErr } = await supabase.auth.getUser();

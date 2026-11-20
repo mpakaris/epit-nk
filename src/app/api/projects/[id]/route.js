@@ -135,6 +135,7 @@ export async function PATCH(request, { params }) {
   const statusReason = typeof fields.status_reason === 'string' ? fields.status_reason.trim() : null;
 
   const allowed = ['name', 'description', 'start_date', 'end_date', 'client_id', 'closed_at', 'archived_at', 'status',
+                   'cost_target',
                    ...(isOwner || isSuperAdmin || isKollektivOwner ? ['collective_id'] : [])];
   const update = {};
   for (const k of allowed) if (k in fields) update[k] = fields[k];

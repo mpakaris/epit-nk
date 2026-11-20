@@ -168,13 +168,22 @@ export default function ProjectsListMobile() {
     projects = [], invoices = [], labourEntries = [], clients = [],
     currentUser, loading, dataReady, deleteProject, isDemoMode,
     collectives: userMemberships = [], userCurrency, quotes = [],
-    activeCollectiveId,
+    activeCollectiveId, setActiveContext,
   } = useApp();
 
   const navPrefix = isDemoMode ? '/demo' : '';
   const p = useCallback((path) => `${navPrefix}${path}`, [navPrefix]);
 
   const [activePodId, setActivePodId] = useState(() => activeCollectiveId || 'personal');
+  const [podSwitching, setPodSwitching] = useState(false);
+
+  const handleActivate = useCallback(async (id) => {
+    if (id === activePodId || podSwitching) return;
+    setActivePodId(id);
+    setPodSwitching(true);
+    try { await setActiveContext(id === 'personal' ? null : id); } catch { /* non-fatal */ }
+    finally { setPodSwitching(false); }
+  }, [activePodId, podSwitching, setActiveContext]);
   const [activeSheet, setActiveSheet] = useState(null);
   const [selectedProject, setSelectedProject] = useState(null);
   const [filterState, setFilterState] = useState('all');
@@ -189,13 +198,13 @@ export default function ProjectsListMobile() {
   const personalCount = useMemo(() => liveProjects.filter(pr => !pr.collective_id).length, [liveProjects]);
   const atBasicLimit = !isPremium && personalCount >= 1;
 
-  // Workspace-grouped pods
+  // Workspace-grouped pods — only the active pod has real data loaded; others show null count
   const workspaces = useMemo(() => [
     {
       id: 'personal', isPersonal: true,
       name: tPods('personal'), sub: tPods('personalSub'),
       projects: liveProjects.filter(pr => !pr.collective_id),
-      count: liveProjects.filter(pr => !pr.collective_id).length,
+      count: activePodId === 'personal' ? liveProjects.filter(pr => !pr.collective_id).length : null,
       canCreate: !atBasicLimit,
     },
     ...(userMemberships || []).map(col => ({
@@ -204,10 +213,10 @@ export default function ProjectsListMobile() {
       name: col.name,
       sub: `${tPods('collective')} · ${col.role === 'owner' ? tPods('roleOwner') : col.role === 'admin' ? tPods('roleAdmin') : tPods('roleContributor')}`,
       projects: liveProjects.filter(pr => pr.collective_id === col.collective_id),
-      count: liveProjects.filter(pr => pr.collective_id === col.collective_id).length,
+      count: activePodId === col.collective_id ? liveProjects.filter(pr => pr.collective_id === col.collective_id).length : null,
       canCreate: col.role === 'owner' || col.role === 'admin',
     })),
-  ], [liveProjects, userMemberships, atBasicLimit, tPods]);
+  ], [liveProjects, userMemberships, atBasicLimit, tPods, activePodId]);
 
   const getMemberRole = useCallback((project) => {
     if (!project?.collective_id) return null;
@@ -290,7 +299,8 @@ export default function ProjectsListMobile() {
         <PodList
           workspaces={workspaces}
           activeId={activePodId}
-          onActivate={setActivePodId}
+          onActivate={handleActivate}
+          loadingId={podSwitching ? activePodId : null}
           moduleLabel={t('pageTitle')}
           onBack={() => router.push(p('/dashboard'))}
           renderBody={(ws) => {

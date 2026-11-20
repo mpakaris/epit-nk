@@ -688,29 +688,139 @@ const TEMPLATES_I18N = {
     bodyHtml: {
       hu: () => `
 <p style="margin:0 0 20px;font-size:15px;color:#334155;line-height:1.6;">Kedves <strong>{{client_name}}</strong>!</p>
-<p style="margin:0 0 24px;font-size:14px;color:#64748b;line-height:1.7;">Az alábbi linken elérheti saját ügyfélportálját, ahol megtekintheti az Önnek küldött árajánlatokat és projekteket.</p>
+<p style="margin:0 0 20px;font-size:14px;color:#64748b;line-height:1.7;">
+  Az alábbi linken elérheti saját ügyfélportálját, ahol megtekintheti az Önnek küldött árajánlatokat és projekteket.
+</p>
+
+<table style="width:100%;border-collapse:collapse;margin:0 0 24px;">
+  <tr>
+    <td style="padding:10px 14px;vertical-align:top;width:32px;">
+      <div style="width:28px;height:28px;border-radius:50%;background:#1e293b;color:#fff;font-size:13px;font-weight:800;text-align:center;line-height:28px;flex-shrink:0;">1</div>
+    </td>
+    <td style="padding:10px 0;font-size:14px;color:#334155;line-height:1.6;border-bottom:1px solid #f1f5f9;">
+      Kattintson az alábbi gombra a portál megnyitásához.
+    </td>
+  </tr>
+  <tr>
+    <td style="padding:10px 14px;vertical-align:top;">
+      <div style="width:28px;height:28px;border-radius:50%;background:#1e293b;color:#fff;font-size:13px;font-weight:800;text-align:center;line-height:28px;">2</div>
+    </td>
+    <td style="padding:10px 0;font-size:14px;color:#334155;line-height:1.6;border-bottom:1px solid #f1f5f9;">
+      Adja meg email-címét: <strong style="color:#1e293b;font-family:monospace;">{{client_email}}</strong>
+    </td>
+  </tr>
+  <tr>
+    <td style="padding:10px 14px;vertical-align:top;">
+      <div style="width:28px;height:28px;border-radius:50%;background:#1e293b;color:#fff;font-size:13px;font-weight:800;text-align:center;line-height:28px;">3</div>
+    </td>
+    <td style="padding:10px 0;font-size:14px;color:#334155;line-height:1.6;border-bottom:1px solid #f1f5f9;">
+      Kap egy <strong>6 jegyű egyszer használatos kódot</strong> emailben.
+    </td>
+  </tr>
+  <tr>
+    <td style="padding:10px 14px;vertical-align:top;">
+      <div style="width:28px;height:28px;border-radius:50%;background:#2563eb;color:#fff;font-size:13px;font-weight:800;text-align:center;line-height:28px;">4</div>
+    </td>
+    <td style="padding:10px 0;font-size:14px;color:#334155;line-height:1.6;">
+      Írja be a kódot — máris megtekintheti az árajánlatokat és projekteket.
+    </td>
+  </tr>
+</table>
+
 <div style="margin:0 0 28px;padding:20px;background:#f0f9ff;border:1px solid #bae6fd;border-radius:12px;text-align:center;">
-  <p style="margin:0 0 14px;font-size:13px;color:#0369a1;font-weight:700;">📋 Ügyfélportál</p>
   <a href="{{portal_url}}" style="display:inline-block;padding:14px 32px;background:#2563eb;color:#fff;font-size:15px;font-weight:800;border-radius:10px;text-decoration:none;">Portál megnyitása →</a>
-  <p style="margin:14px 0 0;font-size:12px;color:#64748b;line-height:1.5;">Belépéshez csak az e-mail-cím szükséges – regisztráció nem szükséges.</p>
 </div>
 <p style="margin:0;font-size:14px;color:#334155;font-weight:700;">{{sender_name}}</p>`,
+
       de: () => `
 <p style="margin:0 0 20px;font-size:15px;color:#334155;line-height:1.6;">Sehr geehrte/r <strong>{{client_name}}</strong>,</p>
-<p style="margin:0 0 24px;font-size:14px;color:#64748b;line-height:1.7;">Über den folgenden Link können Sie Ihr persönliches Kundenportal aufrufen, um Angebote und Projekte einzusehen.</p>
+<p style="margin:0 0 20px;font-size:14px;color:#64748b;line-height:1.7;">
+  Über den folgenden Link können Sie Ihr persönliches Kundenportal aufrufen, um Angebote und Projekte einzusehen.
+</p>
+
+<table style="width:100%;border-collapse:collapse;margin:0 0 24px;">
+  <tr>
+    <td style="padding:10px 14px;vertical-align:top;width:32px;">
+      <div style="width:28px;height:28px;border-radius:50%;background:#1e293b;color:#fff;font-size:13px;font-weight:800;text-align:center;line-height:28px;">1</div>
+    </td>
+    <td style="padding:10px 0;font-size:14px;color:#334155;line-height:1.6;border-bottom:1px solid #f1f5f9;">
+      Klicken Sie auf die Schaltfläche unten, um das Portal zu öffnen.
+    </td>
+  </tr>
+  <tr>
+    <td style="padding:10px 14px;vertical-align:top;">
+      <div style="width:28px;height:28px;border-radius:50%;background:#1e293b;color:#fff;font-size:13px;font-weight:800;text-align:center;line-height:28px;">2</div>
+    </td>
+    <td style="padding:10px 0;font-size:14px;color:#334155;line-height:1.6;border-bottom:1px solid #f1f5f9;">
+      Geben Sie Ihre E-Mail-Adresse ein: <strong style="color:#1e293b;font-family:monospace;">{{client_email}}</strong>
+    </td>
+  </tr>
+  <tr>
+    <td style="padding:10px 14px;vertical-align:top;">
+      <div style="width:28px;height:28px;border-radius:50%;background:#1e293b;color:#fff;font-size:13px;font-weight:800;text-align:center;line-height:28px;">3</div>
+    </td>
+    <td style="padding:10px 0;font-size:14px;color:#334155;line-height:1.6;border-bottom:1px solid #f1f5f9;">
+      Sie erhalten einen <strong>6-stelligen Einmal-Code</strong> per E-Mail.
+    </td>
+  </tr>
+  <tr>
+    <td style="padding:10px 14px;vertical-align:top;">
+      <div style="width:28px;height:28px;border-radius:50%;background:#2563eb;color:#fff;font-size:13px;font-weight:800;text-align:center;line-height:28px;">4</div>
+    </td>
+    <td style="padding:10px 0;font-size:14px;color:#334155;line-height:1.6;">
+      Geben Sie den Code ein — und Sie können Ihre Angebote und Projekte einsehen.
+    </td>
+  </tr>
+</table>
+
 <div style="margin:0 0 28px;padding:20px;background:#f0f9ff;border:1px solid #bae6fd;border-radius:12px;text-align:center;">
-  <p style="margin:0 0 14px;font-size:13px;color:#0369a1;font-weight:700;">📋 Kundenportal</p>
   <a href="{{portal_url}}" style="display:inline-block;padding:14px 32px;background:#2563eb;color:#fff;font-size:15px;font-weight:800;border-radius:10px;text-decoration:none;">Kundenportal öffnen →</a>
-  <p style="margin:14px 0 0;font-size:12px;color:#64748b;line-height:1.5;">Für den Zugang benötigen Sie nur Ihre E-Mail-Adresse – keine Registrierung erforderlich.</p>
 </div>
 <p style="margin:0;font-size:14px;color:#334155;font-weight:700;">{{sender_name}}</p>`,
+
       en: () => `
 <p style="margin:0 0 20px;font-size:15px;color:#334155;line-height:1.6;">Dear <strong>{{client_name}}</strong>,</p>
-<p style="margin:0 0 24px;font-size:14px;color:#64748b;line-height:1.7;">You can access your personal client portal at the link below to view your quotes and projects.</p>
+<p style="margin:0 0 20px;font-size:14px;color:#64748b;line-height:1.7;">
+  You can access your personal client portal at the link below to view your quotes and projects.
+</p>
+
+<table style="width:100%;border-collapse:collapse;margin:0 0 24px;">
+  <tr>
+    <td style="padding:10px 14px;vertical-align:top;width:32px;">
+      <div style="width:28px;height:28px;border-radius:50%;background:#1e293b;color:#fff;font-size:13px;font-weight:800;text-align:center;line-height:28px;">1</div>
+    </td>
+    <td style="padding:10px 0;font-size:14px;color:#334155;line-height:1.6;border-bottom:1px solid #f1f5f9;">
+      Click the button below to open the portal.
+    </td>
+  </tr>
+  <tr>
+    <td style="padding:10px 14px;vertical-align:top;">
+      <div style="width:28px;height:28px;border-radius:50%;background:#1e293b;color:#fff;font-size:13px;font-weight:800;text-align:center;line-height:28px;">2</div>
+    </td>
+    <td style="padding:10px 0;font-size:14px;color:#334155;line-height:1.6;border-bottom:1px solid #f1f5f9;">
+      Enter your email address: <strong style="color:#1e293b;font-family:monospace;">{{client_email}}</strong>
+    </td>
+  </tr>
+  <tr>
+    <td style="padding:10px 14px;vertical-align:top;">
+      <div style="width:28px;height:28px;border-radius:50%;background:#1e293b;color:#fff;font-size:13px;font-weight:800;text-align:center;line-height:28px;">3</div>
+    </td>
+    <td style="padding:10px 0;font-size:14px;color:#334155;line-height:1.6;border-bottom:1px solid #f1f5f9;">
+      You'll receive a <strong>6-digit one-time code</strong> by email.
+    </td>
+  </tr>
+  <tr>
+    <td style="padding:10px 14px;vertical-align:top;">
+      <div style="width:28px;height:28px;border-radius:50%;background:#2563eb;color:#fff;font-size:13px;font-weight:800;text-align:center;line-height:28px;">4</div>
+    </td>
+    <td style="padding:10px 0;font-size:14px;color:#334155;line-height:1.6;">
+      Enter the code — and you're in. View your quotes and projects instantly.
+    </td>
+  </tr>
+</table>
+
 <div style="margin:0 0 28px;padding:20px;background:#f0f9ff;border:1px solid #bae6fd;border-radius:12px;text-align:center;">
-  <p style="margin:0 0 14px;font-size:13px;color:#0369a1;font-weight:700;">📋 Client Portal</p>
   <a href="{{portal_url}}" style="display:inline-block;padding:14px 32px;background:#2563eb;color:#fff;font-size:15px;font-weight:800;border-radius:10px;text-decoration:none;">Open client portal →</a>
-  <p style="margin:14px 0 0;font-size:12px;color:#64748b;line-height:1.5;">Only your email address is needed to log in – no registration required.</p>
 </div>
 <p style="margin:0;font-size:14px;color:#334155;font-weight:700;">{{sender_name}}</p>`,
     },

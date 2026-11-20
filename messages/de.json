@@ -801,7 +801,19 @@
     "sendPortalSendBtn": "Senden",
     "sendPortalSending": "Wird gesendet...",
     "sendPortalSuccess": "E-Mail erfolgreich gesendet!",
-    "sendPortalEmailRequired": "E-Mail-Adresse ist erforderlich."
+    "sendPortalEmailRequired": "E-Mail-Adresse ist erforderlich.",
+    "detailSectionOverview": "Übersicht",
+    "detailSectionContact": "Kontakt",
+    "detailSectionDocuments": "Dokumente",
+    "detailSectionPortal": "Kundenportal",
+    "portalHowItWorks": "Wie meldet sich der Kunde an?",
+    "portalStep1": "Er öffnet den Portallink",
+    "portalStep2": "Er gibt seine E-Mail-Adresse ein",
+    "portalStep3": "Er erhält einen 6-stelligen Einmal-Code — damit meldet er sich an",
+    "companyPlaceholder": "Muster GmbH",
+    "taxNumberPlaceholder": "DE123456789",
+    "addressPlaceholder": "Musterstraße 12, 10115 Berlin",
+    "notesPlaceholder": "Anmerkung…"
   },
   "calendar": {
     "pageTitle": "Kalender",

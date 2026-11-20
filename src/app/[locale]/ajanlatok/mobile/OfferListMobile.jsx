@@ -44,11 +44,11 @@ function OfferSkeleton() {
 }
 
 // ─── Offer card ───────────────────────────────────────────────────────────────
-function OfferCard({ quote, client, t, userCurrency, onOpen, onMore }) {
+function OfferCard({ quote, totalNet, client, t, userCurrency, onOpen, onMore }) {
   const st = STATUS_STYLE[quote.status] || STATUS_STYLE.draft;
   const isLocked = quote.status === 'accepted' || quote.status === 'rejected';
   const statusLabel = t(`status${(quote.status || 'draft').charAt(0).toUpperCase() + (quote.status || 'draft').slice(1)}`);
-  const gross = formatMoney((quote.total_net || 0) * (1 + (quote.vat_percent || 27) / 100), userCurrency);
+  const gross = formatMoney(totalNet * (1 + (quote.tax_percent || 27) / 100), userCurrency);
   const dateStr = quote.created_at ? formatDate(quote.created_at) : '';
 
   return (
@@ -180,15 +180,24 @@ export default function OfferListMobile() {
   const router = useRouter();
   const isOnline = useOnline();
   const {
-    quotes = [], clients = [], currentUser, loading, dataReady,
+    quotes = [], quoteEntries = [], clients = [], currentUser, loading, dataReady,
     deleteQuote, isDemoMode, collectives: userMemberships = [],
-    userCurrency, activeCollectiveId,
+    userCurrency, activeCollectiveId, refreshSupabaseData, setActiveContext,
   } = useApp();
 
   const navPrefix = isDemoMode ? '/demo' : '';
   const p = useCallback((path) => `${navPrefix}${path}`, [navPrefix]);
 
   const [activePodId, setActivePodId] = useState(() => activeCollectiveId || 'personal');
+  const [podSwitching, setPodSwitching] = useState(false);
+
+  const handleActivate = useCallback(async (id) => {
+    if (id === activePodId || podSwitching) return;
+    setActivePodId(id);
+    setPodSwitching(true);
+    try { await setActiveContext(id === 'personal' ? null : id); } catch { /* non-fatal */ }
+    finally { setPodSwitching(false); }
+  }, [activePodId, podSwitching, setActiveContext]);
   const [activeSheet, setActiveSheet] = useState(null);
   const [selectedQuote, setSelectedQuote] = useState(null);
   const [transferModal, setTransferModal] = useState(null);
@@ -199,13 +208,22 @@ export default function OfferListMobile() {
 
   const liveQuotes = useMemo(() => (quotes || []).filter(q => !q.deleted_at), [quotes]);
 
-  // Workspace-grouped pods
+  const quoteTotals = useMemo(() => {
+    const map = {};
+    for (const e of quoteEntries) {
+      if (!map[e.quote_id]) map[e.quote_id] = 0;
+      map[e.quote_id] += e.amount_huf || 0;
+    }
+    return map;
+  }, [quoteEntries]);
+
+  // Workspace-grouped pods — only the active pod has real data loaded; others show null count
   const workspaces = useMemo(() => [
     {
       id: 'personal', isPersonal: true,
       name: tPods('personal'), sub: tPods('personalSub'),
       quotes: liveQuotes.filter(q => !q.collective_id),
-      count: liveQuotes.filter(q => !q.collective_id).length,
+      count: activePodId === 'personal' ? liveQuotes.filter(q => !q.collective_id).length : null,
       canCreate: true,
     },
     ...(userMemberships || []).map(col => ({
@@ -214,10 +232,10 @@ export default function OfferListMobile() {
       name: col.name,
       sub: `${tPods('collective')} · ${col.role === 'owner' ? tPods('roleOwner') : col.role === 'admin' ? tPods('roleAdmin') : tPods('roleContributor')}`,
       quotes: liveQuotes.filter(q => q.collective_id === col.collective_id),
-      count: liveQuotes.filter(q => q.collective_id === col.collective_id).length,
+      count: activePodId === col.collective_id ? liveQuotes.filter(q => q.collective_id === col.collective_id).length : null,
       canCreate: col.role === 'owner' || col.role === 'admin',
     })),
-  ], [liveQuotes, userMemberships, tPods]);
+  ], [liveQuotes, userMemberships, tPods, activePodId]);
 
   const hasCollectives = (userMemberships || []).length > 0;
 
@@ -262,7 +280,8 @@ export default function OfferListMobile() {
         <PodList
           workspaces={workspaces}
           activeId={activePodId}
-          onActivate={setActivePodId}
+          onActivate={handleActivate}
+          loadingId={podSwitching ? activePodId : null}
           moduleLabel={t('pageTitle')}
           onBack={() => router.push(p('/dashboard'))}
           renderBody={(ws) => {
@@ -308,7 +327,7 @@ export default function OfferListMobile() {
                     {wsFiltered.map(quote => {
                       const client  = clients.find(c => c.id === quote.client_id);
                       const pending = outgoingTransfers.find(r => r.document_id === quote.id);
-                      return <OfferCard key={quote.id} quote={{ ...quote, _pendingTransfer: !!pending }} client={client} t={t} userCurrency={userCurrency} onOpen={() => router.push(p(`/ajanlatok/${quote.id}`))} onMore={() => openMore({ ...quote, _pendingTransfer: !!pending, _pendingReq: pending })} />;
+                      return <OfferCard key={quote.id} quote={{ ...quote, _pendingTransfer: !!pending }} totalNet={quoteTotals[quote.id] || 0} client={client} t={t} userCurrency={userCurrency} onOpen={() => router.push(p(`/ajanlatok/${quote.id}`))} onMore={() => openMore({ ...quote, _pendingTransfer: !!pending, _pendingReq: pending })} />;
                     })}
                   </div>
                 )}
@@ -370,6 +389,7 @@ export default function OfferListMobile() {
         documentType="quote"
         documentId={transferModal?.documentId}
         documentTitle={transferModal?.documentTitle}
+        onSuccess={() => { setTransferModal(null); refreshSupabaseData(); }}
       />
     </div>
   );

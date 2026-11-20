@@ -801,7 +801,19 @@
     "sendPortalSendBtn": "Send",
     "sendPortalSending": "Sending...",
     "sendPortalSuccess": "Email sent successfully!",
-    "sendPortalEmailRequired": "Email address is required."
+    "sendPortalEmailRequired": "Email address is required.",
+    "detailSectionOverview": "Overview",
+    "detailSectionContact": "Contact",
+    "detailSectionDocuments": "Documents",
+    "detailSectionPortal": "Client portal",
+    "portalHowItWorks": "How does the client log in?",
+    "portalStep1": "They open the portal link",
+    "portalStep2": "They enter their email address",
+    "portalStep3": "They receive a 6-digit one-time code — they use it to log in",
+    "companyPlaceholder": "Acme Ltd.",
+    "taxNumberPlaceholder": "GB123456789",
+    "addressPlaceholder": "12 Main St, London",
+    "notesPlaceholder": "Notes…"
   },
   "calendar": {
     "pageTitle": "Calendar",
