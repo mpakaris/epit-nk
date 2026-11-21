@@ -355,6 +355,33 @@ export const EMAIL_TEMPLATES = {
    * Offer sent to client.
    * Vars: client_name, offer_title, offer_summary_html, offer_url, sender_name
    */
+  invoice_sent: {
+    id: 'invoice_sent',
+    name: 'Számla küldése ügyfélnek',
+    subject: 'Számla: {{invoice_label}} – {{project_name}}',
+    bodyHtml: `
+<p style="margin:0 0 20px;font-size:15px;color:#334155;line-height:1.6;">
+  Kedves <strong>{{client_name}}</strong>!
+</p>
+
+<p style="margin:0 0 20px;font-size:14px;color:#64748b;line-height:1.7;">
+  Az alábbiakban megtalálja a(z) <strong style="color:#1e293b;">{{project_name}}</strong> projekthez tartozó <strong style="color:#1e293b;">{{invoice_label}}</strong> tárgyú számlát (<strong>{{invoice_amount}}</strong>).
+</p>
+
+{{file_links_html}}
+
+<p style="margin:24px 0 8px;font-size:14px;color:#64748b;line-height:1.7;">
+  A részleteket és korábbi dokumentumokat az ügyfélportálon is megtekintheti:
+</p>
+
+<p style="margin:0 0 28px;">
+  <a href="{{portal_url}}" style="display:inline-block;padding:10px 22px;background:#0f172a;color:#fff;border-radius:8px;font-size:14px;font-weight:700;text-decoration:none;">Ügyfélportál megnyitása</a>
+</p>
+
+<p style="margin:0;font-size:14px;color:#334155;font-weight:700;">{{sender_name}}</p>
+`,
+  },
+
   offer_sent: {
     id: 'offer_sent',
     name: 'Ajánlat kiküldése',
@@ -822,6 +849,37 @@ const TEMPLATES_I18N = {
 <div style="margin:0 0 28px;padding:20px;background:#f0f9ff;border:1px solid #bae6fd;border-radius:12px;text-align:center;">
   <a href="{{portal_url}}" style="display:inline-block;padding:14px 32px;background:#2563eb;color:#fff;font-size:15px;font-weight:800;border-radius:10px;text-decoration:none;">Open client portal →</a>
 </div>
+<p style="margin:0;font-size:14px;color:#334155;font-weight:700;">{{sender_name}}</p>`,
+    },
+  },
+
+  invoice_sent: {
+    subject: {
+      hu: 'Számla: {{invoice_label}} – {{project_name}}',
+      de: 'Rechnung: {{invoice_label}} – {{project_name}}',
+      en: 'Invoice: {{invoice_label}} – {{project_name}}',
+    },
+    bodyHtml: {
+      hu: () => `
+<p style="margin:0 0 20px;font-size:15px;color:#334155;line-height:1.6;">Kedves <strong>{{client_name}}</strong>!</p>
+<p style="margin:0 0 20px;font-size:14px;color:#64748b;line-height:1.7;">Az alábbiakban megtalálja a(z) <strong style="color:#1e293b;">{{project_name}}</strong> projekthez tartozó <strong style="color:#1e293b;">{{invoice_label}}</strong> tárgyú számlát (<strong>{{invoice_amount}}</strong>).</p>
+{{file_links_html}}
+<p style="margin:24px 0 8px;font-size:14px;color:#64748b;line-height:1.7;">A részleteket és korábbi dokumentumokat az ügyfélportálon is megtekintheti:</p>
+<p style="margin:0 0 28px;"><a href="{{portal_url}}" style="display:inline-block;padding:10px 22px;background:#0f172a;color:#fff;border-radius:8px;font-size:14px;font-weight:700;text-decoration:none;">Ügyfélportál megnyitása</a></p>
+<p style="margin:0;font-size:14px;color:#334155;font-weight:700;">{{sender_name}}</p>`,
+      de: () => `
+<p style="margin:0 0 20px;font-size:15px;color:#334155;line-height:1.6;">Sehr geehrte/r <strong>{{client_name}}</strong>,</p>
+<p style="margin:0 0 20px;font-size:14px;color:#64748b;line-height:1.7;">anbei finden Sie die Rechnung <strong style="color:#1e293b;">{{invoice_label}}</strong> (<strong>{{invoice_amount}}</strong>) zum Projekt <strong style="color:#1e293b;">{{project_name}}</strong>.</p>
+{{file_links_html}}
+<p style="margin:24px 0 8px;font-size:14px;color:#64748b;line-height:1.7;">Details und frühere Dokumente finden Sie im Kundenportal:</p>
+<p style="margin:0 0 28px;"><a href="{{portal_url}}" style="display:inline-block;padding:10px 22px;background:#0f172a;color:#fff;border-radius:8px;font-size:14px;font-weight:700;text-decoration:none;">Kundenportal öffnen</a></p>
+<p style="margin:0;font-size:14px;color:#334155;font-weight:700;">{{sender_name}}</p>`,
+      en: () => `
+<p style="margin:0 0 20px;font-size:15px;color:#334155;line-height:1.6;">Dear <strong>{{client_name}}</strong>,</p>
+<p style="margin:0 0 20px;font-size:14px;color:#64748b;line-height:1.7;">Please find below the invoice <strong style="color:#1e293b;">{{invoice_label}}</strong> (<strong>{{invoice_amount}}</strong>) for project <strong style="color:#1e293b;">{{project_name}}</strong>.</p>
+{{file_links_html}}
+<p style="margin:24px 0 8px;font-size:14px;color:#64748b;line-height:1.7;">You can view details and previous documents in the client portal:</p>
+<p style="margin:0 0 28px;"><a href="{{portal_url}}" style="display:inline-block;padding:10px 22px;background:#0f172a;color:#fff;border-radius:8px;font-size:14px;font-weight:700;text-decoration:none;">Open client portal</a></p>
 <p style="margin:0;font-size:14px;color:#334155;font-weight:700;">{{sender_name}}</p>`,
     },
   },

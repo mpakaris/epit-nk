@@ -41,7 +41,17 @@ export async function GET(request) {
     .order('created_at');
 
   if (error) return Response.json({ error: error.message }, { status: 400 });
-  return Response.json({ items: items || [] });
+
+  const itemIds = (items || []).map(i => i.id);
+  const { data: files } = itemIds.length
+    ? await admin.from('payment_item_files').select('id, item_id, file_url, file_name, mime_type').in('item_id', itemIds)
+    : { data: [] };
+
+  const enriched = (items || []).map(item => ({
+    ...item,
+    files: (files || []).filter(f => f.item_id === item.id),
+  }));
+  return Response.json({ items: enriched });
 }
 
 export async function POST(request) {
@@ -53,7 +63,7 @@ export async function POST(request) {
   if (!profile) return Response.json({ error: 'Forbidden' }, { status: 403 });
 
   const body = await request.json();
-  const { project_id, label, trigger_type, milestone_name, amount_huf, due_date, note } = body;
+  const { project_id, label, amount_huf, due_date, note } = body;
 
   if (!project_id) return Response.json({ error: 'project_id kötelező' }, { status: 400 });
   if (!label?.trim()) return Response.json({ error: 'A cím megadása kötelező' }, { status: 400 });
@@ -76,14 +86,12 @@ export async function POST(request) {
 
   const { data: item, error } = await admin.from('payment_plan_items').insert([{
     project_id,
-    sort_order:     nextOrder,
-    label:          label.trim(),
-    trigger_type:   trigger_type || 'milestone',
-    milestone_name: trigger_type === 'milestone' ? (milestone_name?.trim() || null) : null,
-    amount_huf:     Math.round(Number(amount_huf)),
-    due_date:       due_date || null,
-    note:           note?.trim() || null,
-    created_by:     user.id,
+    sort_order: nextOrder,
+    label:      label.trim(),
+    amount_huf: Math.round(Number(amount_huf)),
+    due_date:   due_date || null,
+    note:       note?.trim() || null,
+    created_by: user.id,
   }]).select().single();
 
   if (error) return Response.json({ error: error.message }, { status: 400 });

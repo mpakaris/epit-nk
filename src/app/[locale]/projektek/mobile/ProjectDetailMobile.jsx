@@ -261,6 +261,9 @@ export default function ProjectDetailMobile({ projectId }) {
   const [paymentSheet, setPaymentSheet] = useState(false);
   const [paymentForm, setPaymentForm] = useState({ label: '', amount: '', due_date: '', note: '' });
   const [savingPayment, setSavingPayment] = useState(false);
+  const [uploadingItemId, setUploadingItemId] = useState(null);
+  const [sendingItemId, setSendingItemId] = useState(null);
+  const itemFileRef = useRef(null);
   const [diaryForm, setDiaryForm] = useState({ title: '', date: '', workType: '', body: '', internalNote: '', isPublic: true });
   const [diaryFiles, setDiaryFiles] = useState([]);
   const [diaryPreviews, setDiaryPreviews] = useState([]);
@@ -608,12 +611,11 @@ export default function ProjectDetailMobile({ projectId }) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        project_id:  projectId,
-        label:       paymentForm.label.trim(),
-        amount_huf:  Math.round(Number(paymentForm.amount)),
-        due_date:    paymentForm.due_date || null,
-        note:        paymentForm.note.trim() || null,
-        trigger_type: 'milestone',
+        project_id: projectId,
+        label:      paymentForm.label.trim(),
+        amount_huf: Math.round(Number(paymentForm.amount)),
+        due_date:   paymentForm.due_date || null,
+        note:       paymentForm.note.trim() || null,
       }),
     });
     setSavingPayment(false);
@@ -623,9 +625,54 @@ export default function ProjectDetailMobile({ projectId }) {
       return;
     }
     const { item } = await res.json();
-    setPaymentPlan(prev => [...prev, item]);
+    setPaymentPlan(prev => [...prev, { ...item, files: [] }]);
     setPaymentSheet(false);
     setPaymentForm({ label: '', amount: '', due_date: '', note: '' });
+  };
+
+  const handleItemFileUpload = async (file) => {
+    if (!uploadingItemId || !file) return;
+    const itemId = uploadingItemId;
+    setUploadingItemId(`uploading_${itemId}`);
+    const fd = new FormData();
+    fd.append('file', file);
+    const res = await fetch(`/api/payment-plan/${itemId}/files`, { method: 'POST', body: fd });
+    setUploadingItemId(null);
+    if (!res.ok) {
+      const { error } = await res.json().catch(() => ({}));
+      setAlertModal({ open: true, message: error || t('saveError') });
+      return;
+    }
+    const { file: uploaded } = await res.json();
+    setPaymentPlan(prev => prev.map(i => i.id === itemId ? { ...i, files: [...(i.files || []), uploaded] } : i));
+  };
+
+  const handleSendInvoice = async (itemId) => {
+    setSendingItemId(itemId);
+    const res = await fetch(`/api/payment-plan/${itemId}/send`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({}),
+    });
+    setSendingItemId(null);
+    if (!res.ok) {
+      const { error } = await res.json().catch(() => ({}));
+      setAlertModal({ open: true, message: error || t('saveError') });
+      return;
+    }
+    const { item } = await res.json();
+    setPaymentPlan(prev => prev.map(i => i.id === itemId ? { ...item } : i));
+    setToast(t('invoiceSentSuccess'));
+  };
+
+  const handleDeletePaymentItem = async (itemId) => {
+    const res = await fetch(`/api/payment-plan/${itemId}`, { method: 'DELETE' });
+    if (!res.ok) {
+      const { error } = await res.json().catch(() => ({}));
+      setAlertModal({ open: true, message: error || t('deleteError') });
+      return;
+    }
+    setPaymentPlan(prev => prev.filter(i => i.id !== itemId));
   };
 
   const handleAddDiary = async () => {
@@ -693,8 +740,12 @@ export default function ProjectDetailMobile({ projectId }) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status: 'paid' }),
     });
-    if (!res.ok) return;
-    setPaymentPlan(prev => prev.map(i => i.id === itemId ? { ...i, status: 'paid' } : i));
+    if (!res.ok) {
+      const { error } = await res.json().catch(() => ({}));
+      setAlertModal({ open: true, message: error || t('saveError') });
+      return;
+    }
+    setPaymentPlan(prev => prev.map(i => i.id === itemId ? { ...i, status: 'paid', paid_at: new Date().toISOString() } : i));
   };
 
   if (!project) {
@@ -1232,17 +1283,66 @@ export default function ProjectDetailMobile({ projectId }) {
             ) : paymentPlan.length === 0 ? (
               <span style={{ fontSize: 14, fontWeight: 600, color: '#5A5F68' }}>{t('paymentPlanEmpty')}</span>
             ) : paymentPlan.map(item => {
-              const sc = { pending: { bg: '#FFF1E0', fg: '#8A4200' }, paid: { bg: '#E7F4EC', fg: '#14532D' }, cancelled: { bg: '#E3E7EE', fg: '#263248' } }[item.status] || { bg: '#FFF1E0', fg: '#8A4200' };
-              const lbl = item.status === 'paid' ? t('statusPaid') : item.status === 'cancelled' ? t('statusCanceled') : t('statusPending');
+              const SC = {
+                pending:   { bg: '#E3E7EE', fg: '#263248' },
+                sent:      { bg: '#E0F2FE', fg: '#0369A1' },
+                paid:      { bg: '#E7F4EC', fg: '#14532D' },
+                cancelled: { bg: '#FDECEC', fg: '#9B1C1C' },
+              }[item.status] || { bg: '#E3E7EE', fg: '#263248' };
+              const statusLabel = { paid: t('statusPaid'), sent: t('statusSent'), cancelled: t('statusCanceled'), pending: t('statusPending') }[item.status] || t('statusPending');
+              const hasFiles = (item.files || []).length > 0;
+              const isUploading = uploadingItemId === `uploading_${item.id}`;
+              const isSending = sendingItemId === item.id;
               return (
-                <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 0' }}>
-                  <span style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 1 }}>
-                    <b style={{ fontSize: 14 }}>{item.name || '—'}</b>
-                    <span style={{ fontSize: 13, fontWeight: 600, color: '#5A5F68' }}>{formatMoney(Number(item.amount_huf || 0), userCurrency)}</span>
-                  </span>
-                  <span style={{ height: 24, padding: '0 10px', borderRadius: 12, fontSize: 11, fontWeight: 700, background: sc.bg, color: sc.fg, flexShrink: 0 }}>{lbl}</span>
-                  {item.status === 'pending' && (
-                    <button onClick={() => handleMarkPaymentPaid(item.id)} style={{ flexShrink: 0, height: 32, padding: '0 10px', border: 0, borderRadius: 16, background: '#E7F4EC', color: '#14532D', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>{t('markPaid')}</button>
+                <div key={item.id} style={{ padding: '10px 0', borderBottom: '1px solid rgba(14,17,22,0.06)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <span style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                      <b style={{ fontSize: 14 }}>{item.label || '—'}</b>
+                      <span style={{ fontSize: 13, fontWeight: 600, color: '#5A5F68' }}>{formatMoney(Number(item.amount_huf || 0), userCurrency)}</span>
+                      {item.due_date && <span style={{ fontSize: 11, color: '#8A8F97' }}>{formatDate(item.due_date)}</span>}
+                    </span>
+                    <span style={{ height: 22, padding: '0 9px', borderRadius: 11, fontSize: 11, fontWeight: 700, background: SC.bg, color: SC.fg, flexShrink: 0 }}>{statusLabel}</span>
+                  </div>
+                  {/* File row */}
+                  {hasFiles && (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
+                      {(item.files || []).map(f => (
+                        <a key={f.id} href={f.file_url} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, height: 26, padding: '0 10px', borderRadius: 13, background: '#F4F2EC', color: '#263248', fontSize: 11, fontWeight: 700, textDecoration: 'none' }}>
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>
+                          {f.file_name || 'Fájl'}
+                        </a>
+                      ))}
+                    </div>
+                  )}
+                  {/* Action row */}
+                  {canOwnerAct && !isClosed && (
+                    <div style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
+                      {item.status === 'pending' && !hasFiles && (
+                        <button disabled={isUploading} onClick={() => { setUploadingItemId(item.id); itemFileRef.current?.click(); }} style={{ height: 30, padding: '0 12px', border: 0, borderRadius: 15, background: '#E3E7EE', color: '#263248', fontSize: 12, fontWeight: 700, cursor: 'pointer', opacity: isUploading ? 0.6 : 1 }}>
+                          {isUploading ? t('fileUploading') : t('attachFile')}
+                        </button>
+                      )}
+                      {item.status === 'pending' && hasFiles && (
+                        <>
+                          <button disabled={isUploading} onClick={() => { setUploadingItemId(item.id); itemFileRef.current?.click(); }} style={{ height: 30, padding: '0 12px', border: 0, borderRadius: 15, background: '#E3E7EE', color: '#263248', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
+                            {t('attachFile')}
+                          </button>
+                          <button disabled={isSending} onClick={() => handleSendInvoice(item.id)} style={{ height: 30, padding: '0 12px', border: 0, borderRadius: 15, background: PROJ_BG, color: '#fff', fontSize: 12, fontWeight: 700, cursor: 'pointer', opacity: isSending ? 0.6 : 1 }}>
+                            {isSending ? '…' : t('sendInvoice')}
+                          </button>
+                        </>
+                      )}
+                      {item.status === 'sent' && (
+                        <button onClick={() => handleMarkPaymentPaid(item.id)} style={{ height: 30, padding: '0 12px', border: 0, borderRadius: 15, background: '#E7F4EC', color: '#14532D', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
+                          {t('markPaid')}
+                        </button>
+                      )}
+                      {(item.status === 'pending' || item.status === 'sent') && (
+                        <button onClick={() => handleDeletePaymentItem(item.id)} style={{ height: 30, padding: '0 12px', border: 0, borderRadius: 15, background: 'transparent', color: '#9B1C1C', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
+                          {t('deletePaymentItem')}
+                        </button>
+                      )}
+                    </div>
                   )}
                 </div>
               );
@@ -1253,6 +1353,8 @@ export default function ProjectDetailMobile({ projectId }) {
                 {t('addPaymentItem')}
               </button>
             )}
+            {/* Hidden file input for item file upload */}
+            <input ref={itemFileRef} type="file" accept="image/*,application/pdf" style={{ display: 'none' }} onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; if (f) handleItemFileUpload(f); }} />
           </InfoPod>
 
 
@@ -1544,7 +1646,7 @@ export default function ProjectDetailMobile({ projectId }) {
       {paymentSheet && (
         <>
           <div onClick={() => setPaymentSheet(false)} style={{ position: 'fixed', inset: 0, zIndex: 40, background: 'rgba(14,17,22,0.5)' }} role="button" tabIndex={0} aria-label={tProj('cancel')} onKeyDown={e => e.key === 'Enter' && setPaymentSheet(false)} />
-          <div role="dialog" aria-label={t('addPaymentItem')} className="pod-sheet" style={{ position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 50, boxSizing: 'border-box', padding: `10px 16px calc(18px + env(safe-area-inset-bottom))`, borderRadius: '32px 32px 0 0', background: 'var(--m-sheet, #FBFAF7)', display: 'flex', flexDirection: 'column', gap: 12, maxHeight: '88%', overflowY: 'auto' }}>
+          <div role="dialog" aria-label={t('addPaymentItem')} className="pod-sheet" style={{ position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 50, boxSizing: 'border-box', padding: `10px 16px calc(18px + env(safe-area-inset-bottom))`, borderRadius: '32px 32px 0 0', background: 'var(--m-sheet, #FBFAF7)', display: 'flex', flexDirection: 'column', gap: 12, maxHeight: '85%', overflowY: 'auto' }}>
             <div style={{ alignSelf: 'center', width: 44, height: 5, borderRadius: 3, background: '#D5D2C8' }} />
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
               <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 22, fontWeight: 700, lineHeight: 1.1, color: 'var(--m-ink)' }}>{t('addPaymentItem')}</span>

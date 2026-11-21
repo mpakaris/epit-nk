@@ -20,12 +20,21 @@ export async function POST(request, { params }) {
 
   const admin = createAdminClient();
   const { data: profile } = await admin.from('profiles').select('role, display_name').eq('id', user.id).single();
-  if (!profile || !['admin', 'superadmin'].includes(profile.role)) {
-    return Response.json({ error: 'Nincs jogosultság' }, { status: 403 });
-  }
+  if (!profile) return Response.json({ error: 'Forbidden' }, { status: 403 });
 
   const { data: item } = await admin.from('payment_plan_items').select('project_id').eq('id', itemId).single();
   if (!item) return Response.json({ error: 'Tétel nem található' }, { status: 404 });
+
+  if (profile.role !== 'superadmin') {
+    const { data: project } = await admin.from('projects').select('owner_id, created_by, collective_id').eq('id', item.project_id).is('deleted_at', null).single();
+    const isOwner = project?.owner_id === user.id || project?.created_by === user.id;
+    let isKollektivOwner = false;
+    if (!isOwner && project?.collective_id) {
+      const { data: mem } = await admin.from('collective_members').select('role').eq('collective_id', project.collective_id).eq('user_id', user.id).eq('status', 'active').maybeSingle();
+      isKollektivOwner = mem?.role === 'owner' || mem?.role === 'admin';
+    }
+    if (!isOwner && !isKollektivOwner) return Response.json({ error: 'Nincs jogosultság' }, { status: 403 });
+  }
 
   let formData;
   try { formData = await request.formData(); }

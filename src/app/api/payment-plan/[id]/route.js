@@ -38,7 +38,7 @@ export async function PATCH(request, { params }) {
   if (!item) return Response.json({ error: 'Nem található' }, { status: 404 });
 
   const body = await request.json();
-  const allowed_fields = ['label', 'trigger_type', 'milestone_name', 'amount_huf', 'due_date', 'note', 'status', 'paid_at', 'sort_order'];
+  const allowed_fields = ['label', 'amount_huf', 'due_date', 'note', 'status', 'paid_at', 'sent_at', 'sort_order'];
   const updates = {};
   for (const key of allowed_fields) {
     if (key in body) updates[key] = body[key];
@@ -46,8 +46,8 @@ export async function PATCH(request, { params }) {
 
   if ('amount_huf' in updates) updates.amount_huf = Math.round(Number(updates.amount_huf));
   if (updates.status === 'paid' && !updates.paid_at) updates.paid_at = new Date().toISOString();
-  if (updates.status === 'pending') updates.paid_at = null;
-  if ('trigger_type' in updates && updates.trigger_type !== 'milestone') updates.milestone_name = null;
+  if (updates.status === 'sent' && !updates.sent_at) updates.sent_at = new Date().toISOString();
+  if (updates.status === 'pending') { updates.paid_at = null; updates.sent_at = null; }
 
   const { data: updated, error } = await admin.from('payment_plan_items').update(updates).eq('id', id).select().single();
   if (error) return Response.json({ error: error.message }, { status: 400 });

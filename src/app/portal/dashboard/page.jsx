@@ -568,18 +568,20 @@ function StatTile({ label, value }) {
 }
 
 function ProjectDetailView({ project, contractor, onBack, onRespond, i, locale }) {
-  const quotes   = project.quotes      || [];
-  const invoices = project.invoices    || [];
-  const labour   = project.labourEntries || [];
-  const media    = project.media       || [];
-  const diary    = project.diaryEntries || [];
+  const quotes         = project.quotes         || [];
+  const invoices       = project.invoices       || [];
+  const labour         = project.labourEntries  || [];
+  const media          = project.media          || [];
+  const diary          = project.diaryEntries   || [];
+  const clientInvoices = project.clientInvoices || [];
 
   const allTabs = [
-    { id: 'quote',    label: i.tabQuote,    visible: quotes.length > 0 },
-    { id: 'invoices', label: i.tabInvoices, visible: invoices.length > 0 },
-    { id: 'labour',   label: i.tabLabour,   visible: labour.length > 0 },
-    { id: 'media',    label: i.tabMedia,    visible: media.length > 0 },
-    { id: 'diary',    label: i.tabDiary,    visible: diary.length > 0 },
+    { id: 'quote',          label: i.tabQuote,          visible: quotes.length > 0 },
+    { id: 'clientInvoices', label: i.tabClientInvoices, visible: clientInvoices.length > 0 },
+    { id: 'invoices',       label: i.tabInvoices,       visible: invoices.length > 0 },
+    { id: 'labour',         label: i.tabLabour,         visible: labour.length > 0 },
+    { id: 'media',          label: i.tabMedia,          visible: media.length > 0 },
+    { id: 'diary',          label: i.tabDiary,          visible: diary.length > 0 },
   ].filter(t => t.visible);
 
   const [activeTab, setActiveTab] = useState(allTabs[0]?.id || 'quote');
@@ -637,6 +639,44 @@ function ProjectDetailView({ project, contractor, onBack, onRespond, i, locale }
                 termsPdfUrl={contractor?.terms_pdf_url} termsPdfName={contractor?.terms_pdf_name}
                 i={i} locale={locale} />
             ))}
+          </div>
+        )}
+
+        {activeTab === 'clientInvoices' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            {clientInvoices.map(inv => {
+              const isPaid = inv.status === 'paid';
+              const pillBg  = isPaid ? '#f0fdf4' : '#eff6ff';
+              const pillFg  = isPaid ? '#15803d' : '#1d4ed8';
+              const pillBorder = isPaid ? '#bbf7d0' : '#bfdbfe';
+              const statusLabel = isPaid ? i.clientInvoiceStatusPaid : i.clientInvoiceStatusSent;
+              return (
+                <div key={inv.id} style={{ background: '#fff', borderRadius: 10, padding: '0.75rem 0.9rem', border: '1px solid #e2e8f0' }}>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', marginBottom: inv.files?.length ? '0.5rem' : 0 }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: '0.875rem', fontWeight: 700, color: BRAND }}>{inv.label}</div>
+                      <div style={{ fontSize: '0.78rem', color: '#64748b', marginTop: '0.1rem', display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                        <span style={{ fontFamily: 'monospace', fontWeight: 700, color: BRAND }}>{fmtMoney(inv.amount_huf)}</span>
+                        {inv.due_date && <span>· {fmtDate(inv.due_date, locale)}</span>}
+                      </div>
+                    </div>
+                    <span style={{ fontSize: '0.68rem', fontWeight: 700, padding: '0.15rem 0.55rem', borderRadius: 99, background: pillBg, color: pillFg, border: `1px solid ${pillBorder}`, flexShrink: 0 }}>
+                      {statusLabel}
+                    </span>
+                  </div>
+                  {inv.files?.length > 0 && (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
+                      {inv.files.map(f => (
+                        <a key={f.id} href={f.file_url} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.75rem', fontWeight: 700, color: ACCENT, background: '#eff6ff', borderRadius: 6, padding: '0.25rem 0.6rem', textDecoration: 'none' }}>
+                          <FileDown size={12} />
+                          {f.file_name || i.clientInvoiceDownload}
+                        </a>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
 
