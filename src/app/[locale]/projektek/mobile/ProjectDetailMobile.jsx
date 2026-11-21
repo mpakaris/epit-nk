@@ -18,7 +18,7 @@ import { AlertModal } from '@/components/Modal';
 import Lightbox from '@/components/Lightbox';
 import HistorySheet from '@/components/mobile/pods/HistorySheet';
 import BottomSheet from '@/components/mobile/BottomSheet';
-import { Paperclip, FileText, Send, Trash2, MoreHorizontal } from 'lucide-react';
+import { Paperclip, FileText, Send, Trash2, MoreHorizontal, MessageSquare } from 'lucide-react';
 
 const PROJ_BG   = '#263248';
 const PROJ_DEEP = '#0B0F17';
@@ -269,6 +269,9 @@ export default function ProjectDetailMobile({ projectId }) {
   const [sendConfirmItem, setSendConfirmItem] = useState(null);
   const [invoiceSendEmail, setInvoiceSendEmail] = useState('');
   const [sendingItemId, setSendingItemId] = useState(null);
+  const [noteItem, setNoteItem] = useState(null);
+  const [noteText, setNoteText] = useState('');
+  const [savingNote, setSavingNote] = useState(false);
   const paymentFileRef = useRef(null);
   const [diaryForm, setDiaryForm] = useState({ title: '', date: '', workType: '', body: '', internalNote: '', isPublic: true });
   const [diaryFiles, setDiaryFiles] = useState([]);
@@ -690,6 +693,24 @@ export default function ProjectDetailMobile({ projectId }) {
     }
     const { item } = await res.json();
     setPaymentPlan(prev => prev.map(i => i.id === itemId ? { ...item } : i));
+  };
+
+  const handleSaveNote = async () => {
+    if (!noteItem) return;
+    setSavingNote(true);
+    const res = await fetch(`/api/payment-plan/${noteItem.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ note: noteText.trim() || null }),
+    });
+    setSavingNote(false);
+    if (!res.ok) {
+      const { error } = await res.json().catch(() => ({}));
+      setAlertModal({ open: true, message: error || t('saveError') });
+      return;
+    }
+    setPaymentPlan(prev => prev.map(i => i.id === noteItem.id ? { ...i, note: noteText.trim() || null } : i));
+    setNoteItem(null);
   };
 
   const handleDeletePaymentItem = async (itemId) => {
@@ -1335,10 +1356,20 @@ export default function ProjectDetailMobile({ projectId }) {
                       )}
                     </div>
                   </div>
-                  {hasFiles && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8 }}>
-                      <Paperclip size={12} color="#8A8F97" />
-                      <span style={{ fontSize: 12, color: '#5A5F68', fontWeight: 600 }}>{(item.files || []).length === 1 ? (item.files[0].file_name || 'Fájl') : `${item.files.length} fájl`}</span>
+                  {(hasFiles || item.note) && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 8 }}>
+                      {hasFiles && (
+                        <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                          <Paperclip size={12} color="#8A8F97" />
+                          <span style={{ fontSize: 12, color: '#5A5F68', fontWeight: 600 }}>{item.files[0].file_name || 'Fájl'}</span>
+                        </span>
+                      )}
+                      {item.note && (
+                        <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                          <MessageSquare size={12} color="#8A8F97" />
+                          <span style={{ fontSize: 12, color: '#5A5F68', fontWeight: 600, maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.note}</span>
+                        </span>
+                      )}
                     </div>
                   )}
                 </div>
@@ -1715,6 +1746,11 @@ export default function ProjectDetailMobile({ projectId }) {
             label: t('filesViewTitle'),
             onClick: () => window.open(contextMenuItem.files[0].file_url, '_blank'),
           }] : []),
+          {
+            icon: MessageSquare,
+            label: t('notesMenuLabel'),
+            onClick: () => { setNoteText(contextMenuItem.note || ''); setNoteItem(contextMenuItem); },
+          },
           ...((contextMenuItem.files?.length > 0 && contextMenuItem.status !== 'paid') ? [{
             icon: Send,
             label: t('sendInvoice'),
@@ -1809,6 +1845,35 @@ export default function ProjectDetailMobile({ projectId }) {
               );
             })()}
             <button onClick={() => setSendConfirmItem(null)} style={{ height: 52, border: 0, borderRadius: 26, background: '#EFEDE6', color: 'var(--m-ink)', fontSize: 15, fontWeight: 700, cursor: 'pointer' }}>{tProj('cancel')}</button>
+          </div>
+        </>
+      )}
+
+      {/* Notes sheet */}
+      {noteItem && (
+        <>
+          <div onClick={() => setNoteItem(null)} style={{ position: 'fixed', inset: 0, zIndex: 40, background: 'rgba(14,17,22,0.5)' }} role="button" tabIndex={0} aria-label={tProj('cancel')} onKeyDown={e => e.key === 'Enter' && setNoteItem(null)} />
+          <div role="dialog" aria-label={t('notesSheetTitle')} className="pod-sheet" style={{ position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 50, boxSizing: 'border-box', padding: `10px 16px calc(18px + env(safe-area-inset-bottom))`, borderRadius: '32px 32px 0 0', background: 'var(--m-sheet, #FBFAF7)', display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div style={{ alignSelf: 'center', width: 44, height: 5, borderRadius: 3, background: '#D5D2C8' }} />
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+              <div>
+                <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 22, fontWeight: 700, lineHeight: 1.1, color: 'var(--m-ink)' }}>{t('notesSheetTitle')}</span>
+                <div style={{ fontSize: 13, fontWeight: 600, color: '#5A5F68', marginTop: 2 }}>{noteItem.label}</div>
+              </div>
+              <CloseBtnDark onClick={() => setNoteItem(null)} />
+            </div>
+            <textarea
+              autoFocus
+              value={noteText}
+              onChange={e => setNoteText(e.target.value)}
+              placeholder={t('notesPlaceholder')}
+              rows={5}
+              style={{ width: '100%', boxSizing: 'border-box', minHeight: 120, border: 0, borderRadius: 20, background: '#fff', padding: '14px 16px', fontSize: 16, fontWeight: 500, color: 'var(--m-ink)', resize: 'none', boxShadow: '0 1px 0 rgba(14,17,22,0.08)', outline: 0, lineHeight: 1.5 }}
+            />
+            <button onClick={handleSaveNote} disabled={savingNote} style={{ height: 60, border: 0, borderRadius: 30, background: PROJ_BG, color: '#fff', fontSize: 17, fontWeight: 700, cursor: 'pointer', opacity: savingNote ? 0.6 : 1 }}>
+              {savingNote ? '…' : t('notesSave')}
+            </button>
+            <button onClick={() => setNoteItem(null)} style={{ height: 52, border: 0, borderRadius: 26, background: '#EFEDE6', color: 'var(--m-ink)', fontSize: 15, fontWeight: 700, cursor: 'pointer' }}>{tProj('cancel')}</button>
           </div>
         </>
       )}
