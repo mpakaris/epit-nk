@@ -1738,7 +1738,6 @@ export default function ProjectDetailMobile({ projectId }) {
         title={t('deletePaymentItem')}
         message={t('deleteInvoiceConfirmBody')}
         confirmLabel={t('deletePaymentItem')}
-        confirmStyle="danger"
       />
 
       {/* Send invoice sheet */}
