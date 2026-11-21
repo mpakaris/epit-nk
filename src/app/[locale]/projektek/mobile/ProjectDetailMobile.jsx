@@ -267,6 +267,7 @@ export default function ProjectDetailMobile({ projectId }) {
   const [contextMenuItem, setContextMenuItem] = useState(null);
   const [deleteConfirmItem, setDeleteConfirmItem] = useState(null);
   const [sendConfirmItem, setSendConfirmItem] = useState(null);
+  const [invoiceSendEmail, setInvoiceSendEmail] = useState('');
   const [sendingItemId, setSendingItemId] = useState(null);
   const paymentFileRef = useRef(null);
   const [diaryForm, setDiaryForm] = useState({ title: '', date: '', workType: '', body: '', internalNote: '', isPublic: true });
@@ -675,12 +676,12 @@ export default function ProjectDetailMobile({ projectId }) {
   };
 
 
-  const handleSendInvoice = async (itemId) => {
+  const handleSendInvoice = async (itemId, toEmail) => {
     setSendingItemId(itemId);
     const res = await fetch(`/api/payment-plan/${itemId}/send`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({}),
+      body: JSON.stringify(toEmail ? { to_email: toEmail } : {}),
     });
     setSendingItemId(null);
     if (!res.ok) {
@@ -1719,7 +1720,7 @@ export default function ProjectDetailMobile({ projectId }) {
           ...((contextMenuItem.files?.length > 0 && contextMenuItem.status !== 'paid') ? [{
             icon: Send,
             label: t('sendInvoice'),
-            onClick: () => setSendConfirmItem(contextMenuItem),
+            onClick: () => { setInvoiceSendEmail(client?.email || ''); setSendConfirmItem(contextMenuItem); },
           }] : []),
           {
             icon: Trash2,
@@ -1742,45 +1743,66 @@ export default function ProjectDetailMobile({ projectId }) {
         confirmStyle="danger"
       />
 
-      {/* Send confirm sheet */}
+      {/* Send invoice sheet */}
       {sendConfirmItem && (
         <>
           <div onClick={() => setSendConfirmItem(null)} style={{ position: 'fixed', inset: 0, zIndex: 40, background: 'rgba(14,17,22,0.5)' }} role="button" tabIndex={0} aria-label={tProj('cancel')} onKeyDown={e => e.key === 'Enter' && setSendConfirmItem(null)} />
           <div role="dialog" aria-label={t('sendInvoice')} className="pod-sheet" style={{ position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 50, boxSizing: 'border-box', padding: `10px 16px calc(18px + env(safe-area-inset-bottom))`, borderRadius: '32px 32px 0 0', background: 'var(--m-sheet, #FBFAF7)', display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div style={{ alignSelf: 'center', width: 44, height: 5, borderRadius: 3, background: '#D5D2C8' }} />
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
-              <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 20, fontWeight: 700, color: 'var(--m-ink)' }}>{t('sendInvoice')}</span>
+              <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 22, fontWeight: 700, lineHeight: 1.1, color: 'var(--m-ink)' }}>{t('sendInvoice')}</span>
               <CloseBtnDark onClick={() => setSendConfirmItem(null)} />
             </div>
-            <div style={{ background: '#fff', borderRadius: 14, padding: '12px 14px' }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: '#5A5F68', marginBottom: 2 }}>{t('sendConfirmLabel')}</div>
-              <div style={{ fontSize: 15, fontWeight: 700, color: '#1A1F2B' }}>{sendConfirmItem.label}</div>
-              <div style={{ fontSize: 14, fontWeight: 600, color: '#5A5F68' }}>{formatMoney(Number(sendConfirmItem.amount_huf || 0), userCurrency)}</div>
+
+            {/* Invoice summary */}
+            <div style={{ background: '#fff', borderRadius: 14, padding: '12px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: 15, fontWeight: 700, color: '#1A1F2B' }}>{sendConfirmItem.label}</span>
+              <span style={{ fontSize: 14, fontWeight: 700, color: '#263248' }}>{formatMoney(Number(sendConfirmItem.amount_huf || 0), userCurrency)}</span>
             </div>
-            {client?.email ? (
-              <div style={{ background: '#E0F2FE', borderRadius: 14, padding: '10px 14px', fontSize: 14, fontWeight: 600, color: '#0369A1' }}>
-                → {client.email}
-              </div>
-            ) : (
-              <div style={{ background: '#FFF1E0', borderRadius: 14, padding: '10px 14px', fontSize: 13, fontWeight: 600, color: '#8A4200' }}>
-                {t('noClientEmailHint')}
-              </div>
+
+            {/* Client name */}
+            {client && (
+              <span style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, fontWeight: 600, color: '#5A5F68', padding: '0 2px' }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true"><path d="M8 8a4 4 0 108 0 4 4 0 10-8 0M4 21c0-4 3.6-6.5 8-6.5s8 2.5 8 6.5"/></svg>
+                {client.name}
+              </span>
             )}
+
+            {/* Email input */}
+            <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--m-ink)' }}>{t('invoiceSendEmailLabel')}</span>
+              <input
+                type="email"
+                autoComplete="email"
+                autoFocus
+                value={invoiceSendEmail}
+                onChange={e => setInvoiceSendEmail(e.target.value)}
+                placeholder="pl. ugyfel@email.hu"
+                style={{ width: '100%', boxSizing: 'border-box', height: 56, border: 0, borderRadius: 20, background: '#fff', padding: '0 16px', fontSize: 17, fontWeight: 500, color: 'var(--m-ink)', boxShadow: '0 1px 0 rgba(14,17,22,0.05), 0 10px 20px -16px rgba(14,17,22,0.4)', outline: 0 }}
+              />
+            </label>
+            <span style={{ fontSize: 13, fontWeight: 600, color: '#5A5F68', padding: '0 2px' }}>
+              {client?.email ? t('invoiceSendEmailPrefilled') : t('invoiceSendNoEmailHint')}
+            </span>
+
+            {/* Send button */}
             {(() => {
               const isSending = sendingItemId === sendConfirmItem.id;
+              const canSend = !isSending && invoiceSendEmail.trim().includes('@');
               return (
                 <button
-                  disabled={isSending}
+                  disabled={!canSend}
                   onClick={async () => {
-                    await handleSendInvoice(sendConfirmItem.id);
+                    await handleSendInvoice(sendConfirmItem.id, invoiceSendEmail.trim());
                     setSendConfirmItem(null);
                   }}
-                  style={{ height: 60, border: 0, borderRadius: 30, background: PROJ_BG, color: '#fff', fontSize: 17, fontWeight: 700, cursor: 'pointer', opacity: isSending ? 0.6 : 1 }}
+                  style={{ height: 60, border: 0, borderRadius: 30, background: canSend ? PROJ_BG : '#B9B5AA', color: '#fff', fontSize: 17, fontWeight: 700, cursor: canSend ? 'pointer' : 'default' }}
                 >
                   {isSending ? '…' : t('sendInvoice')}
                 </button>
               );
             })()}
+            <button onClick={() => setSendConfirmItem(null)} style={{ height: 52, border: 0, borderRadius: 26, background: '#EFEDE6', color: 'var(--m-ink)', fontSize: 15, fontWeight: 700, cursor: 'pointer' }}>{tProj('cancel')}</button>
           </div>
         </>
       )}

@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { sendEmail } from '@/lib/email';
-import { getEmailContent, wrapEmail } from '@/lib/emailTemplates';
+import { getEmailContent, wrapEmail, buildPortalCtaHtml } from '@/lib/emailTemplates';
 import { logAudit } from '@/lib/audit';
 import { globalRateLimit } from '@/lib/rateLimitGlobal';
 
@@ -19,7 +19,6 @@ export async function POST(request, { params }) {
   const { data: profile } = await admin.from('profiles').select('role, display_name, locale').eq('id', user.id).single();
   if (!profile) return Response.json({ error: 'Forbidden' }, { status: 403 });
 
-  // Load item + project
   const { data: item } = await admin.from('payment_plan_items').select('*').eq('id', itemId).single();
   if (!item) return Response.json({ error: 'Tétel nem található' }, { status: 404 });
 
@@ -45,7 +44,7 @@ export async function POST(request, { params }) {
     }
   }
 
-  // Resolve client email
+  // Resolve recipient email — to_email body param overrides saved client email
   const body = await request.json().catch(() => ({}));
   const toEmailOverride = typeof body.to_email === 'string' ? body.to_email.trim() : null;
   let recipientEmail = toEmailOverride || null;
@@ -56,20 +55,16 @@ export async function POST(request, { params }) {
     recipientName = clientRow?.name || '';
     if (!recipientEmail) recipientEmail = clientRow?.email || null;
   }
-  if (!recipientEmail) return Response.json({ error: 'Nincs megadva email-cím a küldéshez. Rendelj ügyfelet a projekthez, vagy add meg az email-címet kézzel.' }, { status: 400 });
+  if (!recipientEmail) return Response.json({ error: 'Nincs megadva email-cím. Rendelj ügyfelet a projekthez, vagy add meg kézzel.' }, { status: 400 });
 
-  // Get attached files
+  // Get attached file
   const { data: files } = await admin.from('payment_item_files').select('id, file_url, file_name, mime_type').eq('item_id', itemId);
   if (!files?.length) return Response.json({ error: 'Nincs csatolt fájl. Tölts fel egy számlát a küldés előtt.' }, { status: 400 });
 
-  // Build file links HTML
-  const fileLinksHtml = files.map(f =>
-    `<p style="margin:0 0 10px;"><a href="${f.file_url}" style="color:#2563eb;font-weight:700;font-size:14px;text-decoration:underline;">${f.file_name || 'Számla letöltése'}</a></p>`
-  ).join('');
-
   const locale = profile.locale || 'hu';
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || `https://${request.headers.get('host')}`;
-  const portalUrl = project.client_id ? `${appUrl}/portal` : appUrl;
+  const rawAppUrl = process.env.NEXT_PUBLIC_APP_URL || '';
+  const appUrl = rawAppUrl.includes('localhost') ? 'https://okosszaki.hu' : (rawAppUrl || 'https://okosszaki.hu');
+  const portalUrl = `${appUrl}/portal?email=${encodeURIComponent(recipientEmail)}&lang=${locale}`;
 
   const fmt = (n) => Number(n).toLocaleString('hu-HU') + ' Ft';
   const vars = {
@@ -77,21 +72,36 @@ export async function POST(request, { params }) {
     invoice_label:  item.label,
     invoice_amount: fmt(item.amount_huf),
     project_name:   project.name,
-    file_links_html: fileLinksHtml,
     sender_name:    profile.display_name || '',
-    portal_url:     portalUrl,
   };
 
   const { subject, bodyHtml } = getEmailContent('invoice_sent', locale, vars);
-  const html = wrapEmail({ bodyHtml, senderName: profile.display_name || '' });
+  const html = wrapEmail(bodyHtml + buildPortalCtaHtml(portalUrl, locale), subject, locale);
 
-  const emailRes = await sendEmail({ to: recipientEmail, subject, html });
-  if (!emailRes?.ok && emailRes !== true) {
-    logAudit({ entityId: project.collective_id || user.id, userId: user.id, userName: profile.display_name || '', action: 'Client invoice send failed', targetType: 'payment_item', targetId: itemId, targetName: item.label, details: { error: 'Email send failed', recipient: recipientEmail } });
+  // Fetch the invoice file from R2 and attach it to the email
+  const invoiceFile = files[0];
+  const attachments = [];
+  try {
+    const fileRes = await fetch(invoiceFile.file_url);
+    if (fileRes.ok) {
+      const buffer = Buffer.from(await fileRes.arrayBuffer());
+      attachments.push({
+        filename:    invoiceFile.file_name || 'szamla.pdf',
+        content:     buffer,
+        contentType: invoiceFile.mime_type || 'application/pdf',
+      });
+    }
+  } catch {
+    // File fetch failed — send without attachment but continue
+  }
+
+  try {
+    await sendEmail({ to: recipientEmail, subject, html, attachments });
+  } catch (err) {
+    logAudit({ entityId: project.collective_id || user.id, userId: user.id, userName: profile.display_name || '', action: 'Client invoice send failed', targetType: 'payment_item', targetId: itemId, targetName: item.label, details: { error: err.message, recipient: recipientEmail } });
     return Response.json({ error: 'Az email küldése sikertelen. Kérjük, próbáld újra.' }, { status: 500 });
   }
 
-  // Update item status → sent
   const { data: updated } = await admin.from('payment_plan_items')
     .update({ status: 'sent', sent_at: new Date().toISOString() })
     .eq('id', itemId).select().single();
