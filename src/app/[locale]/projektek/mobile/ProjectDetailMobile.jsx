@@ -268,9 +268,7 @@ export default function ProjectDetailMobile({ projectId }) {
   const [deleteConfirmItem, setDeleteConfirmItem] = useState(null);
   const [fileViewItem, setFileViewItem] = useState(null);
   const [sendConfirmItem, setSendConfirmItem] = useState(null);
-  const [attachForItemId, setAttachForItemId] = useState(null);
   const [sendingItemId, setSendingItemId] = useState(null);
-  const itemFileRef = useRef(null);
   const paymentFileRef = useRef(null);
   const [diaryForm, setDiaryForm] = useState({ title: '', date: '', workType: '', body: '', internalNote: '', isPublic: true });
   const [diaryFiles, setDiaryFiles] = useState([]);
@@ -677,21 +675,6 @@ export default function ProjectDetailMobile({ projectId }) {
     }
   };
 
-  const handleItemFileUpload = async (file) => {
-    if (!attachForItemId || !file) return;
-    const itemId = attachForItemId;
-    setAttachForItemId(null);
-    const fd = new FormData();
-    fd.append('file', file);
-    const res = await fetch(`/api/payment-plan/${itemId}/files`, { method: 'POST', body: fd });
-    if (!res.ok) {
-      const { error } = await res.json().catch(() => ({}));
-      setAlertModal({ open: true, message: error || t('saveError') });
-      return;
-    }
-    const { file: uploaded } = await res.json();
-    setPaymentPlan(prev => prev.map(i => i.id === itemId ? { ...i, files: [...(i.files || []), uploaded] } : i));
-  };
 
   const handleSendInvoice = async (itemId) => {
     setSendingItemId(itemId);
@@ -1369,7 +1352,6 @@ export default function ProjectDetailMobile({ projectId }) {
                 {t('addPaymentItem')}
               </button>
             )}
-            <input ref={itemFileRef} type="file" accept="image/*,application/pdf" style={{ display: 'none' }} onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; if (f) handleItemFileUpload(f); }} />
           </InfoPod>
 
 
@@ -1730,11 +1712,6 @@ export default function ProjectDetailMobile({ projectId }) {
         title={contextMenuItem?.label || ''}
         subtitle={contextMenuItem ? formatMoney(Number(contextMenuItem.amount_huf || 0), userCurrency) : ''}
         actions={contextMenuItem ? [
-          {
-            icon: Paperclip,
-            label: t('attachFile'),
-            onClick: () => { setAttachForItemId(contextMenuItem.id); itemFileRef.current?.click(); },
-          },
           ...(contextMenuItem.files?.length > 0 ? [{
             icon: FileText,
             label: t('filesViewTitle'),
