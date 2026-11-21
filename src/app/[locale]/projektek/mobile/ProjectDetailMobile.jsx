@@ -266,7 +266,6 @@ export default function ProjectDetailMobile({ projectId }) {
   const [savingPayment, setSavingPayment] = useState(false);
   const [contextMenuItem, setContextMenuItem] = useState(null);
   const [deleteConfirmItem, setDeleteConfirmItem] = useState(null);
-  const [fileViewItem, setFileViewItem] = useState(null);
   const [sendConfirmItem, setSendConfirmItem] = useState(null);
   const [sendingItemId, setSendingItemId] = useState(null);
   const paymentFileRef = useRef(null);
@@ -1715,7 +1714,7 @@ export default function ProjectDetailMobile({ projectId }) {
           ...(contextMenuItem.files?.length > 0 ? [{
             icon: FileText,
             label: t('filesViewTitle'),
-            onClick: () => setFileViewItem(contextMenuItem),
+            onClick: () => window.open(contextMenuItem.files[0].file_url, '_blank'),
           }] : []),
           ...((contextMenuItem.files?.length > 0 && contextMenuItem.status !== 'paid') ? [{
             icon: Send,
@@ -1742,31 +1741,6 @@ export default function ProjectDetailMobile({ projectId }) {
         confirmLabel={t('deletePaymentItem')}
         confirmStyle="danger"
       />
-
-      {/* File view sheet */}
-      {fileViewItem && (
-        <>
-          <div onClick={() => setFileViewItem(null)} style={{ position: 'fixed', inset: 0, zIndex: 40, background: 'rgba(14,17,22,0.5)' }} role="button" tabIndex={0} aria-label={tProj('cancel')} onKeyDown={e => e.key === 'Enter' && setFileViewItem(null)} />
-          <div role="dialog" aria-label={t('filesViewTitle')} className="pod-sheet" style={{ position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 50, boxSizing: 'border-box', padding: `10px 16px calc(24px + env(safe-area-inset-bottom))`, borderRadius: '32px 32px 0 0', background: 'var(--m-sheet, #FBFAF7)', display: 'flex', flexDirection: 'column', gap: 12, maxHeight: '70%', overflowY: 'auto' }}>
-            <div style={{ alignSelf: 'center', width: 44, height: 5, borderRadius: 3, background: '#D5D2C8' }} />
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
-              <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 20, fontWeight: 700, color: 'var(--m-ink)' }}>{t('filesViewTitle')}</span>
-              <CloseBtnDark onClick={() => setFileViewItem(null)} />
-            </div>
-            {(fileViewItem.files || []).length === 0 ? (
-              <span style={{ fontSize: 14, color: '#5A5F68', fontWeight: 600 }}>{t('noFilesAttached')}</span>
-            ) : (fileViewItem.files || []).map(f => (
-              <a key={f.id} href={f.file_url} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', background: '#fff', borderRadius: 16, boxShadow: '0 1px 4px rgba(14,17,22,0.08)', textDecoration: 'none' }}>
-                <div style={{ width: 40, height: 40, borderRadius: 10, background: '#E0F2FE', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  <FileText size={20} color="#0369A1" />
-                </div>
-                <span style={{ flex: 1, fontSize: 14, fontWeight: 600, color: '#1A1F2B', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.file_name || 'Fájl'}</span>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8A8F97" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-              </a>
-            ))}
-          </div>
-        </>
-      )}
 
       {/* Send confirm sheet */}
       {sendConfirmItem && (
