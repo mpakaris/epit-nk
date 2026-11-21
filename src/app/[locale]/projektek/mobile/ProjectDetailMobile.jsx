@@ -14,9 +14,11 @@ import { normalizeHU } from '@/lib/utils';
 import { calculateProjectFinancials } from '@/lib/calculations';
 import { processMediaFile } from '@/lib/mediaGate';
 import useOnline from '@/hooks/useOnline';
-import { AlertModal } from '@/components/Modal';
+import { AlertModal, ConfirmModal } from '@/components/Modal';
 import Lightbox from '@/components/Lightbox';
 import HistorySheet from '@/components/mobile/pods/HistorySheet';
+import BottomSheet from '@/components/mobile/BottomSheet';
+import { Paperclip, FileText, Send, Trash2, MoreHorizontal } from 'lucide-react';
 
 const PROJ_BG   = '#263248';
 const PROJ_DEEP = '#0B0F17';
@@ -262,7 +264,11 @@ export default function ProjectDetailMobile({ projectId }) {
   const [paymentForm, setPaymentForm] = useState({ label: '', amount: '', due_date: '', note: '' });
   const [paymentFile, setPaymentFile] = useState(null);
   const [savingPayment, setSavingPayment] = useState(false);
-  const [uploadingItemId, setUploadingItemId] = useState(null);
+  const [contextMenuItem, setContextMenuItem] = useState(null);
+  const [deleteConfirmItem, setDeleteConfirmItem] = useState(null);
+  const [fileViewItem, setFileViewItem] = useState(null);
+  const [sendConfirmItem, setSendConfirmItem] = useState(null);
+  const [attachForItemId, setAttachForItemId] = useState(null);
   const [sendingItemId, setSendingItemId] = useState(null);
   const itemFileRef = useRef(null);
   const paymentFileRef = useRef(null);
@@ -672,13 +678,12 @@ export default function ProjectDetailMobile({ projectId }) {
   };
 
   const handleItemFileUpload = async (file) => {
-    if (!uploadingItemId || !file) return;
-    const itemId = uploadingItemId;
-    setUploadingItemId(`uploading_${itemId}`);
+    if (!attachForItemId || !file) return;
+    const itemId = attachForItemId;
+    setAttachForItemId(null);
     const fd = new FormData();
     fd.append('file', file);
     const res = await fetch(`/api/payment-plan/${itemId}/files`, { method: 'POST', body: fd });
-    setUploadingItemId(null);
     if (!res.ok) {
       const { error } = await res.json().catch(() => ({}));
       setAlertModal({ open: true, message: error || t('saveError') });
@@ -1332,57 +1337,27 @@ export default function ProjectDetailMobile({ projectId }) {
               }[item.status] || { bg: '#E3E7EE', fg: '#263248' };
               const statusLabel = { paid: t('statusPaid'), sent: t('statusSent'), cancelled: t('statusCanceled'), pending: t('statusPending') }[item.status] || t('statusPending');
               const hasFiles = (item.files || []).length > 0;
-              const isUploading = uploadingItemId === `uploading_${item.id}`;
-              const isSending = sendingItemId === item.id;
               return (
-                <div key={item.id} style={{ padding: '10px 0', borderBottom: '1px solid rgba(14,17,22,0.06)' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <span style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
-                      <b style={{ fontSize: 14 }}>{item.label || '—'}</b>
-                      <span style={{ fontSize: 13, fontWeight: 600, color: '#5A5F68' }}>{formatMoney(Number(item.amount_huf || 0), userCurrency)}</span>
-                      {item.due_date && <span style={{ fontSize: 11, color: '#8A8F97' }}>{formatDate(item.due_date)}</span>}
+                <div key={item.id} style={{ background: '#fff', borderRadius: 16, padding: '12px 14px', boxShadow: '0 2px 8px rgba(14,17,22,0.08), 0 1px 2px rgba(14,17,22,0.04)', marginBottom: 8 }}>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                    <span style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 3 }}>
+                      <b style={{ fontSize: 15, color: '#1A1F2B' }}>{item.label || '—'}</b>
+                      <span style={{ fontSize: 14, fontWeight: 700, color: '#263248' }}>{formatMoney(Number(item.amount_huf || 0), userCurrency)}</span>
+                      {item.due_date && <span style={{ fontSize: 12, color: '#8A8F97' }}>{formatDate(item.due_date)}</span>}
                     </span>
-                    <span style={{ height: 22, padding: '0 9px', borderRadius: 11, fontSize: 11, fontWeight: 700, background: SC.bg, color: SC.fg, flexShrink: 0 }}>{statusLabel}</span>
-                  </div>
-                  {/* File row */}
-                  {hasFiles && (
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
-                      {(item.files || []).map(f => (
-                        <a key={f.id} href={f.file_url} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, height: 26, padding: '0 10px', borderRadius: 13, background: '#F4F2EC', color: '#263248', fontSize: 11, fontWeight: 700, textDecoration: 'none' }}>
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>
-                          {f.file_name || 'Fájl'}
-                        </a>
-                      ))}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                      <span style={{ height: 22, padding: '0 9px', borderRadius: 11, fontSize: 11, fontWeight: 700, background: SC.bg, color: SC.fg }}>{statusLabel}</span>
+                      {canOwnerAct && (
+                        <button type="button" onClick={() => setContextMenuItem(item)} aria-label="Műveletek" style={{ width: 32, height: 32, border: 0, borderRadius: 8, background: '#F4F2EC', color: '#5A5F68', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+                          <MoreHorizontal size={16} />
+                        </button>
+                      )}
                     </div>
-                  )}
-                  {/* Action row */}
-                  {canOwnerAct && !isClosed && (
-                    <div style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
-                      {item.status === 'pending' && !hasFiles && (
-                        <button disabled={isUploading} onClick={() => { setUploadingItemId(item.id); itemFileRef.current?.click(); }} style={{ height: 30, padding: '0 12px', border: 0, borderRadius: 15, background: '#E3E7EE', color: '#263248', fontSize: 12, fontWeight: 700, cursor: 'pointer', opacity: isUploading ? 0.6 : 1 }}>
-                          {isUploading ? t('fileUploading') : t('attachFile')}
-                        </button>
-                      )}
-                      {item.status === 'pending' && hasFiles && (
-                        <>
-                          <button disabled={isUploading} onClick={() => { setUploadingItemId(item.id); itemFileRef.current?.click(); }} style={{ height: 30, padding: '0 12px', border: 0, borderRadius: 15, background: '#E3E7EE', color: '#263248', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
-                            {t('attachFile')}
-                          </button>
-                          <button disabled={isSending} onClick={() => handleSendInvoice(item.id)} style={{ height: 30, padding: '0 12px', border: 0, borderRadius: 15, background: PROJ_BG, color: '#fff', fontSize: 12, fontWeight: 700, cursor: 'pointer', opacity: isSending ? 0.6 : 1 }}>
-                            {isSending ? '…' : t('sendInvoice')}
-                          </button>
-                        </>
-                      )}
-                      {item.status === 'sent' && (
-                        <button onClick={() => handleMarkPaymentPaid(item.id)} style={{ height: 30, padding: '0 12px', border: 0, borderRadius: 15, background: '#E7F4EC', color: '#14532D', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
-                          {t('markPaid')}
-                        </button>
-                      )}
-                      {(item.status === 'pending' || item.status === 'sent') && (
-                        <button onClick={() => handleDeletePaymentItem(item.id)} style={{ height: 30, padding: '0 12px', border: 0, borderRadius: 15, background: 'transparent', color: '#9B1C1C', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
-                          {t('deletePaymentItem')}
-                        </button>
-                      )}
+                  </div>
+                  {hasFiles && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8 }}>
+                      <Paperclip size={12} color="#8A8F97" />
+                      <span style={{ fontSize: 12, color: '#5A5F68', fontWeight: 600 }}>{(item.files || []).length === 1 ? (item.files[0].file_name || 'Fájl') : `${item.files.length} fájl`}</span>
                     </div>
                   )}
                 </div>
@@ -1394,7 +1369,6 @@ export default function ProjectDetailMobile({ projectId }) {
                 {t('addPaymentItem')}
               </button>
             )}
-            {/* Hidden file input for item file upload */}
             <input ref={itemFileRef} type="file" accept="image/*,application/pdf" style={{ display: 'none' }} onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; if (f) handleItemFileUpload(f); }} />
           </InfoPod>
 
@@ -1742,6 +1716,117 @@ export default function ProjectDetailMobile({ projectId }) {
               return (
                 <button onClick={() => handleAddPayment(false)} disabled={!canSave} style={{ height: 60, border: 0, borderRadius: 30, background: canSave ? PROJ_BG : '#B9B5AA', color: '#fff', fontSize: 17, fontWeight: 700, cursor: canSave ? 'pointer' : 'default' }}>
                   {savingPayment ? '…' : t('addPaymentItem')}
+                </button>
+              );
+            })()}
+          </div>
+        </>
+      )}
+
+      {/* Invoice context menu */}
+      <BottomSheet
+        isOpen={!!contextMenuItem}
+        onClose={() => setContextMenuItem(null)}
+        title={contextMenuItem?.label || ''}
+        subtitle={contextMenuItem ? formatMoney(Number(contextMenuItem.amount_huf || 0), userCurrency) : ''}
+        actions={contextMenuItem ? [
+          {
+            icon: Paperclip,
+            label: t('attachFile'),
+            onClick: () => { setAttachForItemId(contextMenuItem.id); itemFileRef.current?.click(); },
+          },
+          ...(contextMenuItem.files?.length > 0 ? [{
+            icon: FileText,
+            label: t('filesViewTitle'),
+            onClick: () => setFileViewItem(contextMenuItem),
+          }] : []),
+          ...((contextMenuItem.files?.length > 0 && contextMenuItem.status !== 'paid') ? [{
+            icon: Send,
+            label: t('sendInvoice'),
+            onClick: () => setSendConfirmItem(contextMenuItem),
+          }] : []),
+          {
+            icon: Trash2,
+            label: t('deletePaymentItem'),
+            danger: true,
+            dividerBefore: true,
+            onClick: () => setDeleteConfirmItem(contextMenuItem),
+          },
+        ] : []}
+      />
+
+      {/* Delete confirmation */}
+      <ConfirmModal
+        isOpen={!!deleteConfirmItem}
+        onClose={() => setDeleteConfirmItem(null)}
+        onConfirm={() => { handleDeletePaymentItem(deleteConfirmItem.id); setDeleteConfirmItem(null); }}
+        title={t('deletePaymentItem')}
+        message={t('deleteInvoiceConfirmBody')}
+        confirmLabel={t('deletePaymentItem')}
+        confirmStyle="danger"
+      />
+
+      {/* File view sheet */}
+      {fileViewItem && (
+        <>
+          <div onClick={() => setFileViewItem(null)} style={{ position: 'fixed', inset: 0, zIndex: 40, background: 'rgba(14,17,22,0.5)' }} role="button" tabIndex={0} aria-label={tProj('cancel')} onKeyDown={e => e.key === 'Enter' && setFileViewItem(null)} />
+          <div role="dialog" aria-label={t('filesViewTitle')} className="pod-sheet" style={{ position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 50, boxSizing: 'border-box', padding: `10px 16px calc(24px + env(safe-area-inset-bottom))`, borderRadius: '32px 32px 0 0', background: 'var(--m-sheet, #FBFAF7)', display: 'flex', flexDirection: 'column', gap: 12, maxHeight: '70%', overflowY: 'auto' }}>
+            <div style={{ alignSelf: 'center', width: 44, height: 5, borderRadius: 3, background: '#D5D2C8' }} />
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+              <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 20, fontWeight: 700, color: 'var(--m-ink)' }}>{t('filesViewTitle')}</span>
+              <CloseBtnDark onClick={() => setFileViewItem(null)} />
+            </div>
+            {(fileViewItem.files || []).length === 0 ? (
+              <span style={{ fontSize: 14, color: '#5A5F68', fontWeight: 600 }}>{t('noFilesAttached')}</span>
+            ) : (fileViewItem.files || []).map(f => (
+              <a key={f.id} href={f.file_url} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', background: '#fff', borderRadius: 16, boxShadow: '0 1px 4px rgba(14,17,22,0.08)', textDecoration: 'none' }}>
+                <div style={{ width: 40, height: 40, borderRadius: 10, background: '#E0F2FE', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <FileText size={20} color="#0369A1" />
+                </div>
+                <span style={{ flex: 1, fontSize: 14, fontWeight: 600, color: '#1A1F2B', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.file_name || 'Fájl'}</span>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8A8F97" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+              </a>
+            ))}
+          </div>
+        </>
+      )}
+
+      {/* Send confirm sheet */}
+      {sendConfirmItem && (
+        <>
+          <div onClick={() => setSendConfirmItem(null)} style={{ position: 'fixed', inset: 0, zIndex: 40, background: 'rgba(14,17,22,0.5)' }} role="button" tabIndex={0} aria-label={tProj('cancel')} onKeyDown={e => e.key === 'Enter' && setSendConfirmItem(null)} />
+          <div role="dialog" aria-label={t('sendInvoice')} className="pod-sheet" style={{ position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 50, boxSizing: 'border-box', padding: `10px 16px calc(18px + env(safe-area-inset-bottom))`, borderRadius: '32px 32px 0 0', background: 'var(--m-sheet, #FBFAF7)', display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div style={{ alignSelf: 'center', width: 44, height: 5, borderRadius: 3, background: '#D5D2C8' }} />
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+              <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 20, fontWeight: 700, color: 'var(--m-ink)' }}>{t('sendInvoice')}</span>
+              <CloseBtnDark onClick={() => setSendConfirmItem(null)} />
+            </div>
+            <div style={{ background: '#fff', borderRadius: 14, padding: '12px 14px' }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: '#5A5F68', marginBottom: 2 }}>{t('sendConfirmLabel')}</div>
+              <div style={{ fontSize: 15, fontWeight: 700, color: '#1A1F2B' }}>{sendConfirmItem.label}</div>
+              <div style={{ fontSize: 14, fontWeight: 600, color: '#5A5F68' }}>{formatMoney(Number(sendConfirmItem.amount_huf || 0), userCurrency)}</div>
+            </div>
+            {client?.email ? (
+              <div style={{ background: '#E0F2FE', borderRadius: 14, padding: '10px 14px', fontSize: 14, fontWeight: 600, color: '#0369A1' }}>
+                → {client.email}
+              </div>
+            ) : (
+              <div style={{ background: '#FFF1E0', borderRadius: 14, padding: '10px 14px', fontSize: 13, fontWeight: 600, color: '#8A4200' }}>
+                {t('noClientEmailHint')}
+              </div>
+            )}
+            {(() => {
+              const isSending = sendingItemId === sendConfirmItem.id;
+              return (
+                <button
+                  disabled={isSending}
+                  onClick={async () => {
+                    await handleSendInvoice(sendConfirmItem.id);
+                    setSendConfirmItem(null);
+                  }}
+                  style={{ height: 60, border: 0, borderRadius: 30, background: PROJ_BG, color: '#fff', fontSize: 17, fontWeight: 700, cursor: 'pointer', opacity: isSending ? 0.6 : 1 }}
+                >
+                  {isSending ? '…' : t('sendInvoice')}
                 </button>
               );
             })()}
