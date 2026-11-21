@@ -2167,7 +2167,7 @@
     "fileUploading": "Uploading…",
     "deletePaymentItem": "Delete item",
     "deleteInvoiceConfirmBody": "The invoice and all attached documents will be permanently deleted.",
-    "filesViewTitle": "Attached files",
+    "filesViewTitle": "Read invoice",
     "noFilesAttached": "No files attached yet.",
     "sendConfirmLabel": "Invoice",
     "noClientEmailHint": "Assign a client to the project to enable sending.",

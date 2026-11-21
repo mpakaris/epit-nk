@@ -2167,7 +2167,7 @@
     "fileUploading": "Feltöltés…",
     "deletePaymentItem": "Tétel törlése",
     "deleteInvoiceConfirmBody": "A számla és a csatolt dokumentumok véglegesen törlésre kerülnek.",
-    "filesViewTitle": "Csatolt fájlok",
+    "filesViewTitle": "Számla megtekintése",
     "noFilesAttached": "Még nincs csatolt fájl.",
     "sendConfirmLabel": "Számla",
     "noClientEmailHint": "Rendelj ügyfelet a projekthez a küldéshez.",

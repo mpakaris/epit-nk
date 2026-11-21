@@ -2167,7 +2167,7 @@
     "fileUploading": "Hochladen…",
     "deletePaymentItem": "Posten löschen",
     "deleteInvoiceConfirmBody": "Die Rechnung und alle angehängten Dokumente werden endgültig gelöscht.",
-    "filesViewTitle": "Angehängte Dateien",
+    "filesViewTitle": "Rechnung lesen",
     "noFilesAttached": "Noch keine Dateien angehängt.",
     "sendConfirmLabel": "Rechnung",
     "noClientEmailHint": "Weise dem Projekt einen Kunden zu, um zu senden.",
