@@ -1341,19 +1341,19 @@ export default function ProjectDetailMobile({ projectId }) {
               const hasFiles = (item.files || []).length > 0;
               return (
                 <div key={item.id} style={{ background: '#fff', borderRadius: 16, padding: '12px 14px', boxShadow: '0 2px 8px rgba(14,17,22,0.08), 0 1px 2px rgba(14,17,22,0.04)', marginBottom: 8 }}>
-                  {/* Status badge above title */}
-                  <span style={{ display: 'inline-block', height: 20, padding: '0 8px', borderRadius: 10, fontSize: 10, fontWeight: 700, letterSpacing: '0.03em', background: SC.bg, color: SC.fg, marginBottom: 6 }}>{statusLabel}</span>
-                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-                    <span style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 3 }}>
-                      <b style={{ fontSize: 15, color: '#1A1F2B' }}>{item.label || '—'}</b>
-                      <span style={{ fontSize: 14, fontWeight: 700, color: '#263248' }}>{formatMoney(Number(item.amount_huf || 0), userCurrency)}</span>
-                      {item.due_date && <span style={{ fontSize: 12, color: '#8A8F97' }}>{formatDate(item.due_date)}</span>}
-                    </span>
+                  {/* Badge + context menu on same row */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                    <span style={{ height: 20, padding: '0 8px', borderRadius: 10, fontSize: 10, fontWeight: 700, letterSpacing: '0.03em', background: SC.bg, color: SC.fg }}>{statusLabel}</span>
                     {canOwnerAct && (
                       <button type="button" onClick={() => setContextMenuItem(item)} aria-label="Műveletek" style={{ width: 32, height: 32, border: 0, borderRadius: 16, background: PROJ_BG, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}>
                         <MoreHorizontal size={16} />
                       </button>
                     )}
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                    <b style={{ fontSize: 15, color: '#1A1F2B' }}>{item.label || '—'}</b>
+                    <span style={{ fontSize: 14, fontWeight: 700, color: '#263248' }}>{formatMoney(Number(item.amount_huf || 0), userCurrency)}</span>
+                    {item.due_date && <span style={{ fontSize: 12, color: '#8A8F97' }}>{formatDate(item.due_date)}</span>}
                   </div>
                   {(hasFiles || item.note) && (
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 8 }}>
