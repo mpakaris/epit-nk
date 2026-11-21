@@ -2139,7 +2139,7 @@
     "confirmStatusChange": "Megerősítés",
     "paymentPlanEmpty": "Nincsenek rögzített számlák",
     "paymentPlanOwnerOnly": "Csak a tulajdonos kezeli a kiszámlázást.",
-    "addPaymentItem": "Számla mentése",
+    "addPaymentItem": "Számla hozzáadása",
     "paymentLabelField": "Megnevezés",
     "paymentLabelPlaceholder": "pl. Előleg, Végszámla",
     "paymentAmountField": "Összeg",
