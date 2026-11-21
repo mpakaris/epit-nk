@@ -2139,7 +2139,7 @@
     "confirmStatusChange": "Confirm",
     "paymentPlanEmpty": "No invoices recorded",
     "paymentPlanOwnerOnly": "Only the owner manages client invoicing.",
-    "addPaymentItem": "Record invoice",
+    "addPaymentItem": "Save invoice",
     "paymentLabelField": "Label",
     "paymentLabelPlaceholder": "e.g. Deposit, Final invoice",
     "paymentAmountField": "Amount",

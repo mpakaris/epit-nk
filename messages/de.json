@@ -2139,7 +2139,7 @@
     "confirmStatusChange": "Bestätigen",
     "paymentPlanEmpty": "Keine Rechnungen erfasst",
     "paymentPlanOwnerOnly": "Nur der Eigentümer verwaltet die Abrechnung.",
-    "addPaymentItem": "Rechnung erfassen",
+    "addPaymentItem": "Rechnung speichern",
     "paymentLabelField": "Bezeichnung",
     "paymentLabelPlaceholder": "z.B. Anzahlung, Schlussrechnung",
     "paymentAmountField": "Betrag",

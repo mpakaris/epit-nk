@@ -1737,20 +1737,12 @@ export default function ProjectDetailMobile({ projectId }) {
               <textarea value={paymentForm.note} onChange={e => setPaymentForm(f => ({ ...f, note: e.target.value }))} placeholder={t('paymentNotePlaceholder')} rows={2} style={{ width: '100%', boxSizing: 'border-box', height: 72, border: 0, borderRadius: 20, background: '#fff', padding: '14px 16px', fontSize: 16, fontWeight: 500, color: 'var(--m-ink)', resize: 'none', boxShadow: '0 1px 0 rgba(14,17,22,0.08)', outline: 0 }} />
             </label>
 
-            {/* CTAs */}
             {(() => {
               const canSave = !savingPayment && paymentForm.label.trim() && Number(paymentForm.amount) > 0;
               return (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  {paymentFile && (
-                    <button onClick={() => handleAddPayment(true)} disabled={!canSave} style={{ height: 60, border: 0, borderRadius: 30, background: canSave ? PROJ_BG : '#B9B5AA', color: '#fff', fontSize: 17, fontWeight: 700, cursor: canSave ? 'pointer' : 'default' }}>
-                      {savingPayment ? '…' : t('sendInvoice')}
-                    </button>
-                  )}
-                  <button onClick={() => handleAddPayment(false)} disabled={!canSave} style={{ height: paymentFile ? 48 : 60, border: 0, borderRadius: paymentFile ? 24 : 30, background: canSave ? (paymentFile ? '#E3E7EE' : PROJ_BG) : '#B9B5AA', color: canSave ? (paymentFile ? '#263248' : '#fff') : '#fff', fontSize: paymentFile ? 15 : 17, fontWeight: 700, cursor: canSave ? 'pointer' : 'default' }}>
-                    {savingPayment ? '…' : t('addPaymentItem')}
-                  </button>
-                </div>
+                <button onClick={() => handleAddPayment(false)} disabled={!canSave} style={{ height: 60, border: 0, borderRadius: 30, background: canSave ? PROJ_BG : '#B9B5AA', color: '#fff', fontSize: 17, fontWeight: 700, cursor: canSave ? 'pointer' : 'default' }}>
+                  {savingPayment ? '…' : t('addPaymentItem')}
+                </button>
               );
             })()}
           </div>
