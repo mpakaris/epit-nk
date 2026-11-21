@@ -2085,11 +2085,14 @@ export default function ProjectDetailMobile({ projectId }) {
             'labour.deleted':         t('histActionLabourDeleted'),
             'diary.created':          t('histActionDiaryCreated'),
             'payment.created':        t('histActionPaymentCreated'),
+            'invoice.created':        t('histActionClientInvoiceCreated'),
+            'invoice.sent':           t('histActionClientInvoiceSent'),
           }}
           getDetailRows={(details) => [
             details.value_huf   && { label: t('histActionInvoiceAdded'), value: formatMoney(details.value_huf, userCurrency) },
             details.labour_type && { label: t('labourType'),              value: details.labour_type },
             details.hours != null && details.unit && { label: t('labourQty'), value: `${details.hours} ${details.unit}` },
+            details.recipient   && { label: t('histDetailRecipient'),       value: details.recipient },
             details.reason      && { label: t('historyReason'),           value: details.reason },
             details.error       && { label: 'Error',                      value: details.error },
           ].filter(Boolean)}

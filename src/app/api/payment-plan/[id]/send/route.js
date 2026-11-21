@@ -106,6 +106,6 @@ export async function POST(request, { params }) {
     .update({ status: 'sent', sent_at: new Date().toISOString() })
     .eq('id', itemId).select().single();
 
-  logAudit({ entityId: project.collective_id || user.id, userId: user.id, userName: profile.display_name || '', action: 'Client invoice sent', targetType: 'payment_item', targetId: itemId, targetName: item.label, details: { recipient: recipientEmail, amount_huf: item.amount_huf, project_id: project.id } });
+  logAudit({ entityId: project.collective_id || user.id, userId: user.id, userName: profile.display_name || '', action: 'invoice.sent', targetType: 'payment_item', targetId: itemId, targetName: item.label, details: { recipient: recipientEmail, amount_huf: item.amount_huf, project_id: project.id } });
   return Response.json({ item: { ...updated, files } });
 }
