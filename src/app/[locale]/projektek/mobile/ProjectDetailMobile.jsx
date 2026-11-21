@@ -14,7 +14,7 @@ import { normalizeHU } from '@/lib/utils';
 import { calculateProjectFinancials } from '@/lib/calculations';
 import { processMediaFile } from '@/lib/mediaGate';
 import useOnline from '@/hooks/useOnline';
-import { AlertModal, ConfirmModal } from '@/components/Modal';
+import { AlertModal } from '@/components/Modal';
 import Lightbox from '@/components/Lightbox';
 import HistorySheet from '@/components/mobile/pods/HistorySheet';
 import BottomSheet from '@/components/mobile/BottomSheet';
@@ -1730,15 +1730,24 @@ export default function ProjectDetailMobile({ projectId }) {
         ] : []}
       />
 
-      {/* Delete confirmation */}
-      <ConfirmModal
-        isOpen={!!deleteConfirmItem}
-        onClose={() => setDeleteConfirmItem(null)}
-        onConfirm={() => { handleDeletePaymentItem(deleteConfirmItem.id); setDeleteConfirmItem(null); }}
-        title={t('deletePaymentItem')}
-        message={t('deleteInvoiceConfirmBody')}
-        confirmLabel={t('deletePaymentItem')}
-      />
+      {/* Delete confirmation sheet */}
+      {deleteConfirmItem && (
+        <>
+          <div onClick={() => setDeleteConfirmItem(null)} style={{ position: 'fixed', inset: 0, zIndex: 40, background: 'rgba(14,17,22,0.5)' }} role="button" tabIndex={0} aria-label={tProj('cancel')} onKeyDown={e => e.key === 'Enter' && setDeleteConfirmItem(null)} />
+          <div role="dialog" className="pod-sheet" style={{ position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 50, boxSizing: 'border-box', padding: `10px 16px calc(18px + env(safe-area-inset-bottom))`, borderRadius: '32px 32px 0 0', background: 'var(--m-sheet, #FBFAF7)', display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div style={{ alignSelf: 'center', width: 44, height: 5, borderRadius: 3, background: '#D5D2C8' }} />
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+              <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 22, fontWeight: 700, lineHeight: 1.1, color: 'var(--m-ink)' }}>{t('deletePaymentItem')}</span>
+              <CloseBtnDark onClick={() => setDeleteConfirmItem(null)} />
+            </div>
+            <span style={{ fontSize: 15, fontWeight: 500, color: '#5A5F68', lineHeight: 1.5 }}>{t('deleteInvoiceConfirmBody')}</span>
+            <button onClick={() => { handleDeletePaymentItem(deleteConfirmItem.id); setDeleteConfirmItem(null); }} style={{ height: 60, border: 0, borderRadius: 30, background: '#B71C1C', color: '#fff', fontSize: 17, fontWeight: 700, cursor: 'pointer' }}>
+              {t('deletePaymentItem')}
+            </button>
+            <button onClick={() => setDeleteConfirmItem(null)} style={{ height: 52, border: 0, borderRadius: 26, background: '#EFEDE6', color: 'var(--m-ink)', fontSize: 15, fontWeight: 700, cursor: 'pointer' }}>{tProj('cancel')}</button>
+          </div>
+        </>
+      )}
 
       {/* Send invoice sheet */}
       {sendConfirmItem && (
