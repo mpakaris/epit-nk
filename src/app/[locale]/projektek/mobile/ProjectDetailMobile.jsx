@@ -1350,7 +1350,7 @@ export default function ProjectDetailMobile({ projectId }) {
                       {item.due_date && <span style={{ fontSize: 12, color: '#8A8F97' }}>{formatDate(item.due_date)}</span>}
                     </span>
                     {canOwnerAct && (
-                      <button type="button" onClick={() => setContextMenuItem(item)} aria-label="Műveletek" style={{ width: 32, height: 32, border: 0, borderRadius: 8, background: '#F4F2EC', color: '#5A5F68', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}>
+                      <button type="button" onClick={() => setContextMenuItem(item)} aria-label="Műveletek" style={{ width: 32, height: 32, border: 0, borderRadius: 16, background: PROJ_BG, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}>
                         <MoreHorizontal size={16} />
                       </button>
                     )}
