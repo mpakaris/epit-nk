@@ -260,10 +260,12 @@ export default function ProjectDetailMobile({ projectId }) {
   const [diarySheet, setDiarySheet] = useState(false);
   const [paymentSheet, setPaymentSheet] = useState(false);
   const [paymentForm, setPaymentForm] = useState({ label: '', amount: '', due_date: '', note: '' });
+  const [paymentFile, setPaymentFile] = useState(null);
   const [savingPayment, setSavingPayment] = useState(false);
   const [uploadingItemId, setUploadingItemId] = useState(null);
   const [sendingItemId, setSendingItemId] = useState(null);
   const itemFileRef = useRef(null);
+  const paymentFileRef = useRef(null);
   const [diaryForm, setDiaryForm] = useState({ title: '', date: '', workType: '', body: '', internalNote: '', isPublic: true });
   const [diaryFiles, setDiaryFiles] = useState([]);
   const [diaryPreviews, setDiaryPreviews] = useState([]);
@@ -604,30 +606,69 @@ export default function ProjectDetailMobile({ projectId }) {
     refreshSupabaseData?.();
   };
 
-  const handleAddPayment = async () => {
-    if (!paymentForm.label.trim() || !(Number(paymentForm.amount) > 0)) return;
-    setSavingPayment(true);
-    const res = await fetch('/api/payment-plan', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        project_id: projectId,
-        label:      paymentForm.label.trim(),
-        amount_huf: Math.round(Number(paymentForm.amount)),
-        due_date:   paymentForm.due_date || null,
-        note:       paymentForm.note.trim() || null,
-      }),
-    });
-    setSavingPayment(false);
-    if (!res.ok) {
-      const { error } = await res.json().catch(() => ({}));
-      setAlertModal({ open: true, message: error || t('saveError') });
-      return;
-    }
-    const { item } = await res.json();
-    setPaymentPlan(prev => [...prev, { ...item, files: [] }]);
+  const closePaymentSheet = () => {
     setPaymentSheet(false);
     setPaymentForm({ label: '', amount: '', due_date: '', note: '' });
+    setPaymentFile(null);
+  };
+
+  const handleAddPayment = async (andSend = false) => {
+    if (!paymentForm.label.trim() || !(Number(paymentForm.amount) > 0)) return;
+    setSavingPayment(true);
+    try {
+      // 1. Create item
+      const createRes = await fetch('/api/payment-plan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          project_id: projectId,
+          label:      paymentForm.label.trim(),
+          amount_huf: Math.round(Number(paymentForm.amount)),
+          due_date:   paymentForm.due_date || null,
+          note:       paymentForm.note.trim() || null,
+        }),
+      });
+      if (!createRes.ok) {
+        const { error } = await createRes.json().catch(() => ({}));
+        setAlertModal({ open: true, message: error || t('saveError') });
+        return;
+      }
+      let { item } = await createRes.json();
+      item = { ...item, files: [] };
+
+      // 2. Upload file if one was chosen
+      if (paymentFile) {
+        const fd = new FormData();
+        fd.append('file', paymentFile);
+        const uploadRes = await fetch(`/api/payment-plan/${item.id}/files`, { method: 'POST', body: fd });
+        if (uploadRes.ok) {
+          const { file: uploaded } = await uploadRes.json();
+          item = { ...item, files: [uploaded] };
+        }
+      }
+
+      // 3. Send to client if requested (and a file was successfully uploaded)
+      if (andSend && item.files.length > 0) {
+        const sendRes = await fetch(`/api/payment-plan/${item.id}/send`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({}),
+        });
+        if (sendRes.ok) {
+          const { item: sent } = await sendRes.json();
+          item = { ...sent, files: item.files };
+          setToast(t('invoiceSentSuccess'));
+        } else {
+          const { error } = await sendRes.json().catch(() => ({}));
+          setAlertModal({ open: true, message: error || t('saveError') });
+        }
+      }
+
+      setPaymentPlan(prev => [...prev, item]);
+      closePaymentSheet();
+    } finally {
+      setSavingPayment(false);
+    }
   };
 
   const handleItemFileUpload = async (file) => {
@@ -1645,18 +1686,34 @@ export default function ProjectDetailMobile({ projectId }) {
       {/* Payment item sheet */}
       {paymentSheet && (
         <>
-          <div onClick={() => setPaymentSheet(false)} style={{ position: 'fixed', inset: 0, zIndex: 40, background: 'rgba(14,17,22,0.5)' }} role="button" tabIndex={0} aria-label={tProj('cancel')} onKeyDown={e => e.key === 'Enter' && setPaymentSheet(false)} />
-          <div role="dialog" aria-label={t('addPaymentItem')} className="pod-sheet" style={{ position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 50, boxSizing: 'border-box', padding: `10px 16px calc(18px + env(safe-area-inset-bottom))`, borderRadius: '32px 32px 0 0', background: 'var(--m-sheet, #FBFAF7)', display: 'flex', flexDirection: 'column', gap: 12, maxHeight: '85%', overflowY: 'auto' }}>
+          <div onClick={closePaymentSheet} style={{ position: 'fixed', inset: 0, zIndex: 40, background: 'rgba(14,17,22,0.5)' }} role="button" tabIndex={0} aria-label={tProj('cancel')} onKeyDown={e => e.key === 'Enter' && closePaymentSheet()} />
+          <div role="dialog" aria-label={t('addPaymentItem')} className="pod-sheet" style={{ position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 50, boxSizing: 'border-box', padding: `10px 16px calc(18px + env(safe-area-inset-bottom))`, borderRadius: '32px 32px 0 0', background: 'var(--m-sheet, #FBFAF7)', display: 'flex', flexDirection: 'column', gap: 12, maxHeight: '90%', overflowY: 'auto' }}>
             <div style={{ alignSelf: 'center', width: 44, height: 5, borderRadius: 3, background: '#D5D2C8' }} />
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
               <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 22, fontWeight: 700, lineHeight: 1.1, color: 'var(--m-ink)' }}>{t('addPaymentItem')}</span>
-              <CloseBtnDark onClick={() => setPaymentSheet(false)} />
+              <CloseBtnDark onClick={closePaymentSheet} />
             </div>
+
+            {/* File picker — leads the form */}
+            <button type="button" onClick={() => paymentFileRef.current?.click()} style={{ width: '100%', height: 64, border: `2px dashed ${paymentFile ? '#14532D' : '#D5D2C8'}`, borderRadius: 20, background: paymentFile ? '#E7F4EC' : '#fff', color: paymentFile ? '#14532D' : '#5A5F68', fontSize: 14, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, cursor: 'pointer', transition: 'all 0.15s' }}>
+              {paymentFile ? (
+                <>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14,2 14,8 20,8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                  <span style={{ maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{paymentFile.name}</span>
+                </>
+              ) : (
+                <>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                  {t('attachFile')}
+                </>
+              )}
+            </button>
+            <input ref={paymentFileRef} type="file" accept="image/*,application/pdf" style={{ display: 'none' }} onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; if (f) setPaymentFile(f); }} />
 
             {/* Label */}
             <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
               <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--m-ink)' }}>{t('paymentLabelField')} *</span>
-              <input autoFocus type="text" value={paymentForm.label} onChange={e => setPaymentForm(f => ({ ...f, label: e.target.value }))} placeholder={t('paymentLabelPlaceholder')} style={inputStyle} />
+              <input type="text" value={paymentForm.label} onChange={e => setPaymentForm(f => ({ ...f, label: e.target.value }))} placeholder={t('paymentLabelPlaceholder')} style={inputStyle} />
             </label>
 
             {/* Amount + Due date */}
@@ -1680,12 +1737,20 @@ export default function ProjectDetailMobile({ projectId }) {
               <textarea value={paymentForm.note} onChange={e => setPaymentForm(f => ({ ...f, note: e.target.value }))} placeholder={t('paymentNotePlaceholder')} rows={2} style={{ width: '100%', boxSizing: 'border-box', height: 72, border: 0, borderRadius: 20, background: '#fff', padding: '14px 16px', fontSize: 16, fontWeight: 500, color: 'var(--m-ink)', resize: 'none', boxShadow: '0 1px 0 rgba(14,17,22,0.08)', outline: 0 }} />
             </label>
 
+            {/* CTAs */}
             {(() => {
               const canSave = !savingPayment && paymentForm.label.trim() && Number(paymentForm.amount) > 0;
               return (
-                <button onClick={handleAddPayment} disabled={!canSave} style={{ height: 60, border: 0, borderRadius: 30, background: canSave ? PROJ_BG : '#B9B5AA', color: '#fff', fontSize: 17, fontWeight: 700, cursor: canSave ? 'pointer' : 'default' }}>
-                  {savingPayment ? '…' : t('addPaymentItem')}
-                </button>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {paymentFile && (
+                    <button onClick={() => handleAddPayment(true)} disabled={!canSave} style={{ height: 60, border: 0, borderRadius: 30, background: canSave ? PROJ_BG : '#B9B5AA', color: '#fff', fontSize: 17, fontWeight: 700, cursor: canSave ? 'pointer' : 'default' }}>
+                      {savingPayment ? '…' : t('sendInvoice')}
+                    </button>
+                  )}
+                  <button onClick={() => handleAddPayment(false)} disabled={!canSave} style={{ height: paymentFile ? 48 : 60, border: 0, borderRadius: paymentFile ? 24 : 30, background: canSave ? (paymentFile ? '#E3E7EE' : PROJ_BG) : '#B9B5AA', color: canSave ? (paymentFile ? '#263248' : '#fff') : '#fff', fontSize: paymentFile ? 15 : 17, fontWeight: 700, cursor: canSave ? 'pointer' : 'default' }}>
+                    {savingPayment ? '…' : t('addPaymentItem')}
+                  </button>
+                </div>
               );
             })()}
           </div>
