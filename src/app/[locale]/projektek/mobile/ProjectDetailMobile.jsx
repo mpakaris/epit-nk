@@ -661,7 +661,7 @@ export default function ProjectDetailMobile({ projectId }) {
         if (sendRes.ok) {
           const { item: sent } = await sendRes.json();
           item = { ...sent, files: item.files };
-          setToast(t('invoiceSentSuccess'));
+          setAlertModal({ open: true, message: t('invoiceSentSuccess') });
         } else {
           const { error } = await sendRes.json().catch(() => ({}));
           setAlertModal({ open: true, message: error || t('saveError') });
@@ -691,7 +691,7 @@ export default function ProjectDetailMobile({ projectId }) {
     }
     const { item } = await res.json();
     setPaymentPlan(prev => prev.map(i => i.id === itemId ? { ...item } : i));
-    setToast(t('invoiceSentSuccess'));
+    setAlertModal({ open: true, message: t('invoiceSentSuccess') });
   };
 
   const handleDeletePaymentItem = async (itemId) => {
