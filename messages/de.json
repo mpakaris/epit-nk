@@ -1567,7 +1567,7 @@
   },
   "subscription": {
     "pageTitle": "Abonnement",
-    "subtitle": "Wählen Sie das passende Paket für Sie",
+    "subtitle": "Verwalten Sie Ihr Abonnement",
     "backToDashboard": "Zurück zum Dashboard",
     "currentPlan": "Aktueller Plan",
     "currentPlanLabel": "Ihr aktueller Plan:",
@@ -1613,7 +1613,9 @@
     "contactQuestion": "Haben Sie Fragen? Schreiben Sie uns:",
     "checkoutError": "Beim Starten des Zahlungsvorgangs ist ein Fehler aufgetreten. Bitte versuche es erneut.",
     "trialDaysLeftBanner": "— noch {days} Tage übrig. Danach wechselt dein Konto zum Basis-Plan.",
-    "securePayment": "🔒 Sichere Zahlung – Creem"
+    "securePayment": "🔒 Sichere Zahlung – Creem",
+    "mySubscriptionTitle": "Mein Abonnement",
+    "planFree": "Kostenloses Paket"
   },
   "mobile": {
     "floatingNav": {

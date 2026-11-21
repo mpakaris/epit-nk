@@ -1,12 +1,13 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { useTranslations } from 'next-intl';
-
-const DAY_ABBR_HU = ['V', 'H', 'K', 'Sze', 'Cs', 'P', 'Szo'];
+import { useTranslations, useLocale } from 'next-intl';
 
 export default function WeekCalendar({ events = [], onDayPress }) {
   const t = useTranslations('mobilePods');
+  const tCal = useTranslations('calendar');
+  const locale = useLocale();
+  const DAY_ABBR = tCal.raw('days'); // Mon-first: index 0=Mon…6=Sun
   const [selectedOffset, setSelectedOffset] = useState(0);
 
   const today = useMemo(() => {
@@ -37,7 +38,7 @@ export default function WeekCalendar({ events = [], onDayPress }) {
     return evDate.getTime() === selectedDate.getTime();
   });
 
-  const monthFmt = new Intl.DateTimeFormat('hu', { month: 'short', day: 'numeric' });
+  const monthFmt = new Intl.DateTimeFormat(locale, { month: 'short', day: 'numeric' });
   const weekRange = `${monthFmt.format(days[0])} – ${monthFmt.format(days[6])}`;
 
   const firstEvent = selectedEvents[0];
@@ -66,11 +67,11 @@ export default function WeekCalendar({ events = [], onDayPress }) {
             <button
               key={i}
               onClick={() => setSelectedOffset(i)}
-              aria-label={day.toLocaleDateString('hu', { weekday: 'long', day: 'numeric' })}
+              aria-label={day.toLocaleDateString(locale, { weekday: 'long', day: 'numeric' })}
               aria-pressed={isSel}
               style={{ minHeight: 64, padding: '6px 0 4px', border: 0, borderRadius: 16, background: isSel ? '#F0EEE8' : 'transparent', color: 'var(--m-ink)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, cursor: 'pointer' }}
             >
-              <span style={{ fontSize: 12, fontWeight: 600, color: '#5A5F68' }}>{DAY_ABBR_HU[day.getDay()]}</span>
+              <span style={{ fontSize: 12, fontWeight: 600, color: '#5A5F68' }}>{DAY_ABBR[(day.getDay() + 6) % 7]}</span>
               <span style={{ width: 30, height: 30, borderRadius: 15, background: isToday ? 'var(--m-ink)' : 'transparent', color: isToday ? '#fff' : 'var(--m-ink)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15, fontWeight: 700 }}>
                 {day.getDate()}
               </span>

@@ -573,44 +573,7 @@ export default function ProfileMobile() {
             icon={<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 8l4 4 5-7 5 7 4-4-2 11H5z"/></svg>}
             title={t('subscription')}
             subtitle={subRowSub}
-            onClick={() => {
-              setOpenSheet('subscription');
-              if (premiumSubId) {
-                setSubDetailLoading(true);
-                fetch('/api/subscriptions/status', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ subscriptionId: premiumSubId }),
-                })
-                  .then(r => r.ok ? r.json() : null)
-                  .then(d => {
-                    if (!d) return;
-                    // If the stored ID was stale, swap it out so cancel/resume use the correct one
-                    if (d.corrected_subscription_id) setPremiumSubId(d.corrected_subscription_id);
-                    if (d.created_at) setPremiumSubStarted(d.created_at);
-                    if (d.status === 'scheduled_cancel') {
-                      setPremiumIsScheduledCancel(true);
-                      if (d.current_period_end) setPremiumCancelAt(d.current_period_end);
-                    } else if (d.status === 'canceled' || d.status === 'expired') {
-                      // Stale ID and no active replacement found — treat as not cancellable
-                      setPremiumSubId(null);
-                    } else {
-                      const renewal = d.next_billing_date || d.current_period_end;
-                      if (renewal) setPremiumRenewalAt(renewal);
-                    }
-                    if (d.billing_cycle_count != null) setPremiumBillingCycles(d.billing_cycle_count);
-                  })
-                  .finally(() => setSubDetailLoading(false));
-              }
-              // Fetch history every time the sheet opens
-              setSubHistory(null);
-              setSubHistoryLoading(true);
-              fetch('/api/subscriptions/history')
-                .then(r => r.ok ? r.json() : { events: [] })
-                .then(d => setSubHistory(d.events ?? []))
-                .catch(() => setSubHistory([]))
-                .finally(() => setSubHistoryLoading(false));
-            }}
+            onClick={() => setOpenSheet('subscription')}
           />
           <NavRow
             icon={<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 8a3 3 0 106 0 3 3 0 10-6 0M3 20c0-3 2.7-5 6-5M21 20c0-3-2.7-5-6-5M7 20c0-2.2 2.2-4 5-4s5 1.8 5 4"/></svg>}
@@ -799,154 +762,31 @@ export default function ProfileMobile() {
           </div>
         )}
 
-        {/* Current plan card */}
+        {/* Current plan info */}
         <div style={{ background: '#fff', borderRadius: 20, padding: 16, display: 'flex', flexDirection: 'column', gap: 10, boxShadow: 'inset 0 1px 0 #fff, 0 16px 26px -14px rgba(0,0,0,.70), 0 3px 6px -2px rgba(0,0,0,.30)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <b style={{ fontSize: 17, color: '#0E1116' }}>
               {isPremium ? t('planPremiumName') : isOnTrial ? t('subscriptionBadgeTrial') : t('planBasicName')}
             </b>
-            <span style={{ height: 24, padding: '0 8px', borderRadius: 12, fontSize: 11, fontWeight: 700, background: subBadge.bg, color: subBadge.fg, display: 'inline-flex', alignItems: 'center' }}>
-              {subBadge.label}
-            </span>
-          </div>
-          {/* Info rows */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            {subDetailLoading && (
-              <span style={{ fontSize: 13, fontWeight: 600, color: '#8A8F98' }}>{t('subLoadingDetails')}</span>
-            )}
-            {isOnTrial && currentUser?.trial_ends_at && (
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14 }}>
-                <span style={{ color: '#5A5F68', fontWeight: 600 }}>{t('subActiveUntilLabel')}</span>
-                <span style={{ fontWeight: 700, color: '#B45309' }}>{formatDate(currentUser.trial_ends_at)}</span>
-              </div>
-            )}
-            {premiumSubStarted && (
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14 }}>
-                <span style={{ color: '#5A5F68', fontWeight: 600 }}>{t('subStartedLabel')}</span>
-                <span style={{ fontWeight: 700, color: '#0E1116' }}>{formatDate(premiumSubStarted)}</span>
-              </div>
-            )}
-            {premiumRenewalAt && !premiumIsScheduledCancel && (
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14 }}>
-                <span style={{ color: '#5A5F68', fontWeight: 600 }}>{t('subNextRenewalLabel')}</span>
-                <span style={{ fontWeight: 700, color: '#0E1116' }}>{formatDate(premiumRenewalAt)}</span>
-              </div>
-            )}
-            {premiumIsScheduledCancel && premiumCancelAt && (
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14 }}>
-                <span style={{ color: '#5A5F68', fontWeight: 600 }}>{t('subActiveUntilLabel')}</span>
-                <span style={{ fontWeight: 700, color: '#B71C1C' }}>{formatDate(premiumCancelAt)}</span>
-              </div>
-            )}
-            {premiumBillingCycles != null && premiumBillingCycles > 0 && (
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14 }}>
-                <span style={{ color: '#5A5F68', fontWeight: 600 }}>{t('subBillingCyclesLabel')}</span>
-                <span style={{ fontWeight: 700, color: '#0E1116' }}>{premiumBillingCycles}×</span>
-              </div>
+            {isPremium && (
+              <span style={{ height: 24, padding: '0 8px', borderRadius: 12, fontSize: 11, fontWeight: 700, background: subBadge.bg, color: subBadge.fg, display: 'inline-flex', alignItems: 'center' }}>
+                {subBadge.label}
+              </span>
             )}
           </div>
-
-          {/* Cancel / Resume */}
-          {isPremium && (
-            <button
-              onClick={() => premiumIsScheduledCancel ? handleResumePremium() : setSubSheet('cancelPrem')}
-              disabled={subBusy}
-              style={{ width: '100%', height: 52, border: 0, borderRadius: 26, fontSize: 15, fontWeight: 700, cursor: 'pointer', background: premiumIsScheduledCancel ? '#14532D' : '#FDECEC', color: premiumIsScheduledCancel ? '#fff' : '#B71C1C' }}
-            >
-              {subBusy ? t('subResumingBtn') : (premiumIsScheduledCancel ? t('subResumeBtn') : t('premiumCancel'))}
-            </button>
+          {premiumSubStarted && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14 }}>
+              <span style={{ color: '#5A5F68', fontWeight: 600 }}>{t('subStartedLabel')}</span>
+              <span style={{ fontWeight: 700, color: '#0E1116' }}>{formatDate(premiumSubStarted)}</span>
+            </div>
+          )}
+          {isOnTrial && currentUser?.trial_ends_at && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14 }}>
+              <span style={{ color: '#5A5F68', fontWeight: 600 }}>{t('subActiveUntilLabel')}</span>
+              <span style={{ fontWeight: 700, color: '#B45309' }}>{formatDate(currentUser.trial_ends_at)}</span>
+            </div>
           )}
         </div>
-
-        {/* Collective subs */}
-        {collectiveSubs.length > 0 && (
-          <>
-            <SheetSecLabel>{t('activeSubs')}</SheetSecLabel>
-            {collectiveSubs.map(c => (
-              <div key={c.collective_id} style={{ background: '#fff', borderRadius: 20, padding: 14, display: 'flex', flexDirection: 'column', gap: 10, boxShadow: 'inset 0 1px 0 #fff, 0 16px 26px -14px rgba(0,0,0,.70), 0 3px 6px -2px rgba(0,0,0,.30)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <b style={{ fontSize: 15, color: '#0E1116' }}>{c.name}</b>
-                  <span style={{ height: 24, padding: '0 8px', borderRadius: 12, fontSize: 11, fontWeight: 700, background: '#F0F0F2', color: '#2B3038', display: 'inline-flex', alignItems: 'center' }}>
-                    {c.members_count <= 3 ? t('collectiveSmall') : c.members_count <= 7 ? t('collectiveMedium') : t('collectiveLarge')}
-                  </span>
-                </div>
-                {c.subscription_status !== 'scheduled_cancel' && (
-                  <button onClick={() => setSubSheet({ type: 'cancelCol', collective: c })} style={{ height: 48, border: 0, borderRadius: 24, background: '#FDECEC', color: '#B71C1C', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>
-                    {t('cancelSubscriptionBtn')}
-                  </button>
-                )}
-              </div>
-            ))}
-          </>
-        )}
-
-        {/* ── History ──────────────────────────────────────────────── */}
-        <SheetSecLabel>{t('historyTitle')}</SheetSecLabel>
-        {subHistoryLoading && (
-          <span style={{ fontSize: 13, fontWeight: 600, color: '#8A8F98' }}>{t('subLoadingDetails')}</span>
-        )}
-        {!subHistoryLoading && subHistory?.length === 0 && (
-          <span style={{ fontSize: 13, fontWeight: 600, color: '#8A8F98' }}>{t('historyEmpty')}</span>
-        )}
-        {!subHistoryLoading && subHistory?.length > 0 && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-            {subHistory.map((ev, i) => {
-              const isPayment = ev.source === 'creem';
-              const isLast    = i === subHistory.length - 1;
-
-              const { icon, label, color } = (() => {
-                if (isPayment) return {
-                  icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="4" width="22" height="16" rx="2"/><path d="M1 10h22"/></svg>,
-                  label: t('historyPayment'),
-                  color: '#14532D',
-                };
-                if (ev.type === 'activated') return {
-                  icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12l5 5 9-10"/></svg>,
-                  label: t('historyActivated'),
-                  color: '#14532D',
-                };
-                if (ev.type === 'cancelled') return {
-                  icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>,
-                  label: t('historyCancelled'),
-                  color: '#B45309',
-                };
-                if (ev.type === 'resumed') return {
-                  icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M1 4v6h6M23 20v-6h-6"/><path d="M20.49 9A9 9 0 1 0 21 12"/></svg>,
-                  label: t('historyResumed'),
-                  color: '#1D4ED8',
-                };
-                return {
-                  icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>,
-                  label: ev.action?.includes('admin') ? t('historyAdminChange') : t('historyDeactivated'),
-                  color: '#5A5F68',
-                };
-              })();
-
-              const amountStr = isPayment && ev.amount
-                ? ` · ${(ev.amount / 100).toLocaleString('hu-HU')} ${ev.currency}`
-                : '';
-
-              return (
-                <div key={ev.id ?? i} style={{ display: 'flex', gap: 12, paddingBottom: isLast ? 0 : 12 }}>
-                  {/* Timeline dot + line */}
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0, width: 28 }}>
-                    <div style={{ width: 28, height: 28, borderRadius: 14, background: `${color}18`, color, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                      {icon}
-                    </div>
-                    {!isLast && <div style={{ width: 1.5, flex: 1, background: '#E8E5DF', marginTop: 4 }} />}
-                  </div>
-                  {/* Content */}
-                  <div style={{ flex: 1, paddingBottom: isLast ? 0 : 12, minWidth: 0 }}>
-                    <div style={{ fontSize: 14, fontWeight: 700, color: '#0E1116' }}>{label}{amountStr}</div>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: '#8A8F98', marginTop: 2 }}>
-                      {ev.date ? new Date(ev.date).toLocaleDateString('hu-HU', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
 
         {/* Forward to full subscription page — flexShrink:0 so the history div can't squish it */}
         <a href="/elofizetes" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, height: 56, flexShrink: 0, border: 0, borderRadius: 28, background: BG, color: '#fff', fontSize: 16, fontWeight: 700, textDecoration: 'none', marginTop: 4 }}>

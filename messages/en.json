@@ -1567,7 +1567,7 @@
   },
   "subscription": {
     "pageTitle": "Subscription",
-    "subtitle": "Choose the right plan for you",
+    "subtitle": "Manage your subscription",
     "backToDashboard": "Back to dashboard",
     "currentPlan": "Current plan",
     "currentPlanLabel": "Your current plan:",
@@ -1613,7 +1613,9 @@
     "contactQuestion": "Have a question? Write to us:",
     "checkoutError": "An error occurred starting the payment process. Please try again.",
     "trialDaysLeftBanner": "— {days} days remaining. After that your account switches to the Basic plan.",
-    "securePayment": "🔒 Secure payment – Creem"
+    "securePayment": "🔒 Secure payment – Creem",
+    "mySubscriptionTitle": "My subscription",
+    "planFree": "Free plan"
   },
   "mobile": {
     "floatingNav": {

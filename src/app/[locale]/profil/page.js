@@ -16,78 +16,6 @@ import Modal, { AlertModal } from '@/components/Modal';
 import useMobile from '@/hooks/useMobile';
 import ProfileMobile from './mobile/ProfileMobile';
 
-// ── Pricing plans ─────────────────────────────────────────────────────────────
-// PLANS is built inside the component via getPlans(t) so strings are translated
-
-function UpgradeModal({ status, onClose, t, tc }) {
-  const canvasRef = useRef(null);
-
-  useEffect(() => {
-    if (status !== 'success' || !canvasRef.current) return;
-    const colors = ['#2563eb', '#b45309', '#16a34a', '#9333ea'];
-    import('canvas-confetti').then(m => {
-      const fire = m.default.create(canvasRef.current, { resize: true });
-      fire({ particleCount: 80, spread: 90, origin: { y: 0.55 }, colors });
-      setTimeout(() => {
-        fire({ particleCount: 50, angle: 60, spread: 60, origin: { x: 0, y: 0.6 }, colors });
-        fire({ particleCount: 50, angle: 120, spread: 60, origin: { x: 1, y: 0.6 }, colors });
-      }, 300);
-      setTimeout(() => {
-        fire({ particleCount: 30, spread: 100, origin: { y: 0.5 }, colors });
-      }, 700);
-    });
-  }, [status]);
-
-  if (!status) return null;
-  const isSuccess = status === 'success';
-
-  return (
-    <div style={{
-      position: 'fixed', inset: 0, zIndex: 9999,
-      background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem',
-    }}>
-      {isSuccess && (
-        <canvas ref={canvasRef} style={{
-          position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none',
-        }} />
-      )}
-      <div style={{
-        position: 'relative', zIndex: 1,
-        background: 'var(--bg-card, #fff)', borderRadius: 'var(--radius-lg)', padding: '2.5rem 2rem',
-        maxWidth: 440, width: '100%', textAlign: 'center',
-        boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
-      }}>
-        <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>
-          {isSuccess ? '🎉' : '😔'}
-        </div>
-        <h2 style={{ margin: '0 0 0.6rem', fontSize: '1.25rem', fontWeight: 900, color: 'var(--text-primary)' }}>
-          {isSuccess ? t('upgradeSuccessTitle') : t('upgradeErrorTitle')}
-        </h2>
-        <p style={{ margin: '0 0 1.75rem', fontSize: '0.9rem', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-          {isSuccess ? t('upgradeSuccessDesc') : t('upgradeErrorDesc')}
-        </p>
-        <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center', flexWrap: 'wrap' }}>
-          {isSuccess ? (
-            <button className="btn btn-primary" onClick={onClose}>
-              {t('continueBtn')}
-            </button>
-          ) : (
-            <>
-              <button className="btn btn-secondary" onClick={onClose}>
-                {tc('back')}
-              </button>
-              <a href="mailto:info@okosszaki.hu" className="btn btn-primary">
-                {t('contactBtn')}
-              </a>
-            </>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function SectionHeader({ title, subtitle }) {
   return (
     <div style={{ marginBottom: '0.75rem' }}>
@@ -121,75 +49,8 @@ export default function ProfilPage() {
   const tc = useTranslations('common');
   const currentLocale = useLocale();
   const navPrefix = isDemoMode ? '/demo' : '';
-
-  const PLANS = [
-    {
-      key: 'basic',
-      name: t('planBasicName'),
-      price: t('planFree'),
-      priceNote: t('planFreeNote'),
-      icon: Zap,
-      color: 'var(--text-muted)',
-      features: t.raw('planBasicFeatures'),
-    },
-    {
-      key: 'premium',
-      name: t('planPremiumName'),
-      price: '€17.50',
-      priceHuf: '≈ 6 999 Ft',
-      priceNote: t('subPerMonthVat'),
-      icon: Star,
-      color: '#b45309',
-      highlight: true,
-      productId: process.env.NEXT_PUBLIC_CREEM_PREMIUM_PRODUCT_ID,
-      features: t.raw('planPremiumFeatures'),
-      cta: t('planPremiumCta'),
-    },
-  ];
   const AppLink = isDemoMode ? Link : LocaleLink;
   const isMobile = useMobile();
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-
-    // Step 2: clean page after reload — read result but DON'T clear yet (StrictMode safe)
-    const stored = sessionStorage.getItem('creem_upgrade_result');
-    if (stored) {
-      try { setUpgradeModal(JSON.parse(stored)); } catch {}
-      return;
-    }
-
-    // Step 1: Creem redirected here with ?upgraded=1 params
-    const params = new URLSearchParams(window.location.search);
-    if (!params.has('upgraded')) return;
-
-    // Clean URL immediately so StrictMode's second run finds nothing and exits
-    window.history.replaceState({}, '', '/profil');
-
-    const subscriptionId = params.get('subscription_id');
-    const customerId = params.get('customer_id');
-    const productId = params.get('product_id');
-
-    const finish = (status) => {
-      sessionStorage.setItem('creem_upgrade_result', JSON.stringify({ status, productId: productId ?? null }));
-      window.location.replace('/profil');
-    };
-
-    if (subscriptionId) {
-      fetch('/api/checkout/activate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ subscriptionId, customerId }),
-      })
-        .then(res => finish(res.ok ? 'success' : 'error'))
-        .catch(() => finish('error'));
-    } else {
-      finish('error');
-    }
-  }, []);
-
-  const [upgradeModal, setUpgradeModal] = useState(null);
-  const [checkoutIframeUrl, setCheckoutIframeUrl] = useState(null);
 
   const isPremium = currentUser?.is_subscription_premium ?? false;
   const isOnTrial = !isPremium
@@ -200,214 +61,6 @@ export default function ProfilPage() {
   const trialDaysLeft = isOnTrial
     ? Math.max(0, Math.ceil((new Date(currentUser.trial_ends_at) - new Date()) / 86400000))
     : 0;
-
-  const [loadingPlan, setLoadingPlan] = useState(null);
-  const [checkoutError, setCheckoutError] = useState('');
-  const [portalLoading, setPortalLoading] = useState(false);
-  const [portalError, setPortalError] = useState('');
-  const [premiumSubId, setPremiumSubId] = useState(null);
-  const [collectiveSubs, setCollectiveSubs] = useState([]); // owned paid collective subs
-  const [cancelCollectiveModal, setCancelCollectiveModal] = useState(null); // { collective_id, name, creem_subscription_id, members_count }
-  const [cancelingCollective, setCancelingCollective] = useState(false);
-  const [premiumIsScheduledCancel, setPremiumIsScheduledCancel] = useState(false);
-  const [premiumCancelAt,  setPremiumCancelAt]  = useState(null); // ISO — set when scheduled_cancel
-  const [premiumRenewalAt, setPremiumRenewalAt] = useState(null); // ISO — set when active
-  const [cancelPremiumModal, setCancelPremiumModal] = useState(false);
-  const [cancelingPremium, setCancelingPremium] = useState(false);
-  const [resumingPremium, setResumingPremium] = useState(false);
-  const [alertModal, setAlertModal] = useState(null); // { title, message, variant }
-  const [cancelSuccessModal, setCancelSuccessModal] = useState(null); // { premiumPeriodEnd, canceledCollectives }
-
-  const [scheduledDeletionAt, setScheduledDeletionAt] = useState(null);
-  const [cancelingDeletion, setCancelingDeletion] = useState(false);
-
-  const doOpenPortal = async () => {
-    setPortalLoading(true);
-    setPortalError('');
-    try {
-      const res = await fetch('/api/billing/portal');
-      const data = await res.json();
-      if (data.portalUrl) {
-        window.open(data.portalUrl, '_blank', 'noopener,noreferrer');
-      } else {
-        setPortalError(data.error || 'Nem sikerült megnyitni az előfizetés-kezelő felületet.');
-      }
-    } catch {
-      setPortalError('Hiba a kapcsolódás során. Kérjük, próbáld újra.');
-    } finally {
-      setPortalLoading(false);
-    }
-  };
-
-  const handleOpenPortal = () => doOpenPortal();
-
-  const handleCancelPremium = async () => {
-    if (!premiumSubId) {
-      setAlertModal({ variant: 'error', title: 'Hiba', message: 'Nem található előfizetés-azonosító. Kérjük, vedd fel a kapcsolatot az üzemeltetővel.' });
-      return;
-    }
-    setCancelingPremium(true);
-    try {
-      const res = await fetch('/api/subscriptions/cancel', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ subscriptionId: premiumSubId }),
-      });
-      const data = await res.json();
-      if (res.ok) {
-        setCancelPremiumModal(false);
-        const periodEnd = data.subscription_period_end ?? null;
-        setPremiumIsScheduledCancel(true);
-        setPremiumCancelAt(periodEnd);
-        setCancelSuccessModal({
-          premiumPeriodEnd: periodEnd,
-          canceledCollectives: data.canceled_collectives ?? [],
-        });
-      } else {
-        setAlertModal({ variant: 'error', title: 'Hiba', message: data.error || 'Lemondás sikertelen.' });
-      }
-    } catch {
-      alert('Hiba a kapcsolódás során.');
-    } finally {
-      setCancelingPremium(false);
-    }
-  };
-
-  const handleResumePremium = async () => {
-    if (!premiumSubId) {
-      setAlertModal({ variant: 'error', title: 'Hiba', message: 'Nem található előfizetés-azonosító. Kérjük, vedd fel a kapcsolatot az üzemeltetővel.' });
-      return;
-    }
-    setResumingPremium(true);
-    try {
-      const res = await fetch('/api/subscriptions/resume', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ subscriptionId: premiumSubId }),
-      });
-      if (res.ok) {
-        setPremiumIsScheduledCancel(false);
-        setPremiumCancelAt(null);
-        setAlertModal({
-          variant: 'success',
-          title: t('resumeSuccessTitle'),
-          message: t('resumeSuccessMsg'),
-        });
-      } else {
-        const data = await res.json();
-        setAlertModal({ variant: 'error', title: tc('error'), message: data.error || t('resumeErrorMsg') });
-      }
-    } catch {
-      alert('Hiba a kapcsolódás során.');
-    } finally {
-      setResumingPremium(false);
-    }
-  };
-
-  const handleCancelCollective = async () => {
-    if (!cancelCollectiveModal) return;
-    setCancelingCollective(true);
-    try {
-      const res = await fetch('/api/subscriptions/cancel', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          subscriptionId: cancelCollectiveModal.creem_subscription_id,
-          collectiveId:   cancelCollectiveModal.collective_id,
-        }),
-      });
-      const data = await res.json();
-      setCancelCollectiveModal(null);
-      if (res.ok) {
-        const periodEnd = data.subscription_period_end ?? null;
-        setCollectiveSubs(prev => prev.map(c =>
-          c.collective_id === cancelCollectiveModal.collective_id
-            ? { ...c, subscription_status: 'scheduled_cancel', subscription_period_end: periodEnd }
-            : c
-        ));
-        const endStr = periodEnd
-          ? new Date(periodEnd).toLocaleDateString('en-GB', { year: 'numeric', month: 'long', day: 'numeric' })
-          : null;
-        setAlertModal({ variant: 'success', title: 'Subscription canceled', message: endStr ? `"${cancelCollectiveModal.name}" remains active until ${endStr}.` : `"${cancelCollectiveModal.name}" subscription canceled.` });
-      } else {
-        setAlertModal({ variant: 'error', title: 'Error', message: data.error || 'Cancellation failed.' });
-      }
-    } catch {
-      setAlertModal({ variant: 'error', title: 'Error', message: 'Network error. Please try again.' });
-    } finally {
-      setCancelingCollective(false);
-    }
-  };
-
-  const handleCheckout = async (plan) => {
-    if (!plan.productId) return;
-    setLoadingPlan(plan.key);
-    setCheckoutError('');
-
-    let checkoutUrl;
-    try {
-      const res = await fetch('/api/checkout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ productId: plan.productId, successUrl: isMobile ? '/checkout-popup-success?checkout_type=premium' : '/profil' }),
-      });
-      const data = await res.json();
-      if (!data.checkoutUrl) {
-        setCheckoutError(data.error || 'Hiba történt a fizetési folyamat indításakor. Kérjük, próbáld újra.');
-        setLoadingPlan(null);
-        return;
-      }
-      checkoutUrl = data.checkoutUrl;
-    } catch {
-      setCheckoutError('Hiba történt a fizetési folyamat indításakor. Kérjük, próbáld újra.');
-      setLoadingPlan(null);
-      return;
-    }
-
-    const productId = plan.productId;
-
-    if (isMobile) {
-      // Mobile: bottom sheet drawer with iframe, result via storage event
-      const handleSuccess = async (data) => {
-        window.removeEventListener('storage', onStorage);
-        window.removeEventListener('message', onMessage);
-        setCheckoutIframeUrl(null);
-        localStorage.removeItem('creem_checkout_done');
-        try {
-          const res = await fetch('/api/checkout/activate', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ subscriptionId: data.subscriptionId, customerId: data.customerId }),
-          });
-          setUpgradeModal({ status: res.ok ? 'success' : 'error', productId: data.productId ?? productId });
-          if (res.ok) refreshSupabaseData();
-        } catch {
-          setUpgradeModal({ status: 'error', productId });
-        }
-        setLoadingPlan(null);
-      };
-      const onStorage = (e) => {
-        if (e.key !== 'creem_checkout_done') return;
-        let data; try { data = JSON.parse(e.newValue); } catch { return; }
-        if (data?.checkoutType !== 'premium') return;
-        handleSuccess(data);
-      };
-      const onMessage = (e) => {
-        if (e.origin !== window.location.origin) return;
-        if (e.data?.type !== 'creem_checkout_success') return;
-        if (e.data?.checkoutType !== 'premium') return;
-        handleSuccess(e.data);
-      };
-      window.addEventListener('storage', onStorage);
-      window.addEventListener('message', onMessage);
-      setCheckoutIframeUrl(checkoutUrl);
-    } else {
-      // Desktop: open new tab, Creem redirects back to /profil?upgraded=1
-      // The existing useEffect handles activation automatically
-      window.open(checkoutUrl, '_blank', 'noopener,noreferrer');
-      setLoadingPlan(null);
-    }
-  };
 
   // ── Profile form ────────────────────────────────────────────────────────────
   const [displayName,   setDisplayName]   = useState('');
@@ -460,6 +113,17 @@ export default function ProfilPage() {
   const [deleteErr,     setDeleteErr]     = useState('');
   const [deleting,      setDeleting]      = useState(false);
 
+  // ── Subscription info (read-only) ────────────────────────────────────────────
+  const [premiumSubStarted,        setPremiumSubStarted]        = useState(null);
+  const [premiumIsScheduledCancel, setPremiumIsScheduledCancel] = useState(false);
+  const [premiumCancelAt,          setPremiumCancelAt]          = useState(null);
+  const [premiumRenewalAt,         setPremiumRenewalAt]         = useState(null);
+
+  // ── Misc ──────────────────────────────────────────────────────────────────────
+  const [scheduledDeletionAt, setScheduledDeletionAt] = useState(null);
+  const [cancelingDeletion,   setCancelingDeletion]   = useState(false);
+  const [alertModal,          setAlertModal]          = useState(null);
+
   useEffect(() => {
     if (isDemoMode) {
       const p = DEMO_PROFILE;
@@ -478,9 +142,8 @@ export default function ProfilPage() {
     }
     fetch('/api/auth/profile')
       .then(r => r.json())
-      .then(({ profile, premiumSub, ownedCollectiveSubs }) => {
+      .then(({ profile, premiumSub }) => {
         if (!profile) return;
-        setCollectiveSubs(ownedCollectiveSubs ?? []);
         setDisplayName(profile.display_name       || '');
         setFirstName(profile.first_name           || '');
         setLastName(profile.last_name             || '');
@@ -504,7 +167,7 @@ export default function ProfilPage() {
         setTermsPdfName(profile.terms_pdf_name             || null);
         setTermsPdfUploadedAt(profile.terms_pdf_uploaded_at || null);
         setScheduledDeletionAt(profile.scheduled_deletion_at || null);
-        setPremiumSubId(premiumSub?.creem_subscription_id || null);
+        setPremiumSubStarted(premiumSub?.created_at || null);
         setPremiumIsScheduledCancel(premiumSub?.status === 'scheduled_cancel');
         setPremiumCancelAt(premiumSub?.status === 'scheduled_cancel' ? (premiumSub.period_end || null) : null);
         setPremiumRenewalAt(premiumSub?.status !== 'scheduled_cancel' ? (premiumSub?.period_end || null) : null);
@@ -688,16 +351,6 @@ export default function ProfilPage() {
   return (
     <div className="container" style={{ maxWidth: 900, paddingBottom: '3rem' }}>
 
-      <UpgradeModal
-        status={upgradeModal?.status ?? null}
-        onClose={() => {
-          sessionStorage.removeItem('creem_upgrade_result');
-          setUpgradeModal(null);
-        }}
-        t={t}
-        tc={tc}
-      />
-
       <AlertModal
         isOpen={!!alertModal}
         onClose={() => setAlertModal(null)}
@@ -837,274 +490,81 @@ export default function ProfilPage() {
           subtitle={t('subscriptionSubtitle')}
         />
 
-        {/* Checkout error */}
-        {checkoutError && (
-          <div style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', color: 'var(--danger-text)', borderRadius: 'var(--radius-md)', padding: '0.7rem 1rem', marginBottom: '0.85rem', display: 'flex', alignItems: 'flex-start', gap: '0.5rem', fontSize: '0.825rem' }}>
-            <AlertCircle size={14} style={{ flexShrink: 0, marginTop: 1 }} />
-            {checkoutError}
-          </div>
-        )}
+        <div className="card" style={{ padding: '1.25rem' }}>
 
-        {/* Portal error */}
-        {portalError && (
-          <div style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', color: 'var(--danger-text)', borderRadius: 'var(--radius-md)', padding: '0.7rem 1rem', marginBottom: '0.85rem', display: 'flex', alignItems: 'flex-start', gap: '0.5rem', fontSize: '0.825rem' }}>
-            <AlertCircle size={14} style={{ flexShrink: 0, marginTop: 1 }} />
-            {portalError}
-          </div>
-        )}
-
-        {/* Trial banner */}
-        {isOnTrial && (
-          <div style={{ background: '#fef9c3', border: '1px solid #fde047', borderRadius: 'var(--radius-md)', padding: '0.75rem 1rem', marginBottom: '0.85rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', flexWrap: 'wrap', fontSize: '0.825rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          {/* Trial banner */}
+          {isOnTrial && (
+            <div style={{ background: '#fef9c3', border: '1px solid #fde047', borderRadius: 'var(--radius-md)', padding: '0.75rem 1rem', marginBottom: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.825rem' }}>
               <Clock size={14} color="#854d0e" style={{ flexShrink: 0 }} />
-              <span style={{ color: '#78350f' }}>
-                {t('trialBannerText', { days: trialDaysLeft })}
-              </span>
+              <span style={{ color: '#78350f' }}>{t('trialBannerText', { days: trialDaysLeft })}</span>
             </div>
-            <button
-              type="button"
-              onClick={() => handleCheckout(PLANS.find(p => p.key === 'premium'))}
-              style={{ background: '#b45309', color: '#fff', border: 'none', borderRadius: 'var(--radius-md)', padding: '0.35rem 0.8rem', fontWeight: 700, fontSize: '0.78rem', cursor: 'pointer', flexShrink: 0 }}
-            >
-              {t('upgradeToPremium')}
-            </button>
+          )}
+          {/* Plan header */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.85rem', flexWrap: 'wrap' }}>
+            {isPremium ? <Star size={16} color="#b45309" /> : isOnTrial ? <Clock size={16} color="#b45309" /> : <Zap size={16} color="var(--text-muted)" />}
+            <span style={{ fontWeight: 800, fontSize: '1rem' }}>
+              {isPremium ? t('planPremiumName') : isOnTrial ? t('subscriptionBadgeTrial') : t('planBasicName')}
+            </span>
+            <span style={{
+              fontSize: '0.68rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.04em',
+              padding: '0.15rem 0.55rem', borderRadius: 'var(--radius-pill)',
+              ...(isPremium
+                ? { background: '#fef9c3', color: '#854d0e', border: '1px solid #fde047' }
+                : isOnTrial
+                ? { background: '#fff7ed', color: '#c2410c', border: '1px solid #fed7aa' }
+                : { background: 'var(--bg-subtle)', color: 'var(--text-muted)', border: '1px solid var(--border-subtle)' }
+              ),
+            }}>
+              {isPremium
+                ? (premiumIsScheduledCancel ? t('subCancels') : t('subActive'))
+                : isOnTrial ? t('subscriptionBadgeTrial') : t('subscriptionBadgeBasic')}
+            </span>
           </div>
-        )}
-
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(200px,100%), 1fr))', gap: '0.85rem' }}>
-          {PLANS.map(plan => {
-            const Icon = plan.icon;
-            // isCurrent = truly subscribed to this tier (trial users can still upgrade to paid premium)
-            const isCurrent = (plan.key === 'basic' && !effectivePremium) || (plan.key === 'premium' && isPremium);
-            const isTrialOnPremium = plan.key === 'premium' && isOnTrial && !isPremium;
-            const isLoading = loadingPlan === plan.key;
-            return (
-              <div key={plan.key} className="card" style={{
-                padding: '1.1rem', display: 'flex', flexDirection: 'column', gap: '0.85rem',
-                border: (isCurrent || isTrialOnPremium) ? `2px solid ${plan.color}` : undefined, position: 'relative',
-              }}>
-                {(isCurrent || isTrialOnPremium) && (
-                  <span style={{ position: 'absolute', top: -11, left: '50%', transform: 'translateX(-50%)', background: isTrialOnPremium ? '#b45309' : plan.color, color: 'white', fontSize: '0.6rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', padding: '0.18rem 0.65rem', borderRadius: 'var(--radius-pill)', whiteSpace: 'nowrap' }}>
-                    {isTrialOnPremium ? t('trialActiveBadge') : t('currentPlanBadge')}
-                  </span>
-                )}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <Icon size={16} color={plan.color} />
-                  <div style={{ fontWeight: 800, fontSize: '0.9rem' }}>{plan.name}</div>
-                </div>
-                <div>
-                  <span style={{ fontSize: '1.35rem', fontWeight: 900, fontFamily: 'var(--font-mono, monospace)' }}>{plan.price}</span>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginLeft: '0.25rem' }}>{plan.priceNote}</span>
-                  {plan.priceHuf && (
-                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.1rem' }}>{plan.priceHuf}</div>
-                  )}
-                </div>
-                <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '0.4rem', flex: 1 }}>
-                  {plan.features.map(f => (
-                    <li key={f} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.4rem', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                      <Check size={12} color="var(--success-text)" style={{ flexShrink: 0, marginTop: 2 }} /> {f}
-                    </li>
-                  ))}
-                </ul>
-                {plan.cta && (
-                  <button
-                    type="button"
-                    disabled={isCurrent || isLoading}
-                    onClick={() => !isCurrent && handleCheckout(plan)}
-                    style={{
-                      width: '100%', padding: '0.5rem', borderRadius: 'var(--radius-md)',
-                      fontWeight: 700, fontSize: '0.8rem',
-                      cursor: isCurrent || isLoading ? 'default' : 'pointer',
-                      border: 'none',
-                      background: isCurrent ? 'var(--bg-subtle)' : plan.highlight ? plan.color : 'var(--accent)',
-                      color: isCurrent ? 'var(--text-muted)' : 'white',
-                      opacity: isCurrent || isLoading ? 0.6 : 1,
-                    }}
-                  >
-                    {isCurrent ? t('planActive') : isLoading ? t('planRedirecting') : isTrialOnPremium ? t('upgradeToPremiumNow') : plan.cta}
-                  </button>
-                )}
-                {plan.key === 'premium' && isPremium && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                    {premiumIsScheduledCancel ? (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                        <div style={{ fontSize: '0.72rem', color: 'var(--warning-text)', background: 'var(--warning-bg)', border: '1px solid var(--warning-border)', borderRadius: 'var(--radius-md)', padding: '0.35rem 0.6rem', textAlign: 'center' }}>
-                          {premiumCancelAt
-                            ? t('scheduledCancelNote', { date: new Date(premiumCancelAt).toLocaleDateString('hu-HU', { year: 'numeric', month: 'long', day: 'numeric' }) })
-                            : t('scheduledCancelNoDate')}
-                        </div>
-                        <button type="button" onClick={handleResumePremium} disabled={resumingPremium}
-                          style={{ width: '100%', padding: '0.4rem 0.5rem', borderRadius: 'var(--radius-md)', fontWeight: 600, fontSize: '0.75rem', border: '1px solid var(--success-border)', background: 'var(--success-bg)', color: 'var(--success-text)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.3rem', cursor: resumingPremium ? 'default' : 'pointer' }}>
-                          {resumingPremium ? <><Loader2 size={12} className="animate-spin" /> {t('subResumingBtn')}</> : <><RefreshCw size={12} /> {t('premiumRestore')}</>}
-                        </button>
-                      </div>
-                    ) : (
-                      <button type="button" onClick={() => setCancelPremiumModal(true)}
-                        style={{ width: '100%', padding: '0.4rem 0.5rem', borderRadius: 'var(--radius-md)', fontWeight: 600, fontSize: '0.75rem', border: '1px solid var(--danger-border)', background: 'transparent', color: 'var(--danger-text)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.3rem', cursor: 'pointer' }}>
-                        {t('premiumCancel')}
-                      </button>
-                    )}
-                    <button type="button" onClick={handleOpenPortal} disabled={portalLoading}
-                      style={{ width: '100%', padding: '0.4rem 0.5rem', borderRadius: 'var(--radius-md)', fontWeight: 600, fontSize: '0.75rem', border: '1px solid var(--border-subtle)', background: 'transparent', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.3rem', cursor: portalLoading ? 'default' : 'pointer', opacity: portalLoading ? 0.6 : 1 }}>
-                      {portalLoading ? <><Loader2 size={12} className="animate-spin" /> {t('portalOpening')}</> : <>{t('managePayment')} <ChevronRight size={12} /></>}
-                    </button>
-                  </div>
-                )}
+          {/* Info rows */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', marginBottom: '1rem', fontSize: '0.825rem' }}>
+            {premiumSubStarted && (
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: 'var(--text-muted)' }}>{t('subStartedLabel')}</span>
+                <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>
+                  {new Date(premiumSubStarted).toLocaleDateString('hu-HU', { year: 'numeric', month: 'long', day: 'numeric' })}
+                </span>
               </div>
-            );
-          })}
+            )}
+            {isPremium && !premiumIsScheduledCancel && premiumRenewalAt && (
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: 'var(--text-muted)' }}>{t('subNextRenewalLabel')}</span>
+                <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>
+                  {new Date(premiumRenewalAt).toLocaleDateString('hu-HU', { year: 'numeric', month: 'long', day: 'numeric' })}
+                </span>
+              </div>
+            )}
+            {isPremium && premiumIsScheduledCancel && premiumCancelAt && (
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: 'var(--text-muted)' }}>{t('subActiveUntilLabel')}</span>
+                <span style={{ fontWeight: 700, color: 'var(--danger-text)' }}>
+                  {new Date(premiumCancelAt).toLocaleDateString('hu-HU', { year: 'numeric', month: 'long', day: 'numeric' })}
+                </span>
+              </div>
+            )}
+            {isOnTrial && currentUser?.trial_ends_at && (
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: 'var(--text-muted)' }}>{t('subActiveUntilLabel')}</span>
+                <span style={{ fontWeight: 700, color: '#b45309' }}>
+                  {new Date(currentUser.trial_ends_at).toLocaleDateString('hu-HU', { year: 'numeric', month: 'long', day: 'numeric' })}
+                </span>
+              </div>
+            )}
+          </div>
+          {/* Manage link */}
+          <AppLink
+            href="/elofizetes"
+            className="btn btn-primary btn-sm"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', textDecoration: 'none' }}
+          >
+            {t('subscriptionPageLink')} <ChevronRight size={13} />
+          </AppLink>
+
         </div>
-        {/* ── Active Subscriptions ── */}
-        {(() => {
-          const TIER_INFO = {
-            small:  { label: t('collectiveSmall'),  price: '€15',   priceHuf: '≈ 5 999 Ft' },
-            medium: { label: t('collectiveMedium'), price: '€30',   priceHuf: '≈ 11 999 Ft' },
-            large:  { label: t('collectiveLarge'),  price: '€45',   priceHuf: '≈ 17 999 Ft' },
-          };
-
-          const fmtDate = iso => iso
-            ? new Date(iso).toLocaleDateString('hu-HU', { year: 'numeric', month: 'long', day: 'numeric' })
-            : null;
-
-          const activeSubs = [];
-
-          // Premium row
-          if (isPremium && premiumSubId) {
-            const periodEnd = fmtDate(premiumIsScheduledCancel ? premiumCancelAt : premiumRenewalAt);
-            const isScheduled = premiumIsScheduledCancel;
-            activeSubs.push(
-              <div key="premium" className="card" style={{ padding: '1rem', display: 'flex', flexWrap: 'wrap', gap: '0.75rem', alignItems: 'center' }}>
-                <div style={{ flex: '1 1 200px', minWidth: 0 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
-                    <Star size={14} color="#b45309" />
-                    <span style={{ fontWeight: 800, fontSize: '0.9rem' }}>{t('planPremiumName')}</span>
-                    <span style={{ fontSize: '0.65rem', fontWeight: 700, padding: '0.1rem 0.45rem', borderRadius: 'var(--radius-pill)',
-                      background: isScheduled ? '#fef9c3' : 'var(--success-bg)',
-                      color: isScheduled ? '#854d0e' : 'var(--success-text)',
-                      border: `1px solid ${isScheduled ? '#fde047' : 'var(--success-border)'}` }}>
-                      {isScheduled ? t('subCancels') : t('subActive')}
-                    </span>
-                  </div>
-                  <div style={{ fontSize: '0.825rem', color: 'var(--text-secondary)' }}>
-                    <strong style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-primary)' }}>€17.50</strong>
-                    {' '}{t('subPerMonthVat')}{' '}
-                    <span style={{ color: 'var(--text-muted)' }}>(≈ 6 999 Ft)</span>
-                  </div>
-                  <div style={{ fontSize: '0.775rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
-                    {isScheduled
-                      ? periodEnd
-                        ? <span style={{ color: '#854d0e' }}>{t('subActiveUntil', { date: periodEnd })}</span>
-                        : <span style={{ color: '#854d0e' }}>{t('subActiveUntilPeriod')}</span>
-                      : periodEnd
-                        ? <>{t('subNextRenewal', { date: periodEnd })}</>
-                        : t('subRenewsMonthly')}
-                  </div>
-                </div>
-                <div style={{ display: 'flex', gap: '0.4rem', flexShrink: 0 }}>
-                  {isScheduled ? (
-                    <button type="button" onClick={handleResumePremium} disabled={resumingPremium}
-                      style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', padding: '0.4rem 0.85rem', border: '1px solid var(--success-border)', borderRadius: 'var(--radius-md)', background: 'var(--success-bg)', color: 'var(--success-text)', fontWeight: 700, fontSize: '0.78rem', cursor: resumingPremium ? 'default' : 'pointer' }}>
-                      {resumingPremium ? <><Loader2 size={12} className="animate-spin" /> {t('subResumingBtn')}</> : <><RefreshCw size={12} /> {t('subResumeBtn')}</>}
-                    </button>
-                  ) : (
-                    <button type="button" onClick={() => setCancelPremiumModal(true)}
-                      style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', padding: '0.4rem 0.85rem', border: '1px solid var(--danger-border)', borderRadius: 'var(--radius-md)', background: 'transparent', color: 'var(--danger-text)', fontWeight: 700, fontSize: '0.78rem', cursor: 'pointer' }}>
-                      {t('premiumCancel')}
-                    </button>
-                  )}
-                </div>
-              </div>
-            );
-          }
-
-          // Collective addon rows
-          for (const col of collectiveSubs) {
-            const tier = TIER_INFO[col.collective_tier] ?? { label: col.collective_tier, price: '—', priceHuf: '' };
-            const isScheduled = col.subscription_status === 'scheduled_cancel';
-            const periodEnd = fmtDate(col.subscription_period_end);
-            activeSubs.push(
-              <div key={col.collective_id} className="card" style={{ padding: '1rem', display: 'flex', flexWrap: 'wrap', gap: '0.75rem', alignItems: 'center' }}>
-                <div style={{ flex: '1 1 200px', minWidth: 0 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem', flexWrap: 'wrap' }}>
-                    <Building2 size={14} color="var(--accent)" />
-                    <span style={{ fontWeight: 800, fontSize: '0.9rem' }}>{col.name}</span>
-                    <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 600 }}>{tier.label}</span>
-                    <span style={{ fontSize: '0.65rem', fontWeight: 700, padding: '0.1rem 0.45rem', borderRadius: 'var(--radius-pill)',
-                      background: isScheduled ? '#fef9c3' : 'var(--success-bg)',
-                      color: isScheduled ? '#854d0e' : 'var(--success-text)',
-                      border: `1px solid ${isScheduled ? '#fde047' : 'var(--success-border)'}` }}>
-                      {isScheduled ? t('subCancels') : t('subActive')}
-                    </span>
-                  </div>
-                  <div style={{ fontSize: '0.825rem', color: 'var(--text-secondary)' }}>
-                    <strong style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-primary)' }}>{tier.price}</strong>
-                    {' '}{t('subPerMonthVat')}{' '}
-                    <span style={{ color: 'var(--text-muted)' }}>({tier.priceHuf})</span>
-                  </div>
-                  <div style={{ fontSize: '0.775rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
-                    {isScheduled
-                      ? periodEnd
-                        ? <span style={{ color: '#854d0e' }}>{t('subActiveUntil', { date: periodEnd })}</span>
-                        : <span style={{ color: '#854d0e' }}>{t('subActiveUntilPeriod')}</span>
-                      : periodEnd
-                        ? <>{t('subNextRenewal', { date: periodEnd })}</>
-                        : t('subRenewsMonthly')}
-                  </div>
-                </div>
-                {!isScheduled && (
-                  <button type="button"
-                    onClick={() => setCancelCollectiveModal({ collective_id: col.collective_id, name: col.name, creem_subscription_id: col.creem_subscription_id })}
-                    style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', padding: '0.4rem 0.85rem', border: '1px solid var(--danger-border)', borderRadius: 'var(--radius-md)', background: 'transparent', color: 'var(--danger-text)', fontWeight: 700, fontSize: '0.78rem', cursor: 'pointer', flexShrink: 0 }}>
-                    {t('cancelSubscriptionBtn')}
-                  </button>
-                )}
-              </div>
-            );
-          }
-
-          if (activeSubs.length === 0) return null;
-
-          return (
-            <div style={{ marginTop: '1.75rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
-                <CreditCard size={15} color="var(--accent)" />
-                <span style={{ fontSize: '0.9rem', fontWeight: 800 }}>{t('activeSubs')}</span>
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
-                {activeSubs}
-              </div>
-            </div>
-          );
-        })()}
-
-        {/* ── Collective packages callout ── */}
-        <div style={{ marginTop: '1.75rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.35rem' }}>
-            <Building2 size={15} color="var(--accent)" />
-            <span style={{ fontSize: '0.9rem', fontWeight: 800 }}>{t('collectiveWorkspacesTitle')}</span>
-          </div>
-          <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: '0 0 0.85rem', lineHeight: 1.6 }}>
-            {t('collectiveWorkspacesDesc')}
-          </p>
-          <div className="card" style={{ padding: '1rem', display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
-            <Building2 size={22} color="var(--accent)" style={{ flexShrink: 0 }} />
-            <div style={{ flex: 1, fontSize: '0.825rem', color: 'var(--text-secondary)' }}>
-              {t('collectiveWorkspacesNote')}
-            </div>
-            <AppLink
-              href={`${navPrefix}/kollektivak`}
-              className="btn btn-primary btn-sm"
-              style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: '0.35rem', textDecoration: 'none' }}
-            >
-              {t('collectiveManageBtn')} <ChevronRight size={13} />
-            </AppLink>
-          </div>
-        </div>
-
-        <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '0.75rem', textAlign: 'center' }}>
-          {t('contactQuestion')} <a href="mailto:info@okosszaki.hu" style={{ color: 'var(--accent)' }}>info@okosszaki.hu</a>
-        </p>
       </div>
 
       {/* ── INVOICE HEADER ── */}
@@ -1399,140 +859,6 @@ export default function ProfilPage() {
         })()}
       </div>
 
-      {/* ── Premium cancel success modal ── */}
-      <Modal isOpen={!!cancelSuccessModal} onClose={() => setCancelSuccessModal(null)} title={t('cancelSuccessModalTitle')}>
-        {cancelSuccessModal && (() => {
-          const fmt = (iso) => iso
-            ? new Date(iso).toLocaleDateString('hu-HU', { year: 'numeric', month: 'long', day: 'numeric' })
-            : null;
-          const premiumDate = fmt(cancelSuccessModal.premiumPeriodEnd);
-          const cols = cancelSuccessModal.canceledCollectives || [];
-          return (
-            <div>
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem', marginBottom: '1rem' }}>
-                <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'var(--success-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  <CheckCircle2 size={20} color="var(--success-text)" />
-                </div>
-                <div>
-                  <div style={{ fontWeight: 800, fontSize: '1rem', marginBottom: '0.25rem' }}>{t('premiumCanceledTitle')}</div>
-                  <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-                    {premiumDate
-                      ? t('premiumActiveUntilDate', { date: premiumDate })
-                      : t('premiumActiveUntilPeriod')}
-                  </div>
-                </div>
-              </div>
-
-              {cols.length > 0 && (
-                <div style={{ background: 'var(--bg-subtle)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: '0.75rem 1rem', marginBottom: '1rem' }}>
-                  <div style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
-                    {t('canceledCollectivesTitle')}
-                  </div>
-                  {cols.map((c, i) => (
-                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.85rem', padding: '0.3rem 0', borderBottom: i < cols.length - 1 ? '1px solid var(--border-subtle)' : 'none' }}>
-                      <span style={{ fontWeight: 600 }}>{c.name}</span>
-                      <span style={{ color: 'var(--text-muted)', fontSize: '0.78rem' }}>
-                        {fmt(c.period_end) ? t('activeUntilDateLabel', { date: fmt(c.period_end) }) : t('activeUntilPeriodLabel')}
-                      </span>
-                    </div>
-                  ))}
-                  <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '0.5rem' }}>
-                    {t('membersNotified')}
-                  </div>
-                </div>
-              )}
-
-              <p style={{ fontSize: '0.825rem', color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: '1.25rem' }}>
-                {t('canRestoreAnytime')}
-              </p>
-              <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                <button type="button" className="btn btn-primary btn-sm" onClick={() => setCancelSuccessModal(null)}>{t('ok')}</button>
-              </div>
-            </div>
-          );
-        })()}
-      </Modal>
-
-      {/* ── Premium cancel confirm modal ── */}
-      <Modal isOpen={cancelPremiumModal} onClose={() => !cancelingPremium && setCancelPremiumModal(false)} title={t('premiumCancelTitle')}>
-        {(() => {
-          const ownedNames = (collectives || []).filter(c => c.role === 'owner').map(c => c.name);
-          return (
-            <div>
-              {ownedNames.length > 0 && (
-                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem', background: 'var(--warning-bg)', border: '1px solid var(--warning-border)', borderRadius: 'var(--radius-md)', padding: '0.85rem 1rem', marginBottom: '1rem' }}>
-                  <AlertTriangle size={18} color="var(--warning-text)" style={{ flexShrink: 0, marginTop: 1 }} />
-                  <div style={{ fontSize: '0.825rem', color: 'var(--warning-text)', lineHeight: 1.5 }}>
-                    <strong>{t('premiumCancelOwnedWarning', { count: ownedNames.length })}</strong>
-                    <ul style={{ margin: '0.4rem 0 0 1rem', padding: 0 }}>
-                      {ownedNames.map(n => <li key={n}>{n}</li>)}
-                    </ul>
-                    <div style={{ marginTop: '0.4rem' }}>{t('premiumCancelFreezeNote')}</div>
-                  </div>
-                </div>
-              )}
-              <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: '1.25rem' }}>
-                {t('premiumCancelContent')}
-              </p>
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
-                <button type="button" className="btn btn-secondary btn-sm" disabled={cancelingPremium} onClick={() => setCancelPremiumModal(false)}>{tc('cancel')}</button>
-                <button type="button" className="btn btn-danger btn-sm" disabled={cancelingPremium} onClick={handleCancelPremium}>
-                  {cancelingPremium ? <><Loader2 size={13} className="animate-spin" /> {t('cancelingBtn')}</> : t('premiumCancel')}
-                </button>
-              </div>
-            </div>
-          );
-        })()}
-      </Modal>
-
-      {/* ── Collective cancel confirmation modal ── */}
-      <Modal isOpen={!!cancelCollectiveModal} onClose={() => !cancelingCollective && setCancelCollectiveModal(null)} title={t('cancelCollectiveTitle')}>
-        {cancelCollectiveModal && (
-          <div>
-            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem', background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: 'var(--radius-md)', padding: '0.85rem 1rem', marginBottom: '1rem' }}>
-              <AlertTriangle size={18} color="#c2410c" style={{ flexShrink: 0, marginTop: 1 }} />
-              <div style={{ fontSize: '0.825rem', color: '#7c2d12', lineHeight: 1.55 }}>
-                {t('cancelCollectiveWarning')}
-              </div>
-            </div>
-            <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: '1.25rem' }}>
-              {t('cancelCollectiveConfirmText', { name: cancelCollectiveModal.name })}
-            </p>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
-              <button type="button" className="btn btn-secondary btn-sm" onClick={() => setCancelCollectiveModal(null)} disabled={cancelingCollective}>
-                {t('keepSubscriptionBtn')}
-              </button>
-              <button type="button" className="btn btn-danger btn-sm" onClick={handleCancelCollective} disabled={cancelingCollective}>
-                {cancelingCollective ? <><Loader2 size={13} className="animate-spin" /> {t('cancelingBtn')}</> : t('cancelSubscriptionBtn')}
-              </button>
-            </div>
-          </div>
-        )}
-      </Modal>
-
-      {/* ── Creem checkout — mobile bottom sheet ── */}
-      {checkoutIframeUrl && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(3px)' }}>
-          <div style={{ position: 'absolute', inset: 0 }} onClick={() => { setCheckoutIframeUrl(null); localStorage.removeItem('creem_checkout_done'); setLoadingPlan(null); }} />
-          <div style={{
-            position: 'absolute', bottom: 0, left: 0, right: 0,
-            height: '92vh',
-            borderRadius: '16px 16px 0 0',
-            overflow: 'hidden',
-            boxShadow: '0 -8px 40px rgba(0,0,0,0.25)',
-            background: '#fff',
-            display: 'flex', flexDirection: 'column',
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.6rem 1rem 0.5rem', borderBottom: '1px solid var(--border-subtle)', background: 'var(--bg-subtle)', flexShrink: 0 }}>
-              <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)' }}>{t('securePayment')}</span>
-              <button type="button" onClick={() => { setCheckoutIframeUrl(null); localStorage.removeItem('creem_checkout_done'); setLoadingPlan(null); }} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0.25rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center' }}>
-                <X size={18} />
-              </button>
-            </div>
-            <iframe src={checkoutIframeUrl} style={{ flex: 1, border: 'none', width: '100%' }} title={t('securePayment')} />
-          </div>
-        </div>
-      )}
     </div>
   );
 }

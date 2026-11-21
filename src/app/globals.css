@@ -1560,6 +1560,14 @@ input[type="month"] {
 }
 .scroll-x-hidden::-webkit-scrollbar { display: none; } /* Chrome / Safari / new Edge */
 
+/* Vertical scroll with hidden scrollbar — use className="scroll-y-hidden" */
+.scroll-y-hidden {
+  overflow-y: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.scroll-y-hidden::-webkit-scrollbar { display: none; }
+
 /* Quote entry type selector: 5 cols desktop → 3 cols mobile */
 .entry-type-grid {
   display: grid;

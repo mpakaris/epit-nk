@@ -1502,7 +1502,7 @@
   },
   "subscription": {
     "pageTitle": "Előfizetés",
-    "subtitle": "Válaszd ki a neked megfelelő csomagot",
+    "subtitle": "Kezelje előfizetését",
     "backToDashboard": "Vissza a dashboardra",
     "currentPlan": "Jelenlegi csomag",
     "currentPlanLabel": "Jelenlegi csomagod:",
@@ -1548,7 +1548,9 @@
     "contactQuestion": "Kérdésed van? Írj nekünk:",
     "checkoutError": "Hiba történt a fizetési folyamat indításakor. Kérjük, próbáld újra.",
     "trialDaysLeftBanner": "— még {days} nap van hátra. Utána a Bázis csomagra vált a fiókod.",
-    "securePayment": "🔒 Biztonságos fizetés – Creem"
+    "securePayment": "🔒 Biztonságos fizetés – Creem",
+    "mySubscriptionTitle": "Előfizetésem",
+    "planFree": "Ingyenes csomag"
   },
   "dashboard": {
     "viewAll": "Összes",
