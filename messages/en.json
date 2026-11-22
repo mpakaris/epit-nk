@@ -585,7 +585,7 @@
       "detailRoomsLabel": "Rooms",
       "detailAnalyzeLayout": "Analyse floor plan",
       "detailLabelItem": "items",
-      "detailLabelRoom": "rooms",
+      "detailLabelRoom": "sections",
       "detailLabelM2": "m²",
       "detailSearchAll": "Search all items",
       "detailPodHint": "Click a room to edit its items",
