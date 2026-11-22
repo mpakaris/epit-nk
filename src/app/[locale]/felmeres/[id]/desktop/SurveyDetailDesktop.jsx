@@ -296,164 +296,53 @@ function measSummaryStr(entry, overrideL, overrideW, overrideH, td) {
   return parts.join(' · ');
 }
 
-// ── EntryForm — add / edit a room ─────────────────────────────────────────────
-function EntryForm({ initial, surveyId, onSave, onCancel }) {
+// ── EntryForm — add a new section (name + notes only; measurements added later via context menu) ──
+function EntryForm({ surveyId, onSave, onCancel }) {
   const t  = useTranslations('surveyDetail');
   const tc = useTranslations('common');
-  const { uploadSurveyMedia, deleteSurveyEntry } = useApp();
-  const [name,         setName]         = useState(initial?.name || '');
-  const [widthM,       setWidthM]       = useState(initial?.width_m  != null ? String(initial.width_m)  : '');
-  const [lengthM,      setLengthM]      = useState(initial?.length_m != null ? String(initial.length_m) : '');
-  const [heightM,      setHeightM]      = useState(initial?.height_m != null ? String(initial.height_m) : '');
-  const [windowCount,  setWindowCount]  = useState(initial?.window_count != null ? String(initial.window_count) : '');
-  const [doorCount,    setDoorCount]    = useState(initial?.door_count   != null ? String(initial.door_count)   : '');
-  const [description,  setDescription]  = useState(initial?.description || '');
-  const [error,  setError]  = useState('');
-  const [saving, setSaving] = useState(false);
-  const [saveStatus, setSaveStatus] = useState('idle');
-  const fileInputRef = useRef(null);
-  const [selectedFiles, setSelectedFiles] = useState([]);
-  const [previews, setPreviews] = useState([]);
-
-  const valuesRef = useRef({});
-  valuesRef.current = { name, widthM, lengthM, heightM, windowCount, doorCount, description };
-
-  const handleBlurSave = async () => {
-    if (!initial) return;
-    const v = valuesRef.current;
-    if (!v.name.trim()) { setError(t('entryNameRequired')); return; }
-    setError(''); setSaving(true);
-    try {
-      await onSave({
-        name: v.name.trim(), description: v.description.trim() || null,
-        width_m: parseFloat(v.widthM) || null, length_m: parseFloat(v.lengthM) || null,
-        height_m: parseFloat(v.heightM) || null,
-        window_count: parseInt(v.windowCount) || 0, door_count: parseInt(v.doorCount) || 0,
-      });
-      setSaveStatus('saved'); setTimeout(() => setSaveStatus('idle'), 1800);
-    } catch (err) { setError(err.message || t('entrySaveError')); }
-    finally { setSaving(false); }
-  };
-
-  const addFiles = async (e) => {
-    const raw = Array.from(e.target.files || []); e.target.value = '';
-    if (!raw.length) return;
-    const converted = await Promise.all(raw.map(processMediaFile));
-    setSelectedFiles(prev => [...prev, ...converted]);
-    setPreviews(prev => [...prev, ...converted.map(f => ({ key: `${f.name}-${f.size}`, url: f.type.startsWith('video/') ? null : URL.createObjectURL(f) }))]);
-  };
+  const [name,        setName]        = useState('');
+  const [description, setDescription] = useState('');
+  const [saving,      setSaving]      = useState(false);
+  const [error,       setError]       = useState('');
 
   const handleSubmit = async (e) => {
-    e.preventDefault(); setError('');
+    e.preventDefault();
     if (!name.trim()) { setError(t('entryNameRequired')); return; }
-    setSaving(true);
+    setSaving(true); setError('');
     try {
-      const entry = await onSave({
-        name: name.trim(), description: description.trim() || null,
-        width_m: parseFloat(widthM) || null, length_m: parseFloat(lengthM) || null,
-        height_m: parseFloat(heightM) || null,
-        window_count: parseInt(windowCount) || 0, door_count: parseInt(doorCount) || 0,
-      });
-      if (!initial && selectedFiles.length && entry?.id) {
-        try { await uploadSurveyMedia(surveyId, selectedFiles, { entryId: entry.id, mediaType: 'photo' }); }
-        catch (uploadErr) { try { await deleteSurveyEntry(surveyId, entry.id); } catch {} throw uploadErr; }
-      }
+      await onSave({ name: name.trim(), description: description.trim() || null });
       onCancel();
     } catch (err) { setError(err.message || t('entrySaveError')); setSaving(false); }
   };
 
-  const lbl = { fontSize: 11, fontWeight: 700, letterSpacing: '.07em', textTransform: 'uppercase', color: '#5A6070', marginBottom: 6, display: 'block' };
-  const field = { marginBottom: '1rem' };
+  const lbl = { fontSize: 11, fontWeight: 700, letterSpacing: '.07em', textTransform: 'uppercase', color: '#5A6070', display: 'block', marginBottom: 6 };
+  const inputSt = { background: '#F4F5F8', boxShadow: 'none' };
 
   return (
     <form onSubmit={handleSubmit}>
-      {error && (
-        <div style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', color: 'var(--danger-text)', padding: '0.55rem 0.75rem', borderRadius: 'var(--radius-md)', fontSize: '0.8rem', display: 'flex', gap: '0.4rem', marginBottom: '1rem' }}>
-          <AlertCircle size={14} style={{ flexShrink: 0 }} /><span>{error}</span>
-        </div>
-      )}
-
-      {/* Name */}
-      <div style={field}>
-        <span style={lbl}>{t('entryNameLabel')}</span>
-        <input className="dk-input" type="text" autoFocus={!initial} value={name} onChange={e => setName(e.target.value)} onBlur={handleBlurSave} placeholder={t('entryNamePlaceholder')} />
-      </div>
-
-      {/* Dimensions */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: '1rem' }}>
-        {[['entryLengthLabel', lengthM, setLengthM], ['entryWidthLabel', widthM, setWidthM], ['entryHeightLabel', heightM, setHeightM]].map(([lk, val, setter]) => (
-          <div key={lk}>
-            <span style={lbl}>{t(lk)}</span>
-            <input className="dk-input" type="number" min="0" step="0.1" value={val} onChange={e => setter(e.target.value)} onBlur={handleBlurSave} />
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        {error && (
+          <div style={{ background: '#FDECEC', border: '1px solid #FBBABA', color: '#B71C1C', padding: '10px 14px', borderRadius: 14, fontSize: 13, fontWeight: 600, display: 'flex', gap: 8, alignItems: 'center' }}>
+            <AlertCircle size={14} style={{ flexShrink: 0 }} /><span>{error}</span>
           </div>
-        ))}
-      </div>
-
-      {/* Openings */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10, marginBottom: '1rem' }}>
-        <div>
-          <span style={lbl}>{t('entryWindowsLabel')}</span>
-          <input className="dk-input" type="number" min="0" step="1" value={windowCount} onChange={e => setWindowCount(e.target.value)} onBlur={handleBlurSave} placeholder="0" />
-        </div>
-        <div>
-          <span style={lbl}>{t('entryDoorsLabel')}</span>
-          <input className="dk-input" type="number" min="0" step="1" value={doorCount} onChange={e => setDoorCount(e.target.value)} onBlur={handleBlurSave} placeholder="0" />
-        </div>
-      </div>
-
-      {/* Notes */}
-      <div style={field}>
-        <span style={lbl}>{t('entryNotesLabel')}</span>
-        <textarea
-          className="dk-input"
-          value={description}
-          onChange={e => setDescription(e.target.value)}
-          onBlur={handleBlurSave}
-          placeholder={t('entryNotesPlaceholder')}
-          style={{ height: 80, padding: '12px 14px', resize: 'none' }}
-        />
-      </div>
-
-      {/* Photo upload — new entry only */}
-      {!initial && (
-        <div style={field}>
-          <span style={lbl}>{t('entryMediaLabel')}</span>
-          <input ref={fileInputRef} type="file" accept="image/*,video/*" multiple onChange={addFiles} style={{ display: 'none' }} />
-          {previews.length === 0 ? (
-            <button type="button" onClick={() => fileInputRef.current?.click()} className="dk-btn dk-btn-l" style={{ width: '100%', justifyContent: 'center', gap: 6 }}>
-              <Camera size={16} /> {t('entryGalleryBtn')}
-            </button>
-          ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(72px, 1fr))', gap: 8 }}>
-              {previews.map((p, i) => (
-                <div key={p.key} style={{ position: 'relative', aspectRatio: '1', borderRadius: 12, overflow: 'hidden', background: '#F4F5F8' }}>
-                  {p.url && <img src={p.url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
-                  <button type="button" onClick={() => { setSelectedFiles(f => f.filter((_,j) => j !== i)); setPreviews(f => f.filter((_,j) => j !== i)); }} style={{ position: 'absolute', top: 3, right: 3, background: 'rgba(198,40,40,.88)', border: 'none', borderRadius: '50%', width: 20, height: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#fff' }}>
-                    <X size={11} />
-                  </button>
-                </div>
-              ))}
-              <button type="button" onClick={() => fileInputRef.current?.click()} style={{ aspectRatio: '1', border: '2px dashed #D0D5DD', borderRadius: 12, background: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#8A8F98' }}>
-                <Plus size={18} />
-              </button>
-            </div>
-          )}
-        </div>
-      )}
-
-      <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 8, marginTop: 8 }}>
-        {initial ? (
-          <>
-            {saving && <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.3rem' }}><Loader2 size={12} className="animate-spin" />{t('entrySavingStatus')}</span>}
-            {saveStatus === 'saved' && !saving && <span style={{ fontSize: '0.75rem', color: 'var(--success-text)', display: 'flex', alignItems: 'center', gap: '0.3rem' }}><Check size={12} />{t('entrySavedStatus')}</span>}
-            <button type="button" className="btn btn-primary" onClick={async () => { await handleBlurSave(); onCancel(); }} disabled={saving}>{t('entryDoneBtn')}</button>
-          </>
-        ) : (
-          <>
-            <button type="button" className="btn btn-secondary" onClick={onCancel} disabled={saving}>{tc('cancel')}</button>
-            <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? <><Loader2 size={13} className="animate-spin" />{t('entrySavingStatus')}</> : t('addRoomBtn')}</button>
-          </>
         )}
+
+        <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <span style={lbl}>{t('entryNameLabel')}</span>
+          <input className="dk-input" type="text" autoFocus value={name} onChange={e => setName(e.target.value)} placeholder={t('entryNamePlaceholder')} style={inputSt} />
+        </label>
+
+        <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <span style={lbl}>{t('entryNotesLabel')}</span>
+          <textarea className="dk-input" rows={4} value={description} onChange={e => setDescription(e.target.value)} placeholder={t('entryNotesPlaceholder')} style={{ ...inputSt, padding: '12px 14px', resize: 'vertical' }} />
+        </label>
+
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button type="button" className="dk-btn dk-btn-l" onClick={onCancel} disabled={saving} style={{ flex: 1, justifyContent: 'center' }}>{tc('cancel')}</button>
+          <button type="submit" className="dk-btn dk-btn-dark" disabled={saving} style={{ flex: 1, justifyContent: 'center', opacity: saving ? 0.6 : 1 }}>
+            {saving ? <><Loader2 size={15} className="animate-spin" aria-hidden="true" />{tc('saving')}</> : t('addRoomBtn')}
+          </button>
+        </div>
       </div>
     </form>
   );
@@ -569,7 +458,7 @@ function MetaDrawer({ survey, clients: clientsProp, isOpen, onClose, onSave }) {
 }
 
 // ── ItemEditModal — edit a single survey item ─────────────────────────────────
-function ItemEditModal({ item, surveyId, isOpen, onClose }) {
+function ItemEditModal({ item, surveyId, isOpen, onClose, onDuplicate, onDelete }) {
   const t  = useTranslations('surveyDetail');
   const td = useTranslations('surveys');
   const tc = useTranslations('common');
@@ -631,6 +520,24 @@ function ItemEditModal({ item, surveyId, isOpen, onClose }) {
           {saving ? <><Loader2 size={15} className="animate-spin" aria-hidden="true" />{tc('saving')}</> : tc('save')}
         </button>
       </div>
+
+      {/* Duplicate + Delete */}
+      {(onDuplicate || onDelete) && (
+        <div style={{ display: 'flex', gap: 8, marginTop: 8, paddingTop: 12, borderTop: '1px solid #EDEBE5' }}>
+          {onDuplicate && (
+            <button type="button" className="dk-btn dk-btn-l" onClick={onDuplicate} disabled={saving} style={{ flex: 1, justifyContent: 'center', gap: 8 }}>
+              <Copy size={15} aria-hidden="true" />
+              {td('desktop.detailDuplicateItem')}
+            </button>
+          )}
+          {onDelete && (
+            <button type="button" className="dk-btn" onClick={onDelete} disabled={saving} style={{ flex: 1, justifyContent: 'center', gap: 8, background: '#FDECEC', color: '#B71C1C' }}>
+              <Trash2 size={15} aria-hidden="true" />
+              {td('desktop.detailDeleteItem')}
+            </button>
+          )}
+        </div>
+      )}
     </Modal>
   );
 }
@@ -1091,7 +998,7 @@ export default function SurveyDetailDesktop() {
 
             {/* Items card */}
             {openEntry && openPodColor && (
-              <section className="dk-card" style={{ overflow: 'hidden' }}>
+              <section className="dk-card" style={{ overflow: 'hidden', display: 'flex', flexDirection: 'column', maxHeight: 'calc(100vh - 260px)' }}>
                 {/* Title band — section's own colour, matches the active chip */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 16px', background: openPodColor.c, color: '#fff', gap: 12 }}>
                   <span className="dk-n" style={{ fontSize: 24, flexShrink: 0 }}>
@@ -1170,15 +1077,15 @@ export default function SurveyDetailDesktop() {
                 </div>
 
                 {/* Table header */}
-                <div className="dk-th" style={{ gridTemplateColumns: '24px 1fr 100px 80px 1.2fr 44px' }}>
+                <div className="dk-th" style={{ gridTemplateColumns: '24px 1fr 100px 80px 1.2fr' }}>
                   <span />
                   <span>{ts('desktop.detailColItem')}</span>
                   <span>{ts('desktop.detailColQty')}</span>
                   <span>{ts('desktop.detailColUnit')}</span>
                   <span>{ts('desktop.detailColNote')}</span>
-                  <span />
                 </div>
 
+                <div className="scroll-y-hidden" style={{ flex: 1, overflowY: 'auto' }}>
                 {displayItems.length === 0 && (
                   <div style={{ padding: '24px 16px', textAlign: 'center', color: '#5A5F68', fontSize: 14, fontWeight: 600 }}>
                     {ts('desktop.detailNoItems')}
@@ -1206,7 +1113,9 @@ export default function SurveyDetailDesktop() {
                         </div>
 
                         {typeItems.map((item, j) => (
-                  <div key={item.id} className="dk-tr" style={{ gridTemplateColumns: '24px 1fr 100px 80px 1.2fr 44px', minHeight: 58, background: j % 2 === 1 ? openPodColor.tint : 'transparent' }}>
+                  <button key={item.id} className="dk-sr dk-tr"
+                    onClick={() => setEditingItem(item)}
+                    style={{ gridTemplateColumns: '24px 1fr 100px 80px 1.2fr', minHeight: 58, background: j % 2 === 1 ? openPodColor.tint : 'transparent', width: '100%', cursor: 'pointer' }}>
                     <span style={{ color: '#9AA1AD', display: 'flex', alignItems: 'center' }}>
                       <GripVertical size={18} aria-hidden="true" />
                     </span>
@@ -1214,42 +1123,13 @@ export default function SurveyDetailDesktop() {
                     <b>{item.quantity != null ? item.quantity : ''}</b>
                     <span className="dk-m">{item.unit || ''}</span>
                     <span className="dk-m" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.notes || ''}</span>
-                    <span style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', position: 'relative' }}>
-                      <button
-                        aria-label={ts('desktop.detailActionsTitle')}
-                        onClick={(e) => { e.stopPropagation(); setOpenItemMenuId(openItemMenuId === item.id ? null : item.id); }}
-                        style={{ width: 36, height: 36, border: 0, borderRadius: 18, background: 'transparent', color: '#5A5F68', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
-                      >
-                        <MoreHorizontal size={20} aria-hidden="true" />
-                      </button>
-                      {openItemMenuId === item.id && (
-                        <div
-                          onClick={(e) => e.stopPropagation()}
-                          style={{ position: 'absolute', right: 0, top: 40, zIndex: 50, background: '#fff', borderRadius: 14, boxShadow: '0 8px 24px -8px rgba(0,0,0,.35), 0 2px 8px -2px rgba(0,0,0,.12)', padding: 6, minWidth: 170 }}
-                        >
-                          {[
-                            { label: ts('desktop.detailEditItem'),      icon: Edit3,  danger: false, action: () => { setEditingItem(item); setOpenItemMenuId(null); } },
-                            { label: ts('desktop.detailDuplicateItem'), icon: Copy,   danger: false, action: () => { handleDuplicate(item); setOpenItemMenuId(null); } },
-                            { label: ts('desktop.detailDeleteItem'),    icon: Trash2, danger: true,  action: () => { handleDeleteItem(item); setOpenItemMenuId(null); } },
-                          ].map(({ label, icon: Icon, danger, action }) => (
-                            <button
-                              key={label}
-                              onClick={action}
-                              style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', border: 0, borderRadius: 10, background: 'transparent', fontSize: 14, fontWeight: 600, color: danger ? '#B71C1C' : '#0E1116', cursor: 'pointer', textAlign: 'left' }}
-                            >
-                              <Icon size={15} aria-hidden="true" />
-                              {label}
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </span>
-                  </div>
+                  </button>
                         ))}
                       </div>
                     );
                   })
                 }
+                </div>
               </section>
             )}
 
@@ -1296,7 +1176,14 @@ export default function SurveyDetailDesktop() {
       />
 
       {/* ── Edit item modal ────────────────────────────────────────────────────── */}
-      <ItemEditModal item={editingItem} surveyId={id} isOpen={!!editingItem} onClose={() => setEditingItem(null)} />
+      <ItemEditModal
+        item={editingItem}
+        surveyId={id}
+        isOpen={!!editingItem}
+        onClose={() => setEditingItem(null)}
+        onDuplicate={() => { handleDuplicate(editingItem); setEditingItem(null); }}
+        onDelete={() => { handleDeleteItem(editingItem); setEditingItem(null); }}
+      />
 
       {/* ── Delete item modal (Pods design) ───────────────────────────────────── */}
       <Modal isOpen={!!deleteItemModal} onClose={deleteItemLoading ? undefined : () => setDeleteItemModal(null)} maxWidth="420px">
