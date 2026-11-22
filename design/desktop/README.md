@@ -6,7 +6,8 @@ Same visual language as `design/mobile/`: dark rounded sidebar with workspace po
 |---|---|---|
 | `DD1-Kezdolap` | Dashboard: invitation + transfer banners, quick create, stats, latest projects/surveys/offers, activity, "Új dokumentum" modal | `/dashboard` |
 | `DS1-Lista` | Survey table + preview panel (open, create quote, share, delete) | `/felmeres` |
-| `DS2-Reszletek` | Survey detail: rooms list, room editor (dims, derived areas, openings/items, floor plan), summary + actions | `/felmeres/[id]` |
+| `DS2-Reszletek` | Survey detail, overview: ONE surface. Header holds title, counters, primary action "Ajánlat készítése" and a ⋯ actions modal (share, PDF, client, delete). Body = room **pods** (name, area, item count, first 3 items, "+N további"), search across all items, "Új helyiség" pod | `/felmeres/[id]` |
+| `DS3-Pod-nyitva` | Same page with a pod open: pod strip for switching rooms (+ "Összes" back), **items table is the main content** (quick-add row with dictation, inline edit/delete/reorder, search); measurements, note and photos are a collapsed secondary bar | `/felmeres/[id]` |
 | `DO1-Lista` | Offer table, status filters, totals strip | `/ajanlatok` |
 | `DO2-Szerkeszto` | Offer editor: sections with entries, totals, status flow, send modal (e-mail + PDF), client/terms | `/ajanlatok/[id]` |
 | `DP1-Lista` | Project cards with spend vs quote progress | `/projektek` |
@@ -22,3 +23,6 @@ Same visual language as `design/mobile/`: dark rounded sidebar with workspace po
 - Example amounts/names are mock data and are not reconciled across boards (e.g. the offer editor total differs from the list).
 - Not drawn: desktop room-editor keypad (use native inputs), invoice upload (`P5`), diary/payment-plan editors, floor-plan analysis, contributor-restricted variants, collective-context dashboard, public `/clients/[id]`.
 - Standards: tokens only, `navPrefix`, i18n keys in hu/en/de, soft delete, double permission checks, ≥ 44 px targets.
+
+## Detail-page pattern (survey now; offer detail should copy it)
+Replaces the earlier 3-card layout (section list | details | action card). Rules: one working surface; sections are pods on the page, a click opens the pod in place; items/tasks are primary, measurements secondary and collapsed; actions live in the header (primary button + ⋯ modal), not in a side card; switching sections happens via the pod strip, no separate nav column. The offer editor (`DO2`) has not been redrawn yet — apply the same pattern with offer sections as pods (entries table primary; client, terms, totals and status in the header/bar).
