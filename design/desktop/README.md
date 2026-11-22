@@ -26,3 +26,8 @@ Same visual language as `design/mobile/`: dark rounded sidebar with workspace po
 
 ## Detail-page pattern (survey now; offer detail should copy it)
 Replaces the earlier 3-card layout (section list | details | action card). Rules: one working surface; sections are pods on the page, a click opens the pod in place; items/tasks are primary, measurements secondary and collapsed; actions live in the header (primary button + ⋯ modal), not in a side card; switching sections happens via the pod strip, no separate nav column. The offer editor (`DO2`) has not been redrawn yet — apply the same pattern with offer sections as pods (entries table primary; client, terms, totals and status in the header/bar).
+
+### Detail-page details (survey)
+- Each room pod has its own colour (palette: teal `#0A7F72`, blue `#2F5BFF`, orange `#C2562B`, then repeat/extend); the colour is used for the pod header, the pod chip in the strip, and the title band + quick-add row of the open pod. The work area behind stays the dark module body.
+- Row actions are 40 px round icon buttons with a filled background: edit = dark blue `#1E3A8A`, duplicate = grey `#5A5F68`, delete = red `#C62828`; white icons, `aria-label` on each. Delete is a soft delete with confirmation in the app.
+- Pod colours are a design choice, not data: store them per section (or derive from index) and keep them stable.
