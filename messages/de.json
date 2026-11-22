@@ -22,12 +22,15 @@
     "optional": "optional",
     "new": "Neu",
     "add": "Hinzufügen",
+    "or": "oder",
     "edit": "Bearbeiten",
     "copy": "Kopieren",
     "copying": "Kopieren…",
     "send": "Senden",
     "resend": "Erneut senden",
-    "notFound": "Nicht gefunden"
+    "notFound": "Nicht gefunden",
+    "collectiveBannerTitle": "Du arbeitest im Kollektiv-Bereich{name}.",
+    "collectiveBannerBody": "Alle hier erstellten Inhalte werden automatisch mit allen Mitgliedern des Kollektivs geteilt."
   },
   "dashboard": {
     "viewAll": "Alle",
@@ -372,6 +375,9 @@
     "entryTypeEquipment": "Gerätemiete",
     "entryTypeTransport": "Transport",
     "entryTypeOther": "Sonstiges",
+    "clientAddPlaceholder": "Kunde hinzufügen",
+    "clientSelectExisting": "Bestehenden Kunden auswählen",
+    "clientCreate": "Neuen Kunden erstellen",
     "historyLoadMore": "Weitere {count} Ereignisse laden",
     "statusRevertConfirm": "Aktueller Status des Angebots: {status}. Auf Entwurf zurücksetzen?",
     "statusRevertYes": "Ja, zurücksetzen",
@@ -504,7 +510,22 @@
       "cancelAction": "Abbrechen",
       "deletingAction": "Löschen...",
       "closePanel": "Schließen",
-      "selectHint": "Wähle ein Angebot aus"
+      "selectHint": "Wähle ein Angebot aus",
+      "addEntry": "Posten hinzufügen",
+      "addSection": "Abschnitt hinzufügen",
+      "sectionEdit": "Abschnitt bearbeiten",
+      "sectionName": "Abschnittsname",
+      "colType": "Typ",
+      "colItem": "Posten",
+      "colQty": "Menge",
+      "colUnit": "Einh.",
+      "colUnitPrice": "Einheitspreis",
+      "colSubtotal": "Betrag",
+      "statusFlow": "Status",
+      "clientConditions": "Kunde & Konditionen",
+      "panelDetails": "Allgemeine Angaben",
+      "panelSections": "Abschnitte",
+      "surveyTemplate": "Aufmaß-Vorlage"
     }
   },
   "surveys": {

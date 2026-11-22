@@ -15,11 +15,10 @@ import CollectiveBanner from '@/components/CollectiveBanner';
 import ClientSelect from '@/components/ClientSelect';
 import NewClientModal from '@/components/NewClientModal';
 import PageSpinner from '@/components/PageSpinner';
-import SectionCard from '../components/SectionCard';
 import SectionAddForm from '../components/SectionAddForm';
 import ClientComments from '../components/ClientComments';
 import CollectiveChatSection from '@/components/CollectiveChatSection';
-import { TYPE_ICONS, TYPE_COLORS, QUOTE_ENTRY_LABELS, sortEntries } from '../components/constants';
+import { TYPE_ICONS, TYPE_COLORS, sortEntries } from '../components/constants';
 import {
   ArrowLeft, MapPin, Calendar, Coins, Plus, Trash2, User, Wrench, Printer,
   CheckCircle2, XCircle, Send, FolderKanban, AlertCircle,
@@ -86,8 +85,9 @@ export default function OfferDetailDesktop() {
   const [savingMeta, setSavingMeta] = useState(false);
   const [linkedSurveyData, setLinkedSurveyData] = useState(null);
   const [showNewClientModal, setShowNewClientModal] = useState(false);
-  const [metaCollapsed, setMetaCollapsed] = useState(false);
+  const [metaCollapsed, setMetaCollapsed] = useState(true);
 
+  const initialCollectiveRef = useRef(activeCollectiveId);
   const metaRef = useRef({});
   metaRef.current = {
     title: metaTitle, location: metaLocation, workType: metaWorkType,
@@ -136,6 +136,7 @@ export default function OfferDetailDesktop() {
   const [confirmModal,       setConfirmModal]       = useState(null);
   const [alertModal,         setAlertModal]         = useState(null);
   const [copied,             setCopied]             = useState(false);
+  const [showClientModal,    setShowClientModal]    = useState(false);
   const [lockedModalOpen,    setLockedModalOpen]    = useState(false);
   const [outgoingTransfers,  setOutgoingTransfers]  = useState([]);
   const [fallbackQuote,      setFallbackQuote]      = useState(null);
@@ -143,6 +144,19 @@ export default function OfferDetailDesktop() {
   const [fallbackSections,   setFallbackSections]   = useState(null);
   const [fallbackFetching,   setFallbackFetching]   = useState(false);
   const [sectionMediaItemsMap, setSectionMediaItemsMap] = useState({});
+
+  // ── Section collapse state ────────────────────────────────────────────────
+  const [expandedSections, setExpandedSections] = useState(new Set());
+  const toggleSection = (id) => setExpandedSections(prev => {
+    const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next;
+  });
+
+  // ── Section edit modal ────────────────────────────────────────────────────
+  const [showEditSectionModal, setShowEditSectionModal] = useState(false);
+  const [editingSection,       setEditingSection]       = useState(null);
+  const [editSecName,          setEditSecName]          = useState('');
+  const [editSecDesc,          setEditSecDesc]          = useState('');
+  const [savingSection,        setSavingSection]        = useState(false);
 
   const ctxQuote = quotes.find(q => q.id === id);
 
@@ -238,6 +252,13 @@ export default function OfferDetailDesktop() {
     setMetaWarrantyMonths(quote.warranty_months != null ? String(quote.warranty_months) : '0');
     setMetaInitialized(true);
   }, [quote, metaInitialized]);
+
+  useEffect(() => {
+    if (!dataReady) return;
+    if (activeCollectiveId !== initialCollectiveRef.current) {
+      router.push(p('/ajanlatok'));
+    }
+  }, [activeCollectiveId, dataReady]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (loading || !dataReady || fallbackFetching) return <PageSpinner />;
   if (!quote) return (
@@ -488,6 +509,34 @@ export default function OfferDetailDesktop() {
     });
   };
 
+  // ── Section edit modal ────────────────────────────────────────────────────
+  const openEditSection = (section) => {
+    setEditingSection(section);
+    setEditSecName(section.name || '');
+    setEditSecDesc(section.description || '');
+    setShowEditSectionModal(true);
+  };
+
+  const handleSaveEditSection = async () => {
+    if (!editingSection || !editSecName.trim()) return;
+    setSavingSection(true);
+    try {
+      await updateQuoteSection(id, editingSection.id, {
+        name: editSecName.trim(),
+        description: editSecDesc.trim() || null,
+        width_m: editingSection.width_m ?? null,
+        length_m: editingSection.length_m ?? null,
+        height_m: editingSection.height_m ?? null,
+        window_count: editingSection.window_count || 0,
+        door_count: editingSection.door_count || 0,
+        start_date: editingSection.start_date || null,
+        end_date: editingSection.end_date || null,
+      });
+      setShowEditSectionModal(false);
+    } catch (err) { setAlertModal({ message: err.message }); }
+    finally { setSavingSection(false); }
+  };
+
   // ── Entry modal ───────────────────────────────────────────────────────────
   const openEntryModal = (sectionId, editEntryId = null) => {
     setActiveSectionId(sectionId);
@@ -617,83 +666,114 @@ export default function OfferDetailDesktop() {
     } finally { setDownloadingPdf(false); }
   };
 
-  // ── Render helpers ────────────────────────────────────────────────────────
-  const renderSectionCard = (section) => {
-    const sectionEntries = section ? entries.filter(e => e.section_id === section.id) : entries.filter(e => !e.section_id);
-    const sectionTotal   = sectionEntries.reduce((s, e) => s + Number(e.amount_huf || 0), 0);
-    const surveyEntry    = section?.survey_entry_id && quote.survey_id
-      ? (surveyEntriesBySurvey[quote.survey_id] || []).find(e => e.id === section.survey_entry_id)
-      : null;
+  // ── Desktop section pod renderer (DO2 design) ────────────────────────────
+  const ENTRY_GRID = '88px 1fr 60px 50px 110px 130px';
 
-    if (section) return (
-      <SectionCard
-        key={section.id}
-        section={section}
-        surveyEntry={surveyEntry}
-        surveyId={quote.survey_id}
-        quoteId={id}
-        canEdit={canEdit}
-        isQuoteOwner={isQuoteOwner || isAdmin || isKollektivOwner}
-        currentUserId={currentUser?.id}
-        onDelete={handleDeleteSection}
-        onAddEntry={(sId) => openEntryModal(sId)}
-        onEditEntry={(sId, eId) => openEntryModal(sId, eId)}
-        onDeleteEntry={handleDeleteEntry}
-        sectionEntries={sortEntries(sectionEntries)}
-        sectionMediaItems={sectionMediaItemsMap[section.id] || []}
-        quote={quote}
-        onEntriesGenerated={() => {}}
-      />
-    );
+  const renderDesktopSectionPod = (section) => {
+    const isGeneral = section === null;
+    const sectionEntries = isGeneral
+      ? sortEntries(entries.filter(e => !e.section_id))
+      : sortEntries(entries.filter(e => e.section_id === section.id));
+    const sectionTotal = sectionEntries.reduce((s, e) => s + Number(e.amount_huf || 0), 0);
+    const sectionId = section?.id || null;
+
+    const isCollapsed = !expandedSections.has(sectionId || '_general');
 
     return (
-      <div key="_general" className="dk-card" style={{ padding: 0, overflow: 'hidden' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.65rem 1.1rem', background: '#F4F5F8', borderBottom: sectionEntries.length > 0 ? '1px solid #E8E9ED' : 'none', gap: '0.5rem' }}>
-          <span style={{ fontWeight: 700, fontSize: '0.875rem', color: '#5A5F68', display: 'flex', alignItems: 'center', gap: '0.4rem' }}><MoreHorizontal size={14} />{t('generalItems')}</span>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-            {sectionTotal > 0 && <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: '0.82rem', color: '#5A5F68' }}>{fmt(sectionTotal)}</span>}
-            {canEdit && <button type="button" onClick={() => openEntryModal(null)} className="dk-btn" style={{ height: 32, padding: '0 10px', fontSize: 13, borderRadius: 10, background: '#6D3FD1', color: '#fff' }}><Plus size={12} /></button>}
+      <section key={sectionId || '_general'} className="dk-card" style={{ padding: 0, overflow: 'hidden' }}>
+        {/* Section header — clickable to collapse/expand */}
+        <div
+          onClick={() => toggleSection(sectionId || '_general')}
+          style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '14px 18px 10px', cursor: 'pointer', userSelect: 'none' }}
+        >
+          <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 700, fontSize: 20, letterSpacing: '-0.02em', color: '#0E1116' }}>
+              {isGeneral ? t('generalItems') : section.name}
+            </span>
+            {!isGeneral && section.description && (
+              <span style={{ fontSize: 13, color: '#8A8F98', fontWeight: 500 }}>{section.description}</span>
+            )}
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+            {sectionTotal > 0 && (
+              <b style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: 18, color: '#0E1116' }}>{fmt(sectionTotal)}</b>
+            )}
+            {!isGeneral && canEdit && (
+              <>
+                <button type="button" onClick={e => { e.stopPropagation(); openEntryModal(sectionId); }}
+                  style={{ height: 32, padding: '0 12px', borderRadius: 16, border: 0, background: '#F1F1F3', color: '#5A5F68', display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer', fontSize: 13, fontWeight: 700 }}>
+                  <Plus size={13} /> {t('desktop.addEntry')}
+                </button>
+                <button type="button" onClick={e => { e.stopPropagation(); openEditSection(section); }}
+                  style={{ width: 32, height: 32, borderRadius: 16, border: 0, background: '#1E293B', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+                  <MoreHorizontal size={14} />
+                </button>
+              </>
+            )}
+            {isCollapsed ? <ChevronDown size={18} color="#8A8F98" /> : <ChevronUp size={18} color="#8A8F98" />}
           </div>
         </div>
-        {sectionEntries.length === 0 ? (
-          <div style={{ padding: '0.75rem 1.1rem', fontSize: '0.82rem', color: '#8A8F98', fontStyle: 'italic' }}>{t('noItems')}</div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column' }}>
-            {sortEntries(sectionEntries).map((entry, idx) => renderEntryRow(entry, idx, null))}
+
+        {/* Column headers + rows + add button (hidden when collapsed) */}
+        {!isCollapsed && sectionEntries.length > 0 && (
+          <div style={{ display: 'grid', gridTemplateColumns: ENTRY_GRID, padding: '0 18px', height: 40, alignItems: 'center', gap: 12, borderTop: '1px solid #EDEBE5', fontSize: 11, fontWeight: 700, letterSpacing: '.07em', textTransform: 'uppercase', color: '#5A5F68' }}>
+            <span>{t('desktop.colType')}</span>
+            <span>{t('desktop.colItem')}</span>
+            <span>{t('desktop.colQty')}</span>
+            <span>{t('desktop.colUnit')}</span>
+            <span>{t('desktop.colUnitPrice')}</span>
+            <span style={{ textAlign: 'right' }}>{t('desktop.colSubtotal')}</span>
           </div>
         )}
-      </div>
+
+        {/* Entry rows */}
+        {!isCollapsed && sectionEntries.map((entry) => {
+          const Icon = TYPE_ICONS[entry.entry_type] || MoreHorizontal;
+          const tc2  = TYPE_COLORS[entry.entry_type] || TYPE_COLORS.other;
+          const useQty = entry.entry_type === 'material' || entry.entry_type === 'labour';
+          return (
+            <div key={entry.id} onClick={canEdit ? () => openEntryModal(sectionId, entry.id) : undefined} style={{ display: 'grid', gridTemplateColumns: ENTRY_GRID, padding: '0 18px', minHeight: 60, alignItems: 'center', gap: 12, borderTop: '1px solid #EDEBE5', fontSize: 14, fontWeight: 600, cursor: canEdit ? 'pointer' : 'default' }}>
+              <span style={{ minWidth: 0 }}>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 9px', borderRadius: 12, background: tc2.bg, color: tc2.color, fontSize: 11, fontWeight: 700, whiteSpace: 'nowrap' }}>
+                  <Icon size={10} /> {ENTRY_TYPE_T[entry.entry_type]}
+                </span>
+              </span>
+              <span style={{ minWidth: 0, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {entry.work_description}
+                {entry.notes && <span style={{ fontSize: 12, color: '#8A8F98', fontWeight: 500, marginLeft: 6 }}>{entry.notes}</span>}
+              </span>
+              <span style={{ color: '#5A5F68' }}>{useQty && entry.quantity != null ? entry.quantity : ''}</span>
+              <span style={{ color: '#5A5F68' }}>{useQty ? (entry.unit || 'db') : ''}</span>
+              <span style={{ color: '#5A5F68', fontFamily: 'var(--font-mono)', fontSize: 13 }}>
+                {useQty && entry.unit_price ? fmt(entry.unit_price) : ''}
+              </span>
+              <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: 14, textAlign: 'right' }}>
+                {fmt(entry.amount_huf)}
+              </span>
+            </div>
+          );
+        })}
+
+        {/* Empty state */}
+        {!isCollapsed && sectionEntries.length === 0 && (
+          <div style={{ padding: '10px 18px', fontSize: 13, color: '#8A8F98', fontStyle: 'italic', borderTop: '1px solid #EDEBE5' }}>
+            {t('noItems')}
+          </div>
+        )}
+
+      </section>
     );
   };
 
-  const renderEntryRow = (entry, idx, sectionId) => {
-    const Icon = TYPE_ICONS[entry.entry_type] || MoreHorizontal;
-    const tc2  = TYPE_COLORS[entry.entry_type] || TYPE_COLORS.other;
-    const contributor = users.find(u => u.id === entry.user_id);
-    const useQty = entry.entry_type === 'material' || entry.entry_type === 'labour';
-    return (
-      <div key={entry.id} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.65rem', padding: '0.65rem 1.1rem', borderTop: idx > 0 ? '1px solid #EDEBE5' : 'none' }}>
-        <div style={{ padding: '0.35rem', borderRadius: 'var(--radius-sm)', background: tc2.bg, flexShrink: 0 }}><Icon size={14} color={tc2.color} /></div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontWeight: 700, color: '#0E1116', marginBottom: '0.15rem', fontSize: '0.9rem' }}>{entry.work_description}</div>
-          <div style={{ fontSize: '0.75rem', color: '#8A8F98', display: 'flex', gap: '0.6rem', flexWrap: 'wrap', alignItems: 'center' }}>
-            <span style={{ padding: '0.1rem 0.35rem', borderRadius: 'var(--radius-pill)', background: tc2.bg, color: tc2.color, fontWeight: 700, fontSize: '0.68rem', border: `1px solid ${tc2.border}` }}>{QUOTE_ENTRY_LABELS[entry.entry_type]}</span>
-            {useQty && entry.quantity != null && <span>{entry.quantity} {entry.unit || 'db'}{entry.unit_price ? ` × ${fmt(entry.unit_price)}` : ''}</span>}
-            {contributor && <span style={{ display: 'flex', alignItems: 'center', gap: '0.2rem' }}><User size={10} />{contributor.display_name}</span>}
-            {entry.notes && <span style={{ fontStyle: 'italic' }}>{entry.notes}</span>}
-          </div>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexShrink: 0 }}>
-          <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, fontSize: '0.95rem' }}>{fmt(entry.amount_huf)}</span>
-          {canEdit && (
-            <>
-              <button type="button" onClick={() => openEntryModal(sectionId, entry.id)} style={{ width: 28, height: 28, borderRadius: 8, border: 0, background: '#F1F1F3', color: '#5A5F68', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}><Edit3 size={11} /></button>
-              <button type="button" onClick={() => handleDeleteEntry(entry)} style={{ width: 28, height: 28, borderRadius: 8, border: 0, background: '#FDECEC', color: '#B71C1C', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}><X size={11} /></button>
-            </>
-          )}
-        </div>
-      </div>
-    );
+  // ── Pods form style constants ─────────────────────────────────────────────
+  const LBL = { fontSize: 11, fontWeight: 700, letterSpacing: '.07em', textTransform: 'uppercase', color: '#5A6070' };
+  const INP = { background: '#F4F5F8', boxShadow: 'none' };
+  const ENTRY_TYPE_T = {
+    material:  t('entryTypeMaterial'),
+    labour:    t('entryTypeLabour'),
+    equipment: t('entryTypeEquipment'),
+    transport: t('entryTypeTransport'),
+    other:     t('entryTypeOther'),
   };
 
   // ── STATUS BADGE COLOURS (white on dark for header) ───────────────────────
@@ -712,6 +792,9 @@ export default function OfferDetailDesktop() {
       {/* ── Header ──────────────────────────────────────────────────────────── */}
       <header className="dk-mh">
         <span className="dk-gl" aria-hidden="true" />
+        <button className="dk-btn dk-btn-g" onClick={() => router.push(p('/ajanlatok'))} aria-label={t('back')} style={{ width: 44, padding: 0, justifyContent: 'center', flexShrink: 0 }}>
+          <ArrowLeft size={20} aria-hidden="true" />
+        </button>
         <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 4 }}>
           <span className="dk-kick">{t('desktop.kicker')} · {workspaceLabel}</span>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'nowrap' }}>
@@ -721,28 +804,12 @@ export default function OfferDetailDesktop() {
             </span>
           </div>
         </div>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
-          <button className="dk-btn dk-btn-g" onClick={() => router.push(p('/ajanlatok'))}>
-            <ArrowLeft size={18} aria-hidden="true" /> {t('back')}
+        {canEdit && isMetaDirty && quote.status !== 'draft' && (
+          <button className="dk-btn dk-btn-w" onClick={handleSaveMeta} disabled={savingMeta} style={{ flexShrink: 0 }}>
+            <Check size={18} aria-hidden="true" />
+            {savingMeta ? tc('saving') : tc('save')}
           </button>
-          {canEdit && isMetaDirty && quote.status !== 'draft' && (
-            <button className="dk-btn dk-btn-w" onClick={handleSaveMeta} disabled={savingMeta}>
-              <Check size={18} aria-hidden="true" />
-              {savingMeta ? tc('saving') : tc('save')}
-            </button>
-          )}
-          {(isQuoteOwner || isKollektivOwner) && canModify && (
-            <button
-              className="dk-btn dk-btn-w"
-              onClick={openSendConfirm}
-              disabled={!client?.email || isPendingOutgoingTransfer}
-              title={!client?.email ? t('noClientEmail') : undefined}
-            >
-              <Send size={18} aria-hidden="true" />
-              {quote.status === 'sent' ? t('actionResend') : t('actionSend')}
-            </button>
-          )}
-        </div>
+        )}
       </header>
 
       {/* ── Body ────────────────────────────────────────────────────────────── */}
@@ -767,22 +834,13 @@ export default function OfferDetailDesktop() {
               </div>
             )}
 
-            {/* Client portal link */}
-            {quote.status !== 'draft' && quote.status !== 'rejected' && client && (
-              <div style={{ marginBottom: '0.75rem', padding: '0.65rem 1rem', borderRadius: 'var(--radius-md)', background: 'rgba(255,255,255,.12)', border: '1px solid rgba(255,255,255,.18)', display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-                <ExternalLink size={15} color="rgba(255,255,255,.8)" style={{ flexShrink: 0 }} />
-                <span style={{ flex: 1, fontSize: '0.85rem', color: 'rgba(255,255,255,.85)', fontWeight: 600 }}>{t('clientPortalVisible')}</span>
-                <button type="button" onClick={() => { const url = `${window.location.origin}/portal${client.email ? `?email=${encodeURIComponent(client.email)}` : ''}`; navigator.clipboard.writeText(url).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000); }); }} className="dk-btn dk-btn-g" style={{ height: 34, padding: '0 12px', fontSize: 12 }}>
-                  {copied ? <><CheckCircle2 size={13} /> {t('copied')}</> : <><Copy size={13} /> {t('copyLink')}</>}
-                </button>
-              </div>
-            )}
-
             {/* Two-panel layout */}
             <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
 
               {/* ── Left panel: meta + sections ──────────────────────────── */}
               <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 12 }}>
+
+                <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.07em', textTransform: 'uppercase', color: 'rgba(255,255,255,.65)' }}>{t('desktop.panelDetails')}</span>
 
                 {/* Meta card */}
                 <div className="dk-card" style={{ padding: 0, overflow: 'hidden' }}>
@@ -791,103 +849,124 @@ export default function OfferDetailDesktop() {
                     onClick={() => setMetaCollapsed(v => !v)}
                     style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 20px', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', gap: '0.5rem' }}
                   >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flexWrap: 'wrap', flex: 1, minWidth: 0 }}>
-                      {client && <span style={{ fontWeight: 700, fontSize: '0.9rem', color: '#0E1116' }}>{client.name}</span>}
-                      {quote.location && <span style={{ fontSize: '0.82rem', color: '#5A5F68', display: 'flex', alignItems: 'center', gap: '0.2rem' }}><MapPin size={12} />{quote.location}</span>}
-                      {!client && !quote.location && <span style={{ fontSize: '0.85rem', color: '#5A5F68' }}>{t('generalData')}</span>}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flex: 1, minWidth: 0 }}>
+                      <span style={{ fontWeight: 700, fontSize: '1.1rem', color: '#0E1116' }}>{t('details')}</span>
                       {savingMeta && <span style={{ fontSize: '0.72rem', color: '#8A8F98', fontWeight: 600 }}>{tc('saving')}…</span>}
                     </div>
                     {metaCollapsed ? <ChevronDown size={16} color="#5A5F68" /> : <ChevronUp size={16} color="#5A5F68" />}
                   </button>
 
                   {!metaCollapsed && (
-                    <div style={{ padding: '0 20px 18px', borderTop: '1px solid #EDEBE5' }}>
+                    <div style={{ padding: '0 20px 20px', borderTop: '1px solid #EDEBE5' }}>
                       {canEdit ? (
-                        <>
-                          <div className="form-group" style={{ marginTop: '0.85rem' }}>
-                            <label className="form-label">{t('metaTitle')}</label>
-                            <input type="text" className="form-control" value={metaTitle} onChange={e => setMetaTitle(e.target.value)} onBlur={autoSaveMeta} placeholder={t('metaTitlePlaceholder')} />
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 16 }}>
+
+                          {/* Title */}
+                          <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                            <span style={LBL}>{t('metaTitle')}</span>
+                            <input type="text" className="dk-input" value={metaTitle} onChange={e => setMetaTitle(e.target.value)} onBlur={autoSaveMeta} placeholder={t('metaTitlePlaceholder')} style={INP} />
+                          </label>
+
+                          {/* Location + Work type */}
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                            <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                              <span style={LBL}>{t('location')}</span>
+                              <input type="text" className="dk-input" value={metaLocation} onChange={e => setMetaLocation(e.target.value)} onBlur={autoSaveMeta} placeholder={t('locationPlaceholder')} style={INP} />
+                            </label>
+                            <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                              <span style={LBL}>{t('workType')}</span>
+                              <input type="text" className="dk-input" value={metaWorkType} onChange={e => setMetaWorkType(e.target.value)} onBlur={autoSaveMeta} placeholder={t('workTypePlaceholder')} style={INP} />
+                            </label>
                           </div>
-                          <div className="grid-2col">
-                            <div className="form-group" style={{ margin: 0 }}>
-                              <label className="form-label">{t('location')}</label>
-                              <input type="text" className="form-control" value={metaLocation} onChange={e => setMetaLocation(e.target.value)} onBlur={autoSaveMeta} placeholder={t('locationPlaceholder')} />
-                            </div>
-                            <div className="form-group" style={{ margin: 0 }}>
-                              <label className="form-label">{t('workType')}</label>
-                              <input type="text" className="form-control" value={metaWorkType} onChange={e => setMetaWorkType(e.target.value)} onBlur={autoSaveMeta} placeholder={t('workTypePlaceholder')} />
-                            </div>
+
+                          {/* Description */}
+                          <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                            <span style={LBL}>{t('description')}</span>
+                            <textarea rows={2} className="dk-input" value={metaDescription} onChange={e => setMetaDescription(e.target.value)} onBlur={autoSaveMeta} placeholder={t('descriptionPlaceholder')} style={{ ...INP, padding: '12px 14px', resize: 'vertical' }} />
+                          </label>
+
+                          {/* Dates */}
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                            <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                              <span style={LBL}>{t('plannedStart')}</span>
+                              <input type="date" className="dk-input" value={metaStartDate} onChange={e => { const v = e.target.value; setMetaStartDate(v); if (v && (!metaEndDate || metaEndDate <= v)) setMetaEndDate(nextDay(v)); }} onBlur={autoSaveMeta} style={INP} />
+                            </label>
+                            <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                              <span style={LBL}>{t('plannedEnd')}</span>
+                              <input type="date" className="dk-input" min={metaStartDate ? nextDay(metaStartDate) : undefined} value={metaEndDate} onChange={e => setMetaEndDate(e.target.value)} onBlur={autoSaveMeta} style={INP} />
+                            </label>
                           </div>
-                          <div className="form-group" style={{ marginTop: '0.75rem' }}>
-                            <label className="form-label">{t('description')}</label>
-                            <textarea rows={2} className="form-control" value={metaDescription} onChange={e => setMetaDescription(e.target.value)} onBlur={autoSaveMeta} placeholder={t('descriptionPlaceholder')} />
-                          </div>
-                          <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.75rem' }}>
-                            <div className="form-group" style={{ margin: 0, flex: 1, minWidth: 0 }}>
-                              <label className="form-label">{t('plannedStart')}</label>
-                              <input type="date" className="form-control" value={metaStartDate} onChange={e => { const v = e.target.value; setMetaStartDate(v); if (v && (!metaEndDate || metaEndDate <= v)) setMetaEndDate(nextDay(v)); }} onBlur={autoSaveMeta} />
-                            </div>
-                            <div className="form-group" style={{ margin: 0, flex: 1, minWidth: 0 }}>
-                              <label className="form-label">{t('plannedEnd')}</label>
-                              <input type="date" className="form-control" min={metaStartDate ? nextDay(metaStartDate) : undefined} value={metaEndDate} onChange={e => setMetaEndDate(e.target.value)} onBlur={autoSaveMeta} />
-                            </div>
-                          </div>
-                          <div className="form-group" style={{ marginTop: '0.75rem' }}>
-                            <label className="form-label">{t('vatRate')}</label>
-                            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
+
+                          {/* VAT */}
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                            <span style={LBL}>{t('vatRate')}</span>
+                            <div style={{ display: 'flex', gap: 6 }}>
                               {['0', '5', '18', '27'].map(v => (
                                 <button key={v} type="button" onClick={() => { setMetaTaxPercent(v); autoSaveMeta({ taxPercent: v }); }}
-                                  style={{ padding: '0.3rem 0.75rem', borderRadius: 'var(--radius-md)', fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer', background: metaTaxPercent === v ? '#6D3FD1' : '#F4F5F8', color: metaTaxPercent === v ? '#fff' : '#5A5F68', border: `1px solid ${metaTaxPercent === v ? '#6D3FD1' : '#E8E9ED'}` }}>{v}%</button>
+                                  className="dk-btn" style={{ flex: 1, justifyContent: 'center', height: 40, fontSize: 13, background: metaTaxPercent === v ? '#6D3FD1' : '#F4F5F8', color: metaTaxPercent === v ? '#fff' : '#5A5F68', boxShadow: 'none' }}>{v}%</button>
                               ))}
+                              <input
+                                type="number" min="0" max="100" inputMode="decimal"
+                                value={['0','5','18','27'].includes(metaTaxPercent) ? '' : metaTaxPercent}
+                                onChange={e => { setMetaTaxPercent(e.target.value); }}
+                                onBlur={() => autoSaveMeta({ taxPercent: metaTaxPercent })}
+                                placeholder="…%"
+                                style={{ flex: 1, height: 40, border: 0, borderRadius: 10, fontSize: 13, textAlign: 'center', padding: '0 4px',
+                                  background: !['0','5','18','27'].includes(metaTaxPercent) && metaTaxPercent !== '' ? '#6D3FD1' : '#F4F5F8',
+                                  color:      !['0','5','18','27'].includes(metaTaxPercent) && metaTaxPercent !== '' ? '#fff'    : '#5A5F68',
+                                  boxShadow: 'none', outline: 'none', minWidth: 0 }}
+                              />
                             </div>
                           </div>
-                          <div className="form-group" style={{ marginBottom: 0 }}>
-                            <label className="form-label">{t('client')}</label>
-                            <div style={{ display: 'flex', gap: '0.65rem', alignItems: 'center' }}>
-                              <div style={{ flex: 1, minWidth: 0 }}>
-                                <ClientSelect value={metaClientId} onChange={e => { const cid = e.target.value; setMetaClientId(cid); updateQuote(id, { client_id: cid || null }).catch(err => setAlertModal({ message: err.message })); }} clients={clients} />
-                              </div>
-                              <button type="button" onClick={() => setShowNewClientModal(true)} className="btn btn-secondary btn-sm" style={{ whiteSpace: 'nowrap', flexShrink: 0 }}>
-                                <Plus size={14} /> {t('newClientButton')}
-                              </button>
-                            </div>
+
+                          {/* Offer number + Valid until */}
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                            <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                              <span style={LBL}>{t('offerNumber')}</span>
+                              <input type="text" className="dk-input" value={metaOfferNumber} onChange={e => setMetaOfferNumber(e.target.value)} onBlur={autoSaveMeta} placeholder={t('offerNumberPlaceholder')} style={INP} />
+                            </label>
+                            <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                              <span style={LBL}>{t('validUntil')}</span>
+                              <input type="date" className="dk-input" value={metaValidUntil} onChange={e => setMetaValidUntil(e.target.value)} onBlur={autoSaveMeta} style={INP} />
+                            </label>
                           </div>
-                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', marginTop: '0.75rem' }}>
-                            <div className="form-group" style={{ margin: 0 }}>
-                              <label className="form-label">{t('offerNumber')}</label>
-                              <input type="text" className="form-control" value={metaOfferNumber} onChange={e => setMetaOfferNumber(e.target.value)} onBlur={autoSaveMeta} placeholder={t('offerNumberPlaceholder')} />
-                            </div>
-                            <div className="form-group" style={{ margin: 0 }}>
-                              <label className="form-label">{t('validUntil')}</label>
-                              <input type="date" className="form-control" value={metaValidUntil} onChange={e => setMetaValidUntil(e.target.value)} onBlur={autoSaveMeta} />
-                            </div>
+
+                          {/* Payment days + method */}
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                            <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                              <span style={LBL}>{t('paymentDeadline')} <span style={{ fontWeight: 500, textTransform: 'none', letterSpacing: 0 }}>{t('paymentDeadlineUnit')}</span></span>
+                              <input type="number" min="0" className="dk-input" value={metaPaymentDays} onChange={e => setMetaPaymentDays(e.target.value)} onBlur={autoSaveMeta} placeholder="8" style={INP} />
+                            </label>
+                            <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                              <span style={LBL}>{t('paymentMethod')}</span>
+                              <input type="text" className="dk-input" value={metaPaymentMethod} onChange={e => setMetaPaymentMethod(e.target.value)} onBlur={autoSaveMeta} placeholder={t('paymentMethodPlaceholder')} style={INP} />
+                            </label>
                           </div>
-                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', marginTop: '0.5rem' }}>
-                            <div className="form-group" style={{ margin: 0 }}>
-                              <label className="form-label">{t('paymentDeadline')} <span style={{ fontWeight: 400, color: '#8A8F98' }}>{t('paymentDeadlineUnit')}</span></label>
-                              <input type="number" min="0" className="form-control" value={metaPaymentDays} onChange={e => setMetaPaymentDays(e.target.value)} onBlur={autoSaveMeta} placeholder="8" />
-                            </div>
-                            <div className="form-group" style={{ margin: 0 }}>
-                              <label className="form-label">{t('paymentMethod')}</label>
-                              <input type="text" className="form-control" value={metaPaymentMethod} onChange={e => setMetaPaymentMethod(e.target.value)} onBlur={autoSaveMeta} placeholder={t('paymentMethodPlaceholder')} />
-                            </div>
+
+                          {/* Deposit + Warranty */}
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                            <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                              <span style={LBL}>{t('deposit')} <span style={{ fontWeight: 500, textTransform: 'none', letterSpacing: 0 }}>(%)</span></span>
+                              <input type="number" min="0" max="100" className="dk-input" value={metaDepositPercent} onChange={e => setMetaDepositPercent(e.target.value)} onBlur={autoSaveMeta} placeholder="0" style={INP} />
+                            </label>
+                            <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                              <span style={LBL}>{t('warrantyMonths')}</span>
+                              <input type="number" min="0" className="dk-input" value={metaWarrantyMonths} onChange={e => setMetaWarrantyMonths(e.target.value)} onBlur={autoSaveMeta} placeholder="0" style={INP} />
+                            </label>
                           </div>
-                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', marginTop: '0.5rem' }}>
-                            <div className="form-group" style={{ margin: 0 }}>
-                              <label className="form-label">{t('deposit')} <span style={{ fontWeight: 400, color: '#8A8F98' }}>(%)</span></label>
-                              <input type="number" min="0" max="100" className="form-control" value={metaDepositPercent} onChange={e => setMetaDepositPercent(e.target.value)} onBlur={autoSaveMeta} placeholder="0" />
+
+                          {/* Other terms */}
+                          <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                            <span style={LBL}>{t('otherTerms')} <span style={{ fontWeight: 500, textTransform: 'none', letterSpacing: 0 }}>{t('otherTermsUnit')}</span></span>
+                            <textarea className="dk-input" rows={2} value={metaOfferTerms} onChange={e => setMetaOfferTerms(e.target.value)} onBlur={autoSaveMeta} placeholder={t('otherTermsPlaceholder')} style={{ ...INP, padding: '12px 14px', resize: 'vertical' }} />
+                          </label>
+
+                          {creator && (
+                            <div style={{ fontSize: 12, color: '#9AA1AD', background: '#F4F5F8', borderRadius: 10, padding: '8px 12px' }}>
+                              {t('createdBy')} <strong style={{ color: '#5A6070' }}>{creator.display_name}</strong>{quote.created_at && ` · ${formatDate(quote.created_at)}`}
                             </div>
-                            <div className="form-group" style={{ margin: 0 }}>
-                              <label className="form-label">{t('warrantyMonths')}</label>
-                              <input type="number" min="0" className="form-control" value={metaWarrantyMonths} onChange={e => setMetaWarrantyMonths(e.target.value)} onBlur={autoSaveMeta} placeholder="0" />
-                            </div>
-                          </div>
-                          <div className="form-group" style={{ marginTop: '0.5rem', marginBottom: 0 }}>
-                            <label className="form-label">{t('otherTerms')} <span style={{ fontWeight: 400, color: '#8A8F98' }}>{t('otherTermsUnit')}</span></label>
-                            <textarea className="form-control" rows={2} value={metaOfferTerms} onChange={e => setMetaOfferTerms(e.target.value)} onBlur={autoSaveMeta} placeholder={t('otherTermsPlaceholder')} style={{ resize: 'vertical', fontSize: '0.82rem' }} />
-                          </div>
-                          {creator && <div style={{ marginTop: '0.75rem', fontSize: '0.78rem', color: '#8A8F98' }}>{t('createdBy')} <strong>{creator.display_name}</strong>{quote.created_at && ` · ${formatDate(quote.created_at)}`}</div>}
-                        </>
+                          )}
+                        </div>
                       ) : (
                         <div style={{ display: 'grid', gridTemplateColumns: '18px 1fr', gap: '0.6rem 0.85rem', alignItems: 'center', marginTop: '0.85rem' }}>
                           {client && (<><User size={15} color="#6D3FD1" />
@@ -910,31 +989,17 @@ export default function OfferDetailDesktop() {
                   )}
                 </div>
 
-                {/* Sections header */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <h2 style={{ fontSize: '0.95rem', fontWeight: 800, margin: 0, color: 'rgba(255,255,255,.85)', letterSpacing: '-0.01em' }}>{t('items')}</h2>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span style={{ fontSize: 16, fontWeight: 700, letterSpacing: '.04em', textTransform: 'uppercase', color: 'rgba(255,255,255,.85)' }}>{t('desktop.panelSections')}</span>
                   {canEdit && (
-                    <button type="button" onClick={() => setShowAddSection(true)} className="dk-btn dk-btn-g" style={{ height: 36, padding: '0 14px', fontSize: 13 }}>
-                      <Plus size={16} aria-hidden="true" /> {tc('add')}
+                    <button type="button" className="dk-btn" onClick={() => setShowAddSection(true)} style={{ height: 36, padding: '0 14px', fontSize: 13, background: 'var(--dk-c)', color: '#fff' }}>
+                      <Plus size={16} aria-hidden="true" /> {t('desktop.addSection')}
                     </button>
                   )}
                 </div>
 
-                {sections.length === 0 && !showAddSection && (
-                  <div className="dk-card" style={{ textAlign: 'center', padding: '2rem 1.5rem', color: '#5A5F68', fontSize: '0.875rem' }}>
-                    <Home size={28} color="#D1D5DB" style={{ margin: '0 auto 0.5rem', display: 'block' }} />
-                    <p style={{ marginBottom: canEdit ? '1rem' : 0 }}>{t('noRooms')}</p>
-                    {canEdit && (
-                      <button type="button" onClick={() => setShowAddSection(true)} className="dk-btn dk-btn-dark" style={{ display: 'inline-flex', height: 38, padding: '0 16px', fontSize: 13 }}>
-                        <Plus size={14} /> {tc('add')}
-                      </button>
-                    )}
-                  </div>
-                )}
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                  {sections.map(s => renderSectionCard(s))}
-                  {renderSectionCard(null)}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  {sections.map(s => renderDesktopSectionPod(s))}
                 </div>
 
                 {canModify && <ClientComments quoteId={id} />}
@@ -942,7 +1007,7 @@ export default function OfferDetailDesktop() {
               </div>
 
               {/* ── Right panel: totals + status + actions ───────────────── */}
-              <div style={{ width: 300, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 12, alignSelf: 'flex-start' }}>
+              <div style={{ width: 300, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 12, position: 'sticky', top: 0, alignSelf: 'flex-start' }}>
 
                 {/* Totals card */}
                 {entries.length > 0 && (
@@ -970,9 +1035,43 @@ export default function OfferDetailDesktop() {
 
                 {/* Status + actions card */}
                 <div className="dk-card" style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.07em', textTransform: 'uppercase', color: '#5A5F68' }}>{t('statusDraft').toUpperCase().includes('TERVEZ') ? 'Státusz' : 'Status'}</span>
+                  <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.07em', textTransform: 'uppercase', color: '#5A5F68' }}>{t('desktop.statusFlow')}</span>
 
-                  {/* Status flow */}
+                  {/* Status flow visual */}
+                  {(() => {
+                    const isRej = quote.status === 'rejected';
+                    const statusOrder = ['draft', 'sent', isRej ? 'rejected' : 'accepted'];
+                    const labels = [t('statusDraft'), t('statusSent'), isRej ? t('statusRejected') : t('statusAccepted')];
+                    const currentIdx = statusOrder.indexOf(quote.status);
+                    return (
+                      <div style={{ display: 'flex', alignItems: 'flex-start', marginBottom: 2 }}>
+                        {statusOrder.map((step, idx) => {
+                          const isDone    = idx < currentIdx;
+                          const isCurrent = idx === currentIdx;
+                          const isPending = idx > currentIdx;
+                          const bg = isPending ? '#E4E1D8' : (isRej && isCurrent) ? '#FEE2E2' : '#6D3FD1';
+                          const fg = isPending ? '#9AA1AD' : (isRej && isCurrent) ? '#991B1B' : '#fff';
+                          const lc = isPending ? '#8A8F98' : '#0E1116';
+                          return (
+                            <React.Fragment key={step}>
+                              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5 }}>
+                                <div style={{ width: 30, height: 30, borderRadius: 15, background: bg, color: fg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 13 }}>
+                                  {isDone && <Check size={14} />}
+                                  {isCurrent && !isDone && (isRej ? <X size={12} /> : <span style={{ fontSize: 11 }}>→</span>)}
+                                </div>
+                                <span style={{ fontSize: 11, fontWeight: 700, color: lc, textAlign: 'center', lineHeight: 1.2 }}>{labels[idx]}</span>
+                              </div>
+                              {idx < statusOrder.length - 1 && (
+                                <div style={{ flex: 0.6, height: 1, background: '#EDEBE5', marginTop: 15, flexShrink: 0 }} />
+                              )}
+                            </React.Fragment>
+                          );
+                        })}
+                      </div>
+                    );
+                  })()}
+
+                  {/* Status actions */}
                   {canModify && (isQuoteOwner || isKollektivOwner) && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                       {!isLocked && quote.status !== 'sent' && (
@@ -1024,6 +1123,13 @@ export default function OfferDetailDesktop() {
                       </button>
                     )}
 
+                    {/* Client portal link */}
+                    {quote.status !== 'draft' && quote.status !== 'rejected' && client && (
+                      <button className="dk-btn dk-btn-l" onClick={() => { const url = `${window.location.origin}/portal${client.email ? `?email=${encodeURIComponent(client.email)}` : ''}`; navigator.clipboard.writeText(url).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000); }); }} style={{ width: '100%', justifyContent: 'flex-start' }}>
+                        {copied ? <><CheckCircle2 size={16} /> {t('copied')}</> : <><ExternalLink size={16} /> {t('copyLink')}</>}
+                      </button>
+                    )}
+
                     {/* History */}
                     <button className="dk-btn dk-btn-l" onClick={openHistory} style={{ width: '100%', justifyContent: 'flex-start' }}>
                       <MessageSquare size={16} /> {t('actionHistory')}
@@ -1037,6 +1143,47 @@ export default function OfferDetailDesktop() {
                     )}
                   </div>
                 </div>
+
+                {/* Client card */}
+                {(canEdit || client) && (
+                  <div
+                    className="dk-card"
+                    onClick={canEdit ? () => setShowClientModal(true) : undefined}
+                    style={{ padding: 18, display: 'flex', flexDirection: 'column', gap: 10, cursor: canEdit ? 'pointer' : 'default' }}
+                  >
+                    <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.07em', textTransform: 'uppercase', color: '#5A5F68' }}>{t('client')}</span>
+
+                    {client ? (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <div style={{ width: 40, height: 40, borderRadius: 20, background: '#B8456B', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 15, flexShrink: 0 }}>
+                          {client.name?.split(' ').map(w => w[0]).filter(Boolean).slice(0, 2).join('').toUpperCase() || '?'}
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontWeight: 700, fontSize: 14, color: '#0E1116' }}>{client.name}</div>
+                          {client.email && <div style={{ fontSize: 12, color: '#5A5F68' }}>{client.email}</div>}
+                        </div>
+                      </div>
+                    ) : canEdit ? (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#8A8F98', fontSize: 14, fontWeight: 600 }}>
+                        <Plus size={16} /> {t('clientAddPlaceholder')}
+                      </div>
+                    ) : null}
+
+                    {metaValidUntil && (
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #EDEBE5', paddingTop: 10 }}>
+                        <span style={{ fontSize: 13, fontWeight: 600, color: '#5A5F68' }}>{t('validUntil')}</span>
+                        <span style={{ fontWeight: 700, fontSize: 13 }}>{formatDate(metaValidUntil)}</span>
+                      </div>
+                    )}
+                    {Number(metaDepositPercent) > 0 && (
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontSize: 13, fontWeight: 600, color: '#5A5F68' }}>{t('deposit')}</span>
+                        <span style={{ fontWeight: 700, fontSize: 13 }}>{metaDepositPercent}%</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+
 
                 {/* Linked project */}
                 {linkedProject && (
@@ -1101,59 +1248,65 @@ export default function OfferDetailDesktop() {
             <button key={ety.id} type="button" onClick={() => setEntryForm(f => ({ ...f, entry_type: ety.id, quantity: '', unit: 'db', unit_price: '', flat_amount: '' }))}
               style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '0.25rem', padding: '0.6rem 0.3rem', borderRadius: 'var(--radius-md)', border: `2px solid ${active ? tc2.color : 'var(--border-subtle)'}`, background: active ? tc2.bg : '#fff', cursor: 'pointer' }}>
               <Icon size={18} color={active ? tc2.color : 'var(--text-muted)'} />
-              <span style={{ fontSize: '0.65rem', fontWeight: 700, color: active ? tc2.color : 'var(--text-muted)', textAlign: 'center', lineHeight: 1.2 }}>{ety.label}</span>
+              <span style={{ fontSize: '0.65rem', fontWeight: 700, color: active ? tc2.color : 'var(--text-muted)', textAlign: 'center', lineHeight: 1.2 }}>{ENTRY_TYPE_T[ety.id]}</span>
             </button>
           ); })}
         </div>
 
-        <div className="form-group">
-          <label className="form-label">{t('entryName')}</label>
-          <input type="text" className="form-control" autoFocus placeholder={entryForm.entry_type === 'material' ? t('entryNameMaterialPh') : entryForm.entry_type === 'labour' ? t('entryNameLabourPh') : t('entryNameOtherPh')} value={entryForm.work_description} onChange={e => setEntryForm(f => ({ ...f, work_description: e.target.value }))} />
-        </div>
-        {(entryForm.entry_type === 'material' || entryForm.entry_type === 'labour') && (
-          <div className="qty-grid">
-            <div>
-              <label className="form-label">{t('entryQuantity')}</label>
-              <input inputMode="decimal" type="number" min="0" step="0.01" className="form-control text-mono" placeholder="0" value={entryForm.quantity} onChange={e => setEntryForm(f => ({ ...f, quantity: e.target.value }))} />
-            </div>
-            <div>
-              <label className="form-label">{t('entryUnit')}</label>
-              <select className="form-control" value={entryForm.unit} onChange={e => setEntryForm(f => ({ ...f, unit: e.target.value }))}>
-                {(entryForm.entry_type === 'labour' ? LABOUR_UNITS : QUANTITY_UNITS).map(u => (
-                  <option key={u} value={u}>{u}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="form-label">{t('entryUnitPrice')}</label>
-              <input inputMode="decimal" type="number" min="0" className="form-control text-mono" placeholder="0" value={entryForm.unit_price} onChange={e => setEntryForm(f => ({ ...f, unit_price: e.target.value }))} />
-            </div>
-          </div>
-        )}
-        {(entryForm.entry_type === 'equipment' || entryForm.entry_type === 'transport' || entryForm.entry_type === 'other') && (
-          <div className="form-group"><label className="form-label">{t('entryAmount')}</label><input inputMode="decimal" type="number" min="1" className="form-control text-mono" placeholder="0" value={entryForm.flat_amount} onChange={e => setEntryForm(f => ({ ...f, flat_amount: e.target.value }))} /></div>
-        )}
-        {previewAmount > 0 && <div style={{ padding: '0.6rem 0.85rem', borderRadius: 'var(--radius-md)', background: 'var(--success-bg)', border: '1px solid var(--success-border)', color: 'var(--success-text)', fontWeight: 700, fontSize: '0.875rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}><Coins size={15} /> {t('entryItem')} <span style={{ fontFamily: 'var(--font-mono)' }}>{fmt(previewAmount)}</span></div>}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 4 }}>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <span style={LBL}>{t('entryName')}</span>
+            <input type="text" className="dk-input" autoFocus placeholder={entryForm.entry_type === 'material' ? t('entryNameMaterialPh') : entryForm.entry_type === 'labour' ? t('entryNameLabourPh') : t('entryNameOtherPh')} value={entryForm.work_description} onChange={e => setEntryForm(f => ({ ...f, work_description: e.target.value }))} />
+          </label>
 
-        <div className="form-group">
-          <label className="form-label">{t('entryContractor')}</label>
-          <select className="form-control" value={entryForm.user_id} onChange={e => setEntryForm(f => ({ ...f, user_id: e.target.value }))}>
-            <option value={currentUser.id}>{t('entryMySelf', { name: currentUser.display_name })}</option>
-            {users.filter(u => u.id !== currentUser.id).map(u => <option key={u.id} value={u.id}>{u.display_name}</option>)}
-          </select>
-        </div>
-        <div className="form-group" style={{ marginBottom: '1.25rem' }}>
-          <label className="form-label">{t('entryNotes')}</label>
-          <input type="text" className="form-control" placeholder={t('entryNotesPh')} value={entryForm.notes} onChange={e => setEntryForm(f => ({ ...f, notes: e.target.value }))} />
-        </div>
-
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
-          {!editingEntryId && (
-            <button type="button" className="btn btn-secondary btn-sm" onClick={handleAddAnother}>{t('entryAddAnother')}</button>
+          {(entryForm.entry_type === 'material' || entryForm.entry_type === 'labour') && (
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
+              <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <span style={LBL}>{t('entryQuantity')}</span>
+                <input inputMode="decimal" type="number" min="0" step="0.01" className="dk-input" style={{ fontFamily: 'var(--font-mono)' }} placeholder="0" value={entryForm.quantity} onChange={e => setEntryForm(f => ({ ...f, quantity: e.target.value }))} />
+              </label>
+              <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <span style={LBL}>{t('entryUnit')}</span>
+                <select className="dk-input" value={entryForm.unit} onChange={e => setEntryForm(f => ({ ...f, unit: e.target.value }))}>
+                  {(entryForm.entry_type === 'labour' ? LABOUR_UNITS : QUANTITY_UNITS).map(u => (
+                    <option key={u} value={u}>{u}</option>
+                  ))}
+                </select>
+              </label>
+              <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <span style={LBL}>{t('entryUnitPrice')}</span>
+                <input inputMode="decimal" type="number" min="0" className="dk-input" style={{ fontFamily: 'var(--font-mono)' }} placeholder="0" value={entryForm.unit_price} onChange={e => setEntryForm(f => ({ ...f, unit_price: e.target.value }))} />
+              </label>
+            </div>
           )}
-          <button type="button" className="btn btn-primary btn-sm" onClick={handleSaveEntry} disabled={savingEntry}>
+
+          {(entryForm.entry_type === 'equipment' || entryForm.entry_type === 'transport' || entryForm.entry_type === 'other') && (
+            <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <span style={LBL}>{t('entryAmount')}</span>
+              <input inputMode="decimal" type="number" min="1" className="dk-input" style={{ fontFamily: 'var(--font-mono)' }} placeholder="0" value={entryForm.flat_amount} onChange={e => setEntryForm(f => ({ ...f, flat_amount: e.target.value }))} />
+            </label>
+          )}
+
+          {previewAmount > 0 && <div style={{ padding: '0.6rem 0.85rem', borderRadius: 'var(--radius-md)', background: 'var(--success-bg)', border: '1px solid var(--success-border)', color: 'var(--success-text)', fontWeight: 700, fontSize: '0.875rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}><Coins size={15} /> {t('entryItem')} <span style={{ fontFamily: 'var(--font-mono)' }}>{fmt(previewAmount)}</span></div>}
+
+          <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <span style={LBL}>{t('entryNotes')}</span>
+            <input type="text" className="dk-input" placeholder={t('entryNotesPh')} value={entryForm.notes} onChange={e => setEntryForm(f => ({ ...f, notes: e.target.value }))} />
+          </label>
+        </div>
+
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 20 }}>
+          {!editingEntryId && (
+            <button type="button" className="dk-btn dk-btn-l" onClick={handleAddAnother}>{t('entryAddAnother')}</button>
+          )}
+          <button type="button" className="dk-btn" onClick={handleSaveEntry} disabled={savingEntry} style={{ background: '#6D3FD1', color: '#fff' }}>
             {savingEntry ? <><Loader2 size={13} className="animate-spin" />{tc('saving')}</> : editingEntryId ? t('entryModify') : pendingEntries.length > 0 ? t('entryAddCount', { count: pendingEntries.length + (entryForm.work_description.trim() ? 1 : 0) }) : tc('add')}
           </button>
+          {editingEntryId && (
+            <button type="button" className="dk-btn" onClick={() => { const entry = entries.find(e => e.id === editingEntryId); setShowEntryModal(false); setPendingEntries([]); handleDeleteEntry(entry); }} style={{ background: '#B71C1C', color: '#fff' }}>
+              <Trash2 size={16} /> {tc('delete')}
+            </button>
+          )}
         </div>
       </Modal>
 
@@ -1305,8 +1458,58 @@ export default function OfferDetailDesktop() {
           setMetaClientId(c.id);
           autoSaveMeta({ clientId: c.id });
           setShowNewClientModal(false);
+          setShowClientModal(false);
         }}
       />
+
+      <Modal isOpen={showClientModal} onClose={() => setShowClientModal(false)} title={t('client')}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <span style={LBL}>{t('clientSelectExisting')}</span>
+            <ClientSelect
+              value={metaClientId}
+              onChange={e => {
+                const cid = e.target.value;
+                setMetaClientId(cid);
+                updateQuote(id, { client_id: cid || null }).catch(err => setAlertModal({ message: err.message }));
+                setShowClientModal(false);
+              }}
+              clients={clients}
+              className="dk-input"
+            />
+          </label>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{ flex: 1, height: 1, background: '#EDEBE5' }} />
+            <span style={{ fontSize: 11, fontWeight: 700, color: '#8A8F98', letterSpacing: '.06em', textTransform: 'uppercase' }}>{tc('or')}</span>
+            <div style={{ flex: 1, height: 1, background: '#EDEBE5' }} />
+          </div>
+          <button type="button" className="dk-btn dk-btn-l" onClick={() => { setShowClientModal(false); setShowNewClientModal(true); }} style={{ width: '100%', justifyContent: 'center' }}>
+            <Plus size={16} /> {t('clientCreate')}
+          </button>
+        </div>
+      </Modal>
+
+      {/* Section edit modal */}
+      <Modal isOpen={showEditSectionModal} onClose={() => setShowEditSectionModal(false)} title={t('desktop.sectionEdit')}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <span style={LBL}>{t('desktop.sectionName')}</span>
+            <input type="text" className="dk-input" autoFocus value={editSecName} onChange={e => setEditSecName(e.target.value)} />
+          </label>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <span style={LBL}>{t('description')}</span>
+            <textarea rows={3} className="dk-input" value={editSecDesc} onChange={e => setEditSecDesc(e.target.value)} style={{ height: 'auto', padding: '12px 14px', resize: 'vertical' }} />
+          </label>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 4 }}>
+            <button type="button" className="dk-btn" onClick={handleSaveEditSection} disabled={savingSection || !editSecName.trim()} style={{ background: '#6D3FD1', color: '#fff' }}>
+              {savingSection ? <><Loader2 size={13} className="animate-spin" />{tc('saving')}</> : tc('save')}
+            </button>
+            <button type="button" className="dk-btn" onClick={() => { setShowEditSectionModal(false); handleDeleteSection(editingSection); }} style={{ background: '#B71C1C', color: '#fff' }}>
+              <Trash2 size={16} /> {tc('delete')}
+            </button>
+          </div>
+        </div>
+      </Modal>
 
       <LockedDocumentModal
         isOpen={lockedModalOpen}

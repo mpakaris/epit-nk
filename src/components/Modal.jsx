@@ -128,11 +128,11 @@ export function ConfirmModal({ isOpen, onClose, onConfirm, title, message, confi
         </div>
       </div>
       <div style={{ display: 'flex', gap: '0.65rem', justifyContent: 'flex-end' }}>
-        <button className="btn btn-secondary btn-sm" onClick={onClose} disabled={loading}>
+        <button className="dk-btn dk-btn-l" onClick={onClose} disabled={loading}>
           {effectiveCancelLabel}
         </button>
         <button
-          className="btn btn-sm"
+          className="dk-btn"
           style={btnStyle}
           onClick={handleConfirm}
           disabled={loading}

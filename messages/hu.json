@@ -22,12 +22,15 @@
     "optional": "opcionális",
     "new": "Új",
     "add": "Hozzáadás",
+    "or": "vagy",
     "edit": "Szerkesztés",
     "copy": "Másolás",
     "copying": "Másolás…",
     "send": "Küldés",
     "resend": "Újraküldés",
-    "notFound": "Nem található"
+    "notFound": "Nem található",
+    "collectiveBannerTitle": "Kollektíva munkaterületen dolgozol{name}.",
+    "collectiveBannerBody": "Az itt létrehozott tartalom automatikusan megosztódik a kollektíva összes tagjával."
   },
   "sidebar": {
     "expand": "Kibontás",
@@ -302,6 +305,9 @@
     "entryTypeEquipment": "Eszközbérlés",
     "entryTypeTransport": "Szállítás",
     "entryTypeOther": "Egyéb",
+    "clientAddPlaceholder": "Ügyfél hozzáadása",
+    "clientSelectExisting": "Meglévő ügyfél kiválasztása",
+    "clientCreate": "Új ügyfél létrehozása",
     "historyLoadMore": "Még {count} esemény betöltése",
     "statusRevertConfirm": "Az ajánlat jelenlegi státusza: {status}. Visszaállítja Tervezet státuszra?",
     "statusRevertYes": "Igen, visszaállítás",
@@ -434,7 +440,22 @@
       "cancelAction": "Mégse",
       "deletingAction": "Törlés...",
       "closePanel": "Bezárás",
-      "selectHint": "Válassz ki egy ajánlatot"
+      "selectHint": "Válassz ki egy ajánlatot",
+      "addEntry": "Tétel hozzáadása",
+      "addSection": "Szekció hozzáadása",
+      "sectionEdit": "Szekció szerkesztése",
+      "sectionName": "Szekció neve",
+      "colType": "Típus",
+      "colItem": "Tétel",
+      "colQty": "Menny.",
+      "colUnit": "Egys.",
+      "colUnitPrice": "Egységár",
+      "colSubtotal": "Összeg",
+      "statusFlow": "Státusz",
+      "clientConditions": "Ügyfél és feltételek",
+      "panelDetails": "Általános adatok",
+      "panelSections": "Szakaszok",
+      "surveyTemplate": "Felmérés sablon"
     }
   },
   "surveys": {

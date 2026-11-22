@@ -15,6 +15,7 @@ import WorkspacePicker from '@/components/mobile/WorkspacePicker';
 import SharingBanner from '@/components/mobile/SharingBanner';
 import useMobile from '@/hooks/useMobile';
 import OfferNewMobile from '../mobile/OfferNewMobile';
+import { podColor } from '@/lib/podColor';
 import { formatDate } from '@/lib/constants';
 import {
   ArrowLeft, Check, Loader2, Plus, Ruler, User, Search, X,
@@ -72,8 +73,9 @@ function NewQuotePageInner() {
   const tc = useTranslations('common');
   const {
     clients, surveys, loading, dataReady,
-    createQuote, createQuoteSection, createClient,
+    createQuote, createQuoteSection, createQuoteEntry, createClient,
     fetchSurveyMedia, currentUser, effectiveCollectives,
+    activeCollectiveId, setActiveContext,
     isDemoMode,
   } = useApp();
 
@@ -103,6 +105,26 @@ function NewQuotePageInner() {
   const [error, setError]                   = useState('');
   const [isSubmitting, setIsSubmitting]     = useState(false);
   const [showNewClientModal, setShowNewClientModal] = useState(false);
+
+  // Inline new-client form state (desktop only — avoids stacked modals)
+  const [ncName,  setNcName]  = useState('');
+  const [ncEmail, setNcEmail] = useState('');
+  const [ncGdpr,  setNcGdpr]  = useState(false);
+  const [ncError, setNcError] = useState('');
+  const [ncSaving,setNcSaving]= useState(false);
+
+  const resetNc = () => { setNcName(''); setNcEmail(''); setNcGdpr(false); setNcError(''); };
+  const closeNc = () => { resetNc(); setShowNewClientModal(false); };
+  const submitNc = async () => {
+    if (!ncName.trim()) { setNcError(t('newClientNameRequired')); return; }
+    setNcSaving(true);
+    try {
+      const c = await createClient({ name: ncName.trim(), email: ncEmail.trim(), gdprConsent: ncGdpr });
+      setClientId(c.id);
+      closeNc();
+    } catch (err) { setNcError(err.message || tc('error')); }
+    finally { setNcSaving(false); }
+  };
 
   const selectedSurvey    = templateSurveys.find(s => s.id === surveyId);
   const selectedCollective = collectives.find(c => c.id === collectiveId);
@@ -172,18 +194,45 @@ function NewQuotePageInner() {
       }
       if (surveyId) {
         try {
-          const data = await fetchSurveyMedia(surveyId);
-          for (const entry of (data.entries || [])) {
-            await createQuoteSection(quote.id, {
+          const [mediaData, itemsRes] = await Promise.all([
+            fetchSurveyMedia(surveyId),
+            fetch(`/api/surveys/${surveyId}/items`),
+          ]);
+          const surveyItems = itemsRes.ok ? (await itemsRes.json()).items || [] : [];
+
+          for (const entry of (mediaData.entries || [])) {
+            const newSection = await createQuoteSection(quote.id, {
               name: entry.name, description: entry.description || null,
               width_m: entry.width_m ?? null, length_m: entry.length_m ?? null,
               height_m: entry.height_m ?? null, window_count: entry.window_count ?? 0,
               door_count: entry.door_count ?? 0, sort_order: entry.sort_order ?? 0,
               survey_entry_id: entry.id,
             });
+
+            const entryItems = surveyItems.filter(i => i.entry_id === entry.id);
+            for (const item of entryItems) {
+              await createQuoteEntry({
+                quoteId: quote.id,
+                userId: currentUser.id,
+                workDescription: item.description,
+                amountHuf: 0,
+                notes: item.notes || '',
+                entryType: item.entry_type || 'material',
+                quantity: item.quantity ?? null,
+                unit: item.unit || null,
+                unitPrice: null,
+                sectionId: newSection.id,
+              });
+            }
           }
           fetch(`/api/quotes/${quote.id}/copy-survey-media`, { method: 'POST' }).catch(() => {});
         } catch {}
+      }
+      // Switch to the workspace the offer was created in before navigating,
+      // so the offer detail page opens in the right context.
+      const targetCollective = isContributorCollective ? null : collectiveId;
+      if (targetCollective !== activeCollectiveId) {
+        setActiveContext(targetCollective);
       }
       router.push(`${navPrefix}/ajanlatok/${quote.id}`);
     } catch (err) {
@@ -379,43 +428,174 @@ function NewQuotePageInner() {
     </div>
   );
 
-  // ── Step 2 on desktop (has collectives): show form in a modal ──
-  if (!isMobile && collectives.length > 0) {
+  // ── Desktop: same shell as WorkspacePicker, different content ────────────
+  if (!isMobile) {
+    const handleBack = () => collectives.length > 0 ? setMobileStep(1) : router.back();
+
+    const surveyDropdown = (
+      <div style={{ position: 'relative' }}>
+        <Search size={15} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', pointerEvents: 'none' }} />
+        <input
+          type="text"
+          className="dk-input"
+          style={{ paddingLeft: 42 }}
+          placeholder={templateSurveysLoading ? t('surveysLoading') : templateSurveys.length === 0 ? t('surveysEmpty') : t('surveysSearchPlaceholder')}
+          disabled={templateSurveysLoading || templateSurveys.length === 0}
+          value={surveySearch}
+          onChange={e => { setSurveySearch(e.target.value); setShowSurveyDropdown(true); }}
+          onFocus={() => setShowSurveyDropdown(true)}
+          onBlur={() => setTimeout(() => setShowSurveyDropdown(false), 150)}
+        />
+        {showSurveyDropdown && templateSurveys.length > 0 && (
+          <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 50, background: 'var(--bg-card)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', boxShadow: '0 4px 16px rgba(0,0,0,0.1)', maxHeight: 220, overflowY: 'auto', marginTop: 4 }}>
+            {filteredSurveys.length === 0 ? (
+              <div style={{ padding: '12px 16px', color: 'var(--text-muted)', fontSize: 13 }}>
+                {includeInactive ? t('surveysNoResult') : t('surveysNoActive')}
+              </div>
+            ) : (
+              <>
+                {collectiveId && collectiveSurveys.length > 0 && (<>
+                  <div style={{ padding: '6px 14px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.06em', color: 'var(--text-muted)', background: 'var(--bg-subtle)', borderBottom: '1px solid var(--border-subtle)' }}>
+                    {selectedCollective?.name || t('collectiveFallback')}
+                  </div>
+                  {collectiveSurveys.map(s => <SurveyPickerRow key={s.id} s={s} />)}
+                </>)}
+                {personalSurveys.length > 0 && (<>
+                  {collectiveId && collectiveSurveys.length > 0 && (
+                    <div style={{ padding: '6px 14px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.06em', color: 'var(--text-muted)', background: 'var(--bg-subtle)', borderTop: '1px solid var(--border-subtle)', borderBottom: '1px solid var(--border-subtle)' }}>
+                      {t('surveysPersonalGroup')}
+                    </div>
+                  )}
+                  {personalSurveys.map(s => <SurveyPickerRow key={s.id} s={s} />)}
+                </>)}
+              </>
+            )}
+            <button type="button" onMouseDown={e => { e.preventDefault(); setIncludeInactive(v => !v); }}
+              style={{ width: '100%', padding: '8px 14px', background: 'var(--bg-subtle)', border: 'none', borderTop: '1px solid var(--border-subtle)', cursor: 'pointer', textAlign: 'left', fontSize: 12, color: 'var(--text-muted)', fontWeight: 600 }}>
+              {includeInactive ? t('surveysHideInactive') : t('surveysShowInactive')}
+            </button>
+          </div>
+        )}
+      </div>
+    );
+
     return (
       <>
-        <Modal isOpen={true} onClose={() => setMobileStep(1)} title={t('new')} maxWidth="720px">
-          {collectiveId && selectedCollective && (
-            <div style={{ marginBottom: 16 }}>
-              <SharingBanner collectiveName={selectedCollective.name} />
-            </div>
-          )}
-
-          <ErrorBanner message={error} style={{ marginBottom: '1rem' }} />
-
-          <form onSubmit={handleSubmit}>
-            <SurveyPicker />
-            {basicDataCard}
-            {detailsCard}
-
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
-              <button type="button" className="btn btn-secondary" onClick={() => setMobileStep(1)}>{tc('cancel')}</button>
-              <button type="submit" className="btn btn-primary" disabled={isSubmitting || !title.trim()}>
-                {isSubmitting ? <><Loader2 size={16} className="animate-spin" />{tc('creating')}</> : <><Check size={16} />{t('createQuote')}</>}
+        {/* Same shell as WorkspacePicker desktop */}
+        <div
+          style={{ position: 'fixed', inset: 0, zIndex: 100, background: 'rgba(15,23,42,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}
+          onClick={handleBack}
+        >
+          <div
+            style={{ background: 'var(--bg-base)', borderRadius: 'var(--radius-lg)', width: '100%', maxWidth: 480, maxHeight: '90vh', display: 'flex', flexDirection: 'column', boxShadow: '0 24px 64px rgba(15,23,42,0.22)', overflow: 'hidden' }}
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Top bar */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', height: 64, flexShrink: 0 }}>
+              <button type="button" onClick={showNewClientModal ? closeNc : handleBack}
+                style={{ width: 48, height: 48, borderRadius: '50%', background: 'var(--bg-subtle)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <ArrowLeft size={22} color="#0f172a" strokeWidth={1.75} aria-hidden="true" />
               </button>
+              <span style={{ fontSize: 15, fontWeight: 600, color: '#64748b' }}>{collectives.length > 0 ? '2 / 2' : ''}</span>
             </div>
-          </form>
-        </Modal>
 
-        <NewClientModal
-          isOpen={showNewClientModal}
-          onClose={() => setShowNewClientModal(false)}
-          onCreate={async (fields) => { const c = await createClient({ ...fields }); setClientId(c.id); setShowNewClientModal(false); }}
-        />
+            {showNewClientModal ? (
+              <>
+                {/* New client form — inline, no second modal */}
+                <div style={{ flex: 1, overflowY: 'auto', padding: '8px 16px 24px' }}>
+                  <h1 style={{ fontSize: 24, fontWeight: 800, color: '#0f172a', letterSpacing: '-0.025em', lineHeight: '30px', marginBottom: 6 }}>
+                    {t('newClientTitle')}
+                  </h1>
+                  <p style={{ fontSize: 15, fontWeight: 500, color: '#475569', marginBottom: 24, lineHeight: '22px' }}>&nbsp;</p>
+
+                  {ncError && (
+                    <div style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', color: 'var(--danger-text)', padding: '0.6rem 0.85rem', borderRadius: 'var(--radius-md)', fontSize: '0.825rem', marginBottom: '1rem' }}>
+                      {ncError}
+                    </div>
+                  )}
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      <label style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-secondary)' }}>{t('newClientNameLabel')}</label>
+                      <input type="text" className="dk-input" autoFocus value={ncName} onChange={e => setNcName(e.target.value)} placeholder={t('newClientNamePlaceholder')} />
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      <label style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-secondary)' }}>{t('newClientEmailLabel')}</label>
+                      <input type="email" className="dk-input" value={ncEmail} onChange={e => setNcEmail(e.target.value)} placeholder="email@…" />
+                    </div>
+                    <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '12px 14px', borderRadius: 14, background: ncGdpr ? 'var(--success-bg)' : 'var(--bg-subtle)', border: `1px solid ${ncGdpr ? 'var(--success-border)' : 'var(--border-subtle)'}`, cursor: 'pointer' }}>
+                      <input type="checkbox" checked={ncGdpr} onChange={e => setNcGdpr(e.target.checked)} style={{ marginTop: 2, flexShrink: 0, accentColor: 'var(--accent)', width: 16, height: 16 }} />
+                      <span style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5 }}>{t('newClientGdprText')} <span style={{ color: 'var(--danger-text)', fontWeight: 700 }}>*</span></span>
+                    </label>
+                  </div>
+                </div>
+                <div style={{ padding: '0 16px 24px', flexShrink: 0 }}>
+                  <button type="button" onClick={submitNc} disabled={ncSaving || !ncGdpr || !ncName.trim()}
+                    style={{ width: '100%', height: 56, borderRadius: 999, background: '#0f172a', border: 'none', color: '#fff', fontSize: 17, fontWeight: 700, cursor: 'pointer', opacity: (!ncGdpr || !ncName.trim() || ncSaving) ? 0.5 : 1 }}>
+                    {ncSaving ? tc('creating') : tc('create')}
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                {/* Offer form */}
+                <div style={{ flex: 1, overflowY: 'auto', padding: '8px 16px 24px' }}>
+                  <h1 style={{ fontSize: 24, fontWeight: 800, color: '#0f172a', letterSpacing: '-0.025em', lineHeight: '30px', marginBottom: 6 }}>
+                    {t('new')}
+                  </h1>
+                  <p style={{ fontSize: 15, fontWeight: 500, color: '#475569', marginBottom: 24, lineHeight: '22px' }}>
+                    {selectedCollective ? selectedCollective.name : t('desktop.workspacePersonal')}
+                  </p>
+
+                  {error && (
+                    <div style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', color: 'var(--danger-text)', padding: '0.6rem 0.85rem', borderRadius: 'var(--radius-md)', fontSize: '0.825rem', marginBottom: '1rem' }}>
+                      {error}
+                    </div>
+                  )}
+
+                  <form id="new-quote-form" onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      <label style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-secondary)' }}>{t('metaTitle')}</label>
+                      <input type="text" className="dk-input" autoFocus required value={title} onChange={e => setTitle(e.target.value)} placeholder={t('metaTitlePlaceholder')} />
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      <label style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-secondary)' }}>{t('client')}</label>
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <ClientSelect value={clientId} onChange={e => setClientId(e.target.value)} clients={clients} style={{ flex: 1 }} className="dk-input" />
+                        <button type="button" onClick={() => setShowNewClientModal(true)}
+                          style={{ width: 46, height: 46, borderRadius: 23, border: 0, background: '#2563EB', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}><Plus size={20} aria-hidden="true" /></button>
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 150 }}>
+                      <label style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-secondary)' }}>{t('desktop.surveyTemplate')}</label>
+                      {selectedSurvey ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px', borderRadius: 12, background: '#EDE7FB', border: '1px solid #D8CCFA' }}>
+                          <Ruler size={16} color="#6D3FD1" style={{ flexShrink: 0 }} />
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontWeight: 700, fontSize: 14, color: '#6D3FD1', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{selectedSurvey.title}</div>
+                            {selectedSurvey.location && <div style={{ fontSize: 12, color: '#6D3FD1', opacity: 0.75 }}>{selectedSurvey.location}</div>}
+                          </div>
+                          <button type="button" onClick={clearSurvey} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6D3FD1', display: 'flex', padding: 4 }}><X size={16} /></button>
+                        </div>
+                      ) : surveyDropdown}
+                    </div>
+                  </form>
+                </div>
+                <div style={{ padding: '0 16px 24px', flexShrink: 0 }}>
+                  <button type="submit" form="new-quote-form" disabled={isSubmitting || !title.trim()}
+                    style={{ width: '100%', height: 56, borderRadius: 999, background: '#0f172a', border: 'none', color: '#fff', fontSize: 17, fontWeight: 700, cursor: 'pointer', opacity: (!title.trim() || isSubmitting) ? 0.5 : 1 }}>
+                    {isSubmitting ? tc('creating') : t('createQuote')}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
       </>
     );
   }
 
-  // ── Mobile step 2 (or no-collectives full-page) ──
+  // ── Mobile step 2 (or no-collectives mobile path) ─────────────────────────
   return (
     <div className="container page-body" style={{ maxWidth: '720px' }}>
 
@@ -463,43 +643,11 @@ function NewQuotePageInner() {
         )}
       </div>
 
-      {/* Desktop header — only shown when user has no collectives */}
-      <div className="hide-mobile">
-        <div style={{ padding: '0.85rem 0 0.25rem' }}>
-          <AppLink href={`${navPrefix}/ajanlatok`} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', color: 'var(--text-secondary)', fontSize: '0.825rem', fontWeight: 600 }}>
-            <ArrowLeft size={15} /> {tc('back')}
-          </AppLink>
-        </div>
-        <div style={{ paddingTop: '0.5rem', marginBottom: '1.5rem' }}>
-          <h1 className="page-title">{t('new')}</h1>
-        </div>
-      </div>
-
-      <div className="hide-mobile">
-        <CollectiveSelector value={collectiveId} onChange={setCollectiveId} />
-        {collectiveId && selectedCollective && (
-          <div style={{ marginBottom: 16 }}>
-            <SharingBanner collectiveName={selectedCollective.name} />
-          </div>
-        )}
-      </div>
-
       <ErrorBanner message={error} style={{ marginBottom: '1rem' }} />
 
       <form onSubmit={handleSubmit}>
         <SurveyPicker />
         {basicDataCard}
-
-        <div className="advanced-section" style={{ display: 'none' }}>
-          {detailsCard}
-        </div>
-
-        <div className="hide-mobile" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem' }}>
-          <AppLink href={`${navPrefix}/ajanlatok`} className="btn btn-secondary">{tc('cancel')}</AppLink>
-          <button type="submit" className="btn btn-primary" disabled={isSubmitting || !title.trim()}>
-            {isSubmitting ? <><Loader2 size={16} className="animate-spin" />{tc('creating')}</> : <><Check size={16} />{t('createQuote')}</>}
-          </button>
-        </div>
 
         <div className="show-mobile" style={{ marginTop: 24 }}>
           <button type="submit" disabled={isSubmitting} style={{ width: '100%', height: 56, borderRadius: 999, background: '#0f172a', border: 'none', color: '#fff', fontSize: 17, fontWeight: 700, cursor: 'pointer' }}>

@@ -31,6 +31,8 @@ export function makeQuoteActions({
     if (!res.ok) throw new Error(payload.error || 'Hiba az ajánlat létrehozásakor');
     const data = payload.quote;
     setQuotes(prev => [data, ...prev]);
+    if (payload.sections?.length) setQuoteSections(prev => [...prev, ...payload.sections]);
+    if (payload.entries?.length)  setQuoteEntries(prev  => [...prev, ...payload.entries]);
     return data;
   };
 

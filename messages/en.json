@@ -22,12 +22,15 @@
     "optional": "optional",
     "new": "New",
     "add": "Add",
+    "or": "or",
     "edit": "Edit",
     "copy": "Copy",
     "copying": "Copying…",
     "send": "Send",
     "resend": "Resend",
-    "notFound": "Not found"
+    "notFound": "Not found",
+    "collectiveBannerTitle": "You are working in the collective workspace{name}.",
+    "collectiveBannerBody": "Content created here is automatically shared with all collective members."
   },
   "dashboard": {
     "viewAll": "All",
@@ -372,6 +375,9 @@
     "entryTypeEquipment": "Equipment",
     "entryTypeTransport": "Transport",
     "entryTypeOther": "Other",
+    "clientAddPlaceholder": "Add client",
+    "clientSelectExisting": "Select existing client",
+    "clientCreate": "Create new client",
     "historyLoadMore": "Load {count} more events",
     "statusRevertConfirm": "The current offer status is \"{status}\". Reset to \"Draft\"?",
     "statusRevertYes": "Yes, reset",
@@ -504,7 +510,22 @@
       "cancelAction": "Cancel",
       "deletingAction": "Deleting...",
       "closePanel": "Close",
-      "selectHint": "Select a quote"
+      "selectHint": "Select a quote",
+      "addEntry": "Add item",
+      "addSection": "Add section",
+      "sectionEdit": "Edit section",
+      "sectionName": "Section name",
+      "colType": "Type",
+      "colItem": "Item",
+      "colQty": "Qty",
+      "colUnit": "Unit",
+      "colUnitPrice": "Unit price",
+      "colSubtotal": "Amount",
+      "statusFlow": "Status",
+      "clientConditions": "Client & terms",
+      "panelDetails": "General Details",
+      "panelSections": "Sections",
+      "surveyTemplate": "Survey template"
     }
   },
   "surveys": {

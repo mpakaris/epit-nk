@@ -1,13 +1,13 @@
 'use client';
 
 import { useApp } from '@/context/AppContext';
+import { useTranslations } from 'next-intl';
 import { Users } from 'lucide-react';
 
 export default function CollectiveBanner({ documentCollectiveId } = {}) {
   const { activeCollectiveId, collectives } = useApp();
+  const tc = useTranslations('common');
 
-  // If the document has an explicit collective_id, only show when it matches.
-  // If no prop passed (legacy call sites), fall back to the workspace context check.
   const relevantId = documentCollectiveId !== undefined
     ? documentCollectiveId
     : activeCollectiveId;
@@ -28,8 +28,8 @@ export default function CollectiveBanner({ documentCollectiveId } = {}) {
     }}>
       <Users size={15} style={{ flexShrink: 0, marginTop: '0.1rem', color: '#ea580c' }} />
       <span style={{ fontSize: '0.8rem', lineHeight: 1.5 }}>
-        <strong>Kollektíva munkaterületen dolgozol{name ? ` — ${name}` : ''}.</strong>{' '}
-        Az itt létrehozott tartalom automatikusan megosztódik a kollektíva összes tagjával.
+        <strong>{tc('collectiveBannerTitle', { name: name ? ` — ${name}` : '' })}</strong>{' '}
+        {tc('collectiveBannerBody')}
       </span>
     </div>
   );

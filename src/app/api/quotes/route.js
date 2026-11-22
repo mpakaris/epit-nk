@@ -28,7 +28,7 @@ export async function POST(request) {
   if (authErr || !user) return Response.json({ error: 'Unauthenticated' }, { status: 401 });
 
   const admin = createAdminClient();
-  const { data: profile } = await admin.from('profiles').select('id, role, display_name, active_collective_id, is_subscription_premium, subscription_tier, trial_ends_at, offer_validity_days, offer_terms_text, payment_deadline_days, payment_method, deposit_percent, warranty_months').eq('id', user.id).single();
+  const { data: profile } = await admin.from('profiles').select('id, role, display_name, active_collective_id, is_subscription_premium, subscription_tier, trial_ends_at, offer_validity_days, offer_terms_text, payment_deadline_days, payment_method, deposit_percent, warranty_months, locale').eq('id', user.id).single();
   if (!profile) return Response.json({ error: 'Forbidden' }, { status: 403 });
 
   const body = await request.json();
@@ -132,5 +132,57 @@ export async function POST(request) {
     targetName: data.title,
   });
 
-  return Response.json({ quote: data }, { status: 201 });
+  // Auto-create a default first section with placeholder items (in the user's app language)
+  const DEFAULT_SECTION_I18N = {
+    hu: { section: 'Általános tételek és költségek', items: [
+      { work_description: 'Kiszállás',                          entry_type: 'transport' },
+      { work_description: 'Felvonulás, terület-előkészítés',    entry_type: 'labour'    },
+      { work_description: 'Anyagszállítás',                     entry_type: 'transport' },
+    ]},
+    en: { section: 'General Items & Costs', items: [
+      { work_description: 'Travel / Site visit',                entry_type: 'transport' },
+      { work_description: 'Site setup & preparation',           entry_type: 'labour'    },
+      { work_description: 'Material delivery',                  entry_type: 'transport' },
+    ]},
+    de: { section: 'Allgemeine Posten & Kosten', items: [
+      { work_description: 'Anfahrt',                            entry_type: 'transport' },
+      { work_description: 'Baustelleneinrichtung, Vorbereitung',entry_type: 'labour'    },
+      { work_description: 'Materiallieferung',                  entry_type: 'transport' },
+    ]},
+  };
+  const userLocale = profile.locale || 'hu';
+  const sectionI18n = DEFAULT_SECTION_I18N[userLocale] || DEFAULT_SECTION_I18N.hu;
+
+  const { data: defaultSection } = await admin.from('quote_sections').insert([{
+    quote_id:        data.id,
+    name:            sectionI18n.section,
+    sort_order:      0,
+    created_by:      user.id,
+    created_by_name: profile.display_name || null,
+  }]).select('id').single();
+
+  if (defaultSection) {
+    const placeholders = sectionI18n.items;
+    for (const item of placeholders) {
+      await admin.from('quote_entries').insert([{
+        quote_id:         data.id,
+        section_id:       defaultSection.id,
+        user_id:          user.id,
+        entry_type:       item.entry_type,
+        work_description: item.work_description,
+        amount_huf:       0,
+        notes:            '',
+      }]);
+    }
+  }
+
+  // Return the auto-created sections and entries so the client can hydrate state immediately
+  const { data: createdSections } = await admin.from('quote_sections').select('*').eq('quote_id', data.id);
+  const { data: createdEntries }  = await admin.from('quote_entries').select('*').eq('quote_id', data.id);
+
+  return Response.json({
+    quote:    data,
+    sections: createdSections || [],
+    entries:  createdEntries  || [],
+  }, { status: 201 });
 }
