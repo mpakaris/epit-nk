@@ -6,6 +6,9 @@ import { useTranslations } from 'next-intl';
 import { useApp } from '@/context/AppContext';
 import { podColor } from '@/lib/podColor';
 import Modal, { ConfirmModal, AlertModal } from '@/components/Modal';
+import DrawingPad from '@/components/DrawingPad';
+import SurveyMediaModal from '@/components/survey/SurveyMediaModal';
+import SurveyDrawingsModal from '@/components/survey/SurveyDrawingsModal';
 import LockedDocumentModal from '@/components/LockedDocumentModal';
 import LayoutAnalysisModal from '../components/LayoutAnalysisModal';
 import AudioRecorder from '@/components/AudioRecorder';
@@ -86,7 +89,7 @@ function AddItemModal({ isOpen, onClose, surveyId, entryId }) {
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={t('itemsDrawerTitleNew')} maxWidth="500px">
       {error && (
-        <div style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', color: 'var(--danger-text)', padding: '0.55rem 0.75rem', borderRadius: 'var(--radius-md)', fontSize: '0.8rem', display: 'flex', gap: '0.4rem', marginBottom: '0.75rem' }}>
+        <div style={{ background: '#FDECEC', border: '1px solid #FBBABA', color: '#B71C1C', padding: '10px 14px', borderRadius: 14, fontSize: 13, fontWeight: 600, display: 'flex', gap: 8, alignItems: 'center', marginBottom: 16 }}>
           <AlertCircle size={14} style={{ flexShrink: 0 }} /><span>{error}</span>
         </div>
       )}
@@ -143,14 +146,124 @@ function AddItemModal({ isOpen, onClose, surveyId, entryId }) {
             value={notes} onChange={e => setNotes(e.target.value)} />
         </div>
 
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '1.25rem' }}>
-          <button type="button" className="btn btn-secondary" onClick={onClose} disabled={saving}>{tc('cancel')}</button>
-          <button type="submit" className="btn btn-primary" disabled={saving}>
-            {saving ? <><Loader2 size={15} className="animate-spin" />{t('itemsSavingBtn')}</> : <><Check size={15} />{t('itemsAddNewBtn')}</>}
+        <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
+          <button type="button" className="dk-btn dk-btn-l" onClick={onClose} disabled={saving} style={{ flex: 1, justifyContent: 'center' }}>{tc('cancel')}</button>
+          <button type="submit" className="dk-btn dk-btn-dark" disabled={saving} style={{ flex: 1, justifyContent: 'center', opacity: saving ? 0.6 : 1 }}>
+            {saving ? <><Loader2 size={15} className="animate-spin" aria-hidden="true" />{t('itemsSavingBtn')}</> : <><Check size={15} aria-hidden="true" />{t('itemsAddNewBtn')}</>}
           </button>
         </div>
       </form>
     </Modal>
+  );
+}
+
+// ── SectionDimensionsContent ──────────────────────────────────────────────────
+function SectionDimensionsContent({ entry, surveyId, canEdit }) {
+  const t  = useTranslations('surveyDetail');
+  const td = useTranslations('surveys');
+  const { updateSurveyEntry } = useApp();
+  const [localLength,  setLocalLength]  = useState(entry.length_m     != null ? String(entry.length_m)     : '');
+  const [localWidth,   setLocalWidth]   = useState(entry.width_m      != null ? String(entry.width_m)      : '');
+  const [localHeight,  setLocalHeight]  = useState(entry.height_m     != null ? String(entry.height_m)     : '');
+  const [localWindows, setLocalWindows] = useState(entry.window_count != null ? String(entry.window_count) : '');
+  const [localDoors,   setLocalDoors]   = useState(entry.door_count   != null ? String(entry.door_count)   : '');
+  const valuesRef = useRef({});
+  valuesRef.current = { localLength, localWidth, localHeight, localWindows, localDoors };
+  const handleBlur = useCallback(async () => {
+    if (!canEdit) return;
+    const v = valuesRef.current;
+    try {
+      await updateSurveyEntry(surveyId, entry.id, {
+        length_m:     parseFloat(v.localLength)   || null,
+        width_m:      parseFloat(v.localWidth)    || null,
+        height_m:     parseFloat(v.localHeight)   || null,
+        window_count: parseInt(v.localWindows, 10) || null,
+        door_count:   parseInt(v.localDoors, 10)   || null,
+      });
+    } catch { }
+  }, [canEdit, entry.id, surveyId, updateSurveyEntry]);
+  const lbl = { fontSize: 11, fontWeight: 700, letterSpacing: '.07em', textTransform: 'uppercase', color: '#5A6070', display: 'block', marginBottom: 6 };
+  const inputSt = { background: '#F4F5F8', boxShadow: 'none' };
+  const fmt = v => `${v.toFixed(2).replace('.', ',')} m²`;
+  const l = parseFloat(localLength)   || 0;
+  const w = parseFloat(localWidth)    || 0;
+  const h = parseFloat(localHeight)   || 0;
+  const wins = parseInt(localWindows, 10) || 0;
+  const drs  = parseInt(localDoors,   10) || 0;
+  const floor      = l > 0 && w > 0 ? l * w : 0;
+  const wallGross  = floor > 0 && h > 0 ? 2 * (l + w) * h : 0;
+  const deductions = wins * 1.5 + drs * 2.0;
+  const wallNet    = Math.max(0, wallGross - deductions);
+  const SumRow = ({ label, value, muted, bold }) => (
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 0', borderTop: '1px solid #E8E8EC' }}>
+      <span style={{ fontSize: 13, fontWeight: 600, color: muted ? '#8A8F98' : '#5A5F68' }}>{label}</span>
+      <b style={{ fontSize: 14, fontWeight: bold ? 800 : 700, color: bold ? '#0E1116' : '#3A3F48', fontFamily: 'var(--font-mono)' }}>{value}</b>
+    </div>
+  );
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      {/* L / W / H */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+        {[{ label: t('entryLengthLabel'), val: localLength, set: setLocalLength, step: '0.1' },
+          { label: t('entryWidthLabel'),  val: localWidth,  set: setLocalWidth,  step: '0.1' },
+          { label: t('entryHeightLabel'), val: localHeight, set: setLocalHeight, step: '0.1' }].map(d => (
+          <label key={d.label} style={{ display: 'flex', flexDirection: 'column' }}>
+            <span style={lbl}>{d.label}</span>
+            <input className="dk-input" type="number" min="0" step={d.step} value={d.val} disabled={!canEdit}
+              onChange={e => d.set(e.target.value)} onBlur={handleBlur} style={inputSt} />
+          </label>
+        ))}
+      </div>
+      {/* Windows / Doors */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        {[{ label: t('entryWindowsLabel'), val: localWindows, set: setLocalWindows },
+          { label: t('entryDoorsLabel'),   val: localDoors,   set: setLocalDoors   }].map(d => (
+          <label key={d.label} style={{ display: 'flex', flexDirection: 'column' }}>
+            <span style={lbl}>{d.label}</span>
+            <input className="dk-input" type="number" min="0" step="1" value={d.val} disabled={!canEdit}
+              onChange={e => d.set(e.target.value)} onBlur={handleBlur} style={inputSt} />
+          </label>
+        ))}
+      </div>
+      {/* Area summary */}
+      {floor > 0 && (
+        <div style={{ background: '#F4F5F8', borderRadius: 14, padding: '10px 14px' }}>
+          <SumRow label={td('desktop.detailMeasFloorLabel')} value={fmt(floor)} />
+          <SumRow label={td('desktop.detailMeasCeilLabel')}  value={fmt(floor)} />
+          {wallGross > 0 && (
+            <>
+              {deductions > 0 && <SumRow label={t('areaSummaryDeductions', { windowCount: wins, doorCount: drs })} value={`− ${fmt(deductions)}`} muted />}
+              <SumRow label={td('desktop.detailMeasWallLabel')} value={fmt(wallNet)} bold />
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── SectionNotesContent ───────────────────────────────────────────────────────
+function SectionNotesContent({ entry, surveyId, canEdit }) {
+  const t = useTranslations('surveyDetail');
+  const { updateSurveyEntry } = useApp();
+  const [localNotes, setLocalNotes] = useState(entry.description || '');
+  const valuesRef = useRef({});
+  valuesRef.current = { localNotes };
+  const handleBlur = useCallback(async () => {
+    if (!canEdit) return;
+    try { await updateSurveyEntry(surveyId, entry.id, { description: valuesRef.current.localNotes.trim() || null }); }
+    catch { }
+  }, [canEdit, entry.id, surveyId, updateSurveyEntry]);
+  return (
+    <textarea
+      className="dk-input"
+      disabled={!canEdit}
+      value={localNotes}
+      onChange={e => setLocalNotes(e.target.value)}
+      onBlur={handleBlur}
+      placeholder={t('entryNotesPlaceholder')}
+      style={{ background: '#F4F5F8', boxShadow: 'none', height: 180, padding: '12px 14px', resize: 'vertical', width: '100%', boxSizing: 'border-box' }}
+    />
   );
 }
 
@@ -369,34 +482,72 @@ function MetaDrawer({ survey, clients, isOpen, onClose, onSave }) {
     catch (err) { setError(err.message || t('metaSaveError')); setSaving(false); }
   };
 
+  const lbl = { fontSize: 11, fontWeight: 700, letterSpacing: '.07em', textTransform: 'uppercase', color: '#5A6070', display: 'block', marginBottom: 6 };
+  const inputSt = { background: '#F4F5F8', boxShadow: 'none' };
+
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={t('metaDrawerTitle')} maxWidth="560px">
-      {error && <div style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', color: 'var(--danger-text)', padding: '0.55rem 0.75rem', borderRadius: 'var(--radius-md)', fontSize: '0.8rem', display: 'flex', gap: '0.4rem', marginBottom: '0.75rem' }}><AlertCircle size={14} style={{ flexShrink: 0 }} /><span>{error}</span></div>}
-      <div className="form-group"><label className="form-label">{t('metaNameLabel')}</label><input type="text" className="form-control" autoFocus value={title} onChange={e => setTitle(e.target.value)} placeholder={t('metaNamePlaceholder')} /></div>
-      <div className="grid-2col">
-        <div className="form-group" style={{ margin: 0 }}><label className="form-label">{t('metaDateLabel')}</label><input type="date" className="form-control" value={date} onChange={e => setDate(e.target.value)} /></div>
-        <div className="form-group" style={{ margin: 0 }}><label className="form-label">{t('metaLocationLabel')}</label><input type="text" className="form-control" value={location} onChange={e => setLocation(e.target.value)} placeholder={t('metaLocationPlaceholder')} /></div>
-      </div>
-      <div className="form-group" style={{ marginTop: '0.75rem' }}><label className="form-label">{t('metaClientLabel')}</label><select className="form-control" value={clientId} onChange={e => setClientId(e.target.value)}><option value="">{t('metaNoClient')}</option>{clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
-      <div className="form-group">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.3rem' }}>
-          <label className="form-label" style={{ margin: 0 }}>{t('metaNotesLabel')}</label>
-          <AudioRecorder size="sm" disabled={formatting} hasContent={!!notes.trim()}
-            onTranscript={async (text) => {
-              setFormatting(true);
-              try { const res = await fetch('/api/format-notes', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ transcript: text }) }); const data = await res.json(); setNotes(n => n.trim() ? n.trim() + '\n\n' + (res.ok ? data.formatted || text : text) : (res.ok ? data.formatted || text : text)); }
-              catch { setNotes(n => n.trim() ? n.trim() + '\n\n' + text : text); }
-              finally { setFormatting(false); }
-            }}
-            onError={() => {}}
-          />
-          {formatting && <Loader2 size={13} className="animate-spin" style={{ color: 'var(--text-muted)' }} />}
+      {error && (
+        <div style={{ background: '#FDECEC', border: '1px solid #FBBABA', color: '#B71C1C', padding: '10px 14px', borderRadius: 14, fontSize: 13, fontWeight: 600, display: 'flex', gap: 8, alignItems: 'center', marginBottom: 16 }}>
+          <AlertCircle size={14} style={{ flexShrink: 0 }} /><span>{error}</span>
         </div>
-        <textarea rows={3} className="form-control" value={notes} onChange={e => setNotes(e.target.value)} placeholder={t('metaNotesPlaceholder')} />
-      </div>
-      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '0.5rem' }}>
-        <button type="button" className="btn btn-secondary" onClick={onClose} disabled={saving}>{tc('cancel')}</button>
-        <button type="button" className="btn btn-primary" onClick={handleSave} disabled={saving}>{saving ? <><Loader2 size={15} className="animate-spin" />{tc('saving')}</> : tc('save')}</button>
+      )}
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        {/* Title */}
+        <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <span style={lbl}>{t('metaNameLabel')}</span>
+          <input type="text" className="dk-input" autoFocus value={title} onChange={e => setTitle(e.target.value)} placeholder={t('metaNamePlaceholder')} style={inputSt} />
+        </label>
+
+        {/* Date + Location */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <span style={lbl}>{t('metaDateLabel')}</span>
+            <input type="date" className="dk-input" value={date} onChange={e => setDate(e.target.value)} style={inputSt} />
+          </label>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <span style={lbl}>{t('metaLocationLabel')}</span>
+            <input type="text" className="dk-input" value={location} onChange={e => setLocation(e.target.value)} placeholder={t('metaLocationPlaceholder')} style={inputSt} />
+          </label>
+        </div>
+
+        {/* Client */}
+        <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <span style={lbl}>{t('metaClientLabel')}</span>
+          <select className="dk-input" value={clientId} onChange={e => setClientId(e.target.value)} style={inputSt}>
+            <option value="">{t('metaNoClient')}</option>
+            {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+        </label>
+
+        {/* Notes */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={lbl}>{t('metaNotesLabel')}</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              {formatting && <Loader2 size={13} className="animate-spin" style={{ color: '#5A5F68' }} />}
+              <AudioRecorder size="sm" disabled={formatting} hasContent={!!notes.trim()}
+                onTranscript={async (text) => {
+                  setFormatting(true);
+                  try { const res = await fetch('/api/format-notes', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ transcript: text }) }); const data = await res.json(); setNotes(n => n.trim() ? n.trim() + '\n\n' + (res.ok ? data.formatted || text : text) : (res.ok ? data.formatted || text : text)); }
+                  catch { setNotes(n => n.trim() ? n.trim() + '\n\n' + text : text); }
+                  finally { setFormatting(false); }
+                }}
+                onError={() => {}}
+              />
+            </div>
+          </div>
+          <textarea rows={4} className="dk-input" value={notes} onChange={e => setNotes(e.target.value)} placeholder={t('metaNotesPlaceholder')} style={{ ...inputSt, padding: '12px 14px', resize: 'vertical' }} />
+        </div>
+
+        {/* Buttons */}
+        <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+          <button type="button" className="dk-btn dk-btn-l" onClick={onClose} disabled={saving} style={{ flex: 1, justifyContent: 'center' }}>{tc('cancel')}</button>
+          <button type="button" className="dk-btn dk-btn-dark" onClick={handleSave} disabled={saving} style={{ flex: 1, justifyContent: 'center', opacity: saving ? 0.6 : 1 }}>
+            {saving ? <><Loader2 size={15} className="animate-spin" aria-hidden="true" />{tc('saving')}</> : tc('save')}
+          </button>
+        </div>
       </div>
     </Modal>
   );
@@ -607,6 +758,9 @@ export default function SurveyDetailDesktop() {
   const [openItemMenuId,      setOpenItemMenuId]      = useState(null);
   const [typeFilter,          setTypeFilter]          = useState('all');
   const [measOpen,            setMeasOpen]            = useState(false);
+  const [notesOpen,           setNotesOpen]           = useState(false);
+  const [mediaOpen,           setMediaOpen]           = useState(false);
+  const [drawingsOpen,        setDrawingsOpen]        = useState(false);
   const [openHeaderMenu,      setOpenHeaderMenu]      = useState(false);
   const [deleteItemModal,     setDeleteItemModal]     = useState(null);
   const [deleteItemLoading,   setDeleteItemLoading]   = useState(false);
@@ -624,7 +778,7 @@ export default function SurveyDetailDesktop() {
     fetchSurveyMedia(id).catch(() => {});
   }, [id, dataReady]);
 
-  useEffect(() => { setTypeFilter('all'); setItemSearch(''); setMeasOpen(false); }, [openPodIdx]);
+  useEffect(() => { setTypeFilter('all'); setItemSearch(''); setMeasOpen(false); setNotesOpen(false); setMediaOpen(false); setDrawingsOpen(false); }, [openPodIdx]);
 
   useEffect(() => {
     if (!dataReady) return;
@@ -695,7 +849,8 @@ export default function SurveyDetailDesktop() {
     ? filteredItems
     : filteredItems.filter(item => inferType(item) === typeFilter);
   const typesInEntry   = ITEM_TYPE_ORDER.filter(type => openEntryItems.some(item => inferType(item) === type));
-  const openEntryMedia = openEntry ? mediaAll.filter(m => m.entry_id === openEntry.id) : [];
+  const openEntryMedia    = openEntry?.media || [];
+  const openEntryDrawings = openEntry ? drawings.filter(d => d.entry_id === openEntry.id) : [];
 
   const kicker = [ts('desktop.kicker'), client?.name].filter(Boolean).join(' · ');
 
@@ -864,52 +1019,53 @@ export default function SurveyDetailDesktop() {
 
                 {/* Section pods grid */}
                 {(() => {
-                  const n = entries.length;
-                  const cols = n > 10 ? 4 : 3;
-                  const compact = n > 20;
+                  const cols = entries.length > 10 ? 4 : 3;
                   return (
-                    <div style={{ display: 'grid', gridTemplateColumns: `repeat(${cols}, 1fr)`, gap: compact ? 8 : 12 }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: `repeat(${cols}, 1fr)`, gap: 10 }}>
                       {entries.map((entry, idx) => {
-                        const pc         = getPodColor(idx);
-                        const entryItems = allItems.filter(item => item.entry_id === entry.id);
-                        const area       = entryArea(entry);
+                        const pc          = getPodColor(idx);
+                        const entryItems  = allItems.filter(item => item.entry_id === entry.id);
+                        const area        = entryArea(entry);
+                        const photoCount  = entry.media?.length || 0;
+                        const drawingCount = drawings.filter(d => d.entry_id === entry.id).length;
                         const matchSearch = !search.trim() || entry.name.toLowerCase().includes(search.toLowerCase()) || entryItems.some(i => i.description?.toLowerCase().includes(search.toLowerCase()));
                         if (!matchSearch) return null;
                         return (
                           <button key={entry.id} className="dk-card" onClick={() => setOpenPodIdx(idx)}
-                            style={{ border: 0, textAlign: 'left', padding: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', cursor: 'pointer' }}>
-                            {/* Header — always shown */}
-                            <span style={{ padding: compact ? '10px 12px' : '12px 14px 10px', background: pc.c, color: '#fff', display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-                              <span className="dk-n" style={{ fontSize: compact ? 15 : 20, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{entry.name}</span>
-                              {area && <span className="dk-badge" style={{ background: '#fff', color: pc.ink, fontSize: 11, flexShrink: 0 }}>{area}</span>}
-                              {compact && <span className="dk-badge" style={{ background: 'rgba(255,255,255,.22)', color: '#fff', fontSize: 11, flexShrink: 0 }}>{entryItems.length}</span>}
+                            style={{ border: 0, textAlign: 'left', padding: '16px', overflow: 'hidden', cursor: 'pointer', background: pc.c, position: 'relative', minHeight: 100, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: 10 }}>
+                            {/* Decorative glow */}
+                            <span aria-hidden="true" style={{ position: 'absolute', right: -50, top: -60, width: 180, height: 180, borderRadius: 90, background: 'rgba(255,255,255,.07)', pointerEvents: 'none' }} />
+                            {/* Section name */}
+                            <span className="dk-n" style={{ fontSize: 18, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', position: 'relative' }}>
+                              {entry.name}
                             </span>
-                            {/* Body + footer — hidden in compact mode */}
-                            {!compact && (
-                              <>
-                                <span style={{ padding: '8px 14px', display: 'flex', flexDirection: 'column', flex: 1 }}>
-                                  {entryItems.length === 0 && <span style={{ padding: '5px 0', fontSize: 12, fontWeight: 600, color: '#8A8F98' }}>{ts('desktop.detailNoItems')}</span>}
-                                  {entryItems.slice(0, 2).map(item => (
-                                    <span key={item.id} style={{ padding: '5px 0', borderTop: '1px solid #EDEBE5', fontSize: 13, fontWeight: 600, display: 'flex', justifyContent: 'space-between', gap: 6 }}>
-                                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{item.description}</span>
-                                      <span className="dk-m" style={{ flexShrink: 0, fontSize: 12 }}>{item.quantity != null ? `${item.quantity}${item.unit ? ' ' + item.unit : ''}` : ''}</span>
-                                    </span>
-                                  ))}
+                            {/* Chips */}
+                            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', position: 'relative' }}>
+                              {area && (
+                                <span className="dk-badge" style={{ background: 'rgba(255,255,255,.2)', color: '#fff' }}>{area}</span>
+                              )}
+                              <span className="dk-badge" style={{ background: 'rgba(255,255,255,.2)', color: '#fff', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                                {entryItems.length} {ts('desktop.detailLabelItem')}
+                              </span>
+                              {photoCount > 0 && (
+                                <span className="dk-badge" style={{ background: 'rgba(255,255,255,.2)', color: '#fff', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                                  <Camera size={11} aria-hidden="true" /> {photoCount}
                                 </span>
-                                <span style={{ padding: '8px 14px', borderTop: '1px solid #EDEBE5', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontWeight: 700, fontSize: 13, flexShrink: 0 }}>
-                                  <span style={{ color: '#5A5F68', fontWeight: 600 }}>{entryItems.length} {ts('desktop.detailLabelItem')}{entryItems.length > 2 ? ` · +${entryItems.length - 2}` : ''}</span>
-                                  <span style={{ display: 'flex', alignItems: 'center', gap: 3, color: pc.ink }}>{ts('desktop.detailOpenPod')} <ChevronRight size={15} aria-hidden="true" /></span>
+                              )}
+                              {drawingCount > 0 && (
+                                <span className="dk-badge" style={{ background: 'rgba(255,255,255,.2)', color: '#fff', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                                  <Edit3 size={11} aria-hidden="true" /> {drawingCount}
                                 </span>
-                              </>
-                            )}
+                              )}
+                            </div>
                           </button>
                         );
                       })}
                       {canAdd && entries.length < 30 && (
                         <button onClick={() => setShowAddEntry(true)}
-                          style={{ border: '2px dashed rgba(255,255,255,.35)', background: 'transparent', boxShadow: 'none', color: '#fff', borderRadius: 24, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6, fontSize: 15, fontWeight: 700, cursor: 'pointer', minHeight: compact ? 44 : 120 }}>
+                          style={{ border: '2px dashed rgba(255,255,255,.35)', background: 'transparent', boxShadow: 'none', color: '#fff', borderRadius: 24, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6, fontSize: 15, fontWeight: 700, cursor: 'pointer', minHeight: 100 }}>
                           <Plus size={24} aria-hidden="true" />
-                          {!compact && t('addRoomBtn')}
+                          {t('addRoomBtn')}
                         </button>
                       )}
                     </div>
@@ -953,13 +1109,20 @@ export default function SurveyDetailDesktop() {
                           onClick={(e) => e.stopPropagation()}
                           style={{ position: 'absolute', right: 0, top: 48, zIndex: 50, background: '#fff', borderRadius: 14, boxShadow: '0 8px 24px -8px rgba(0,0,0,.35), 0 2px 8px -2px rgba(0,0,0,.12)', padding: 6, minWidth: 200 }}
                         >
-                          <button
-                            onClick={() => { setMeasOpen(true); setOpenHeaderMenu(false); }}
-                            style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', border: 0, borderRadius: 10, background: 'transparent', fontSize: 14, fontWeight: 600, color: '#0E1116', cursor: 'pointer', textAlign: 'left' }}
-                          >
-                            <Ruler size={15} aria-hidden="true" />
-                            {t('desktop.detailMeasTitle')}
-                          </button>
+                          {[
+                            { icon: Ruler,    label: ts('desktop.detailDimsTitle'),      action: () => setMeasOpen(true)     },
+                            { icon: FileText, label: ts('desktop.detailNotesTitle'),     action: () => setNotesOpen(true)    },
+                            { icon: Camera,   label: ts('desktop.detailMediaTitle'),     action: () => setMediaOpen(true)    },
+                            { icon: Edit3,    label: ts('desktop.detailDrawingsTitle'),  action: () => setDrawingsOpen(true) },
+                          ].map(({ icon: Icon, label, action }) => (
+                            <button key={label}
+                              onClick={() => { action(); setOpenHeaderMenu(false); }}
+                              style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', border: 0, borderRadius: 10, background: 'transparent', fontSize: 14, fontWeight: 600, color: '#0E1116', cursor: 'pointer', textAlign: 'left' }}
+                            >
+                              <Icon size={15} aria-hidden="true" />
+                              {label}
+                            </button>
+                          ))}
                         </div>
                       )}
                     </div>
@@ -1088,8 +1251,8 @@ export default function SurveyDetailDesktop() {
       <Modal isOpen={showMenu} onClose={() => setShowMenu(false)} title={ts('desktop.detailActionsTitle')} maxWidth="560px">
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {[
-            { label: ts('desktop.createQuote'), icon: FileText, onClick: () => { setShowMenu(false); router.push(p(`/ajanlatok/uj?from_survey=${id}`)); } },
             { label: ts('desktop.detailEditClient'), icon: Edit3, onClick: () => { setShowMenu(false); setShowMetaDrawer(true); } },
+            { label: ts('desktop.createQuote'), icon: FileText, onClick: () => { setShowMenu(false); router.push(p(`/ajanlatok/uj?from_survey=${id}`)); } },
             { label: t('deleteBtn'), icon: Trash2, danger: true, onClick: () => { setShowMenu(false); handleDeleteSurvey(); } },
           ].map(action => (
             <button key={action.label} className="dk-sr"
@@ -1153,19 +1316,40 @@ export default function SurveyDetailDesktop() {
         </div>
       </Modal>
 
-      {/* ── Measurements & notes modal ────────────────────────────────────────── */}
-      <Modal isOpen={measOpen} onClose={() => setMeasOpen(false)} title={ts('desktop.detailMeasTitle')} maxWidth="560px">
-        {openEntry && (
-          <MeasurementsBar
-            key={openEntry.id}
-            entry={openEntry}
-            surveyId={id}
-            canEdit={canEditEntry(openEntry)}
-            enqueue={canAdd ? enqueue : undefined}
-            mediaItems={openEntryMedia}
-          />
-        )}
+      {/* ── Measurements modal ────────────────────────────────────────────────── */}
+      <Modal isOpen={measOpen} onClose={() => setMeasOpen(false)} title={ts('desktop.detailDimsTitle')} maxWidth="480px">
+        {openEntry && <SectionDimensionsContent key={openEntry.id} entry={openEntry} surveyId={id} canEdit={canEditEntry(openEntry)} />}
       </Modal>
+
+      {/* ── Notes modal ───────────────────────────────────────────────────────── */}
+      <Modal isOpen={notesOpen} onClose={() => setNotesOpen(false)} title={ts('desktop.detailNotesTitle')} maxWidth="480px">
+        {openEntry && <SectionNotesContent key={openEntry.id} entry={openEntry} surveyId={id} canEdit={canEditEntry(openEntry)} />}
+      </Modal>
+
+      {/* ── Media modal ───────────────────────────────────────────────────────── */}
+      {openEntry && (
+        <SurveyMediaModal
+          isOpen={mediaOpen}
+          onClose={() => setMediaOpen(false)}
+          surveyId={id}
+          entryId={openEntry.id}
+          canEdit={canEditEntry(openEntry)}
+          enqueue={canAdd ? enqueue : undefined}
+          mediaItems={openEntryMedia}
+        />
+      )}
+
+      {/* ── Drawings modal ────────────────────────────────────────────────────── */}
+      {openEntry && (
+        <SurveyDrawingsModal
+          isOpen={drawingsOpen}
+          onClose={() => setDrawingsOpen(false)}
+          surveyId={id}
+          entryId={openEntry.id}
+          entryName={openEntry.name}
+          drawings={openEntryDrawings}
+        />
+      )}
 
       {/* ── Survey meta drawer ────────────────────────────────────────────────── */}
       <MetaDrawer survey={survey} clients={clients} isOpen={showMetaDrawer} onClose={() => setShowMetaDrawer(false)} onSave={(fields) => updateSurvey(id, fields)} />

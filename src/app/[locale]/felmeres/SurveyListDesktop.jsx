@@ -8,9 +8,11 @@ import { formatDate } from '@/lib/constants';
 import { podColor } from '@/lib/podColor';
 import Modal from '@/components/Modal';
 import TransferToCollectiveModal from '@/components/TransferToCollectiveModal';
-import { Search, Plus, Trash2, X, ArrowRightLeft } from 'lucide-react';
+import SurveyMediaModal from '@/components/survey/SurveyMediaModal';
+import SurveyDrawingsModal from '@/components/survey/SurveyDrawingsModal';
+import { Search, Plus, Trash2, X, ArrowRightLeft, Camera, Edit3, MoreHorizontal } from 'lucide-react';
 
-const GRID = '20px 2.4fr 1.8fr 1.4fr';
+const GRID = '20px 2.4fr 1.8fr 1.4fr 44px';
 
 function fullDate(dateStr) {
   if (!dateStr) return '';
@@ -56,6 +58,10 @@ export default function SurveyListDesktop() {
   const [deleteOpen, setDeleteOpen]       = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [transferOpen, setTransferOpen]   = useState(false);
+  const [mediaOpen,  setMediaOpen]        = useState(false);
+  const [drawingsOpen, setDrawingsOpen]   = useState(false);
+  const [sidePhotos,   setSidePhotos]     = useState([]);
+  const [sideDrawings, setSideDrawings]   = useState([]);
 
   const allSurveys = useMemo(() => surveys || [], [surveys]);
 
@@ -96,6 +102,8 @@ export default function SurveyListDesktop() {
     if (!selectedId) return;
     setSideEntries([]);
     setSideItems([]);
+    setSidePhotos([]);
+    setSideDrawings([]);
     setLoadedForId(null);
     let cancelled = false;
     Promise.all([
@@ -108,6 +116,8 @@ export default function SurveyListDesktop() {
         if (!cancelled) {
           setSideEntries(d.entries || []);
           setSideItems(itemsData.items || []);
+          setSidePhotos(d.photos || []);
+          setSideDrawings((d.drawings || []).filter(dr => !dr.entry_id));
           setLoadedForId(selectedId);
         }
       })
@@ -223,33 +233,40 @@ export default function SurveyListDesktop() {
                   <span>{t('desktop.colName')}</span>
                   <span>{t('desktop.colClient')}</span>
                   <span>{t('desktop.colUpdated')}</span>
+                  <span />
                 </div>
 
                 {filtered.map(survey => {
                   const client = (clients || []).find(c => c.id === survey.client_id);
                   const isSelected = survey.id === selectedId;
                   return (
-                    <button
+                    <div
                       key={survey.id}
-                      className="dk-sr"
-                      onClick={() => setSelectedId(isSelected ? null : survey.id)}
-                      style={{ background: isSelected ? '#D9F2EE' : 'transparent' }}
+                      className="dk-tr"
+                      onClick={() => router.push(p(`/felmeres/${survey.id}`))}
+                      style={{ gridTemplateColumns: GRID, background: isSelected ? '#D9F2EE' : 'transparent', cursor: 'pointer' }}
                     >
-                      <div className="dk-tr" style={{ gridTemplateColumns: GRID, width: '100%' }}>
-                        <span style={{ minWidth: 0, display: 'flex', alignItems: 'center' }}>
-                          <span style={{ width: 12, height: 12, borderRadius: 6, background: '#0A7F72', flexShrink: 0 }} />
-                        </span>
-                        <span style={{ minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                          <b>{survey.title}</b>
-                        </span>
-                        <span style={{ minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                          {client?.name || '—'}
-                        </span>
-                        <span style={{ minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                          {fullDate(survey.updated_at || survey.created_at)}
-                        </span>
-                      </div>
-                    </button>
+                      <span style={{ minWidth: 0, display: 'flex', alignItems: 'center' }}>
+                        <span style={{ width: 12, height: 12, borderRadius: 6, background: '#0A7F72', flexShrink: 0 }} />
+                      </span>
+                      <span style={{ minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        <b>{survey.title}</b>
+                      </span>
+                      <span style={{ minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {client?.name || '—'}
+                      </span>
+                      <span style={{ minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {fullDate(survey.updated_at || survey.created_at)}
+                      </span>
+                      <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setSelectedId(isSelected ? null : survey.id); }}
+                          style={{ width: 32, height: 32, borderRadius: 16, border: 0, background: '#1E3A8A', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}
+                        >
+                          <MoreHorizontal size={16} aria-hidden="true" />
+                        </button>
+                      </span>
+                    </div>
                   );
                 })}
 
@@ -327,11 +344,9 @@ export default function SurveyListDesktop() {
                             <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, marginRight: 8 }}>{entry.name}</span>
                             <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexShrink: 0 }}>
                               {area > 0 && <span style={{ fontSize: 13, color: '#5A5F68', fontWeight: 600 }}>{fmtArea(area)}</span>}
-                              {itemCount > 0 && (
-                                <span style={{ fontSize: 11, fontWeight: 700, background: '#D9F2EE', color: '#0A5C53', borderRadius: 8, padding: '2px 6px' }}>
-                                  {itemCount}
-                                </span>
-                              )}
+                              <span style={{ fontSize: 11, fontWeight: 700, background: '#1E3A8A', color: '#fff', borderRadius: 8, padding: '2px 7px' }}>
+                                {itemCount}
+                              </span>
                             </div>
                           </button>
                         );
@@ -339,14 +354,16 @@ export default function SurveyListDesktop() {
                     </div>
                   )}
 
-                  {/* Primary action */}
-                  <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
-                    <button
-                      className="dk-btn"
-                      onClick={() => router.push(p(`/felmeres/${selectedSurvey.id}`))}
-                      style={{ flex: 1, background: '#0A7F72', color: '#fff', justifyContent: 'center' }}
-                    >
-                      {t('desktop.openAction')}
+
+                  {/* Gallery + Sketches */}
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button className="dk-btn dk-btn-l" onClick={() => setMediaOpen(true)} style={{ flex: 1, justifyContent: 'center' }}>
+                      <Camera size={16} aria-hidden="true" />
+                      {t('desktop.detailMediaTitle')}
+                    </button>
+                    <button className="dk-btn dk-btn-l" onClick={() => setDrawingsOpen(true)} style={{ flex: 1, justifyContent: 'center' }}>
+                      <Edit3 size={16} aria-hidden="true" />
+                      {t('desktop.detailDrawingsTitle')}
                     </button>
                   </div>
 
@@ -433,6 +450,32 @@ export default function SurveyListDesktop() {
           if (data.moved) setSelectedId(null);
         }}
       />
+
+      {selectedSurvey && (
+        <SurveyMediaModal
+          isOpen={mediaOpen}
+          onClose={() => setMediaOpen(false)}
+          surveyId={selectedSurvey.id}
+          entryId={null}
+          canEdit={isOwner(selectedSurvey)}
+          mediaItems={sidePhotos}
+          onUploaded={(newItems) => setSidePhotos(prev => [...prev, ...newItems])}
+          onDeleted={(mediaId) => setSidePhotos(prev => prev.filter(m => m.id !== mediaId))}
+        />
+      )}
+
+      {selectedSurvey && (
+        <SurveyDrawingsModal
+          isOpen={drawingsOpen}
+          onClose={() => setDrawingsOpen(false)}
+          surveyId={selectedSurvey.id}
+          entryId={null}
+          entryName={selectedSurvey.title}
+          drawings={sideDrawings}
+          onCreated={(d) => setSideDrawings(prev => [...prev, d])}
+          onDeleted={(id) => setSideDrawings(prev => prev.filter(dr => dr.id !== id))}
+        />
+      )}
     </div>
   );
 }
