@@ -410,7 +410,32 @@
     "offerTransfer": "Átadás kollektívának",
     "offerTransferPending": "Átadás folyamatban",
     "offlineBanner": "Nincs internetkapcsolat – offline módban vagy.",
-    "openAction": "Megnyitás"
+    "openAction": "Megnyitás",
+    "desktop": {
+      "kicker": "Árajánlatok",
+      "workspacePersonal": "Személyes",
+      "statOpen": "Nyitott",
+      "statAccepted": "Elfogadva",
+      "statRate": "Elfogadási arány",
+      "statDrafts": "Tervezetek",
+      "colTitle": "Cím",
+      "colClient": "Ügyfél",
+      "colAmount": "Összeg",
+      "colStatus": "Státusz",
+      "colDate": "Dátum",
+      "colCreator": "Készítő",
+      "shown": "{shown} / {total} megjelenítve",
+      "panelBadge": "Ajánlat",
+      "panelClientMeta": "Ügyfél: {client} · {date}",
+      "panelNoClient": "Nincs ügyfél · {date}",
+      "openAction": "Megnyitás",
+      "transferAction": "Áthelyezés",
+      "deleteAction": "Törlés",
+      "cancelAction": "Mégse",
+      "deletingAction": "Törlés...",
+      "closePanel": "Bezárás",
+      "selectHint": "Válassz ki egy ajánlatot"
+    }
   },
   "surveys": {
     "pageTitle": "Felmérések",

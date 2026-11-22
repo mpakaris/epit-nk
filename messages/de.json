@@ -480,7 +480,32 @@
     "offerTransfer": "An Kollektiv übergeben",
     "offerTransferPending": "Übergabe ausstehend",
     "offlineBanner": "Keine Internetverbindung – du bist offline.",
-    "openAction": "Öffnen"
+    "openAction": "Öffnen",
+    "desktop": {
+      "kicker": "Angebote",
+      "workspacePersonal": "Persönlich",
+      "statOpen": "Offen",
+      "statAccepted": "Akzeptiert",
+      "statRate": "Annahmequote",
+      "statDrafts": "Entwürfe",
+      "colTitle": "Titel",
+      "colClient": "Kunde",
+      "colAmount": "Betrag",
+      "colStatus": "Status",
+      "colDate": "Datum",
+      "colCreator": "Ersteller",
+      "shown": "{shown} / {total} angezeigt",
+      "panelBadge": "Angebot",
+      "panelClientMeta": "Kunde: {client} · {date}",
+      "panelNoClient": "Kein Kunde · {date}",
+      "openAction": "Öffnen",
+      "transferAction": "Übertragen",
+      "deleteAction": "Löschen",
+      "cancelAction": "Abbrechen",
+      "deletingAction": "Löschen...",
+      "closePanel": "Schließen",
+      "selectHint": "Wähle ein Angebot aus"
+    }
   },
   "surveys": {
     "pageTitle": "Aufmaße",

@@ -152,7 +152,7 @@
    Inline styles set by each page can override these for workspace-specific colouring. */
 .dk-mod-dashboard { --dk-c: #15181E; --dk-deep: #0D0F13; --dk-active: #2A2F3A; background: var(--dk-deep); color: #fff; }
 .dk-mod-surveys   { --dk-c: #0A7F72; --dk-deep: #0D0F13; --dk-active: #0A7F72; background: var(--dk-deep); color: #fff; }
-.dk-mod-quotes    { --dk-c: #6D3FD1; --dk-deep: #1C1038; --dk-active: #6D3FD1; background: var(--dk-deep); color: #fff; }
+.dk-mod-quotes    { --dk-c: #6D3FD1; --dk-deep: #0D0F13; --dk-active: #6D3FD1; background: var(--dk-deep); color: #fff; }
 .dk-mod-projects  { --dk-c: #263248; --dk-deep: #0B0F17; --dk-active: #3A4963; background: var(--dk-deep); color: #fff; }
 .dk-mod-clients   { --dk-c: #B8456B; --dk-deep: #2A0F1A; --dk-active: #B8456B; background: var(--dk-deep); color: #fff; }
 .dk-mod-profile   { --dk-c: #44413B; --dk-deep: #121110; --dk-active: #44413B; background: var(--dk-deep); color: #fff; }

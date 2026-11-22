@@ -480,7 +480,32 @@
     "offerTransfer": "Transfer to collective",
     "offerTransferPending": "Transfer pending",
     "offlineBanner": "No internet connection – you are offline.",
-    "openAction": "Open"
+    "openAction": "Open",
+    "desktop": {
+      "kicker": "Quotes",
+      "workspacePersonal": "Personal",
+      "statOpen": "Open",
+      "statAccepted": "Accepted",
+      "statRate": "Acceptance rate",
+      "statDrafts": "Drafts",
+      "colTitle": "Title",
+      "colClient": "Client",
+      "colAmount": "Amount",
+      "colStatus": "Status",
+      "colDate": "Date",
+      "colCreator": "Creator",
+      "shown": "{shown} / {total} shown",
+      "panelBadge": "Quote",
+      "panelClientMeta": "Client: {client} · {date}",
+      "panelNoClient": "No client · {date}",
+      "openAction": "Open",
+      "transferAction": "Transfer",
+      "deleteAction": "Delete",
+      "cancelAction": "Cancel",
+      "deletingAction": "Deleting...",
+      "closePanel": "Close",
+      "selectHint": "Select a quote"
+    }
   },
   "surveys": {
     "pageTitle": "Surveys",
