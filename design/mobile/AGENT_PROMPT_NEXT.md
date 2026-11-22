@@ -37,3 +37,17 @@ You are continuing the mobile "Pods" redesign of Epitek (OkosSzaki). Dashboard a
 
 ## Verify per PR
 `npm run lint`, `npx vitest run`, dev server at 390×844: walk every screen of the module in personal and collective context, as owner and as contributor, in HU/EN/DE, and in `/demo`. In the PR description list: screens done, functions checked against FUNCTION_MAP, deviations from the design, open questions.
+
+---
+
+# Desktop addendum (separate PRs, after the mobile module of the same name is done)
+
+Desktop designs live in `design/desktop/` (read `README.md` first; screens in `design/desktop/screens/`, 1440×900). Same Pods language as mobile: workspace-pod sidebar, module-coloured rounded header, dark module body, white cards, pill buttons; sheets become centred `Modal`s (never a third overlay). Functions are the same as on mobile — use `design/mobile/FUNCTION_MAP.md`; the repo is the source of truth for behaviour.
+
+Order: Dashboard (`DD1`), Survey (`DS1`, `DS2`, `DS3`), Offers (`DO1`, `DO2`), Projects (`DP1`, `DP2`), Clients (`DC1`), Profile (`DU1`, `DU2`).
+
+**Detail-page pattern (survey is final; offer must follow it).** `/felmeres/[id]` = `DS2` + `DS3`: one working surface, no section column and no side action card. Sections are coloured pods; a click opens the pod in place; a pod strip switches sections (with "Összes" back). The items table is the main content (quick-add row with dictation, inline edit/duplicate/delete/reorder, search). Measurements, note and photos are a collapsed secondary bar. Actions are in the header: one primary button + a ⋯ modal (share, PDF, client, delete). Row actions are 40 px round filled icon buttons: edit dark blue `#1E3A8A`, duplicate grey `#5A5F68`, delete red `#C62828`, each with an `aria-label`. Pod colours are stable per section (stored or index-derived).
+
+**Offer detail is NOT yet redrawn.** `DO2` still shows the old layout. When implementing `/ajanlatok/[id]`, apply the survey pattern: offer sections as pods, entries table primary, client/terms/totals/status in the header or a slim bar. Ask the owner before building it; a redraw is pending.
+
+Rules unchanged: desktop and mobile stay separate trees (do not edit mobile files in desktop PRs), tokens only, `navPrefix`, i18n keys in hu/en/de, soft delete, double permission checks, ≥ 44 px targets, mock numbers in the designs are not reconciled across boards.
