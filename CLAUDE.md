@@ -3,6 +3,7 @@
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 @AGENTS.md
+@design/desktop/AGENT_BRIEF.md
 
 # Epitek — Product Overview
 

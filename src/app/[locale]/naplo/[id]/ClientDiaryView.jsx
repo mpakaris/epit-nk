@@ -20,14 +20,24 @@ function SidebarKiller() {
     root.style.setProperty('--sidebar-w', '0px');
     root.style.setProperty('--mobile-header-h', '0px');
     document.body.style.background = '#f1f5f9';
-    // Also directly zero the app-main element in case it already got padding applied
+    // Old shell: zero app-main margins
     const main = document.querySelector('.app-main');
     if (main) { main.style.paddingTop = '0'; main.style.marginLeft = '0'; }
+    // New desktop shell: hide sidebar, collapse shell padding
+    const dkRoot = document.querySelector('.dk-root');
+    const dkSd   = document.querySelector('.dk-sd');
+    const dkMn   = document.querySelector('.dk-mn');
+    if (dkRoot) { dkRoot.style.padding = '0'; dkRoot.style.gap = '0'; }
+    if (dkSd)   { dkSd.style.display = 'none'; }
+    if (dkMn)   { dkMn.style.borderRadius = '0'; }
     return () => {
       root.style.removeProperty('--sidebar-w');
       root.style.removeProperty('--mobile-header-h');
       document.body.style.background = '';
-      if (main) { main.style.paddingTop = ''; main.style.marginLeft = ''; }
+      if (main)   { main.style.paddingTop = ''; main.style.marginLeft = ''; }
+      if (dkRoot) { dkRoot.style.padding = ''; dkRoot.style.gap = ''; }
+      if (dkSd)   { dkSd.style.display = ''; }
+      if (dkMn)   { dkMn.style.borderRadius = ''; }
     };
   }, []);
   return null;

@@ -35,6 +35,7 @@ export function AppProvider({ children }) {
 
   // ---- Data state -------------------------------------------------------------
   const [dataReady, setDataReady] = useState(false);
+  const [contextSwitching, setContextSwitching] = useState(false);
   const [entities, setEntities] = useState([]);
   const [users, setUsers] = useState([]);
   const [projects, setProjects] = useState([]);
@@ -317,7 +318,7 @@ export function AppProvider({ children }) {
     makeAuthActions({ supabase, router, fetchProfile, refreshSupabaseData, setCurrentUser, setLoading, setImpersonating, currentUser, clearGodCookie });
 
   const { startImpersonation, stopImpersonation, setActiveContext, switchImpersonatingContext } =
-    makeGodModeActions({ isSuperAdmin, currentUser, setImpersonating, setImpersonatingCollectives, setCurrentUser, setDataReady, setProjects, setClients, setQuotes, setInvoices, setLabourEntries, setSurveys, setProjectRooms, setQuoteEntries, setQuoteSections, setUsers, refreshSupabaseData, router, setGodCookie, clearGodCookie });
+    makeGodModeActions({ isSuperAdmin, currentUser, setImpersonating, setImpersonatingCollectives, setCurrentUser, setDataReady, setContextSwitching, setProjects, setClients, setQuotes, setInvoices, setLabourEntries, setSurveys, setProjectRooms, setQuoteEntries, setQuoteSections, setUsers, refreshSupabaseData, router, setGodCookie, clearGodCookie });
 
   const { createEntity, updateEntity, deleteEntity, createUser, deleteUser, resetUserPassword } =
     makeEntityUserActions({ isSuperAdmin, isAdmin, entities, projects, users, setEntities, setProjects, setQuotes, setInvoices, setUsers, effectiveEntityId, supabase });
@@ -360,6 +361,7 @@ export function AppProvider({ children }) {
         activeCollectiveId,
         loading,
         dataReady,
+        contextSwitching,
         showWelcome,
         dismissWelcome: () => {
           setShowWelcome(false);

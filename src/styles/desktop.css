@@ -1,0 +1,453 @@
+/* ─── Desktop Pods UI — scoped under .dk-root ───────────────────────────────
+   All selectors are prefixed .dk-* so none of these rules affect mobile.
+   Mobile lives in .m-root (globals.css §MOBILE PODS TOKENS).
+   ─────────────────────────────────────────────────────────────────────────── */
+
+/* ── Shell ─────────────────────────────────────────────────────────────────── */
+.dk-root {
+  height: 100vh;
+  padding: 12px;
+  background: #EDEBE5;
+  color: #0E1116;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  display: flex;
+  gap: 12px;
+  overflow: hidden;
+  position: relative; /* anchors the absolute hamburger button */
+  /* Keep NotificationBell dropdown positioning correct */
+  --sidebar-w: 276px;
+}
+
+/* ── Sidebar ────────────────────────────────────────────────────────────────── */
+.dk-sd {
+  flex: none;
+  width: 264px;
+  border-radius: 32px;
+  background: #EFEDE6;
+  color: #0E1116;
+  padding: 22px 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  overflow: hidden;
+}
+
+.dk-logo {
+  padding: 0 10px;
+  font-family: 'Bricolage Grotesque', sans-serif;
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  flex: none;
+  color: #0E1116;
+}
+
+/* Section label */
+.dk-sl {
+  padding: 0 10px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #9AA1AD;
+}
+
+/* Workspace pod — keeps its own dark background, so text stays white */
+.dk-pod {
+  width: 100%;
+  border: 0;
+  border-radius: 18px;
+  padding: 10px 12px;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #fff;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.dk-pod:hover {
+  opacity: 0.88;
+}
+
+/* Nav item */
+.dk-nv {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  height: 42px;
+  border: 0;
+  border-radius: 14px;
+  padding: 0 12px;
+  background: transparent;
+  color: #5A6070;
+  font-size: 14px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  text-decoration: none;
+  font-family: inherit;
+  transition: background 0.12s, color 0.12s;
+  flex: none;
+}
+
+.dk-nv:hover {
+  background: rgba(0, 0, 0, 0.06);
+  color: #0E1116;
+}
+
+.dk-nv-active {
+  color: #fff !important;
+}
+
+/* Nav area */
+.dk-nav {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* ── Main panel ──────────────────────────────────────────────────────────────── */
+.dk-mn {
+  flex: 1;
+  min-width: 0;
+  border-radius: 32px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  background: #fff; /* fallback for pages without module design */
+  position: relative;
+}
+
+/* Old-style pages inside dk-mn get a white scrollable area */
+.dk-mn > .container,
+.dk-mn > div:not(.dk-page) {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  background: #fff;
+  color: #0E1116;
+}
+
+/* ── New-design page wrapper ─────────────────────────────────────────────────── */
+.dk-page {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Module-specific backgrounds and header colours.
+   --dk-c   = module header background (overridable per workspace)
+   --dk-deep = page body background    (overridable per workspace)
+   Inline styles set by each page can override these for workspace-specific colouring. */
+.dk-mod-dashboard { --dk-c: #15181E; --dk-deep: #0D0F13; --dk-active: #2A2F3A; background: var(--dk-deep); color: #fff; }
+.dk-mod-surveys   { --dk-c: #0A7F72; --dk-deep: #0D0F13; --dk-active: #0A7F72; background: var(--dk-deep); color: #fff; }
+.dk-mod-quotes    { --dk-c: #6D3FD1; --dk-deep: #1C1038; --dk-active: #6D3FD1; background: var(--dk-deep); color: #fff; }
+.dk-mod-projects  { --dk-c: #263248; --dk-deep: #0B0F17; --dk-active: #3A4963; background: var(--dk-deep); color: #fff; }
+.dk-mod-clients   { --dk-c: #B8456B; --dk-deep: #2A0F1A; --dk-active: #B8456B; background: var(--dk-deep); color: #fff; }
+.dk-mod-profile   { --dk-c: #44413B; --dk-deep: #121110; --dk-active: #44413B; background: var(--dk-deep); color: #fff; }
+
+/* ── Module header ───────────────────────────────────────────────────────────── */
+.dk-mh {
+  flex: none;
+  border-radius: 0 0 32px 32px;
+  padding: 14px 28px;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: var(--dk-c, #15181E);
+}
+
+.dk-gl {
+  position: absolute;
+  right: -90px;
+  top: -150px;
+  width: 340px;
+  height: 340px;
+  border-radius: 170px;
+  background: rgba(255, 255, 255, 0.08);
+  pointer-events: none;
+}
+
+.dk-mh > * {
+  position: relative;
+}
+
+/* Glow must stay absolutely positioned — override the rule above */
+.dk-mh > .dk-gl {
+  position: absolute;
+}
+
+/* ── Body ────────────────────────────────────────────────────────────────────── */
+.dk-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 20px 28px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* ── White cards ─────────────────────────────────────────────────────────────── */
+.dk-card {
+  background: #fff;
+  color: #0E1116;
+  border-radius: 24px;
+  box-shadow: inset 0 1px 0 #fff, 0 16px 26px -14px rgba(0, 0, 0, 0.7), 0 3px 6px -2px rgba(0, 0, 0, 0.3);
+}
+
+/* ── Utility: badge ──────────────────────────────────────────────────────────── */
+.dk-badge {
+  height: 26px;
+  padding: 0 10px;
+  border-radius: 13px;
+  font-size: 12px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #F0F0F2;
+  color: #2B3038;
+  white-space: nowrap;
+}
+
+/* ── Utility: buttons ────────────────────────────────────────────────────────── */
+.dk-btn {
+  height: 44px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 22px;
+  font-size: 15px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+  cursor: pointer;
+  font-family: inherit;
+  transition: opacity 0.12s;
+}
+
+.dk-btn:hover { opacity: 0.88; }
+
+.dk-btn-w { background: #fff; color: #0E1116; }
+.dk-btn-g { background: rgba(255, 255, 255, 0.16); color: #fff; }
+.dk-btn-l { background: #EFEDE6; color: #0E1116; }
+.dk-btn-dark { background: #0E1116; color: #fff; }
+
+/* ── Utility: filter chips ───────────────────────────────────────────────────── */
+.dk-chip {
+  height: 40px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  cursor: pointer;
+  font-family: inherit;
+  transition: opacity 0.12s;
+}
+
+.dk-chip:hover { opacity: 0.88; }
+
+/* ── Utility: text input ─────────────────────────────────────────────────────── */
+.dk-input {
+  height: 46px;
+  width: 100%;
+  border: 0;
+  outline: none;
+  border-radius: 16px;
+  background: #fff;
+  color: #0E1116;
+  padding: 0 14px;
+  font-size: 15px;
+  font-weight: 500;
+  font-family: inherit;
+  box-shadow: 0 1px 0 rgba(14, 17, 22, 0.05), 0 8px 16px -10px rgba(14, 17, 22, 0.4);
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.dk-input:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.5), 0 8px 16px -10px rgba(14, 17, 22, 0.4);
+}
+
+/* ── Utility: icon container ─────────────────────────────────────────────────── */
+.dk-ic {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 13px;
+  background: #F1F1F3;
+  color: #1A1D23;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ── Utility: table rows ─────────────────────────────────────────────────────── */
+.dk-tr {
+  display: grid;
+  align-items: center;
+  gap: 12px;
+  padding: 0 16px;
+  min-height: 60px;
+  border-top: 1px solid #EDEBE5;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.dk-th {
+  display: grid;
+  align-items: center;
+  gap: 12px;
+  padding: 0 16px;
+  height: 44px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #5A5F68;
+}
+
+/* ── Utility: headings ───────────────────────────────────────────────────────── */
+.dk-h1 {
+  margin: 0;
+  font-family: 'Bricolage Grotesque', sans-serif;
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+
+.dk-kick {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  opacity: 0.85;
+}
+
+/* Muted meta text */
+.dk-m {
+  font-size: 13px;
+  font-weight: 600;
+  color: #5A5F68;
+}
+
+/* Heading name style */
+.dk-n {
+  font-family: 'Bricolage Grotesque', sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+/* ── Utility: row button ─────────────────────────────────────────────────────── */
+.dk-sr {
+  display: flex;
+  align-items: center;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  color: inherit;
+  width: 100%;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.dk-sr:hover { background: rgba(0, 0, 0, 0.025); }
+
+/* ── Workspace-switch loading spinner ───────────────────────────────────────── */
+.dk-ws-spinner {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 3px solid rgba(255, 255, 255, 0.2);
+  border-top-color: rgba(255, 255, 255, 0.85);
+  animation: spin 0.75s linear infinite;
+}
+
+/* ── Nav hamburger toggle — hidden on wide screens ───────────────────────────── */
+.dk-nav-toggle {
+  display: none;
+}
+
+/* ── Responsive: collapse sidebar below 1024 px ─────────────────────────────── */
+@media (max-width: 1023px) {
+  /* Sidebar collapses out of the flex flow */
+  .dk-root { --sidebar-w: 0; }
+  .dk-sd   { display: none; }
+
+  /* Module header gets extra left padding to make room for the hamburger */
+  .dk-mh { padding-left: 72px; }
+
+  /* Hamburger is a child of dk-root (not dk-mn), positioned at the top-left
+     of the dk-mn area: shell-padding 12px + visual inset 20px/18px */
+  .dk-nav-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: absolute;
+    top: 30px;   /* 12px shell padding + 18px inset within dk-mn */
+    left: 32px;  /* 12px shell padding + 20px inset within dk-mn */
+    width: 44px;
+    height: 44px;
+    border-radius: 22px;
+    border: 0;
+    background: rgba(255, 255, 255, 0.2);
+    color: #fff;
+    cursor: pointer;
+    z-index: 10;
+    font-family: inherit;
+    transition: background 0.12s;
+  }
+  .dk-nav-toggle:hover { background: rgba(255, 255, 255, 0.3); }
+
+  /* Overlay sidebar when dk-nav-open is active */
+  .dk-nav-open .dk-sd {
+    display: flex !important;
+    position: fixed;
+    left: 12px;
+    top: 12px;
+    bottom: 12px;
+    width: 288px;
+    z-index: 200;
+    box-shadow: 0 24px 64px -12px rgba(0, 0, 0, 0.55);
+  }
+}
+
+/* ── Responsive: strip shell chrome at mobile breakpoint (≤ 767 px) ─────────── */
+/* useMobile() routes to the mobile component; we just need the shell
+   to get out of the way so the mobile layout fills the viewport cleanly. */
+@media (max-width: 767px) {
+  .dk-root {
+    padding: 0;
+    gap: 0;
+    background: transparent;
+    overflow: visible;
+    height: auto;
+  }
+  .dk-mn {
+    border-radius: 0;
+    overflow: visible;
+    height: 100vh;
+  }
+}

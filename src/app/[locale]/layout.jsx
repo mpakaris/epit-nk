@@ -1,6 +1,6 @@
 import { NextIntlClientProvider } from 'next-intl';
 import { getMessages } from 'next-intl/server';
-import Sidebar from '@/components/Sidebar';
+import DesktopShell from '@/components/desktop/DesktopShell';
 import LoadingGate from '@/components/LoadingGate';
 import { detectMobile } from '@/lib/detectMobile';
 
@@ -19,12 +19,9 @@ export default async function LocaleLayout({ children, params }) {
             {children}
           </div>
         ) : (
-          <div className="app-layout">
-            <Sidebar />
-            <main className="app-main">
-              {children}
-            </main>
-          </div>
+          <DesktopShell>
+            {children}
+          </DesktopShell>
         )}
       </LoadingGate>
     </NextIntlClientProvider>

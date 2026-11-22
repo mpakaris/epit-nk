@@ -4,7 +4,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { detectMobile } from '@/lib/detectMobile';
-import DashboardClient from './DashboardClient';
+import DashboardDesktop from './desktop/DashboardDesktop';
 import DashboardMobile from './mobile/DashboardMobile';
 import PageSpinner from '@/components/PageSpinner';
 
@@ -104,7 +104,7 @@ async function DashboardContent() {
     : projectsWithMembers.filter(p => p.owner_id === effectiveUserId || p.members.includes(effectiveUserId));
 
   return (
-    <DashboardClient
+    <DashboardDesktop
       initialProjects={effectiveProjects}
       initialInvoices={invoicesRes.data || []}
       initialLabourEntries={labourRes.data || []}
