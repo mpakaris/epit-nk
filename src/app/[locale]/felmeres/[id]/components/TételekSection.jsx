@@ -23,15 +23,7 @@ export const ITEM_TYPE_COLORS = {
   other:     { bg: '#f1f5f9', color: '#475569', border: '#cbd5e1' },
 };
 export const ITEM_TYPE_LABEL_KEYS = { material: 'itemsTypeAnyag', labour: 'itemsTypeMunkadij', equipment: 'itemsTypeEszkozberles', transport: 'itemsTypeSzallitas', other: 'itemsTypeEgyeb' };
-const ITEM_UNITS_BY_TYPE = {
-  material:  ['m²', 'm', 'fm', 'db', 'kg', 'l', 'zsák', 'csomag', 'm³', 't'],
-  labour:    ['m²', 'm', 'fm', 'db', 'nap', 'h'],
-  equipment: ['nap', 'db', 'h'],
-  transport: ['db', 'km', 'nap'],
-  other:     ['db', 'h', 'nap', 'm²'],
-};
-const ALL_UNITS = ['m²', 'm', 'fm', 'db', 'h', 'nap', 'kg', 'l', 'zsák', 'csomag', 'm³', 't', 'km'];
-const DEFAULT_UNIT_BY_TYPE = { material: 'm²', labour: 'm²', equipment: 'nap', transport: 'db', other: 'db' };
+import { UNITS_BY_TYPE as ITEM_UNITS_BY_TYPE, ALL_UNIT_KEYS as ALL_UNITS, DEFAULT_UNIT_BY_TYPE, getUnitLabel } from '@/lib/surveyUnits';
 
 // ── Infer type for legacy items saved before entry_type was introduced ─────────
 
@@ -133,8 +125,8 @@ function ItemDrawer({ initial, surveyId, entryId, onClose, createSurveyItem, upd
             <div className="form-group" style={{ margin: 0 }}>
               <label className="form-label">{t('itemsUnitLabel')}</label>
               <select className="form-control" value={unit} onChange={e => setUnit(e.target.value)}>
-                {(ITEM_UNITS_BY_TYPE[entryType] || ALL_UNITS).map(u => <option key={u} value={u}>{u}</option>)}
-                {unit && !(ITEM_UNITS_BY_TYPE[entryType] || []).includes(unit) && <option value={unit}>{unit}</option>}
+                {(ITEM_UNITS_BY_TYPE[entryType] || ALL_UNITS).map(u => <option key={u} value={u}>{getUnitLabel(u, t)}</option>)}
+                {unit && !(ITEM_UNITS_BY_TYPE[entryType] || []).includes(unit) && <option value={unit}>{getUnitLabel(unit, t)}</option>}
               </select>
             </div>
           </div>

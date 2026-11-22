@@ -33,11 +33,9 @@ function TransferContent({ step, selected, available, loading, error, isMobile, 
                 boxShadow: '0 1px 0 rgba(14,17,22,0.05), 0 12px 22px -18px rgba(14,17,22,0.35)',
                 cursor: 'pointer',
               } : {
-                display: 'flex', alignItems: 'center', gap: '0.75rem',
-                padding: '0.85rem 1rem', borderRadius: 'var(--radius-md)',
-                border: '1.5px solid var(--border-subtle)',
-                background: 'var(--bg-card)', cursor: 'pointer', textAlign: 'left',
-                transition: 'border-color 0.15s', width: '100%',
+                display: 'flex', alignItems: 'center', gap: 12,
+                padding: '12px 14px', borderRadius: 14,
+                border: 0, background: '#F4F5F8', cursor: 'pointer', textAlign: 'left', width: '100%',
               }}
             >
               <span style={isMobile ? {
@@ -45,22 +43,22 @@ function TransferContent({ step, selected, available, loading, error, isMobile, 
                 background: '#F0EDFB', color: '#4A2796',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
               } : {
-                width: 36, height: 36, borderRadius: 'var(--radius-md)', flexShrink: 0,
-                background: 'var(--accent-light)', border: '1px solid var(--accent-border)',
+                flexShrink: 0, width: 40, height: 40, borderRadius: 13,
+                background: '#D9F2EE', color: '#0A5C53',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
               }}>
-                <svg width={isMobile ? 22 : 16} height={isMobile ? 22 : 16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <svg width={isMobile ? 22 : 18} height={isMobile ? 22 : 18} viewBox="0 0 24 24" fill="none" stroke={isMobile ? 'currentColor' : '#0A5C53'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                   <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
                   <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>
                 </svg>
               </span>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontWeight: 700, fontSize: isMobile ? 16 : '0.9rem', color: isMobile ? 'var(--m-ink)' : 'var(--text-primary)' }}>{coll.name}</div>
-                <div style={{ fontSize: isMobile ? 13 : '0.72rem', color: isMobile ? '#5A5F68' : 'var(--text-secondary)', marginTop: 2, fontWeight: 600 }}>
+                <div style={{ fontWeight: 700, fontSize: isMobile ? 16 : 15, color: isMobile ? 'var(--m-ink)' : '#0E1116' }}>{coll.name}</div>
+                <div style={{ fontSize: 13, color: '#5A5F68', marginTop: 2, fontWeight: 600 }}>
                   {coll.role === 'owner' || coll.role === 'admin' ? t('roleOwner') : t('roleContributor')}
                 </div>
               </div>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={isMobile ? '#5A5F68' : 'var(--text-muted)'} strokeWidth="2.4" strokeLinecap="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#5A5F68" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
             </button>
           ))}
         </div>
@@ -72,24 +70,20 @@ function TransferContent({ step, selected, available, loading, error, isMobile, 
     const isContributor = selected.role === 'contributor';
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        <div style={isMobile ? {
-          padding: '14px 16px', borderRadius: 20, background: '#FFF1E0',
+        <div style={{
+          padding: '14px 16px', borderRadius: isMobile ? 20 : 16, background: '#FFF1E0',
           display: 'flex', alignItems: 'flex-start', gap: 12,
-        } : {
-          display: 'flex', alignItems: 'flex-start', gap: '0.85rem', marginBottom: '0.5rem',
         }}>
-          <div style={isMobile ? {
-            flexShrink: 0, width: 44, height: 44, borderRadius: 22,
+          <div style={{
+            flexShrink: 0, width: isMobile ? 44 : 40, height: isMobile ? 44 : 40,
+            borderRadius: isMobile ? 22 : 20,
             background: '#FFE0B0', display: 'flex', alignItems: 'center', justifyContent: 'center',
-          } : {
-            flexShrink: 0, width: 40, height: 40, borderRadius: '50%',
-            background: 'var(--warning-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>
-            <svg width={isMobile ? 22 : 20} height={isMobile ? 22 : 20} viewBox="0 0 24 24" fill="none" stroke={isMobile ? '#8A4200' : 'var(--warning-text)'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <svg width={isMobile ? 22 : 20} height={isMobile ? 22 : 20} viewBox="0 0 24 24" fill="none" stroke="#8A4200" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
             </svg>
           </div>
-          <p style={{ fontSize: isMobile ? 15 : '0.875rem', color: isMobile ? '#5A3A00' : 'var(--text-secondary)', lineHeight: 1.6, margin: 0, flex: 1 }}>
+          <p style={{ fontSize: isMobile ? 15 : 14, color: '#5A3A00', lineHeight: 1.6, margin: 0, flex: 1 }}>
             {isContributor
               ? t('confirmContributorMsg', { title: documentTitle, docType: docTypeStr, collectiveName: selected.name })
               : t('confirmOwnerMsg', { title: documentTitle, docType: docTypeStr, collectiveName: selected.name })
@@ -99,12 +93,9 @@ function TransferContent({ step, selected, available, loading, error, isMobile, 
         </div>
 
         {isContributor && (
-          <div style={isMobile ? {
-            padding: '10px 14px', borderRadius: 18, background: '#FFF8E0',
+          <div style={{
+            padding: '10px 14px', borderRadius: isMobile ? 18 : 14, background: '#FFF8E0',
             color: '#7A3A00', fontSize: 13, fontWeight: 600, lineHeight: 1.4,
-          } : {
-            fontSize: '0.8rem', color: 'var(--warning-text)', padding: '0.5rem 0.65rem',
-            background: 'var(--warning-bg)', borderRadius: 'var(--radius-md)', lineHeight: 1.5,
           }}>
             {t('pendingLocked')}
           </div>
@@ -112,10 +103,10 @@ function TransferContent({ step, selected, available, loading, error, isMobile, 
 
         {error && (
           <div style={{
-            background: 'var(--danger-bg)', border: '1px solid var(--danger-border)',
-            color: 'var(--danger-text)', padding: isMobile ? '10px 14px' : '0.65rem',
-            borderRadius: isMobile ? 18 : 'var(--radius-md)',
-            fontSize: isMobile ? 13 : '0.825rem', fontWeight: 600,
+            background: '#FDECEC', border: '1px solid #FBBABA',
+            color: '#B71C1C', padding: '10px 14px',
+            borderRadius: isMobile ? 18 : 14,
+            fontSize: 13, fontWeight: 600,
           }}>
             {error}
           </div>
@@ -148,11 +139,11 @@ function TransferContent({ step, selected, available, loading, error, isMobile, 
             </button>
           </div>
         ) : (
-          <div style={{ display: 'flex', gap: '0.65rem', justifyContent: 'flex-end' }}>
-            <button type="button" className="btn btn-secondary btn-sm" onClick={onBack} disabled={loading} style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+          <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+            <button type="button" className="dk-btn dk-btn-l" onClick={onBack} disabled={loading} style={{ flex: 1, justifyContent: 'center' }}>
               {available.length > 1 ? t('back') : t('cancel')}
             </button>
-            <button type="button" className="btn btn-primary btn-sm" onClick={onConfirm} disabled={loading} style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+            <button type="button" className="dk-btn dk-btn-dark" onClick={onConfirm} disabled={loading} style={{ flex: 1, justifyContent: 'center', opacity: loading ? 0.6 : 1 }}>
               {loading ? t('loading') : isContributor ? t('sendRequest') : t('confirmBtn')}
             </button>
           </div>
@@ -175,7 +166,7 @@ function TransferContent({ step, selected, available, loading, error, isMobile, 
             <path d="M20 6L9 17l-5-5"/>
           </svg>
         </div>
-        <p style={{ fontSize: isMobile ? 15 : '0.875rem', color: isMobile ? '#3A3A3A' : 'var(--text-secondary)', lineHeight: 1.6, marginBottom: isMobile ? 20 : '1.25rem' }}>
+        <p style={{ fontSize: isMobile ? 15 : 14, color: '#3A3A3A', lineHeight: 1.6, marginBottom: isMobile ? 20 : 16 }}>
           {movedDirectly
             ? t('successMovedMsg', { title: documentTitle, collectiveName: selected.name })
             : t('successRequestMsg', { collectiveName: selected.name })
@@ -196,16 +187,16 @@ function TransferContent({ step, selected, available, loading, error, isMobile, 
             </button>
           </div>
         ) : (
-          <div style={{ display: 'flex', gap: '0.65rem', justifyContent: 'center' }}>
-            <button type="button" className="btn btn-secondary btn-sm" onClick={onClose}>{t('close')}</button>
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
+            <button type="button" className="dk-btn dk-btn-l" onClick={onClose} style={{ flex: 1, justifyContent: 'center' }}>{t('close')}</button>
             {movedDirectly && (
               <a
                 href={`${navPrefix}${DOC_ROUTE[documentType]}/${documentId}`}
-                className="btn btn-primary btn-sm"
-                style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+                className="dk-btn dk-btn-dark"
+                style={{ flex: 1, justifyContent: 'center', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 8 }}
               >
                 {t('view')}
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
               </a>
             )}
           </div>
