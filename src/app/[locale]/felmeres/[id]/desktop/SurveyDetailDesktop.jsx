@@ -9,6 +9,7 @@ import Modal, { ConfirmModal, AlertModal } from '@/components/Modal';
 import DrawingPad from '@/components/DrawingPad';
 import SurveyMediaModal from '@/components/survey/SurveyMediaModal';
 import SurveyDrawingsModal from '@/components/survey/SurveyDrawingsModal';
+import NewClientModal from '@/components/NewClientModal';
 import LockedDocumentModal from '@/components/LockedDocumentModal';
 import LayoutAnalysisModal from '../components/LayoutAnalysisModal';
 import AudioRecorder from '@/components/AudioRecorder';
@@ -459,14 +460,17 @@ function EntryForm({ initial, surveyId, onSave, onCancel }) {
 }
 
 // ── MetaDrawer — edit survey-level title, date, client etc. ───────────────────
-function MetaDrawer({ survey, clients, isOpen, onClose, onSave }) {
+function MetaDrawer({ survey, clients: clientsProp, isOpen, onClose, onSave }) {
   const t  = useTranslations('surveyDetail');
   const tc = useTranslations('common');
   const [title, setTitle] = useState(''); const [date, setDate] = useState('');
   const [location, setLocation] = useState(''); const [notes, setNotes] = useState('');
   const [clientId, setClientId] = useState('');
   const [saving, setSaving] = useState(false); const [error, setError] = useState('');
-  const [formatting, setFormatting] = useState(false);
+  const [localClients, setLocalClients] = useState(clientsProp || []);
+  const [newClientOpen, setNewClientOpen] = useState(false);
+
+  useEffect(() => { setLocalClients(clientsProp || []); }, [clientsProp]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -513,30 +517,31 @@ function MetaDrawer({ survey, clients, isOpen, onClose, onSave }) {
         </div>
 
         {/* Client */}
-        <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           <span style={lbl}>{t('metaClientLabel')}</span>
-          <select className="dk-input" value={clientId} onChange={e => setClientId(e.target.value)} style={inputSt}>
-            <option value="">{t('metaNoClient')}</option>
-            {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-          </select>
-        </label>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <select className="dk-input" value={clientId} onChange={e => setClientId(e.target.value)} style={{ ...inputSt, flex: 1 }}>
+              <option value="">{t('metaNoClient')}</option>
+              {localClients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+            <button
+              type="button"
+              onClick={() => setNewClientOpen(true)}
+              title="Új ügyfél"
+              style={{ width: 46, height: 46, borderRadius: 23, border: 0, background: '#1E3A8A', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0, fontSize: 24, lineHeight: 1 }}
+            >
+              +
+            </button>
+          </div>
+        </div>
 
         {/* Notes */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={lbl}>{t('metaNotesLabel')}</span>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              {formatting && <Loader2 size={13} className="animate-spin" style={{ color: '#5A5F68' }} />}
-              <AudioRecorder size="sm" disabled={formatting} hasContent={!!notes.trim()}
-                onTranscript={async (text) => {
-                  setFormatting(true);
-                  try { const res = await fetch('/api/format-notes', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ transcript: text }) }); const data = await res.json(); setNotes(n => n.trim() ? n.trim() + '\n\n' + (res.ok ? data.formatted || text : text) : (res.ok ? data.formatted || text : text)); }
-                  catch { setNotes(n => n.trim() ? n.trim() + '\n\n' + text : text); }
-                  finally { setFormatting(false); }
-                }}
-                onError={() => {}}
-              />
-            </div>
+            <span style={{ fontSize: 11, fontWeight: 600, color: '#9AA1AD', background: '#F4F5F8', borderRadius: 8, padding: '3px 8px' }}>
+              🎙 Coming soon
+            </span>
           </div>
           <textarea rows={4} className="dk-input" value={notes} onChange={e => setNotes(e.target.value)} placeholder={t('metaNotesPlaceholder')} style={{ ...inputSt, padding: '12px 14px', resize: 'vertical' }} />
         </div>
@@ -549,6 +554,16 @@ function MetaDrawer({ survey, clients, isOpen, onClose, onSave }) {
           </button>
         </div>
       </div>
+
+      <NewClientModal
+        isOpen={newClientOpen}
+        onClose={() => setNewClientOpen(false)}
+        onCreated={(client) => {
+          setLocalClients(prev => [...prev, client]);
+          setClientId(client.id);
+          setNewClientOpen(false);
+        }}
+      />
     </Modal>
   );
 }
