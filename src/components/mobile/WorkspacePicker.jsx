@@ -17,7 +17,7 @@ export default function WorkspacePicker({
 }) {
   const t = useTranslations('mobile.workspace');
   const isMobile = useMobile();
-  const typeLabel = t(docType === 'quote' ? 'typeQuote' : 'typeSurvey');
+  const typeLabel = docType === 'quote' ? t('typeQuote') : docType === 'project' ? t('typeProject') : t('typeSurvey');
 
   if (!personalOnly && collectives.length === 0) return null;
 

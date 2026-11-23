@@ -1,8 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { useScrollLock } from '@/hooks/useScrollLock';
-import { AlertCircle, Loader2, Check, ChevronLeft, ChevronRight, Calendar, Flag, Play, Square, X, Trash2 } from 'lucide-react';
+import { AlertCircle, Loader2, Check, ChevronLeft, ChevronRight, Calendar, Flag, Play, Square } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import Modal from '@/components/Modal';
 import ErrorBanner from '@/components/ErrorBanner';
@@ -56,8 +55,6 @@ export default function PaymentPlanModal({ isOpen, onClose, onSave, editItem, it
   const savedTimer = useRef(null);
 
   const snap = (a, t, m, d, l, n) => JSON.stringify({ a, t, m, d, l, n });
-
-  useScrollLock(isOpen);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -300,58 +297,46 @@ export default function PaymentPlanModal({ isOpen, onClose, onSave, editItem, it
   };
 
   return (
-    <>
-      <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,.45)', zIndex: 200 }} aria-hidden="true" />
-      <div role="dialog" aria-modal="true" aria-label="Új fizetési tétel"
-        style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: '#fff', borderRadius: '24px 24px 0 0', zIndex: 201, maxHeight: '92dvh', display: 'flex', flexDirection: 'column' }}>
-        <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 12, paddingBottom: 4, flexShrink: 0 }}>
-          <div style={{ width: 36, height: 4, borderRadius: 2, background: '#e2e8f0' }} />
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', padding: '6px 16px 12px', flexShrink: 0, borderBottom: '1px solid #f1f5f9', gap: 10 }}>
-          <span style={{ flex: 1, fontSize: 16, fontWeight: 700, color: '#0f172a' }}>{t('payNewTitle')}</span>
-          <button type="button" onClick={onClose} disabled={saving}
-            style={{ width: 36, height: 36, borderRadius: '50%', border: 'none', background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#64748b', flexShrink: 0 }}>
-            <X size={16} />
-          </button>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '14px 20px 10px', flexShrink: 0 }}>
-          {stepLabels.map((lbl, i) => {
-            const idx = i + 1; const done = idx < step; const curr = idx === step;
-            return (
-              <React.Fragment key={i}>
-                {i > 0 && <div style={{ flex: 1, height: 2, background: done ? '#0f172a' : '#e2e8f0', borderRadius: 1, marginTop: 13, transition: 'background 0.2s' }} />}
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, flexShrink: 0, width: 56 }}>
-                  <div style={{ width: 28, height: 28, borderRadius: '50%', background: curr || done ? '#0f172a' : '#f1f5f9', border: `2px solid ${curr || done ? '#0f172a' : '#e2e8f0'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}>
-                    {done ? <Check size={14} color="#fff" strokeWidth={2.5} /> : <span style={{ fontSize: 12, fontWeight: 800, color: curr ? '#fff' : '#94a3b8' }}>{idx}</span>}
-                  </div>
-                  <span style={{ fontSize: 10, fontWeight: curr ? 700 : 500, color: curr ? '#0f172a' : done ? '#475569' : '#94a3b8', whiteSpace: 'nowrap', textAlign: 'center' }}>{lbl}</span>
+    <Modal isOpen={isOpen} onClose={onClose} title={t('payNewTitle')}>
+      {/* Step indicator */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'center', marginBottom: 20 }}>
+        {stepLabels.map((lbl, i) => {
+          const idx = i + 1; const done = idx < step; const curr = idx === step;
+          return (
+            <React.Fragment key={i}>
+              {i > 0 && <div style={{ flex: 1, height: 2, background: done ? '#0f172a' : '#e2e8f0', borderRadius: 1, marginTop: 13, transition: 'background 0.2s' }} />}
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, flexShrink: 0, width: 56 }}>
+                <div style={{ width: 28, height: 28, borderRadius: '50%', background: curr || done ? '#0f172a' : '#f1f5f9', border: `2px solid ${curr || done ? '#0f172a' : '#e2e8f0'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}>
+                  {done ? <Check size={14} color="#fff" strokeWidth={2.5} /> : <span style={{ fontSize: 12, fontWeight: 800, color: curr ? '#fff' : '#94a3b8' }}>{idx}</span>}
                 </div>
-              </React.Fragment>
-            );
-          })}
-        </div>
-        <div style={{ flex: 1, overflowY: 'auto', padding: '4px 20px 8px', WebkitOverflowScrolling: 'touch' }}>
-          {error && (
-            <div style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', color: 'var(--danger-text)', padding: '0.55rem 0.75rem', borderRadius: 10, fontSize: 13, display: 'flex', gap: 6, marginBottom: 16, alignItems: 'flex-start' }}>
-              <AlertCircle size={14} style={{ flexShrink: 0, marginTop: 1 }} /><span>{error}</span>
-            </div>
-          )}
-          {renderStep()}
-          <div style={{ height: 8 }} />
-        </div>
-        <div style={{ padding: '12px 16px', paddingBottom: 'calc(12px + env(safe-area-inset-bottom))', flexShrink: 0, borderTop: '1px solid #f1f5f9', display: 'flex', gap: 10 }}>
-          {step > 1 && (
-            <button type="button" onClick={() => { setError(''); setStep(s => s - 1); }} disabled={saving}
-              style={{ width: 52, height: 54, borderRadius: 14, border: '1.5px solid #e2e8f0', background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#475569', flexShrink: 0 }}>
-              <ChevronLeft size={22} />
-            </button>
-          )}
-          <button type="button" onClick={handleNext} disabled={saving}
-            style={{ flex: 1, height: 54, borderRadius: 14, border: 'none', background: isLast ? '#16a34a' : '#0f172a', color: '#fff', fontSize: 16, fontWeight: 700, cursor: saving ? 'default' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, opacity: saving ? 0.75 : 1, transition: 'background 0.2s' }}>
-            {saving ? <><Loader2 size={18} className="animate-spin" /> {t('addingBtn')}</> : isLast ? <><Check size={18} /> {t('addItemBtn')}</> : <>{t('nextBtn')} <ChevronRight size={18} /></>}
-          </button>
-        </div>
+                <span style={{ fontSize: 10, fontWeight: curr ? 700 : 500, color: curr ? '#0f172a' : done ? '#475569' : '#94a3b8', whiteSpace: 'nowrap', textAlign: 'center' }}>{lbl}</span>
+              </div>
+            </React.Fragment>
+          );
+        })}
       </div>
-    </>
+
+      {error && (
+        <div style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', color: 'var(--danger-text)', padding: '0.55rem 0.75rem', borderRadius: 10, fontSize: 13, display: 'flex', gap: 6, marginBottom: 16, alignItems: 'flex-start' }}>
+          <AlertCircle size={14} style={{ flexShrink: 0, marginTop: 1 }} /><span>{error}</span>
+        </div>
+      )}
+
+      {renderStep()}
+
+      {/* Navigation */}
+      <div style={{ marginTop: '1.5rem', paddingTop: '1rem', borderTop: '1px solid var(--border-subtle)', display: 'flex', gap: 10 }}>
+        {step > 1 && (
+          <button type="button" onClick={() => { setError(''); setStep(s => s - 1); }} disabled={saving}
+            style={{ width: 44, height: 44, borderRadius: 12, border: '1.5px solid #e2e8f0', background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#475569', flexShrink: 0 }}>
+            <ChevronLeft size={20} />
+          </button>
+        )}
+        <button type="button" onClick={handleNext} disabled={saving}
+          style={{ flex: 1, height: 44, borderRadius: 12, border: 'none', background: isLast ? '#16a34a' : '#0f172a', color: '#fff', fontSize: 15, fontWeight: 700, cursor: saving ? 'default' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, opacity: saving ? 0.75 : 1, transition: 'background 0.2s' }}>
+          {saving ? <><Loader2 size={16} className="animate-spin" /> {t('addingBtn')}</> : isLast ? <><Check size={16} /> {t('addItemBtn')}</> : <>{t('nextBtn')} <ChevronRight size={16} /></>}
+        </button>
+      </div>
+    </Modal>
   );
 }

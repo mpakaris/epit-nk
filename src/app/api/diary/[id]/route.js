@@ -51,26 +51,32 @@ export async function PATCH(request, { params }) {
 
   const body = await request.json();
   const { title, body: entryBody, work_type, internal_note, client_note, entry_date, add_photo_ids, is_public, room_id } = body;
-  if (!title?.trim()) return Response.json({ error: 'A cím nem lehet üres' }, { status: 400 });
 
-  const { data: updated, error: updateErr } = await admin.from('diary_entries')
-    .update({
-      title: title.trim(),
-      body: entryBody?.trim() || null,
-      work_type: work_type?.trim() || null,
-      internal_note: internal_note?.trim() || null,
-      client_note: client_note?.trim() || null,
-      entry_date: entry_date || undefined,
-      is_public: typeof is_public === 'boolean' ? is_public : undefined,
-      room_id: 'room_id' in body ? (room_id || null) : undefined,
-    })
-    .eq('id', id)
-    .select()
-    .single();
+  const updateFields = {};
+  if ('title'         in body) updateFields.title         = title?.trim();
+  if ('body'          in body) updateFields.body          = entryBody?.trim() || null;
+  if ('work_type'     in body) updateFields.work_type     = work_type?.trim() || null;
+  if ('internal_note' in body) updateFields.internal_note = internal_note?.trim() || null;
+  if ('client_note'   in body) updateFields.client_note   = client_note?.trim() || null;
+  if ('entry_date'    in body) updateFields.entry_date    = entry_date || undefined;
+  if ('is_public'     in body) updateFields.is_public     = typeof is_public === 'boolean' ? is_public : undefined;
+  if ('room_id'       in body) updateFields.room_id       = room_id || null;
 
-  if (updateErr) {
-    logAudit({ entityId: entry.project_id, userId: user.id, userName: profile.display_name, action: 'Diary entry update failed', targetType: 'diary_entry', targetId: id, details: { error: updateErr.message } });
-    return Response.json({ error: updateErr.message }, { status: 500 });
+  if ('title' in updateFields && !updateFields.title)
+    return Response.json({ error: 'A cím nem lehet üres' }, { status: 400 });
+
+  let updated = entry;
+  if (Object.keys(updateFields).length) {
+    const { data, error: updateErr } = await admin.from('diary_entries')
+      .update(updateFields)
+      .eq('id', id)
+      .select()
+      .single();
+    if (updateErr) {
+      logAudit({ entityId: entry.project_id, userId: user.id, userName: profile.display_name, action: 'Diary entry update failed', targetType: 'diary_entry', targetId: id, details: { error: updateErr.message } });
+      return Response.json({ error: updateErr.message }, { status: 500 });
+    }
+    updated = data;
   }
 
   if (Array.isArray(add_photo_ids) && add_photo_ids.length > 0) {
@@ -80,7 +86,6 @@ export async function PATCH(request, { params }) {
   const { data: photos } = await admin
     .from('diary_photos').select('*').eq('entry_id', id).order('created_at');
 
-  // Determine the most specific action — visibility change beats generic edit
   const wasVisibilityChange = typeof is_public === 'boolean' && is_public !== entry.is_public;
   const auditAction = wasVisibilityChange
     ? (is_public ? 'Diary entry published to client' : 'Diary entry hidden from client')
@@ -93,7 +98,7 @@ export async function PATCH(request, { params }) {
     action: auditAction,
     targetType: 'diary_entry',
     targetId: id,
-    targetName: title.trim(),
+    targetName: updated.title || entry.title,
   });
 
   return Response.json({ entry: { ...updated, photos: photos || [] } });

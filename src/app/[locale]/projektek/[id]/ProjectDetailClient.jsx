@@ -33,7 +33,6 @@ import CostBreakdownCard from './components/CostBreakdownCard';
 import CombinedStatsCard from './components/CombinedStatsCard';
 import EntryMediaGrid from './components/EntryMediaGrid';
 import EditDiaryEntryModal from './components/EditDiaryEntryModal';
-import DiaryDetailSheet from './components/DiaryDetailSheet';
 import LabourEditModal from './components/LabourEditModal';
 import InvoiceDetailDrawer from './components/InvoiceDetailDrawer';
 import PaymentPlanModal, { TRIGGER_DISPLAY, STATUS_DISPLAY } from './components/PaymentPlanModal';
@@ -132,9 +131,9 @@ export default function ProjectDetailClient({
   const [categoryFilter, setCategoryFilter] = useState('ALL');
   const [tabSearch, setTabSearch] = useState('');
   const [uploaderFilter, setUploaderFilter] = useState('ALL');
-  const [activeTab, setActiveTab] = useState('invoices');
+  const [activeExpenseTab, setActiveExpenseTab] = useState('invoices');
 
-  const handleTabChange = (key) => { setActiveTab(key); setTabSearch(''); };
+  const handleExpenseTabChange = (key) => { setActiveExpenseTab(key); setTabSearch(''); };
   const [confirmModal, setConfirmModal] = useState(null);
   const [alertModal, setAlertModal] = useState(null);
   const [lockedModalOpen, setLockedModalOpen] = useState(() => !!project?.locked_reason);
@@ -165,7 +164,6 @@ export default function ProjectDetailClient({
   const [editingDiaryEntry, setEditingDiaryEntry] = useState(null);
   const [editingLabour,    setEditingLabour]    = useState(null);
   const [detailInvoice,    setDetailInvoice]    = useState(null);
-  const [diaryDetailEntry, setDiaryDetailEntry] = useState(null);
   const [roomFilter, setRoomFilter] = useState('ALL');
   const [syncing, setSyncing] = useState(false);
   const [roomModalOpen, setRoomModalOpen] = useState(false);
@@ -213,9 +211,9 @@ export default function ProjectDetailClient({
     fetchDiaryEntries(project.id).catch(() => {}).finally(() => setDiaryLoading(false));
   }, [project?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Lazy-load share tokens only when the user actually opens the napló tab.
+  // Load share tokens on mount (sections are always visible now).
   React.useEffect(() => {
-    if (canManageProject && activeTab === 'naplo' && project && shareTokens.length === 0 && !shareLoading) {
+    if (canManageProject && project && shareTokens.length === 0 && !shareLoading) {
       setShareLoading(true);
       fetch(`/api/diary/share?project_id=${project.id}`)
         .then(r => r.json())
@@ -223,7 +221,7 @@ export default function ProjectDetailClient({
         .catch(() => {})
         .finally(() => setShareLoading(false));
     }
-  }, [activeTab, project?.id]);
+  }, [project?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const projectMemberUsers = React.useMemo(() => {
     // Collective projects: all active collective members are participants regardless of project_members rows
@@ -497,6 +495,38 @@ export default function ProjectDetailClient({
   };
 
   const fmt = (d) => d ? new Date(d).toLocaleDateString('hu-HU', { year: 'numeric', month: 'short', day: 'numeric' }) : null;
+
+  const [openSections, setOpenSections] = useState({ expenses: true, diary: false, payment: false, portal: false });
+  const toggleSection = (key) => setOpenSections(prev => ({ ...prev, [key]: !prev[key] }));
+
+  const handleCreatePayment = async (fields) => {
+    const res = await fetch('/api/payment-plan', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ project_id: project.id, ...fields }) });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || t('saveError'));
+    setPaymentPlan(prev => [...prev, { ...data.item, files: [] }]);
+    setToast(t('paymentItemAdded'));
+    setTimeout(() => setToast(''), 2500);
+  };
+
+  const handleUpdatePayment = async (itemId, fields) => {
+    const res = await fetch(`/api/payment-plan/${itemId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(fields) });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || t('saveError'));
+    setPaymentPlan(prev => prev.map(i => i.id === itemId ? { ...data.item, files: i.files || [] } : i));
+  };
+
+  const handleDeletePayment = (item) => {
+    setConfirmModal({
+      message: t('deletePaymentConfirm', { name: item.label }),
+      onConfirm: async () => {
+        const res = await fetch(`/api/payment-plan/${item.id}`, { method: 'DELETE' });
+        if (!res.ok) { const d = await res.json(); setAlertModal({ message: d.error }); return; }
+        setPaymentPlan(prev => prev.filter(i => i.id !== item.id));
+        setToast(t('paymentItemDeleted'));
+        setTimeout(() => setToast(''), 2500);
+      },
+    });
+  };
 
   return (
     <div className="dk-page dk-mod-projects" style={wsStyle}>
@@ -896,76 +926,92 @@ export default function ProjectDetailClient({
         </div>
       )}
 
-      {/* Expenses section headline + search + tabs */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, margin: '8px 0 10px' }}>
-        <h2 style={{ margin: 0, fontFamily: 'var(--font-heading, "Bricolage Grotesque", sans-serif)', fontSize: 22, fontWeight: 700, letterSpacing: '-0.02em', color: '#fff' }}>
-          {t('headlineExpenses')}
-        </h2>
-        {canManageProject && (
-          <button type="button" className="dk-btn dk-btn-w" style={{ height: 40, fontSize: 13, padding: '0 14px', flexShrink: 0 }} onClick={() => setNewExpenseOpen(true)}>
-            <Plus size={15} /> {t('newExpenseBtn')}
-          </button>
-        )}
-      </div>
-      <div style={{ display: 'flex', gap: 6, background: 'rgba(255,255,255,.12)', padding: 4, borderRadius: 24, alignSelf: 'flex-start' }}>
-        {[
-          { key: 'invoices', label: t('tabExpenses', { count: fin.projectInvoices.filter(i => i.category !== 'labour').length }) },
-          { key: 'labour',   label: t('tabLabour',   { count: fin.projectLabour.length + fin.projectInvoices.filter(i => i.category === 'labour').length }) },
-          { key: 'naplo',    label: t('tabDiary',    { count: diaryEntriesByProject[project.id]?.length ?? initialDiaryCount }) },
-          { key: 'payment',  label: t('tabPayment',  { count: paymentPlan.length }) },
-          { key: 'portal',   label: t('tabPortal') },
-        ].map(tab => {
-          const isActive = activeTab === tab.key;
-          return (
-            <button key={tab.key} type="button" onClick={() => handleTabChange(tab.key)} style={{
-              height: 40, padding: '0 18px', border: 0, borderRadius: 20,
-              background: isActive ? '#fff' : 'transparent',
-              color: isActive ? '#263248' : '#fff',
-              fontSize: 14, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap',
-            }}>
-              {tab.label}
+      {/* Pod sections — gap: 20 between pods */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+
+      {/* ══════════════════════════════════════════════
+          KIADÁSOK POD — single unified card
+          ══════════════════════════════════════════════ */}
+      <div className="dk-card" style={{ overflow: 'hidden' }}>
+        {/* Header row — full row is the toggle */}
+        <div
+          style={{ padding: '0 18px', display: 'flex', alignItems: 'center', gap: 8, minHeight: 56, cursor: 'pointer', userSelect: 'none' }}
+          role="button" tabIndex={0}
+          onClick={() => toggleSection('expenses')}
+          onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') toggleSection('expenses'); }}
+        >
+          <ChevronDown size={18} color="#5A5F68" aria-hidden="true" style={{ flexShrink: 0, transform: openSections.expenses ? 'rotate(0deg)' : 'rotate(-90deg)', transition: 'transform 0.15s ease' }} />
+          <span style={{ fontFamily: 'var(--font-heading, "Bricolage Grotesque", sans-serif)', fontSize: 16, fontWeight: 700, letterSpacing: '-0.01em', color: '#0E1116' }}>{t('headlineExpenses')}</span>
+          <span className="dk-badge">{fin.projectInvoices.filter(i => i.category !== 'labour').length + fin.projectLabour.length + fin.projectInvoices.filter(i => i.category === 'labour').length}</span>
+          <span style={{ flex: 1 }} />
+          {canManageProject && openSections.expenses && (
+            <button type="button" className="dk-btn" style={{ height: 36, fontSize: 13, padding: '0 12px', flexShrink: 0, background: '#263248', color: '#fff' }} onClick={e => { e.stopPropagation(); setNewExpenseOpen(true); }}>
+              <Plus size={14} /> {t('newExpenseBtn')}
             </button>
-          );
-        })}
-      </div>
+          )}
+        </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 0, marginTop: 14 }}>
+        {openSections.expenses && (
+          <>
+            {/* Inner type tabs + filter row */}
+            <div style={{ padding: '10px 18px', borderTop: '1px solid #EDEBE5', display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', background: '#FAFAFA' }}>
+              {/* 2-pill switcher */}
+              <div style={{ display: 'flex', gap: 3, background: '#EDEBE5', padding: 3, borderRadius: 24, flexShrink: 0 }}>
+                {[
+                  { key: 'invoices', label: t('tabExpenses', { count: fin.projectInvoices.filter(i => i.category !== 'labour').length }) },
+                  { key: 'labour',   label: t('tabLabour',   { count: fin.projectLabour.length + fin.projectInvoices.filter(i => i.category === 'labour').length }) },
+                ].map(tab => {
+                  const isActive = activeExpenseTab === tab.key;
+                  return (
+                    <button key={tab.key} type="button" onClick={() => handleExpenseTabChange(tab.key)} style={{
+                      height: 34, padding: '0 16px', border: 0, borderRadius: 20,
+                      background: isActive ? '#0E1116' : 'transparent',
+                      color: isActive ? '#fff' : '#5A5F68',
+                      fontSize: 13, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap',
+                    }}>
+                      {tab.label}
+                    </button>
+                  );
+                })}
+              </div>
+              {/* filters — only for invoices tab */}
+              {activeExpenseTab === 'invoices' && (
+                <>
+                  <input type="text" className="dk-input" placeholder={t('searchExpenses')} value={tabSearch} onChange={e => setTabSearch(e.target.value)} style={{ flex: 1, minWidth: 140, height: 36 }} />
+                  <select value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)} className="dk-input" style={{ width: 150, height: 36 }}>
+                    <option value="ALL">{t('allCategories')}</option>
+                    {INVOICE_CATEGORIES.filter(c => c.id !== 'labour').map(c => <option key={c.id} value={c.id}>{catLabel(c.id)}</option>)}
+                  </select>
+                  {projectRooms.length > 0 && (
+                    <select value={roomFilter} onChange={e => setRoomFilter(e.target.value)} className="dk-input" style={{ width: 140, height: 36 }}>
+                      <option value="ALL">{t('allSections')}</option>
+                      <option value="GENERAL">{t('general')}</option>
+                      {projectRooms.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+                    </select>
+                  )}
+                  {projectMemberUsers.length > 1 && (
+                    <select value={uploaderFilter} onChange={e => setUploaderFilter(e.target.value)} className="dk-input" style={{ width: 140, height: 36 }}>
+                      <option value="ALL">{t('allUploaders')}</option>
+                      {projectMemberUsers.map(u => <option key={u.id} value={u.id}>{u.display_name}</option>)}
+                    </select>
+                  )}
+                </>
+              )}
+              {activeExpenseTab === 'labour' && (
+                <input type="text" className="dk-input" placeholder={t('searchExpenses')} value={tabSearch} onChange={e => setTabSearch(e.target.value)} style={{ flex: 1, minWidth: 200, height: 36 }} />
+              )}
+            </div>
 
-      {activeTab === 'invoices' && (
-        <>
-          {/* Filter row */}
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-            <input type="text" className="dk-input" placeholder={t('searchExpenses')} value={tabSearch} onChange={e => setTabSearch(e.target.value)} style={{ flex: 1, minWidth: 160, height: 40 }} />
-            <select value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)} className="dk-input" style={{ width: 160, height: 40 }}>
-              <option value="ALL">{t('allCategories')}</option>
-              {INVOICE_CATEGORIES.filter(c => c.id !== 'labour').map(c => <option key={c.id} value={c.id}>{catLabel(c.id)}</option>)}
-            </select>
-            {projectRooms.length > 0 && (
-              <select value={roomFilter} onChange={e => setRoomFilter(e.target.value)} className="dk-input" style={{ width: 150, height: 40 }}>
-                <option value="ALL">{t('allSections')}</option>
-                <option value="GENERAL">{t('general')}</option>
-                {projectRooms.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
-              </select>
-            )}
-            {projectMemberUsers.length > 1 && (
-              <select value={uploaderFilter} onChange={e => setUploaderFilter(e.target.value)} className="dk-input" style={{ width: 150, height: 40 }}>
-                <option value="ALL">{t('allUploaders')}</option>
-                {projectMemberUsers.map(u => <option key={u.id} value={u.id}>{u.display_name}</option>)}
-              </select>
-            )}
-          </div>
-
-          {/* Table card */}
-          <section className="dk-card" style={{ overflow: 'hidden', marginTop: 12 }}>
-            {filteredInvoices.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '2rem', color: '#5A5F68' }}>
+            {/* Invoice table */}
+            {activeExpenseTab === 'invoices' && (filteredInvoices.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '2.5rem', color: '#5A5F68' }}>
                 <Receipt size={28} style={{ margin: '0 auto 0.5rem', display: 'block', opacity: 0.4 }} />
                 <div style={{ fontWeight: 700, fontSize: 15, color: '#0E1116', marginBottom: 4 }}>{t('noExpensesTitle')}</div>
                 <div style={{ fontSize: 13 }}>{t('noExpensesText')}</div>
               </div>
             ) : (
               <>
-                <div className="dk-th" style={{ gridTemplateColumns: activeCollectiveId ? '100px 1fr 110px 90px 100px 90px' : '100px 1fr 110px 90px 90px' }}>
+                <div className="dk-th" style={{ gridTemplateColumns: activeCollectiveId ? '100px 1fr 110px 90px 100px 90px' : '100px 1fr 110px 90px 90px', borderTop: '1px solid #EDEBE5' }}>
                   <span>{t('thCategory')}</span>
                   <span>{t('thDesc')}</span>
                   <span>{t('thSection')}</span>
@@ -977,32 +1023,19 @@ export default function ProjectDetailClient({
                   const cLabel = catLabel(inv.category);
                   const room   = projectRooms.find(r => r.id === inv.room_id);
                   const uploader  = initialUsers.find(u => u.id === inv.uploaded_by);
-                  const uploaderLabel = inv.uploaded_by === currentUser?.id
-                    ? t('youSuffix')
-                    : (uploader?.display_name || '—');
+                  const uploaderLabel = inv.uploaded_by === currentUser?.id ? t('youSuffix') : (uploader?.display_name || '—');
                   const hasReceipt = !!(inv.image_url || inv.has_media);
                   return (
                     <button key={inv.id} type="button" className="dk-tr dk-sr" style={{ display: 'grid', gridTemplateColumns: activeCollectiveId ? '100px 1fr 110px 90px 100px 90px' : '100px 1fr 110px 90px 90px', cursor: 'pointer' }} onClick={() => setDetailInvoice(inv)}>
                       <span style={{ minWidth: 0 }}><span className="dk-badge">{cLabel}</span></span>
-                      <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        <b>{inv.description || cLabel}</b>
-                      </span>
-                      <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {room?.name || t('general')}
-                      </span>
+                      <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}><b>{inv.description || cLabel}</b></span>
+                      <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{room?.name || t('general')}</span>
                       <span style={{ minWidth: 0 }}>
-                        <span className="dk-badge" style={hasReceipt
-                          ? { background: '#E7F4EC', color: '#14532D' }
-                          : { background: '#F0F0F2', color: '#5A5F68' }
-                        }>
+                        <span className="dk-badge" style={hasReceipt ? { background: '#E7F4EC', color: '#14532D' } : { background: '#F0F0F2', color: '#5A5F68' }}>
                           {hasReceipt ? t('typeInvoice') : t('typeManual')}
                         </span>
                       </span>
-                      {activeCollectiveId && (
-                        <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {uploaderLabel}
-                        </span>
-                      )}
+                      {activeCollectiveId && <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{uploaderLabel}</span>}
                       <span style={{ minWidth: 0 }}>
                         <span style={{ height: 24, padding: '0 10px', borderRadius: 12, background: 'var(--dk-c, #263248)', color: '#fff', fontSize: 12, fontWeight: 700, display: 'inline-flex', alignItems: 'center', fontFamily: 'var(--font-mono)', whiteSpace: 'nowrap' }}>
                           {fmtMoney(Number(inv.value_huf || 0))}
@@ -1012,123 +1045,203 @@ export default function ProjectDetailClient({
                   );
                 })}
               </>
-            )}
-          </section>
-        </>
-      )}
+            ))}
 
-      {activeTab === 'payment' && (() => {
+            {/* Labour table */}
+            {activeExpenseTab === 'labour' && (() => {
+              const q = tabSearch.trim().toLowerCase();
+              const labourInvoices = fin.projectInvoices.filter(inv => inv.category === 'labour' && (!q || inv.description?.toLowerCase().includes(q)));
+              const labourEntries  = fin.projectLabour.filter(le => !q || (le.labour_type || le.description || '').toLowerCase().includes(q));
+              const hasAny = labourEntries.length > 0 || labourInvoices.length > 0;
+              const cols = activeCollectiveId ? '90px 1fr 110px 90px 100px 90px' : '90px 1fr 110px 90px 90px';
+              return !hasAny ? (
+                <div style={{ textAlign: 'center', padding: '2.5rem', color: '#5A5F68' }}>
+                  <Hammer size={28} style={{ margin: '0 auto 0.5rem', display: 'block', opacity: 0.4 }} aria-hidden="true" />
+                  <div style={{ fontWeight: 700, fontSize: 15, color: '#0E1116', marginBottom: 4 }}>{t('noExpensesTitle')}</div>
+                </div>
+              ) : (
+                <>
+                  <div className="dk-th" style={{ gridTemplateColumns: cols, borderTop: '1px solid #EDEBE5' }}>
+                    <span>{t('thCategory')}</span><span>{t('thDesc')}</span><span>{t('thSection')}</span><span>{t('thType')}</span>
+                    {activeCollectiveId && <span>{t('thUploader')}</span>}
+                    <span>{t('thAmount')}</span>
+                  </div>
+                  {labourEntries.map(le => {
+                    const hours = Number(le.hours || 0);
+                    const rate  = Number(le.unit_price || le.hourly_rate || 0);
+                    const qty   = `${hours} ${le.unit || 'h'}${rate ? ` × ${fmtMoney(rate)}` : ''}`;
+                    const uploaderLabel = le.uploaded_by === currentUser?.id ? t('youSuffix') : (initialUsers.find(u => u.id === le.uploaded_by)?.display_name || '—');
+                    const room = projectRooms.find(r => r.id === le.room_id);
+                    return (
+                      <div key={le.id} className="dk-tr" style={{ display: 'grid', gridTemplateColumns: cols }}>
+                        <span style={{ minWidth: 0 }}><span className="dk-badge">{catLabel('labour')}</span></span>
+                        <span style={{ minWidth: 0, display: 'flex', alignItems: 'center', gap: 8, overflow: 'hidden' }}>
+                          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, minWidth: 0 }}>
+                            <b>{le.labour_type || le.description || '—'}</b>
+                            {qty ? <span style={{ color: '#5A5F68', fontWeight: 400, marginLeft: 6 }}>{qty}</span> : null}
+                          </span>
+                        </span>
+                        <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 13, color: '#5A5F68' }}>{room?.name || t('general')}</span>
+                        <span style={{ minWidth: 0 }}><span className="dk-badge">{t('typeManual')}</span></span>
+                        {activeCollectiveId && <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 13 }}>{uploaderLabel}</span>}
+                        <span style={{ minWidth: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <span style={{ flexShrink: 0, height: 24, padding: '0 10px', borderRadius: 12, background: 'var(--dk-c, #263248)', color: '#fff', fontSize: 12, fontWeight: 700, display: 'inline-flex', alignItems: 'center', fontFamily: 'var(--font-mono)', whiteSpace: 'nowrap' }}>
+                            {fmtMoney(Number(le.value_huf || 0))}
+                          </span>
+                          {(canManageProject || le.uploaded_by === currentUser?.id) && (
+                            <button type="button" onClick={() => setEditingLabour(le)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#8A8F98', padding: 2, display: 'flex', flexShrink: 0 }}>
+                              <PencilLine size={15} aria-hidden="true" />
+                            </button>
+                          )}
+                        </span>
+                      </div>
+                    );
+                  })}
+                  {labourInvoices.map(inv => {
+                    const uploaderLabel = inv.uploaded_by === currentUser?.id ? t('youSuffix') : (initialUsers.find(u => u.id === inv.uploaded_by)?.display_name || '—');
+                    const room = projectRooms.find(r => r.id === inv.room_id);
+                    return (
+                      <button key={inv.id} type="button" className="dk-tr dk-sr" style={{ display: 'grid', gridTemplateColumns: cols, cursor: 'pointer' }} onClick={() => setDetailInvoice(inv)}>
+                        <span style={{ minWidth: 0 }}><span className="dk-badge">{catLabel('labour')}</span></span>
+                        <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}><b>{inv.description || '—'}</b></span>
+                        <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 13, color: '#5A5F68' }}>{room?.name || t('general')}</span>
+                        <span style={{ minWidth: 0 }}><span className="dk-badge" style={{ background: '#E7F4EC', color: '#14532D' }}>{t('typeInvoice')}</span></span>
+                        {activeCollectiveId && <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 13 }}>{uploaderLabel}</span>}
+                        <span style={{ minWidth: 0 }}>
+                          <span style={{ flexShrink: 0, height: 24, padding: '0 10px', borderRadius: 12, background: 'var(--dk-c, #263248)', color: '#fff', fontSize: 12, fontWeight: 700, display: 'inline-flex', alignItems: 'center', fontFamily: 'var(--font-mono)', whiteSpace: 'nowrap' }}>
+                            {fmtMoney(Number(inv.value_huf || 0))}
+                          </span>
+                        </span>
+                      </button>
+                    );
+                  })}
+                </>
+              );
+            })()}
+          </>
+        )}
+      </div>
+
+      {/* ══════════════════════════════════════════════
+          NAPLÓ POD — single unified card
+          ══════════════════════════════════════════════ */}
+      <div className="dk-card" style={{ overflow: 'hidden' }}>
+        {/* Header row — full row is the toggle */}
+        <div
+          style={{ padding: '0 18px', display: 'flex', alignItems: 'center', gap: 8, minHeight: 56, cursor: 'pointer', userSelect: 'none' }}
+          role="button" tabIndex={0}
+          onClick={() => toggleSection('diary')}
+          onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') toggleSection('diary'); }}
+        >
+          <ChevronDown size={18} color="#5A5F68" aria-hidden="true" style={{ flexShrink: 0, transform: openSections.diary ? 'rotate(0deg)' : 'rotate(-90deg)', transition: 'transform 0.15s ease' }} />
+          <span style={{ fontFamily: 'var(--font-heading, "Bricolage Grotesque", sans-serif)', fontSize: 16, fontWeight: 700, letterSpacing: '-0.01em', color: '#0E1116' }}>{t('headlineDiary')}</span>
+          <span className="dk-badge">{diaryEntriesByProject[project.id]?.length ?? initialDiaryCount}</span>
+          <span style={{ flex: 1 }} />
+          {openSections.diary && (
+            <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+              <button
+                type="button" className="dk-btn dk-btn-l" style={{ height: 36, fontSize: 13, padding: '0 12px' }}
+                onClick={e => { e.stopPropagation(); navigator.clipboard.writeText(`${window.location.origin}/naplo/${project.id}`).then(() => { setToast(t('clientLinkCopied')); setTimeout(() => setToast(''), 2500); }); }}
+              >
+                <Copy size={13} /> {t('clientLinkBtn')}
+              </button>
+              <button type="button" className="dk-btn" style={{ height: 36, fontSize: 13, padding: '0 12px', background: '#263248', color: '#fff' }} onClick={e => { e.stopPropagation(); setShowQuickDiarySheet(true); }}>
+                <Plus size={14} /> {t('addNewEntryBtn')}
+              </button>
+            </div>
+          )}
+        </div>
+
+        {openSections.diary && (diaryLoading ? (
+          <div style={{ padding: '2rem', textAlign: 'center', color: '#5A5F68', borderTop: '1px solid #EDEBE5' }}>{t('loadingText')}</div>
+        ) : !diaryEntriesByProject[project.id] || diaryEntriesByProject[project.id].length === 0 ? (
+          <div style={{ padding: '2.5rem 1.5rem', textAlign: 'center', borderTop: '1px solid #EDEBE5' }}>
+            <BookOpen size={28} style={{ margin: '0 auto 0.5rem', display: 'block', opacity: 0.4 }} />
+            <div style={{ fontWeight: 700, fontSize: 15, color: '#0E1116', marginBottom: 4 }}>{t('noDiaryTitle')}</div>
+            <div style={{ fontSize: 13, color: '#5A5F68', marginBottom: 16 }}>{t('noDiaryText')}</div>
+            <button type="button" onClick={() => setShowQuickDiarySheet(true)} className="dk-btn dk-btn-dark" style={{ height: 40, fontSize: 13, margin: '0 auto' }}>
+              <Plus size={15} /> {t('firstEntryBtn')}
+            </button>
+          </div>
+        ) : (() => {
+          const diaryEntries = diaryEntriesByProject[project.id] || [];
+          const diaryCols = activeCollectiveId ? '56px 1fr 130px 120px 100px 90px' : '56px 1fr 130px 120px 90px';
+          return (
+            <>
+              <div className="dk-th" style={{ gridTemplateColumns: diaryCols, borderTop: '1px solid #EDEBE5' }}>
+                <span /><span>{t('thTitle')}</span><span>{t('thDate')}</span><span>{t('thSection')}</span>
+                {activeCollectiveId && <span>{t('thAuthor')}</span>}
+                <span>{t('thStatus')}</span>
+              </div>
+              {diaryEntries.map(entry => {
+                const entryDateStr = entry.entry_date
+                  ? new Date(entry.entry_date).toLocaleDateString('hu-HU', { year: 'numeric', month: 'short', day: 'numeric' })
+                  : '—';
+                const author    = initialUsers.find(u => u.id === entry.created_by);
+                const entryRoom = projectRooms.find(r => r.id === entry.room_id);
+                return (
+                  <button key={entry.id} type="button" onClick={() => setEditingDiaryEntry(entry)}
+                    className="dk-tr dk-sr" style={{ display: 'grid', gridTemplateColumns: diaryCols, cursor: 'pointer', padding: '0 16px', minHeight: 60, alignItems: 'center' }}>
+                    <span style={{ display: 'flex', alignItems: 'center' }}>
+                      <span style={{ width: 40, height: 40, borderRadius: 10, background: 'linear-gradient(135deg,#C9CFDB,#9AA3B5)', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        {entry.photos?.length > 0 ? <Camera size={16} color="#fff" /> : <BookOpen size={16} color="#fff" />}
+                      </span>
+                    </span>
+                    <span style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2, justifyContent: 'center' }}>
+                      <b style={{ fontSize: 14, color: '#0E1116', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{entry.title}</b>
+                      {entry.body && <span style={{ fontSize: 12, color: '#5A5F68', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{entry.body}</span>}
+                    </span>
+                    <span style={{ minWidth: 0, fontSize: 13, color: '#5A5F68', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{entryDateStr}</span>
+                    <span style={{ minWidth: 0, fontSize: 13, color: '#5A5F68', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{entryRoom?.name || t('general')}</span>
+                    {activeCollectiveId && <span style={{ minWidth: 0, fontSize: 13, color: '#5A5F68', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{author?.display_name || '—'}</span>}
+                    <span style={{ minWidth: 0 }}>
+                      <span className="dk-badge" style={entry.is_public ? { background: '#E7F4EC', color: '#14532D' } : { background: '#F0F0F2', color: '#2B3038' }}>
+                        {entry.is_public ? <><Eye size={11} /> {t('publicBadge')}</> : <><Lock size={11} /> {t('privateBadge')}</>}
+                      </span>
+                    </span>
+                  </button>
+                );
+              })}
+            </>
+          );
+        })())}
+      </div>
+
+      {/* ══════════════════════════════════════════════
+          FIZETÉSI TERV POD — single unified card
+          ══════════════════════════════════════════════ */}
+      {(() => {
         const today = new Date().toISOString().slice(0, 10);
         const totalExpected = paymentPlan.reduce((s, i) => s + Number(i.amount_huf || 0), 0);
-        const totalPaid = paymentPlan.filter(i => i.status === 'paid').reduce((s, i) => s + Number(i.amount_huf || 0), 0);
-
-        const handleCreatePayment = async (fields) => {
-          const res = await fetch('/api/payment-plan', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ project_id: project.id, ...fields }),
-          });
-          const data = await res.json();
-          if (!res.ok) throw new Error(data.error || t('saveError'));
-          setPaymentPlan(prev => [...prev, { ...data.item, files: [] }]);
-          setToast(t('paymentItemAdded'));
-          setTimeout(() => setToast(''), 2500);
-        };
-
-        const handleUpdatePayment = async (itemId, fields) => {
-          const res = await fetch(`/api/payment-plan/${itemId}`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(fields),
-          });
-          const data = await res.json();
-          if (!res.ok) throw new Error(data.error || t('saveError'));
-          setPaymentPlan(prev => prev.map(i => i.id === itemId ? { ...data.item, files: i.files || [] } : i));
-        };
-
-        const handleFileUpload = async (itemId, files) => {
-          if (!files || files.length === 0) return;
-          setUploadingItemIds(prev => new Set(prev).add(itemId));
-          try {
-            for (const file of Array.from(files)) {
-              const fd = new FormData();
-              fd.append('file', file);
-              const res = await fetch(`/api/payment-plan/${itemId}/files`, { method: 'POST', body: fd });
-              const data = await res.json();
-              if (!res.ok) { setAlertModal({ message: data.error || t('uploadError') }); continue; }
-              setPaymentPlan(prev => prev.map(i => i.id === itemId ? { ...i, files: [...(i.files || []), data.file] } : i));
-            }
-            setToast(t('fileUploaded'));
-            setTimeout(() => setToast(''), 2500);
-          } finally {
-            setUploadingItemIds(prev => { const s = new Set(prev); s.delete(itemId); return s; });
-          }
-        };
-
-        const handleFileDelete = (itemId, fileId) => {
-          setConfirmModal({
-            message: t('deleteAttachmentConfirm'),
-            onConfirm: async () => {
-              const res = await fetch(`/api/payment-plan/${itemId}/files/${fileId}`, { method: 'DELETE' });
-              if (!res.ok) { const d = await res.json(); setAlertModal({ message: d.error }); return; }
-              setPaymentPlan(prev => prev.map(i => i.id === itemId ? { ...i, files: (i.files || []).filter(f => f.id !== fileId) } : i));
-            },
-          });
-        };
-
-        const handleDeletePayment = (item) => {
-          setConfirmModal({
-            message: t('deletePaymentConfirm', { name: item.label }),
-            onConfirm: async () => {
-              const res = await fetch(`/api/payment-plan/${item.id}`, { method: 'DELETE' });
-              if (!res.ok) { const d = await res.json(); setAlertModal({ message: d.error }); return; }
-              setPaymentPlan(prev => prev.filter(i => i.id !== item.id));
-              setToast(t('paymentItemDeleted'));
-              setTimeout(() => setToast(''), 2500);
-            },
-          });
-        };
-
-        const handleMarkPaid = async (item) => {
-          try {
-            await handleUpdatePayment(item.id, { status: 'paid' });
-            setToast(t('markedPaid'));
-            setTimeout(() => setToast(''), 2500);
-          } catch (err) {
-            setAlertModal({ message: err.message });
-          }
-        };
-
+        const totalPaid     = paymentPlan.filter(i => i.status === 'paid').reduce((s, i) => s + Number(i.amount_huf || 0), 0);
         return (
-          <>
-            {/* Summary + add button */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', gap: '0.5rem', flexWrap: 'wrap' }}>
+          <div className="dk-card" style={{ overflow: 'hidden' }}>
+            {/* Header row — full row is the toggle */}
+            <div
+              style={{ padding: '0 18px', display: 'flex', alignItems: 'center', gap: 8, minHeight: 56, cursor: 'pointer', userSelect: 'none' }}
+              role="button" tabIndex={0}
+              onClick={() => toggleSection('payment')}
+              onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') toggleSection('payment'); }}
+            >
+              <ChevronDown size={18} color="#5A5F68" aria-hidden="true" style={{ flexShrink: 0, transform: openSections.payment ? 'rotate(0deg)' : 'rotate(-90deg)', transition: 'transform 0.15s ease' }} />
+              <span style={{ fontFamily: 'var(--font-heading, "Bricolage Grotesque", sans-serif)', fontSize: 16, fontWeight: 700, letterSpacing: '-0.01em', color: '#0E1116' }}>{t('headlinePaymentPlan')}</span>
+              <span className="dk-badge">{paymentPlan.length}</span>
               {paymentPlan.length > 0 && (
-                <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
-                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                    {t('expectedLabel')} <strong style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{totalExpected.toLocaleString('hu-HU')} Ft</strong>
-                  </div>
-                  {totalPaid > 0 && (
-                    <div style={{ fontSize: '0.8rem', color: 'var(--success-text)' }}>
-                      {t('paidSummaryLabel')} <strong style={{ fontFamily: 'var(--font-mono)' }}>{totalPaid.toLocaleString('hu-HU')} Ft</strong>
-                    </div>
-                  )}
-                </div>
+                <span style={{ fontSize: 12, fontWeight: 600, color: '#5A5F68', display: 'flex', gap: 10 }}>
+                  <span>{t('expectedLabel')} <strong style={{ fontFamily: 'var(--font-mono)', color: '#0E1116' }}>{totalExpected.toLocaleString('hu-HU')} Ft</strong></span>
+                  {totalPaid > 0 && <span style={{ color: '#16a34a' }}>{t('paidSummaryLabel')} <strong style={{ fontFamily: 'var(--font-mono)' }}>{totalPaid.toLocaleString('hu-HU')} Ft</strong></span>}
+                </span>
               )}
-              {canManageProject && (
-                <button
-                  type="button"
-                  className="btn btn-primary btn-sm"
-                  style={{ marginLeft: 'auto' }}
-                  onClick={() => { setEditingPayment(null); setShowPaymentModal(true); }}
-                >
-                  <Plus size={15} /> {t('newItemBtn')}
+              <span style={{ flex: 1 }} />
+              {canManageProject && openSections.payment && (
+                <button type="button" className="dk-btn" style={{ height: 36, fontSize: 13, padding: '0 12px', flexShrink: 0, background: '#263248', color: '#fff' }} onClick={e => { e.stopPropagation(); setEditingPayment(null); setShowPaymentModal(true); }}>
+                  <Plus size={14} /> {t('newItemBtn')}
                 </button>
               )}
             </div>
 
-            {paymentPlan.length === 0 ? (
-              <section className="dk-card" style={{ padding: '2.5rem 1.5rem', textAlign: 'center' }}>
+            {openSections.payment && (paymentPlan.length === 0 ? (
+              <div style={{ padding: '2.5rem 1.5rem', textAlign: 'center', borderTop: '1px solid #EDEBE5' }}>
                 <Wallet size={28} style={{ margin: '0 auto 0.5rem', display: 'block', opacity: 0.4 }} />
                 <div style={{ fontWeight: 700, fontSize: 15, color: '#0E1116', marginBottom: 4 }}>{t('noPaymentPlanTitle')}</div>
                 <div style={{ fontSize: 13, color: '#5A5F68', marginBottom: 16 }}>{t('noPaymentPlanText')}</div>
@@ -1137,285 +1250,86 @@ export default function ProjectDetailClient({
                     <Plus size={15} /> {t('addFirstItemBtn')}
                   </button>
                 )}
-              </section>
-            ) : (
-              <>
-                <section className="dk-card" style={{ overflow: 'hidden' }}>
-                  <div className="dk-th" style={{ gridTemplateColumns: '1fr 160px 130px 110px' }}>
-                    <span>{t('thDesc')}</span>
-                    <span>{t('thSection')}</span>
-                    <span>{t('thAmount')}</span>
-                    <span>{t('asideStatusLabel')}</span>
-                  </div>
-                  {paymentPlan.map((item, idx) => {
-                    const isOverdue = item.status === 'pending' && item.due_date && item.due_date < today;
-                    const statusDisplay = isOverdue
-                      ? { labelKey: 'statusOverdue', bg: '#fef2f2', color: '#b91c1c' }
-                      : (STATUS_DISPLAY[item.status] || STATUS_DISPLAY.pending);
-                    const triggerDisplay = TRIGGER_DISPLAY[item.trigger_type] || TRIGGER_DISPLAY.milestone;
-                    const triggerText = item.trigger_type === 'milestone' && item.milestone_name
-                      ? item.milestone_name
-                      : item.trigger_type === 'date' && item.due_date
-                        ? new Date(item.due_date).toLocaleDateString('hu-HU', { month: 'short', day: 'numeric' })
-                        : t(triggerDisplay.labelKey);
-                    return (
-                      <button key={item.id} type="button"
-                        className="dk-tr dk-sr" style={{ display: 'grid', gridTemplateColumns: '1fr 160px 130px 110px', cursor: canManageProject ? 'pointer' : 'default' }}
-                        onClick={() => { if (canManageProject) { setEditingPayment(item); setShowPaymentModal(true); } }}
-                      >
-                        <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          <b>#{idx + 1} {item.label}</b>
-                        </span>
-                        <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: '#5A5F68', fontSize: 13 }}>
-                          {triggerText}
-                        </span>
-                        <span style={{ minWidth: 0 }}>
-                          <b>{Number(item.amount_huf).toLocaleString('hu-HU')} Ft</b>
-                        </span>
-                        <span style={{ minWidth: 0 }}>
-                          <span className="dk-badge" style={{ background: statusDisplay.bg || '#F0F0F2', color: statusDisplay.color || '#2B3038' }}>
-                            {t(statusDisplay.labelKey)}
-                          </span>
-                        </span>
-                      </button>
-                    );
-                  })}
-                </section>
-
-                {/* Total row */}
-                <div className="dk-card" style={{ padding: '12px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: '#5A5F68' }}>{t('totalLabel')}</span>
-                  <b style={{ fontSize: 15, color: '#0E1116' }}>{totalExpected.toLocaleString('hu-HU')} Ft</b>
-                </div>
-              </>
-            )}
-
-            <PaymentPlanModal
-              isOpen={showPaymentModal}
-              onClose={() => { setShowPaymentModal(false); setEditingPayment(null); }}
-              onSave={editingPayment
-                ? (fields) => handleUpdatePayment(editingPayment.id, fields)
-                : handleCreatePayment
-              }
-              editItem={editingPayment}
-              itemCount={paymentPlan.length}
-            />
-          </>
-        );
-      })()}
-
-      {activeTab === 'naplo' && (
-        <>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-            <button
-              type="button"
-              className="dk-btn dk-btn-g"
-              style={{ height: 40, fontSize: 13, padding: '0 14px' }}
-              onClick={() => {
-                const url = `${window.location.origin}/naplo/${project.id}`;
-                navigator.clipboard.writeText(url).then(() => {
-                  setToast(t('clientLinkCopied'));
-                  setTimeout(() => setToast(''), 2500);
-                });
-              }}
-            >
-              <Copy size={14} /> {t('clientLinkBtn')}
-            </button>
-            <button type="button" onClick={() => setShowQuickDiarySheet(true)} className="dk-btn dk-btn-w" style={{ height: 40, fontSize: 13, padding: '0 14px' }}>
-              <Plus size={15} /> {t('addNewEntryBtn')}
-            </button>
-          </div>
-
-          {diaryLoading ? (
-            <section className="dk-card" style={{ padding: '2rem', textAlign: 'center', color: '#5A5F68' }}>{t('loadingText')}</section>
-          ) : !diaryEntriesByProject[project.id] || diaryEntriesByProject[project.id].length === 0 ? (
-            <section className="dk-card" style={{ padding: '2.5rem 1.5rem', textAlign: 'center' }}>
-              <BookOpen size={28} style={{ margin: '0 auto 0.5rem', display: 'block', opacity: 0.4 }} />
-              <div style={{ fontWeight: 700, fontSize: 15, color: '#0E1116', marginBottom: 4 }}>{t('noDiaryTitle')}</div>
-              <div style={{ fontSize: 13, color: '#5A5F68', marginBottom: 16 }}>{t('noDiaryText')}</div>
-              <button type="button" onClick={() => setShowQuickDiarySheet(true)} className="dk-btn dk-btn-dark" style={{ height: 40, fontSize: 13, margin: '0 auto' }}>
-                <Plus size={15} /> {t('firstEntryBtn')}
-              </button>
-            </section>
-          ) : (
-            <section className="dk-card" style={{ overflow: 'hidden' }}>
-              {(diaryEntriesByProject[project.id] || []).map(entry => {
-                const entryDateStr = entry.entry_date
-                  ? new Date(entry.entry_date).toLocaleDateString('hu-HU', { year: 'numeric', month: 'long', day: 'numeric' })
-                  : null;
-                const author    = initialUsers.find(u => u.id === entry.created_by);
-                const entryRoom = projectRooms.find(r => r.id === entry.room_id);
-                return (
-                  <button key={entry.id} type="button" onClick={() => setDiaryDetailEntry(entry)}
-                    className="dk-tr dk-sr" style={{ display: 'grid', gridTemplateColumns: '56px 1fr auto', gap: 14, alignItems: 'center', cursor: 'pointer', padding: '10px 16px' }}>
-                    {/* Thumbnail placeholder */}
-                    <span style={{ width: 56, height: 56, borderRadius: 14, background: 'linear-gradient(135deg,#C9CFDB,#9AA3B5)', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      {entry.photos?.length > 0
-                        ? <Camera size={18} color="#fff" />
-                        : <BookOpen size={18} color="#fff" />
-                      }
-                    </span>
-                    {/* Content */}
-                    <span style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
-                      <b style={{ fontSize: 14, color: '#0E1116', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{entry.title}</b>
-                      <span className="dk-m">
-                        {entryDateStr || ''}
-                        {author?.display_name ? ` · ${author.display_name}` : ''}
-                        {entryRoom ? ` · ${entryRoom.name}` : ''}
-                        {entry.work_type ? ` · ${entry.work_type}` : ''}
-                      </span>
-                      {entry.body && (
-                        <span style={{ fontSize: 13, color: '#5A5F68', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {entry.body}
-                        </span>
-                      )}
-                    </span>
-                    {/* Badge */}
-                    <span className="dk-badge" style={entry.is_public
-                      ? { background: '#E7F4EC', color: '#14532D' }
-                      : { background: '#F0F0F2', color: '#2B3038' }
-                    }>
-                      {entry.is_public ? <><Eye size={11} /> {t('publicBadge')}</> : <><Lock size={11} /> {t('privateBadge')}</>}
-                    </span>
-                  </button>
-                );
-              })}
-            </section>
-          )}
-        </>
-      )}
-
-      {/* Labour tab — labour_entries + invoices with category 'labour' */}
-      {activeTab === 'labour' && (() => {
-        return (
-          <>
-            <input type="text" className="dk-input" placeholder={t('searchExpenses')} value={tabSearch} onChange={e => setTabSearch(e.target.value)} style={{ marginBottom: 12, height: 40 }} />
-            {(() => {
-        const q = tabSearch.trim().toLowerCase();
-        const labourInvoices = fin.projectInvoices.filter(inv =>
-          inv.category === 'labour' &&
-          (!q || inv.description?.toLowerCase().includes(q))
-        );
-        const labourEntries = fin.projectLabour.filter(le =>
-          !q || (le.labour_type || le.description || '').toLowerCase().includes(q)
-        );
-        const hasAny = labourEntries.length > 0 || labourInvoices.length > 0;
-        const cols = activeCollectiveId ? '90px 1fr 110px 90px 100px 90px' : '90px 1fr 110px 90px 90px';
-        return (
-          <section className="dk-card" style={{ overflow: 'hidden', marginTop: 12 }}>
-            <div className="dk-th" style={{ gridTemplateColumns: cols }}>
-              <span>{t('thCategory')}</span>
-              <span>{t('thDesc')}</span>
-              <span>{t('thSection')}</span>
-              <span>{t('thType')}</span>
-              {activeCollectiveId && <span>{t('thUploader')}</span>}
-              <span>{t('thAmount')}</span>
-            </div>
-            {!hasAny ? (
-              <div style={{ textAlign: 'center', padding: '2rem', color: '#5A5F68' }}>
-                <Hammer size={28} style={{ margin: '0 auto 0.5rem', display: 'block', opacity: 0.4 }} aria-hidden="true" />
-                <div style={{ fontWeight: 700, fontSize: 15, color: '#0E1116', marginBottom: 4 }}>{t('noExpensesTitle')}</div>
               </div>
             ) : (
               <>
-                {/* Labour entries (hours × rate) */}
-                {labourEntries.map(le => {
-                  const hours = Number(le.hours || 0);
-                  const rate  = Number(le.unit_price || le.hourly_rate || 0);
-                  const qty   = `${hours} ${le.unit || 'h'}${rate ? ` × ${fmtMoney(rate)}` : ''}`;
-                  const uploaderLabel = le.uploaded_by === currentUser?.id ? t('youSuffix') : (initialUsers.find(u => u.id === le.uploaded_by)?.display_name || '—');
-                  const room = projectRooms.find(r => r.id === le.room_id);
+                <div className="dk-th" style={{ gridTemplateColumns: '1fr 160px 130px 110px', borderTop: '1px solid #EDEBE5' }}>
+                  <span>{t('thDesc')}</span><span>{t('thSection')}</span><span>{t('thAmount')}</span><span>{t('asideStatusLabel')}</span>
+                </div>
+                {paymentPlan.map((item, idx) => {
+                  const isOverdue = item.status === 'pending' && item.due_date && item.due_date < today;
+                  const statusDisplay = isOverdue ? { labelKey: 'statusOverdue', bg: '#fef2f2', color: '#b91c1c' } : (STATUS_DISPLAY[item.status] || STATUS_DISPLAY.pending);
+                  const triggerDisplay = TRIGGER_DISPLAY[item.trigger_type] || TRIGGER_DISPLAY.milestone;
+                  const triggerText = item.trigger_type === 'milestone' && item.milestone_name ? item.milestone_name
+                    : item.trigger_type === 'date' && item.due_date ? new Date(item.due_date).toLocaleDateString('hu-HU', { month: 'short', day: 'numeric' })
+                    : t(triggerDisplay.labelKey);
                   return (
-                    <div key={le.id} className="dk-tr" style={{ display: 'grid', gridTemplateColumns: cols }}>
-                      <span style={{ minWidth: 0 }}><span className="dk-badge">{catLabel('labour')}</span></span>
-                      <span style={{ minWidth: 0, display: 'flex', alignItems: 'center', gap: 8, overflow: 'hidden' }}>
-                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, minWidth: 0 }}>
-                          <b>{le.labour_type || le.description || '—'}</b>
-                          {qty ? <span style={{ color: '#5A5F68', fontWeight: 400, marginLeft: 6 }}>{qty}</span> : null}
-                        </span>
-                      </span>
-                      <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 13, color: '#5A5F68' }}>
-                        {room?.name || t('general')}
-                      </span>
+                    <button key={item.id} type="button"
+                      className="dk-tr dk-sr" style={{ display: 'grid', gridTemplateColumns: '1fr 160px 130px 110px', cursor: canManageProject ? 'pointer' : 'default' }}
+                      onClick={() => { if (canManageProject) { setEditingPayment(item); setShowPaymentModal(true); } }}
+                    >
+                      <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}><b>#{idx + 1} {item.label}</b></span>
+                      <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: '#5A5F68', fontSize: 13 }}>{triggerText}</span>
+                      <span style={{ minWidth: 0 }}><b>{Number(item.amount_huf).toLocaleString('hu-HU')} Ft</b></span>
                       <span style={{ minWidth: 0 }}>
-                        <span className="dk-badge">{t('typeManual')}</span>
-                      </span>
-                      {activeCollectiveId && (
-                        <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 13 }}>
-                          {uploaderLabel}
-                        </span>
-                      )}
-                      <span style={{ minWidth: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <span style={{ flexShrink: 0, height: 24, padding: '0 10px', borderRadius: 12, background: 'var(--dk-c, #263248)', color: '#fff', fontSize: 12, fontWeight: 700, display: 'inline-flex', alignItems: 'center', fontFamily: 'var(--font-mono)', whiteSpace: 'nowrap' }}>
-                          {fmtMoney(Number(le.value_huf || 0))}
-                        </span>
-                        {(canManageProject || le.uploaded_by === currentUser?.id) && (
-                          <button type="button" onClick={() => setEditingLabour(le)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#8A8F98', padding: 2, display: 'flex', flexShrink: 0 }}>
-                            <PencilLine size={15} aria-hidden="true" />
-                          </button>
-                        )}
-                      </span>
-                    </div>
-                  );
-                })}
-                {/* Labour-categorised invoices (flat amount) */}
-                {labourInvoices.map(inv => {
-                  const uploaderLabel = inv.uploaded_by === currentUser?.id ? t('youSuffix') : (initialUsers.find(u => u.id === inv.uploaded_by)?.display_name || '—');
-                  const room = projectRooms.find(r => r.id === inv.room_id);
-                  return (
-                    <button key={inv.id} type="button" className="dk-tr dk-sr" style={{ display: 'grid', gridTemplateColumns: cols, cursor: 'pointer' }} onClick={() => setDetailInvoice(inv)}>
-                      <span style={{ minWidth: 0 }}><span className="dk-badge">{catLabel('labour')}</span></span>
-                      <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        <b>{inv.description || '—'}</b>
-                      </span>
-                      <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 13, color: '#5A5F68' }}>
-                        {room?.name || t('general')}
-                      </span>
-                      <span style={{ minWidth: 0 }}>
-                        <span className="dk-badge" style={{ background: '#E7F4EC', color: '#14532D' }}>{t('typeInvoice')}</span>
-                      </span>
-                      {activeCollectiveId && (
-                        <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 13 }}>
-                          {uploaderLabel}
-                        </span>
-                      )}
-                      <span style={{ minWidth: 0 }}>
-                        <span style={{ flexShrink: 0, height: 24, padding: '0 10px', borderRadius: 12, background: 'var(--dk-c, #263248)', color: '#fff', fontSize: 12, fontWeight: 700, display: 'inline-flex', alignItems: 'center', fontFamily: 'var(--font-mono)', whiteSpace: 'nowrap' }}>
-                          {fmtMoney(Number(inv.value_huf || 0))}
+                        <span className="dk-badge" style={{ background: statusDisplay.bg || '#F0F0F2', color: statusDisplay.color || '#2B3038' }}>
+                          {t(statusDisplay.labelKey)}
                         </span>
                       </span>
                     </button>
                   );
                 })}
+                <div style={{ padding: '12px 18px', borderTop: '1px solid #EDEBE5', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: '#5A5F68' }}>{t('totalLabel')}</span>
+                  <b style={{ fontSize: 15, color: '#0E1116' }}>{totalExpected.toLocaleString('hu-HU')} Ft</b>
+                </div>
               </>
-            )}
-          </section>
+            ))}
+
+            <PaymentPlanModal
+              isOpen={showPaymentModal}
+              onClose={() => { setShowPaymentModal(false); setEditingPayment(null); }}
+              onSave={editingPayment ? (fields) => handleUpdatePayment(editingPayment.id, fields) : handleCreatePayment}
+              editItem={editingPayment}
+              itemCount={paymentPlan.length}
+            />
+          </div>
         );
       })()}
-          </>
-        );
-      })()}
 
-      {/* Portal tab */}
-      {activeTab === 'portal' && (
-        <PortalShareSection
-          project={project}
-          invoices={liveInvoices}
-          labourEntries={liveLabour}
-          diaryEntries={diaryEntriesByProject[project.id] || []}
-          canManage={canManageProject}
-        />
-      )}
-
-      {/* Collective team discussion (US-MSG-022) */}
-      {project.collective_id && !isDemoMode && (
-        <CollectiveChatSection
-          collectiveId={project.collective_id}
-          projectId={project.id}
-        />
-      )}
-
+      {/* ══════════════════════════════════════════════
+          PORTÁL POD — single unified card
+          ══════════════════════════════════════════════ */}
+      <div className="dk-card" style={{ overflow: 'hidden' }}>
+        {/* Header row — full row is the toggle (no actions for portal) */}
+        <div
+          style={{ padding: '0 18px', display: 'flex', alignItems: 'center', gap: 8, minHeight: 56, cursor: 'pointer', userSelect: 'none' }}
+          role="button" tabIndex={0}
+          onClick={() => toggleSection('portal')}
+          onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') toggleSection('portal'); }}
+        >
+          <ChevronDown size={18} color="#5A5F68" aria-hidden="true" style={{ flexShrink: 0, transform: openSections.portal ? 'rotate(0deg)' : 'rotate(-90deg)', transition: 'transform 0.15s ease' }} />
+          <span style={{ fontFamily: 'var(--font-heading, "Bricolage Grotesque", sans-serif)', fontSize: 16, fontWeight: 700, letterSpacing: '-0.01em', color: '#0E1116' }}>{t('headlinePortal')}</span>
+        </div>
+        {openSections.portal && (
+          <div style={{ borderTop: '1px solid #EDEBE5' }}>
+            <PortalShareSection
+              project={project}
+              invoices={liveInvoices}
+              labourEntries={liveLabour}
+              diaryEntries={diaryEntriesByProject[project.id] || []}
+              canManage={canManageProject}
+            />
+          </div>
+        )}
       </div>
+
+      {/* Collective team discussion */}
+      {project.collective_id && !isDemoMode && (
+        <CollectiveChatSection collectiveId={project.collective_id} projectId={project.id} />
+      )}
+
+      </div>{/* end pods container */}
 
               </div>
 
@@ -1540,21 +1454,6 @@ export default function ProjectDetailClient({
         onCreateClient={async (fields) => createClient(fields)}
       />
       <RoomModal isOpen={roomModalOpen} onClose={() => setRoomModalOpen(false)} room={editingRoom} onSave={handleSaveRoom} canEdit={canManageProject} onDelete={editingRoom && canManageProject ? () => { setRoomModalOpen(false); handleDeleteRoom(editingRoom); } : undefined} />
-      {diaryDetailEntry && (
-        <DiaryDetailSheet
-          entry={diaryEntriesByProject[project.id]?.find(e => e.id === diaryDetailEntry.id) ?? diaryDetailEntry}
-          author={initialUsers.find(u => u.id === diaryDetailEntry.created_by)}
-          room={projectRooms.find(r => r.id === diaryDetailEntry.room_id)}
-          canManage={canManageProject || diaryDetailEntry.created_by === currentUser?.id}
-          onClose={() => setDiaryDetailEntry(null)}
-          onDelete={() => setConfirmModal({ message: t('deleteDiaryConfirm'), onConfirm: async () => { try { await ctxDeleteDiaryEntry(diaryDetailEntry.id, project.id); setDiaryDetailEntry(null); } catch (err) { setAlertModal({ message: err.message || t('deleteError') }); } } })}
-          onTogglePublic={async () => {
-            try { await ctxUpdateDiaryEntry(diaryDetailEntry.id, { title: diaryDetailEntry.title, body: diaryDetailEntry.body, work_type: diaryDetailEntry.work_type, internal_note: diaryDetailEntry.internal_note, client_note: diaryDetailEntry.client_note, entry_date: diaryDetailEntry.entry_date, is_public: !diaryDetailEntry.is_public }); }
-            catch (err) { setAlertModal({ message: err.message }); }
-          }}
-          editHref={`${navPrefix}/projektek/${project.id}/naplo/${diaryDetailEntry.id}`}
-        />
-      )}
       <ConfirmModal isOpen={!!confirmModal} onClose={() => setConfirmModal(null)} onConfirm={() => confirmModal?.onConfirm()} title={t('confirmTitle')} message={confirmModal?.message} />
       <AlertModal isOpen={!!alertModal} onClose={() => setAlertModal(null)} message={alertModal?.message} />
 
@@ -1705,21 +1604,21 @@ export default function ProjectDetailClient({
         isOpen={!!editingDiaryEntry}
         onClose={() => setEditingDiaryEntry(null)}
         rooms={projectRooms}
+        canEdit={!!(editingDiaryEntry && (canManageProject || editingDiaryEntry.created_by === currentUser?.id))}
         entry={editingDiaryEntry
           ? (diaryEntriesByProject[project.id]?.find(e => e.id === editingDiaryEntry.id) ?? editingDiaryEntry)
           : null
         }
-        onSave={async (id, fields) => {
-          await ctxUpdateDiaryEntry(id, fields);
-        }}
+        onSave={async (id, fields) => { await ctxUpdateDiaryEntry(id, fields); }}
         onAddPhotos={async (files) => {
           const uploaded = await uploadDiaryPhotos(project.id, files);
-          const addPhotoIds = uploaded.map(p => p.id);
-          await ctxUpdateDiaryEntry(editingDiaryEntry.id, { add_photo_ids: addPhotoIds });
+          await ctxUpdateDiaryEntry(editingDiaryEntry.id, { add_photo_ids: uploaded.map(p => p.id) });
         }}
-        onDeletePhoto={async (photoId) => {
-          await ctxDeleteDiaryPhoto(photoId, project.id);
-        }}
+        onDeletePhoto={async (photoId) => { await ctxDeleteDiaryPhoto(photoId, project.id); }}
+        onDelete={editingDiaryEntry && (canManageProject || editingDiaryEntry.created_by === currentUser?.id)
+          ? () => setConfirmModal({ message: t('deleteDiaryConfirm'), onConfirm: async () => { try { await ctxDeleteDiaryEntry(editingDiaryEntry.id, project.id); setEditingDiaryEntry(null); } catch (err) { setAlertModal({ message: err.message || t('deleteError') }); } } })
+          : undefined
+        }
       />
 
       {/* Invoice detail drawer */}
@@ -1840,7 +1739,7 @@ export default function ProjectDetailClient({
       <button
         type="button"
         className="show-mobile"
-        onClick={() => activeTab === 'naplo' ? setShowQuickDiarySheet(true) : setShowQuickCostSheet(true)}
+        onClick={() => setShowQuickCostSheet(true)}
         aria-label={t('addEntryAria')}
         style={{
           position: 'fixed',
