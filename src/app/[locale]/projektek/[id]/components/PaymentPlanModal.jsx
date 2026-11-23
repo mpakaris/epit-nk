@@ -19,7 +19,7 @@ export default function PaymentPlanModal({
   editItem,
   onSave,           // (fields, file) => Promise — file may be null
   onSend,           // (toEmail) => Promise
-  onMarkPaid,       // () => Promise
+  onStatusChange,   // (newStatus) => Promise
   onDelete,         // () => void
   clientEmail,
 }) {
@@ -29,7 +29,9 @@ export default function PaymentPlanModal({
   const [amount,   setAmount]   = useState('');
   const [dueDate,  setDueDate]  = useState('');
   const [note,     setNote]     = useState('');
-  const [file,     setFile]     = useState(null);  // new file (create/replace)
+  const [file,          setFile]          = useState(null);
+  const [currentStatus, setCurrentStatus] = useState('pending');
+  const [changingStatus, setChangingStatus] = useState(false);
   const [saving,   setSaving]   = useState(false);
   const [sending,  setSending]  = useState(false);
   const [marking,  setMarking]  = useState(false);
@@ -48,8 +50,9 @@ export default function PaymentPlanModal({
   useEffect(() => {
     if (!isOpen) return;
     setError(''); setSaving(false); setSending(false); setMarking(false);
-    setShowSend(false); setFile(null); setSaveStatus('idle');
+    setShowSend(false); setFile(null); setSaveStatus('idle'); setChangingStatus(false);
     if (editItem) {
+      setCurrentStatus(editItem.status || 'pending');
       setLabel(editItem.label || '');
       setAmount(editItem.amount_huf?.toString() || '');
       setDueDate(editItem.due_date || '');
@@ -126,15 +129,17 @@ export default function PaymentPlanModal({
     }
   };
 
-  const handleMarkPaid = async () => {
-    setMarking(true);
+  const handleStatusChange = async (newStatus) => {
+    if (newStatus === currentStatus || changingStatus) return;
+    setChangingStatus(true);
     setError('');
     try {
-      await onMarkPaid();
-      onClose();
+      await onStatusChange(newStatus);
+      setCurrentStatus(newStatus);
     } catch (e) {
       setError(e.message || t('saveError'));
-      setMarking(false);
+    } finally {
+      setChangingStatus(false);
     }
   };
 
@@ -154,12 +159,18 @@ export default function PaymentPlanModal({
         </div>
       )}
 
-      {/* Status badge — edit mode only */}
+      {/* Status picker — edit mode only */}
       {editItem && (
-        <div style={{ marginBottom: 16 }}>
-          <span className="dk-badge" style={{ background: statusInfo.bg, color: statusInfo.color }}>
-            {t(statusInfo.labelKey)}
-          </span>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 16 }}>
+          {Object.entries(STATUS_DISPLAY).map(([key, s]) => {
+            const isActive = currentStatus === key;
+            return (
+              <button key={key} type="button" disabled={changingStatus} onClick={() => handleStatusChange(key)}
+                style={{ height: 32, padding: '0 14px', borderRadius: 16, border: `1.5px solid ${isActive ? s.color : '#EDEBE5'}`, background: isActive ? s.bg : '#fff', color: isActive ? s.color : '#5A5F68', fontSize: 12, fontWeight: 700, cursor: changingStatus ? 'default' : 'pointer', opacity: changingStatus && !isActive ? 0.5 : 1, transition: 'all 0.12s' }}>
+                {t(s.labelKey)}
+              </button>
+            );
+          })}
         </div>
       )}
 
@@ -224,14 +235,9 @@ export default function PaymentPlanModal({
                 <Trash2 size={13} /> {t('deletePaymentItem')}
               </button>
             )}
-            {editItem && editItem.status !== 'paid' && (
+            {editItem && onSend && (
               <button type="button" className="dk-btn dk-btn-l" style={{ fontSize: 13 }} onClick={() => setShowSend(true)}>
                 <Send size={13} /> {t('sendInvoice')}
-              </button>
-            )}
-            {editItem && editItem.status === 'sent' && (
-              <button type="button" className="dk-btn dk-btn-l" style={{ fontSize: 13 }} disabled={marking} onClick={handleMarkPaid}>
-                {marking ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />} {t('markPaid')}
               </button>
             )}
             {!editItem && (

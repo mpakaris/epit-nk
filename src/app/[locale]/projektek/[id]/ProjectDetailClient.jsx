@@ -1210,8 +1210,6 @@ export default function ProjectDetailClient({
           KISZÁMLÁZÁS POD — single unified card
           ══════════════════════════════════════════════ */}
       {(() => {
-        const totalExpected = paymentPlan.reduce((s, i) => s + Number(i.amount_huf || 0), 0);
-        const totalPaid     = paymentPlan.filter(i => i.status === 'paid').reduce((s, i) => s + Number(i.amount_huf || 0), 0);
         return (
           <div className="dk-card" style={{ overflow: 'hidden' }}>
             {/* Header row — full row is the toggle */}
@@ -1224,12 +1222,6 @@ export default function ProjectDetailClient({
               <ChevronDown size={18} color="#5A5F68" aria-hidden="true" style={{ flexShrink: 0, transform: openSections.payment ? 'rotate(0deg)' : 'rotate(-90deg)', transition: 'transform 0.15s ease' }} />
               <span style={{ fontFamily: 'var(--font-heading, "Bricolage Grotesque", sans-serif)', fontSize: 16, fontWeight: 700, letterSpacing: '-0.01em', color: '#0E1116' }}>{t('sectionPayments')}</span>
               <span className="dk-badge">{paymentPlan.length}</span>
-              {paymentPlan.length > 0 && (
-                <span style={{ fontSize: 12, fontWeight: 600, color: '#5A5F68', display: 'flex', gap: 10 }}>
-                  <span>{t('expectedLabel')} <strong style={{ fontFamily: 'var(--font-mono)', color: '#0E1116' }}>{fmtMoney(totalExpected)}</strong></span>
-                  {totalPaid > 0 && <span style={{ color: '#16a34a' }}>{t('paidSummaryLabel')} <strong style={{ fontFamily: 'var(--font-mono)' }}>{fmtMoney(totalPaid)}</strong></span>}
-                </span>
-              )}
               <span style={{ flex: 1 }} />
               {canManageProject && openSections.payment && (
                 <button type="button" className="dk-btn" style={{ height: 36, fontSize: 13, padding: '0 12px', flexShrink: 0, background: '#263248', color: '#fff' }} onClick={e => { e.stopPropagation(); setEditingPayment(null); setShowPaymentModal(true); }}>
@@ -1271,7 +1263,11 @@ export default function ProjectDetailClient({
                       <span style={{ minWidth: 0, display: 'flex', alignItems: 'center' }}>
                         {hasFile && <FileText size={13} color="#16a34a" aria-label="Fájl csatolva" />}
                       </span>
-                      <span style={{ minWidth: 0 }}><b>{fmtMoney(Number(item.amount_huf))}</b></span>
+                      <span style={{ minWidth: 0 }}>
+                        <span style={{ height: 24, padding: '0 10px', borderRadius: 12, background: '#263248', color: '#fff', fontSize: 12, fontWeight: 700, display: 'inline-flex', alignItems: 'center', fontFamily: 'var(--font-mono)', whiteSpace: 'nowrap' }}>
+                          {fmtMoney(Number(item.amount_huf))}
+                        </span>
+                      </span>
                       <span style={{ minWidth: 0 }}>
                         <span className="dk-badge" style={{ background: statusDisplay.bg, color: statusDisplay.color }}>
                           {t(statusDisplay.labelKey)}
@@ -1280,10 +1276,6 @@ export default function ProjectDetailClient({
                     </button>
                   );
                 })}
-                <div style={{ padding: '12px 18px', borderTop: '1px solid #EDEBE5', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: '#5A5F68' }}>{t('totalLabel')}</span>
-                  <b style={{ fontSize: 15, color: '#0E1116' }}>{fmtMoney(totalExpected)}</b>
-                </div>
               </>
             ))}
 
@@ -1319,10 +1311,9 @@ export default function ProjectDetailClient({
                 setToast(t('invoiceSentSuccess'));
                 setTimeout(() => setToast(''), 3000);
               }}
-              onMarkPaid={async () => {
-                await handleUpdatePayment(editingPayment.id, { status: 'paid' });
-                setToast(t('markedPaid'));
-                setTimeout(() => setToast(''), 2500);
+              onStatusChange={async (newStatus) => {
+                await handleUpdatePayment(editingPayment.id, { status: newStatus });
+                setPaymentPlan(prev => prev.map(i => i.id === editingPayment.id ? { ...i, status: newStatus } : i));
               }}
               onDelete={() => handleDeletePayment(editingPayment)}
             />
