@@ -1148,13 +1148,6 @@ export default function OfferDetailDesktop() {
                       </button>
                     )}
 
-                    {/* Client portal link */}
-                    {quote.status !== 'draft' && quote.status !== 'rejected' && client && (
-                      <button className="dk-btn dk-btn-l" onClick={() => { const url = `${window.location.origin}/portal${client.email ? `?email=${encodeURIComponent(client.email)}` : ''}`; navigator.clipboard.writeText(url).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000); }); }} style={{ width: '100%', justifyContent: 'flex-start' }}>
-                        {copied ? <><CheckCircle2 size={16} /> {t('copied')}</> : <><ExternalLink size={16} /> {t('copyLink')}</>}
-                      </button>
-                    )}
-
                     {/* History */}
                     <button className="dk-btn dk-btn-l" onClick={openHistory} style={{ width: '100%', justifyContent: 'flex-start' }}>
                       <MessageSquare size={16} /> {t('actionHistory')}
@@ -1741,37 +1734,73 @@ export default function OfferDetailDesktop() {
           <div style={{ textAlign: 'center', padding: '2rem 0', color: 'var(--text-muted)', fontSize: '0.875rem' }}>{t('historyEmpty')}</div>
         ) : (
           <div style={{ maxHeight: '60vh', overflowY: 'auto' }}>
-            {history.map((entry, idx) => {
-              const a = entry.action || '';
-              const isCreate = a.includes('létrehozva'); const isSent = a.includes('elküldve');
-              const isAccepted = a.includes('elfogadva'); const isRejected = a.includes('Elutasítva') || a.includes('rejected');
-              const isDeleted = a.includes('törölve'); const isPdf = a.includes('PDF');
-              const isDraft = a.includes('draft') || a.includes('Tervezet'); const isEdit = a.includes('módosítva') && !a.includes('Státusz');
-              const iconColor = isCreate ? '#16a34a' : isAccepted ? '#16a34a' : isRejected ? '#ef4444' : isDeleted ? '#ef4444' : isSent ? '#2563eb' : isPdf ? '#475569' : isDraft ? '#94a3b8' : isEdit ? '#d97706' : '#2563eb';
-              const iconBg = isCreate ? '#f0fdf4' : isAccepted ? '#f0fdf4' : isRejected ? '#fff1f2' : isDeleted ? '#fff1f2' : isSent ? '#eff6ff' : isPdf ? '#f1f5f9' : isDraft ? '#f8fafc' : isEdit ? '#fffbeb' : '#eff6ff';
-              const Icon = isCreate ? Plus : isAccepted ? CheckCircle2 : isRejected ? XCircle : isDeleted ? Trash2 : isSent ? Send : isPdf ? Printer : isDraft ? RotateCcw : isEdit ? Edit3 : MessageSquare;
-              const sub = [];
-              if (entry.user_name) sub.push(entry.user_name);
-              if (entry.details?.to) sub.push(`→ ${entry.details.to}`);
-              if (entry.details?.project_name) sub.push(`${t('historyProject')} ${entry.details.project_name}`);
-              if (entry.details?.work_description) sub.push(entry.details.work_description);
-              if (entry.details?.amount_huf) sub.push(fmt(entry.details.amount_huf));
-              if (entry.details?.name) sub.push(`„${entry.details.name}"`);
-              if (entry.details?.changed_fields?.length) sub.push(entry.details.changed_fields.join(', '));
-              return (
-                <div key={entry.id} style={{ display: 'flex', gap: '0.85rem', padding: '0.75rem 0', borderBottom: idx < history.length - 1 ? '1px solid var(--border-subtle)' : 'none', alignItems: 'flex-start' }}>
-                  <div style={{ width: 34, height: 34, borderRadius: '50%', background: iconBg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 2 }}><Icon size={15} color={iconColor} strokeWidth={2} /></div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontWeight: 600, fontSize: '0.875rem', color: 'var(--text-primary)', marginBottom: '0.15rem' }}>{entry.action}</div>
-                    {sub.length > 0 && <div style={{ fontSize: '0.775rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>{sub.join(' · ')}</div>}
+            {(() => {
+              const FIELD_LABELS = {
+                title: t('histFieldTitle'), location: t('histFieldLocation'),
+                work_type: t('histFieldWorkType'), description: t('histFieldDescription'),
+                start_date: t('histFieldStartDate'), end_date: t('histFieldEndDate'),
+                client_id: t('histFieldClient'), tax_percent: t('histFieldTax'),
+                offer_number: t('histFieldOfferNumber'), valid_until: t('histFieldValidUntil'),
+                offer_terms_text: t('histFieldTerms'), payment_deadline_days: t('histFieldPaymentDays'),
+                payment_method: t('histFieldPaymentMethod'), deposit_percent: t('histFieldDeposit'),
+                warranty_months: t('histFieldWarranty'),
+              };
+              const ACTION_LABELS = {
+                'quote.created':        t('histActionCreated'),
+                'quote.edited':         t('histActionEdited'),
+                'quote.status_changed': t('histActionStatusChanged'),
+                'quote.sent':           t('histActionSent'),
+                'quote.deleted':        t('histActionDeleted'),
+                'Quote terms uploaded': t('histActionTermsUploaded'),
+                'Quote terms removed':  t('histActionTermsRemoved'),
+              };
+              const statusLabel = (s) => ({ sent: t('statusSent'), accepted: t('statusAccepted'), rejected: t('statusRejected'), draft: t('statusDraft') })[s] || s;
+
+              return history.map((entry, idx) => {
+                const code = entry.action || '';
+                const displayAction = ACTION_LABELS[code] || entry.action;
+
+                const isCreate   = code === 'quote.created'   || code.includes('létrehozva');
+                const isSent     = code === 'quote.sent'      || code.includes('elküldve');
+                const isStatus   = code === 'quote.status_changed';
+                const isAccepted = isStatus && entry.details?.status === 'accepted' || code.includes('elfogadva');
+                const isRejected = isStatus && entry.details?.status === 'rejected' || code.includes('Elutasítva') || code.includes('rejected');
+                const isDraft    = isStatus && entry.details?.status === 'draft'    || code.includes('Tervezet');
+                const isDeleted  = code === 'quote.deleted'   || code.includes('törölve');
+                const isPdf      = code.includes('PDF') || code.includes('terms');
+                const isEdit     = code === 'quote.edited'    || (code.includes('módosítva') && !code.includes('Státusz'));
+
+                const iconColor = isCreate ? '#16a34a' : isAccepted ? '#16a34a' : isRejected ? '#ef4444' : isDeleted ? '#ef4444' : isSent ? '#2563eb' : isPdf ? '#475569' : isDraft ? '#94a3b8' : isEdit ? '#d97706' : '#2563eb';
+                const iconBg    = isCreate ? '#f0fdf4' : isAccepted ? '#f0fdf4' : isRejected ? '#fff1f2' : isDeleted ? '#fff1f2' : isSent ? '#eff6ff' : isPdf ? '#f1f5f9' : isDraft ? '#f8fafc' : isEdit ? '#fffbeb' : '#eff6ff';
+                const Icon = isCreate ? Plus : isAccepted ? CheckCircle2 : isRejected ? XCircle : isDeleted ? Trash2 : isSent ? Send : isPdf ? Printer : isDraft ? RotateCcw : isEdit ? Edit3 : MessageSquare;
+
+                const sub = [];
+                if (entry.user_name) sub.push(entry.user_name);
+                if (entry.details?.status) sub.push(statusLabel(entry.details.status));
+                if (entry.details?.to) sub.push(`→ ${entry.details.to}`);
+                if (entry.details?.project_name) sub.push(`${t('historyProject')} ${entry.details.project_name}`);
+                if (entry.details?.work_description) sub.push(entry.details.work_description);
+                if (entry.details?.amount_huf) sub.push(fmt(entry.details.amount_huf));
+                if (entry.details?.name) sub.push(`„${entry.details.name}"`);
+                if (entry.details?.filename) sub.push(entry.details.filename);
+                if (entry.details?.changed_fields?.length) sub.push(entry.details.changed_fields.map(f => FIELD_LABELS[f] || f).join(', '));
+
+                return (
+                  <div key={entry.id} style={{ display: 'flex', gap: '0.85rem', padding: '0.75rem 0', borderBottom: idx < history.length - 1 ? '1px solid var(--border-subtle)' : 'none', alignItems: 'flex-start' }}>
+                    <div style={{ width: 34, height: 34, borderRadius: '50%', background: iconBg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 2 }}><Icon size={15} color={iconColor} strokeWidth={2} /></div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontWeight: 600, fontSize: '0.875rem', color: 'var(--text-primary)', marginBottom: '0.15rem' }}>{displayAction}</div>
+                      {sub.length > 0 && <div style={{ fontSize: '0.775rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>{sub.join(' · ')}</div>}
+                    </div>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', flexShrink: 0, textAlign: 'right', marginTop: 2 }}>
+                      <div style={{ fontSize: '0.68rem', fontWeight: 700, color: '#8A8F98', marginBottom: 2 }}>#{idx + 1}</div>
+                      {formatDate(entry.created_at)}<br />
+                      <span style={{ fontSize: '0.68rem' }}>{new Date(entry.created_at).toLocaleTimeString('hu-HU', { hour: '2-digit', minute: '2-digit' })}</span>
+                    </div>
                   </div>
-                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', flexShrink: 0, textAlign: 'right', marginTop: 2 }}>
-                    {formatDate(entry.created_at)}<br />
-                    <span style={{ fontSize: '0.68rem' }}>{new Date(entry.created_at).toLocaleTimeString('hu-HU', { hour: '2-digit', minute: '2-digit' })}</span>
-                  </div>
-                </div>
-              );
-            })}
+                );
+              });
+            })()}
             {history.length < historyTotal && (
               <div style={{ paddingTop: '0.75rem', textAlign: 'center' }}>
                 <button type="button" onClick={loadMoreHistory} disabled={historyLoadingMore} className="btn btn-secondary btn-sm">
