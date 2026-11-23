@@ -101,7 +101,10 @@
     "personalWorkspace": "Persönlicher Arbeitsbereich",
     "collectiveWorkspace": "{name} Arbeitsbereich",
     "surveysSection": "Aufmaße",
-    "quotesSection": "Angebote"
+    "quotesSection": "Angebote",
+    "calendarSection": "Kalender · Nächste 2 Wochen",
+    "nextWeekLabel": "Nächste Woche",
+    "thisWeekLabel": "Diese Woche"
   },
   "sidebar": {
     "expand": "Ausklappen",

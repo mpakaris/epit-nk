@@ -8,6 +8,7 @@ import { useApp } from '@/context/AppContext';
 import { formatMoney, formatDate } from '@/lib/constants';
 import { PERSONAL_COLOR, podColor } from '@/lib/podColor';
 import Modal from '@/components/Modal';
+import DashboardWeekCalendar from './DashboardWeekCalendar';
 import {
   Bell, Plus, X,
   Ruler, FileText, FolderKanban,
@@ -384,6 +385,9 @@ export default function DashboardDesktop({
             <StatCard label={t('statInvoices')}       value={activeInvoices.length}  sub={t('statInvoicesSub')} />
           </div>
         )}
+
+        {/* Calendar widget — current + next week */}
+        <DashboardWeekCalendar navPrefix={navPrefix} />
 
         {/* Bottom: 3-col preview grid */}
         <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>

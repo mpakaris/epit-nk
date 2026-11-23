@@ -101,7 +101,10 @@
     "personalWorkspace": "Personal workspace",
     "collectiveWorkspace": "{name} workspace",
     "surveysSection": "Surveys",
-    "quotesSection": "Quotes"
+    "quotesSection": "Quotes",
+    "calendarSection": "Calendar · Next 2 weeks",
+    "nextWeekLabel": "Next week",
+    "thisWeekLabel": "This week"
   },
   "sidebar": {
     "expand": "Expand",

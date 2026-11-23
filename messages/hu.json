@@ -1806,7 +1806,10 @@
     "personalWorkspace": "Személyes munkafelület",
     "collectiveWorkspace": "{name} munkafelület",
     "surveysSection": "Felmérések",
-    "quotesSection": "Ajánlatok"
+    "quotesSection": "Ajánlatok",
+    "calendarSection": "Naptár · Következő 2 hét",
+    "nextWeekLabel": "Következő hét",
+    "thisWeekLabel": "Ez a hét"
   },
   "mobile": {
     "floatingNav": {
