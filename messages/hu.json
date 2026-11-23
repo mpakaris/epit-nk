@@ -1019,6 +1019,7 @@
     "appointmentRecorded": "Időpont rögzítve!",
     "docCreatedMsg": "{typeLabel} \"{docName}\" létrehozva és elmentve.",
     "appointmentTitle": "Időpont",
+    "editAppointment": "Időpont szerkesztése",
     "linkedDocDeleted": "A kapcsolt {label} törölve lett.",
     "recreatePrompt": "Létrehozzuk újra a(z) \"{title}\" dokumentumot és összekapcsoljuk?",
     "recreateBtn": "Igen, új {label} →",

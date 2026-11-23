@@ -1089,6 +1089,7 @@
     "appointmentRecorded": "Appointment saved!",
     "docCreatedMsg": "{typeLabel} \"{docName}\" created and saved.",
     "appointmentTitle": "Appointment",
+    "editAppointment": "Edit Appointment",
     "linkedDocDeleted": "The linked {label} has been deleted.",
     "recreatePrompt": "Re-create the \"{title}\" document and link it?",
     "recreateBtn": "Yes, new {label} →",

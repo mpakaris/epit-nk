@@ -11,14 +11,15 @@ function todayStr() {
   return new Date().toISOString().split('T')[0];
 }
 
-// Pods-style input — no border, no focus ring
+// Pods-style input — no border, shadow only
 const INPUT = {
   width: '100%', boxSizing: 'border-box', height: 52,
-  border: '1px solid var(--border-subtle)', borderRadius: 14,
+  border: 0, borderRadius: 14,
   background: '#fff', padding: '0 14px', fontSize: 15,
   fontWeight: 500, color: 'var(--text-primary)',
-  boxShadow: 'none', outline: 0,
-  WebkitAppearance: 'none',
+  boxShadow: '0 1px 0 rgba(14,17,22,0.05), 0 8px 16px -10px rgba(14,17,22,0.4)',
+  outline: 0, WebkitAppearance: 'none', appearance: 'none',
+  fontFamily: 'inherit',
 };
 
 export default function NewAppointmentModal({ isOpen, onClose, defaultDate }) {
