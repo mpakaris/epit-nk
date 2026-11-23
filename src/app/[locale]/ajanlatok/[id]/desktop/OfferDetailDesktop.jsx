@@ -1722,25 +1722,31 @@ export default function OfferDetailDesktop() {
 
       {/* Duplicate modal */}
       <Modal isOpen={showDuplicateModal} onClose={() => setShowDuplicateModal(false)} title={t('duplicateTitle')}>
-        <div className="form-group" style={{ marginBottom: '1.25rem' }}>
-          <label className="form-label">{t('duplicateNewName')}</label>
-          <input type="text" className="form-control" autoFocus value={duplicateTitle} onChange={e => setDuplicateTitle(e.target.value)} placeholder={`${quote?.title} – ${t('duplicateSuffix')}`} />
+        <div style={{ marginBottom: '1.25rem' }}>
+          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: '#5A5F68', marginBottom: 8 }}>{t('duplicateNewName')}</div>
+          <input type="text" className="dk-input" autoFocus value={duplicateTitle} onChange={e => setDuplicateTitle(e.target.value)} placeholder={`${quote?.title} – ${t('duplicateSuffix')}`} />
         </div>
-        <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>{t('duplicateWhat')}</p>
+        <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: '#5A5F68', marginBottom: 8 }}>{t('duplicateWhat')}</div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '1.5rem' }}>
-          <label style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', padding: '0.65rem 0.85rem', borderRadius: 'var(--radius-md)', border: `1px solid ${duplicateWithClient ? 'var(--accent-border)' : 'var(--border-subtle)'}`, background: duplicateWithClient ? 'var(--accent-light)' : '#fff', cursor: 'pointer' }}>
-            <input type="checkbox" checked={duplicateWithClient} onChange={e => setDuplicateWithClient(e.target.checked)} style={{ accentColor: 'var(--accent)', width: 16, height: 16 }} />
-            <div><div style={{ fontWeight: 700, fontSize: '0.875rem' }}>{t('duplicateWithClient')}</div><div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>{client?.name || t('duplicateNoClient')}</div></div>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem 1rem', borderRadius: 16, background: duplicateWithClient ? '#EDEBE5' : '#F4F3F0', cursor: 'pointer' }}>
+            <input type="checkbox" checked={duplicateWithClient} onChange={e => setDuplicateWithClient(e.target.checked)} style={{ accentColor: '#0E1116', width: 16, height: 16, flexShrink: 0 }} />
+            <div>
+              <div style={{ fontWeight: 700, fontSize: '0.875rem', color: '#0E1116' }}>{t('duplicateWithClient')}</div>
+              <div style={{ fontSize: '0.78rem', color: '#5A5F68' }}>{client?.name || t('duplicateNoClient')}</div>
+            </div>
           </label>
-          <label style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', padding: '0.65rem 0.85rem', borderRadius: 'var(--radius-md)', border: `1px solid ${duplicateWithSections ? 'var(--accent-border)' : 'var(--border-subtle)'}`, background: duplicateWithSections ? 'var(--accent-light)' : '#fff', cursor: 'pointer' }}>
-            <input type="checkbox" checked={duplicateWithSections} onChange={e => setDuplicateWithSections(e.target.checked)} style={{ accentColor: 'var(--accent)', width: 16, height: 16 }} />
-            <div><div style={{ fontWeight: 700, fontSize: '0.875rem' }}>{t('duplicateWithSections')}</div><div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>{t('duplicateSectionCount', { sections: sections.length, entries: entries.length })}</div></div>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem 1rem', borderRadius: 16, background: duplicateWithSections ? '#EDEBE5' : '#F4F3F0', cursor: 'pointer' }}>
+            <input type="checkbox" checked={duplicateWithSections} onChange={e => setDuplicateWithSections(e.target.checked)} style={{ accentColor: '#0E1116', width: 16, height: 16, flexShrink: 0 }} />
+            <div>
+              <div style={{ fontWeight: 700, fontSize: '0.875rem', color: '#0E1116' }}>{t('duplicateWithSections')}</div>
+              <div style={{ fontSize: '0.78rem', color: '#5A5F68' }}>{t('duplicateSectionCount', { sections: sections.length, entries: entries.length })}</div>
+            </div>
           </label>
         </div>
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
-          <button type="button" className="btn btn-secondary btn-sm" onClick={() => setShowDuplicateModal(false)}>{tc('cancel')}</button>
-          <button type="button" className="btn btn-primary btn-sm" onClick={handleDuplicate} disabled={isDuplicating}>
-            {isDuplicating ? <><Loader2 size={13} className="animate-spin" />{tc('copying')}</> : <><Copy size={13} />{tc('copy')}</>}
+          <button type="button" className="dk-btn dk-btn-l" onClick={() => setShowDuplicateModal(false)}>{tc('cancel')}</button>
+          <button type="button" className="dk-btn dk-btn-dark" onClick={handleDuplicate} disabled={isDuplicating}>
+            {isDuplicating ? <><Loader2 size={16} className="animate-spin" />{tc('copying')}</> : <><Copy size={16} />{tc('copy')}</>}
           </button>
         </div>
       </Modal>
