@@ -1285,16 +1285,16 @@ export default function OfferDetailDesktop() {
 
       <Modal isOpen={showEntryModal} onClose={() => { setShowEntryModal(false); setPendingEntries([]); }} title={editingEntryId ? t('entryModalEdit') : t('entryModalAdd')}>
         {pendingEntries.length > 0 && (
-          <div style={{ marginBottom: '0.85rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--success-border)', overflow: 'hidden' }}>
-            <div style={{ padding: '0.4rem 0.75rem', background: 'var(--success-bg)', fontSize: '0.72rem', fontWeight: 700, color: 'var(--success-text)', display: 'flex', justifyContent: 'space-between' }}>
+          <div style={{ marginBottom: '0.85rem', borderRadius: 16, overflow: 'hidden', background: '#D1FAE5' }}>
+            <div style={{ padding: '0.4rem 0.75rem', fontSize: '0.72rem', fontWeight: 700, color: '#065F46', display: 'flex', justifyContent: 'space-between' }}>
               <span>{t('entryPending', { count: pendingEntries.length })}</span>
               <span style={{ fontFamily: 'var(--font-mono)' }}>{fmt(pendingEntries.reduce((s, e) => s + e.amount_huf, 0))}</span>
             </div>
             {pendingEntries.map((e, i) => (
-              <div key={e._tmpKey || i} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.35rem 0.75rem', background: '#fff', borderTop: '1px solid var(--border-subtle)' }}>
-                <span style={{ flex: 1, fontSize: '0.82rem', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.work_description}</span>
-                <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8rem', color: 'var(--text-secondary)', flexShrink: 0 }}>{fmt(e.amount_huf)}</span>
-                <button type="button" onClick={() => setPendingEntries(pr => pr.filter((_, j) => j !== i))} style={{ border: 'none', background: 'none', cursor: 'pointer', color: 'var(--danger-text)', padding: 0, display: 'flex' }}><X size={13} /></button>
+              <div key={e._tmpKey || i} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.35rem 0.75rem', background: 'rgba(255,255,255,0.7)', borderTop: '1px solid rgba(6,95,70,0.1)' }}>
+                <span style={{ flex: 1, fontSize: '0.82rem', fontWeight: 600, color: '#0E1116', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.work_description}</span>
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8rem', color: '#065F46', flexShrink: 0 }}>{fmt(e.amount_huf)}</span>
+                <button type="button" onClick={() => setPendingEntries(pr => pr.filter((_, j) => j !== i))} style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#B91C1C', padding: 0, display: 'flex' }}><X size={13} /></button>
               </div>
             ))}
           </div>
@@ -1304,24 +1304,24 @@ export default function OfferDetailDesktop() {
           const section = sections.find(s => s.id === activeSectionId);
           if (!section && activeSectionId) return null;
           return section ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.5rem 0.75rem', background: 'var(--accent-light)', border: '1px solid var(--accent-border)', borderRadius: 'var(--radius-md)', marginBottom: '0.85rem', fontSize: '0.82rem', fontWeight: 600, color: 'var(--accent)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.5rem 0.85rem', background: '#EDE9FB', borderRadius: 16, marginBottom: '0.85rem', fontSize: '0.82rem', fontWeight: 700, color: '#6D3FD1' }}>
               <Home size={13} />{section.name}{section.size_m2 ? ` · ${section.size_m2} m²` : ''}
             </div>
           ) : (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.5rem 0.75rem', background: 'var(--bg-subtle)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', marginBottom: '0.85rem', fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.5rem 0.85rem', background: '#F4F3F0', borderRadius: 16, marginBottom: '0.85rem', fontSize: '0.82rem', fontWeight: 700, color: '#5A5F68' }}>
               <MoreHorizontal size={13} /> {t('generalItems')}
             </div>
           );
         })()}
 
-        {entryError && <div style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', color: 'var(--danger-text)', padding: '0.6rem 0.85rem', borderRadius: 'var(--radius-md)', fontSize: '0.825rem', display: 'flex', gap: '0.45rem', marginBottom: '0.85rem' }}><AlertCircle size={15} style={{ flexShrink: 0 }} /><span>{entryError}</span></div>}
+        {entryError && <div style={{ background: '#FEE2E2', color: '#B91C1C', padding: '0.6rem 0.85rem', borderRadius: 16, fontSize: '0.825rem', display: 'flex', gap: '0.45rem', marginBottom: '0.85rem' }}><AlertCircle size={15} style={{ flexShrink: 0 }} /><span>{entryError}</span></div>}
 
         <div className="entry-type-grid">
           {QUOTE_ENTRY_TYPES.map(ety => { const Icon = TYPE_ICONS[ety.id]; const tc2 = TYPE_COLORS[ety.id]; const active = entryForm.entry_type === ety.id; return (
             <button key={ety.id} type="button" onClick={() => setEntryForm(f => ({ ...f, entry_type: ety.id, quantity: '', unit: 'db', unit_price: '', flat_amount: '' }))}
-              style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '0.25rem', padding: '0.6rem 0.3rem', borderRadius: 'var(--radius-md)', border: `2px solid ${active ? tc2.color : 'var(--border-subtle)'}`, background: active ? tc2.bg : '#fff', cursor: 'pointer' }}>
-              <Icon size={18} color={active ? tc2.color : 'var(--text-muted)'} />
-              <span style={{ fontSize: '0.65rem', fontWeight: 700, color: active ? tc2.color : 'var(--text-muted)', textAlign: 'center', lineHeight: 1.2 }}>{ENTRY_TYPE_T[ety.id]}</span>
+              style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '0.25rem', padding: '0.6rem 0.3rem', borderRadius: 12, border: 'none', background: active ? tc2.bg : '#F4F3F0', cursor: 'pointer' }}>
+              <Icon size={18} color={active ? tc2.color : '#8A8F98'} />
+              <span style={{ fontSize: '0.65rem', fontWeight: 700, color: active ? tc2.color : '#8A8F98', textAlign: 'center', lineHeight: 1.2 }}>{ENTRY_TYPE_T[ety.id]}</span>
             </button>
           ); })}
         </div>
@@ -1360,7 +1360,7 @@ export default function OfferDetailDesktop() {
             </label>
           )}
 
-          {previewAmount > 0 && <div style={{ padding: '0.6rem 0.85rem', borderRadius: 'var(--radius-md)', background: 'var(--success-bg)', border: '1px solid var(--success-border)', color: 'var(--success-text)', fontWeight: 700, fontSize: '0.875rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}><Coins size={15} /> {t('entryItem')} <span style={{ fontFamily: 'var(--font-mono)' }}>{fmt(previewAmount)}</span></div>}
+          {previewAmount > 0 && <div style={{ padding: '0.6rem 0.85rem', borderRadius: 16, background: '#D1FAE5', color: '#065F46', fontWeight: 700, fontSize: '0.875rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}><Coins size={15} /> {t('entryItem')} <span style={{ fontFamily: 'var(--font-mono)' }}>{fmt(previewAmount)}</span></div>}
 
           <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             <span style={LBL}>{t('entryNotes')}</span>
