@@ -161,6 +161,7 @@ body:has(.dk-root) {
 .dk-mod-projects  { --dk-c: #263248; --dk-deep: #0B0F17; --dk-active: #3A4963; background: var(--dk-deep); color: #fff; }
 .dk-mod-clients   { --dk-c: #B8456B; --dk-deep: #2A0F1A; --dk-active: #B8456B; background: var(--dk-deep); color: #fff; }
 .dk-mod-profile   { --dk-c: #44413B; --dk-deep: #121110; --dk-active: #44413B; background: var(--dk-deep); color: #fff; }
+.dk-mod-calendar  { --dk-c: #1E3059; --dk-deep: #0A1225; --dk-active: #1E3059; background: var(--dk-deep); color: #fff; }
 
 /* ── Module header ───────────────────────────────────────────────────────────── */
 .dk-mh {

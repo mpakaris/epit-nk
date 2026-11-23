@@ -1007,6 +1007,7 @@
   },
   "calendar": {
     "pageTitle": "Kalender",
+    "desktopKicker": "Kalender · Alle Arbeitsbereiche",
     "subtitle": "Projekte, Angebote und Termine",
     "today": "Heute",
     "week": "Woche",

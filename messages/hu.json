@@ -937,6 +937,7 @@
   },
   "calendar": {
     "pageTitle": "Naptár",
+    "desktopKicker": "Naptár · Minden munkafelület",
     "subtitle": "Projektek, ajánlatok és időpontok",
     "today": "Ma",
     "week": "Hét",

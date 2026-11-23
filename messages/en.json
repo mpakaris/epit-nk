@@ -1007,6 +1007,7 @@
   },
   "calendar": {
     "pageTitle": "Calendar",
+    "desktopKicker": "Calendar · All workspaces",
     "subtitle": "Projects, quotes and appointments",
     "today": "Today",
     "week": "Week",
