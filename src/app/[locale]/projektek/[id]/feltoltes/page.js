@@ -16,7 +16,7 @@ import useMobile from '@/hooks/useMobile';
 import InvoiceUploadMobile from '../../mobile/InvoiceUploadMobile';
 
 const CATEGORY_ICONS = {
-  'Anyag':            Package,
+  'material':  Package,
   'Munka':            HardHat,
   'Szerszám/Eszköz':  Wrench,
   'Szállítás':        Truck,
@@ -281,7 +281,7 @@ export default function MobileUploadPage() {
     aiCurrency:            'HUF',
     descriptionSuggestion: '',
     valueHuf:              '',
-    category:              'Anyag',
+    category:              'material',
     description:           '',
     roomId:                '',
     ...overrides,

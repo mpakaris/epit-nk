@@ -4,7 +4,9 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
+import { detectMobile } from '@/lib/detectMobile';
 import ProjectsListClient from './ProjectsListClient';
+import ProjectsListDesktop from './desktop/ProjectsListDesktop';
 import PageSpinner from '@/components/PageSpinner';
 
 export default function ProjectsListPage() {
@@ -41,6 +43,8 @@ async function ProjectsListContent() {
     if (!godUser) redirect('/superadmin/projektek');
     effectiveUserId = godUser;
   }
+
+  const isMobile = await detectMobile();
 
   const currentUser = {
     id:           effectiveUserId,
@@ -139,19 +143,35 @@ async function ProjectsListContent() {
     role: m.role,
   }));
 
+  if (isMobile) {
+    return (
+      <ProjectsListClient
+        personalProjects={filterForUser(attachMembers(personalProjects))}
+        sharedProjects={filterForUser(attachMembers(sharedProjects))}
+        collectives={collectives}
+        initialInvoices={invoicesRes.data || []}
+        initialLabourEntries={labourRes.data || []}
+        initialUsers={usersData}
+        initialClients={clientsData || []}
+        initialQuotes={allQuotes}
+        currentUser={currentUser}
+        isAdmin={isAdmin}
+        isSuperAdmin={isSuperAdmin}
+      />
+    );
+  }
+
   return (
-    <ProjectsListClient
-      personalProjects={filterForUser(attachMembers(personalProjects))}
-      sharedProjects={filterForUser(attachMembers(sharedProjects))}
-      collectives={collectives}
+    <ProjectsListDesktop
+      initialPersonalProjects={filterForUser(attachMembers(personalProjects))}
+      initialSharedProjects={filterForUser(attachMembers(sharedProjects))}
+      initialClients={clientsData || []}
       initialInvoices={invoicesRes.data || []}
       initialLabourEntries={labourRes.data || []}
-      initialUsers={usersData}
-      initialClients={clientsData || []}
       initialQuotes={allQuotes}
       currentUser={currentUser}
+      collectives={collectives}
       isAdmin={isAdmin}
-      isSuperAdmin={isSuperAdmin}
     />
   );
 }

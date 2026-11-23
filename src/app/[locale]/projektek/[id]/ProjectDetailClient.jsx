@@ -27,6 +27,7 @@ import {
   MoreHorizontal, CircleDot, History,
 } from 'lucide-react';
 import Lightbox from '@/components/Lightbox';
+import { podColor } from '@/lib/podColor';
 import BurndownCard from './components/BurndownCard';
 import CostBreakdownCard from './components/CostBreakdownCard';
 import CombinedStatsCard from './components/CombinedStatsCard';
@@ -39,12 +40,11 @@ import PaymentPlanModal, { TRIGGER_DISPLAY, STATUS_DISPLAY } from './components/
 import WorkTypeSelector, { WORK_TYPES } from './components/WorkTypeSelector';
 import RoomModal from './components/RoomModal';
 import ProjectEditModal from './components/ProjectEditModal';
+import NewExpenseModal from './components/NewExpenseModal';
 import PortalShareSection from './components/PortalShareSection';
 import CollectiveChatSection from '@/components/CollectiveChatSection';
 import ProjectDetailMobile from '../mobile/ProjectDetailMobile';
 
-
-const CARD_HEADER_BG = '#334155';
 
 export default function ProjectDetailClient({
   project,
@@ -83,6 +83,7 @@ export default function ProjectDetailClient({
     deleteProjectRoom,
     quoteSections,
     activeCollectiveId,
+    contextSwitching,
     loading: ctxLoading,
     labourEntries: ctxLabourEntries,
     invoices: ctxInvoices,
@@ -98,7 +99,18 @@ export default function ProjectDetailClient({
   } = useApp();
 
   const fmtMoney = (n) => formatMoney(n, userCurrency);
-  const t = useTranslations('projectDetail');
+  const t  = useTranslations('projectDetail');
+  const tP = useTranslations('projects');
+
+  const CAT_LABEL_KEYS = {
+    material:  'catMaterial',
+    labour:    'catLabour',
+    equipment: 'catTools',
+    delivery:  'catDelivery',
+    parking:   'catParking',
+    other:     'catOther',
+  };
+  const catLabel = (id) => CAT_LABEL_KEYS[id] ? tP(CAT_LABEL_KEYS[id]) : id;
   const navPrefix = isDemoMode ? '/demo' : '';
   const AppLink = isDemoMode ? Link : LocaleLink;
   const isMobile = useMobile();
@@ -116,10 +128,13 @@ export default function ProjectDetailClient({
   }, [ctxProjectRooms, initialRooms, project.id, ctxLoading]);
 
   const [editProjectOpen, setEditProjectOpen] = useState(false);
+  const [newExpenseOpen,  setNewExpenseOpen]  = useState(false);
   const [categoryFilter, setCategoryFilter] = useState('ALL');
-  const [invoiceSearch, setInvoiceSearch] = useState('');
+  const [tabSearch, setTabSearch] = useState('');
   const [uploaderFilter, setUploaderFilter] = useState('ALL');
   const [activeTab, setActiveTab] = useState('invoices');
+
+  const handleTabChange = (key) => { setActiveTab(key); setTabSearch(''); };
   const [confirmModal, setConfirmModal] = useState(null);
   const [alertModal, setAlertModal] = useState(null);
   const [lockedModalOpen, setLockedModalOpen] = useState(() => !!project?.locked_reason);
@@ -226,6 +241,7 @@ export default function ProjectDetailClient({
   );
 
   const filteredInvoices = fin.projectInvoices.filter(inv => {
+    if (inv.category === 'labour') return false; // shown in Labour tab only
     if (categoryFilter !== 'ALL' && inv.category !== categoryFilter) return false;
     if (uploaderFilter !== 'ALL' && inv.uploaded_by !== uploaderFilter) return false;
     if (roomFilter !== 'ALL') {
@@ -237,11 +253,11 @@ export default function ProjectDetailClient({
         if (!hasSplit && inv.room_id !== roomFilter) return false;
       }
     }
-    if (invoiceSearch.trim()) {
-      const q = invoiceSearch.trim().toLowerCase();
-      const catLabel      = INVOICE_CATEGORIES.find(c => c.id === inv.category)?.label || '';
-      const uploaderName  = initialUsers.find(u => u.id === inv.uploaded_by)?.display_name || '';
-      if (!(inv.description?.toLowerCase().includes(q) || catLabel.toLowerCase().includes(q) || uploaderName.toLowerCase().includes(q))) return false;
+    if (tabSearch.trim()) {
+      const q            = tabSearch.trim().toLowerCase();
+      const cLabel       = catLabel(inv.category);
+      const uploaderName = initialUsers.find(u => u.id === inv.uploaded_by)?.display_name || '';
+      if (!(inv.description?.toLowerCase().includes(q) || cLabel.toLowerCase().includes(q) || uploaderName.toLowerCase().includes(q))) return false;
     }
     return true;
   });
@@ -433,6 +449,15 @@ export default function ProjectDetailClient({
   // Mobile pods early return — all hooks above
   if (isMobile) return <ProjectDetailMobile projectId={project.id} />;
 
+  // Desktop-only computed values
+  const wsStyle = activeCollectiveId
+    ? { '--dk-c': podColor(activeCollectiveId).deep, '--dk-deep': podColor(activeCollectiveId).deep }
+    : {};
+  const quoteTotal = projectRooms.reduce((s, r) => s + Number(r.quoted_amount_net || 0), 0);
+  const totalSpend = fin.totalCost + fin.totalLabourValue;
+  const remaining  = quoteTotal - totalSpend;
+  const progress   = quoteTotal > 0 ? Math.round((totalSpend / quoteTotal) * 100) : null;
+
   // Room management
   const linkedQuoteForRooms = (quotes || []).find(q => q.project_id === project.id);
   const unimportedSections = linkedQuoteForRooms
@@ -448,8 +473,13 @@ export default function ProjectDetailClient({
   };
 
   const handleDeleteRoom = (room) => {
+    const invoiceCount = liveInvoices.filter(inv => inv.room_id === room.id).length
+      + liveLabour.filter(le => le.room_id === room.id).length;
+    const message = invoiceCount > 0
+      ? t('deleteRoomWithItemsConfirm', { name: room.name, count: invoiceCount })
+      : t('deleteRoomConfirm', { name: room.name });
     setConfirmModal({
-      message: t('deleteRoomConfirm', { name: room.name }),
+      message,
       onConfirm: async () => {
         try {
           await deleteProjectRoom(project.id, room.id);
@@ -469,203 +499,143 @@ export default function ProjectDetailClient({
   const fmt = (d) => d ? new Date(d).toLocaleDateString('hu-HU', { year: 'numeric', month: 'short', day: 'numeric' }) : null;
 
   return (
-    <div className="container">
-      <div style={{ padding: '0.85rem 0 0.25rem' }}>
+    <div className="dk-page dk-mod-projects" style={wsStyle}>
+      {/* ── Module header ─────────────────────────────────────────────────────── */}
+      <header className="dk-mh">
+        <span className="dk-gl" aria-hidden="true" />
+        {/* Back button — left of title, same pattern as /ajanlatok/[id] */}
         <AppLink
           href={currentUser?.role === 'superadmin' ? '/superadmin/projektek' : `${navPrefix}/projektek`}
-          style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', color: 'var(--text-secondary)', fontSize: '0.825rem', fontWeight: 600 }}
+          className="dk-btn dk-btn-g"
+          aria-label={t('back')}
+          style={{ width: 44, padding: 0, justifyContent: 'center', flexShrink: 0 }}
         >
-          <ArrowLeft size={15} /> {t('back')}
+          <ArrowLeft size={20} aria-hidden="true" />
         </AppLink>
-      </div>
-
-      <CollectiveBanner documentCollectiveId={project.collective_id ?? null} />
-      {isDocLocked && !lockedModalOpen && (
-        <div style={{ padding: '0.75rem 1rem', marginBottom: '1rem', borderRadius: 'var(--radius-md)', background: 'var(--danger-bg)', border: '1px solid var(--danger-border)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-            <span style={{ fontSize: '0.85rem', color: 'var(--danger-text)', fontWeight: 600, flex: 1 }}>
-              {t('readOnly')}
-            </span>
-            {!isMobile && (
-              <button type="button" onClick={() => setLockedModalOpen(true)} style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--danger-text)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', flexShrink: 0 }}>
-                {t('myOptions')}
-              </button>
-            )}
-          </div>
-          {isMobile && (
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '0.5rem' }}>
-              <button type="button" onClick={() => setLockedModalOpen(true)} style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--danger-text)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>
-                {t('myOptions')}
-              </button>
-            </div>
-          )}
+        <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <span className="dk-kick">
+            {t('detailKicker')}{client ? ` · ${client.name}` : ''}
+          </span>
+          <h1 className="dk-h1">{project.name}</h1>
         </div>
-      )}
+        {/* "..." context menu trigger */}
+        <button
+          type="button"
+          className="dk-btn dk-btn-w"
+          style={{ width: 44, padding: 0, justifyContent: 'center', flexShrink: 0 }}
+          onClick={() => setShowOptionsMenu(true)}
+          aria-label={t('optionsAria')}
+        >
+          <MoreHorizontal size={20} aria-hidden="true" />
+        </button>
+      </header>
 
-      <div className="page-header" style={{ padding: '0.5rem 0 1rem' }}>
-        <div className="page-header-row">
-          <div>
-            {currentUser?.role === 'superadmin' && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', color: 'var(--warning-text)', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', marginBottom: '0.15rem' }}>
-                <ShieldCheck size={15} /> {t('adminView')}
-              </div>
-            )}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-              <h1 className="page-title" style={{ margin: 0 }}>{project.name}</h1>
-              {projectStatus === 'active' && (
-                <span style={{ fontSize: '0.72rem', fontWeight: 700, background: '#dcfce7', color: '#166534', border: '1px solid #bbf7d0', padding: '0.2rem 0.55rem', borderRadius: 'var(--radius-pill)', whiteSpace: 'nowrap' }}>{t('statusActive')}</span>
-              )}
-              {projectStatus === 'paused' && (
-                <span style={{ fontSize: '0.72rem', fontWeight: 700, background: '#fff7ed', color: '#c2410c', border: '1px solid #fed7aa', padding: '0.2rem 0.55rem', borderRadius: 'var(--radius-pill)', whiteSpace: 'nowrap' }}>{t('statusPaused')}</span>
-              )}
-              {projectStatus === 'closed' && (
-                <span style={{ fontSize: '0.72rem', fontWeight: 700, background: 'var(--bg-subtle)', color: 'var(--text-muted)', border: '1px solid var(--border-subtle)', padding: '0.2rem 0.55rem', borderRadius: 'var(--radius-pill)', whiteSpace: 'nowrap' }}>{t('statusClosed')}</span>
-              )}
-            </div>
-            <p className="page-subtitle">{project.description || t('noDescription')}</p>
+      {/* ── Body ──────────────────────────────────────────────────────────────── */}
+      <div className="dk-body">
+        {contextSwitching ? (
+          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div className="dk-ws-spinner" />
           </div>
-          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexShrink: 0 }}>
-            {!isMobile && (
-              <AppLink href={`${navPrefix}/projektek/${project.id}/feltoltes`} className="btn btn-primary btn-sm">
-                <Camera size={15} /> <span>{t('newEntryBtn')}</span>
-              </AppLink>
-            )}
-
-            {canManageProject && !isMobile && (
-              <div ref={optionsRef} style={{ position: 'relative' }}>
-                <button
-                  type="button"
-                  className="btn btn-secondary btn-sm"
-                  onClick={() => setShowOptionsMenu(v => !v)}
-                  title={t('settingsBtn')}
-                  style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}
-                >
-                  <Settings size={14} />
-                  <ChevronDown size={12} style={{ opacity: 0.7 }} />
+        ) : (
+          <>
+            <CollectiveBanner documentCollectiveId={project.collective_id ?? null} />
+            {isDocLocked && !lockedModalOpen && (
+              <div style={{ padding: '0.75rem 1rem', borderRadius: 'var(--radius-md)', background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                <span style={{ fontSize: '0.85rem', color: 'var(--danger-text)', fontWeight: 600, flex: 1 }}>{t('readOnly')}</span>
+                <button type="button" onClick={() => setLockedModalOpen(true)} style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--danger-text)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', flexShrink: 0 }}>
+                  {t('myOptions')}
                 </button>
-
-                {showOptionsMenu && (
-                  <div style={{ position: 'absolute', top: 'calc(100% + 6px)', right: 0, background: 'var(--bg-card, #fff)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', boxShadow: '0 6px 24px rgba(0,0,0,0.12)', zIndex: 200, minWidth: '190px', padding: '0.3rem', overflow: 'hidden' }}>
-                    {/* Edit */}
-                    {[{ icon: Edit3, label: t('editLabel'), onClick: () => setEditProjectOpen(true) }].map(item => (
-                      <button key={item.label} type="button" onClick={() => { setShowOptionsMenu(false); item.onClick(); }} style={{ display: 'flex', width: '100%', alignItems: 'center', gap: '0.55rem', padding: '0.55rem 0.75rem', borderRadius: 'var(--radius-sm)', background: 'none', border: 'none', color: 'var(--text-primary)', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', textAlign: 'left' }} onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-subtle)'} onMouseLeave={e => e.currentTarget.style.background = ''}>
-                        <item.icon size={14} color="var(--text-muted)" /> {item.label}
-                      </button>
-                    ))}
-
-                    {/* Status options */}
-                    <div style={{ height: '1px', background: 'var(--border-subtle)', margin: '0.25rem 0.3rem' }} />
-                    {STATUS_NEXT.filter(s => s.show).map(s => (
-                      <button key={s.key} type="button" onClick={() => { setShowOptionsMenu(false); handleSetStatus(s.key); }} style={{ display: 'flex', width: '100%', alignItems: 'center', gap: '0.55rem', padding: '0.55rem 0.75rem', borderRadius: 'var(--radius-sm)', background: 'none', border: 'none', color: 'var(--text-primary)', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', textAlign: 'left' }} onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-subtle)'} onMouseLeave={e => e.currentTarget.style.background = ''}>
-                        <CircleDot size={14} color="var(--text-muted)" /> {s.label}
-                      </button>
-                    ))}
-
-                    {/* History */}
-                    <div style={{ height: '1px', background: 'var(--border-subtle)', margin: '0.25rem 0.3rem' }} />
-                    <button type="button" onClick={() => { setShowOptionsMenu(false); openHistory(); }} style={{ display: 'flex', width: '100%', alignItems: 'center', gap: '0.55rem', padding: '0.55rem 0.75rem', borderRadius: 'var(--radius-sm)', background: 'none', border: 'none', color: 'var(--text-primary)', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', textAlign: 'left' }} onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-subtle)'} onMouseLeave={e => e.currentTarget.style.background = ''}>
-                      <History size={14} color="var(--text-muted)" /> {t('historyLabel')}
-                    </button>
-
-                    {/* Delete */}
-                    <div style={{ height: '1px', background: 'var(--border-subtle)', margin: '0.25rem 0.3rem' }} />
-                    <button type="button" onClick={() => { setShowOptionsMenu(false); handleDeleteProject(); }} style={{ display: 'flex', width: '100%', alignItems: 'center', gap: '0.55rem', padding: '0.55rem 0.75rem', borderRadius: 'var(--radius-sm)', background: 'none', border: 'none', color: 'var(--danger-text)', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', textAlign: 'left' }} onMouseEnter={e => e.currentTarget.style.background = 'var(--danger-bg)'} onMouseLeave={e => e.currentTarget.style.background = ''}>
-                      <Trash2 size={14} /> {t('deleteLabel')}
-                    </button>
-                  </div>
-                )}
               </div>
             )}
-          </div>
-        </div>
-      </div>
+            {successMsg && (
+              <div style={{ background: 'var(--success-bg)', border: '1px solid var(--success-border)', color: 'var(--success-text)', padding: '0.65rem 0.85rem', borderRadius: 'var(--radius-md)', fontSize: '0.825rem', display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                <CheckCircle2 size={16} aria-hidden="true" /><span>{successMsg}</span>
+              </div>
+            )}
 
+            {/* Two-panel layout */}
+            <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
+              {/* ── Main panel ─────────────────────────────────────────────── */}
+              <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 14 }}>
 
-      {successMsg && (
-        <div style={{ background: 'var(--success-bg)', border: '1px solid var(--success-border)', color: 'var(--success-text)', padding: '0.65rem 0.85rem', borderRadius: 'var(--radius-md)', fontSize: '0.825rem', display: 'flex', alignItems: 'center', gap: '0.45rem', marginBottom: '1rem' }}>
-          <CheckCircle2 size={16} /><span>{successMsg}</span>
-        </div>
-      )}
+                {/* 4-stat strip */}
+                <div style={{ display: 'flex', gap: 14 }}>
+                  <div className="dk-card" style={{ flex: 1, padding: '14px 18px' }}>
+                    <span className="dk-m">{t('statQuote')}</span><br />
+                    <span className="dk-n" style={{ fontSize: 26, color: 'var(--color-text, #0E1116)' }}>
+                      {quoteTotal > 0 ? fmtMoney(quoteTotal) : '—'}
+                    </span>
+                  </div>
+                  <div className="dk-card" style={{ flex: 1, padding: '14px 18px' }}>
+                    <span className="dk-m">{t('statSpent')}</span><br />
+                    <span className="dk-n" style={{ fontSize: 26, color: 'var(--color-text, #0E1116)' }}>{fmtMoney(totalSpend)}</span>
+                  </div>
+                  <div className="dk-card" style={{ flex: 1, padding: '14px 18px' }}>
+                    <span className="dk-m">{t('statRemaining')}</span><br />
+                    <span className="dk-n" style={{ fontSize: 26, color: 'var(--color-text, #0E1116)' }}>
+                      {quoteTotal > 0 ? fmtMoney(remaining) : '—'}
+                    </span>
+                  </div>
+                  <div className="dk-card" style={{ flex: 1, padding: '14px 18px' }}>
+                    <span className="dk-m">{t('statProgress')}</span><br />
+                    <span className="dk-n" style={{ fontSize: 26, color: progress !== null && progress > 95 ? '#B71C1C' : '#263248' }}>
+                      {progress !== null ? `${progress}%` : '—'}
+                    </span>
+                  </div>
+                </div>
 
-      {/* Info row: client, members, dates — always rendered */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(280px, 100%), 1fr))', gap: '0.85rem', marginBottom: '0.85rem' }}>
+      {/* Info row: client + members */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(280px, 100%), 1fr))', gap: 12 }}>
         {/* Megrendelő */}
-        <div className="card" style={{ borderLeft: '4px solid #334155', boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#475569', marginBottom: '0.6rem' }}>
-            <BookUser size={13} /> {t('clientCardTitle')}
-          </div>
+        <div className="dk-card" style={{ padding: '14px 18px' }}>
+          <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: '#5A5F68', display: 'flex', alignItems: 'center', gap: 4, marginBottom: 8 }}>
+            <BookUser size={12} /> {t('clientCardTitle')}
+          </span>
           {client ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-              <div style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--text-primary)' }}>{client.name}</div>
-              {client.phone && <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.825rem', color: 'var(--text-secondary)' }}><Phone size={13} />{client.phone}</div>}
-              {client.email && <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.825rem', color: 'var(--text-secondary)' }}><Mail size={13} />{client.email}</div>}
-              {client.address && <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.825rem', color: 'var(--text-secondary)' }}><MapPin size={13} />{client.address}</div>}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <div style={{ fontWeight: 700, fontSize: 15, color: '#0E1116' }}>{client.name}</div>
+              {client.phone && <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 13, fontWeight: 600, color: '#5A5F68' }}><Phone size={12} />{client.phone}</div>}
+              {client.email && <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 13, fontWeight: 600, color: '#5A5F68' }}><Mail size={12} />{client.email}</div>}
+              {client.address && <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 13, fontWeight: 600, color: '#5A5F68' }}><MapPin size={12} />{client.address}</div>}
             </div>
           ) : (
-            <div style={{ fontSize: '0.825rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>{t('noClient')}</div>
+            <div style={{ fontSize: 13, color: '#5A5F68', fontStyle: 'italic' }}>{t('noClient')}</div>
           )}
         </div>
 
         {/* Résztvevők */}
         {(activeCollectiveId || projectMemberUsers.length > 0) && (
-        <div className="card" style={{ borderLeft: '4px solid #334155', boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#475569', marginBottom: '0.6rem' }}>
-            <Users size={13} /> {t('membersCardTitle')}
-          </div>
-          {projectMemberUsers.length > 0 ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
-              {projectMemberUsers.map(u => (
-                <div key={u.id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem' }}>
-                  <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'var(--accent-light)', border: '1px solid var(--accent-border)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.7rem', fontWeight: 800, color: 'var(--accent)', flexShrink: 0 }}>
-                    {u.display_name?.charAt(0).toUpperCase()}
+          <div className="dk-card" style={{ padding: '14px 18px' }}>
+            <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: '#5A5F68', display: 'flex', alignItems: 'center', gap: 4, marginBottom: 8 }}>
+              <Users size={12} /> {t('membersCardTitle')}
+            </span>
+            {projectMemberUsers.length > 0 ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {projectMemberUsers.map(u => (
+                  <div key={u.id} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14 }}>
+                    <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#263248', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, color: '#fff' }}>
+                      {u.display_name?.charAt(0).toUpperCase()}
+                    </div>
+                    <span style={{ fontWeight: 600, color: u.id === currentUser?.id ? '#263248' : '#0E1116' }}>
+                      {u.display_name}{u.id === currentUser?.id ? ` ${t('youSuffix')}` : ''}
+                    </span>
                   </div>
-                  <span style={{ fontWeight: 600, color: u.id === currentUser?.id ? 'var(--accent)' : 'var(--text-primary)' }}>
-                    {u.display_name}{u.id === currentUser?.id ? ` ${t('youSuffix')}` : ''}
-                  </span>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div style={{ fontSize: '0.825rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>{t('noMembers')}</div>
-          )}
-        </div>
+                ))}
+              </div>
+            ) : (
+              <div style={{ fontSize: 13, color: '#5A5F68', fontStyle: 'italic' }}>{t('noMembers')}</div>
+            )}
+          </div>
         )}
-
-        <CombinedStatsCard
-          totalCost={fin.totalCost}
-          invoiceCount={fin.projectInvoices.length}
-          totalLabour={fin.totalLabourValue}
-          labourCount={fin.projectLabour.length}
-          collective={!!activeCollectiveId}
-          ownPaid={fin.ownPaid}
-          balance={fin.balance}
-        />
-
-        {/* Adatok */}
-        <div className="card" style={{ borderLeft: '4px solid #b45309', boxShadow: '0 4px 16px rgba(180,83,9,0.18), 0 1px 4px rgba(0,0,0,0.06)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#b45309', marginBottom: '0.6rem' }}>
-            <CalendarDays size={13} /> {t('dataCardTitle')}
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.85rem' }}>
-              <span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>{t('startLabel')}</span>
-              <span style={{ fontWeight: 700, color: project.start_date ? 'var(--text-primary)' : 'var(--text-muted)' }}>{fmt(project.start_date) || '–'}</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.85rem' }}>
-              <span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>{t('endLabel')}</span>
-              <span style={{ fontWeight: 700, color: project.end_date ? 'var(--text-primary)' : 'var(--text-muted)' }}>{fmt(project.end_date) || '–'}</span>
-            </div>
-            <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: '0.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.85rem' }}>
-              <span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>{t('invoiceCountData')}</span>
-              <span style={{ fontWeight: 700 }}>{fin.projectInvoices.length} db</span>
-            </div>
-          </div>
-        </div>
       </div>
 
       {/* Chart row: bar chart (40%) + burndown (60%) — hidden on mobile until there is cost */}
       {(!isMobile || fin.totalCost > 0 || fin.totalLabourValue > 0) && (
-      <div className="grid-chart" style={{ marginBottom: '1.5rem' }}>
+      <>
+        <h2 style={{ margin: '8px 0 10px', fontFamily: 'var(--font-heading, "Bricolage Grotesque", sans-serif)', fontSize: 22, fontWeight: 700, letterSpacing: '-0.02em', color: '#fff' }}>
+          {t('headlineCostOverview')}
+        </h2>
+      <div className="grid-chart" style={{ marginBottom: 0 }}>
         <CostBreakdownCard
           invoices={fin.projectInvoices}
           labourTotal={fin.totalLabourValue}
@@ -678,6 +648,7 @@ export default function ProjectDetailClient({
           endDate={project.end_date}
         />
       </div>
+      </>
       )}
 
       {/* Sections */}
@@ -709,45 +680,46 @@ export default function ProjectDetailClient({
           return invTotal + splitTotal + labTotal;
         };
         return (
-          <div style={{ background: '#1e293b', borderRadius: '15px 0 15px 0', padding: '1.1rem 1.25rem', marginBottom: '1rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem', gap: '0.5rem', flexWrap: 'wrap' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'rgba(255,255,255,0.5)' }}>
-                <Ruler size={13} /> {t('sectionsHeader', { count: projectRooms.length })}
-              </div>
-              <div style={{ display: 'flex', gap: '0.4rem' }}>
+          <div>
+            {/* Section header */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+              <h2 style={{ margin: 0, fontFamily: 'var(--font-heading, "Bricolage Grotesque", sans-serif)', fontSize: 22, fontWeight: 700, letterSpacing: '-0.02em', color: '#fff', display: 'flex', alignItems: 'center', gap: 6 }}>
+                {t('headlineSections')}
+                <span style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,0.45)', letterSpacing: 0 }}>{projectRooms.length + 1}</span>
+              </h2>
+              <div style={{ display: 'flex', gap: 6 }}>
                 {unimportedSections.length > 0 && (
-                  <button type="button" className="btn btn-secondary btn-sm" onClick={handleSyncRooms} disabled={syncing} style={{ fontSize: '0.75rem' }}>
+                  <button type="button" className="dk-btn dk-btn-g" style={{ height: 34, fontSize: 13, padding: '0 12px' }} onClick={handleSyncRooms} disabled={syncing}>
                     {syncing ? <Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> : <Download size={13} />}
                     {t('importBtn', { count: unimportedSections.length })}
                   </button>
                 )}
-                <button type="button" onClick={() => { setEditingRoom(null); setRoomModalOpen(true); }} aria-label={t('newSectionAria')} style={{ width: 32, height: 32, borderRadius: '50%', background: '#fff', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  <Plus size={16} color="#1e293b" strokeWidth={2.5} />
+                <button type="button" onClick={() => { setEditingRoom(null); setRoomModalOpen(true); }} className="dk-btn dk-btn-w" style={{ height: 34, fontSize: 13, padding: '0 12px' }} aria-label={t('newSectionAria')}>
+                  <Plus size={14} /> {t('newSectionAria')}
                 </button>
               </div>
             </div>
-            {projectRooms.length === 0 && (
-              <div style={{ textAlign: 'center', padding: '1.5rem 1rem', color: 'rgba(255,255,255,0.4)', fontSize: '0.85rem', borderRadius: 'var(--radius-md)', background: 'rgba(255,255,255,0.06)' }}>
-                <Home size={24} style={{ margin: '0 auto 0.35rem', display: 'block', opacity: 0.4 }} />
-                {t('noSections')}
-              </div>
-            )}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(280px, 100%), 1fr))', gap: '0.65rem' }}>
-              {/* General (unassigned) costs — always first */}
-              {(invoicesByRoom['general']?.length > 0 || labourByRoom['general']?.length > 0) && (
-                <div style={{ borderRadius: 'var(--radius-md)', overflow: 'hidden', border: '1.5px solid #cbd5e1' }}>
-                  <div style={{ background: '#475569', padding: '0.75rem 1rem' }}>
-                    <div style={{ fontWeight: 800, fontSize: '1.05rem', color: '#fff' }}>{t('general')}</div>
-                    <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 900, fontSize: '1.1rem', color: '#fff', marginTop: '0.15rem' }}>{fmtMoney(roomCost('general'))}</div>
-                  </div>
-                  <div style={{ background: '#f8fafc', padding: '0.65rem 1rem' }}>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', gap: '0.65rem' }}>
-                      {(invoicesByRoom['general']?.length || 0) > 0 && <span>{t('invoiceCount', { count: invoicesByRoom['general'].length })}</span>}
-                      {(labourByRoom['general']?.length || 0) > 0 && <span>{t('labourCount', { count: labourByRoom['general'].length })}</span>}
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(220px, 100%), 1fr))', gap: 10 }}>
+              {/* General section — always visible */}
+              {(() => {
+                const genInv = invoicesByRoom['general']?.length || 0;
+                const genLab = labourByRoom['general']?.length || 0;
+                return (
+                  <div className="dk-card" style={{ padding: '14px 16px' }}>
+                    <span className="dk-m">{t('general')}</span>
+                    <div className="dk-n" style={{ fontSize: 20, marginTop: 2 }}>
+                      {roomCost('general') > 0 ? fmtMoney(roomCost('general')) : '—'}
                     </div>
+                    {(genInv > 0 || genLab > 0) && (
+                      <div style={{ fontSize: 12, color: '#5A5F68', marginTop: 4, display: 'flex', gap: 6 }}>
+                        {genInv > 0 && <span>{t('invoiceCount', { count: genInv })}</span>}
+                        {genLab > 0 && <span>{t('labourCount', { count: genLab })}</span>}
+                      </div>
+                    )}
                   </div>
-                </div>
-              )}
+                );
+              })()}
               {projectRooms.map(room => {
                 const actual    = roomCost(room.id);
                 const quoted    = room.quoted_amount_net;
@@ -755,46 +727,32 @@ export default function ProjectDetailClient({
                 const labCount  = (labourByRoom[room.id] || []).length;
                 const overBudget = quoted != null && actual > quoted;
                 return (
-                  <button key={room.id} type="button" onClick={() => { setEditingRoom(room); setRoomModalOpen(true); }} style={{ borderRadius: 'var(--radius-md)', overflow: 'hidden', border: '1.5px solid #cbd5e1', width: '100%', textAlign: 'left', cursor: 'pointer', background: 'none' }}>
-                    {/* Dark header */}
-                    <div style={{ background: '#1e3a5f', padding: '0.75rem 1rem' }}>
-                      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '0.5rem' }}>
-                        <div style={{ minWidth: 0, flex: 1 }}>
-                          <div style={{ fontWeight: 800, fontSize: '1.05rem', color: '#fff', lineHeight: 1.2 }}>{room.name}</div>
-                          {room.size_m2 != null && (
-                            <div style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.6)', marginTop: '0.15rem', display: 'flex', alignItems: 'center', gap: 3 }}>
-                              <Ruler size={10} />{room.size_m2} m²
-                            </div>
-                          )}
-                        </div>
-                        <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                          {actual > 0 && (
-                            <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 900, fontSize: '1.1rem', color: '#fff' }}>{fmtMoney(actual)}</div>
-                          )}
-                          {quoted != null && (
-                            <div style={{ fontSize: '0.68rem', fontWeight: 700, color: overBudget ? '#fca5a5' : '#86efac', marginTop: '0.1rem' }}>
-                              {actual > 0 ? (overBudget ? '↑' : '↓') + ' ' : ''}{t('planned')} {fmtMoney(quoted)}
-                            </div>
-                          )}
-                        </div>
+                  <button key={room.id} type="button" onClick={() => { setEditingRoom(room); setRoomModalOpen(true); }}
+                    className="dk-card"
+                    style={{ padding: '14px 16px', textAlign: 'left', border: 0, cursor: 'pointer', display: 'flex', flexDirection: 'column', width: '100%' }}
+                  >
+                    <span className="dk-m">{room.name}{room.size_m2 != null ? ` · ${room.size_m2} m²` : ''}</span>
+                    <div className="dk-n" style={{ fontSize: 20, marginTop: 2 }}>
+                      {actual > 0 ? fmtMoney(actual) : '—'}
+                    </div>
+                    {quoted != null && (
+                      <div style={{ fontSize: 12, fontWeight: 700, color: overBudget ? '#ef4444' : '#16a34a', marginTop: 2 }}>
+                        {actual > 0 ? (overBudget ? '↑ ' : '↓ ') : ''}{t('planned')} {fmtMoney(quoted)}
                       </div>
-                    </div>
-                    {/* Light body */}
-                    <div style={{ background: '#f0f4f8', padding: '0.65rem 1rem' }}>
-                      {room.work_types && room.work_types.length > 0 && (
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem', marginBottom: '0.45rem' }}>
-                          {room.work_types.map(t => (
-                            <span key={t} style={{ fontSize: '0.67rem', fontWeight: 700, padding: '0.1rem 0.4rem', borderRadius: 999, background: '#e2e8f0', border: '1px solid #cbd5e1', color: '#475569' }}>{t}</span>
-                          ))}
-                        </div>
-                      )}
-                      {(invCount > 0 || labCount > 0) && (
-                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', gap: '0.65rem' }}>
-                          {invCount > 0 && <span>{t('invoiceCount', { count: invCount })}</span>}
-                          {labCount > 0 && <span>{t('labourCount', { count: labCount })}</span>}
-                        </div>
-                      )}
-                    </div>
+                    )}
+                    {(invCount > 0 || labCount > 0) && (
+                      <div style={{ fontSize: 12, color: '#5A5F68', marginTop: 4, display: 'flex', gap: 6 }}>
+                        {invCount > 0 && <span>{t('invoiceCount', { count: invCount })}</span>}
+                        {labCount > 0 && <span>{t('labourCount', { count: labCount })}</span>}
+                      </div>
+                    )}
+                    {room.work_types && room.work_types.length > 0 && (
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3, marginTop: 6 }}>
+                        {room.work_types.map(wt => (
+                          <span key={wt} style={{ fontSize: 11, fontWeight: 700, padding: '0.1rem 0.4rem', borderRadius: 999, background: '#F0F0F2', color: '#5A5F68' }}>{wt}</span>
+                        ))}
+                      </div>
+                    )}
                   </button>
                 );
               })}
@@ -808,7 +766,7 @@ export default function ProjectDetailClient({
         const linkedSurvey = (surveys || []).find(s => s.id === project.survey_id);
         if (!linkedSurvey) return null;
         return (
-          <div className="card mb-4" style={{ borderLeft: '3px solid var(--accent)', padding: '0.85rem 1.1rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', flexWrap: 'wrap' }}>
+          <div className="dk-card" style={{ padding: '14px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', flexWrap: 'wrap' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <Ruler size={15} color="var(--accent)" />
               <div>
@@ -832,7 +790,7 @@ export default function ProjectDetailClient({
         const sc = { draft: 'var(--text-muted)', sent: 'var(--warning-text)', accepted: 'var(--success-text)', rejected: 'var(--danger-text)' };
         const QUOTE_STATUS_LABELS = { draft: t('quoteDraft'), sent: t('quoteSent'), accepted: t('quoteAccepted'), rejected: t('quoteRejected') };
         return (
-          <div className="card mb-6" style={{ borderLeft: '3px solid var(--accent)', padding: '1rem 1.1rem' }}>
+          <div className="dk-card" style={{ padding: '14px 18px' }}>
             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '0.5rem' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', minWidth: 0 }}>
                 <FileText size={16} color="var(--accent)" style={{ flexShrink: 0 }} />
@@ -877,7 +835,7 @@ export default function ProjectDetailClient({
               const memberShadowRgb = isCollectiveOwner ? '124,58,237' : isSelf ? '37,99,235' : '15,118,110';
 
               return (
-                <div key={member.userId} className="card" style={{ padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem', borderLeft: `4px solid ${memberAccent}`, boxShadow: `0 4px 16px rgba(${memberShadowRgb},0.18), 0 1px 4px rgba(0,0,0,0.06)` }}>
+                <div key={member.userId} className="dk-card" style={{ padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                   {/* Header */}
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
@@ -938,91 +896,127 @@ export default function ProjectDetailClient({
         </div>
       )}
 
-      {/* Tabs */}
-      {(() => {
-        return (
-          <div style={{ marginBottom: '1.25rem', background: '#1e293b', borderRadius: '15px 0 15px 0' }}>
-            <div style={{ display: 'flex', overflowX: 'auto', WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-              {[
-                { key: 'invoices', label: t('tabExpenses', { count: fin.projectInvoices.length }), icon: Receipt },
-                { key: 'naplo',    label: t('tabDiary', { count: diaryEntriesByProject[project.id]?.length ?? initialDiaryCount }), icon: BookOpen },
-                { key: 'payment',  label: t('tabPayment', { count: paymentPlan.length }), icon: Wallet },
-              ].map(tab => {
-                const isActive = activeTab === tab.key;
-                return (
-                  <button key={tab.key} type="button" onClick={() => setActiveTab(tab.key)} style={{
-                    display: 'flex', alignItems: 'center', gap: '0.4rem',
-                    padding: '1.5rem 1rem', border: 'none', borderBottom: `3px solid ${isActive ? '#fff' : 'transparent'}`,
-                    background: 'transparent', cursor: 'pointer', flexShrink: 0, whiteSpace: 'nowrap',
-                    fontWeight: isActive ? 700 : 400, fontSize: '1.15rem',
-                    color: isActive ? '#fff' : 'rgba(255,255,255,0.45)',
-                    transition: 'all 0.15s ease',
-                  }}>
-                    <tab.icon size={15} />{tab.label}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        );
-      })()}
+      {/* Expenses section headline + search + tabs */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, margin: '8px 0 10px' }}>
+        <h2 style={{ margin: 0, fontFamily: 'var(--font-heading, "Bricolage Grotesque", sans-serif)', fontSize: 22, fontWeight: 700, letterSpacing: '-0.02em', color: '#fff' }}>
+          {t('headlineExpenses')}
+        </h2>
+        {canManageProject && (
+          <button type="button" className="dk-btn dk-btn-w" style={{ height: 40, fontSize: 13, padding: '0 14px', flexShrink: 0 }} onClick={() => setNewExpenseOpen(true)}>
+            <Plus size={15} /> {t('newExpenseBtn')}
+          </button>
+        )}
+      </div>
+      <div style={{ display: 'flex', gap: 6, background: 'rgba(255,255,255,.12)', padding: 4, borderRadius: 24, alignSelf: 'flex-start' }}>
+        {[
+          { key: 'invoices', label: t('tabExpenses', { count: fin.projectInvoices.filter(i => i.category !== 'labour').length }) },
+          { key: 'labour',   label: t('tabLabour',   { count: fin.projectLabour.length + fin.projectInvoices.filter(i => i.category === 'labour').length }) },
+          { key: 'naplo',    label: t('tabDiary',    { count: diaryEntriesByProject[project.id]?.length ?? initialDiaryCount }) },
+          { key: 'payment',  label: t('tabPayment',  { count: paymentPlan.length }) },
+          { key: 'portal',   label: t('tabPortal') },
+        ].map(tab => {
+          const isActive = activeTab === tab.key;
+          return (
+            <button key={tab.key} type="button" onClick={() => handleTabChange(tab.key)} style={{
+              height: 40, padding: '0 18px', border: 0, borderRadius: 20,
+              background: isActive ? '#fff' : 'transparent',
+              color: isActive ? '#263248' : '#fff',
+              fontSize: 14, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap',
+            }}>
+              {tab.label}
+            </button>
+          );
+        })}
+      </div>
 
-      <div style={{ background: '#f8fafc', borderRadius: '15px 0 15px 0', padding: '1.25rem', marginBottom: '1rem' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 0, marginTop: 14 }}>
 
       {activeTab === 'invoices' && (
         <>
-          <div className="invoice-filters">
-            <input
-              type="text"
-              className="form-control"
-              placeholder={t('searchExpenses')}
-              value={invoiceSearch}
-              onChange={e => setInvoiceSearch(e.target.value)}
-              style={{ padding: '0.4rem 0.75rem', minHeight: '38px', width: '100%' }}
-            />
-            <div style={{ display: 'flex', gap: '0.5rem', width: '100%' }}>
-              <select value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)} className="form-control" style={{ padding: '0.4rem 0.75rem', minHeight: '38px', flex: 1 }}>
-                <option value="ALL">{t('allCategories')}</option>
-                {INVOICE_CATEGORIES.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
+          {/* Filter row */}
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+            <input type="text" className="dk-input" placeholder={t('searchExpenses')} value={tabSearch} onChange={e => setTabSearch(e.target.value)} style={{ flex: 1, minWidth: 160, height: 40 }} />
+            <select value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)} className="dk-input" style={{ width: 160, height: 40 }}>
+              <option value="ALL">{t('allCategories')}</option>
+              {INVOICE_CATEGORIES.filter(c => c.id !== 'labour').map(c => <option key={c.id} value={c.id}>{catLabel(c.id)}</option>)}
+            </select>
+            {projectRooms.length > 0 && (
+              <select value={roomFilter} onChange={e => setRoomFilter(e.target.value)} className="dk-input" style={{ width: 150, height: 40 }}>
+                <option value="ALL">{t('allSections')}</option>
+                <option value="GENERAL">{t('general')}</option>
+                {projectRooms.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
               </select>
-              {projectRooms.length > 0 && (
-                <select value={roomFilter} onChange={e => setRoomFilter(e.target.value)} className="form-control" style={{ padding: '0.4rem 0.75rem', minHeight: '38px', flex: 1 }}>
-                  <option value="ALL">{t('allSections')}</option>
-                  <option value="GENERAL">{t('general')}</option>
-                  {projectRooms.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
-                </select>
-              )}
-            </div>
+            )}
             {projectMemberUsers.length > 1 && (
-              <select value={uploaderFilter} onChange={e => setUploaderFilter(e.target.value)} className="form-control" style={{ padding: '0.4rem 0.75rem', minHeight: '38px' }}>
+              <select value={uploaderFilter} onChange={e => setUploaderFilter(e.target.value)} className="dk-input" style={{ width: 150, height: 40 }}>
                 <option value="ALL">{t('allUploaders')}</option>
                 {projectMemberUsers.map(u => <option key={u.id} value={u.id}>{u.display_name}</option>)}
               </select>
             )}
-            {!isMobile && (
-              <AppLink href={`${navPrefix}/projektek/${project.id}/feltoltes`} className="btn btn-primary btn-sm" style={{ marginLeft: 'auto', whiteSpace: 'nowrap' }}><Plus size={15} /> {t('addNewEntryBtn')}</AppLink>
-            )}
           </div>
-          {filteredInvoices.length === 0 ? (
-            <div className="card" style={{ textAlign: 'center', padding: '2.5rem 1.5rem' }}>
-              <Receipt size={36} color="var(--text-muted)" style={{ margin: '0 auto 0.5rem' }} />
-              <h4 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '0.25rem' }}>{t('noExpensesTitle')}</h4>
-              <p style={{ color: 'var(--text-secondary)', fontSize: '0.825rem', marginBottom: '1rem' }}>{t('noExpensesText')}</p>
-              <AppLink href={`${navPrefix}/projektek/${project.id}/feltoltes`} className="btn btn-primary btn-sm"><Plus size={15} /> {t('addExpenseBtn')}</AppLink>
-            </div>
-          ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(300px, 100%), 1fr))', gap: '0.85rem' }}>
-              {filteredInvoices.map(inv => (
-                <InvoiceCard
-                  key={inv.id}
-                  invoice={inv}
-                  room={projectRooms.find(r => r.id === inv.room_id) || null}
-                  media={invoiceMediaByInvoice[inv.id] || []}
-                  onClick={() => setDetailInvoice(inv)}
-                />
-              ))}
-            </div>
-          )}
+
+          {/* Table card */}
+          <section className="dk-card" style={{ overflow: 'hidden', marginTop: 12 }}>
+            {filteredInvoices.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '2rem', color: '#5A5F68' }}>
+                <Receipt size={28} style={{ margin: '0 auto 0.5rem', display: 'block', opacity: 0.4 }} />
+                <div style={{ fontWeight: 700, fontSize: 15, color: '#0E1116', marginBottom: 4 }}>{t('noExpensesTitle')}</div>
+                <div style={{ fontSize: 13 }}>{t('noExpensesText')}</div>
+              </div>
+            ) : (
+              <>
+                <div className="dk-th" style={{ gridTemplateColumns: activeCollectiveId ? '100px 1fr 110px 90px 100px 90px' : '100px 1fr 110px 90px 90px' }}>
+                  <span>{t('thCategory')}</span>
+                  <span>{t('thDesc')}</span>
+                  <span>{t('thSection')}</span>
+                  <span>{t('thType')}</span>
+                  {activeCollectiveId && <span>{t('thUploader')}</span>}
+                  <span>{t('thDate')}</span>
+                </div>
+                {filteredInvoices.map(inv => {
+                  const cLabel = catLabel(inv.category);
+                  const room   = projectRooms.find(r => r.id === inv.room_id);
+                  const uploader  = initialUsers.find(u => u.id === inv.uploaded_by);
+                  const uploaderLabel = inv.uploaded_by === currentUser?.id
+                    ? t('youSuffix')
+                    : (uploader?.display_name || '—');
+                  const hasReceipt = !!(inv.image_url || inv.has_media);
+                  return (
+                    <button key={inv.id} type="button" className="dk-tr dk-sr" style={{ display: 'grid', gridTemplateColumns: activeCollectiveId ? '100px 1fr 110px 90px 100px 90px' : '100px 1fr 110px 90px 90px', cursor: 'pointer' }} onClick={() => setDetailInvoice(inv)}>
+                      <span style={{ minWidth: 0 }}><span className="dk-badge">{cLabel}</span></span>
+                      <span style={{ minWidth: 0, display: 'flex', alignItems: 'center', gap: 8, overflow: 'hidden' }}>
+                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, minWidth: 0 }}>
+                          <b>{inv.description || cLabel}</b>
+                        </span>
+                        <span style={{ flexShrink: 0, height: 24, padding: '0 10px', borderRadius: 12, background: 'var(--dk-c, #263248)', color: '#fff', fontSize: 12, fontWeight: 700, display: 'inline-flex', alignItems: 'center', fontFamily: 'var(--font-mono)', whiteSpace: 'nowrap' }}>
+                          {fmtMoney(Number(inv.value_huf || 0))}
+                        </span>
+                      </span>
+                      <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {room?.name || t('general')}
+                      </span>
+                      <span style={{ minWidth: 0 }}>
+                        <span className="dk-badge" style={hasReceipt
+                          ? { background: '#E7F4EC', color: '#14532D' }
+                          : { background: '#F0F0F2', color: '#5A5F68' }
+                        }>
+                          {hasReceipt ? t('typeInvoice') : t('typeManual')}
+                        </span>
+                      </span>
+                      {activeCollectiveId && (
+                        <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {uploaderLabel}
+                        </span>
+                      )}
+                      <span style={{ minWidth: 0, fontSize: 13, color: '#5A5F68' }}>
+                        {inv.created_at ? new Date(inv.created_at).toLocaleDateString('hu-HU', { month: 'short', day: 'numeric' }) : '—'}
+                      </span>
+                    </button>
+                  );
+                })}
+              </>
+            )}
+          </section>
         </>
       )}
 
@@ -1137,83 +1131,66 @@ export default function ProjectDetailClient({
             </div>
 
             {paymentPlan.length === 0 ? (
-              <div className="card" style={{ textAlign: 'center', padding: '2.5rem 1.5rem' }}>
-                <Wallet size={36} color="var(--text-muted)" style={{ margin: '0 auto 0.5rem' }} />
-                <h4 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '0.25rem' }}>{t('noPaymentPlanTitle')}</h4>
-                <p style={{ color: 'var(--text-secondary)', fontSize: '0.825rem', marginBottom: '1rem' }}>
-                  {t('noPaymentPlanText')}
-                </p>
+              <section className="dk-card" style={{ padding: '2.5rem 1.5rem', textAlign: 'center' }}>
+                <Wallet size={28} style={{ margin: '0 auto 0.5rem', display: 'block', opacity: 0.4 }} />
+                <div style={{ fontWeight: 700, fontSize: 15, color: '#0E1116', marginBottom: 4 }}>{t('noPaymentPlanTitle')}</div>
+                <div style={{ fontSize: 13, color: '#5A5F68', marginBottom: 16 }}>{t('noPaymentPlanText')}</div>
                 {canManageProject && (
-                  <button type="button" className="btn btn-primary btn-sm" onClick={() => { setEditingPayment(null); setShowPaymentModal(true); }}>
+                  <button type="button" className="dk-btn dk-btn-dark" style={{ height: 40, fontSize: 13, margin: '0 auto' }} onClick={() => { setEditingPayment(null); setShowPaymentModal(true); }}>
                     <Plus size={15} /> {t('addFirstItemBtn')}
                   </button>
                 )}
-              </div>
+              </section>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
-                {paymentPlan.map((item, idx) => {
-                  const isOverdue = item.status === 'pending' && item.due_date && item.due_date < today;
-                  const statusDisplay = isOverdue
-                    ? { labelKey: 'statusOverdue', bg: '#fef2f2', color: '#b91c1c', border: '#fecaca' }
-                    : (STATUS_DISPLAY[item.status] || STATUS_DISPLAY.pending);
-                  const triggerDisplay = TRIGGER_DISPLAY[item.trigger_type] || TRIGGER_DISPLAY.milestone;
-                  const TRIGGER_HEADER_BG = { start: '#334155', end: '#334155', milestone: '#334155', date: '#334155' };
-                  const headerBg = TRIGGER_HEADER_BG[item.trigger_type] || TRIGGER_HEADER_BG.milestone;
-                  const PILL = { fontSize: '0.68rem', fontWeight: 700, padding: '0.12rem 0.45rem', borderRadius: 999, background: 'rgba(255,255,255,0.18)', border: '1px solid rgba(255,255,255,0.28)', color: '#fff' };
+              <>
+                <section className="dk-card" style={{ overflow: 'hidden' }}>
+                  <div className="dk-th" style={{ gridTemplateColumns: '1fr 160px 130px 110px' }}>
+                    <span>{t('thDesc')}</span>
+                    <span>{t('thSection')}</span>
+                    <span>{t('thAmount')}</span>
+                    <span>{t('asideStatusLabel')}</span>
+                  </div>
+                  {paymentPlan.map((item, idx) => {
+                    const isOverdue = item.status === 'pending' && item.due_date && item.due_date < today;
+                    const statusDisplay = isOverdue
+                      ? { labelKey: 'statusOverdue', bg: '#fef2f2', color: '#b91c1c' }
+                      : (STATUS_DISPLAY[item.status] || STATUS_DISPLAY.pending);
+                    const triggerDisplay = TRIGGER_DISPLAY[item.trigger_type] || TRIGGER_DISPLAY.milestone;
+                    const triggerText = item.trigger_type === 'milestone' && item.milestone_name
+                      ? item.milestone_name
+                      : item.trigger_type === 'date' && item.due_date
+                        ? new Date(item.due_date).toLocaleDateString('hu-HU', { month: 'short', day: 'numeric' })
+                        : t(triggerDisplay.labelKey);
+                    return (
+                      <button key={item.id} type="button"
+                        className="dk-tr dk-sr" style={{ display: 'grid', gridTemplateColumns: '1fr 160px 130px 110px', cursor: canManageProject ? 'pointer' : 'default' }}
+                        onClick={() => { if (canManageProject) { setEditingPayment(item); setShowPaymentModal(true); } }}
+                      >
+                        <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          <b>#{idx + 1} {item.label}</b>
+                        </span>
+                        <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: '#5A5F68', fontSize: 13 }}>
+                          {triggerText}
+                        </span>
+                        <span style={{ minWidth: 0 }}>
+                          <b>{Number(item.amount_huf).toLocaleString('hu-HU')} Ft</b>
+                        </span>
+                        <span style={{ minWidth: 0 }}>
+                          <span className="dk-badge" style={{ background: statusDisplay.bg || '#F0F0F2', color: statusDisplay.color || '#2B3038' }}>
+                            {t(statusDisplay.labelKey)}
+                          </span>
+                        </span>
+                      </button>
+                    );
+                  })}
+                </section>
 
-                  return (
-                    <button key={item.id} type="button"
-                      onClick={() => { if (canManageProject) { setEditingPayment(item); setShowPaymentModal(true); } }}
-                      style={{ display: 'block', width: '100%', textAlign: 'left', borderRadius: 'var(--radius-md)', border: `1.5px solid ${triggerDisplay.border}`, overflow: 'hidden', cursor: canManageProject ? 'pointer' : 'default' }}>
-
-                      {/* Coloured header */}
-                      <div style={{ background: headerBg, padding: '0.75rem 1rem' }}>
-                        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '0.5rem' }}>
-                          <div style={{ minWidth: 0, flex: 1 }}>
-                            <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'rgba(255,255,255,0.7)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.2rem' }}>
-                              #{idx + 1} · {t(triggerDisplay.labelKey)}
-                            </div>
-                            <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 900, fontSize: '1.35rem', color: '#fff', lineHeight: 1.1 }}>
-                              {Number(item.amount_huf).toLocaleString('hu-HU')} Ft
-                            </div>
-                          </div>
-                          <span style={PILL}>{t(statusDisplay.labelKey)}</span>
-                        </div>
-                      </div>
-
-                      {/* Light body */}
-                      <div style={{ background: triggerDisplay.bg, padding: '0.65rem 1rem' }}>
-                        <div style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-primary)', marginBottom: '0.3rem' }}>{item.label}</div>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem', alignItems: 'center', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
-                          {item.trigger_type === 'milestone' && item.milestone_name && (
-                            <span style={{ fontWeight: 600 }}>→ {item.milestone_name}</span>
-                          )}
-                          {item.trigger_type === 'date' && item.due_date && (
-                            <span style={{ display: 'flex', alignItems: 'center', gap: '0.2rem', fontWeight: 600 }}>
-                              <Calendar size={12} />{new Date(item.due_date).toLocaleDateString('hu-HU', { year: 'numeric', month: 'long', day: 'numeric' })}
-                            </span>
-                          )}
-                          {item.status === 'paid' && item.paid_at && (
-                            <span style={{ color: 'var(--success-text)', fontWeight: 600 }}>
-                              {t('paidOnLabel')} {new Date(item.paid_at).toLocaleDateString('hu-HU', { year: 'numeric', month: 'long', day: 'numeric' })}
-                            </span>
-                          )}
-                          {(item.files || []).length > 0 && (
-                            <span style={{ color: 'var(--text-muted)' }}>{item.files.length} {t('attachmentSuffix')}</span>
-                          )}
-                        </div>
-                        {item.note && <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: '0.3rem 0 0', fontStyle: 'italic' }}>{item.note}</p>}
-                      </div>
-                    </button>
-                  );
-                })}
-
-                {/* Total bar */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.75rem 1.1rem', background: 'var(--bg-subtle)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)', marginTop: '0.25rem' }}>
-                  <span style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-secondary)' }}>{t('totalLabel')}</span>
-                  <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 900, fontSize: '1.05rem', color: 'var(--text-primary)' }}>{totalExpected.toLocaleString('hu-HU')} Ft</span>
+                {/* Total row */}
+                <div className="dk-card" style={{ padding: '12px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: '#5A5F68' }}>{t('totalLabel')}</span>
+                  <b style={{ fontSize: 15, color: '#0E1116' }}>{totalExpected.toLocaleString('hu-HU')} Ft</b>
                 </div>
-              </div>
+              </>
             )}
 
             <PaymentPlanModal
@@ -1232,10 +1209,11 @@ export default function ProjectDetailClient({
 
       {activeTab === 'naplo' && (
         <>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.85rem', gap: '0.5rem', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
             <button
               type="button"
-              className="btn btn-secondary btn-sm"
+              className="dk-btn dk-btn-g"
+              style={{ height: 40, fontSize: 13, padding: '0 14px' }}
               onClick={() => {
                 const url = `${window.location.origin}/naplo/${project.id}`;
                 navigator.clipboard.writeText(url).then(() => {
@@ -1246,85 +1224,188 @@ export default function ProjectDetailClient({
             >
               <Copy size={14} /> {t('clientLinkBtn')}
             </button>
-            <button type="button" onClick={() => setShowQuickDiarySheet(true)} className="btn btn-primary btn-sm"><Plus size={15} /> {t('addNewEntryBtn')}</button>
+            <button type="button" onClick={() => setShowQuickDiarySheet(true)} className="dk-btn dk-btn-w" style={{ height: 40, fontSize: 13, padding: '0 14px' }}>
+              <Plus size={15} /> {t('addNewEntryBtn')}
+            </button>
           </div>
+
           {diaryLoading ? (
-            <div className="card" style={{ textAlign: 'center', padding: '2.5rem 1.5rem', color: 'var(--text-muted)' }}>{t('loadingText')}</div>
+            <section className="dk-card" style={{ padding: '2rem', textAlign: 'center', color: '#5A5F68' }}>{t('loadingText')}</section>
           ) : !diaryEntriesByProject[project.id] || diaryEntriesByProject[project.id].length === 0 ? (
-            <div className="card" style={{ textAlign: 'center', padding: '2.5rem 1.5rem' }}>
-              <BookOpen size={36} color="var(--text-muted)" style={{ margin: '0 auto 0.5rem' }} />
-              <h4 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '0.25rem' }}>{t('noDiaryTitle')}</h4>
-              <p style={{ color: 'var(--text-secondary)', fontSize: '0.825rem', marginBottom: '1rem' }}>{t('noDiaryText')}</p>
-              <button type="button" onClick={() => setShowQuickDiarySheet(true)} className="btn btn-primary btn-sm"><Plus size={15} /> {t('firstEntryBtn')}</button>
-            </div>
+            <section className="dk-card" style={{ padding: '2.5rem 1.5rem', textAlign: 'center' }}>
+              <BookOpen size={28} style={{ margin: '0 auto 0.5rem', display: 'block', opacity: 0.4 }} />
+              <div style={{ fontWeight: 700, fontSize: 15, color: '#0E1116', marginBottom: 4 }}>{t('noDiaryTitle')}</div>
+              <div style={{ fontSize: 13, color: '#5A5F68', marginBottom: 16 }}>{t('noDiaryText')}</div>
+              <button type="button" onClick={() => setShowQuickDiarySheet(true)} className="dk-btn dk-btn-dark" style={{ height: 40, fontSize: 13, margin: '0 auto' }}>
+                <Plus size={15} /> {t('firstEntryBtn')}
+              </button>
+            </section>
           ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(320px, 100%), 1fr))', gap: '0.85rem' }}>
+            <section className="dk-card" style={{ overflow: 'hidden' }}>
               {(diaryEntriesByProject[project.id] || []).map(entry => {
-                const entryDateStr = entry.entry_date ? new Date(entry.entry_date).toLocaleDateString('hu-HU', { year: 'numeric', month: 'long', day: 'numeric' }) : null;
-                const author   = initialUsers.find(u => u.id === entry.created_by);
+                const entryDateStr = entry.entry_date
+                  ? new Date(entry.entry_date).toLocaleDateString('hu-HU', { year: 'numeric', month: 'long', day: 'numeric' })
+                  : null;
+                const author    = initialUsers.find(u => u.id === entry.created_by);
                 const entryRoom = projectRooms.find(r => r.id === entry.room_id);
                 return (
                   <button key={entry.id} type="button" onClick={() => setDiaryDetailEntry(entry)}
-                    style={{ borderRadius: 'var(--radius-md)', overflow: 'hidden', border: '1.5px solid #e2e8f0', width: '100%', textAlign: 'left', cursor: 'pointer', background: 'none' }}>
-                    {/* Dark header */}
-                    <div style={{ background: CARD_HEADER_BG, padding: '0.75rem 1rem' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexWrap: 'wrap', marginBottom: '0.45rem' }}>
-                        {entryDateStr && (
-                          <span style={{ fontSize: '0.68rem', fontWeight: 700, padding: '0.1rem 0.45rem', borderRadius: 999, background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.25)', color: '#fff', display: 'inline-flex', alignItems: 'center', gap: 3 }}>
-                            <Calendar size={10} />{entryDateStr}
-                          </span>
-                        )}
-                        {entry.work_type && (
-                          <span style={{ fontSize: '0.68rem', fontWeight: 700, padding: '0.1rem 0.45rem', borderRadius: 999, background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.25)', color: '#fff' }}>
-                            {entry.work_type}
-                          </span>
-                        )}
-                        {entryRoom && (
-                          <span style={{ fontSize: '0.68rem', fontWeight: 700, padding: '0.1rem 0.45rem', borderRadius: 999, background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.25)', color: '#fff', display: 'inline-flex', alignItems: 'center', gap: 3 }}>
-                            <Home size={10} />{entryRoom.name}
-                          </span>
-                        )}
-                        <span style={{ marginLeft: 'auto', fontSize: '0.68rem', fontWeight: 700, padding: '0.1rem 0.5rem', borderRadius: 999, border: entry.is_public ? '1px solid #86efac' : '1px solid rgba(255,255,255,0.25)', background: entry.is_public ? 'rgba(134,239,172,0.2)' : 'rgba(255,255,255,0.1)', color: entry.is_public ? '#86efac' : 'rgba(255,255,255,0.6)', display: 'inline-flex', alignItems: 'center', gap: 3 }}>
-                          {entry.is_public ? <><Eye size={10} /> {t('publicBadge')}</> : <><Lock size={10} /> {t('privateBadge')}</>}
-                        </span>
-                      </div>
-                      <div style={{ fontWeight: 800, fontSize: '1.05rem', color: '#fff', lineHeight: 1.25 }}>{entry.title}</div>
-                    </div>
-                    {/* Light body — preview only */}
-                    <div style={{ background: '#f8fafc', padding: '0.65rem 1rem' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: entry.body ? '0.45rem' : 0 }}>
-                        <div style={{ width: 20, height: 20, borderRadius: '50%', background: 'var(--accent-light)', border: '1px solid var(--accent-border)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.6rem', fontWeight: 800, color: 'var(--accent)', flexShrink: 0 }}>
-                          {(author?.display_name || '?').charAt(0).toUpperCase()}
-                        </div>
-                        <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)' }}>{author?.display_name || t('unknownAuthor')}</span>
-                      </div>
+                    className="dk-tr dk-sr" style={{ display: 'grid', gridTemplateColumns: '56px 1fr auto', gap: 14, alignItems: 'center', cursor: 'pointer', padding: '10px 16px' }}>
+                    {/* Thumbnail placeholder */}
+                    <span style={{ width: 56, height: 56, borderRadius: 14, background: 'linear-gradient(135deg,#C9CFDB,#9AA3B5)', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      {entry.photos?.length > 0
+                        ? <Camera size={18} color="#fff" />
+                        : <BookOpen size={18} color="#fff" />
+                      }
+                    </span>
+                    {/* Content */}
+                    <span style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
+                      <b style={{ fontSize: 14, color: '#0E1116', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{entry.title}</b>
+                      <span className="dk-m">
+                        {entryDateStr || ''}
+                        {author?.display_name ? ` · ${author.display_name}` : ''}
+                        {entryRoom ? ` · ${entryRoom.name}` : ''}
+                        {entry.work_type ? ` · ${entry.work_type}` : ''}
+                      </span>
                       {entry.body && (
-                        <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', lineHeight: 1.5, margin: 0, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
+                        <span style={{ fontSize: 13, color: '#5A5F68', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {entry.body}
-                        </p>
+                        </span>
                       )}
-                      {entry.photos?.length > 0 && (
-                        <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.35rem', fontWeight: 600 }}>
-                          {t('photoCount', { count: entry.photos.length })}
-                        </div>
-                      )}
-                    </div>
+                    </span>
+                    {/* Badge */}
+                    <span className="dk-badge" style={entry.is_public
+                      ? { background: '#E7F4EC', color: '#14532D' }
+                      : { background: '#F0F0F2', color: '#2B3038' }
+                    }>
+                      {entry.is_public ? <><Eye size={11} /> {t('publicBadge')}</> : <><Lock size={11} /> {t('privateBadge')}</>}
+                    </span>
                   </button>
                 );
               })}
-            </div>
+            </section>
           )}
-
         </>
       )}
 
-      <PortalShareSection
-        project={project}
-        invoices={liveInvoices}
-        labourEntries={liveLabour}
-        diaryEntries={diaryEntriesByProject[project.id] || []}
-        canManage={canManageProject}
-      />
+      {/* Labour tab — labour_entries + invoices with category 'labour' */}
+      {activeTab === 'labour' && (() => {
+        return (
+          <>
+            <input type="text" className="dk-input" placeholder={t('searchExpenses')} value={tabSearch} onChange={e => setTabSearch(e.target.value)} style={{ marginBottom: 12, height: 40 }} />
+            {(() => {
+        const q = tabSearch.trim().toLowerCase();
+        const labourInvoices = fin.projectInvoices.filter(inv =>
+          inv.category === 'labour' &&
+          (!q || inv.description?.toLowerCase().includes(q))
+        );
+        const labourEntries = fin.projectLabour.filter(le =>
+          !q || (le.labour_type || le.description || '').toLowerCase().includes(q)
+        );
+        const hasAny = labourEntries.length > 0 || labourInvoices.length > 0;
+        const cols = activeCollectiveId ? '1fr 110px 90px 100px 90px' : '1fr 110px 90px 90px';
+        return (
+          <section className="dk-card" style={{ overflow: 'hidden', marginTop: 12 }}>
+            <div className="dk-th" style={{ gridTemplateColumns: cols }}>
+              <span>{t('thDesc')}</span>
+              <span>{t('thSection')}</span>
+              <span>{t('thType')}</span>
+              {activeCollectiveId && <span>{t('thUploader')}</span>}
+              <span>{t('thAmount')}</span>
+            </div>
+            {!hasAny ? (
+              <div style={{ textAlign: 'center', padding: '2rem', color: '#5A5F68' }}>
+                <Hammer size={28} style={{ margin: '0 auto 0.5rem', display: 'block', opacity: 0.4 }} aria-hidden="true" />
+                <div style={{ fontWeight: 700, fontSize: 15, color: '#0E1116', marginBottom: 4 }}>{t('noExpensesTitle')}</div>
+              </div>
+            ) : (
+              <>
+                {/* Labour entries (hours × rate) */}
+                {labourEntries.map(le => {
+                  const hours = Number(le.hours || 0);
+                  const rate  = Number(le.unit_price || le.hourly_rate || 0);
+                  const qty   = `${hours} ${le.unit || 'h'}${rate ? ` × ${fmtMoney(rate)}` : ''}`;
+                  const uploaderLabel = le.uploaded_by === currentUser?.id ? t('youSuffix') : (initialUsers.find(u => u.id === le.uploaded_by)?.display_name || '—');
+                  const room = projectRooms.find(r => r.id === le.room_id);
+                  return (
+                    <div key={le.id} className="dk-tr" style={{ display: 'grid', gridTemplateColumns: cols }}>
+                      <span style={{ minWidth: 0, display: 'flex', alignItems: 'center', gap: 8, overflow: 'hidden' }}>
+                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, minWidth: 0 }}>
+                          <b>{le.labour_type || le.description || '—'}</b>
+                          {qty ? <span style={{ color: '#5A5F68', fontWeight: 400, marginLeft: 6 }}>{qty}</span> : null}
+                        </span>
+                      </span>
+                      <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 13, color: '#5A5F68' }}>
+                        {room?.name || t('general')}
+                      </span>
+                      <span style={{ minWidth: 0 }}>
+                        <span className="dk-badge">{t('typeManual')}</span>
+                      </span>
+                      {activeCollectiveId && (
+                        <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 13 }}>
+                          {uploaderLabel}
+                        </span>
+                      )}
+                      <span style={{ minWidth: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span style={{ flexShrink: 0, height: 24, padding: '0 10px', borderRadius: 12, background: 'var(--dk-c, #263248)', color: '#fff', fontSize: 12, fontWeight: 700, display: 'inline-flex', alignItems: 'center', fontFamily: 'var(--font-mono)', whiteSpace: 'nowrap' }}>
+                          {fmtMoney(Number(le.value_huf || 0))}
+                        </span>
+                        {(canManageProject || le.uploaded_by === currentUser?.id) && (
+                          <button type="button" onClick={() => setEditingLabour(le)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#8A8F98', padding: 2, display: 'flex', flexShrink: 0 }}>
+                            <PencilLine size={15} aria-hidden="true" />
+                          </button>
+                        )}
+                      </span>
+                    </div>
+                  );
+                })}
+                {/* Labour-categorised invoices (flat amount) */}
+                {labourInvoices.map(inv => {
+                  const uploaderLabel = inv.uploaded_by === currentUser?.id ? t('youSuffix') : (initialUsers.find(u => u.id === inv.uploaded_by)?.display_name || '—');
+                  const room = projectRooms.find(r => r.id === inv.room_id);
+                  return (
+                    <button key={inv.id} type="button" className="dk-tr dk-sr" style={{ display: 'grid', gridTemplateColumns: cols, cursor: 'pointer' }} onClick={() => setDetailInvoice(inv)}>
+                      <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        <b>{inv.description || '—'}</b>
+                      </span>
+                      <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 13, color: '#5A5F68' }}>
+                        {room?.name || t('general')}
+                      </span>
+                      <span style={{ minWidth: 0 }}>
+                        <span className="dk-badge" style={{ background: '#E7F4EC', color: '#14532D' }}>{t('typeInvoice')}</span>
+                      </span>
+                      {activeCollectiveId && (
+                        <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 13 }}>
+                          {uploaderLabel}
+                        </span>
+                      )}
+                      <span style={{ minWidth: 0 }}>
+                        <span style={{ flexShrink: 0, height: 24, padding: '0 10px', borderRadius: 12, background: 'var(--dk-c, #263248)', color: '#fff', fontSize: 12, fontWeight: 700, display: 'inline-flex', alignItems: 'center', fontFamily: 'var(--font-mono)', whiteSpace: 'nowrap' }}>
+                          {fmtMoney(Number(inv.value_huf || 0))}
+                        </span>
+                      </span>
+                    </button>
+                  );
+                })}
+              </>
+            )}
+          </section>
+        );
+      })()}
+          </>
+        );
+      })()}
+
+      {/* Portal tab */}
+      {activeTab === 'portal' && (
+        <PortalShareSection
+          project={project}
+          invoices={liveInvoices}
+          labourEntries={liveLabour}
+          diaryEntries={diaryEntriesByProject[project.id] || []}
+          canManage={canManageProject}
+        />
+      )}
 
       {/* Collective team discussion (US-MSG-022) */}
       {project.collective_id && !isDemoMode && (
@@ -1334,6 +1415,77 @@ export default function ProjectDetailClient({
         />
       )}
 
+      </div>
+
+              </div>
+
+              {/* ── Right aside ───────────────────────────────────────────── */}
+              <aside style={{ flexShrink: 0, width: 320, display: 'flex', flexDirection: 'column', gap: 14 }}>
+
+                {/* Státusz card */}
+                <section className="dk-card" style={{ padding: 18, display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: '#5A5F68' }}>{t('asideStatusLabel')}</span>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    {['active', 'paused', 'closed'].map(s => (
+                      <button
+                        key={s}
+                        type="button"
+                        className="dk-chip"
+                        disabled={!canManageProject}
+                        onClick={() => canManageProject && handleSetStatus(s)}
+                        style={{
+                          flex: 1, justifyContent: 'center',
+                          background: projectStatus === s ? '#263248' : '#EFEDE6',
+                          color: projectStatus === s ? '#fff' : '#0E1116',
+                          cursor: canManageProject ? 'pointer' : 'default',
+                          opacity: !canManageProject ? 0.65 : 1,
+                        }}
+                      >
+                        {s === 'active' ? t('statusActive') : s === 'paused' ? t('statusPaused') : t('statusClosed')}
+                      </button>
+                    ))}
+                  </div>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: '#5A5F68' }}>
+                    {project.collective_id ? t('statusNote') : t('statusNotePersonal')}
+                  </span>
+                </section>
+
+                {/* Ügyfél card */}
+                {client && (
+                  <section className="dk-card" style={{ padding: 18, display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: '#5A5F68' }}>{t('asideClientLabel')}</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <span style={{ width: 40, height: 40, borderRadius: 20, background: '#B8456B', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 15, flexShrink: 0 }}>
+                        {(client.name || '?').charAt(0).toUpperCase()}
+                      </span>
+                      <span style={{ flex: 1, display: 'flex', flexDirection: 'column', lineHeight: 1.25 }}>
+                        <b style={{ fontSize: 15, color: '#0E1116' }}>{client.name}</b>
+                        {client.address && <span style={{ fontSize: 13, fontWeight: 600, color: '#5A5F68' }}>{client.address}</span>}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      className="dk-btn dk-btn-l"
+                      style={{ justifyContent: 'center' }}
+                      onClick={() => {
+                        const url = `${window.location.origin}/clients/${client.id}`;
+                        navigator.clipboard.writeText(url).then(() => {
+                          setToast(t('copyPortalLinkDone'));
+                          setTimeout(() => setToast(''), 2500);
+                        });
+                      }}
+                    >
+                      <Link2 size={18} aria-hidden="true" />
+                      {t('copyPortalLinkBtn')}
+                    </button>
+                  </section>
+                )}
+
+              </aside>
+
+            </div>
+          </>
+        )}
       </div>
 
       {editingLabour && (
@@ -1348,6 +1500,36 @@ export default function ProjectDetailClient({
             : undefined}
         />
       )}
+
+      <NewExpenseModal
+        isOpen={newExpenseOpen}
+        onClose={() => setNewExpenseOpen(false)}
+        projectId={project.id}
+        rooms={projectRooms}
+        onSuccess={() => {
+          refreshSupabaseData();
+          setToast(t('entrySaved'));
+          setTimeout(() => setToast(''), 2500);
+        }}
+      />
+
+      {/* Header context menu modal */}
+      <Modal isOpen={showOptionsMenu} onClose={() => setShowOptionsMenu(false)} title={project.name}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, margin: '0 -6px' }}>
+          <button
+            type="button"
+            onClick={() => { setShowOptionsMenu(false); setEditProjectOpen(true); }}
+            style={{ display: 'flex', alignItems: 'center', gap: 12, width: '100%', padding: '12px 16px', background: 'none', border: 'none', borderRadius: 12, cursor: 'pointer', fontSize: 15, fontWeight: 600, color: '#0E1116', textAlign: 'left' }}
+            onMouseEnter={e => e.currentTarget.style.background = '#F4F5F8'}
+            onMouseLeave={e => e.currentTarget.style.background = 'none'}
+          >
+            <span style={{ width: 36, height: 36, borderRadius: 10, background: '#F1F1F3', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <Edit3 size={17} color="#5A5F68" />
+            </span>
+            {t('editLabel')}
+          </button>
+        </div>
+      </Modal>
 
       <ProjectEditModal
         isOpen={editProjectOpen}

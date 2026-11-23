@@ -47,7 +47,7 @@ export async function PATCH(request, { params }) {
   const { admin, profile, project } = ctx;
 
   const fields = await request.json();
-  const allowed = ['value_huf', 'category', 'description', 'ai_line_items', 'ai_total', 'image_url', 'storage_path', 'portal_visible'];
+  const allowed = ['value_huf', 'category', 'description', 'room_id', 'ai_line_items', 'ai_total', 'image_url', 'storage_path', 'portal_visible'];
   const update = {};
   for (const k of allowed) if (k in fields) update[k] = fields[k];
 

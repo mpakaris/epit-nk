@@ -1,19 +1,19 @@
 export const INVOICE_CATEGORY_COLORS = {
-  'Anyag':            { bg: '#eff6ff', color: '#1d4ed8', border: '#bfdbfe' },
-  'Munka':            { bg: '#ecfdf5', color: '#047857', border: '#a7f3d0' },
-  'Szerszám/Eszköz':  { bg: '#fffbeb', color: '#b45309', border: '#fde68a' },
-  'Szállítás':        { bg: '#faf5ff', color: '#7e22ce', border: '#e9d5ff' },
-  'Engedély/Hatóság': { bg: '#fff1f2', color: '#be123c', border: '#fecdd3' },
-  'Egyéb':            { bg: '#f1f5f9', color: '#475569', border: '#cbd5e1' },
+  'material':  { bg: '#eff6ff', color: '#1d4ed8', border: '#bfdbfe' },
+  'labour':    { bg: '#ecfdf5', color: '#047857', border: '#a7f3d0' },
+  'equipment': { bg: '#fffbeb', color: '#b45309', border: '#fde68a' },
+  'delivery':  { bg: '#faf5ff', color: '#7e22ce', border: '#e9d5ff' },
+  'parking':   { bg: '#fff1f2', color: '#be123c', border: '#fecdd3' },
+  'other':     { bg: '#f1f5f9', color: '#475569', border: '#cbd5e1' },
 };
 
 export const INVOICE_CATEGORIES = [
-  { id: 'Anyag',             label: 'Anyag',             desc: 'Építőanyagok, fa, cement, burkolat',    color: 'anyag'    },
-  { id: 'Munka',             label: 'Munka',             desc: 'Alvállalkozói munkadíj, számla',         color: 'munka'    },
-  { id: 'Szerszám/Eszköz',   label: 'Szerszám/Eszköz',   desc: 'Gépbérlés, szerszámok, állványzat',     color: 'eszkoz'   },
-  { id: 'Szállítás',         label: 'Szállítás',         desc: 'Teherfuvarozás, konténer, üzemanyag',   color: 'szallitas' },
-  { id: 'Engedély/Hatóság',  label: 'Engedély/Hatóság',  desc: 'Tervezés, illetékek, földhivatal',      color: 'hatosag'  },
-  { id: 'Egyéb',             label: 'Egyéb',             desc: 'Étkezés, vegyes kiadás',                color: 'egyeb'    },
+  { id: 'material',  label: 'Anyag',             desc: 'Építőanyagok, fa, cement, burkolat'  },
+  { id: 'labour',    label: 'Munka',             desc: 'Alvállalkozói munkadíj, számla'       },
+  { id: 'equipment', label: 'Szerszám/Eszköz',   desc: 'Gépbérlés, szerszámok, állványzat'   },
+  { id: 'delivery',  label: 'Szállítás',         desc: 'Teherfuvarozás, konténer, üzemanyag'  },
+  { id: 'parking',   label: 'Engedély/Hatóság',  desc: 'Tervezés, illetékek, földhivatal'     },
+  { id: 'other',     label: 'Egyéb',             desc: 'Étkezés, vegyes kiadás'               },
 ];
 
 export const QUOTE_ENTRY_TYPES = [
