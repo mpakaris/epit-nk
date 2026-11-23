@@ -57,7 +57,7 @@ const DrawingPad = forwardRef(function DrawingPad({ onSave, onCancel, saving, ba
   };
 
   return (
-    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', padding: '10px 14px 14px', gap: 10, boxSizing: 'border-box' }}>
+    <div style={{ width: '100%', display: 'flex', flexDirection: 'column', padding: '10px 14px 14px', gap: 10, boxSizing: 'border-box' }}>
 
       {/* Toolbar */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
@@ -113,9 +113,9 @@ const DrawingPad = forwardRef(function DrawingPad({ onSave, onCancel, saving, ba
         </button>
       </div>
 
-      {/* Canvas — fills all remaining space */}
+      {/* Canvas — fixed 4:3 ratio so sketches look identical on every device */}
       <div style={{
-        flex: 1, minHeight: 0, borderRadius: 16, overflow: 'hidden',
+        width: '100%', aspectRatio: '4/3', borderRadius: 16, overflow: 'hidden',
         border: '1.5px solid #EDEBE5',
         backgroundImage: 'radial-gradient(circle, #cbd5e1 1px, transparent 1px)',
         backgroundSize: '20px 20px', backgroundColor: '#f8fafc',

@@ -30,7 +30,8 @@
     "resend": "Erneut senden",
     "notFound": "Nicht gefunden",
     "collectiveBannerTitle": "Du arbeitest im Kollektiv-Bereich{name}.",
-    "collectiveBannerBody": "Alle hier erstellten Inhalte werden automatisch mit allen Mitgliedern des Kollektivs geteilt."
+    "collectiveBannerBody": "Alle hier erstellten Inhalte werden automatisch mit allen Mitgliedern des Kollektivs geteilt.",
+    "uploading": "Hochladen…"
   },
   "dashboard": {
     "viewAll": "Alle",
@@ -366,7 +367,7 @@
     "histActionEntryAdded": "Position hinzugefügt",
     "histActionEntryEdited": "Position bearbeitet",
     "histActionEntryDeleted": "Position gelöscht",
-    "renameModalTitle": "Angebot umbenennen",
+    "renameModalTitle": "Bearbeiten",
     "mediaMenu": "Mediendateien",
     "mediaImagesTitle": "Bilder & Videos",
     "mediaDocumentsTitle": "Dokumente",
@@ -2633,6 +2634,7 @@
   "drawings": {
     "drawLabel": "Skizze zeichnen",
     "newTitle": "Neue Skizze",
+    "editTitle": "Skizze bearbeiten",
     "header": "Skizzen ({count})",
     "addBtn": "Skizze",
     "alt": "Skizze",

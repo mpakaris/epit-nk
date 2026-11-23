@@ -104,14 +104,14 @@ export default function SurveyDrawingsModal({ isOpen, onClose, surveyId, entryId
 
       {/* DrawingPad overlay */}
       {editingDrawing !== null && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 300, background: '#fff', display: 'flex', flexDirection: 'column' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 20px', borderBottom: '1px solid #EDEBE5', flexShrink: 0 }}>
-            <div style={{ flex: 1, fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 20, fontWeight: 700, color: '#0E1116' }}>
-              {editingDrawing?.id ? ts('desktop.detailDrawingsTitle') : ts('desktop.detailAddItemBtn')}
+        <div style={{ position: 'fixed', inset: 0, zIndex: 300, background: '#EDEBE5', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ width: '100%', maxWidth: 900, background: '#fff', borderRadius: 24, overflow: 'hidden', display: 'flex', flexDirection: 'column', margin: '1rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 20px', borderBottom: '1px solid #EDEBE5', flexShrink: 0 }}>
+              <div style={{ flex: 1, fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 20, fontWeight: 700, color: '#0E1116' }}>
+                {editingDrawing?.id ? ts('desktop.detailDrawingsTitle') : ts('desktop.detailAddItemBtn')}
+              </div>
+              {entryName && <span style={{ fontSize: 13, fontWeight: 600, color: '#5A5F68' }}>{entryName}</span>}
             </div>
-            {entryName && <span style={{ fontSize: 13, fontWeight: 600, color: '#5A5F68' }}>{entryName}</span>}
-          </div>
-          <div style={{ flex: 1, minHeight: 0 }}>
             <DrawingPad
               ref={drawingPadRef}
               backgroundSvg={editingDrawing?.svg_data}

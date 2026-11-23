@@ -30,7 +30,8 @@
     "resend": "Resend",
     "notFound": "Not found",
     "collectiveBannerTitle": "You are working in the collective workspace{name}.",
-    "collectiveBannerBody": "Content created here is automatically shared with all collective members."
+    "collectiveBannerBody": "Content created here is automatically shared with all collective members.",
+    "uploading": "Uploading…"
   },
   "dashboard": {
     "viewAll": "All",
@@ -366,7 +367,7 @@
     "histActionEntryAdded": "Item added",
     "histActionEntryEdited": "Item edited",
     "histActionEntryDeleted": "Item deleted",
-    "renameModalTitle": "Rename offer",
+    "renameModalTitle": "Edit",
     "mediaMenu": "Media files",
     "mediaImagesTitle": "Images & Videos",
     "mediaDocumentsTitle": "Documents",
@@ -2633,6 +2634,7 @@
   "drawings": {
     "drawLabel": "Draw a sketch",
     "newTitle": "New sketch",
+    "editTitle": "Edit sketch",
     "header": "Sketches ({count})",
     "addBtn": "Sketch",
     "alt": "Sketch",

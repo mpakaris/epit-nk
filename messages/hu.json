@@ -30,7 +30,8 @@
     "resend": "Újraküldés",
     "notFound": "Nem található",
     "collectiveBannerTitle": "Kollektíva munkaterületen dolgozol{name}.",
-    "collectiveBannerBody": "Az itt létrehozott tartalom automatikusan megosztódik a kollektíva összes tagjával."
+    "collectiveBannerBody": "Az itt létrehozott tartalom automatikusan megosztódik a kollektíva összes tagjával.",
+    "uploading": "Feltöltés…"
   },
   "sidebar": {
     "expand": "Kibontás",
@@ -296,7 +297,7 @@
     "histActionEntryAdded": "Tétel hozzáadva",
     "histActionEntryEdited": "Tétel módosítva",
     "histActionEntryDeleted": "Tétel törölve",
-    "renameModalTitle": "Ajánlat átnevezése",
+    "renameModalTitle": "Szerkesztés",
     "mediaMenu": "Médiafájlok",
     "mediaImagesTitle": "Képek és videók",
     "mediaDocumentsTitle": "Dokumentumok",
@@ -2633,6 +2634,7 @@
   "drawings": {
     "drawLabel": "Vázlat rajzolása",
     "newTitle": "Új vázlat",
+    "editTitle": "Vázlat szerkesztése",
     "header": "Vázlatok ({count})",
     "addBtn": "Vázlat",
     "alt": "Vázlat",
