@@ -90,10 +90,14 @@ export default function OfferDetailMobile({ quoteId }) {
   const [alertModal, setAlertModal] = useState({ open: false, message: '' });
   const [sendEmail, setSendEmail] = useState('');
   const [sendLoading, setSendLoading] = useState(false);
-  const [attachTerms, setAttachTerms] = useState(true);
-  const [termsUploading, setTermsUploading] = useState(false);
-  const [localTermsName, setLocalTermsName] = useState(null);
+  const [attachTerms,       setAttachTerms]       = useState(true);
+  const [termsUploading,    setTermsUploading]    = useState(false);
+  const [localTermsName,    setLocalTermsName]    = useState(null);
+  const [termsPdfName,      setTermsPdfName]      = useState(null);  // profile-level T&C filename
+  const [termsLocal,        setTermsLocal]        = useState(null);  // local copy for T&C pod
+  const [sendSelectedTerms, setSendSelectedTerms] = useState({ profileTerms: true, fileIds: [] });
   const termsFileRef  = useRef(null);
+  const quoteTermsRef = useRef(null); // for quote-level T&C upload
   const scrollRef     = useRef(null);
   const [compactBar,  setCompactBar]  = useState(false);
 
@@ -106,7 +110,7 @@ export default function OfferDetailMobile({ quoteId }) {
   }, []);
   const [clientSearch, setClientSearch] = useState('');
   const [sectionMenuId,    setSectionMenuId]    = useState(null);
-  const [openInfoPods,     setOpenInfoPods]     = useState({ summary: true, client: false, general: false });
+  const [openInfoPods,     setOpenInfoPods]     = useState({ summary: true, client: false, general: false, terms: false });
   const toggleInfoPod = (key) => setOpenInfoPods(prev => ({ ...prev, [key]: !prev[key] }));
   const [sectionEditTarget, setSectionEditTarget] = useState(null); // null | 'new' | section obj
   const [metaForm, setMetaForm] = useState({});
@@ -181,9 +185,23 @@ export default function OfferDetailMobile({ quoteId }) {
         other_terms: quoteData.offer_terms_text || '',
       });
       setDupTitle(`${quoteData.title} ${t('duplicateSuffix')}`);
+      // Sync terms state
+      setTermsLocal({ attachments: quoteData.terms_attachments || [] });
+      setSendSelectedTerms({
+        profileTerms: quoteData.attach_profile_terms !== false,
+        fileIds: (quoteData.terms_attachments || []).map(a => a.id),
+      });
     }, 0);
     return () => clearTimeout(id);
   }, [quoteData, t]);
+
+  // Fetch profile T&C filename once
+  useEffect(() => {
+    if (termsPdfName !== null) return;
+    fetch('/api/auth/profile').then(r => r.ok ? r.json() : {}).then(d => {
+      setTermsPdfName(d.profile?.terms_pdf_name || '');
+    }).catch(() => setTermsPdfName(''));
+  }, []);
 
   const client = useMemo(() => clients.find(c => c.id === quote?.client_id), [clients, quote]);
   const isOwner = quote ? (quote.owner_id === currentUser?.id || quote.created_by === currentUser?.id) : false;
@@ -299,7 +317,7 @@ export default function OfferDetailMobile({ quoteId }) {
     setTermsUploading(true);
     const fd = new FormData();
     fd.append('file', file);
-    const res = await fetch('/api/auth/profile/terms-pdf', { method: 'POST', body: fd });
+    const res = await fetch(`/api/quotes/${quoteId}/terms-pdf`, { method: 'POST', body: fd });
     setTermsUploading(false);
     if (!res.ok) {
       const { error } = await res.json().catch(() => ({}));
@@ -307,9 +325,24 @@ export default function OfferDetailMobile({ quoteId }) {
       return;
     }
     const data = await res.json();
-    setLocalTermsName(data.terms_pdf_name);
-    setAttachTerms(true);
-    refreshSupabaseData?.();
+    const newAtts = data.quote?.terms_attachments || [];
+    setTermsLocal({ attachments: newAtts });
+    setSendSelectedTerms(p => ({ ...p, fileIds: newAtts.map(a => a.id) }));
+    if (quoteTermsRef.current) quoteTermsRef.current.value = '';
+  };
+
+  const handleTermsDelete = async (attId) => {
+    setTermsLocal(p => ({ ...p, attachments: (p?.attachments || []).filter(a => a.id !== attId) }));
+    setSendSelectedTerms(p => ({ ...p, fileIds: p.fileIds.filter(x => x !== attId) }));
+    try {
+      const res = await fetch(`/api/quotes/${quoteId}/terms-pdf?fileId=${attId}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error);
+    } catch (err) {
+      setAlertModal({ open: true, message: err.message });
+      // restore on failure
+      setTermsLocal(p => ({ ...p, attachments: quote?.terms_attachments || [] }));
+      setSendSelectedTerms(p => ({ ...p, fileIds: (quote?.terms_attachments || []).map(a => a.id) }));
+    }
   };
 
   const handleSend = async () => {
@@ -322,7 +355,7 @@ export default function OfferDetailMobile({ quoteId }) {
     const res = await fetch(`/api/quotes/${quoteId}/send`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ to_email: email, attachTerms }),
+      body: JSON.stringify({ to_email: email, selectedTerms: sendSelectedTerms }),
     });
     setSendLoading(false);
     if (!res.ok) {
@@ -717,6 +750,73 @@ export default function OfferDetailMobile({ quoteId }) {
             </div>
           )}
 
+          {/* T&C section header */}
+          {canOwnerAct && (
+            <span style={{ display: 'flex', alignItems: 'center' }}>
+              <h2 style={{ margin: 0, fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 22, fontWeight: 700, color: '#fff' }}>{t('desktop.termsCard')}</h2>
+            </span>
+          )}
+
+          {/* T&C Pod */}
+          {canOwnerAct && (() => {
+            const atts = termsLocal?.attachments || [];
+            const hasProfile = !!termsPdfName;
+            const totalCount = (hasProfile ? 1 : 0) + atts.length;
+            return (
+              <InfoPod
+                isOpen={openInfoPods.terms}
+                onToggle={() => toggleInfoPod('terms')}
+                title={t('desktop.termsCard')}
+                headerRight={totalCount > 0
+                  ? <span style={{ height: 24, padding: '0 10px', borderRadius: 12, background: '#EFF6FF', color: '#2563EB', fontSize: 13, fontWeight: 700, display: 'inline-flex', alignItems: 'center' }}>{totalCount}</span>
+                  : null}
+              >
+                {/* Profile default */}
+                {hasProfile && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 14, background: '#F8F9FB' }}>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2563EB" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8zM14 2v6h6"/></svg>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--m-ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{termsPdfName}</div>
+                      <div style={{ fontSize: 12, color: '#8A8F97' }}>{t('desktop.termsDefault')}</div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Custom attachments */}
+                {atts.map(att => (
+                  <div key={att.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 14, background: '#F8F9FB' }}>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#5A5F68" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8zM14 2v6h6"/></svg>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--m-ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{att.name}</div>
+                      <div style={{ fontSize: 12, color: '#8A8F97' }}>{t('desktop.termsCustom')}</div>
+                    </div>
+                    <button type="button" onClick={() => handleTermsDelete(att.id)}
+                      style={{ width: 36, height: 36, borderRadius: 18, background: '#FEE2E2', border: 0, color: '#B91C1C', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}>
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" aria-hidden="true"><path d="M5 7h14M10 7V4h4v3M7 7l1 13h8l1-13"/></svg>
+                    </button>
+                  </div>
+                ))}
+
+                {/* Upload button */}
+                {atts.length < 5 ? (
+                  <>
+                    <input ref={quoteTermsRef} type="file" accept="application/pdf,.pdf" style={{ display: 'none' }} onChange={e => { handleTermsUpload(e.target.files?.[0]); }} />
+                    <button type="button" onClick={() => quoteTermsRef.current?.click()} disabled={termsUploading}
+                      style={{ width: '100%', height: 52, border: 0, borderRadius: 26, background: 'var(--m-offer, #6D3FD1)', color: '#fff', fontSize: 15, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, cursor: 'pointer', opacity: termsUploading ? 0.6 : 1 }}>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+                      {termsUploading ? tc('uploading') : t('desktop.termsUpload')}
+                    </button>
+                  </>
+                ) : (
+                  <span style={{ fontSize: 13, color: '#8A8F97' }}>{t('desktop.termsMaxReached')}</span>
+                )}
+
+                {totalCount === 0 && !termsUploading && (
+                  <span style={{ fontSize: 14, color: '#8A8F97' }}>{t('desktop.termsNone')}</span>
+                )}
+              </InfoPod>
+            );
+          })()}
 
         </div>
       </div>
@@ -1038,37 +1138,34 @@ export default function OfferDetailMobile({ quoteId }) {
                 ? t('sendNoEmail')
                 : t('sendNoClientHint')}
           </span>
-          {(() => {
-            const effectiveTermsName = localTermsName || currentUser?.terms_pdf_name;
-            return effectiveTermsName ? (
-              <button
-                type="button"
-                onClick={() => setAttachTerms(v => !v)}
-                style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'none', border: 0, padding: '4px 2px', cursor: 'pointer', textAlign: 'left' }}
-              >
-                <span style={{ flexShrink: 0, width: 24, height: 24, borderRadius: 8, border: `2px solid ${attachTerms ? 'var(--m-offer, #6D3FD1)' : '#B0ADA6'}`, background: attachTerms ? 'var(--m-offer, #6D3FD1)' : '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  {attachTerms && <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" aria-hidden="true"><path d="M5 13l4 4L19 7"/></svg>}
-                </span>
-                <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--m-ink)' }}>{t('sendAttachTerms')} <span style={{ fontWeight: 400, color: '#5A5F68' }}>{effectiveTermsName}</span></span>
-              </button>
-            ) : (
-              <>
-                <input ref={termsFileRef} type="file" accept=".pdf,application/pdf" style={{ display: 'none' }} onChange={e => handleTermsUpload(e.target.files?.[0])} />
-                <button
-                  type="button"
-                  onClick={() => termsFileRef.current?.click()}
-                  disabled={termsUploading}
-                  style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'none', border: `1.5px dashed #B0ADA6`, borderRadius: 16, padding: '12px 14px', cursor: 'pointer', textAlign: 'left', width: '100%', boxSizing: 'border-box', opacity: termsUploading ? 0.6 : 1 }}
-                >
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#8A8F97" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6M12 12v6M9 15l3-3 3 3"/></svg>
-                  <span style={{ flex: 1 }}>
-                    <span style={{ display: 'block', fontSize: 14, fontWeight: 700, color: 'var(--m-ink)' }}>{termsUploading ? t('sendTermsUploading') : t('sendUploadTerms')}</span>
-                    <span style={{ display: 'block', fontSize: 12, fontWeight: 500, color: '#8A8F97' }}>{t('sendNoTerms')}</span>
-                  </span>
-                </button>
-              </>
-            );
-          })()}
+          {/* T&C selection — toggle per attached file */}
+          {(termsPdfName || (termsLocal?.attachments || []).length > 0) && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <span style={{ fontSize: 13, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#5A5F68' }}>{t('desktop.termsCard')}</span>
+
+              {termsPdfName && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', borderRadius: 16, background: '#F8F9FB' }}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563EB" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8zM14 2v6h6"/></svg>
+                  <span style={{ flex: 1, fontSize: 14, fontWeight: 600, color: 'var(--m-ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{termsPdfName}</span>
+                  <button type="button" onClick={() => setSendSelectedTerms(p => ({ ...p, profileTerms: !p.profileTerms }))}
+                    style={{ width: 44, height: 26, borderRadius: 13, border: 0, cursor: 'pointer', flexShrink: 0, position: 'relative', background: sendSelectedTerms.profileTerms ? '#2563EB' : '#D5D2C8', transition: 'background .15s' }}>
+                    <div style={{ position: 'absolute', top: 3, left: sendSelectedTerms.profileTerms ? 20 : 4, width: 20, height: 20, borderRadius: 10, background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,.2)', transition: 'left .15s' }} />
+                  </button>
+                </div>
+              )}
+
+              {(termsLocal?.attachments || []).map(att => (
+                <div key={att.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', borderRadius: 16, background: '#F8F9FB' }}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#5A5F68" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8zM14 2v6h6"/></svg>
+                  <span style={{ flex: 1, fontSize: 14, fontWeight: 600, color: 'var(--m-ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{att.name}</span>
+                  <button type="button" onClick={() => setSendSelectedTerms(p => ({ ...p, fileIds: p.fileIds.includes(att.id) ? p.fileIds.filter(x => x !== att.id) : [...p.fileIds, att.id] }))}
+                    style={{ width: 44, height: 26, borderRadius: 13, border: 0, cursor: 'pointer', flexShrink: 0, position: 'relative', background: sendSelectedTerms.fileIds.includes(att.id) ? '#2563EB' : '#D5D2C8', transition: 'background .15s' }}>
+                    <div style={{ position: 'absolute', top: 3, left: sendSelectedTerms.fileIds.includes(att.id) ? 20 : 4, width: 20, height: 20, borderRadius: 10, background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,.2)', transition: 'left .15s' }} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
           <button
             onClick={handleSend}
             disabled={sendLoading || !sendEmail.trim()}
