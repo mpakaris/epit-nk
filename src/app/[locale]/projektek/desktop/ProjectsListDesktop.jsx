@@ -57,7 +57,7 @@ export default function ProjectsListDesktop({
     : [...(initialPersonalProjects || []), ...(initialSharedProjects || [])].filter(p => !p.deleted_at);
 
   const wsStyle = activeCollectiveId
-    ? { '--dk-c': podColor(activeCollectiveId).deep, '--dk-deep': podColor(activeCollectiveId).deep }
+    ? { '--dk-c': podColor(activeCollectiveId).deep }
     : {};
 
   const [filter, setFilter] = useState('all');

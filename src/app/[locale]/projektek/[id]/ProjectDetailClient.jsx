@@ -450,7 +450,7 @@ export default function ProjectDetailClient({
 
   // Desktop-only computed values
   const wsStyle = activeCollectiveId
-    ? { '--dk-c': podColor(activeCollectiveId).deep, '--dk-deep': podColor(activeCollectiveId).deep }
+    ? { '--dk-c': podColor(activeCollectiveId).deep }
     : {};
   const quoteTotal = projectRooms.reduce((s, r) => s + Number(r.quoted_amount_net || 0), 0);
   const totalSpend = fin.totalCost + fin.totalLabourValue;

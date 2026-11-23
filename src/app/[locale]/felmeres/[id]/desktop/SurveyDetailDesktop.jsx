@@ -657,7 +657,7 @@ export default function SurveyDetailDesktop() {
   const { enqueue } = useUploadQueue({ uploadFn });
 
   const wsStyle = activeCollectiveId
-    ? (() => { const c = podColor(activeCollectiveId); return { '--dk-c': c.deep, '--dk-deep': c.deep }; })()
+    ? { '--dk-c': podColor(activeCollectiveId).deep }
     : {};
 
   // Page state

@@ -213,10 +213,7 @@ export default function DashboardDesktop({
      PERSONAL_COLOR.bg = same (#15181E) — matches the existing dashboard default,
      so personal workspace requires no override. */
   const wsStyle = activeCollectiveId
-    ? (() => {
-        const c = podColor(activeCollectiveId);
-        return { '--dk-c': c.deep, '--dk-deep': c.deep };
-      })()
+    ? { '--dk-c': podColor(activeCollectiveId).deep }
     : {};
 
   /* activity feed */
