@@ -35,7 +35,7 @@ import EntryMediaGrid from './components/EntryMediaGrid';
 import EditDiaryEntryModal from './components/EditDiaryEntryModal';
 import LabourEditModal from './components/LabourEditModal';
 import InvoiceDetailDrawer from './components/InvoiceDetailDrawer';
-import PaymentPlanModal, { TRIGGER_DISPLAY, STATUS_DISPLAY } from './components/PaymentPlanModal';
+import PaymentPlanModal, { STATUS_DISPLAY } from './components/PaymentPlanModal';
 import WorkTypeSelector, { WORK_TYPES } from './components/WorkTypeSelector';
 import RoomModal from './components/RoomModal';
 import ProjectEditModal from './components/ProjectEditModal';
@@ -499,11 +499,18 @@ export default function ProjectDetailClient({
   const [openSections, setOpenSections] = useState({ expenses: true, diary: false, payment: false, portal: false });
   const toggleSection = (key) => setOpenSections(prev => ({ ...prev, [key]: !prev[key] }));
 
-  const handleCreatePayment = async (fields) => {
+  const handleCreatePayment = async (fields, file) => {
     const res = await fetch('/api/payment-plan', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ project_id: project.id, ...fields }) });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || t('saveError'));
-    setPaymentPlan(prev => [...prev, { ...data.item, files: [] }]);
+    let item = { ...data.item, files: [] };
+    if (file) {
+      const fd = new FormData();
+      fd.append('file', file);
+      const fileRes = await fetch(`/api/payment-plan/${item.id}/files`, { method: 'POST', body: fd });
+      if (fileRes.ok) { const { file: uploaded } = await fileRes.json(); item = { ...item, files: [uploaded] }; }
+    }
+    setPaymentPlan(prev => [...prev, item]);
     setToast(t('paymentItemAdded'));
     setTimeout(() => setToast(''), 2500);
   };
@@ -1138,17 +1145,9 @@ export default function ProjectDetailClient({
           <span className="dk-badge">{diaryEntriesByProject[project.id]?.length ?? initialDiaryCount}</span>
           <span style={{ flex: 1 }} />
           {openSections.diary && (
-            <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
-              <button
-                type="button" className="dk-btn dk-btn-l" style={{ height: 36, fontSize: 13, padding: '0 12px' }}
-                onClick={e => { e.stopPropagation(); navigator.clipboard.writeText(`${window.location.origin}/naplo/${project.id}`).then(() => { setToast(t('clientLinkCopied')); setTimeout(() => setToast(''), 2500); }); }}
-              >
-                <Copy size={13} /> {t('clientLinkBtn')}
-              </button>
-              <button type="button" className="dk-btn" style={{ height: 36, fontSize: 13, padding: '0 12px', background: '#263248', color: '#fff' }} onClick={e => { e.stopPropagation(); setShowQuickDiarySheet(true); }}>
-                <Plus size={14} /> {t('addNewEntryBtn')}
-              </button>
-            </div>
+            <button type="button" className="dk-btn" style={{ height: 36, fontSize: 13, padding: '0 12px', background: '#263248', color: '#fff', flexShrink: 0 }} onClick={e => { e.stopPropagation(); setShowQuickDiarySheet(true); }}>
+              <Plus size={14} /> {t('addNewEntryBtn')}
+            </button>
           )}
         </div>
 
@@ -1208,10 +1207,9 @@ export default function ProjectDetailClient({
       </div>
 
       {/* ══════════════════════════════════════════════
-          FIZETÉSI TERV POD — single unified card
+          KISZÁMLÁZÁS POD — single unified card
           ══════════════════════════════════════════════ */}
       {(() => {
-        const today = new Date().toISOString().slice(0, 10);
         const totalExpected = paymentPlan.reduce((s, i) => s + Number(i.amount_huf || 0), 0);
         const totalPaid     = paymentPlan.filter(i => i.status === 'paid').reduce((s, i) => s + Number(i.amount_huf || 0), 0);
         return (
@@ -1224,18 +1222,18 @@ export default function ProjectDetailClient({
               onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') toggleSection('payment'); }}
             >
               <ChevronDown size={18} color="#5A5F68" aria-hidden="true" style={{ flexShrink: 0, transform: openSections.payment ? 'rotate(0deg)' : 'rotate(-90deg)', transition: 'transform 0.15s ease' }} />
-              <span style={{ fontFamily: 'var(--font-heading, "Bricolage Grotesque", sans-serif)', fontSize: 16, fontWeight: 700, letterSpacing: '-0.01em', color: '#0E1116' }}>{t('headlinePaymentPlan')}</span>
+              <span style={{ fontFamily: 'var(--font-heading, "Bricolage Grotesque", sans-serif)', fontSize: 16, fontWeight: 700, letterSpacing: '-0.01em', color: '#0E1116' }}>{t('sectionPayments')}</span>
               <span className="dk-badge">{paymentPlan.length}</span>
               {paymentPlan.length > 0 && (
                 <span style={{ fontSize: 12, fontWeight: 600, color: '#5A5F68', display: 'flex', gap: 10 }}>
-                  <span>{t('expectedLabel')} <strong style={{ fontFamily: 'var(--font-mono)', color: '#0E1116' }}>{totalExpected.toLocaleString('hu-HU')} Ft</strong></span>
-                  {totalPaid > 0 && <span style={{ color: '#16a34a' }}>{t('paidSummaryLabel')} <strong style={{ fontFamily: 'var(--font-mono)' }}>{totalPaid.toLocaleString('hu-HU')} Ft</strong></span>}
+                  <span>{t('expectedLabel')} <strong style={{ fontFamily: 'var(--font-mono)', color: '#0E1116' }}>{fmtMoney(totalExpected)}</strong></span>
+                  {totalPaid > 0 && <span style={{ color: '#16a34a' }}>{t('paidSummaryLabel')} <strong style={{ fontFamily: 'var(--font-mono)' }}>{fmtMoney(totalPaid)}</strong></span>}
                 </span>
               )}
               <span style={{ flex: 1 }} />
               {canManageProject && openSections.payment && (
                 <button type="button" className="dk-btn" style={{ height: 36, fontSize: 13, padding: '0 12px', flexShrink: 0, background: '#263248', color: '#fff' }} onClick={e => { e.stopPropagation(); setEditingPayment(null); setShowPaymentModal(true); }}>
-                  <Plus size={14} /> {t('newItemBtn')}
+                  <Plus size={14} /> {t('addPaymentItem')}
                 </button>
               )}
             </div>
@@ -1243,36 +1241,39 @@ export default function ProjectDetailClient({
             {openSections.payment && (paymentPlan.length === 0 ? (
               <div style={{ padding: '2.5rem 1.5rem', textAlign: 'center', borderTop: '1px solid #EDEBE5' }}>
                 <Wallet size={28} style={{ margin: '0 auto 0.5rem', display: 'block', opacity: 0.4 }} />
-                <div style={{ fontWeight: 700, fontSize: 15, color: '#0E1116', marginBottom: 4 }}>{t('noPaymentPlanTitle')}</div>
-                <div style={{ fontSize: 13, color: '#5A5F68', marginBottom: 16 }}>{t('noPaymentPlanText')}</div>
+                <div style={{ fontWeight: 700, fontSize: 15, color: '#0E1116', marginBottom: 4 }}>{t('paymentPlanEmpty')}</div>
                 {canManageProject && (
-                  <button type="button" className="dk-btn dk-btn-dark" style={{ height: 40, fontSize: 13, margin: '0 auto' }} onClick={() => { setEditingPayment(null); setShowPaymentModal(true); }}>
-                    <Plus size={15} /> {t('addFirstItemBtn')}
+                  <button type="button" className="dk-btn" style={{ height: 40, fontSize: 13, margin: '12px auto 0', background: '#263248', color: '#fff' }} onClick={() => { setEditingPayment(null); setShowPaymentModal(true); }}>
+                    <Plus size={15} /> {t('addPaymentItem')}
                   </button>
                 )}
               </div>
             ) : (
               <>
-                <div className="dk-th" style={{ gridTemplateColumns: '1fr 160px 130px 110px', borderTop: '1px solid #EDEBE5' }}>
-                  <span>{t('thDesc')}</span><span>{t('thSection')}</span><span>{t('thAmount')}</span><span>{t('asideStatusLabel')}</span>
+                <div className="dk-th" style={{ gridTemplateColumns: '1fr 110px 24px 110px 100px', borderTop: '1px solid #EDEBE5' }}>
+                  <span>{t('thDesc')}</span>
+                  <span>{t('paymentDueField')}</span>
+                  <span />
+                  <span>{t('thAmount')}</span>
+                  <span>{t('asideStatusLabel')}</span>
                 </div>
-                {paymentPlan.map((item, idx) => {
-                  const isOverdue = item.status === 'pending' && item.due_date && item.due_date < today;
-                  const statusDisplay = isOverdue ? { labelKey: 'statusOverdue', bg: '#fef2f2', color: '#b91c1c' } : (STATUS_DISPLAY[item.status] || STATUS_DISPLAY.pending);
-                  const triggerDisplay = TRIGGER_DISPLAY[item.trigger_type] || TRIGGER_DISPLAY.milestone;
-                  const triggerText = item.trigger_type === 'milestone' && item.milestone_name ? item.milestone_name
-                    : item.trigger_type === 'date' && item.due_date ? new Date(item.due_date).toLocaleDateString('hu-HU', { month: 'short', day: 'numeric' })
-                    : t(triggerDisplay.labelKey);
+                {paymentPlan.map(item => {
+                  const statusDisplay = STATUS_DISPLAY[item.status] || STATUS_DISPLAY.pending;
+                  const hasFile = (item.files || []).length > 0;
+                  const dueDateStr = item.due_date ? new Date(item.due_date).toLocaleDateString('hu-HU', { month: 'short', day: 'numeric' }) : '—';
                   return (
                     <button key={item.id} type="button"
-                      className="dk-tr dk-sr" style={{ display: 'grid', gridTemplateColumns: '1fr 160px 130px 110px', cursor: canManageProject ? 'pointer' : 'default' }}
+                      className="dk-tr dk-sr" style={{ display: 'grid', gridTemplateColumns: '1fr 110px 24px 110px 100px', cursor: canManageProject ? 'pointer' : 'default' }}
                       onClick={() => { if (canManageProject) { setEditingPayment(item); setShowPaymentModal(true); } }}
                     >
-                      <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}><b>#{idx + 1} {item.label}</b></span>
-                      <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: '#5A5F68', fontSize: 13 }}>{triggerText}</span>
-                      <span style={{ minWidth: 0 }}><b>{Number(item.amount_huf).toLocaleString('hu-HU')} Ft</b></span>
+                      <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}><b>{item.label}</b></span>
+                      <span style={{ minWidth: 0, fontSize: 13, color: '#5A5F68' }}>{dueDateStr}</span>
+                      <span style={{ minWidth: 0, display: 'flex', alignItems: 'center' }}>
+                        {hasFile && <FileText size={13} color="#16a34a" aria-label="Fájl csatolva" />}
+                      </span>
+                      <span style={{ minWidth: 0 }}><b>{fmtMoney(Number(item.amount_huf))}</b></span>
                       <span style={{ minWidth: 0 }}>
-                        <span className="dk-badge" style={{ background: statusDisplay.bg || '#F0F0F2', color: statusDisplay.color || '#2B3038' }}>
+                        <span className="dk-badge" style={{ background: statusDisplay.bg, color: statusDisplay.color }}>
                           {t(statusDisplay.labelKey)}
                         </span>
                       </span>
@@ -1281,7 +1282,7 @@ export default function ProjectDetailClient({
                 })}
                 <div style={{ padding: '12px 18px', borderTop: '1px solid #EDEBE5', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{ fontSize: 13, fontWeight: 700, color: '#5A5F68' }}>{t('totalLabel')}</span>
-                  <b style={{ fontSize: 15, color: '#0E1116' }}>{totalExpected.toLocaleString('hu-HU')} Ft</b>
+                  <b style={{ fontSize: 15, color: '#0E1116' }}>{fmtMoney(totalExpected)}</b>
                 </div>
               </>
             ))}
@@ -1289,9 +1290,41 @@ export default function ProjectDetailClient({
             <PaymentPlanModal
               isOpen={showPaymentModal}
               onClose={() => { setShowPaymentModal(false); setEditingPayment(null); }}
-              onSave={editingPayment ? (fields) => handleUpdatePayment(editingPayment.id, fields) : handleCreatePayment}
               editItem={editingPayment}
-              itemCount={paymentPlan.length}
+              clientEmail={client?.email}
+              onSave={async (fields, file) => {
+                if (editingPayment) {
+                  await handleUpdatePayment(editingPayment.id, fields);
+                  if (file) {
+                    const fd = new FormData();
+                    fd.append('file', file);
+                    const res = await fetch(`/api/payment-plan/${editingPayment.id}/files`, { method: 'POST', body: fd });
+                    if (res.ok) {
+                      const { file: uploaded } = await res.json();
+                      setPaymentPlan(prev => prev.map(i => i.id === editingPayment.id ? { ...i, files: [...(i.files || []), uploaded] } : i));
+                    }
+                  }
+                } else {
+                  await handleCreatePayment(fields, file);
+                }
+              }}
+              onSend={async (toEmail) => {
+                const res = await fetch(`/api/payment-plan/${editingPayment.id}/send`, {
+                  method: 'POST', headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify(toEmail ? { to_email: toEmail } : {}),
+                });
+                if (!res.ok) { const d = await res.json(); throw new Error(d.error || t('saveError')); }
+                const { item } = await res.json();
+                setPaymentPlan(prev => prev.map(i => i.id === editingPayment.id ? { ...item, files: i.files || [] } : i));
+                setToast(t('invoiceSentSuccess'));
+                setTimeout(() => setToast(''), 3000);
+              }}
+              onMarkPaid={async () => {
+                await handleUpdatePayment(editingPayment.id, { status: 'paid' });
+                setToast(t('markedPaid'));
+                setTimeout(() => setToast(''), 2500);
+              }}
+              onDelete={() => handleDeletePayment(editingPayment)}
             />
           </div>
         );
