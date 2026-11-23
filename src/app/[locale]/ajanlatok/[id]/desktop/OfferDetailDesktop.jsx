@@ -418,6 +418,7 @@ export default function OfferDetailDesktop() {
     setConfirmModal({
       message: t('statusRevertConfirm', { status: STATUS_LABELS_HU[quote.status] || quote.status }),
       confirmLabel: t('statusRevertYes'),
+      confirmStyle: { background: '#0F172A' },
       cancelLabel: t('statusRevertNo'),
       onConfirm: () => doSaveMeta(true),
       onClose:   () => doSaveMeta(false),
@@ -632,9 +633,10 @@ export default function OfferDetailDesktop() {
     setConfirmModal({
       message: t('statusRevertConfirm', { status: STATUS_LABELS_HU[quote.status] || quote.status }),
       confirmLabel: t('statusRevertYes'),
+      confirmStyle: { background: '#0F172A' },
       cancelLabel: t('statusRevertNo'),
       onConfirm: () => doSaveEntry(true),
-      onClose:   () => doSaveEntry(false),
+      onClose:   () => { setPendingEntries([]); setShowEntryModal(false); },
     });
   };
 
@@ -725,10 +727,12 @@ export default function OfferDetailDesktop() {
             )}
             {!isGeneral && canEdit && (
               <>
-                <button type="button" onClick={e => { e.stopPropagation(); openEntryModal(sectionId); }}
-                  style={{ height: 32, padding: '0 12px', borderRadius: 16, border: 0, background: '#F1F1F3', color: '#5A5F68', display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer', fontSize: 13, fontWeight: 700 }}>
-                  <Plus size={13} /> {t('desktop.addEntry')}
-                </button>
+                {!isCollapsed && (
+                  <button type="button" onClick={e => { e.stopPropagation(); openEntryModal(sectionId); }}
+                    style={{ height: 32, padding: '0 12px', borderRadius: 16, border: 0, background: '#F1F1F3', color: '#5A5F68', display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer', fontSize: 13, fontWeight: 700 }}>
+                    <Plus size={13} /> {t('desktop.addEntry')}
+                  </button>
+                )}
                 <button type="button" onClick={e => { e.stopPropagation(); openEditSection(section); }}
                   style={{ width: 32, height: 32, borderRadius: 16, border: 0, background: '#1E293B', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
                   <MoreHorizontal size={14} />
@@ -1423,6 +1427,7 @@ export default function OfferDetailDesktop() {
         message={confirmModal?.message}
         confirmLabel={confirmModal?.confirmLabel}
         cancelLabel={confirmModal?.cancelLabel}
+        confirmStyle={confirmModal?.confirmStyle}
       />
 
       {/* Email sending progress */}

@@ -4,6 +4,10 @@
    ─────────────────────────────────────────────────────────────────────────── */
 
 /* ── Shell ─────────────────────────────────────────────────────────────────── */
+body:has(.dk-root) {
+  background-color: #EDEBE5;
+}
+
 .dk-root {
   height: 100vh;
   padding: 12px;
@@ -16,6 +20,7 @@
   position: relative; /* anchors the absolute hamburger button */
   /* Keep NotificationBell dropdown positioning correct */
   --sidebar-w: 276px;
+  max-width: 1850px;
 }
 
 /* ── Sidebar ────────────────────────────────────────────────────────────────── */
