@@ -40,7 +40,6 @@ import WorkTypeSelector, { WORK_TYPES } from './components/WorkTypeSelector';
 import RoomModal from './components/RoomModal';
 import ProjectEditModal from './components/ProjectEditModal';
 import NewExpenseModal from './components/NewExpenseModal';
-import PortalShareSection from './components/PortalShareSection';
 import CollectiveChatSection from '@/components/CollectiveChatSection';
 import ProjectDetailMobile from '../mobile/ProjectDetailMobile';
 
@@ -166,6 +165,8 @@ export default function ProjectDetailClient({
   const [detailInvoice,    setDetailInvoice]    = useState(null);
   const [roomFilter, setRoomFilter] = useState('ALL');
   const [syncing, setSyncing] = useState(false);
+  const [costTargetModal, setCostTargetModal] = useState(false);
+  const [costTargetInput, setCostTargetInput] = useState('');
   const [roomModalOpen, setRoomModalOpen] = useState(false);
   const [editingRoom, setEditingRoom] = useState(null);
   const [invoiceSplits, setInvoiceSplits] = useState(initialInvoiceSplits);
@@ -496,7 +497,7 @@ export default function ProjectDetailClient({
 
   const fmt = (d) => d ? new Date(d).toLocaleDateString('hu-HU', { year: 'numeric', month: 'short', day: 'numeric' }) : null;
 
-  const [openSections, setOpenSections] = useState({ expenses: true, diary: false, payment: false, portal: false });
+  const [openSections, setOpenSections] = useState({ expenses: true, diary: false, payment: false });
   const toggleSection = (key) => setOpenSections(prev => ({ ...prev, [key]: !prev[key] }));
 
   const handleCreatePayment = async (fields, file) => {
@@ -595,76 +596,40 @@ export default function ProjectDetailClient({
               {/* ── Main panel ─────────────────────────────────────────────── */}
               <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 14 }}>
 
-                {/* 4-stat strip */}
-                <div style={{ display: 'flex', gap: 14 }}>
-                  <div className="dk-card" style={{ flex: 1, padding: '14px 18px' }}>
-                    <span className="dk-m">{t('statQuote')}</span><br />
-                    <span className="dk-n" style={{ fontSize: 26, color: 'var(--color-text, #0E1116)' }}>
-                      {quoteTotal > 0 ? fmtMoney(quoteTotal) : '—'}
-                    </span>
-                  </div>
-                  <div className="dk-card" style={{ flex: 1, padding: '14px 18px' }}>
-                    <span className="dk-m">{t('statSpent')}</span><br />
-                    <span className="dk-n" style={{ fontSize: 26, color: 'var(--color-text, #0E1116)' }}>{fmtMoney(totalSpend)}</span>
-                  </div>
-                  <div className="dk-card" style={{ flex: 1, padding: '14px 18px' }}>
-                    <span className="dk-m">{t('statRemaining')}</span><br />
-                    <span className="dk-n" style={{ fontSize: 26, color: 'var(--color-text, #0E1116)' }}>
-                      {quoteTotal > 0 ? fmtMoney(remaining) : '—'}
-                    </span>
-                  </div>
-                  <div className="dk-card" style={{ flex: 1, padding: '14px 18px' }}>
-                    <span className="dk-m">{t('statProgress')}</span><br />
-                    <span className="dk-n" style={{ fontSize: 26, color: progress !== null && progress > 95 ? '#B71C1C' : '#263248' }}>
-                      {progress !== null ? `${progress}%` : '—'}
-                    </span>
-                  </div>
-                </div>
-
-      {/* Info row: client + members */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(280px, 100%), 1fr))', gap: 12 }}>
-        {/* Megrendelő */}
-        <div className="dk-card" style={{ padding: '14px 18px' }}>
-          <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: '#5A5F68', display: 'flex', alignItems: 'center', gap: 4, marginBottom: 8 }}>
-            <BookUser size={12} /> {t('clientCardTitle')}
-          </span>
-          {client ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <div style={{ fontWeight: 700, fontSize: 15, color: '#0E1116' }}>{client.name}</div>
-              {client.phone && <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 13, fontWeight: 600, color: '#5A5F68' }}><Phone size={12} />{client.phone}</div>}
-              {client.email && <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 13, fontWeight: 600, color: '#5A5F68' }}><Mail size={12} />{client.email}</div>}
-              {client.address && <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 13, fontWeight: 600, color: '#5A5F68' }}><MapPin size={12} />{client.address}</div>}
-            </div>
-          ) : (
-            <div style={{ fontSize: 13, color: '#5A5F68', fontStyle: 'italic' }}>{t('noClient')}</div>
-          )}
-        </div>
-
-        {/* Résztvevők */}
-        {(activeCollectiveId || projectMemberUsers.length > 0) && (
-          <div className="dk-card" style={{ padding: '14px 18px' }}>
-            <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: '#5A5F68', display: 'flex', alignItems: 'center', gap: 4, marginBottom: 8 }}>
-              <Users size={12} /> {t('membersCardTitle')}
-            </span>
-            {projectMemberUsers.length > 0 ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                {projectMemberUsers.map(u => (
-                  <div key={u.id} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14 }}>
-                    <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#263248', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, color: '#fff' }}>
-                      {u.display_name?.charAt(0).toUpperCase()}
+                {/* 4-stat strip — unified target */}
+                {(() => {
+                  const liveProjectForStats = ctxProjects?.find(p => p.id === project.id) ?? project;
+                  const effectiveTarget = quoteTotal > 0 ? quoteTotal : (liveProjectForStats.cost_target || null);
+                  const effRemaining = effectiveTarget != null ? effectiveTarget - totalSpend : null;
+                  const effProgress  = effectiveTarget != null && effectiveTarget > 0 ? Math.round((totalSpend / effectiveTarget) * 100) : null;
+                  return (
+                    <div style={{ display: 'flex', gap: 14 }}>
+                      <div className="dk-card" style={{ flex: 1, padding: '14px 18px' }}>
+                        <span className="dk-m">{t('costTargetLabel')}</span><br />
+                        <span className="dk-n" style={{ fontSize: 26, color: '#0E1116' }}>
+                          {effectiveTarget != null ? fmtMoney(effectiveTarget) : '—'}
+                        </span>
+                      </div>
+                      <div className="dk-card" style={{ flex: 1, padding: '14px 18px' }}>
+                        <span className="dk-m">{t('statSpent')}</span><br />
+                        <span className="dk-n" style={{ fontSize: 26, color: '#0E1116' }}>{fmtMoney(totalSpend)}</span>
+                      </div>
+                      <div className="dk-card" style={{ flex: 1, padding: '14px 18px' }}>
+                        <span className="dk-m">{t('statRemaining')}</span><br />
+                        <span className="dk-n" style={{ fontSize: 26, color: '#0E1116' }}>
+                          {effRemaining != null ? fmtMoney(effRemaining) : '—'}
+                        </span>
+                      </div>
+                      <div className="dk-card" style={{ flex: 1, padding: '14px 18px' }}>
+                        <span className="dk-m">{t('statProgress')}</span><br />
+                        <span className="dk-n" style={{ fontSize: 26, color: effProgress !== null && effProgress > 95 ? '#B71C1C' : '#263248' }}>
+                          {effProgress !== null ? `${effProgress}%` : '—'}
+                        </span>
+                      </div>
                     </div>
-                    <span style={{ fontWeight: 600, color: u.id === currentUser?.id ? '#263248' : '#0E1116' }}>
-                      {u.display_name}{u.id === currentUser?.id ? ` ${t('youSuffix')}` : ''}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div style={{ fontSize: 13, color: '#5A5F68', fontStyle: 'italic' }}>{t('noMembers')}</div>
-            )}
-          </div>
-        )}
-      </div>
+                  );
+                })()}
+
 
       {/* Chart row: bar chart (40%) + burndown (60%) — hidden on mobile until there is cost */}
       {(!isMobile || fin.totalCost > 0 || fin.totalLabourValue > 0) && (
@@ -680,9 +645,8 @@ export default function ProjectDetailClient({
         <BurndownCard
           invoices={fin.projectInvoices}
           labourEntries={fin.projectLabour}
-          projectRooms={projectRooms}
           startDate={project.start_date}
-          endDate={project.end_date}
+          targetAmount={quoteTotal > 0 ? quoteTotal : ((ctxProjects?.find(p => p.id === project.id) ?? project).cost_target || 0)}
         />
       </div>
       </>
@@ -816,41 +780,6 @@ export default function ProjectDetailClient({
         );
       })()}
 
-      {/* Linked quote */}
-      {(() => {
-        const linkedQuote = (quotes || []).find(q => q.project_id === project.id);
-        if (!linkedQuote) return null;
-        const entries = (quoteEntries || []).filter(e => e.quote_id === linkedQuote.id);
-        const netTotal = entries.reduce((s, e) => s + Number(e.amount_huf || 0), 0);
-        const taxRate = Number(linkedQuote.tax_percent ?? 27);
-        const grossTotal = netTotal + Math.round(netTotal * taxRate / 100);
-        const sc = { draft: 'var(--text-muted)', sent: 'var(--warning-text)', accepted: 'var(--success-text)', rejected: 'var(--danger-text)' };
-        const QUOTE_STATUS_LABELS = { draft: t('quoteDraft'), sent: t('quoteSent'), accepted: t('quoteAccepted'), rejected: t('quoteRejected') };
-        return (
-          <div className="dk-card" style={{ padding: '14px 18px' }}>
-            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '0.5rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', minWidth: 0 }}>
-                <FileText size={16} color="var(--accent)" style={{ flexShrink: 0 }} />
-                <div style={{ minWidth: 0 }}>
-                  <div style={{ fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', marginBottom: '0.1rem' }}>{t('linkedQuoteLabel')}</div>
-                  <div style={{ fontWeight: 800, fontSize: '0.95rem', color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    {linkedQuote.title}
-                    <span style={{ marginLeft: '0.5rem', fontSize: '0.7rem', fontWeight: 700, color: sc[linkedQuote.status] || 'var(--text-muted)' }}>
-                      {QUOTE_STATUS_LABELS[linkedQuote.status] || linkedQuote.status}
-                    </span>
-                  </div>
-                  <div style={{ marginTop: '0.2rem', fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 600 }}>
-                    {t('grossLabel')} <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, color: 'var(--text-primary)' }}>{fmtMoney(grossTotal)}</span>
-                  </div>
-                </div>
-              </div>
-              <AppLink href={`${navPrefix}/ajanlatok/${linkedQuote.id}`} className="btn btn-secondary btn-sm" style={{ flexShrink: 0 }}>
-                <FileText size={13} /> {t('viewBtn')}
-              </AppLink>
-            </div>
-          </div>
-        );
-      })()}
 
       {/* Per-member contribution cards — collective or multi-member project */}
       {(project.collective_id || activeCollectiveId) && fin.memberBreakdown.length > 0 && (
@@ -1321,32 +1250,6 @@ export default function ProjectDetailClient({
         );
       })()}
 
-      {/* ══════════════════════════════════════════════
-          PORTÁL POD — single unified card
-          ══════════════════════════════════════════════ */}
-      <div className="dk-card" style={{ overflow: 'hidden' }}>
-        {/* Header row — full row is the toggle (no actions for portal) */}
-        <div
-          style={{ padding: '0 18px', display: 'flex', alignItems: 'center', gap: 8, minHeight: 56, cursor: 'pointer', userSelect: 'none' }}
-          role="button" tabIndex={0}
-          onClick={() => toggleSection('portal')}
-          onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') toggleSection('portal'); }}
-        >
-          <ChevronDown size={18} color="#5A5F68" aria-hidden="true" style={{ flexShrink: 0, transform: openSections.portal ? 'rotate(0deg)' : 'rotate(-90deg)', transition: 'transform 0.15s ease' }} />
-          <span style={{ fontFamily: 'var(--font-heading, "Bricolage Grotesque", sans-serif)', fontSize: 16, fontWeight: 700, letterSpacing: '-0.01em', color: '#0E1116' }}>{t('headlinePortal')}</span>
-        </div>
-        {openSections.portal && (
-          <div style={{ borderTop: '1px solid #EDEBE5' }}>
-            <PortalShareSection
-              project={project}
-              invoices={liveInvoices}
-              labourEntries={liveLabour}
-              diaryEntries={diaryEntriesByProject[project.id] || []}
-              canManage={canManageProject}
-            />
-          </div>
-        )}
-      </div>
 
       {/* Collective team discussion */}
       {project.collective_id && !isDemoMode && (
@@ -1388,36 +1291,92 @@ export default function ProjectDetailClient({
                   </span>
                 </section>
 
+                {/* Linked quote card */}
+                {(() => {
+                  const linkedQuoteAside = (quotes || []).find(q => q.project_id === project.id);
+                  if (!linkedQuoteAside) return null;
+                  const entries = (quoteEntries || []).filter(e => e.quote_id === linkedQuoteAside.id);
+                  const netTotal = entries.reduce((s, e) => s + Number(e.amount_huf || 0), 0);
+                  const taxRate = Number(linkedQuoteAside.tax_percent ?? 27);
+                  const grossTotal = netTotal + Math.round(netTotal * taxRate / 100);
+                  const sc = { draft: '#5A5F68', sent: '#d97706', accepted: '#16a34a', rejected: '#dc2626' };
+                  const QUOTE_STATUS_LABELS = { draft: t('quoteDraft'), sent: t('quoteSent'), accepted: t('quoteAccepted'), rejected: t('quoteRejected') };
+                  return (
+                    <section className="dk-card" style={{ padding: 18, display: 'flex', flexDirection: 'column', gap: 10 }}>
+                      <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: '#5A5F68' }}>{t('linkedQuoteLabel')}</span>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        <b style={{ fontSize: 14, color: '#0E1116', lineHeight: 1.3 }}>{linkedQuoteAside.title}</b>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <span style={{ fontSize: 11, fontWeight: 700, color: sc[linkedQuoteAside.status] || '#5A5F68' }}>
+                            {QUOTE_STATUS_LABELS[linkedQuoteAside.status] || linkedQuoteAside.status}
+                          </span>
+                          <span style={{ fontSize: 11, color: '#5A5F68' }}>·</span>
+                          <span style={{ fontSize: 13, fontWeight: 700, color: '#0E1116', fontFamily: 'var(--font-mono)' }}>{fmtMoney(grossTotal)}</span>
+                        </div>
+                      </div>
+                      <AppLink href={`${navPrefix}/ajanlatok/${linkedQuoteAside.id}`} className="dk-btn dk-btn-l" style={{ justifyContent: 'center', fontSize: 13 }}>
+                        <FileText size={14} /> {t('viewBtn')}
+                      </AppLink>
+                    </section>
+                  );
+                })()}
+
                 {/* Ügyfél card */}
                 {client && (
-                  <section className="dk-card" style={{ padding: 18, display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  <section className="dk-card" style={{ padding: 18, display: 'flex', flexDirection: 'column', gap: 8 }}>
                     <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: '#5A5F68' }}>{t('asideClientLabel')}</span>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <span style={{ width: 40, height: 40, borderRadius: 20, background: '#B8456B', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 15, flexShrink: 0 }}>
+                      <span style={{ width: 36, height: 36, borderRadius: 18, background: '#B8456B', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 14, flexShrink: 0 }}>
                         {(client.name || '?').charAt(0).toUpperCase()}
                       </span>
-                      <span style={{ flex: 1, display: 'flex', flexDirection: 'column', lineHeight: 1.25 }}>
-                        <b style={{ fontSize: 15, color: '#0E1116' }}>{client.name}</b>
-                        {client.address && <span style={{ fontSize: 13, fontWeight: 600, color: '#5A5F68' }}>{client.address}</span>}
+                      <span style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2, lineHeight: 1.25 }}>
+                        <b style={{ fontSize: 14, color: '#0E1116' }}>{client.name}</b>
+                        {client.phone && <span style={{ fontSize: 12, color: '#5A5F68', display: 'flex', alignItems: 'center', gap: 4 }}><Phone size={11} />{client.phone}</span>}
+                        {client.email && <span style={{ fontSize: 12, color: '#5A5F68', display: 'flex', alignItems: 'center', gap: 4 }}><Mail size={11} />{client.email}</span>}
+                        {client.address && <span style={{ fontSize: 12, color: '#5A5F68' }}>{client.address}</span>}
                       </span>
                     </div>
-                    <button
-                      type="button"
-                      className="dk-btn dk-btn-l"
-                      style={{ justifyContent: 'center' }}
-                      onClick={() => {
-                        const url = `${window.location.origin}/clients/${client.id}`;
-                        navigator.clipboard.writeText(url).then(() => {
-                          setToast(t('copyPortalLinkDone'));
-                          setTimeout(() => setToast(''), 2500);
-                        });
-                      }}
-                    >
-                      <Link2 size={18} aria-hidden="true" />
-                      {t('copyPortalLinkBtn')}
-                    </button>
                   </section>
                 )}
+
+                {/* Target Cost card — only when no quote is linked */}
+                {(() => {
+                  const liveProject = ctxProjects?.find(p => p.id === project.id) ?? project;
+                  const hasLinkedQuote = quoteTotal > 0;
+                  if (hasLinkedQuote) return null;
+                  const targetCost = hasLinkedQuote ? quoteTotal : (liveProject.cost_target ?? null);
+                  const isClickable = !hasLinkedQuote && canManageProject;
+                  return (
+                    <section
+                      className="dk-card"
+                      style={{ padding: 18, display: 'flex', flexDirection: 'column', gap: 10, cursor: isClickable ? 'pointer' : 'default' }}
+                      onClick={isClickable ? () => { setCostTargetInput(liveProject.cost_target != null ? String(liveProject.cost_target) : ''); setCostTargetModal(true); } : undefined}
+                      role={isClickable ? 'button' : undefined}
+                      tabIndex={isClickable ? 0 : undefined}
+                      onKeyDown={isClickable ? e => { if (e.key === 'Enter' || e.key === ' ') { setCostTargetInput(liveProject.cost_target != null ? String(liveProject.cost_target) : ''); setCostTargetModal(true); } } : undefined}
+                    >
+                      <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: '#5A5F68' }}>{t('costTargetLabel')}</span>
+                      {targetCost != null ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                          <span style={{ fontSize: 22, fontWeight: 800, color: '#0E1116', fontFamily: 'var(--font-mono)' }}>{fmtMoney(targetCost)}</span>
+                          {hasLinkedQuote && (
+                            <span style={{ fontSize: 11, fontWeight: 600, color: '#5A5F68' }}>{t('linkedQuoteLabel')}</span>
+                          )}
+                          {!hasLinkedQuote && canManageProject && (
+                            <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--accent)' }}>{t('editLabel')}</span>
+                          )}
+                        </div>
+                      ) : (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                          <span style={{ fontSize: 13, fontWeight: 600, color: '#5A5F68', fontStyle: 'italic' }}>—</span>
+                          {canManageProject && (
+                            <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--accent)' }}>{t('setCostTarget')}</span>
+                          )}
+                        </div>
+                      )}
+                    </section>
+                  );
+                })()}
 
               </aside>
 
@@ -1479,6 +1438,47 @@ export default function ProjectDetailClient({
       />
       <RoomModal isOpen={roomModalOpen} onClose={() => setRoomModalOpen(false)} room={editingRoom} onSave={handleSaveRoom} canEdit={canManageProject} onDelete={editingRoom && canManageProject ? () => { setRoomModalOpen(false); handleDeleteRoom(editingRoom); } : undefined} />
       <ConfirmModal isOpen={!!confirmModal} onClose={() => setConfirmModal(null)} onConfirm={() => confirmModal?.onConfirm()} title={t('confirmTitle')} message={confirmModal?.message} />
+
+      {/* Cost target modal */}
+      <Modal isOpen={costTargetModal} onClose={() => setCostTargetModal(false)} title={t('setCostTarget')}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div>
+            <label style={{ display: 'block', fontSize: 11, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: '#5A5F68', marginBottom: 6 }}>{t('costTargetLabel')}</label>
+            <div style={{ position: 'relative' }}>
+              <input
+                autoFocus
+                type="number"
+                inputMode="numeric"
+                className="dk-input"
+                value={costTargetInput}
+                onChange={e => setCostTargetInput(e.target.value)}
+                placeholder={t('costTargetPlaceholder')}
+                style={{ width: '100%', paddingRight: 48 }}
+              />
+              <span style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)', fontSize: 12, fontWeight: 700, color: '#5A5F68', pointerEvents: 'none' }}>{userCurrency}</span>
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+            <button type="button" className="dk-btn dk-btn-l" onClick={() => setCostTargetModal(false)}>{t('closeBtn')}</button>
+            <button
+              type="button"
+              className="dk-btn"
+              style={{ background: '#263248', color: '#fff' }}
+              disabled={!costTargetInput || Number(costTargetInput) <= 0}
+              onClick={async () => {
+                const val = Math.round(Number(costTargetInput));
+                if (!val || val <= 0) return;
+                await updateProject(project.id, { cost_target: val });
+                setCostTargetModal(false);
+                setToast(t('savedText'));
+                setTimeout(() => setToast(''), 2000);
+              }}
+            >
+              <Check size={14} /> {t('costTargetSave')}
+            </button>
+          </div>
+        </div>
+      </Modal>
       <AlertModal isOpen={!!alertModal} onClose={() => setAlertModal(null)} message={alertModal?.message} />
 
       {/* Status reason modal */}

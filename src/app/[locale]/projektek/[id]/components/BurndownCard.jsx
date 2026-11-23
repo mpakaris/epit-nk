@@ -3,9 +3,8 @@
 import { ResponsiveContainer, AreaChart, Area, ReferenceLine, XAxis, YAxis, Tooltip } from 'recharts';
 import { useTranslations } from 'next-intl';
 
-export default function BurndownCard({ invoices, labourEntries, projectRooms, startDate, endDate }) {
+export default function BurndownCard({ invoices, labourEntries, startDate, targetAmount }) {
   const t = useTranslations('projectDetail');
-  const quotedTotal = projectRooms.reduce((s, r) => s + Number(r.quoted_amount_net || 0), 0);
 
   const events = [
     ...invoices.map(i => ({ date: i.created_at?.slice(0, 10), amount: Number(i.value_huf || 0) })),
@@ -13,11 +12,11 @@ export default function BurndownCard({ invoices, labourEntries, projectRooms, st
   ].filter(e => e.date).sort((a, b) => a.date.localeCompare(b.date));
 
   const totalActual = events.reduce((s, e) => s + e.amount, 0);
-  const pct = quotedTotal > 0 ? Math.round((totalActual / quotedTotal) * 100) : null;
+  const pct = targetAmount > 0 ? Math.round((totalActual / targetAmount) * 100) : null;
   const isOver = pct !== null && pct > 100;
   const lineColor = isOver ? '#ef4444' : '#22c55e';
 
-  if (!quotedTotal && events.length === 0) {
+  if (!targetAmount && events.length === 0) {
     return (
       <div className="stat-card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', borderLeft: '4px solid #be185d', boxShadow: '0 4px 16px rgba(190,24,93,0.15), 0 1px 4px rgba(0,0,0,0.06)' }}>
         <div className="stat-label">{t('burndownTitle')}</div>
@@ -46,10 +45,10 @@ export default function BurndownCard({ invoices, labourEntries, projectRooms, st
         <div className="stat-label">{t('burndownTitle')}</div>
         {pct !== null && <span style={{ fontSize: '0.72rem', fontWeight: 800, color: lineColor }}>{pct}%</span>}
       </div>
-      {quotedTotal > 0 && (
+      {targetAmount > 0 && (
         <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', gap: '0.75rem' }}>
           <span>{t('spentLabel')} <strong style={{ color: lineColor }}>{fmtHuf(totalActual)}</strong></span>
-          <span>{t('quoteAmountLabel')} <strong>{fmtHuf(quotedTotal)}</strong></span>
+          <span>{t('quoteAmountLabel')} <strong>{fmtHuf(targetAmount)}</strong></span>
         </div>
       )}
       <div style={{ height: 180, marginTop: '0.35rem' }}>
@@ -62,9 +61,16 @@ export default function BurndownCard({ invoices, labourEntries, projectRooms, st
               </linearGradient>
             </defs>
             <XAxis dataKey="date" tickFormatter={fmt} tick={{ fontSize: 10, fill: '#94a3b8' }} tickLine={false} axisLine={false} interval="preserveStartEnd" />
-            <YAxis tickFormatter={(v) => new Intl.NumberFormat('hu-HU', { notation: 'compact', maximumFractionDigits: 0 }).format(v)} tick={{ fontSize: 10, fill: '#94a3b8' }} tickLine={false} axisLine={false} width={48} />
+            <YAxis
+              tickFormatter={(v) => new Intl.NumberFormat('hu-HU', { notation: 'compact', maximumFractionDigits: 0 }).format(v)}
+              tick={{ fontSize: 10, fill: '#94a3b8' }} tickLine={false} axisLine={false} width={48}
+              domain={targetAmount > 0 ? [0, (dataMax) => Math.max(dataMax, targetAmount) * 1.08] : [0, 'auto']}
+            />
             <Tooltip formatter={(v) => [fmtHuf(v), t('costLabel')]} labelFormatter={fmt} contentStyle={{ fontSize: '0.75rem', borderRadius: 6, border: '1px solid #e2e8f0', boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }} />
-            {quotedTotal > 0 && <ReferenceLine y={quotedTotal} stroke="#6366f1" strokeDasharray="4 3" strokeWidth={1.5} label={{ value: t('quoteRefLabel'), position: 'insideTopRight', fontSize: 10, fill: '#6366f1' }} />}
+            {targetAmount > 0 && (
+              <ReferenceLine y={targetAmount} stroke="#6366f1" strokeDasharray="5 3" strokeWidth={2}
+                label={{ value: t('quoteRefLabel'), position: 'insideTopRight', fontSize: 10, fill: '#6366f1', fontWeight: 700 }} />
+            )}
             <Area type="monotone" dataKey="cost" stroke={lineColor} strokeWidth={2} fill="url(#burnFill)" dot={false} activeDot={{ r: 4 }} />
           </AreaChart>
         </ResponsiveContainer>
