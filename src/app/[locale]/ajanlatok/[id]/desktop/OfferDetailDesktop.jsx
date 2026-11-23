@@ -18,6 +18,7 @@ import PageSpinner from '@/components/PageSpinner';
 import SectionAddForm from '../components/SectionAddForm';
 import QuoteMediaModal from './QuoteMediaModal';
 import DrawingsSection from '@/components/DrawingsSection';
+import BottomSheet from '@/components/mobile/BottomSheet';
 import ClientComments from '../components/ClientComments';
 import CollectiveChatSection from '@/components/CollectiveChatSection';
 import { TYPE_ICONS, TYPE_COLORS, sortEntries } from '../components/constants';
@@ -158,7 +159,6 @@ export default function OfferDetailDesktop() {
   const [docMediaMode,         setDocMediaMode]         = useState(null); // null | 'media' | 'documents'
   const [showDocDrawingsModal, setShowDocDrawingsModal] = useState(false);
   const [showHeaderMenu,       setShowHeaderMenu]       = useState(false);
-  const headerMenuRef = useRef(null);
   // section-level: { sectionId, mode: 'media'|'documents'|'drawings' } | null
   const [sectionMediaCtx,      setSectionMediaCtx]      = useState(null);
   // section action menu (replaces direct-open-edit): sectionId | null
@@ -770,34 +770,10 @@ export default function OfferDetailDesktop() {
                     <Plus size={13} /> {t('desktop.addEntry')}
                   </button>
                 )}
-                <div style={{ position: 'relative' }}>
-                  <button type="button" onClick={e => { e.stopPropagation(); setSectionActionMenu(sectionId === sectionActionMenu ? null : sectionId); }}
-                    style={{ width: 32, height: 32, borderRadius: 16, border: 0, background: '#1E293B', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
-                    <MoreHorizontal size={14} />
-                  </button>
-                  {sectionActionMenu === sectionId && (
-                    <>
-                      <div onClick={e => { e.stopPropagation(); setSectionActionMenu(null); }}
-                        style={{ position: 'fixed', inset: 0, zIndex: 199 }} aria-hidden="true" />
-                      <div onClick={e => e.stopPropagation()}
-                        style={{ position: 'absolute', top: 38, right: 0, zIndex: 200, background: '#fff', borderRadius: 16, boxShadow: '0 8px 24px rgba(0,0,0,0.18)', minWidth: 200, overflow: 'hidden' }}>
-                        {[
-                          { icon: Edit3,    label: t('desktop.sectionEdit'),    onClick: () => { openEditSection(section); setSectionActionMenu(null); } },
-                          { icon: Camera,   label: t('mediaImagesTitle'),        onClick: () => { setSectionMediaCtx({ sectionId, mode: 'media' });     setSectionActionMenu(null); } },
-                          { icon: PenLine,  label: t('mediaDrawingsTitle'),      onClick: () => { setSectionMediaCtx({ sectionId, mode: 'drawings' });  setSectionActionMenu(null); } },
-                          { icon: FileText, label: t('mediaDocumentsTitle'),     onClick: () => { setSectionMediaCtx({ sectionId, mode: 'documents' }); setSectionActionMenu(null); } },
-                        ].map(({ icon: Icon, label, onClick }) => (
-                          <button key={label} type="button" onClick={onClick}
-                            style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '0.75rem 1rem', border: 0, background: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 600, color: '#0E1116', textAlign: 'left' }}
-                            onMouseEnter={e => e.currentTarget.style.background = '#F4F3F0'}
-                            onMouseLeave={e => e.currentTarget.style.background = 'none'}>
-                            <Icon size={16} /> {label}
-                          </button>
-                        ))}
-                      </div>
-                    </>
-                  )}
-                </div>
+                <button type="button" onClick={e => { e.stopPropagation(); setSectionActionMenu(sectionId); }}
+                  style={{ width: 32, height: 32, borderRadius: 16, border: 0, background: '#1E293B', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+                  <MoreHorizontal size={14} />
+                </button>
               </>
             )}
             {isCollapsed ? <ChevronDown size={18} color="#8A8F98" /> : <ChevronUp size={18} color="#8A8F98" />}
@@ -900,33 +876,11 @@ export default function OfferDetailDesktop() {
             {savingMeta ? tc('saving') : tc('save')}
           </button>
         )}
-        {/* Document-level media menu */}
-        <div style={{ position: 'relative', flexShrink: 0 }} ref={headerMenuRef}>
-          <button className="dk-btn dk-btn-g" onClick={() => setShowHeaderMenu(v => !v)}
-            style={{ width: 44, padding: 0, justifyContent: 'center' }} aria-label={t('mediaMenu')}>
-            <MoreVertical size={18} aria-hidden="true" />
-          </button>
-          {showHeaderMenu && (
-            <div onClick={() => setShowHeaderMenu(false)}
-              style={{ position: 'fixed', inset: 0, zIndex: 199 }} aria-hidden="true" />
-          )}
-          {showHeaderMenu && (
-            <div style={{ position: 'absolute', top: 52, right: 0, zIndex: 200, background: '#fff', borderRadius: 16, boxShadow: '0 8px 24px rgba(0,0,0,0.18)', minWidth: 200, overflow: 'hidden' }}>
-              {[
-                { icon: Camera,   label: t('mediaImagesTitle'),    onClick: () => { setDocMediaMode('media');     setShowHeaderMenu(false); } },
-                { icon: PenLine,  label: t('mediaDrawingsTitle'),  onClick: () => { setShowDocDrawingsModal(true); setShowHeaderMenu(false); } },
-                { icon: FileText, label: t('mediaDocumentsTitle'), onClick: () => { setDocMediaMode('documents'); setShowHeaderMenu(false); } },
-              ].map(({ icon: Icon, label, onClick }) => (
-                <button key={label} type="button" onClick={onClick}
-                  style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '0.75rem 1rem', border: 0, background: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 600, color: '#0E1116', textAlign: 'left' }}
-                  onMouseEnter={e => e.currentTarget.style.background = '#F4F3F0'}
-                  onMouseLeave={e => e.currentTarget.style.background = 'none'}>
-                  <Icon size={16} /> {label}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
+        {/* Document-level media menu trigger */}
+        <button className="dk-btn dk-btn-g" onClick={() => setShowHeaderMenu(true)}
+          style={{ width: 44, padding: 0, justifyContent: 'center', flexShrink: 0 }} aria-label={t('mediaMenu')}>
+          <MoreVertical size={18} aria-hidden="true" />
+        </button>
       </header>
 
       {/* ── Body ────────────────────────────────────────────────────────────── */}
@@ -1915,6 +1869,31 @@ export default function OfferDetailDesktop() {
           </div>
         )}
       </Modal>
+
+      {/* ── Header media context menu ────────────────────────────────────────── */}
+      <BottomSheet
+        isOpen={showHeaderMenu}
+        onClose={() => setShowHeaderMenu(false)}
+        title={t('mediaMenu')}
+        actions={[
+          { icon: Camera,   label: t('mediaImagesTitle'),    onClick: () => setDocMediaMode('media') },
+          { icon: PenLine,  label: t('mediaDrawingsTitle'),  onClick: () => setShowDocDrawingsModal(true) },
+          { icon: FileText, label: t('mediaDocumentsTitle'), onClick: () => setDocMediaMode('documents') },
+        ]}
+      />
+
+      {/* ── Section action context menu ───────────────────────────────────────── */}
+      <BottomSheet
+        isOpen={!!sectionActionMenu}
+        onClose={() => setSectionActionMenu(null)}
+        title={sections.find(s => s.id === sectionActionMenu)?.name || ''}
+        actions={[
+          { icon: Edit3,    label: t('desktop.sectionEdit'),  onClick: () => { const s = sections.find(x => x.id === sectionActionMenu); if (s) openEditSection(s); } },
+          { icon: Camera,   label: t('mediaImagesTitle'),     onClick: () => setSectionMediaCtx({ sectionId: sectionActionMenu, mode: 'media' }),     dividerBefore: true },
+          { icon: PenLine,  label: t('mediaDrawingsTitle'),   onClick: () => setSectionMediaCtx({ sectionId: sectionActionMenu, mode: 'drawings' }) },
+          { icon: FileText, label: t('mediaDocumentsTitle'),  onClick: () => setSectionMediaCtx({ sectionId: sectionActionMenu, mode: 'documents' }) },
+        ]}
+      />
 
       {/* ── Document-level media modals ──────────────────────────────────────── */}
       <QuoteMediaModal
