@@ -71,7 +71,8 @@ export default function OfferDetailMobile({ quoteId }) {
   const isOnline = useOnline();
   const {
     quotes = [], clients = [], currentUser, isDemoMode, userCurrency,
-    collectives: userMemberships = [], createClient, deleteQuote, deleteQuoteSection, refreshSupabaseData,
+    collectives: userMemberships = [], createClient, deleteQuote, deleteQuoteSection,
+    updateQuoteStatus, convertQuoteToProject, refreshSupabaseData,
   } = useApp();
 
   const navPrefix = isDemoMode ? '/demo' : '';
@@ -90,6 +91,9 @@ export default function OfferDetailMobile({ quoteId }) {
   const [alertModal, setAlertModal] = useState({ open: false, message: '' });
   const [sendEmail, setSendEmail] = useState('');
   const [sendLoading, setSendLoading] = useState(false);
+  const [acceptLoading,   setAcceptLoading]   = useState(false);
+  const [convertedProject, setConvertedProject] = useState(null);
+  const [convertError,     setConvertError]     = useState(null);
   const [attachTerms,       setAttachTerms]       = useState(true);
   const [termsUploading,    setTermsUploading]    = useState(false);
   const [localTermsName,    setLocalTermsName]    = useState(null);
@@ -1177,21 +1181,71 @@ export default function OfferDetailMobile({ quoteId }) {
         </div>
       )}
 
-      {/* Accept / Reject */}
-      {(mode === 'accept' || mode === 'reject') && (
-        <div role="dialog" aria-label={t('actions')} className="pod-sheet" style={{ position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 50, boxSizing: 'border-box', padding: `10px 16px calc(18px + env(safe-area-inset-bottom))`, borderRadius: '32px 32px 0 0', background: 'var(--m-sheet, #FBFAF7)', display: 'flex', flexDirection: 'column', gap: 12 }}>
+      {/* Accept */}
+      {mode === 'accept' && (
+        <div role="dialog" aria-label={t('actionAccept')} className="pod-sheet" style={{ position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 50, boxSizing: 'border-box', padding: `10px 16px calc(18px + env(safe-area-inset-bottom))`, borderRadius: '32px 32px 0 0', background: 'var(--m-sheet, #FBFAF7)', display: 'flex', flexDirection: 'column', gap: 12 }}>
           <div style={{ alignSelf: 'center', width: 44, height: 5, borderRadius: 3, background: '#D5D2C8' }} />
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
-            <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 25, fontWeight: 700, lineHeight: 1.1, color: 'var(--m-ink)' }}>{t('actions')}</span>
+            <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 22, fontWeight: 700, lineHeight: 1.1, color: 'var(--m-ink)' }}>{t('actionAccept')}</span>
+            <CloseBtn onClick={() => { setMode(null); setConvertedProject(null); setConvertError(null); }} />
+          </div>
+
+          {convertedProject ? (
+            /* Success */
+            <>
+              <div style={{ padding: '12px 0', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+                <div style={{ width: 52, height: 52, borderRadius: 26, background: '#D1FAE5', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#065F46" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true"><path d="M5 13l4 4L19 7"/></svg>
+                </div>
+                <span style={{ fontWeight: 700, fontSize: 16, color: 'var(--m-ink)', textAlign: 'center' }}>{t('convertSuccess')}</span>
+                <span style={{ fontSize: 14, color: '#5A5F68', textAlign: 'center' }}>{t('convertSuccessDetail')}</span>
+              </div>
+              <button onClick={() => { setMode(null); setConvertedProject(null); router.push(p(`/projektek/${convertedProject.id}`)); }}
+                style={{ height: 60, border: 0, borderRadius: 30, background: '#14532D', color: '#fff', fontSize: 17, fontWeight: 700, cursor: 'pointer' }}>
+                {t('viewProject')}
+              </button>
+              <button onClick={() => { setMode(null); setConvertedProject(null); }} style={{ height: 60, border: 0, borderRadius: 30, background: '#EFEDE6', color: 'var(--m-ink)', fontSize: 17, fontWeight: 700, cursor: 'pointer' }}>{tc('close')}</button>
+            </>
+          ) : convertError ? (
+            /* Error */
+            <>
+              <div style={{ padding: '8px 12px', borderRadius: 16, background: '#FEE2E2', color: '#B91C1C', fontSize: 14, fontWeight: 600 }}>{convertError}</div>
+              <button onClick={async () => { setConvertError(null); setAcceptLoading(true); try { const proj = await convertQuoteToProject(quoteId); setConvertedProject(proj); } catch (err) { setConvertError(err.message || t('convertError')); } finally { setAcceptLoading(false); } }}
+                disabled={acceptLoading}
+                style={{ height: 60, border: 0, borderRadius: 30, background: '#14532D', color: '#fff', fontSize: 17, fontWeight: 700, cursor: 'pointer', opacity: acceptLoading ? 0.6 : 1 }}>
+                {acceptLoading ? t('convertInProgress') : t('convertRetry')}
+              </button>
+              <button onClick={() => { setMode(null); setConvertError(null); }} style={{ height: 60, border: 0, borderRadius: 30, background: '#EFEDE6', color: 'var(--m-ink)', fontSize: 17, fontWeight: 700, cursor: 'pointer' }}>{tc('cancel')}</button>
+            </>
+          ) : (
+            /* Confirm */
+            <>
+              <span style={{ fontSize: 15, color: '#5A5F68', fontWeight: 500 }}>{t('convertConfirmPersonal')}</span>
+              <button onClick={async () => { setAcceptLoading(true); try { const proj = await convertQuoteToProject(quoteId); setConvertedProject(proj); } catch (err) { setConvertError(err.message || t('convertError')); } finally { setAcceptLoading(false); } }}
+                disabled={acceptLoading}
+                style={{ height: 60, border: 0, borderRadius: 30, background: acceptLoading ? '#B9B5AA' : '#14532D', color: '#fff', fontSize: 17, fontWeight: 700, cursor: acceptLoading ? 'default' : 'pointer' }}>
+                {acceptLoading ? t('convertInProgress') : t('convertOk')}
+              </button>
+              <button onClick={() => setMode(null)} style={{ height: 60, border: 0, borderRadius: 30, background: '#EFEDE6', color: 'var(--m-ink)', fontSize: 17, fontWeight: 700, cursor: 'pointer' }}>{tc('cancel')}</button>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Reject */}
+      {mode === 'reject' && (
+        <div role="dialog" aria-label={t('actionReject')} className="pod-sheet" style={{ position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 50, boxSizing: 'border-box', padding: `10px 16px calc(18px + env(safe-area-inset-bottom))`, borderRadius: '32px 32px 0 0', background: 'var(--m-sheet, #FBFAF7)', display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div style={{ alignSelf: 'center', width: 44, height: 5, borderRadius: 3, background: '#D5D2C8' }} />
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+            <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 22, fontWeight: 700, lineHeight: 1.1, color: 'var(--m-ink)' }}>{t('actionReject')}</span>
             <CloseBtn onClick={() => setMode(null)} />
           </div>
-          <button
-            onClick={() => { setMode(null); router.push(p(`/ajanlatok/${quoteId}/muveletek`)); }}
-            style={{ height: 60, border: 0, borderRadius: 30, background: mode === 'reject' ? '#B71C1C' : '#14532D', color: '#fff', fontSize: 17, fontWeight: 700, cursor: 'pointer' }}
-          >
-            {mode === 'accept' ? t('actionAccept') : t('actionReject')}
+          <span style={{ fontSize: 15, color: '#5A5F68', fontWeight: 500 }}>{t('rejectConfirmMessage')}</span>
+          <button onClick={async () => { try { await updateQuoteStatus(quoteId, 'rejected'); setQuote(q => ({ ...q, status: 'rejected' })); } catch (err) { setAlertModal({ open: true, message: err.message }); } finally { setMode(null); } }}
+            style={{ height: 60, border: 0, borderRadius: 30, background: '#B71C1C', color: '#fff', fontSize: 17, fontWeight: 700, cursor: 'pointer' }}>
+            {t('actionReject')}
           </button>
-          <button onClick={() => setMode(null)} style={{ height: 60, border: 0, borderRadius: 30, background: '#EFEDE6', color: 'var(--m-ink)', fontSize: 17, fontWeight: 700, cursor: 'pointer' }}>{t('cancel')}</button>
+          <button onClick={() => setMode(null)} style={{ height: 60, border: 0, borderRadius: 30, background: '#EFEDE6', color: 'var(--m-ink)', fontSize: 17, fontWeight: 700, cursor: 'pointer' }}>{tc('cancel')}</button>
         </div>
       )}
 
