@@ -16,15 +16,17 @@ import ClientSelect from '@/components/ClientSelect';
 import NewClientModal from '@/components/NewClientModal';
 import PageSpinner from '@/components/PageSpinner';
 import SectionAddForm from '../components/SectionAddForm';
+import QuoteMediaModal from './QuoteMediaModal';
+import DrawingsSection from '@/components/DrawingsSection';
 import ClientComments from '../components/ClientComments';
 import CollectiveChatSection from '@/components/CollectiveChatSection';
 import { TYPE_ICONS, TYPE_COLORS, sortEntries } from '../components/constants';
 import {
   ArrowLeft, MapPin, Calendar, Coins, Plus, Trash2, User, Wrench, Printer,
   CheckCircle2, XCircle, Send, FolderKanban, AlertCircle,
-  Edit3, Loader2, MoreHorizontal, Ruler, Home,
+  Edit3, Loader2, MoreHorizontal, MoreVertical, Ruler, Home,
   X, Copy, ExternalLink, Check, ChevronDown, ChevronUp,
-  MessageSquare, RotateCcw,
+  MessageSquare, RotateCcw, Camera, FileText, PenLine,
 } from 'lucide-react';
 
 const EMPTY_ENTRY_FORM = { entry_type: 'material', work_description: '', quantity: '', unit: 'db', unit_price: '', flat_amount: '', notes: '', user_id: '' };
@@ -149,6 +151,18 @@ export default function OfferDetailDesktop() {
   const [fallbackSections,   setFallbackSections]   = useState(null);
   const [fallbackFetching,   setFallbackFetching]   = useState(false);
   const [sectionMediaItemsMap, setSectionMediaItemsMap] = useState({});
+  const [quoteDocMedia,        setQuoteDocMedia]        = useState([]);
+  const [quoteDrawings,        setQuoteDrawings]        = useState([]);
+
+  // ── Media / Drawing modal state ───────────────────────────────────────────
+  const [docMediaMode,         setDocMediaMode]         = useState(null); // null | 'media' | 'documents'
+  const [showDocDrawingsModal, setShowDocDrawingsModal] = useState(false);
+  const [showHeaderMenu,       setShowHeaderMenu]       = useState(false);
+  const headerMenuRef = useRef(null);
+  // section-level: { sectionId, mode: 'media'|'documents'|'drawings' } | null
+  const [sectionMediaCtx,      setSectionMediaCtx]      = useState(null);
+  // section action menu (replaces direct-open-edit): sectionId | null
+  const [sectionActionMenu,    setSectionActionMenu]    = useState(null);
 
   // ── Section collapse state ────────────────────────────────────────────────
   const [expandedSections, setExpandedSections] = useState(new Set());
@@ -177,14 +191,18 @@ export default function OfferDetailDesktop() {
           setFallbackSections(d.sections);
           cacheQuote(d.quote);
         }
-        if (d?.mediaItems?.length) {
+        if (d?.mediaItems) {
           const byOwner = {};
+          const docMedia = [];
           for (const m of d.mediaItems) {
+            if (m.owner_type === 'quote') { docMedia.push(m); continue; }
             if (!byOwner[m.owner_id]) byOwner[m.owner_id] = [];
             byOwner[m.owner_id].push(m);
           }
           setSectionMediaItemsMap(byOwner);
+          setQuoteDocMedia(docMedia);
         }
+        if (d?.quoteDrawings) setQuoteDrawings(d.quoteDrawings);
       })
       .catch(() => {})
       .finally(() => setFallbackFetching(false));
@@ -195,13 +213,18 @@ export default function OfferDetailDesktop() {
     fetch(`/api/quotes/${id}`)
       .then(r => r.ok ? r.json() : null)
       .then(d => {
-        if (!d?.mediaItems?.length) return;
-        const byOwner = {};
-        for (const m of d.mediaItems) {
-          if (!byOwner[m.owner_id]) byOwner[m.owner_id] = [];
-          byOwner[m.owner_id].push(m);
+        if (d?.mediaItems) {
+          const byOwner = {};
+          const docMedia = [];
+          for (const m of d.mediaItems) {
+            if (m.owner_type === 'quote') { docMedia.push(m); continue; }
+            if (!byOwner[m.owner_id]) byOwner[m.owner_id] = [];
+            byOwner[m.owner_id].push(m);
+          }
+          setSectionMediaItemsMap(byOwner);
+          setQuoteDocMedia(docMedia);
         }
-        setSectionMediaItemsMap(byOwner);
+        if (d?.quoteDrawings) setQuoteDrawings(d.quoteDrawings);
       })
       .catch(() => {});
   }, [id, !!ctxQuote]);
@@ -747,10 +770,34 @@ export default function OfferDetailDesktop() {
                     <Plus size={13} /> {t('desktop.addEntry')}
                   </button>
                 )}
-                <button type="button" onClick={e => { e.stopPropagation(); openEditSection(section); }}
-                  style={{ width: 32, height: 32, borderRadius: 16, border: 0, background: '#1E293B', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
-                  <MoreHorizontal size={14} />
-                </button>
+                <div style={{ position: 'relative' }}>
+                  <button type="button" onClick={e => { e.stopPropagation(); setSectionActionMenu(sectionId === sectionActionMenu ? null : sectionId); }}
+                    style={{ width: 32, height: 32, borderRadius: 16, border: 0, background: '#1E293B', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+                    <MoreHorizontal size={14} />
+                  </button>
+                  {sectionActionMenu === sectionId && (
+                    <>
+                      <div onClick={e => { e.stopPropagation(); setSectionActionMenu(null); }}
+                        style={{ position: 'fixed', inset: 0, zIndex: 199 }} aria-hidden="true" />
+                      <div onClick={e => e.stopPropagation()}
+                        style={{ position: 'absolute', top: 38, right: 0, zIndex: 200, background: '#fff', borderRadius: 16, boxShadow: '0 8px 24px rgba(0,0,0,0.18)', minWidth: 200, overflow: 'hidden' }}>
+                        {[
+                          { icon: Edit3,    label: t('desktop.sectionEdit'),    onClick: () => { openEditSection(section); setSectionActionMenu(null); } },
+                          { icon: Camera,   label: t('mediaImagesTitle'),        onClick: () => { setSectionMediaCtx({ sectionId, mode: 'media' });     setSectionActionMenu(null); } },
+                          { icon: PenLine,  label: t('mediaDrawingsTitle'),      onClick: () => { setSectionMediaCtx({ sectionId, mode: 'drawings' });  setSectionActionMenu(null); } },
+                          { icon: FileText, label: t('mediaDocumentsTitle'),     onClick: () => { setSectionMediaCtx({ sectionId, mode: 'documents' }); setSectionActionMenu(null); } },
+                        ].map(({ icon: Icon, label, onClick }) => (
+                          <button key={label} type="button" onClick={onClick}
+                            style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '0.75rem 1rem', border: 0, background: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 600, color: '#0E1116', textAlign: 'left' }}
+                            onMouseEnter={e => e.currentTarget.style.background = '#F4F3F0'}
+                            onMouseLeave={e => e.currentTarget.style.background = 'none'}>
+                            <Icon size={16} /> {label}
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </div>
               </>
             )}
             {isCollapsed ? <ChevronDown size={18} color="#8A8F98" /> : <ChevronUp size={18} color="#8A8F98" />}
@@ -853,6 +900,33 @@ export default function OfferDetailDesktop() {
             {savingMeta ? tc('saving') : tc('save')}
           </button>
         )}
+        {/* Document-level media menu */}
+        <div style={{ position: 'relative', flexShrink: 0 }} ref={headerMenuRef}>
+          <button className="dk-btn dk-btn-g" onClick={() => setShowHeaderMenu(v => !v)}
+            style={{ width: 44, padding: 0, justifyContent: 'center' }} aria-label={t('mediaMenu')}>
+            <MoreVertical size={18} aria-hidden="true" />
+          </button>
+          {showHeaderMenu && (
+            <div onClick={() => setShowHeaderMenu(false)}
+              style={{ position: 'fixed', inset: 0, zIndex: 199 }} aria-hidden="true" />
+          )}
+          {showHeaderMenu && (
+            <div style={{ position: 'absolute', top: 52, right: 0, zIndex: 200, background: '#fff', borderRadius: 16, boxShadow: '0 8px 24px rgba(0,0,0,0.18)', minWidth: 200, overflow: 'hidden' }}>
+              {[
+                { icon: Camera,   label: t('mediaImagesTitle'),    onClick: () => { setDocMediaMode('media');     setShowHeaderMenu(false); } },
+                { icon: PenLine,  label: t('mediaDrawingsTitle'),  onClick: () => { setShowDocDrawingsModal(true); setShowHeaderMenu(false); } },
+                { icon: FileText, label: t('mediaDocumentsTitle'), onClick: () => { setDocMediaMode('documents'); setShowHeaderMenu(false); } },
+              ].map(({ icon: Icon, label, onClick }) => (
+                <button key={label} type="button" onClick={onClick}
+                  style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '0.75rem 1rem', border: 0, background: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 600, color: '#0E1116', textAlign: 'left' }}
+                  onMouseEnter={e => e.currentTarget.style.background = '#F4F3F0'}
+                  onMouseLeave={e => e.currentTarget.style.background = 'none'}>
+                  <Icon size={16} /> {label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </header>
 
       {/* ── Body ────────────────────────────────────────────────────────────── */}
@@ -1839,6 +1913,76 @@ export default function OfferDetailDesktop() {
               </div>
             )}
           </div>
+        )}
+      </Modal>
+
+      {/* ── Document-level media modals ──────────────────────────────────────── */}
+      <QuoteMediaModal
+        isOpen={!!docMediaMode}
+        onClose={() => setDocMediaMode(null)}
+        quoteId={id}
+        ownerType="quote"
+        ownerId={id}
+        mode={docMediaMode || 'media'}
+        items={quoteDocMedia}
+        onUploaded={items => setQuoteDocMedia(prev => [...prev, ...items])}
+        onDeleted={itemId => setQuoteDocMedia(prev => prev.filter(m => m.id !== itemId))}
+      />
+
+      <Modal isOpen={showDocDrawingsModal} onClose={() => setShowDocDrawingsModal(false)} title={t('mediaDrawingsTitle')}>
+        <DrawingsSection
+          drawings={quoteDrawings.filter(d => !d.section_id)}
+          canEdit={canEdit && (isQuoteOwner || isKollektivOwner)}
+          onSave={async (svg) => {
+            const res = await fetch(`/api/quotes/${id}/drawings`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ svg_data: svg }) });
+            if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || 'Hiba');
+            const { drawing } = await res.json();
+            setQuoteDrawings(prev => [...prev, drawing]);
+          }}
+          onDelete={async (drawingId) => {
+            await fetch(`/api/quotes/${id}/drawings/${drawingId}`, { method: 'DELETE' });
+            setQuoteDrawings(prev => prev.filter(d => d.id !== drawingId));
+          }}
+        />
+      </Modal>
+
+      {/* ── Section-level media modals ───────────────────────────────────────── */}
+      {sectionMediaCtx?.mode !== 'drawings' && (
+        <QuoteMediaModal
+          isOpen={!!sectionMediaCtx && sectionMediaCtx.mode !== 'drawings'}
+          onClose={() => setSectionMediaCtx(null)}
+          quoteId={id}
+          ownerType="quote_section"
+          ownerId={sectionMediaCtx?.sectionId}
+          mode={sectionMediaCtx?.mode || 'media'}
+          items={sectionMediaItemsMap[sectionMediaCtx?.sectionId] || []}
+          onUploaded={items => setSectionMediaItemsMap(prev => {
+            const sid = sectionMediaCtx?.sectionId;
+            return { ...prev, [sid]: [...(prev[sid] || []), ...items] };
+          })}
+          onDeleted={itemId => setSectionMediaItemsMap(prev => {
+            const sid = sectionMediaCtx?.sectionId;
+            return { ...prev, [sid]: (prev[sid] || []).filter(m => m.id !== itemId) };
+          })}
+        />
+      )}
+
+      <Modal isOpen={sectionMediaCtx?.mode === 'drawings'} onClose={() => setSectionMediaCtx(null)} title={t('mediaDrawingsTitle')}>
+        {sectionMediaCtx?.mode === 'drawings' && (
+          <DrawingsSection
+            drawings={quoteDrawings.filter(d => d.section_id === sectionMediaCtx.sectionId)}
+            canEdit={canEdit && (isQuoteOwner || isKollektivOwner)}
+            onSave={async (svg) => {
+              const res = await fetch(`/api/quotes/${id}/drawings`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ svg_data: svg, section_id: sectionMediaCtx.sectionId }) });
+              if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || 'Hiba');
+              const { drawing } = await res.json();
+              setQuoteDrawings(prev => [...prev, drawing]);
+            }}
+            onDelete={async (drawingId) => {
+              await fetch(`/api/quotes/${id}/drawings/${drawingId}`, { method: 'DELETE' });
+              setQuoteDrawings(prev => prev.filter(d => d.id !== drawingId));
+            }}
+          />
         )}
       </Modal>
     </div>

@@ -111,6 +111,13 @@ export async function POST(request, { params }) {
 
   logAudit({ entityId: quote.collective_id || user.id, userId: user.id, userName: profile.display_name || user.email || '', action: 'Survey imported to quote', targetType: 'quote', targetId: quoteId, targetName: quote.id, details: { survey_id: quote.survey_id, sections_created: sections?.length || 0, entries_created: entriesCreated } });
 
+  // Copy survey media and drawings into the quote (fire-and-forget — non-fatal)
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+  await Promise.allSettled([
+    fetch(`${baseUrl}/api/quotes/${quoteId}/copy-survey-media`,    { method: 'POST', headers: { cookie: request.headers.get('cookie') || '' } }),
+    fetch(`${baseUrl}/api/quotes/${quoteId}/copy-survey-drawings`, { method: 'POST', headers: { cookie: request.headers.get('cookie') || '' } }),
+  ]);
+
   // Flip survey to done on first import (only if still active)
   const { data: survey } = await admin.from('surveys').select('status').eq('id', quote.survey_id).is('deleted_at', null).single();
   if (survey?.status === 'active') {
