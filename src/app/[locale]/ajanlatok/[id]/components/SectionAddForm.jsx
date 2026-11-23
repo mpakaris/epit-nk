@@ -11,8 +11,6 @@ const LBL = { fontSize: 11, fontWeight: 700, letterSpacing: '.07em', textTransfo
 export default function SectionAddForm({ surveyId, onSave, onCancel }) {
   const t  = useTranslations('quotes');
   const tc = useTranslations('common');
-  const { uploadSurveyMedia } = useApp();
-
   const [name,        setName]        = useState('');
   const [description, setDescription] = useState('');
   const [widthM,      setWidthM]      = useState('');
