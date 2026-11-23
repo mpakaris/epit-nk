@@ -9,6 +9,8 @@ import Link from 'next/link';
 import { Link as LocaleLink } from '@/navigation';
 import PageHeader from '@/components/mobile/pods/PageHeader';
 import { NotifSheet, MessagesSheet, MenuSheet } from '@/components/mobile/pods/Sheets';
+import useMobile from '@/hooks/useMobile';
+import Modal from '@/components/Modal';
 
 const FONT         = `-apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif`;
 const SLATE        = '#0f172a';
@@ -74,10 +76,9 @@ const DEMO_PROFILE_PRINT = {
   zip: '1124', city: 'Budapest', tax_number: '99887766-2-43',
 };
 
-// ─── Missing fields bottom sheet ──────────────────────────────────────────────
-function MissingSheet({ profile, checklist, navPrefix, quoteId, onClose, onSaved, t }) {
+// ─── Missing fields sheet / modal ─────────────────────────────────────────────
+function MissingSheet({ profile, checklist, navPrefix, quoteId, onClose, onSaved, t, isModal }) {
   const profileItems = checklist.filter(c => c.isProfile && !c.ok);
-  const offerItems   = checklist.filter(c => !c.isProfile && !c.ok);
 
   const initial = {
     company_name: profile?.company_name || '',
@@ -112,21 +113,47 @@ function MissingSheet({ profile, checklist, navPrefix, quoteId, onClose, onSaved
     finally { setSaving(false); }
   };
 
-  const field = (key, label, placeholder, type = 'text') => {
-    const empty = !form[key];
+  const LBL = { fontSize: 11, fontWeight: 700, letterSpacing: '.07em', textTransform: 'uppercase', color: '#5A6070' };
+
+  const field = (key, label, placeholder, type = 'text') => (
+    <label key={key} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+      <span style={LBL}>{label}</span>
+      <input type={type} value={form[key]} onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))} placeholder={placeholder} className="dk-input" />
+    </label>
+  );
+
+  const body = (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <p style={{ fontSize: 14, color: '#5A5F68', margin: 0 }}>{t('missingSheetBody')}</p>
+      {profileItems.some(i => i.key === 'name') && <>
+        {field('company_name', t('labelCompanyName'), 'Nemes Renováló Kft.')}
+        {field('last_name',    t('labelLastName'),    'Nemes')}
+        {field('first_name',   t('labelFirstName'),   'Péter')}
+      </>}
+      {profileItems.some(i => i.key === 'tax')  && field('tax_number',   t('checkTax'),   '12345678-2-41')}
+      {profileItems.some(i => i.key === 'phone') && field('phone',       t('checkPhone'), '+36 70 …', 'tel')}
+      {profileItems.some(i => i.key === 'bank')  && <>
+        {field('bank_account', t('checkBank'),     '12345678-12345678-12345678')}
+        {field('bank_name',    t('labelBankName'), 'OTP Bank')}
+      </>}
+      {error && <span style={{ fontSize: 13, fontWeight: 600, color: '#9B1C1C' }}>{error}</span>}
+      {profileItems.length > 0 && (
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 4 }}>
+          <button type="button" className="dk-btn" onClick={handleSave} disabled={saving || saved || !hasChanges} style={{ background: '#0E1116', color: '#fff', opacity: !hasChanges || saving ? 0.4 : 1 }}>
+            {saved ? t('savedOk') : saving ? t('savingProfile') : t('saveProfile')}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+
+  if (isModal) {
     return (
-      <label key={key} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-        <span style={{ fontSize: 14, fontWeight: 700, color: '#0E1116' }}>{label}</span>
-        <input
-          type={type}
-          value={form[key]}
-          onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
-          placeholder={placeholder}
-          style={{ height: 56, border: 0, borderRadius: 20, background: '#fff', padding: '0 16px', fontSize: 17, fontWeight: 500, color: '#0E1116', width: '100%', boxSizing: 'border-box', outline: 'none', boxShadow: empty ? 'rgba(249,115,22,0.18) 0px 1px 0px, rgba(249,115,22,0.55) 0px 10px 28px -10px' : 'rgba(14,17,22,0.05) 0px 1px 0px, rgba(14,17,22,0.4) 0px 10px 20px -16px' }}
-        />
-      </label>
+      <Modal isOpen onClose={onClose} title={t('missingSheetTitle')}>
+        {body}
+      </Modal>
     );
-  };
+  }
 
   return (
     <>
@@ -134,34 +161,14 @@ function MissingSheet({ profile, checklist, navPrefix, quoteId, onClose, onSaved
       <div role="dialog" aria-label={t('missingSheetTitle')} className="pod-sheet" style={{ position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 50, maxHeight: '90%', overflowY: 'auto', boxSizing: 'border-box', padding: `10px 16px calc(18px + env(safe-area-inset-bottom))`, borderRadius: '32px 32px 0 0', background: 'var(--m-sheet)', display: 'flex', flexDirection: 'column', gap: 12 }}>
         <div style={{ alignSelf: 'center', width: 44, height: 5, borderRadius: 3, background: '#D5D2C8' }} />
         <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 25, fontWeight: 700, color: '#0E1116' }}>{t('missingSheetTitle')}</span>
-        <span style={{ fontSize: 16, fontWeight: 500, lineHeight: 1.45, color: '#0E1116' }}>{t('missingSheetBody')}</span>
-
-        {profileItems.some(i => i.key === 'name') && <>
-          {field('company_name', t('labelCompanyName'), 'Nemes Renováló Kft.')}
-          {field('last_name',    t('labelLastName'),    'Nemes')}
-          {field('first_name',   t('labelFirstName'),   'Péter')}
-        </>}
-        {profileItems.some(i => i.key === 'tax')   && field('tax_number',   t('checkTax'),     '12345678-2-41')}
-        {profileItems.some(i => i.key === 'phone')  && field('phone',        t('checkPhone'),   '+36 70 …', 'tel')}
-        {profileItems.some(i => i.key === 'bank')   && <>
-          {field('bank_account', t('checkBank'),     '12345678-12345678-12345678')}
-          {field('bank_name',    t('labelBankName'), 'OTP Bank')}
-        </>}
-
-        {error && <span style={{ fontSize: 14, fontWeight: 600, color: '#9B1C1C' }}>{error}</span>}
-
-        {profileItems.length > 0 && (
-          <button type="button" onClick={handleSave} disabled={saving || saved || !hasChanges} style={{ height: 60, border: 0, borderRadius: 30, background: '#0E1116', color: '#fff', fontSize: 17, fontWeight: 700, cursor: !hasChanges ? 'default' : 'pointer', opacity: !hasChanges || saving ? 0.4 : 1, boxShadow: '0 4px 14px rgba(14,17,22,0.25)' }}>
-            {saved ? t('savedOk') : saving ? t('savingProfile') : t('saveProfile')}
-          </button>
-        )}
+        {body}
       </div>
     </>
   );
 }
 
-// ─── Client / offer fields sheet ─────────────────────────────────────────────
-function ClientSheet({ quote, offerMissing, onClose, onSaved, t }) {
+// ─── Client / offer fields sheet / modal ─────────────────────────────────────
+function ClientSheet({ quote, offerMissing, onClose, onSaved, t, isModal }) {
   const { clients } = useApp();
 
   const initial = {
@@ -195,13 +202,57 @@ function ClientSheet({ quote, offerMissing, onClose, onSaved, t }) {
     finally { setSaving(false); }
   };
 
-  const shadow = (val) => val ? 'rgba(14,17,22,0.05) 0px 1px 0px, rgba(14,17,22,0.4) 0px 10px 20px -16px' : 'rgba(249,115,22,0.18) 0px 1px 0px, rgba(249,115,22,0.55) 0px 10px 28px -10px';
-  const inp = (val) => ({ height: 56, border: 0, borderRadius: 20, background: '#fff', padding: '0 16px', fontSize: 17, fontWeight: 500, color: '#0E1116', width: '100%', boxSizing: 'border-box', outline: 'none', boxShadow: shadow(val) });
-
+  const LBL = { fontSize: 11, fontWeight: 700, letterSpacing: '.07em', textTransform: 'uppercase', color: '#5A6070' };
   const needsClient = offerMissing.some(i => i.key === 'client');
   const needsNum    = offerMissing.some(i => i.key === 'num');
   const needsValid  = offerMissing.some(i => i.key === 'valid');
   const needsTerms  = offerMissing.some(i => i.key === 'terms');
+
+  const body = (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      {needsClient && (
+        <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <span style={LBL}>{t('checkClient')}</span>
+          <select value={form.client_id} onChange={e => setForm(f => ({ ...f, client_id: e.target.value }))} className="dk-input" style={{ appearance: 'none' }}>
+            <option value="">– {t('noClient')} –</option>
+            {(clients || []).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+        </label>
+      )}
+      {needsNum && (
+        <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <span style={LBL}>{t('checkOfferNum')}</span>
+          <input value={form.offer_number} onChange={e => setForm(f => ({ ...f, offer_number: e.target.value }))} placeholder="2024/001" className="dk-input" />
+        </label>
+      )}
+      {needsValid && (
+        <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <span style={LBL}>{t('checkValidUntil')}</span>
+          <input type="date" value={form.valid_until} onChange={e => setForm(f => ({ ...f, valid_until: e.target.value }))} className="dk-input" />
+        </label>
+      )}
+      {needsTerms && (
+        <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <span style={LBL}>{t('checkTerms')}</span>
+          <textarea value={form.offer_terms_text} onChange={e => setForm(f => ({ ...f, offer_terms_text: e.target.value }))} placeholder="…" rows={3} className="dk-input" style={{ height: 'auto', padding: '12px 16px', resize: 'vertical' }} />
+        </label>
+      )}
+      {error && <span style={{ fontSize: 13, fontWeight: 600, color: '#9B1C1C' }}>{error}</span>}
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 4 }}>
+        <button type="button" className="dk-btn" onClick={handleSave} disabled={saving || saved || !hasChanges} style={{ background: '#0E1116', color: '#fff', opacity: !hasChanges || saving ? 0.4 : 1 }}>
+          {saved ? t('savedOk') : saving ? t('savingProfile') : t('saveProfile')}
+        </button>
+      </div>
+    </div>
+  );
+
+  if (isModal) {
+    return (
+      <Modal isOpen onClose={onClose} title={t('missingClientTitle')}>
+        {body}
+      </Modal>
+    );
+  }
 
   return (
     <>
@@ -209,48 +260,133 @@ function ClientSheet({ quote, offerMissing, onClose, onSaved, t }) {
       <div role="dialog" aria-label={t('missingClientTitle')} className="pod-sheet" style={{ position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 50, maxHeight: '90%', overflowY: 'auto', boxSizing: 'border-box', padding: `10px 16px calc(18px + env(safe-area-inset-bottom))`, borderRadius: '32px 32px 0 0', background: 'var(--m-sheet)', display: 'flex', flexDirection: 'column', gap: 12 }}>
         <div style={{ alignSelf: 'center', width: 44, height: 5, borderRadius: 3, background: '#D5D2C8' }} />
         <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 25, fontWeight: 700, color: '#0E1116' }}>{t('missingClientTitle')}</span>
-
-        {needsClient && (
-          <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <span style={{ fontSize: 14, fontWeight: 700, color: '#0E1116' }}>{t('checkClient')}</span>
-            <select value={form.client_id} onChange={e => setForm(f => ({ ...f, client_id: e.target.value }))}
-              style={{ ...inp(form.client_id), appearance: 'none' }}>
-              <option value="">– {t('noClient')} –</option>
-              {(clients || []).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
-          </label>
-        )}
-        {needsNum && (
-          <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <span style={{ fontSize: 14, fontWeight: 700, color: '#0E1116' }}>{t('checkOfferNum')}</span>
-            <input value={form.offer_number} onChange={e => setForm(f => ({ ...f, offer_number: e.target.value }))}
-              placeholder="2024/001" style={inp(form.offer_number)} />
-          </label>
-        )}
-        {needsValid && (
-          <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <span style={{ fontSize: 14, fontWeight: 700, color: '#0E1116' }}>{t('checkValidUntil')}</span>
-            <input type="date" value={form.valid_until} onChange={e => setForm(f => ({ ...f, valid_until: e.target.value }))}
-              style={inp(form.valid_until)} />
-          </label>
-        )}
-        {needsTerms && (
-          <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <span style={{ fontSize: 14, fontWeight: 700, color: '#0E1116' }}>{t('checkTerms')}</span>
-            <textarea value={form.offer_terms_text} onChange={e => setForm(f => ({ ...f, offer_terms_text: e.target.value }))}
-              placeholder="…" rows={3}
-              style={{ ...inp(form.offer_terms_text), height: 'auto', padding: '12px 16px', resize: 'none' }} />
-          </label>
-        )}
-
-        {error && <span style={{ fontSize: 14, fontWeight: 600, color: '#9B1C1C' }}>{error}</span>}
-
-        <button type="button" onClick={handleSave} disabled={saving || saved || !hasChanges}
-          style={{ height: 60, border: 0, borderRadius: 30, background: '#0E1116', color: '#fff', fontSize: 17, fontWeight: 700, cursor: !hasChanges ? 'default' : 'pointer', opacity: !hasChanges || saving ? 0.4 : 1, boxShadow: '0 4px 14px rgba(14,17,22,0.25)' }}>
-          {saved ? t('savedOk') : saving ? t('savingProfile') : t('saveProfile')}
-        </button>
+        {body}
       </div>
     </>
+  );
+}
+
+// ─── Combined missing-info modal (desktop) ────────────────────────────────────
+function CombinedMissingModal({ profile, checklist, quote, clients, onClose, onSavedProfile, onSavedQuote, onDownload, t }) {
+  const profileItems = checklist.filter(c => c.isProfile && !c.ok);
+  const offerItems   = checklist.filter(c => !c.isProfile && !c.ok);
+
+  const profileInitial = {
+    company_name: profile?.company_name || '',
+    first_name:   profile?.first_name   || '',
+    last_name:    profile?.last_name    || '',
+    tax_number:   profile?.tax_number   || '',
+    phone:        profile?.phone        || '',
+    bank_account: profile?.bank_account || '',
+    bank_name:    profile?.bank_name    || '',
+  };
+  const offerInitial = {
+    client_id:        quote?.client_id        || '',
+    offer_number:     quote?.offer_number     || '',
+    valid_until:      quote?.valid_until      || '',
+    offer_terms_text: quote?.offer_terms_text || '',
+  };
+
+  const [profileForm, setProfileForm] = useState(profileInitial);
+  const [offerForm,   setOfferForm]   = useState(offerInitial);
+  const [saving,  setSaving]  = useState(false);
+  const [error,   setError]   = useState('');
+
+  const LBL = { fontSize: 11, fontWeight: 700, letterSpacing: '.07em', textTransform: 'uppercase', color: '#5A6070' };
+
+  const inp = (key, setter, placeholder, type = 'text') => (
+    <label key={key} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+      <span style={LBL}>{t(`check${key.charAt(0).toUpperCase() + key.slice(1).replace('_', '')}`) || key}</span>
+      <input type={type} value={setter === setProfileForm ? profileForm[key] : offerForm[key]}
+        onChange={e => setter(f => ({ ...f, [key]: e.target.value }))}
+        placeholder={placeholder} className="dk-input" />
+    </label>
+  );
+
+  const handleSaveAndDownload = async () => {
+    setSaving(true); setError('');
+    try {
+      if (profileItems.length > 0) {
+        const r = await fetch('/api/auth/profile', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(profileForm) });
+        if (!r.ok) { const d = await r.json().catch(() => ({})); setError(d.error || t('errorGeneral')); return; }
+        const fresh = await fetch('/api/auth/profile').then(r => r.json());
+        onSavedProfile(fresh.profile || null);
+      }
+      if (offerItems.length > 0) {
+        const r = await fetch(`/api/quotes/${quote.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...offerForm, client_id: offerForm.client_id || null }) });
+        if (!r.ok) { const d = await r.json().catch(() => ({})); setError(d.error || t('errorGeneral')); return; }
+        const data = await r.json();
+        onSavedQuote(data.quote || { ...quote, ...offerForm });
+      }
+      onDownload();
+    } catch { setError(t('errorNetwork')); }
+    finally { setSaving(false); }
+  };
+
+  return (
+    <Modal isOpen onClose={onClose} title={t('warnSheetTitle')} maxWidth="520px">
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+        <p style={{ fontSize: 14, color: '#5A5F68', margin: 0 }}>{t('warnSheetBody')}</p>
+
+        {profileItems.length > 0 && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <span style={{ ...LBL, color: '#0E1116', fontSize: 12 }}>{t('missingConstructorTitle')}</span>
+            {profileItems.some(i => i.key === 'name') && <>
+              <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <span style={LBL}>{t('labelCompanyName')}</span>
+                <input value={profileForm.company_name} onChange={e => setProfileForm(f => ({ ...f, company_name: e.target.value }))} placeholder="Nemes Renováló Kft." className="dk-input" />
+              </label>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <span style={LBL}>{t('labelLastName')}</span>
+                  <input value={profileForm.last_name} onChange={e => setProfileForm(f => ({ ...f, last_name: e.target.value }))} placeholder="Nemes" className="dk-input" />
+                </label>
+                <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <span style={LBL}>{t('labelFirstName')}</span>
+                  <input value={profileForm.first_name} onChange={e => setProfileForm(f => ({ ...f, first_name: e.target.value }))} placeholder="Péter" className="dk-input" />
+                </label>
+              </div>
+            </>}
+            {profileItems.some(i => i.key === 'tax')   && <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}><span style={LBL}>{t('checkTax')}</span><input value={profileForm.tax_number}   onChange={e => setProfileForm(f => ({ ...f, tax_number:   e.target.value }))} placeholder="12345678-2-41"              className="dk-input" /></label>}
+            {profileItems.some(i => i.key === 'phone')  && <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}><span style={LBL}>{t('checkPhone')}</span><input value={profileForm.phone}        onChange={e => setProfileForm(f => ({ ...f, phone:        e.target.value }))} placeholder="+36 70 …" type="tel"       className="dk-input" /></label>}
+            {profileItems.some(i => i.key === 'bank')   && <>
+              <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}><span style={LBL}>{t('checkBank')}</span><input value={profileForm.bank_account} onChange={e => setProfileForm(f => ({ ...f, bank_account: e.target.value }))} placeholder="12345678-12345678-12345678" className="dk-input" /></label>
+              <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}><span style={LBL}>{t('labelBankName')}</span><input value={profileForm.bank_name}    onChange={e => setProfileForm(f => ({ ...f, bank_name:    e.target.value }))} placeholder="OTP Bank"                  className="dk-input" /></label>
+            </>}
+          </div>
+        )}
+
+        {offerItems.length > 0 && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {profileItems.length > 0 && <div style={{ height: 1, background: '#EDEBE5' }} />}
+            <span style={{ ...LBL, color: '#0E1116', fontSize: 12 }}>{t('missingClientTitle')}</span>
+            {offerItems.some(i => i.key === 'client') && (
+              <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <span style={LBL}>{t('checkClient')}</span>
+                <select value={offerForm.client_id} onChange={e => setOfferForm(f => ({ ...f, client_id: e.target.value }))} className="dk-input" style={{ appearance: 'none' }}>
+                  <option value="">– {t('noClient')} –</option>
+                  {(clients || []).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              </label>
+            )}
+            {offerItems.some(i => i.key === 'num') && <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}><span style={LBL}>{t('checkOfferNum')}</span><input value={offerForm.offer_number} onChange={e => setOfferForm(f => ({ ...f, offer_number: e.target.value }))} placeholder="2024/001" className="dk-input" /></label>}
+            {offerItems.some(i => i.key === 'valid') && <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}><span style={LBL}>{t('checkValidUntil')}</span><input type="date" value={offerForm.valid_until} onChange={e => setOfferForm(f => ({ ...f, valid_until: e.target.value }))} className="dk-input" /></label>}
+            {offerItems.some(i => i.key === 'terms') && <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}><span style={LBL}>{t('checkTerms')}</span><textarea value={offerForm.offer_terms_text} onChange={e => setOfferForm(f => ({ ...f, offer_terms_text: e.target.value }))} placeholder="…" rows={3} className="dk-input" style={{ height: 'auto', padding: '12px 14px', resize: 'vertical' }} /></label>}
+          </div>
+        )}
+
+        {error && <span style={{ fontSize: 13, fontWeight: 600, color: '#9B1C1C' }}>{error}</span>}
+
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, paddingTop: 4 }}>
+          <button type="button" className="dk-btn dk-btn-l" onClick={handleSaveAndDownload} disabled={saving}>
+            {saving ? t('generating') : t('warnSheetFill')}
+          </button>
+          <button type="button" className="dk-btn" onClick={onDownload} style={{ background: '#0f172a', color: '#fff' }}>
+            {t('warnSheetSkip')}
+          </button>
+        </div>
+      </div>
+    </Modal>
   );
 }
 
@@ -264,12 +400,14 @@ export default function OfferPrintPage() {
   const AppLink  = isDemoMode ? Link : LocaleLink;
   const navPrefix = isDemoMode ? '/demo' : '';
 
-  const [profile,          setProfile]         = useState(isDemoMode ? DEMO_PROFILE_PRINT : null);
-  const [downloading,      setDownloading]      = useState(false);
-  const [missingSheet,     setMissingSheet]     = useState(false);
-  const [clientSheet,      setClientSheet]      = useState(false);
-  const [missingWarnSheet, setMissingWarnSheet] = useState(false);
-  const [activeSheet,      setActiveSheet]      = useState(null);
+  const isMobile = useMobile();
+  const [profile,           setProfile]          = useState(isDemoMode ? DEMO_PROFILE_PRINT : null);
+  const [downloading,       setDownloading]       = useState(false);
+  const [showMissingModal,  setShowMissingModal]  = useState(false);
+  const [missingSheet,      setMissingSheet]      = useState(false);
+  const [clientSheet,       setClientSheet]       = useState(false);
+  const [missingWarnSheet,  setMissingWarnSheet]  = useState(false);
+  const [activeSheet,       setActiveSheet]       = useState(null);
 
   const doDownload = async () => {
     if (isDemoMode) { alert(t('demoNoPdf')); return; }
@@ -376,7 +514,11 @@ export default function OfferPrintPage() {
   const missing        = [...profileMissing, ...offerMissing];
 
   const handleDownload = () => {
-    if (!isDemoMode && missing.length > 0) { setMissingWarnSheet(true); return; }
+    if (isDemoMode) { doDownload(); return; }
+    if (missing.length > 0) {
+      if (!isMobile) { setShowMissingModal(true); return; }
+      setMissingWarnSheet(true); return;
+    }
     doDownload();
   };
 
@@ -393,24 +535,47 @@ export default function OfferPrintPage() {
         @page { size: A4; margin: 14mm 14mm; }
       `}</style>
 
-      {/* ── PageHeader (logo + icons, same as list pages) ── */}
-      <PageHeader
-        onMenu={() => setActiveSheet('menu')}
-        onMessages={() => setActiveSheet('messages')}
-        onNotifications={() => setActiveSheet('notif')}
-      />
+      {/* ── Desktop toolbar ── */}
+      {!isMobile && (
+        <div className="no-print" style={{ position: 'sticky', top: 0, zIndex: 20, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '12px 24px', background: 'var(--m-canvas, #EDEBE5)', borderBottom: '1px solid rgba(14,17,22,0.08)' }}>
+          <button type="button" onClick={() => router.back()} style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: 0, padding: '6px 0', cursor: 'pointer', color: '#5A5F68', fontWeight: 600, fontSize: 14 }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true"><path d="M19 12H5M11 6l-6 6 6 6"/></svg>
+            {t('back') || 'Vissza'}
+          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <button type="button" onClick={handleDownload} disabled={downloading} style={{ height: 44, padding: '0 20px', border: 0, borderRadius: 22, background: '#0f172a', color: '#fff', fontSize: 15, fontWeight: 700, cursor: downloading ? 'wait' : 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}>
+              {downloading
+                ? <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true" className="animate-spin"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+                : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+              }
+              {downloading ? t('generating') : t('downloadPdf')}
+            </button>
+          </div>
+        </div>
+      )}
 
-      {/* ── Scrollable content — 108px top clears PageHeader ── */}
-      <div style={{ padding: '108px 16px 100px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+      {/* ── Mobile PageHeader ── */}
+      {isMobile && (
+        <PageHeader
+          onMenu={() => setActiveSheet('menu')}
+          onMessages={() => setActiveSheet('messages')}
+          onNotifications={() => setActiveSheet('notif')}
+        />
+      )}
 
-        {/* Back link */}
-        <button type="button" className="no-print" onClick={() => router.back()} style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: 0, padding: 0, cursor: 'pointer', color: 'var(--m-ink-2, #5A5F68)', alignSelf: 'flex-start' }}>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true"><path d="M19 12H5M11 6l-6 6 6 6"/></svg>
-          <span style={{ fontSize: 14, fontWeight: 600 }}>Preview</span>
-        </button>
+      {/* ── Scrollable content ── */}
+      <div style={{ padding: isMobile ? '108px 16px 100px' : '24px 24px 48px', display: 'flex', flexDirection: 'column', gap: 12 }}>
 
-        {/* Missing fields strips */}
-        {!isDemoMode && profileMissing.length > 0 && (
+        {/* Mobile back link */}
+        {isMobile && (
+          <button type="button" className="no-print" onClick={() => router.back()} style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: 0, padding: 0, cursor: 'pointer', color: 'var(--m-ink-2, #5A5F68)', alignSelf: 'flex-start' }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true"><path d="M19 12H5M11 6l-6 6 6 6"/></svg>
+            <span style={{ fontSize: 14, fontWeight: 600 }}>Preview</span>
+          </button>
+        )}
+
+        {/* Missing fields strips (mobile only — desktop uses toolbar chips) */}
+        {isMobile && !isDemoMode && profileMissing.length > 0 && (
           <button type="button" className="no-print" onClick={() => setMissingSheet(true)}
             style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', background: '#fff', border: 0, borderRadius: 22, cursor: 'pointer', textAlign: 'left', boxShadow: '0 1px 0 rgba(14,17,22,0.05), 0 10px 20px -16px rgba(14,17,22,0.3)' }}>
             <span style={{ width: 40, height: 40, borderRadius: 20, background: '#FFF1E0', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
@@ -423,7 +588,7 @@ export default function OfferPrintPage() {
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#5A5F68" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
           </button>
         )}
-        {!isDemoMode && offerMissing.length > 0 && (
+        {isMobile && !isDemoMode && offerMissing.length > 0 && (
           <button type="button" className="no-print" onClick={() => setClientSheet(true)}
             style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', background: '#fff', border: 0, borderRadius: 22, cursor: 'pointer', textAlign: 'left', boxShadow: '0 1px 0 rgba(14,17,22,0.05), 0 10px 20px -16px rgba(14,17,22,0.3)' }}>
             <span style={{ width: 40, height: 40, borderRadius: 20, background: '#FFF1E0', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
@@ -629,13 +794,16 @@ export default function OfferPrintPage() {
               </div>
 
               {/* Footer */}
-              {(quote.valid_until || profile.terms_pdf_name || quote.payment_deadline_days > 0 || quote.deposit_percent > 0 || quote.warranty_months > 0 || quote.offer_terms_text) && (
+              {(quote.valid_until || profile.terms_pdf_name || (quote.terms_attachments || []).some(a => a.attached) || quote.payment_deadline_days > 0 || quote.deposit_percent > 0 || quote.warranty_months > 0 || quote.offer_terms_text) && (
                 <div style={{ marginTop: '2rem', paddingTop: '0.85rem', borderTop: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                   {quote.valid_until             && <div style={{ fontSize: '0.72rem', color: '#94a3b8' }}>{t('footerValidUntil')} <strong>{formatDate(quote.valid_until)}</strong></div>}
                   {quote.payment_deadline_days > 0 && <div style={{ fontSize: '0.72rem', color: '#94a3b8' }}>{t('footerPaymentDays')} <strong>{quote.payment_deadline_days} {t('footerPaymentDaysUnit')}</strong>{quote.payment_method ? `, ${quote.payment_method}` : ''}</div>}
                   {quote.deposit_percent > 0       && <div style={{ fontSize: '0.72rem', color: '#94a3b8' }}>{t('footerDeposit')} <strong>{quote.deposit_percent}%</strong>{grossTotal > 0 ? ` (${fmtMoney(Math.round(grossTotal * quote.deposit_percent / 100))})` : ''} {t('footerDepositSuffix')}</div>}
                   {quote.warranty_months > 0       && <div style={{ fontSize: '0.72rem', color: '#94a3b8' }}>{t('footerWarranty')} <strong>{quote.warranty_months} {t('footerWarrantyUnit')}</strong></div>}
-                  {profile.terms_pdf_name          && <div style={{ fontSize: '0.72rem', color: '#94a3b8' }}>{t('footerTerms')} <strong>{profile.terms_pdf_name}</strong></div>}
+                  {quote.attach_profile_terms !== false && profile.terms_pdf_name && <div style={{ fontSize: '0.72rem', color: '#94a3b8' }}>{t('footerTerms')} <strong>{profile.terms_pdf_name}</strong></div>}
+                  {(quote.terms_attachments || []).filter(a => a.attached).map(a => (
+                    <div key={a.id} style={{ fontSize: '0.72rem', color: '#94a3b8' }}>{t('footerTerms')} <strong>{a.name}</strong></div>
+                  ))}
                   {quote.offer_terms_text           && <div style={{ fontSize: '0.72rem', color: '#94a3b8', whiteSpace: 'pre-wrap' }}>{quote.offer_terms_text}</div>}
                 </div>
               )}
@@ -647,8 +815,8 @@ export default function OfferPrintPage() {
 
       </div>{/* end scroll area */}
 
-      {/* ── Fixed download bar ── */}
-      <div className="no-print" style={{ position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 20, padding: `12px 16px calc(16px + env(safe-area-inset-bottom))`, background: 'var(--m-canvas, #EDEBE5)' }}>
+      {/* ── Fixed download bar (mobile only) ── */}
+      {isMobile && <div className="no-print" style={{ position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 20, padding: `12px 16px calc(16px + env(safe-area-inset-bottom))`, background: 'var(--m-canvas, #EDEBE5)' }}>
         <button type="button" onClick={handleDownload} disabled={downloading} style={{ width: '100%', height: 60, border: 0, borderRadius: 30, background: '#0f172a', color: '#fff', fontSize: 17, fontWeight: 700, cursor: downloading ? 'wait' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, boxShadow: '0 6px 20px rgba(15,23,42,0.35)' }}>
           {downloading
             ? <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true" className="animate-spin"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
@@ -656,7 +824,7 @@ export default function OfferPrintPage() {
           }
           {downloading ? t('generating') : t('downloadPdf')}
         </button>
-      </div>
+      </div>}
 
       {/* ── Missing fields warning sheet ── */}
       {missingWarnSheet && (
@@ -685,6 +853,21 @@ export default function OfferPrintPage() {
         </>
       )}
 
+      {/* ── Desktop: combined missing-info + download modal ── */}
+      {showMissingModal && (
+        <CombinedMissingModal
+          profile={profile}
+          checklist={CHECKLIST}
+          quote={quote}
+          clients={clients}
+          onClose={() => setShowMissingModal(false)}
+          onSavedProfile={setProfile}
+          onSavedQuote={q => cacheQuote && cacheQuote(q)}
+          onDownload={() => { setShowMissingModal(false); doDownload(); }}
+          t={t}
+        />
+      )}
+
       {missingSheet && (
         <MissingSheet
           profile={profile}
@@ -694,6 +877,7 @@ export default function OfferPrintPage() {
           onClose={() => setMissingSheet(false)}
           onSaved={setProfile}
           t={t}
+          isModal={!isMobile}
         />
       )}
       {clientSheet && (
@@ -703,6 +887,7 @@ export default function OfferPrintPage() {
           onClose={() => setClientSheet(false)}
           onSaved={q => cacheQuote && cacheQuote(q)}
           t={t}
+          isModal={!isMobile}
         />
       )}
 

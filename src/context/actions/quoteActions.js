@@ -65,7 +65,9 @@ export function makeQuoteActions({
   };
 
   const cacheQuote = (quote) => {
-    setQuotes(prev => prev.some(q => q.id === quote.id) ? prev : [...prev, quote]);
+    setQuotes(prev => prev.some(q => q.id === quote.id)
+      ? prev.map(q => q.id === quote.id ? quote : q)
+      : [...prev, quote]);
   };
 
   // ---- Quote sections ---------------------------------------------------------

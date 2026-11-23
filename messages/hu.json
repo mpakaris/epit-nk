@@ -228,6 +228,9 @@
     "memberRestrictionPreview": "Az ajánlat előnézetét és PDF letöltését csak a tulajdonos érheti el, mivel az ő fejléce és adatai szerepelnek rajta.",
     "memberRestrictionOther": "Nem te vagy a dokumentum tulajdonosa. Ezt a műveletet — {action} — csak az ajánlat tulajdonosa hajthatja végre.",
     "sendTitle": "Ajánlat kiküldése emailben",
+    "sendRecipient": "Címzett",
+    "sendRecipientHint": "Ha szeretnéd, megváltoztathatod a címzettet.",
+    "sendRecipientPlaceholder": "masik@email.hu",
     "sendConfirm": "Biztosan elküldi az ajánlatot {name} email-címére?",
     "sendNoEmail": "Az ügyfélnek nincs email címe",
     "sendEmailLabel": "Küldési email cím",
@@ -455,7 +458,13 @@
       "clientConditions": "Ügyfél és feltételek",
       "panelDetails": "Általános adatok",
       "panelSections": "Szakaszok",
-      "surveyTemplate": "Felmérés sablon"
+      "surveyTemplate": "Felmérés sablon",
+      "termsCard": "Mellékelt ÁSZF",
+      "termsNone": "Nincs mellékelt dokumentum",
+      "termsMaxReached": "Maximum 5 melléklet adható az ajánlathoz.",
+      "termsDefault": "Profil alapértelmezés:",
+      "termsCustom": "Egyedi – csak ennél az ajánlatnál",
+      "termsUpload": "PDF feltöltése"
     }
   },
   "surveys": {

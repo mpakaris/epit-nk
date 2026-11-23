@@ -298,6 +298,9 @@
     "memberRestrictionPreview": "Die Vorschau und der PDF-Download sind nur für den Eigentümer verfügbar, da dessen Briefkopf und Daten darauf erscheinen.",
     "memberRestrictionOther": "Sie sind nicht der Eigentümer des Dokuments. Diese Aktion — {action} — kann nur vom Eigentümer ausgeführt werden.",
     "sendTitle": "Angebot per E-Mail senden",
+    "sendRecipient": "Empfänger",
+    "sendRecipientHint": "Sie können den Empfänger bei Bedarf ändern.",
+    "sendRecipientPlaceholder": "andere@email.de",
     "sendConfirm": "Möchten Sie das Angebot wirklich an die E-Mail-Adresse von {name} senden?",
     "sendNoEmail": "Der Kunde hat keine E-Mail-Adresse",
     "sendEmailLabel": "E-Mail-Adresse des Empfängers",
@@ -525,7 +528,13 @@
       "clientConditions": "Kunde & Konditionen",
       "panelDetails": "Allgemeine Angaben",
       "panelSections": "Abschnitte",
-      "surveyTemplate": "Aufmaß-Vorlage"
+      "surveyTemplate": "Aufmaß-Vorlage",
+      "termsCard": "Beigefügte AGB",
+      "termsNone": "Keine Dokumente beigefügt",
+      "termsMaxReached": "Maximal 5 Anhänge pro Angebot.",
+      "termsDefault": "Profil-Standard:",
+      "termsCustom": "Individuell – nur für dieses Angebot",
+      "termsUpload": "PDF hochladen"
     }
   },
   "surveys": {

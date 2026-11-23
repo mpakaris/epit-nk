@@ -298,6 +298,9 @@
     "memberRestrictionPreview": "Preview and PDF download are only available to the owner, as their letterhead and details appear on it.",
     "memberRestrictionOther": "You are not the document owner. This action — {action} — can only be performed by the offer owner.",
     "sendTitle": "Send offer by email",
+    "sendRecipient": "Recipient",
+    "sendRecipientHint": "You can change the email recipient if you wish.",
+    "sendRecipientPlaceholder": "other@email.com",
     "sendConfirm": "Are you sure you want to send the offer to {name}'s email address?",
     "sendNoEmail": "The client has no email address",
     "sendEmailLabel": "Send to email address",
@@ -525,7 +528,13 @@
       "clientConditions": "Client & terms",
       "panelDetails": "General Details",
       "panelSections": "Sections",
-      "surveyTemplate": "Survey template"
+      "surveyTemplate": "Survey template",
+      "termsCard": "Attached T&C",
+      "termsNone": "No documents attached",
+      "termsMaxReached": "Maximum 5 attachments per offer.",
+      "termsDefault": "Profile default:",
+      "termsCustom": "Custom — this offer only",
+      "termsUpload": "Upload PDF"
     }
   },
   "surveys": {

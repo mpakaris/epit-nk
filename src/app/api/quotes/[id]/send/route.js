@@ -17,8 +17,8 @@ export async function POST(request, { params }) {
   if (!allowed) return Response.json({ error: 'Túl sok kérés. Kérjük, próbáld újra később.' }, { status: 429 });
 
   const body = await request.json().catch(() => ({}));
-  const attachTerms = body.attachTerms !== false; // default true
   const toEmailOverride = typeof body.to_email === 'string' ? body.to_email.trim() : null;
+  const selectedTerms = body.selectedTerms || { profileTerms: true, fileIds: [] };
 
   const admin = createAdminClient();
   const { data: profile } = await admin.from('profiles').select('role, display_name, locale, terms_pdf_url, terms_pdf_name').eq('id', user.id).single();
@@ -102,16 +102,23 @@ export async function POST(request, { params }) {
     ? quote.offer_number.replace(/\//g, '-').replace(/[^\w\s-]/g, '').trim()
     : quote.title.replace(/[^a-zA-Z0-9áéíóöőúüűÁÉÍÓÖŐÚÜŰ\s-]/g, '').trim().replace(/\s+/g, '_');
 
-  // Fetch terms PDF if user has one and it's requested
   const attachments = [{ filename: `Ajanlat_${safeName}.pdf`, content: pdfBuffer, contentType: 'application/pdf' }];
-  if (attachTerms && profile.terms_pdf_url) {
+
+  // Profile default T&C — only if selected for this send
+  if (selectedTerms.profileTerms && profile.terms_pdf_url) {
     try {
-      const termRes = await fetch(profile.terms_pdf_url);
-      if (termRes.ok) {
-        const termBuf = Buffer.from(await termRes.arrayBuffer());
-        attachments.push({ filename: profile.terms_pdf_name || 'ASZF.pdf', content: termBuf, contentType: 'application/pdf' });
-      }
-    } catch { /* skip if fetch fails */ }
+      const r = await fetch(profile.terms_pdf_url);
+      if (r.ok) attachments.push({ filename: profile.terms_pdf_name || 'ASZF.pdf', content: Buffer.from(await r.arrayBuffer()), contentType: 'application/pdf' });
+    } catch { /* skip */ }
+  }
+
+  // Per-quote custom T&C — only the ones selected for this send
+  for (const att of (quote.terms_attachments || [])) {
+    if (!att.url || !selectedTerms.fileIds?.includes(att.id)) continue;
+    try {
+      const r = await fetch(att.url);
+      if (r.ok) attachments.push({ filename: att.name || 'melleklet.pdf', content: Buffer.from(await r.arrayBuffer()), contentType: 'application/pdf' });
+    } catch { /* skip */ }
   }
 
   try {

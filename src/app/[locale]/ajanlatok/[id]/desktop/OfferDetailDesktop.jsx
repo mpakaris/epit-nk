@@ -117,6 +117,8 @@ export default function OfferDetailDesktop() {
   const [sendProgress,     setSendProgress]     = useState(null);
   const [attachTerms,      setAttachTerms]      = useState(true);
   const [termsPdfName,     setTermsPdfName]     = useState(null);
+  const [sendRecipient,    setSendRecipient]    = useState('');
+  const [sendSelectedTerms, setSendSelectedTerms] = useState({ profileTerms: true, fileIds: [] });
   const [profileIncomplete, setProfileIncomplete] = useState(false);
   const [downloadingPdf,   setDownloadingPdf]   = useState(false);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
@@ -137,6 +139,9 @@ export default function OfferDetailDesktop() {
   const [alertModal,         setAlertModal]         = useState(null);
   const [copied,             setCopied]             = useState(false);
   const [showClientModal,    setShowClientModal]    = useState(false);
+  const [showTermsModal,     setShowTermsModal]     = useState(false);
+  const [termsLocal,         setTermsLocal]         = useState(null); // local copy for instant modal updates
+  const [uploadingTerms,     setUploadingTerms]     = useState(false);
   const [lockedModalOpen,    setLockedModalOpen]    = useState(false);
   const [outgoingTransfers,  setOutgoingTransfers]  = useState([]);
   const [fallbackQuote,      setFallbackQuote]      = useState(null);
@@ -223,6 +228,14 @@ export default function OfferDetailDesktop() {
 
   useEffect(() => {
     if (!dataReady || isDemoMode) return;
+    fetch('/api/auth/profile')
+      .then(r => r.ok ? r.json() : {})
+      .then(d => { if (d.profile?.terms_pdf_name) setTermsPdfName(d.profile.terms_pdf_name); })
+      .catch(() => {});
+  }, [dataReady, isDemoMode]);
+
+  useEffect(() => {
+    if (!dataReady || isDemoMode) return;
     fetch('/api/transfer-requests?outgoing=true')
       .then(r => r.ok ? r.json() : { requests: [] })
       .then(d => setOutgoingTransfers(d.requests || []))
@@ -232,6 +245,11 @@ export default function OfferDetailDesktop() {
   useEffect(() => {
     if (quote?.locked_reason) setLockedModalOpen(true);
   }, [quote?.locked_reason]);
+
+  useEffect(() => {
+    if (!showTermsModal || !quote) return;
+    setTermsLocal(prev => prev ? { ...prev, attachments: quote.terms_attachments || [] } : null);
+  }, [quote?.terms_attachments, showTermsModal]);
 
   useEffect(() => {
     if (!quote || metaInitialized) return;
@@ -324,7 +342,7 @@ export default function OfferDetailDesktop() {
   ];
 
   const openSendConfirm = async () => {
-    if (!client?.email) { setAlertModal({ message: t('noClientEmail') }); return; }
+    setSendRecipient(client?.email || '');
     try {
       const res  = await fetch('/api/auth/profile');
       const data = await res.json();
@@ -333,7 +351,14 @@ export default function OfferDetailDesktop() {
       setAttachTerms(!!pr.terms_pdf_url);
       const missing = !((pr.company_name || pr.display_name) && pr.city && pr.tax_number);
       setProfileIncomplete(missing);
-    } catch { setTermsPdfName(null); setAttachTerms(false); setProfileIncomplete(false); }
+      setSendSelectedTerms({
+        profileTerms: !!pr.terms_pdf_url,
+        fileIds: [],
+      });
+    } catch {
+      setTermsPdfName(null); setAttachTerms(false); setProfileIncomplete(false);
+      setSendSelectedTerms({ profileTerms: false, fileIds: [] });
+    }
     setShowSendConfirm(true);
   };
 
@@ -352,7 +377,7 @@ export default function OfferDetailDesktop() {
       timers.push(setTimeout(() => setSendProgress(pr => pr && !pr.done && !pr.error ? { ...pr, step: i } : pr), s.ms));
     });
     try {
-      const res = await fetch(`/api/quotes/${id}/send`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ attachTerms }) });
+      const res = await fetch(`/api/quotes/${id}/send`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ to_email: sendRecipient || undefined, selectedTerms: sendSelectedTerms }) });
       const data = await res.json();
       timers.forEach(clearTimeout);
       if (!res.ok) throw new Error(data.error || t('errorUnknown'));
@@ -1074,8 +1099,8 @@ export default function OfferDetailDesktop() {
                   {/* Status actions */}
                   {canModify && (isQuoteOwner || isKollektivOwner) && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                      {!isLocked && quote.status !== 'sent' && (
-                        <button className="dk-btn dk-btn-dark" onClick={() => handleStatusChange('sent')} style={{ width: '100%', justifyContent: 'center', background: '#1D4ED8', color: '#fff' }}>
+                      {!isLocked && (
+                        <button className="dk-btn dk-btn-dark" onClick={openSendConfirm} style={{ width: '100%', justifyContent: 'center', background: '#1D4ED8', color: '#fff' }}>
                           <Send size={16} aria-hidden="true" /> {t('actionSend')}
                         </button>
                       )}
@@ -1184,6 +1209,43 @@ export default function OfferDetailDesktop() {
                   </div>
                 )}
 
+
+                {/* T&C attachment card */}
+                {canEdit && (() => {
+                  const attachedCount = (
+                    (quote.attach_profile_terms !== false && termsPdfName ? 1 : 0) +
+                    (quote.terms_attachments || []).filter(a => a.attached).length
+                  );
+                  return (
+                    <div className="dk-card" onClick={async () => {
+                      setTermsLocal({ attachments: quote.terms_attachments || [], attachProfile: quote.attach_profile_terms !== false });
+                      setShowTermsModal(true);
+                      if (!termsPdfName) {
+                        fetch('/api/auth/profile').then(r => r.ok ? r.json() : {}).then(d => { if (d.profile?.terms_pdf_name) setTermsPdfName(d.profile.terms_pdf_name); }).catch(() => {});
+                      }
+                    }}
+                      style={{ padding: 18, display: 'flex', flexDirection: 'column', gap: 8, cursor: 'pointer' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.07em', textTransform: 'uppercase', color: '#5A5F68' }}>{t('desktop.termsCard')}</span>
+                        {attachedCount > 0 && (
+                          <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 10, background: '#EFF6FF', color: '#2563EB' }}>{attachedCount}</span>
+                        )}
+                      </div>
+                      {attachedCount === 0 ? (
+                        <span style={{ fontSize: 13, color: '#8A8F98' }}>{t('desktop.termsNone')}</span>
+                      ) : (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                          {quote.attach_profile_terms !== false && termsPdfName && (
+                            <div style={{ fontSize: 13, fontWeight: 600, color: '#0E1116', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{termsPdfName}</div>
+                          )}
+                          {(quote.terms_attachments || []).filter(a => a.attached).map(a => (
+                            <div key={a.id} style={{ fontSize: 13, fontWeight: 600, color: '#0E1116', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.name}</div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
 
                 {/* Linked project */}
                 {linkedProject && (
@@ -1410,40 +1472,84 @@ export default function OfferDetailDesktop() {
 
       {/* Send confirmation */}
       {showSendConfirm && (
-        <Modal isOpen={true} onClose={() => setShowSendConfirm(false)} title={t('sendTitle')}>
-          {profileIncomplete && (
-            <div style={{ background: 'var(--warning-bg)', border: '1px solid var(--warning-border)', borderRadius: 'var(--radius-md)', padding: '0.75rem 1rem', marginBottom: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700, fontSize: '0.875rem', color: 'var(--warning-text)' }}>
-                <AlertCircle size={15} /> {t('profileIncomplete')}
+        <Modal isOpen={true} onClose={() => setShowSendConfirm(false)} title={t('sendTitle')} maxWidth="480px">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+
+            {/* Profile incomplete warning */}
+            {profileIncomplete && (
+              <div style={{ background: 'var(--warning-bg)', border: '1px solid var(--warning-border)', borderRadius: 'var(--radius-md)', padding: '0.75rem 1rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700, fontSize: '0.875rem', color: 'var(--warning-text)' }}>
+                  <AlertCircle size={15} /> {t('profileIncomplete')}
+                </div>
+                <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--warning-text)', lineHeight: 1.5 }}>{t('profileIncompleteDetail')}</p>
+                <AppLink href={p('/profil')} className="dk-btn dk-btn-l" style={{ alignSelf: 'flex-start', fontSize: '0.8rem', height: 34 }}>{t('profileFill')}</AppLink>
               </div>
-              <p style={{ margin: 0, fontSize: '0.825rem', color: 'var(--warning-text)', lineHeight: 1.55 }}>{t('profileIncompleteDetail')}</p>
-              <AppLink href={p('/profil')} className="btn btn-secondary btn-sm" style={{ alignSelf: 'flex-start', marginTop: '0.15rem', fontSize: '0.8rem' }}>{t('profileFill')}</AppLink>
+            )}
+
+            {/* Recipient */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <span style={LBL}>{t('sendRecipient')}</span>
+              {client?.email && (
+                <button type="button" onClick={() => setSendRecipient(client.email)}
+                  style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 14px', borderRadius: 14, background: sendRecipient === client.email ? '#EFF6FF' : '#F8F9FB', border: `1px solid ${sendRecipient === client.email ? '#BFDBFE' : 'transparent'}`, cursor: 'pointer', textAlign: 'left' }}>
+                  <div style={{ width: 32, height: 32, borderRadius: 16, background: '#B8456B', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 12, flexShrink: 0 }}>
+                    {client.name?.split(' ').map(w => w[0]).filter(Boolean).slice(0,2).join('').toUpperCase() || '?'}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: 700, fontSize: 13, color: '#0E1116' }}>{client.name}</div>
+                    <div style={{ fontSize: 12, color: '#5A5F68' }}>{client.email}</div>
+                  </div>
+                  {sendRecipient === client.email && <Check size={14} color="#2563EB" />}
+                </button>
+              )}
+              <div style={{ fontSize: 12, color: '#8A8F98', fontWeight: 500 }}>{t('sendRecipientHint')}</div>
+              <input type="email" className="dk-input" value={sendRecipient} onChange={e => setSendRecipient(e.target.value)}
+                placeholder={t('sendRecipientPlaceholder')} />
             </div>
-          )}
-          <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', lineHeight: 1.6, margin: '0 0 1.25rem' }}>{t('sendConfirm', { name: client?.name || '' })}</p>
-          <div style={{ background: 'var(--bg-subtle)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: '0.6rem 0.85rem', marginBottom: '1rem', fontSize: '0.875rem', fontWeight: 700, color: 'var(--accent)' }}>{client?.email}</div>
-          {termsPdfName && (
-            <button type="button" onClick={() => setAttachTerms(v => !v)} style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', width: '100%', background: attachTerms ? 'var(--success-bg)' : 'var(--bg-subtle)', border: `1px solid ${attachTerms ? 'var(--success-border)' : 'var(--border-subtle)'}`, borderRadius: 'var(--radius-md)', padding: '0.65rem 0.85rem', cursor: 'pointer', textAlign: 'left', marginBottom: '1.25rem' }}>
-              <div style={{ width: 36, height: 20, borderRadius: 10, background: attachTerms ? 'var(--success)' : 'var(--border-subtle)', position: 'relative', flexShrink: 0 }}>
-                <div style={{ position: 'absolute', top: 2, left: attachTerms ? 18 : 2, width: 16, height: 16, borderRadius: '50%', background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }} />
+
+            {/* T&C selection */}
+            {(termsPdfName || (quote.terms_attachments || []).length > 0) && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <span style={LBL}>{t('desktop.termsCard')}</span>
+
+                {termsPdfName && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 14px', borderRadius: 14, background: '#F8F9FB' }}>
+                    <Printer size={14} color="#2563EB" style={{ flexShrink: 0 }} />
+                    <span style={{ flex: 1, fontSize: 13, fontWeight: 600, color: '#0E1116', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{termsPdfName}</span>
+                    <button type="button" onClick={() => setSendSelectedTerms(p => ({ ...p, profileTerms: !p.profileTerms }))}
+                      style={{ width: 44, height: 26, borderRadius: 13, border: 0, cursor: 'pointer', flexShrink: 0, position: 'relative', background: sendSelectedTerms.profileTerms ? '#2563EB' : '#D5D2C8', transition: 'background .15s' }}>
+                      <div style={{ position: 'absolute', top: 3, left: sendSelectedTerms.profileTerms ? 20 : 4, width: 20, height: 20, borderRadius: 10, background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,.2)', transition: 'left .15s' }} />
+                    </button>
+                  </div>
+                )}
+
+                {(quote.terms_attachments || []).map(att => (
+                  <div key={att.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 14px', borderRadius: 14, background: '#F8F9FB' }}>
+                    <Printer size={14} color="#5A5F68" style={{ flexShrink: 0 }} />
+                    <span style={{ flex: 1, fontSize: 13, fontWeight: 600, color: '#0E1116', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{att.name}</span>
+                    <button type="button" onClick={() => setSendSelectedTerms(p => ({ ...p, fileIds: p.fileIds.includes(att.id) ? p.fileIds.filter(x => x !== att.id) : [...p.fileIds, att.id] }))}
+                      style={{ width: 44, height: 26, borderRadius: 13, border: 0, cursor: 'pointer', flexShrink: 0, position: 'relative', background: sendSelectedTerms.fileIds.includes(att.id) ? '#2563EB' : '#D5D2C8', transition: 'background .15s' }}>
+                      <div style={{ position: 'absolute', top: 3, left: sendSelectedTerms.fileIds.includes(att.id) ? 20 : 4, width: 20, height: 20, borderRadius: 10, background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,.2)', transition: 'left .15s' }} />
+                    </button>
+                  </div>
+                ))}
               </div>
-              <div>
-                <div style={{ fontSize: '0.85rem', fontWeight: 700, color: attachTerms ? 'var(--success-text)' : 'var(--text-primary)' }}>{attachTerms ? t('sendTermsAttached') : t('sendTermsNotAttached')}</div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{termsPdfName}</div>
+            )}
+
+            {isDemoMode && (
+              <div style={{ background: 'var(--bg-subtle)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: '0.65rem 0.85rem', fontSize: '0.8rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem' }}>
+                <span>{t('sendDemoNote')}</span>
+                <AppLink href={p(`/ajanlatok/${id}/nyomtatas`)} target="_blank" rel="noopener noreferrer" className="dk-btn dk-btn-l" style={{ fontSize: '0.8rem', height: 34 }}>
+                  <Printer size={13} /> {t('sendPdfDownload')}
+                </AppLink>
               </div>
-            </button>
-          )}
-          {isDemoMode && (
-            <div style={{ background: 'var(--bg-subtle)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: '0.65rem 0.85rem', marginBottom: '1rem', fontSize: '0.8rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem' }}>
-              <span>{t('sendDemoNote')}</span>
-              <AppLink href={p(`/ajanlatok/${id}/nyomtatas`)} target="_blank" rel="noopener noreferrer" className="btn btn-secondary btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', whiteSpace: 'nowrap', flexShrink: 0 }}>
-                <Printer size={13} /> {t('sendPdfDownload')}
-              </AppLink>
+            )}
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+              <button type="button" className="dk-btn" onClick={handleSendEmail} disabled={!sendRecipient.trim()} style={{ background: '#1D4ED8', color: '#fff' }}>
+                <Send size={16} /> {tc('send')}
+              </button>
             </div>
-          )}
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
-            <button type="button" className="btn btn-secondary btn-sm" onClick={() => setShowSendConfirm(false)}>{tc('cancel')}</button>
-            <button type="button" className="btn btn-primary btn-sm" onClick={handleSendEmail}><Send size={14} /> {tc('send')}</button>
           </div>
         </Modal>
       )}
@@ -1461,6 +1567,80 @@ export default function OfferDetailDesktop() {
           setShowClientModal(false);
         }}
       />
+
+      {/* Terms attachment modal */}
+      <Modal isOpen={showTermsModal} onClose={() => setShowTermsModal(false)} title={t('desktop.termsCard')}>
+        {termsLocal && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+
+            {/* Profile default row — read-only, toggle lives in Send modal */}
+            {termsPdfName && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', borderRadius: 14, background: '#F8F9FB' }}>
+                <div style={{ width: 36, height: 36, borderRadius: 10, background: '#EFF6FF', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <Printer size={15} color="#2563EB" />
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 700, fontSize: 13, color: '#0E1116', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{termsPdfName}</div>
+                  <div style={{ fontSize: 11, color: '#8A8F98' }}>{t('desktop.termsDefault')}</div>
+                </div>
+              </div>
+            )}
+
+            {/* Custom attachments */}
+            {termsLocal.attachments.map(att => (
+              <div key={att.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', borderRadius: 14, background: '#F8F9FB' }}>
+                <div style={{ width: 36, height: 36, borderRadius: 10, background: '#F4F5F8', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <Printer size={15} color="#5A5F68" />
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 700, fontSize: 13, color: '#0E1116', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{att.name}</div>
+                  <div style={{ fontSize: 11, color: '#8A8F98' }}>{t('desktop.termsCustom')}</div>
+                </div>
+                <button type="button" onClick={async () => {
+                    setTermsLocal(p => ({ ...p, attachments: p.attachments.filter(a => a.id !== att.id) }));
+                    try {
+                      const res = await fetch(`/api/quotes/${id}/terms-pdf?fileId=${att.id}`, { method: 'DELETE' });
+                      if (!res.ok) throw new Error((await res.json()).error);
+                      const d = await res.json();
+                      cacheQuote(d.quote);
+                      if (fallbackQuote) setFallbackQuote(d.quote);
+                    } catch (err) { setTermsLocal(p => ({ ...p, attachments: [...p.attachments, att] })); setAlertModal({ message: err.message }); }
+                  }} className="dk-btn" style={{ background: '#B71C1C', color: '#fff', height: 32, padding: '0 12px', fontSize: 12 }}>
+                    {tc('delete')}
+                  </button>
+              </div>
+            ))}
+
+            {/* Upload button — hidden once 5 docs reached */}
+            {termsLocal.attachments.length < 5 ? (
+              <label style={{ cursor: uploadingTerms ? 'wait' : 'pointer', alignSelf: 'flex-start' }}>
+                <input type="file" accept="application/pdf" style={{ display: 'none' }} onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  setUploadingTerms(true);
+                  try {
+                    const fd = new FormData();
+                    fd.append('file', file);
+                    const res = await fetch(`/api/quotes/${id}/terms-pdf`, { method: 'POST', body: fd });
+                    if (!res.ok) throw new Error((await res.json()).error);
+                    const d = await res.json();
+                    setTermsLocal(p => ({ ...p, attachments: d.quote.terms_attachments || [] }));
+                    cacheQuote(d.quote);
+                    if (fallbackQuote) setFallbackQuote(d.quote);
+                  } catch (err) { setAlertModal({ message: err.message }); }
+                  finally { setUploadingTerms(false); e.target.value = ''; }
+                }} />
+                <span className="dk-btn dk-btn-l" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, opacity: uploadingTerms ? 0.5 : 1 }}>
+                  <Plus size={14} /> {uploadingTerms ? tc('loading') : t('desktop.termsUpload')}
+                </span>
+              </label>
+            ) : (
+              <span style={{ fontSize: 12, color: '#8A8F98' }}>{t('desktop.termsMaxReached')}</span>
+            )}
+
+          </div>
+        )}
+      </Modal>
 
       <Modal isOpen={showClientModal} onClose={() => setShowClientModal(false)} title={t('client')}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
