@@ -366,6 +366,7 @@
     "histActionEntryAdded": "Item added",
     "histActionEntryEdited": "Item edited",
     "histActionEntryDeleted": "Item deleted",
+    "renameModalTitle": "Rename offer",
     "mediaMenu": "Media files",
     "mediaImagesTitle": "Images & Videos",
     "mediaDocumentsTitle": "Documents",

@@ -155,6 +155,11 @@ export default function OfferDetailDesktop() {
   const [quoteDocMedia,        setQuoteDocMedia]        = useState([]);
   const [quoteDrawings,        setQuoteDrawings]        = useState([]);
 
+  // ── Rename modal state ───────────────────────────────────────────────────
+  const [showRenameModal, setShowRenameModal] = useState(false);
+  const [renameValue,     setRenameValue]     = useState('');
+  const [savingRename,    setSavingRename]    = useState(false);
+
   // ── Media / Drawing modal state ───────────────────────────────────────────
   const [docMediaMode,         setDocMediaMode]         = useState(null); // null | 'media' | 'documents'
   const [showDocDrawingsModal, setShowDocDrawingsModal] = useState(false);
@@ -1874,9 +1879,10 @@ export default function OfferDetailDesktop() {
       <BottomSheet
         isOpen={showHeaderMenu}
         onClose={() => setShowHeaderMenu(false)}
-        title={t('mediaMenu')}
+        title={quote?.title || ''}
         actions={[
-          { icon: Camera,   label: t('mediaImagesTitle'),    onClick: () => setDocMediaMode('media') },
+          { icon: Edit3,    label: t('renameModalTitle'),    onClick: () => { setRenameValue(metaTitle); setShowRenameModal(true); } },
+          { icon: Camera,   label: t('mediaImagesTitle'),    onClick: () => setDocMediaMode('media'),           dividerBefore: true },
           { icon: PenLine,  label: t('mediaDrawingsTitle'),  onClick: () => setShowDocDrawingsModal(true) },
           { icon: FileText, label: t('mediaDocumentsTitle'), onClick: () => setDocMediaMode('documents') },
         ]}
@@ -1894,6 +1900,29 @@ export default function OfferDetailDesktop() {
           { icon: FileText, label: t('mediaDocumentsTitle'),  onClick: () => setSectionMediaCtx({ sectionId: sectionActionMenu, mode: 'documents' }) },
         ]}
       />
+
+      {/* ── Rename modal ─────────────────────────────────────────────────────── */}
+      <Modal isOpen={showRenameModal} onClose={() => setShowRenameModal(false)} title={t('renameModalTitle')}>
+        <div style={{ marginBottom: '1.25rem' }}>
+          <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.07em', textTransform: 'uppercase', color: '#5A5F68', marginBottom: 8, display: 'block' }}>{t('metaTitle').replace(' *', '')}</span>
+          <input
+            type="text"
+            className="dk-input"
+            autoFocus
+            value={renameValue}
+            onChange={e => setRenameValue(e.target.value)}
+            onKeyDown={async e => { if (e.key === 'Enter') { e.preventDefault(); if (!renameValue.trim() || savingRename) return; setSavingRename(true); try { setMetaTitle(renameValue.trim()); await updateQuote(id, { title: renameValue.trim() }); setShowRenameModal(false); } catch (err) { setAlertModal({ message: err.message }); } finally { setSavingRename(false); } } }}
+            placeholder={t('metaTitlePlaceholder')}
+          />
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+          <button type="button" className="dk-btn dk-btn-l" onClick={() => setShowRenameModal(false)} disabled={savingRename}>{tc('cancel')}</button>
+          <button type="button" className="dk-btn dk-btn-dark" disabled={!renameValue.trim() || savingRename}
+            onClick={async () => { setSavingRename(true); try { setMetaTitle(renameValue.trim()); await updateQuote(id, { title: renameValue.trim() }); setShowRenameModal(false); } catch (err) { setAlertModal({ message: err.message }); } finally { setSavingRename(false); } }}>
+            {savingRename ? <><Loader2 size={16} className="animate-spin" />{tc('saving')}</> : <><Check size={16} />{tc('save')}</>}
+          </button>
+        </div>
+      </Modal>
 
       {/* ── Document-level media modals ──────────────────────────────────────── */}
       <QuoteMediaModal

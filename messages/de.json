@@ -366,6 +366,7 @@
     "histActionEntryAdded": "Position hinzugefügt",
     "histActionEntryEdited": "Position bearbeitet",
     "histActionEntryDeleted": "Position gelöscht",
+    "renameModalTitle": "Angebot umbenennen",
     "mediaMenu": "Mediendateien",
     "mediaImagesTitle": "Bilder & Videos",
     "mediaDocumentsTitle": "Dokumente",
