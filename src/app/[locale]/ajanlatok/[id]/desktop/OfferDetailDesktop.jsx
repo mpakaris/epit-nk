@@ -1372,14 +1372,14 @@ export default function OfferDetailDesktop() {
           {!editingEntryId && (
             <button type="button" className="dk-btn dk-btn-l" onClick={handleAddAnother}>{t('entryAddAnother')}</button>
           )}
-          <button type="button" className="dk-btn" onClick={handleSaveEntry} disabled={savingEntry} style={{ background: '#6D3FD1', color: '#fff' }}>
-            {savingEntry ? <><Loader2 size={13} className="animate-spin" />{tc('saving')}</> : editingEntryId ? t('entryModify') : pendingEntries.length > 0 ? t('entryAddCount', { count: pendingEntries.length + (entryForm.work_description.trim() ? 1 : 0) }) : tc('add')}
-          </button>
           {editingEntryId && (
             <button type="button" className="dk-btn" onClick={() => { const entry = entries.find(e => e.id === editingEntryId); setShowEntryModal(false); setPendingEntries([]); handleDeleteEntry(entry); }} style={{ background: '#B71C1C', color: '#fff' }}>
               <Trash2 size={16} /> {tc('delete')}
             </button>
           )}
+          <button type="button" className="dk-btn" onClick={handleSaveEntry} disabled={savingEntry} style={{ background: '#6D3FD1', color: '#fff' }}>
+            {savingEntry ? <><Loader2 size={13} className="animate-spin" />{tc('saving')}</> : editingEntryId ? t('entryModify') : pendingEntries.length > 0 ? t('entryAddCount', { count: pendingEntries.length + (entryForm.work_description.trim() ? 1 : 0) }) : tc('add')}
+          </button>
         </div>
       </Modal>
 
