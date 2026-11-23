@@ -447,6 +447,20 @@ export default function OfferDetailDesktop() {
   // ── Status handlers ───────────────────────────────────────────────────────
   const handleStatusChange = async (newStatus) => {
     if (newStatus === 'accepted') { setConvertedProject(null); setConvertError(null); setShowConvertModal(true); return; }
+    if (newStatus === 'rejected') {
+      setConfirmModal({
+        message: t('rejectConfirmMessage'),
+        confirmLabel: t('actionReject'),
+        confirmStyle: { background: '#DC2626', color: '#fff' },
+        onConfirm: async () => {
+          try {
+            const updated = await updateQuoteStatus(id, 'rejected');
+            if (fallbackQuote && updated) setFallbackQuote(updated);
+          } catch (err) { setAlertModal({ message: err.message }); }
+        },
+      });
+      return;
+    }
     try {
       const updated = await updateQuoteStatus(id, newStatus);
       if (fallbackQuote && updated) setFallbackQuote(updated);
@@ -1109,17 +1123,17 @@ export default function OfferDetailDesktop() {
                         </button>
                       )}
                       {!isLocked && (
-                        <button className="dk-btn" onClick={() => handleStatusChange('accepted')} style={{ width: '100%', justifyContent: 'center', background: '#D1FAE5', color: '#065F46' }}>
+                        <button className="dk-btn" onClick={() => handleStatusChange('accepted')} style={{ width: '100%', justifyContent: 'center', background: '#16A34A', color: '#fff' }}>
                           <CheckCircle2 size={16} aria-hidden="true" /> {t('actionAccept')}
                         </button>
                       )}
                       {!isLocked && (
-                        <button className="dk-btn" onClick={() => handleStatusChange('rejected')} style={{ width: '100%', justifyContent: 'center', background: '#FEE2E2', color: '#991B1B' }}>
+                        <button className="dk-btn" onClick={() => handleStatusChange('rejected')} style={{ width: '100%', justifyContent: 'center', background: '#DC2626', color: '#fff' }}>
                           <XCircle size={16} aria-hidden="true" /> {t('actionReject')}
                         </button>
                       )}
                       {quote.status === 'rejected' && (
-                        <button className="dk-btn" onClick={handleResetToDraft} style={{ width: '100%', justifyContent: 'center', background: '#D1FAE5', color: '#065F46' }}>
+                        <button className="dk-btn" onClick={handleResetToDraft} style={{ width: '100%', justifyContent: 'center', background: '#16A34A', color: '#fff' }}>
                           <RotateCcw size={16} aria-hidden="true" /> {t('actionReset')}
                         </button>
                       )}
@@ -1383,9 +1397,9 @@ export default function OfferDetailDesktop() {
               <p style={{ fontSize: '0.825rem', color: 'var(--text-secondary)', margin: 0, textAlign: 'center' }}>{t('convertSuccessDetail')}</p>
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '0.5rem' }}>
-              <button type="button" className="btn btn-secondary btn-sm" onClick={() => { setShowConvertModal(false); setConvertedProject(null); }}>{tc('close')}</button>
-              <button type="button" className="btn btn-sm" style={{ background: 'var(--success)', color: '#fff', border: 'none' }} onClick={() => router.push(p(`/projektek/${convertedProject.id}`))}>
-                <FolderKanban size={14} />{t('viewProject')}
+              <button type="button" className="dk-btn dk-btn-l" onClick={() => { setShowConvertModal(false); setConvertedProject(null); }}>{tc('close')}</button>
+              <button type="button" className="dk-btn" style={{ background: '#16A34A', color: '#fff' }} onClick={() => router.push(p(`/projektek/${convertedProject.id}`))}>
+                <FolderKanban size={16} />{t('viewProject')}
               </button>
             </div>
           </>
@@ -1397,9 +1411,9 @@ export default function OfferDetailDesktop() {
               <p style={{ fontSize: '0.825rem', color: 'var(--text-secondary)', margin: 0, textAlign: 'center' }}>{convertError}</p>
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '0.5rem' }}>
-              <button type="button" className="btn btn-secondary btn-sm" onClick={() => { setShowConvertModal(false); setConvertError(null); }}>{tc('close')}</button>
-              <button type="button" className="btn btn-sm" style={{ background: 'var(--accent)', color: '#fff', border: 'none' }} onClick={handleConvert} disabled={isConverting}>
-                {isConverting ? <><Loader2 size={14} className="animate-spin" />{t('convertInProgress')}</> : t('convertRetry')}
+              <button type="button" className="dk-btn dk-btn-l" onClick={() => { setShowConvertModal(false); setConvertError(null); }}>{tc('close')}</button>
+              <button type="button" className="dk-btn" style={{ background: '#2563EB', color: '#fff' }} onClick={handleConvert} disabled={isConverting}>
+                {isConverting ? <><Loader2 size={16} className="animate-spin" />{t('convertInProgress')}</> : t('convertRetry')}
               </button>
             </div>
           </>
@@ -1411,8 +1425,8 @@ export default function OfferDetailDesktop() {
                 : t('convertConfirmPersonal')}
             </p>
             <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-              <button type="button" onClick={handleConvert} disabled={isConverting} className="btn btn-sm" style={{ background: 'var(--success)', color: '#fff', border: 'none' }}>
-                {isConverting ? <><Loader2 size={14} className="animate-spin" />{t('convertInProgress')}</> : <><CheckCircle2 size={14} />{t('convertOk')}</>}
+              <button type="button" onClick={handleConvert} disabled={isConverting} className="dk-btn" style={{ background: '#16A34A', color: '#fff' }}>
+                {isConverting ? <><Loader2 size={16} className="animate-spin" />{t('convertInProgress')}</> : <><CheckCircle2 size={16} />{t('convertOk')}</>}
               </button>
             </div>
           </>
@@ -1758,6 +1772,11 @@ export default function OfferDetailDesktop() {
                 'quote.deleted':        t('histActionDeleted'),
                 'Quote terms uploaded': t('histActionTermsUploaded'),
                 'Quote terms removed':  t('histActionTermsRemoved'),
+                'section.added':        t('histActionSectionAdded'),
+                'section.deleted':      t('histActionSectionDeleted'),
+                'entry.added':          t('histActionEntryAdded'),
+                'entry.edited':         t('histActionEntryEdited'),
+                'entry.deleted':        t('histActionEntryDeleted'),
               };
               const statusLabel = (s) => ({ sent: t('statusSent'), accepted: t('statusAccepted'), rejected: t('statusRejected'), draft: t('statusDraft') })[s] || s;
 

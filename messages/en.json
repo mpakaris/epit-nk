@@ -288,6 +288,7 @@
     "actionResend": "Resend",
     "actionAccept": "Accept offer",
     "actionReject": "Rejected",
+    "rejectConfirmMessage": "Are you sure you want to reject this offer? This action can be undone.",
     "actionSave": "Save",
     "actionReset": "Reset",
     "actionCopy": "Copy",

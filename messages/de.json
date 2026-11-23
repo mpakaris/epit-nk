@@ -288,6 +288,7 @@
     "actionResend": "Erneut senden",
     "actionAccept": "Angebot annehmen",
     "actionReject": "Abgelehnt",
+    "rejectConfirmMessage": "Möchten Sie das Angebot wirklich ablehnen? Diese Aktion kann rückgängig gemacht werden.",
     "actionSave": "Speichern",
     "actionReset": "Zurücksetzen",
     "actionCopy": "Kopieren",

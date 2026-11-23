@@ -218,6 +218,7 @@
     "actionResend": "Újraküldés",
     "actionAccept": "Ajánlat elfogadása",
     "actionReject": "Elutasítva",
+    "rejectConfirmMessage": "Biztosan elutasítja az ajánlatot? A művelet visszavonható.",
     "actionSave": "Mentés",
     "actionReset": "Visszaállítás",
     "actionCopy": "Másolás",
