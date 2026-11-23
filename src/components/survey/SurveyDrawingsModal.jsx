@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import { useApp } from '@/context/AppContext';
 import Modal from '@/components/Modal';
 import DrawingPad from '@/components/DrawingPad';
+import useMobile from '@/hooks/useMobile';
 import { Plus, Loader2, X } from 'lucide-react';
 
 const extractInner = s => s?.match(/<svg[^>]*>([\s\S]*)<\/svg>/)?.[1] ?? '';
@@ -23,6 +24,7 @@ const extractInner = s => s?.match(/<svg[^>]*>([\s\S]*)<\/svg>/)?.[1] ?? '';
 export default function SurveyDrawingsModal({ isOpen, onClose, surveyId, entryId = null, entryName, drawings, onCreated, onDeleted }) {
   const ts = useTranslations('surveys');
   const { deleteSurveyDrawing, createSurveyDrawing } = useApp();
+  const isMobile = useMobile();
   const drawingPadRef = useRef(null);
 
   const [deleting,       setDeleting]       = useState(null);
@@ -102,8 +104,27 @@ export default function SurveyDrawingsModal({ isOpen, onClose, surveyId, entryId
         )}
       </Modal>
 
-      {/* DrawingPad overlay */}
-      {editingDrawing !== null && (
+      {/* DrawingPad overlay — 96dvh sheet on mobile, centered card on desktop */}
+      {editingDrawing !== null && (isMobile ? (
+        <>
+          <button type="button" onClick={closeEditor} aria-hidden="true"
+            style={{ position: 'fixed', inset: 0, zIndex: 298, border: 0, background: 'rgba(14,17,22,0.5)', cursor: 'pointer' }} />
+          <div role="dialog" style={{ position: 'fixed', zIndex: 300, left: 0, right: 0, bottom: 0, height: '96dvh', borderRadius: '24px 24px 0 0', background: '#fff', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px 8px', flexShrink: 0, borderBottom: '1px solid #EDEBE5' }}>
+              <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 20, fontWeight: 700, color: '#0E1116' }}>
+                {editingDrawing?.id ? ts('desktop.detailDrawingsTitle') : ts('desktop.detailAddItemBtn')}
+              </span>
+              <button type="button" onClick={closeEditor}
+                style={{ width: 44, height: 44, border: 0, borderRadius: 22, background: '#F0F0F2', color: '#0E1116', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12"/></svg>
+              </button>
+            </div>
+            <div style={{ flex: 1, overflow: 'hidden' }}>
+              <DrawingPad ref={drawingPadRef} backgroundSvg={editingDrawing?.svg_data} saving={sketchSaving} onSave={handleSave} onCancel={closeEditor} />
+            </div>
+          </div>
+        </>
+      ) : (
         <div style={{ position: 'fixed', inset: 0, zIndex: 300, background: '#EDEBE5', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
           <div style={{ width: '100%', maxWidth: 900, background: '#fff', borderRadius: 24, overflow: 'hidden', display: 'flex', flexDirection: 'column', margin: '1rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 20px', borderBottom: '1px solid #EDEBE5', flexShrink: 0 }}>
@@ -112,16 +133,10 @@ export default function SurveyDrawingsModal({ isOpen, onClose, surveyId, entryId
               </div>
               {entryName && <span style={{ fontSize: 13, fontWeight: 600, color: '#5A5F68' }}>{entryName}</span>}
             </div>
-            <DrawingPad
-              ref={drawingPadRef}
-              backgroundSvg={editingDrawing?.svg_data}
-              saving={sketchSaving}
-              onSave={handleSave}
-              onCancel={closeEditor}
-            />
+            <DrawingPad ref={drawingPadRef} backgroundSvg={editingDrawing?.svg_data} saving={sketchSaving} onSave={handleSave} onCancel={closeEditor} />
           </div>
         </div>
-      )}
+      ))}
     </>
   );
 }

@@ -3,6 +3,7 @@
 import React, { useRef, useState, useImperativeHandle, forwardRef } from 'react';
 import dynamic from 'next/dynamic';
 import { useTranslations } from 'next-intl';
+import useMobile from '@/hooks/useMobile';
 
 const ReactSketchCanvas = dynamic(
   () => import('react-sketch-canvas').then(m => m.ReactSketchCanvas),
@@ -25,6 +26,7 @@ const STROKES = [
 const DrawingPad = forwardRef(function DrawingPad({ onSave, onCancel, saving, backgroundSvg, onDirtyChange }, ref) {
   const t  = useTranslations('drawings');
   const tc = useTranslations('common');
+  const isMobile = useMobile();
   const canvasRef = useRef();
   const [color,          setColor]          = useState('#1e293b');
   const [stroke,         setStroke]         = useState(4);
@@ -113,9 +115,9 @@ const DrawingPad = forwardRef(function DrawingPad({ onSave, onCancel, saving, ba
         </button>
       </div>
 
-      {/* Canvas — fixed 4:3 ratio so sketches look identical on every device */}
+      {/* Canvas — 9:16 portrait on mobile, 16:9 landscape on desktop */}
       <div style={{
-        width: '100%', aspectRatio: '4/3', borderRadius: 16, overflow: 'hidden',
+        width: '100%', aspectRatio: isMobile ? '9/16' : '16/9', borderRadius: 16, overflow: 'hidden',
         border: '1.5px solid #EDEBE5',
         backgroundImage: 'radial-gradient(circle, #cbd5e1 1px, transparent 1px)',
         backgroundSize: '20px 20px', backgroundColor: '#f8fafc',

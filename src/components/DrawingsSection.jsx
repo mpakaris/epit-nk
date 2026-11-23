@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useTranslations } from 'next-intl';
 import { Loader2, PenLine, Plus, X } from 'lucide-react';
 import DrawingPad from '@/components/DrawingPad';
+import useMobile from '@/hooks/useMobile';
 
 const extractInner = s => s?.match(/<svg[^>]*>([\s\S]*)<\/svg>/)?.[1] ?? '';
 
@@ -84,23 +85,13 @@ export default function DrawingsSection({ drawings = [], onSave, onDelete, canEd
   }
 
   return (
-    <div>
-      {!hideHeader && (
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: drawings.length > 0 ? '0.65rem' : 0 }}>
-          {drawings.length > 0 && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
-              <PenLine size={14} color="var(--accent)" />
-              <span style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.04em' }}>
-                {t('header', { count: drawings.length })}
-              </span>
-            </div>
-          )}
-          {canEdit && (
-            <button type="button" onClick={() => setEditingDrawing({})}
-              style={{ height: 34, padding: '0 12px', borderRadius: 17, border: 0, background: '#F4F3F0', color: '#0E1116', fontSize: 13, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', marginLeft: drawings.length > 0 ? 'auto' : 0 }}>
-              <Plus size={13} /> {drawings.length > 0 ? t('newTitle') : t('addBtn')}
-            </button>
-          )}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+      {!hideHeader && drawings.length > 0 && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+          <PenLine size={14} color="var(--accent)" />
+          <span style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.04em' }}>
+            {t('header', { count: drawings.length })}
+          </span>
         </div>
       )}
 
@@ -131,6 +122,14 @@ export default function DrawingsSection({ drawings = [], onSave, onDelete, canEd
         </div>
       )}
 
+      {canEdit && (
+        <button type="button" onClick={() => setEditingDrawing({})}
+          style={{ width: '100%', height: 56, border: 0, borderRadius: 28, background: '#0E1116', color: '#fff', fontSize: 16, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, cursor: 'pointer' }}>
+          <Plus size={18} strokeWidth={2.5} />
+          {t('newTitle')}
+        </button>
+      )}
+
       {editingDrawing !== null && (
         <DrawingOverlay
           editingDrawing={editingDrawing}
@@ -146,21 +145,38 @@ export default function DrawingsSection({ drawings = [], onSave, onDelete, canEd
 }
 
 function DrawingOverlay({ editingDrawing, saving, onSave, onCancel, drawingPadRef, title }) {
+  const isMobile = useMobile();
+
+  if (isMobile) {
+    // Survey-style: 96dvh sheet sliding up from bottom
+    return (
+      <>
+        <button type="button" onClick={onCancel} aria-hidden="true"
+          style={{ position: 'fixed', inset: 0, zIndex: 298, border: 0, background: 'rgba(14,17,22,0.5)', cursor: 'pointer' }} />
+        <div role="dialog" style={{ position: 'fixed', zIndex: 300, left: 0, right: 0, bottom: 0, height: '96dvh', borderRadius: '24px 24px 0 0', background: '#fff', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px 8px', flexShrink: 0, borderBottom: '1px solid #EDEBE5' }}>
+            <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 20, fontWeight: 700, color: '#0E1116' }}>{title}</span>
+            <button type="button" onClick={onCancel}
+              style={{ width: 44, height: 44, border: 0, borderRadius: 22, background: '#F0F0F2', color: '#0E1116', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12"/></svg>
+            </button>
+          </div>
+          <div style={{ flex: 1, overflow: 'hidden' }}>
+            <DrawingPad ref={drawingPadRef} backgroundSvg={editingDrawing?.svg_data} saving={saving} onSave={onSave} onCancel={onCancel} />
+          </div>
+        </div>
+      </>
+    );
+  }
+
+  // Desktop: centered card on sand background
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 300, background: '#EDEBE5', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
       <div style={{ width: '100%', maxWidth: 900, background: '#fff', borderRadius: 24, overflow: 'hidden', display: 'flex', flexDirection: 'column', margin: '1rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 20px', borderBottom: '1px solid #EDEBE5', flexShrink: 0 }}>
-          <div style={{ flex: 1, fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 20, fontWeight: 700, color: '#0E1116' }}>
-            {title}
-          </div>
+          <div style={{ flex: 1, fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 20, fontWeight: 700, color: '#0E1116' }}>{title}</div>
         </div>
-        <DrawingPad
-          ref={drawingPadRef}
-          backgroundSvg={editingDrawing?.svg_data}
-          saving={saving}
-          onSave={onSave}
-          onCancel={onCancel}
-        />
+        <DrawingPad ref={drawingPadRef} backgroundSvg={editingDrawing?.svg_data} saving={saving} onSave={onSave} onCancel={onCancel} />
       </div>
     </div>
   );

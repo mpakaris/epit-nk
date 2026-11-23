@@ -15,6 +15,8 @@ import useOnline from '@/hooks/useOnline';
 import { AlertModal, ConfirmModal } from '@/components/Modal';
 import QuickClientSheet from './QuickClientSheet';
 import HistorySheet from '@/components/mobile/pods/HistorySheet';
+import DrawingsSection from '@/components/DrawingsSection';
+import { processMediaFile } from '@/lib/mediaGate';
 
 const CARD_SHADOW = 'inset 0 1px 0 #fff, 0 16px 26px -14px rgba(0,0,0,0.70), 0 3px 6px -2px rgba(0,0,0,0.30)';
 
@@ -112,6 +114,16 @@ export default function OfferDetailMobile({ quoteId }) {
   const [dupClient, setDupClient] = useState(true);
   const [dupSecs, setDupSecs] = useState(true);
 
+  // ── Media state ──────────────────────────────────────────────────────────
+  const [mediaItems,      setMediaItems]      = useState([]);
+  const [quoteDrawings,   setQuoteDrawings]   = useState([]);
+  const [docMediaMode,    setDocMediaMode]    = useState(null); // null | 'images' | 'documents' | 'drawings'
+  const [sectionMediaCtx, setSectionMediaCtx] = useState(null); // null | { sectionId, mode }
+  const [lightboxCtx,     setLightboxCtx]     = useState(null); // null | { items, idx }
+  const [mediaUploading,  setMediaUploading]  = useState(false);
+  const [mediaDeleting,   setMediaDeleting]   = useState(null);
+  const mediaFileRef = useRef(null);
+
   const refreshSections = useCallback(async () => {
     const res = await fetch(`/api/quotes/${quoteId}/sections`).catch(() => null);
     if (res?.ok) {
@@ -126,8 +138,13 @@ export default function OfferDetailMobile({ quoteId }) {
     const fetchData = async () => {
       setLoading(true);
       try {
-        const secRes = await fetch(`/api/quotes/${quoteId}/sections`).then(r => r.ok ? r.json() : { sections: [] });
+        const [secRes, fullRes] = await Promise.all([
+          fetch(`/api/quotes/${quoteId}/sections`).then(r => r.ok ? r.json() : { sections: [] }),
+          fetch(`/api/quotes/${quoteId}`).then(r => r.ok ? r.json() : {}),
+        ]);
         setSections(secRes.sections || []);
+        if (fullRes.mediaItems)    setMediaItems(fullRes.mediaItems);
+        if (fullRes.quoteDrawings) setQuoteDrawings(fullRes.quoteDrawings);
       } catch {
         // non-critical, show what we have
       } finally {
@@ -561,6 +578,85 @@ export default function OfferDetailMobile({ quoteId }) {
             )}
           </InfoPod>
 
+          {/* Level 1 — Offer media (mirrors survey Floor Plans + Sketches cards) */}
+          {(() => {
+            const docImgs     = mediaItems.filter(m => m.owner_type === 'quote' && (m.mime_type?.startsWith('image/') || m.mime_type?.startsWith('video/')));
+            const docDocs     = mediaItems.filter(m => m.owner_type === 'quote' && !m.mime_type?.startsWith('image/') && !m.mime_type?.startsWith('video/'));
+            const docDrawings = quoteDrawings.filter(d => !d.section_id);
+            return (
+              <>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+
+                  {/* Photos / Videos card */}
+                  <section style={{ padding: 14, borderRadius: 26, background: '#fff', color: '#0E1116', display: 'flex', flexDirection: 'column', gap: 10, boxShadow: CARD_SHADOW }}>
+                    <span style={{ fontSize: 16, fontWeight: 700 }}>
+                      {t('mediaImagesTitle')}{docImgs.length > 0 ? ` · ${docImgs.length}` : ''}
+                    </span>
+                    {docImgs.length > 0 ? (
+                      <button type="button" onClick={() => setDocMediaMode('images')}
+                        style={{ padding: 0, border: 0, borderRadius: 16, overflow: 'hidden', cursor: 'pointer', display: 'grid', gridTemplateColumns: docImgs.length > 1 ? '1fr 1fr' : '1fr', gap: 2, height: 76 }}>
+                        {docImgs.slice(0, 2).map((item, i) => {
+                          const isVideo = item.mime_type?.startsWith('video/');
+                          const isLast  = i === 1 && docImgs.length > 2;
+                          return (
+                            <span key={item.id} style={{ position: 'relative', background: isVideo ? '#1A1D22' : `url(${item.thumbnail_url || item.cdn_url}) center/cover`, display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+                              {isVideo && <svg width="16" height="16" viewBox="0 0 24 24" fill="#fff" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>}
+                              {isLast && <span style={{ position: 'absolute', inset: 0, background: 'rgba(14,17,22,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, color: '#fff' }}>+{docImgs.length - 1}</span>}
+                            </span>
+                          );
+                        })}
+                      </button>
+                    ) : (
+                      <button type="button" onClick={() => setDocMediaMode('images')}
+                        style={{ height: 76, border: 0, borderRadius: 16, background: '#F0EDE6', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#B0ADA6', cursor: 'pointer' }}>
+                        <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v12H4z"/><circle cx="12" cy="13" r="3"/></svg>
+                      </button>
+                    )}
+                    <button type="button" onClick={() => setDocMediaMode('images')}
+                      style={{ minHeight: 48, border: 0, borderRadius: 24, background: '#0E1116', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>
+                      {tM('roomPhotoVideo')}
+                    </button>
+                  </section>
+
+                  {/* Sketches card */}
+                  <section style={{ padding: 14, borderRadius: 26, background: '#fff', color: '#0E1116', display: 'flex', flexDirection: 'column', gap: 10, boxShadow: CARD_SHADOW }}>
+                    <span style={{ fontSize: 16, fontWeight: 700 }}>
+                      {t('mediaDrawingsTitle')}{docDrawings.length > 0 ? ` · ${docDrawings.length}` : ''}
+                    </span>
+                    {docDrawings.length > 0 ? (
+                      <button type="button" onClick={() => setDocMediaMode('drawings')}
+                        style={{ padding: 0, border: 0, borderRadius: 16, overflow: 'hidden', cursor: 'pointer', display: 'grid', gridTemplateColumns: docDrawings.length > 1 ? '1fr 1fr' : '1fr', gap: 2, height: 76, background: '#F7F5EF' }}>
+                        {docDrawings.slice(0, 2).map((d, i) => (
+                          <span key={d.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', overflow: 'hidden' }}
+                            dangerouslySetInnerHTML={{ __html: d.svg_data?.replace(/<svg/, '<svg style="width:100%;height:100%;object-fit:contain"') || '' }} />
+                        ))}
+                      </button>
+                    ) : (
+                      <button type="button" onClick={() => setDocMediaMode('drawings')}
+                        style={{ height: 76, border: 0, borderRadius: 16, background: '#F7F5EF', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#B0ADA6', cursor: 'pointer' }}>
+                        <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M16 3l5 5L9 20H4v-5z"/></svg>
+                      </button>
+                    )}
+                    <button type="button" onClick={() => setDocMediaMode('drawings')}
+                      style={{ minHeight: 48, border: 0, borderRadius: 24, background: '#F1F1F3', color: '#0E1116', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>
+                      {tM('propAddSketch')}
+                    </button>
+                  </section>
+
+                </div>
+
+                {/* Documents — small row below */}
+                <button type="button" onClick={() => setDocMediaMode('documents')}
+                  style={{ width: '100%', minHeight: 52, boxSizing: 'border-box', padding: '0 16px', border: 0, borderRadius: 20, background: '#fff', boxShadow: CARD_SHADOW, display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer', textAlign: 'left' }}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6D3FD1" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8zM14 2v6h6"/></svg>
+                  <span style={{ flex: 1, fontSize: 15, fontWeight: 600, color: 'var(--m-ink)' }}>{t('mediaDocumentsTitle')}</span>
+                  {docDocs.length > 0 && <span style={{ height: 24, padding: '0 10px', borderRadius: 12, background: 'var(--m-offer-tint, #EDE7FB)', color: 'var(--m-offer-ink, #4A2796)', fontSize: 13, fontWeight: 700, display: 'inline-flex', alignItems: 'center' }}>{docDocs.length}</span>}
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#C0BDB7" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg>
+                </button>
+              </>
+            );
+          })()}
+
           {/* Sections */}
           <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <h2 style={{ margin: 0, fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 22, fontWeight: 700, color: '#fff' }}>{t('offerSectionsTitle')}</h2>
@@ -581,6 +677,8 @@ export default function OfferDetailMobile({ quoteId }) {
               {sections.map((sec, idx) => {
                 const isMine  = sec.created_by === currentUser?.id;
                 const canEdit = !isLocked && (canOwnerAct || isMine);
+                const secMedia = mediaItems.filter(m => m.owner_type === 'quote_section' && m.owner_id === sec.id && (m.mime_type?.startsWith('image/') || m.mime_type?.startsWith('video/')));
+                const secDrawings = quoteDrawings.filter(d => d.section_id === sec.id);
                 return (
                   <OfferRoomCard
                     key={sec.id}
@@ -595,6 +693,24 @@ export default function OfferDetailMobile({ quoteId }) {
                     isLocked={isLocked}
                     userCurrency={userCurrency}
                     tM={tM}
+                    sectionMedia={secMedia}
+                    sectionDrawings={secDrawings}
+                    onMediaOpen={() => setSectionMediaCtx({ sectionId: sec.id, mode: 'images' })}
+                    onSketchOpen={() => setSectionMediaCtx({ sectionId: sec.id, mode: 'drawings' })}
+                    onAddSketch={() => setSectionMediaCtx({ sectionId: sec.id, mode: 'drawings', triggerNew: true })}
+                    onUploadMedia={async (files) => {
+                      try {
+                        const processed = await Promise.all(files.map(processMediaFile));
+                        const form = new FormData();
+                        processed.forEach(f => form.append('files', f));
+                        form.append('owner_type', 'quote_section');
+                        form.append('owner_id', sec.id);
+                        const res = await fetch(`/api/quotes/${quoteId}/media`, { method: 'POST', body: form });
+                        if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || 'Hiba');
+                        const { media } = await res.json();
+                        setMediaItems(prev => [...prev, ...media]);
+                      } catch (err) { setAlertModal({ open: true, message: err.message }); }
+                    }}
                   />
                 );
               })}
@@ -1094,6 +1210,189 @@ export default function OfferDetailMobile({ quoteId }) {
             <SheetRowInline icon="plus" label={tM('roomAddItem')} onClick={() => { setSectionMenuId(null); router.push(p(`/ajanlatok/${quoteId}/tetelek/${sectionMenuId}?mode=add`)); }} />
             {canEditSection && <SheetRowInline icon="edit" label={tc('edit')} onClick={() => { setSectionMenuId(null); setSectionEditTarget(menuSec); }} />}
             {canEditSection && <SheetRowInline icon="trash" label={tc('delete')} onClick={() => handleSectionDelete(sectionMenuId)} danger />}
+            <div style={{ height: 1, background: '#EDEBE5', margin: '4px 0' }} />
+            <SheetRowInline icon="filetext" label={t('mediaDocumentsTitle')} onClick={() => { setSectionMenuId(null); setSectionMediaCtx({ sectionId: sectionMenuId, mode: 'documents' }); }} />
+          </div>
+        );
+      })()}
+
+      {/* ── Media / Drawings bottom drawer (Level 1 + Level 2) ──────────────── */}
+      {(docMediaMode || sectionMediaCtx) && (() => {
+        const mode     = docMediaMode || sectionMediaCtx?.mode;
+        const isDoc    = mode === 'documents';
+        const isDraw   = mode === 'drawings';
+        const ownType  = sectionMediaCtx ? 'quote_section' : 'quote';
+        const ownId    = sectionMediaCtx ? sectionMediaCtx.sectionId : quoteId;
+        const sectionId = sectionMediaCtx?.sectionId ?? null;
+        const closeSheet = () => { setDocMediaMode(null); setSectionMediaCtx(null); };
+
+        const sheetItems = isDraw ? [] : mediaItems.filter(m => {
+          if (m.owner_type !== ownType || m.owner_id !== ownId) return false;
+          return isDoc ? (!m.mime_type?.startsWith('image/') && !m.mime_type?.startsWith('video/'))
+                       : (m.mime_type?.startsWith('image/') || m.mime_type?.startsWith('video/'));
+        });
+        const viewable = sheetItems.filter(m => m.mime_type?.startsWith('image/') || m.mime_type?.startsWith('video/'));
+        const drawings   = isDraw ? quoteDrawings.filter(d => sectionId ? d.section_id === sectionId : !d.section_id) : [];
+        const triggerNew = isDraw && sectionMediaCtx?.triggerNew ? 1 : 0;
+
+        const handleUpload = async (e) => {
+          const raw = Array.from(e.target.files || []);
+          e.target.value = '';
+          if (!raw.length) return;
+          setMediaUploading(true);
+          try {
+            const processed = isDoc ? raw : await Promise.all(raw.map(processMediaFile));
+            const form = new FormData();
+            processed.forEach(f => form.append('files', f));
+            form.append('owner_type', ownType);
+            form.append('owner_id',   ownId);
+            const res = await fetch(`/api/quotes/${quoteId}/media`, { method: 'POST', body: form });
+            if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || 'Hiba');
+            const { media } = await res.json();
+            setMediaItems(prev => [...prev, ...media]);
+          } catch (err) { setAlertModal({ open: true, message: err.message }); }
+          finally { setMediaUploading(false); }
+        };
+
+        const handleDelete = async (item) => {
+          setMediaDeleting(item.id);
+          try {
+            const res = await fetch(`/api/quotes/${quoteId}/media/${item.id}`, { method: 'DELETE' });
+            if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || 'Hiba');
+            setMediaItems(prev => prev.filter(m => m.id !== item.id));
+            if (lightboxCtx) setLightboxCtx(null);
+          } catch (err) { setAlertModal({ open: true, message: err.message }); }
+          finally { setMediaDeleting(null); }
+        };
+
+        const sheetTitle = isDoc ? t('mediaDocumentsTitle') : isDraw ? t('mediaDrawingsTitle') : t('mediaImagesTitle');
+
+        return (
+          <>
+            {/* Backdrop */}
+            <div onClick={closeSheet} style={{ position: 'fixed', inset: 0, background: 'rgba(14,17,22,0.45)', zIndex: 49 }} aria-hidden="true" />
+            {/* Drawer */}
+            <div role="dialog" aria-label={sheetTitle} style={{ position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 50, maxHeight: '82%', boxSizing: 'border-box', borderRadius: '32px 32px 0 0', background: 'var(--m-sheet, #FBFAF7)', display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
+              {/* Handle */}
+              <div style={{ alignSelf: 'center', width: 44, height: 5, borderRadius: 3, background: '#CFCBC0', margin: '12px auto 0' }} />
+              {/* Header */}
+              <div style={{ display: 'flex', alignItems: 'center', padding: '12px 16px 10px', flexShrink: 0 }}>
+                <span style={{ flex: 1, fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 22, fontWeight: 700, color: 'var(--m-ink)' }}>{sheetTitle}</span>
+                <button onClick={closeSheet} style={{ width: 44, height: 44, border: 0, borderRadius: 22, background: '#EFEDE6', color: 'var(--m-ink)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+                </button>
+              </div>
+
+              {/* Body */}
+              <div style={{ flex: 1, padding: '0 14px 8px', boxSizing: 'border-box' }}>
+                {isDraw ? (
+                  <DrawingsSection
+                    drawings={drawings}
+                    canEdit={canOwnerAct && !isLocked}
+                    triggerCount={triggerNew}
+                    onSave={async (svg) => {
+                      const res = await fetch(`/api/quotes/${quoteId}/drawings`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ svg_data: svg, section_id: sectionId }) });
+                      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || 'Hiba');
+                      const { drawing } = await res.json();
+                      setQuoteDrawings(prev => [...prev, drawing]);
+                    }}
+                    onDelete={async (drawingId) => {
+                      await fetch(`/api/quotes/${quoteId}/drawings/${drawingId}`, { method: 'DELETE' });
+                      setQuoteDrawings(prev => prev.filter(d => d.id !== drawingId));
+                    }}
+                  />
+                ) : isDoc ? (
+                  <>
+                    {sheetItems.length === 0 && <div style={{ padding: '24px 0', textAlign: 'center', color: '#8A8F97', fontSize: 15, fontWeight: 600 }}>{t('mediaNoDocuments')}</div>}
+                    {sheetItems.map(item => (
+                      <a key={item.id} href={item.cdn_url} target="_blank" rel="noopener noreferrer"
+                        style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 18, background: '#fff', boxShadow: '0 1px 0 rgba(14,17,22,0.05),0 8px 16px -12px rgba(14,17,22,0.3)', marginBottom: 8, textDecoration: 'none', color: 'var(--m-ink)' }}>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#6D3FD1" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8zM14 2v6h6"/></svg>
+                        <span style={{ flex: 1, fontSize: 15, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.r2_key?.split('/').pop() || 'Dokumentum'}</span>
+                        <button onClick={e => { e.preventDefault(); handleDelete(item); }} disabled={mediaDeleting === item.id}
+                          style={{ width: 32, height: 32, borderRadius: 16, background: '#FEE2E2', border: 0, color: '#B91C1C', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}>
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" aria-hidden="true"><path d="M5 7h14M10 7V4h4v3M7 7l1 13h8l1-13"/></svg>
+                        </button>
+                      </a>
+                    ))}
+                  </>
+                ) : (
+                  <>
+                    {sheetItems.length === 0 && <div style={{ padding: '24px 0', textAlign: 'center', color: '#8A8F97', fontSize: 15, fontWeight: 600 }}>{t('mediaNoImages')}</div>}
+                    {sheetItems.length > 0 && (
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginBottom: 10 }}>
+                        {sheetItems.map((item) => {
+                          const vIdx = viewable.indexOf(item);
+                          const isVideo = item.mime_type?.startsWith('video/');
+                          return (
+                            <div key={item.id} style={{ position: 'relative', borderRadius: 14, overflow: 'hidden', background: '#F4F3F0', aspectRatio: '1' }}>
+                              <button type="button" onClick={() => setLightboxCtx({ items: viewable, idx: vIdx })}
+                                style={{ display: 'block', width: '100%', height: '100%', padding: 0, border: 0, background: 'none', cursor: 'zoom-in' }}>
+                                {isVideo
+                                  ? <div style={{ width: '100%', height: '100%', background: '#1a1a2e', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 24 }}>▶</div>
+                                  : <img src={item.thumbnail_url || item.cdn_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />}
+                              </button>
+                              <button onClick={() => handleDelete(item)} disabled={mediaDeleting === item.id}
+                                style={{ position: 'absolute', top: 5, right: 5, width: 26, height: 26, borderRadius: 13, background: 'rgba(183,28,28,.85)', border: 0, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+
+              {/* Upload button (not for drawings) */}
+              {!isDraw && (
+                <div style={{ padding: '8px 14px', paddingBottom: 'calc(16px + env(safe-area-inset-bottom))', flexShrink: 0 }}>
+                  <input ref={mediaFileRef} type="file" accept={isDoc ? 'application/pdf,.pdf' : 'image/*,video/*'} multiple onChange={handleUpload} style={{ display: 'none' }} />
+                  <button onClick={() => mediaFileRef.current?.click()} disabled={mediaUploading}
+                    style={{ width: '100%', height: 56, border: 0, borderRadius: 28, background: 'var(--m-offer, #6D3FD1)', color: '#fff', fontSize: 16, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, cursor: 'pointer', opacity: mediaUploading ? 0.6 : 1 }}>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+                    {mediaUploading ? tc('uploading') : (isDoc ? t('mediaUploadDoc') : t('mediaUploadImage'))}
+                  </button>
+                </div>
+              )}
+            </div>
+          </>
+        );
+      })()}
+
+      {/* ── Lightbox ─────────────────────────────────────────────────────────── */}
+      {lightboxCtx && (() => {
+        const { items, idx } = lightboxCtx;
+        const item = items[idx];
+        const isVideo = item?.mime_type?.startsWith('video/');
+        return (
+          <div onClick={() => setLightboxCtx(null)}
+            style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(0,0,0,0.92)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <button onClick={() => setLightboxCtx(null)}
+              style={{ position: 'absolute', top: 'calc(16px + env(safe-area-inset-top))', right: 16, width: 44, height: 44, borderRadius: 22, background: 'rgba(255,255,255,0.12)', border: 0, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12"/></svg>
+            </button>
+            {items.length > 1 && (
+              <div style={{ position: 'absolute', top: 'calc(24px + env(safe-area-inset-top))', left: '50%', transform: 'translateX(-50%)', color: 'rgba(255,255,255,0.6)', fontSize: 13, fontWeight: 600 }}>{idx + 1} / {items.length}</div>
+            )}
+            {items.length > 1 && (
+              <button onClick={e => { e.stopPropagation(); setLightboxCtx(c => ({ ...c, idx: (c.idx - 1 + items.length) % items.length })); }}
+                style={{ position: 'absolute', left: 8, width: 44, height: 44, borderRadius: 22, background: 'rgba(255,255,255,0.12)', border: 0, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>
+              </button>
+            )}
+            {isVideo
+              ? <video src={item.cdn_url} controls autoPlay onClick={e => e.stopPropagation()}
+                  style={{ maxWidth: 'calc(100vw - 100px)', maxHeight: 'calc(100dvh - 120px)', borderRadius: 12, background: '#000' }} />
+              : <img src={item.cdn_url} alt="" onClick={e => e.stopPropagation()}
+                  style={{ maxWidth: 'calc(100vw - 100px)', maxHeight: 'calc(100dvh - 120px)', objectFit: 'contain', borderRadius: 12 }} />}
+            {items.length > 1 && (
+              <button onClick={e => { e.stopPropagation(); setLightboxCtx(c => ({ ...c, idx: (c.idx + 1) % items.length })); }}
+                style={{ position: 'absolute', right: 8, width: 44, height: 44, borderRadius: 22, background: 'rgba(255,255,255,0.12)', border: 0, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg>
+              </button>
+            )}
           </div>
         );
       })()}
@@ -1245,8 +1544,10 @@ function SectionEditSheet({ isNew, initial, quoteId, onSave, onClose, t }) {
 }
 
 // ─── OfferRoomCard ────────────────────────────────────────────────────────────
-function OfferRoomCard({ sec, index, isOpen, onToggle, onMore, onItems, onDims, canEdit, isLocked, userCurrency, tM }) {
+function OfferRoomCard({ sec, index, isOpen, onToggle, onMore, onItems, onDims, canEdit, isLocked, userCurrency, tM,
+  sectionMedia = [], sectionDrawings = [], onMediaOpen, onSketchOpen, onAddSketch, onUploadMedia }) {
   const tSD = useTranslations('surveyDetail');
+  const photoInputRef = useRef(null);
 
   const entryCount = (sec.entries || []).length;
   const secTotal   = (sec.entries || []).reduce((a, e) => a + Number(e.amount_huf || 0), 0);
@@ -1304,6 +1605,76 @@ function OfferRoomCard({ sec, index, isOpen, onToggle, onMore, onItems, onDims, 
               {sec.door_count   > 0 && <Chip label={tM('roomDoorBadge', { count: sec.door_count })} />}
             </div>
           )}
+          {/* Media row — Photos | Sketches (mirrors survey RoomCard) */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+
+            {/* Photos col */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#5A5F68' }}>
+                {tM('roomMediaPhotos')}{sectionMedia.length > 0 ? ` · ${sectionMedia.length}` : ''}
+              </span>
+              <button type="button" onClick={onMediaOpen}
+                style={{ height: 76, borderRadius: 14, border: 0, padding: 0, overflow: 'hidden', cursor: 'pointer', display: 'grid', gridTemplateColumns: sectionMedia.length > 1 ? '1fr 1fr' : '1fr', gap: 2, background: '#F0EDE6' }}>
+                {sectionMedia.length > 0 ? sectionMedia.slice(0, 2).map((item, i) => {
+                  const isVideo = item.mime_type?.startsWith('video/');
+                  const isLast  = i === 1 && sectionMedia.length > 2;
+                  return (
+                    <span key={item.id} style={{ position: 'relative', background: isVideo ? '#1A1D22' : `url(${item.thumbnail_url || item.cdn_url}) center/cover`, display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+                      {isVideo && <svg width="16" height="16" viewBox="0 0 24 24" fill="#fff" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>}
+                      {isLast && <span style={{ position: 'absolute', inset: 0, background: 'rgba(14,17,22,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, color: '#fff' }}>+{sectionMedia.length - 1}</span>}
+                    </span>
+                  );
+                }) : (
+                  <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#B0ADA6' }}>
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v12H4z"/><circle cx="12" cy="13" r="3"/></svg>
+                  </span>
+                )}
+              </button>
+              {canEdit && (
+                <button type="button" onClick={() => photoInputRef.current?.click()}
+                  style={{ height: 34, border: '1.5px dashed #C9C5BA', borderRadius: 10, background: 'transparent', color: '#5A5F68', fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+                  {tM('roomPhotoVideo')}
+                </button>
+              )}
+              <input ref={photoInputRef} type="file" accept="image/*,video/*" multiple capture="environment" style={{ display: 'none' }}
+                onChange={e => { const raw = Array.from(e.target.files || []); e.target.value = ''; if (raw.length && onUploadMedia) onUploadMedia(raw); }} />
+            </div>
+
+            {/* Sketches col */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#5A5F68' }}>
+                {tM('roomMediaSketches')}{sectionDrawings.length > 0 ? ` · ${sectionDrawings.length}` : ''}
+              </span>
+              <button type="button" onClick={onSketchOpen}
+                style={{ height: 76, borderRadius: 14, border: 0, padding: 0, overflow: 'hidden', cursor: 'pointer', display: 'grid', gridTemplateColumns: sectionDrawings.length > 1 ? '1fr 1fr' : '1fr', gap: 2, background: '#F7F5EF' }}>
+                {sectionDrawings.length > 0 ? sectionDrawings.slice(0, 2).map((d, i) => {
+                  const isLast = i === 1 && sectionDrawings.length > 2;
+                  return (
+                    <span key={d.id} style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', overflow: 'hidden' }}>
+                      <span style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                        dangerouslySetInnerHTML={{ __html: d.svg_data?.replace(/<svg/, '<svg style="width:100%;height:100%;object-fit:contain;pointer-events:none"') || '' }} />
+                      {isLast && <span style={{ position: 'absolute', inset: 0, background: 'rgba(14,17,22,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, color: '#fff' }}>+{sectionDrawings.length - 1}</span>}
+                    </span>
+                  );
+                }) : (
+                  <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#B0ADA6' }}>
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" aria-hidden="true"><path d="M12 19l7-7-3-3-7 7v3h3zM16 5l3 3"/></svg>
+                  </span>
+                )}
+              </button>
+              {canEdit && (
+                <button type="button" onClick={onAddSketch}
+                  style={{ height: 34, border: '1.5px dashed #C9C5BA', borderRadius: 10, background: 'transparent', color: '#5A5F68', fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+                  {tM('propAddSketch')}
+                </button>
+              )}
+            </div>
+
+          </div>
+
+          {/* Action buttons */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
             <button type="button" onClick={onItems} style={{ minHeight: 52, border: 0, borderRadius: 26, background: 'var(--m-offer, #6D3FD1)', color: '#fff', fontSize: 15, fontWeight: 700, cursor: 'pointer' }}>
               {tM('roomItemsBtn', { count: entryCount })}
@@ -1361,6 +1732,9 @@ function SheetRowInline({ icon: iconKey, label, onClick, danger }) {
     list: 'M4 6h16M4 12h16M4 18h8',
     dims: 'M3 7h18M6 7V4M18 7V4M3 17h18M6 17v3M18 17v3',
     plus: 'M12 5v14M5 12h14',
+    camera:   'M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2zM12 17a4 4 0 100-8 4 4 0 000 8',
+    penline:  'M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z',
+    filetext: 'M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8zM14 2v6h6M16 13H8M16 17H8M10 9H8',
   };
   return (
     <button onClick={onClick} style={{ width: '100%', minHeight: 60, boxSizing: 'border-box', padding: '10px 14px', border: 0, borderRadius: 22, background: '#fff', color: danger ? '#B71C1C' : 'var(--m-ink)', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 12, fontSize: 16, fontWeight: 700, boxShadow: '0 1px 0 rgba(14,17,22,0.05), 0 12px 22px -18px rgba(14,17,22,0.35)', cursor: 'pointer' }}>
