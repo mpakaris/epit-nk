@@ -971,7 +971,7 @@ export default function ProjectDetailClient({
                   <span>{t('thSection')}</span>
                   <span>{t('thType')}</span>
                   {activeCollectiveId && <span>{t('thUploader')}</span>}
-                  <span>{t('thDate')}</span>
+                  <span>{t('thAmount')}</span>
                 </div>
                 {filteredInvoices.map(inv => {
                   const cLabel = catLabel(inv.category);
@@ -984,13 +984,8 @@ export default function ProjectDetailClient({
                   return (
                     <button key={inv.id} type="button" className="dk-tr dk-sr" style={{ display: 'grid', gridTemplateColumns: activeCollectiveId ? '100px 1fr 110px 90px 100px 90px' : '100px 1fr 110px 90px 90px', cursor: 'pointer' }} onClick={() => setDetailInvoice(inv)}>
                       <span style={{ minWidth: 0 }}><span className="dk-badge">{cLabel}</span></span>
-                      <span style={{ minWidth: 0, display: 'flex', alignItems: 'center', gap: 8, overflow: 'hidden' }}>
-                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, minWidth: 0 }}>
-                          <b>{inv.description || cLabel}</b>
-                        </span>
-                        <span style={{ flexShrink: 0, height: 24, padding: '0 10px', borderRadius: 12, background: 'var(--dk-c, #263248)', color: '#fff', fontSize: 12, fontWeight: 700, display: 'inline-flex', alignItems: 'center', fontFamily: 'var(--font-mono)', whiteSpace: 'nowrap' }}>
-                          {fmtMoney(Number(inv.value_huf || 0))}
-                        </span>
+                      <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        <b>{inv.description || cLabel}</b>
                       </span>
                       <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {room?.name || t('general')}
@@ -1008,8 +1003,10 @@ export default function ProjectDetailClient({
                           {uploaderLabel}
                         </span>
                       )}
-                      <span style={{ minWidth: 0, fontSize: 13, color: '#5A5F68' }}>
-                        {inv.created_at ? new Date(inv.created_at).toLocaleDateString('hu-HU', { month: 'short', day: 'numeric' }) : '—'}
+                      <span style={{ minWidth: 0 }}>
+                        <span style={{ height: 24, padding: '0 10px', borderRadius: 12, background: 'var(--dk-c, #263248)', color: '#fff', fontSize: 12, fontWeight: 700, display: 'inline-flex', alignItems: 'center', fontFamily: 'var(--font-mono)', whiteSpace: 'nowrap' }}>
+                          {fmtMoney(Number(inv.value_huf || 0))}
+                        </span>
                       </span>
                     </button>
                   );
@@ -1303,10 +1300,11 @@ export default function ProjectDetailClient({
           !q || (le.labour_type || le.description || '').toLowerCase().includes(q)
         );
         const hasAny = labourEntries.length > 0 || labourInvoices.length > 0;
-        const cols = activeCollectiveId ? '1fr 110px 90px 100px 90px' : '1fr 110px 90px 90px';
+        const cols = activeCollectiveId ? '90px 1fr 110px 90px 100px 90px' : '90px 1fr 110px 90px 90px';
         return (
           <section className="dk-card" style={{ overflow: 'hidden', marginTop: 12 }}>
             <div className="dk-th" style={{ gridTemplateColumns: cols }}>
+              <span>{t('thCategory')}</span>
               <span>{t('thDesc')}</span>
               <span>{t('thSection')}</span>
               <span>{t('thType')}</span>
@@ -1329,6 +1327,7 @@ export default function ProjectDetailClient({
                   const room = projectRooms.find(r => r.id === le.room_id);
                   return (
                     <div key={le.id} className="dk-tr" style={{ display: 'grid', gridTemplateColumns: cols }}>
+                      <span style={{ minWidth: 0 }}><span className="dk-badge">{catLabel('labour')}</span></span>
                       <span style={{ minWidth: 0, display: 'flex', alignItems: 'center', gap: 8, overflow: 'hidden' }}>
                         <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, minWidth: 0 }}>
                           <b>{le.labour_type || le.description || '—'}</b>
@@ -1365,6 +1364,7 @@ export default function ProjectDetailClient({
                   const room = projectRooms.find(r => r.id === inv.room_id);
                   return (
                     <button key={inv.id} type="button" className="dk-tr dk-sr" style={{ display: 'grid', gridTemplateColumns: cols, cursor: 'pointer' }} onClick={() => setDetailInvoice(inv)}>
+                      <span style={{ minWidth: 0 }}><span className="dk-badge">{catLabel('labour')}</span></span>
                       <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         <b>{inv.description || '—'}</b>
                       </span>
