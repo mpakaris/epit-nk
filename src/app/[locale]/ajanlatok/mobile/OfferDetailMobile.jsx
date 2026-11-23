@@ -72,7 +72,7 @@ export default function OfferDetailMobile({ quoteId }) {
   const {
     quotes = [], clients = [], currentUser, isDemoMode, userCurrency,
     collectives: userMemberships = [], createClient, deleteQuote, deleteQuoteSection,
-    updateQuoteStatus, convertQuoteToProject, refreshSupabaseData,
+    updateQuoteStatus, refreshSupabaseData,
   } = useApp();
 
   const navPrefix = isDemoMode ? '/demo' : '';
@@ -91,9 +91,6 @@ export default function OfferDetailMobile({ quoteId }) {
   const [alertModal, setAlertModal] = useState({ open: false, message: '' });
   const [sendEmail, setSendEmail] = useState('');
   const [sendLoading, setSendLoading] = useState(false);
-  const [acceptLoading,   setAcceptLoading]   = useState(false);
-  const [convertedProject, setConvertedProject] = useState(null);
-  const [convertError,     setConvertError]     = useState(null);
   const [attachTerms,       setAttachTerms]       = useState(true);
   const [termsUploading,    setTermsUploading]    = useState(false);
   const [localTermsName,    setLocalTermsName]    = useState(null);
@@ -825,22 +822,23 @@ export default function OfferDetailMobile({ quoteId }) {
         </div>
       </div>
 
-      {/* Sticky action bar */}
+      {/* Sticky action bar — 3 buttons: Actions · Send · Preview */}
       <div style={{ position: 'fixed', zIndex: 20, left: 0, right: 0, bottom: 0, boxSizing: 'border-box', padding: `28px 16px calc(18px + env(safe-area-inset-bottom))`, background: 'linear-gradient(to top, #121110 65%, rgba(0,0,0,0))', display: 'flex', gap: 10 }}>
+        {/* Actions */}
         <button aria-label={t('actions')} onClick={() => setMode('menu')} style={{ flexShrink: 0, width: 60, height: 60, border: 0, borderRadius: 30, background: '#fff', color: 'var(--m-ink)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 10px 22px -10px rgba(14,17,22,0.4)' }}>
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" aria-hidden="true"><path d="M5 12h.01M12 12h.01M19 12h.01"/></svg>
         </button>
-        {quote?.status === 'sent' && canOwnerAct && (
-          <button aria-label={t('actionResend')} onClick={openSendSheet} style={{ flexShrink: 0, width: 60, height: 60, border: 0, borderRadius: 30, background: '#fff', color: 'var(--m-ink)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 10px 22px -10px rgba(14,17,22,0.4)' }}>
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true"><path d="M4 12l16-8-6 16-3-6z"/></svg>
-          </button>
-        )}
-        <button
-          onClick={barConfig.go}
-          style={{ flex: 1, height: 60, border: 0, borderRadius: 30, background: barConfig.bg, color: barConfig.fg || '#fff', fontSize: 17, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, cursor: 'pointer', boxShadow: '0 14px 26px -12px rgba(14,17,22,0.6)' }}
-        >
-          {barConfig.label}
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        {/* Send */}
+        <button aria-label={quote?.status === 'sent' ? t('actionResend') : t('actionSend')} onClick={openSendSheet} disabled={!canOwnerAct || isLocked}
+          style={{ flex: 1, height: 60, border: 0, borderRadius: 30, background: canOwnerAct && !isLocked ? 'var(--m-offer, #6D3FD1)' : 'rgba(255,255,255,0.15)', color: '#fff', fontSize: 16, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, cursor: canOwnerAct && !isLocked ? 'pointer' : 'default', boxShadow: '0 10px 22px -10px rgba(14,17,22,0.4)' }}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true"><path d="M4 12l16-8-6 16-3-6z"/></svg>
+          {quote?.status === 'sent' ? t('actionResend') : t('actionSend')}
+        </button>
+        {/* Preview */}
+        <button aria-label={t('actionPreview')} onClick={() => router.push(p(`/ajanlatok/${quoteId}/nyomtatas`))}
+          style={{ flex: 1, height: 60, border: 0, borderRadius: 30, background: '#fff', color: 'var(--m-ink)', fontSize: 16, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, cursor: 'pointer', boxShadow: '0 14px 26px -12px rgba(14,17,22,0.6)' }}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true"><path d="M6 2h9l5 5v15a2 2 0 01-2 2H6a2 2 0 01-2-2V4a2 2 0 012-2zM14 2v6h6M4 13h16M8 17h8"/></svg>
+          {t('actionPreview')}
         </button>
       </div>
 
@@ -858,11 +856,8 @@ export default function OfferDetailMobile({ quoteId }) {
             <span style={{ fontSize: 13, fontWeight: 600, color: '#5A5F68' }}>{quote?.title} · {statusLabel}</span>
           </div>
           {canOwnerAct && !isLocked && <SheetRowInline icon="edit" label={tc('edit')} onClick={() => setMode('meta')} />}
-          {canOwnerAct && <SheetRowInline icon="pdf" label={t('actionPreviewPdf')} onClick={() => { setMode(null); router.push(p(`/ajanlatok/${quoteId}/nyomtatas`)); }} />}
-          {quote?.status === 'draft' && canOwnerAct && <SheetRowInline icon="send" label={t('actionSend')} onClick={() => { setMode(null); openSendSheet(); }} />}
-          {quote?.status === 'sent' && canOwnerAct && <SheetRowInline icon="send" label={t('actionResend')} onClick={() => { setMode(null); openSendSheet(); }} />}
-          {quote?.status === 'sent' && canOwnerAct && <SheetRowInline icon="check" label={t('actionAccept')} onClick={() => setMode('accept')} />}
-          {quote?.status === 'sent' && canOwnerAct && <SheetRowInline icon="x" label={t('actionReject')} onClick={() => setMode('reject')} />}
+          {!isLocked && canOwnerAct && <SheetRowInline icon="check" label={t('actionAccept')} onClick={() => setMode('accept')} success />}
+          {!isLocked && canOwnerAct && <SheetRowInline icon="x" label={t('actionReject')} onClick={() => setMode('reject')} danger />}
           {isLocked && canOwnerAct && <SheetRowInline icon="reset" label={t('actionReset')} onClick={() => setMode('revert')} />}
           <SheetRowInline icon="copy" label={t('actionCopy')} onClick={() => setMode('dup')} />
           <SheetRowInline icon="hist" label={t('historyTitle')} onClick={async () => {
@@ -1181,73 +1176,37 @@ export default function OfferDetailMobile({ quoteId }) {
         </div>
       )}
 
-      {/* Accept */}
-      {mode === 'accept' && (
-        <div role="dialog" aria-label={t('actionAccept')} className="pod-sheet" style={{ position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 50, boxSizing: 'border-box', padding: `10px 16px calc(18px + env(safe-area-inset-bottom))`, borderRadius: '32px 32px 0 0', background: 'var(--m-sheet, #FBFAF7)', display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <div style={{ alignSelf: 'center', width: 44, height: 5, borderRadius: 3, background: '#D5D2C8' }} />
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
-            <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 22, fontWeight: 700, lineHeight: 1.1, color: 'var(--m-ink)' }}>{t('actionAccept')}</span>
-            <CloseBtn onClick={() => { setMode(null); setConvertedProject(null); setConvertError(null); }} />
+      {/* Accept / Reject — simple status change */}
+      {(mode === 'accept' || mode === 'reject') && (() => {
+        const isAccept = mode === 'accept';
+        const handleChange = async () => {
+          const newStatus = isAccept ? 'accepted' : 'rejected';
+          try {
+            await updateQuoteStatus(quoteId, newStatus);
+            setQuote(q => ({ ...q, status: newStatus }));
+            setMode(null);
+          } catch (err) {
+            setAlertModal({ open: true, message: err.message });
+            setMode(null);
+          }
+        };
+        return (
+          <div role="dialog" aria-label={isAccept ? t('actionAccept') : t('actionReject')} className="pod-sheet" style={{ position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 50, boxSizing: 'border-box', padding: `10px 16px calc(18px + env(safe-area-inset-bottom))`, borderRadius: '32px 32px 0 0', background: 'var(--m-sheet, #FBFAF7)', display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div style={{ alignSelf: 'center', width: 44, height: 5, borderRadius: 3, background: '#D5D2C8' }} />
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+              <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 22, fontWeight: 700, lineHeight: 1.1, color: 'var(--m-ink)' }}>
+                {isAccept ? t('actionAccept') : t('actionReject')}
+              </span>
+              <CloseBtn onClick={() => setMode(null)} />
+            </div>
+            <button onClick={handleChange}
+              style={{ height: 60, border: 0, borderRadius: 30, background: isAccept ? '#16A34A' : '#B71C1C', color: '#fff', fontSize: 17, fontWeight: 700, cursor: 'pointer' }}>
+              {isAccept ? t('actionAccept') : t('actionReject')}
+            </button>
+            <button onClick={() => setMode(null)} style={{ height: 60, border: 0, borderRadius: 30, background: '#EFEDE6', color: 'var(--m-ink)', fontSize: 17, fontWeight: 700, cursor: 'pointer' }}>{tc('cancel')}</button>
           </div>
-
-          {convertedProject ? (
-            /* Success */
-            <>
-              <div style={{ padding: '12px 0', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
-                <div style={{ width: 52, height: 52, borderRadius: 26, background: '#D1FAE5', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#065F46" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true"><path d="M5 13l4 4L19 7"/></svg>
-                </div>
-                <span style={{ fontWeight: 700, fontSize: 16, color: 'var(--m-ink)', textAlign: 'center' }}>{t('convertSuccess')}</span>
-                <span style={{ fontSize: 14, color: '#5A5F68', textAlign: 'center' }}>{t('convertSuccessDetail')}</span>
-              </div>
-              <button onClick={() => { setMode(null); setConvertedProject(null); router.push(p(`/projektek/${convertedProject.id}`)); }}
-                style={{ height: 60, border: 0, borderRadius: 30, background: '#14532D', color: '#fff', fontSize: 17, fontWeight: 700, cursor: 'pointer' }}>
-                {t('viewProject')}
-              </button>
-              <button onClick={() => { setMode(null); setConvertedProject(null); }} style={{ height: 60, border: 0, borderRadius: 30, background: '#EFEDE6', color: 'var(--m-ink)', fontSize: 17, fontWeight: 700, cursor: 'pointer' }}>{tc('close')}</button>
-            </>
-          ) : convertError ? (
-            /* Error */
-            <>
-              <div style={{ padding: '8px 12px', borderRadius: 16, background: '#FEE2E2', color: '#B91C1C', fontSize: 14, fontWeight: 600 }}>{convertError}</div>
-              <button onClick={async () => { setConvertError(null); setAcceptLoading(true); try { const proj = await convertQuoteToProject(quoteId); setConvertedProject(proj); } catch (err) { setConvertError(err.message || t('convertError')); } finally { setAcceptLoading(false); } }}
-                disabled={acceptLoading}
-                style={{ height: 60, border: 0, borderRadius: 30, background: '#14532D', color: '#fff', fontSize: 17, fontWeight: 700, cursor: 'pointer', opacity: acceptLoading ? 0.6 : 1 }}>
-                {acceptLoading ? t('convertInProgress') : t('convertRetry')}
-              </button>
-              <button onClick={() => { setMode(null); setConvertError(null); }} style={{ height: 60, border: 0, borderRadius: 30, background: '#EFEDE6', color: 'var(--m-ink)', fontSize: 17, fontWeight: 700, cursor: 'pointer' }}>{tc('cancel')}</button>
-            </>
-          ) : (
-            /* Confirm */
-            <>
-              <span style={{ fontSize: 15, color: '#5A5F68', fontWeight: 500 }}>{t('convertConfirmPersonal')}</span>
-              <button onClick={async () => { setAcceptLoading(true); try { const proj = await convertQuoteToProject(quoteId); setConvertedProject(proj); } catch (err) { setConvertError(err.message || t('convertError')); } finally { setAcceptLoading(false); } }}
-                disabled={acceptLoading}
-                style={{ height: 60, border: 0, borderRadius: 30, background: acceptLoading ? '#B9B5AA' : '#14532D', color: '#fff', fontSize: 17, fontWeight: 700, cursor: acceptLoading ? 'default' : 'pointer' }}>
-                {acceptLoading ? t('convertInProgress') : t('convertOk')}
-              </button>
-              <button onClick={() => setMode(null)} style={{ height: 60, border: 0, borderRadius: 30, background: '#EFEDE6', color: 'var(--m-ink)', fontSize: 17, fontWeight: 700, cursor: 'pointer' }}>{tc('cancel')}</button>
-            </>
-          )}
-        </div>
-      )}
-
-      {/* Reject */}
-      {mode === 'reject' && (
-        <div role="dialog" aria-label={t('actionReject')} className="pod-sheet" style={{ position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 50, boxSizing: 'border-box', padding: `10px 16px calc(18px + env(safe-area-inset-bottom))`, borderRadius: '32px 32px 0 0', background: 'var(--m-sheet, #FBFAF7)', display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <div style={{ alignSelf: 'center', width: 44, height: 5, borderRadius: 3, background: '#D5D2C8' }} />
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
-            <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 22, fontWeight: 700, lineHeight: 1.1, color: 'var(--m-ink)' }}>{t('actionReject')}</span>
-            <CloseBtn onClick={() => setMode(null)} />
-          </div>
-          <span style={{ fontSize: 15, color: '#5A5F68', fontWeight: 500 }}>{t('rejectConfirmMessage')}</span>
-          <button onClick={async () => { try { await updateQuoteStatus(quoteId, 'rejected'); setQuote(q => ({ ...q, status: 'rejected' })); } catch (err) { setAlertModal({ open: true, message: err.message }); } finally { setMode(null); } }}
-            style={{ height: 60, border: 0, borderRadius: 30, background: '#B71C1C', color: '#fff', fontSize: 17, fontWeight: 700, cursor: 'pointer' }}>
-            {t('actionReject')}
-          </button>
-          <button onClick={() => setMode(null)} style={{ height: 60, border: 0, borderRadius: 30, background: '#EFEDE6', color: 'var(--m-ink)', fontSize: 17, fontWeight: 700, cursor: 'pointer' }}>{tc('cancel')}</button>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Client menu (edit / change / remove) */}
       {mode === 'clientMenu' && client && (
@@ -1867,7 +1826,7 @@ function OfferRoomCard({ sec, index, isOpen, onToggle, onMore, onItems, onDims, 
   );
 }
 
-function SheetRowInline({ icon: iconKey, label, onClick, danger }) {
+function SheetRowInline({ icon: iconKey, label, onClick, danger, success }) {
   const ICONS = {
     pdf: 'M7 3h7l4 4v14H7zM14 3v5h4M10 13h5M10 17h5',
     send: 'M4 12l16-8-6 16-3-6z',
@@ -1888,8 +1847,8 @@ function SheetRowInline({ icon: iconKey, label, onClick, danger }) {
     filetext: 'M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8zM14 2v6h6M16 13H8M16 17H8M10 9H8',
   };
   return (
-    <button onClick={onClick} style={{ width: '100%', minHeight: 60, boxSizing: 'border-box', padding: '10px 14px', border: 0, borderRadius: 22, background: '#fff', color: danger ? '#B71C1C' : 'var(--m-ink)', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 12, fontSize: 16, fontWeight: 700, boxShadow: '0 1px 0 rgba(14,17,22,0.05), 0 12px 22px -18px rgba(14,17,22,0.35)', cursor: 'pointer' }}>
-      <span style={{ flexShrink: 0, width: 44, height: 44, borderRadius: 15, background: danger ? '#FDECEC' : '#F1F1F3', color: danger ? '#B71C1C' : '#1A1D23', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+    <button onClick={onClick} style={{ width: '100%', minHeight: 60, boxSizing: 'border-box', padding: '10px 14px', border: 0, borderRadius: 22, background: '#fff', color: danger ? '#B71C1C' : success ? '#14532D' : 'var(--m-ink)', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 12, fontSize: 16, fontWeight: 700, boxShadow: '0 1px 0 rgba(14,17,22,0.05), 0 12px 22px -18px rgba(14,17,22,0.35)', cursor: 'pointer' }}>
+      <span style={{ flexShrink: 0, width: 44, height: 44, borderRadius: 15, background: danger ? '#FDECEC' : success ? '#D1FAE5' : '#F1F1F3', color: danger ? '#B71C1C' : success ? '#14532D' : '#1A1D23', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d={ICONS[iconKey] || ''} /></svg>
       </span>
       {label}

@@ -283,6 +283,7 @@
     "viewProject": "View project",
     "actions": "Actions",
     "actionPreviewPdf": "Preview / PDF",
+    "actionPreview": "Preview",
     "actionDownloadPdf": "Download PDF",
     "actionPdfGenerating": "Generating PDF…",
     "actionSend": "Send",

@@ -283,6 +283,7 @@
     "viewProject": "Projekt anzeigen",
     "actions": "Aktionen",
     "actionPreviewPdf": "Vorschau / PDF",
+    "actionPreview": "Vorschau",
     "actionDownloadPdf": "PDF herunterladen",
     "actionPdfGenerating": "PDF wird erstellt…",
     "actionSend": "Senden",

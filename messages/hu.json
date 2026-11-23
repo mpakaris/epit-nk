@@ -213,6 +213,7 @@
     "viewProject": "Projekt megtekintése",
     "actions": "Műveletek",
     "actionPreviewPdf": "Előnézet / PDF",
+    "actionPreview": "Előnézet",
     "actionDownloadPdf": "PDF letöltés",
     "actionPdfGenerating": "PDF generálás…",
     "actionSend": "Küldés",
