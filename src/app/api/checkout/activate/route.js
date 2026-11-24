@@ -15,34 +15,54 @@ export async function POST(request) {
   const { subscriptionId, customerId } = await request.json();
   if (!subscriptionId) return NextResponse.json({ error: 'subscriptionId required' }, { status: 400 });
 
-  // Verify subscription is active with Creem
+  const admin = createAdminClient();
+
+  // Resolve the real subscription ID — Creem's success URL may pass a checkout session ID
+  // (ch_...) under subscription_id rather than the actual subscription ID (sub_...).
+  // We look up by subscription_id first; if that fails we fall back to customer_id lookup.
+  let realSubscriptionId = null;
+
   const res = await fetch(`${CREEM_BASE}/v1/subscriptions?subscription_id=${subscriptionId}`, {
     headers: { 'x-api-key': process.env.CREEM_API_KEY },
   });
 
-  if (!res.ok) {
-    const errBody = await res.json().catch(() => ({}));
-    console.error('[activate] Creem lookup failed', res.status, JSON.stringify(errBody));
-    // Don't block activation on a lookup failure — subscription_id came from Creem's own redirect
-    console.warn('[activate] granting premium anyway based on Creem redirect params');
-    logAudit({ userId: user.id, userName: user.email, action: 'Activation — Creem lookup failed (granting anyway)', targetType: 'payment', targetId: subscriptionId, details: { creem_status: res.status, error: JSON.stringify(errBody) } });
-  } else {
+  if (res.ok) {
     const sub = await res.json();
     const status = sub?.status;
-    console.log('[activate] subscription status:', status, 'for user:', user.id);
+    console.log('[activate] subscription status:', status, 'id:', sub?.id, 'for user:', user.id);
     if (!['active', 'trialing', 'paid'].includes(status)) {
-      logAudit({ userId: user.id, userName: user.email, action: 'Activation blocked — subscription not active', targetType: 'payment', targetId: subscriptionId, details: { creem_status: status, error: `Subscription status is '${status}', expected active/trialing/paid` } });
+      logAudit({ userId: user.id, userName: user.email, action: 'Activation blocked — subscription not active', targetType: 'payment', targetId: subscriptionId, details: { creem_status: status } });
       return NextResponse.json({ error: `Subscription not active (${status})` }, { status: 402 });
+    }
+    realSubscriptionId = sub?.id || subscriptionId;
+  } else {
+    // Likely a checkout session ID — resolve via customer
+    console.warn('[activate] subscription_id lookup failed (checkout ID?), trying customer lookup', subscriptionId);
+    if (customerId) {
+      const custRes = await fetch(`${CREEM_BASE}/v1/subscriptions?customer_id=${customerId}`, {
+        headers: { 'x-api-key': process.env.CREEM_API_KEY },
+      });
+      if (custRes.ok) {
+        const custData = await custRes.json();
+        const subs = Array.isArray(custData) ? custData : (custData?.items ?? [custData]);
+        const activeSub = subs.find(s => s?.id && ['active', 'trialing'].includes(s?.status));
+        if (activeSub?.id) {
+          realSubscriptionId = activeSub.id;
+          console.log('[activate] resolved real subscription via customer:', realSubscriptionId);
+        }
+      }
+    }
+    if (!realSubscriptionId) {
+      console.warn('[activate] could not resolve subscription ID — granting premium without sub row');
+      logAudit({ userId: user.id, userName: user.email, action: 'Activation — subscription ID unresolved (granting anyway)', targetType: 'payment', targetId: subscriptionId, details: { customerId } });
     }
   }
 
-  const admin = createAdminClient();
-
-  // Upsert subscription row
-  if (subscriptionId) {
+  // Upsert subscription row only when we have a confirmed subscription ID (not a checkout ID)
+  if (realSubscriptionId) {
     await admin.from('subscriptions').upsert({
       user_id:               user.id,
-      creem_subscription_id: subscriptionId,
+      creem_subscription_id: realSubscriptionId,
       product_family:        'premium',
       status:                'active',
       period_end:            null,

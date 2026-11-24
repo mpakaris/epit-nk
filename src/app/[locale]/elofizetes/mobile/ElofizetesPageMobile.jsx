@@ -137,6 +137,7 @@ export default function ElofizetesPageMobile() {
   const [subOkData,                setSubOkData]                = useState(null);
   const [subBusy,                  setSubBusy]                  = useState(false);
   const [subAlertMsg,              setSubAlertMsg]              = useState('');
+  const [subReloadKey,             setSubReloadKey]             = useState(0);
 
   const PLANS = [
     { key: 'basic', name: t('basic'), price: t('free'), priceNote: t('forever'), icon: Zap, color: '#6B7280', features: [t('basicFeature1'), t('basicFeature2'), t('basicFeature3'), t('basicFeature4'), t('basicFeature5')] },
@@ -186,22 +187,22 @@ export default function ElofizetesPageMobile() {
         }
       });
 
-    setSubHistoryLoading(true);
+    setSubHistoryLoading(true); // eslint-disable-line react-hooks/set-state-in-effect
     fetch('/api/subscriptions/history')
       .then(r => r.ok ? r.json() : { events: [] })
       .then(d => setSubHistory(d.events ?? []))
       .catch(() => setSubHistory([]))
       .finally(() => setSubHistoryLoading(false));
-  }, [currentUser?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [currentUser?.id, subReloadKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Creem checkout redirect handler ──────────────────────────────────────
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const stored = sessionStorage.getItem('creem_elofizetes_result');
     if (stored) {
-      try { setActivationBanner(JSON.parse(stored).status); } catch {}
+      try { setActivationBanner(JSON.parse(stored).status); } catch {} // eslint-disable-line react-hooks/set-state-in-effect
       sessionStorage.removeItem('creem_elofizetes_result');
-      refreshCurrentUser?.().then(() => refreshSupabaseData?.());
+      refreshCurrentUser?.().then(() => { refreshSupabaseData?.(); setSubReloadKey(k => k + 1); });
       return;
     }
     const params = new URLSearchParams(window.location.search);
@@ -300,11 +301,12 @@ export default function ElofizetesPageMobile() {
         if (payload._fromWebhook) {
           await refreshCurrentUser(); refreshSupabaseData?.();
           setActivationBanner('success');
+          setSubReloadKey(k => k + 1);
         } else {
           try {
             const r = await fetch('/api/checkout/activate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ subscriptionId: payload.subscriptionId, customerId: payload.customerId }) });
             setActivationBanner(r.ok ? 'success' : 'error');
-            if (r.ok) { await refreshCurrentUser(); refreshSupabaseData?.(); }
+            if (r.ok) { await refreshCurrentUser(); refreshSupabaseData?.(); setSubReloadKey(k => k + 1); }
           } catch { setActivationBanner('error'); }
         }
         setLoadingPlan(null);
@@ -339,7 +341,7 @@ export default function ElofizetesPageMobile() {
         if (d?.checkoutType === 'elofizetes_premium' && d?.subscriptionId) {
           setCheckoutIframeUrl(null); localStorage.removeItem('creem_checkout_done');
           fetch('/api/checkout/activate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ subscriptionId: d.subscriptionId, customerId: d.customerId }) })
-            .then(async r => { setActivationBanner(r.ok ? 'success' : 'error'); if (r.ok) { await refreshCurrentUser(); refreshSupabaseData?.(); } })
+            .then(async r => { setActivationBanner(r.ok ? 'success' : 'error'); if (r.ok) { await refreshCurrentUser(); refreshSupabaseData?.(); setSubReloadKey(k => k + 1); } })
             .catch(() => setActivationBanner('error'));
           setLoadingPlan(null); return;
         }

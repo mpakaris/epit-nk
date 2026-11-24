@@ -66,6 +66,10 @@ export async function PATCH(request) {
       return Response.json({ error: 'userId and is_subscription_premium are required' }, { status: 400 });
     }
 
+    const CREEM_BASE = process.env.CREEM_API_KEY?.startsWith('creem_test_')
+      ? 'https://test-api.creem.io'
+      : 'https://api.creem.io';
+
     // 1. Update profile flags + clear trial fields when revoking
     const profileUpdate = {
       is_subscription_premium,
@@ -81,25 +85,52 @@ export async function PATCH(request) {
     // 2. Keep subscriptions table in sync
     if (is_subscription_premium) {
       // Cancel any stale active rows first, then insert an admin-granted row
-      await admin.from('subscriptions')
+      const { error: cancelErr } = await admin.from('subscriptions')
         .update({ status: 'canceled', updated_at: now })
         .eq('user_id', userId)
         .in('product_family', ['premium', 'bundle'])
         .in('status', ['active', 'trialing', 'scheduled_cancel', 'paused', 'past_due']);
-      await admin.from('subscriptions').insert({
+      if (cancelErr) console.error('[sa/subscriptions] cancel stale rows failed:', cancelErr.message);
+
+      const { error: insertErr } = await admin.from('subscriptions').insert({
         user_id:               userId,
         creem_subscription_id: null, // admin-granted, no Creem billing attached
         product_family:        'premium',
         status:                'active',
         updated_at:            now,
       });
+      if (insertErr) console.error('[sa/subscriptions] insert admin-grant failed:', insertErr.message);
     } else {
-      // Cancel all active premium subscription rows
-      await admin.from('subscriptions')
+      // Fetch active Creem subscription IDs before canceling so we can also cancel in Creem
+      const { data: activeSubs } = await admin.from('subscriptions')
+        .select('creem_subscription_id')
+        .eq('user_id', userId)
+        .in('product_family', ['premium', 'bundle'])
+        .in('status', ['active', 'trialing', 'scheduled_cancel', 'paused', 'past_due'])
+        .not('creem_subscription_id', 'is', null);
+
+      // Cancel all active premium rows in our DB first
+      const { error: cancelErr } = await admin.from('subscriptions')
         .update({ status: 'canceled', updated_at: now })
         .eq('user_id', userId)
         .in('product_family', ['premium', 'bundle'])
         .in('status', ['active', 'trialing', 'scheduled_cancel', 'paused', 'past_due']);
+      if (cancelErr) console.error('[sa/subscriptions] cancel rows failed:', cancelErr.message);
+
+      // Also cancel in Creem so webhooks don't re-activate the user
+      for (const { creem_subscription_id } of (activeSubs ?? [])) {
+        if (!creem_subscription_id) continue;
+        try {
+          const r = await fetch(`${CREEM_BASE}/v1/subscriptions/${creem_subscription_id}/cancel`, {
+            method: 'POST',
+            headers: { 'x-api-key': process.env.CREEM_API_KEY, 'Content-Type': 'application/json' },
+          });
+          if (!r.ok) console.error('[sa/subscriptions] Creem cancel failed for', creem_subscription_id, r.status);
+          else console.log('[sa/subscriptions] Creem subscription canceled:', creem_subscription_id);
+        } catch (e) {
+          console.error('[sa/subscriptions] Creem cancel error for', creem_subscription_id, e.message);
+        }
+      }
     }
 
     logAudit({ userId: auth.user.id, userName: auth.caller.display_name || '', action: `Subscription ${is_subscription_premium ? 'granted' : 'revoked'} by superadmin`, targetType: 'subscription', targetId: userId, details: { is_subscription_premium, tier: is_subscription_premium ? 'premium' : 'basic' } });
