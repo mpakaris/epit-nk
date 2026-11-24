@@ -11,21 +11,12 @@ import WorkspacePodStack from '@/components/desktop/WorkspacePodStack';
 import ClientSelect from '@/components/ClientSelect';
 import WorkspacePicker from '@/components/mobile/WorkspacePicker';
 import { useTransferRequests } from '@/hooks/useTransferRequests';
+import { podColor, PERSONAL_COLOR } from '@/lib/podColor';
 import {
   Plus, Search, Loader2, FileText, X, FolderKanban, ArrowLeft,
 } from 'lucide-react';
 
-export default function ProjectsListDesktop({
-  initialPersonalProjects,
-  initialSharedProjects,
-  initialClients,
-  initialInvoices,
-  initialLabourEntries,
-  initialQuotes,
-  currentUser,
-  collectives,
-  isAdmin,
-}) {
+export default function ProjectsListDesktop() {
   const router = useRouter();
   const t = useTranslations('projects');
   const tForms = useTranslations('forms');
@@ -44,20 +35,25 @@ export default function ProjectsListDesktop({
     isDemoMode,
     dataReady,
     userCurrency,
+    currentUser,
+    isAdmin,
+    effectiveCollectives,
   } = useApp();
 
   const navPrefix = isDemoMode ? '/demo' : '';
 
-  const allInvoices = dataReady ? (ctxInvoices      || []) : (initialInvoices      || []);
-  const allLabour   = dataReady ? (ctxLabour         || []) : (initialLabourEntries || []);
-  const allQuotes   = dataReady ? (ctxQuotes         || []) : (initialQuotes        || []);
-  const allClients  = dataReady ? (ctxClients        || []) : (initialClients       || []);
+  const allInvoices = ctxInvoices      || [];
+  const allLabour   = ctxLabour         || [];
+  const allQuotes   = ctxQuotes         || [];
+  const allClients  = ctxClients        || [];
+  const rawProjects = (ctxProjects || []).filter(p => !p.deleted_at);
 
-  const rawProjects = dataReady
-    ? (ctxProjects || []).filter(p => !p.deleted_at)
-    : [...(initialPersonalProjects || []), ...(initialSharedProjects || [])].filter(p => !p.deleted_at);
+  const collectives = (effectiveCollectives || []).map(c => ({ id: c.collective_id, name: c.name, role: c.role }));
+  const activeColl  = collectives.find(c => c.id === activeCollectiveId);
 
-  const activeColl = (collectives || []).find(c => c.collective_id === activeCollectiveId);
+  const wsStyle = activeCollectiveId
+    ? { '--dk-c': podColor(activeCollectiveId).deep, '--dk-deep': podColor(activeCollectiveId).deep }
+    : {};
 
 
   const [filter, setFilter] = useState('all');
@@ -93,7 +89,7 @@ export default function ProjectsListDesktop({
 
   const { outgoingTransfers } = useTransferRequests({ dataReady, isDemoMode });
 
-  const effectiveCurrentUserId = currentUser?.id;
+  const effectiveCurrentUserId = currentUser?.id || null;
 
   const openCreate = () => {
     setProjName(''); setProjDesc(''); setProjStart(''); setProjEnd('');
@@ -309,7 +305,7 @@ export default function ProjectsListDesktop({
     : t('personalWorkspace');
 
   return (
-    <div className="dk-page dk-mod-projects">
+    <div className="dk-page dk-mod-projects" style={wsStyle}>
       <header className="dk-mh">
         <span className="dk-gl" aria-hidden="true" />
         <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 4 }}>
