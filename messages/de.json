@@ -104,7 +104,11 @@
     "quotesSection": "Angebote",
     "calendarSection": "Kalender · Nächste 2 Wochen",
     "nextWeekLabel": "Nächste Woche",
-    "thisWeekLabel": "Diese Woche"
+    "thisWeekLabel": "Diese Woche",
+    "sectionStats": "Statistiken",
+    "sectionCalendar": "Kalender",
+    "sectionOverview": "Überblick",
+    "sectionActivity": "Neueste Aktivität"
   },
   "sidebar": {
     "expand": "Ausklappen",

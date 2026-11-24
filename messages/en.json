@@ -104,7 +104,11 @@
     "quotesSection": "Quotes",
     "calendarSection": "Calendar · Next 2 weeks",
     "nextWeekLabel": "Next week",
-    "thisWeekLabel": "This week"
+    "thisWeekLabel": "This week",
+    "sectionStats": "Statistics",
+    "sectionCalendar": "Calendar",
+    "sectionOverview": "Overview",
+    "sectionActivity": "Latest activity"
   },
   "sidebar": {
     "expand": "Expand",

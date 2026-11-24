@@ -1809,7 +1809,11 @@
     "quotesSection": "Ajánlatok",
     "calendarSection": "Naptár · Következő 2 hét",
     "nextWeekLabel": "Következő hét",
-    "thisWeekLabel": "Ez a hét"
+    "thisWeekLabel": "Ez a hét",
+    "sectionStats": "Statisztikák",
+    "sectionCalendar": "Naptár",
+    "sectionOverview": "Áttekintés",
+    "sectionActivity": "Legújabb aktivitás"
   },
   "mobile": {
     "floatingNav": {

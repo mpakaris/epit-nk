@@ -157,6 +157,14 @@ function ActivitySection({ items, t }) {
   );
 }
 
+function SectionLabel({ label }) {
+  return (
+    <h2 style={{ margin: 0, fontFamily: 'var(--font-heading, "Bricolage Grotesque", sans-serif)', fontSize: 22, fontWeight: 700, letterSpacing: '-0.02em', color: '#fff' }}>
+      {label}
+    </h2>
+  );
+}
+
 /* ── Main component ─────────────────────────────────────────────────────────── */
 
 export default function DashboardDesktop({
@@ -377,27 +385,23 @@ export default function DashboardDesktop({
           />
         </div>
 
-        {/* Stats strip */}
-        {!(isSuperAdmin && !impersonating) && (
+        {/* ── Stats ── */}
+        {!(isSuperAdmin && !impersonating) && (<>
+          <SectionLabel label={t('sectionStats')} />
           <div style={{ display: 'flex', gap: 14 }}>
             <StatCard label={t('statTotalCost')}      value={fmt(totalCost)}         sub={t('statTotalCostSub')} />
             <StatCard label={t('statActiveProjects')} value={projects.length}        sub={t('statActiveProjectsSub')} />
             <StatCard label={t('statInvoices')}       value={activeInvoices.length}  sub={t('statInvoicesSub')} />
           </div>
-        )}
+        </>)}
 
-        {/* Calendar widget — current + next week */}
+        {/* ── Calendar ── */}
+        <SectionLabel label={t('sectionCalendar')} />
         <DashboardWeekCalendar navPrefix={navPrefix} />
 
-        {/* Bottom: 3-col preview grid */}
+        {/* ── Overview ── */}
+        <SectionLabel label={t('sectionOverview')} />
         <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
-          <PreviewSection
-            title={t('projectsSection')}
-            titleColor="#263248"
-            icon={FolderKanban}
-            viewAllHref={p('/projektek')}
-            rows={projectRows}
-          />
           <PreviewSection
             title={t('surveysSection')}
             titleColor="#0A7F72"
@@ -412,9 +416,17 @@ export default function DashboardDesktop({
             viewAllHref={p('/ajanlatok')}
             rows={quoteRows}
           />
+          <PreviewSection
+            title={t('projectsSection')}
+            titleColor="#263248"
+            icon={FolderKanban}
+            viewAllHref={p('/projektek')}
+            rows={projectRows}
+          />
         </div>
 
-        {/* Activity feed */}
+        {/* ── Activity ── */}
+        <SectionLabel label={t('sectionActivity')} />
         <ActivitySection items={activityItems} t={t} />
 
         </>}
