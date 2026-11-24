@@ -7,8 +7,8 @@ import { useApp } from '@/context/AppContext';
 import { PERSONAL_COLOR, podColor } from '@/lib/podColor';
 import {
   LayoutDashboard, Ruler, FileText, FolderKanban, BookUser,
-  MessageSquare, Calendar, Lightbulb, Package, Globe,
-  UsersRound, ChevronRight,
+  MessageSquare, Calendar, Package, Globe,
+  UsersRound, ChevronRight, CreditCard,
 } from 'lucide-react';
 
 /* Per-module nav active background colour */
@@ -19,12 +19,11 @@ const MODULE_ACTIVE_COLOR = {
   projektek:  '#3A4963',
   ugyfelek:   '#B8456B',
   profil:     '#44413B',
-  elofizetes: '#44413B',
-  kollektivak:'#2A2F3A',
+  elofizetes: '#B45309',
+  kollektivak:'#1E1A4E',
   naptar:     '#2A2F3A',
-  otletek:    '#2A2F3A',
   katalogus:  '#2A2F3A',
-  weboldalam: '#2A2F3A',
+  weboldalam: '#1A3A5C',
 };
 
 function getModuleKey(pathname) {
@@ -93,10 +92,10 @@ export default function DesktopSidebar() {
   const workNavItems = [
     // { key: 'uzenetek',   href: `${navPrefix}/uzenetek`,   icon: MessageSquare, label: t('nav.messages')    },
     { key: 'naptar',     href: `${navPrefix}/naptar`,     icon: Calendar,      label: t('nav.calendar')    },
-    { key: 'otletek',    href: `${navPrefix}/otletek`,    icon: Lightbulb,     label: t('nav.ideas')       },
     { key: 'katalogus',  href: `${navPrefix}/katalogus`,  icon: Package,       label: t('nav.catalogue')   },
     { key: 'weboldalam', href: `${navPrefix}/weboldalam`, icon: Globe,         label: t('nav.website')     },
-    { key: 'kollektivak',href: `${navPrefix}/kollektivak`,icon: UsersRound,    label: t('nav.collectives') },
+    { key: 'kollektivak',  href: `${navPrefix}/kollektivak`,  icon: UsersRound,  label: t('nav.collectives')  },
+    { key: 'elofizetes',   href: `${navPrefix}/elofizetes`,   icon: CreditCard,  label: t('nav.subscription') },
   ];
 
   function isNavActive(key) {

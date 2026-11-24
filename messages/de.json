@@ -133,7 +133,6 @@
       "clients": "Kunden",
       "collectives": "Kollektive",
       "calendar": "Kalender",
-      "ideas": "Ideen",
       "website": "Meine Website",
       "myProfile": "Mein Profil",
       "subscription": "Abonnement",
@@ -1347,17 +1346,6 @@
     "slugSettingsPlaceholder": "z.B. hans-mueller-maler",
     "openSiteButton": "Öffnen",
     "activateHint": "Zum Veröffentlichen des aktuellen Inhalts"
-  },
-  "ideas": {
-    "pageTitle": "Ideen",
-    "new": "Neue Idee",
-    "cancel": "Abbrechen",
-    "submit": "Absenden",
-    "placeholder": "Schreiben Sie Ihre Idee...",
-    "emptyTitle": "Noch keine Ideen",
-    "emptyText": "Noch keine Ideen. Seien Sie der Erste!",
-    "deleteConfirm": "Diese Idee löschen?",
-    "deleteTitle": "Löschen"
   },
   "collectives": {
     "pageTitle": "Kollektive",

@@ -10,7 +10,7 @@ import { useApp } from '@/context/AppContext';
 import {
   Building2, LayoutDashboard, FolderKanban, Users, BookUser,
   FileText, Calendar, User, LogOut, ShieldAlert,
-  ChevronLeft, ChevronRight, Eye, X, Menu, ClipboardList, Ruler, Lightbulb,
+  ChevronLeft, ChevronRight, Eye, X, Menu, ClipboardList, Ruler,
   Globe, ImageIcon, UsersRound, CreditCard, Package, MessageSquare, Mail,
 } from 'lucide-react';
 import FloatingNav from './mobile/FloatingNav';
@@ -66,7 +66,6 @@ function buildNavItems(isSuperAdmin, isAdmin, impersonating, websiteUnread = 0, 
     { href: prefix + '/kollektivak',  label: t('nav.collectives'),    icon: UsersRound, count: counts.collectives, badge: invitationCount },
     { divider: true, key: 'd-egyeb',  group: t('groups.other') },
     { href: prefix + '/naptar',       label: t('nav.calendar'),       icon: Calendar },
-    { href: prefix + '/otletek',      label: t('nav.ideas'),          icon: Lightbulb },
     { href: prefix + '/weboldalam',   label: t('nav.website'),        icon: Globe, badge: websiteUnread },
     { divider: true, key: 'd-profil' },
     { href: prefix + '/profil',              label: t('nav.myProfile'),      icon: User },

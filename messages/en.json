@@ -133,7 +133,6 @@
       "clients": "Clients",
       "collectives": "Collectives",
       "calendar": "Calendar",
-      "ideas": "Ideas",
       "website": "My website",
       "myProfile": "My profile",
       "subscription": "Subscription",
@@ -1347,17 +1346,6 @@
     "slugSettingsPlaceholder": "e.g. john-smith-painter",
     "openSiteButton": "Open",
     "activateHint": "To publish the current content"
-  },
-  "ideas": {
-    "pageTitle": "Ideas",
-    "new": "New idea",
-    "cancel": "Cancel",
-    "submit": "Submit",
-    "placeholder": "Write your idea...",
-    "emptyTitle": "No ideas yet",
-    "emptyText": "No ideas yet. Be the first!",
-    "deleteConfirm": "Delete this idea?",
-    "deleteTitle": "Delete"
   },
   "collectives": {
     "pageTitle": "Collectives",

@@ -56,7 +56,6 @@
       "clients": "Ügyfelek",
       "collectives": "Kollektívák",
       "calendar": "Naptár",
-      "ideas": "Ötletek",
       "website": "Weboldalom",
       "myProfile": "Profilom",
       "subscription": "Előfizetés",
@@ -1270,17 +1269,6 @@
     "slugSettingsPlaceholder": "pl. kovacs-janos-felujtio",
     "openSiteButton": "Megnyitás",
     "activateHint": "Az aktuális tartalom közzétételéhez"
-  },
-  "ideas": {
-    "pageTitle": "Ötletek",
-    "new": "Új ötlet",
-    "cancel": "Mégsem",
-    "submit": "Beküld",
-    "placeholder": "Írd le az ötletedet...",
-    "emptyTitle": "Nincs ötlet még",
-    "emptyText": "Még nincs ötlet. Légy az első!",
-    "deleteConfirm": "Törlöd ezt az ötletet?",
-    "deleteTitle": "Törlés"
   },
   "collectives": {
     "pageTitle": "Kollektívák",
