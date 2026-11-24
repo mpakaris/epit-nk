@@ -14,7 +14,6 @@ import {
 import PageSpinner from '@/components/PageSpinner';
 import { COLOR_SCHEMES, TYPOGRAPHY } from '@/lib/websiteThemes';
 import { toSlug } from '@/lib/utils';
-import { podColor } from '@/lib/podColor';
 import useMobile from '@/hooks/useMobile';
 
 import SlugSetup from './components/SlugSetup';
@@ -702,7 +701,7 @@ export function BuilderEditor({ website: initialWebsite, sections: initialSectio
 
 export default function WeboldaPage() {
   const t = useTranslations('website');
-  const { currentUser, isSuperAdmin, impersonating, activeCollectiveId, collectives, dataReady, setActiveContext } = useApp();
+  const { currentUser, isSuperAdmin, impersonating, activeCollectiveId, dataReady } = useApp();
   const isMobile = useMobile();
   const [website,  setWebsite]  = useState(undefined); // undefined = loading
   const [sections, setSections] = useState([]);
@@ -720,14 +719,10 @@ export default function WeboldaPage() {
 
   if (!dataReady || website === undefined) return <PageSpinner />;
 
-  const wsStyle = activeCollectiveId
-    ? { '--dk-c': podColor(activeCollectiveId).deep, '--dk-deep': podColor(activeCollectiveId).deep }
-    : {};
-
   if (isSuperAdmin && !impersonating) {
     if (!isMobile) {
       return (
-        <div className="dk-page dk-mod-weboldalam" style={wsStyle}>
+        <div className="dk-page dk-mod-weboldalam">
           <header className="dk-mh">
             <span className="dk-gl" aria-hidden="true" />
             <div style={{ flex: 1 }}>
@@ -754,42 +749,7 @@ export default function WeboldaPage() {
     );
   }
 
-  if (activeCollectiveId) {
-    if (!isMobile) {
-      return (
-        <div className="dk-page dk-mod-weboldalam" style={wsStyle}>
-          <header className="dk-mh">
-            <span className="dk-gl" aria-hidden="true" />
-            <div style={{ flex: 1 }}>
-              <span className="dk-kick">{t('websiteLabel')}</span>
-              <h1 className="dk-h1">{t('pageHeading')}</h1>
-            </div>
-          </header>
-          <div className="dk-body" style={{ alignItems: 'center', justifyContent: 'center' }}>
-            <div className="dk-card" style={{ padding: '40px 32px', textAlign: 'center', maxWidth: 480 }}>
-              <Globe size={44} style={{ color: 'var(--text-muted)', marginBottom: 14, opacity: 0.5 }} />
-              <h2 style={{ margin: '0 0 10px', fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 800, fontSize: 22, color: 'var(--text-primary)' }}>
-                {t('collectiveTitle')}
-              </h2>
-              <p style={{ margin: '0 0 16px', color: 'var(--text-muted)', fontSize: 14, lineHeight: 1.6 }}>
-                {t('collectiveDesc')}
-              </p>
-              <span className="dk-badge" style={{ marginBottom: 16 }}>{t('collectiveSoon')}</span>
-              <div style={{ marginTop: 16 }}>
-                <button
-                  type="button"
-                  className="dk-btn dk-btn-dark"
-                  onClick={() => setActiveContext(null)}
-                  style={{ height: 44, fontSize: 14 }}
-                >
-                  {t('goToPersonal')}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      );
-    }
+  if (activeCollectiveId && isMobile) {
     return (
       <div style={{ maxWidth: 560, margin: '4rem auto', textAlign: 'center', padding: '1rem' }}>
         <Globe size={48} style={{ color: 'var(--accent)', marginBottom: '1rem', opacity: 0.5 }} />

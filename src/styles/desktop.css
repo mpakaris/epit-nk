@@ -164,7 +164,7 @@ body:has(.dk-root) {
 .dk-mod-calendar     { --dk-c: #1E3059; --dk-deep: #0A1225; --dk-active: #1E3059; background: var(--dk-deep); color: #fff; }
 .dk-mod-collectives  { --dk-c: #1E1A4E; --dk-deep: #0D0F13; --dk-active: #2D2A66; background: var(--dk-deep); color: #fff; }
 .dk-mod-subscription { --dk-c: #B45309; --dk-deep: #0D0F13; --dk-active: #B45309; background: var(--dk-deep); color: #fff; }
-.dk-mod-weboldalam   { --dk-c: #1A3A5C; --dk-deep: #0A1225; --dk-active: #2A4A6C; background: var(--dk-deep); color: #fff; }
+.dk-mod-weboldalam   { --dk-c: #1A3A5C; --dk-deep: #0D0F13; --dk-active: #2A4A6C; background: var(--dk-deep); color: #fff; }
 
 /* ── Module header ───────────────────────────────────────────────────────────── */
 .dk-mh {
@@ -391,6 +391,16 @@ body:has(.dk-root) {
   border-radius: 50%;
   border: 3px solid rgba(255, 255, 255, 0.2);
   border-top-color: rgba(255, 255, 255, 0.85);
+  animation: spin 0.75s linear infinite;
+}
+
+/* Dark variant for use on white/light backgrounds */
+.dk-ws-spinner-dark {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 3px solid rgba(14, 17, 22, 0.1);
+  border-top-color: rgba(14, 17, 22, 0.55);
   animation: spin 0.75s linear infinite;
 }
 

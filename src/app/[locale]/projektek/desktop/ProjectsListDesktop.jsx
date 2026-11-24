@@ -5,9 +5,9 @@ import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useApp } from '@/context/AppContext';
 import { formatMoney } from '@/lib/constants';
-import { podColor } from '@/lib/podColor';
 import Modal, { AlertModal, ConfirmModal } from '@/components/Modal';
 import { WorkspaceNotActivatedBanner, WorkspaceFrozenBanner } from '@/components/desktop/WorkspaceStatusBanners';
+import WorkspacePodStack from '@/components/desktop/WorkspacePodStack';
 import ClientSelect from '@/components/ClientSelect';
 import WorkspacePicker from '@/components/mobile/WorkspacePicker';
 import { useTransferRequests } from '@/hooks/useTransferRequests';
@@ -59,9 +59,6 @@ export default function ProjectsListDesktop({
 
   const activeColl = (collectives || []).find(c => c.collective_id === activeCollectiveId);
 
-  const wsStyle = activeCollectiveId
-    ? { '--dk-c': podColor(activeCollectiveId).deep }
-    : {};
 
   const [filter, setFilter] = useState('all');
   const [search, setSearch] = useState('');
@@ -312,7 +309,7 @@ export default function ProjectsListDesktop({
     : t('personalWorkspace');
 
   return (
-    <div className="dk-page dk-mod-projects" style={wsStyle}>
+    <div className="dk-page dk-mod-projects">
       <header className="dk-mh">
         <span className="dk-gl" aria-hidden="true" />
         <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -339,49 +336,46 @@ export default function ProjectsListDesktop({
         </div>
       </header>
 
-      <div className="dk-body">
-        {contextSwitching ? (
-          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <div className="dk-ws-spinner" />
-          </div>
-        ) : activeColl?.status === 'not_activated' ? (
-          <WorkspaceNotActivatedBanner />
-        ) : (
-          <>
-            {activeColl?.status === 'frozen' && <WorkspaceFrozenBanner isOwner={activeColl?.role === 'owner'} />}
-            {/* Filter chips */}
-            <div style={{ display: 'flex', gap: 8 }}>
-              {[
-                { key: 'all',    label: `${t('filterAll')} (${totalCount})` },
-                { key: 'active', label: `${t('filterOpen')} (${openCount})` },
-                { key: 'closed', label: `${t('filterClosed')} (${closedCount})` },
-              ].map(f => (
-                <button
-                  key={f.key}
-                  type="button"
-                  onClick={() => setFilter(f.key)}
-                  className="dk-chip"
-                  style={{ background: filter === f.key ? '#fff' : 'rgba(255,255,255,.14)', color: filter === f.key ? '#0E1116' : '#fff' }}
-                >
-                  {f.label}
-                </button>
-              ))}
-            </div>
+      <div className="dk-body" style={{ background: 'var(--dk-deep)', padding: '16px 32px 24px' }}>
+        <WorkspacePodStack>
+          {activeColl?.status === 'not_activated' && <WorkspaceNotActivatedBanner />}
+          {activeColl?.status !== 'not_activated' && (
+            <>
+              {activeColl?.status === 'frozen' && <WorkspaceFrozenBanner isOwner={activeColl?.role === 'owner'} />}
+              {/* Filter chips */}
+              <div style={{ display: 'flex', gap: 8 }}>
+                {[
+                  { key: 'all',    label: `${t('filterAll')} (${totalCount})` },
+                  { key: 'active', label: `${t('filterOpen')} (${openCount})` },
+                  { key: 'closed', label: `${t('filterClosed')} (${closedCount})` },
+                ].map(f => (
+                  <button
+                    key={f.key}
+                    type="button"
+                    onClick={() => setFilter(f.key)}
+                    className="dk-chip"
+                    style={{ background: filter === f.key ? '#263248' : '#F1F1F3', color: filter === f.key ? '#fff' : '#0E1116' }}
+                  >
+                    {f.label}
+                  </button>
+                ))}
+              </div>
 
-            {/* Project grid */}
-            {filtered.length === 0 ? (
-              <div className="dk-card" style={{ padding: '3rem', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
-                <FolderKanban size={40} style={{ color: '#5A5F68' }} aria-hidden="true" />
-                <span style={{ fontSize: 16, fontWeight: 700, color: '#0E1116' }}>{t('emptyTitle')}</span>
-                <span className="dk-m">{search ? t('emptyTitleFiltered') : t('emptyNoProjects')}</span>
-              </div>
-            ) : (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
-                {filtered.map(p => renderCard(p))}
-              </div>
-            )}
-          </>
-        )}
+              {/* Project grid */}
+              {filtered.length === 0 ? (
+                <div className="dk-card" style={{ padding: '3rem', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+                  <FolderKanban size={40} style={{ color: '#5A5F68' }} aria-hidden="true" />
+                  <span style={{ fontSize: 16, fontWeight: 700, color: '#0E1116' }}>{t('emptyTitle')}</span>
+                  <span className="dk-m">{search ? t('emptyTitleFiltered') : t('emptyNoProjects')}</span>
+                </div>
+              ) : (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
+                  {filtered.map(p => renderCard(p))}
+                </div>
+              )}
+            </>
+          )}
+        </WorkspacePodStack>
       </div>
 
       {/* ── Step 1: Workspace picker ─────────────────────────────────────────── */}

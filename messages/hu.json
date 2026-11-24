@@ -1268,7 +1268,9 @@
     "contactSocialPlaceholder": "@felhasznalonev",
     "slugSettingsPlaceholder": "pl. kovacs-janos-felujtio",
     "openSiteButton": "Megnyitás",
-    "activateHint": "Az aktuális tartalom közzétételéhez"
+    "activateHint": "Az aktuális tartalom közzétételéhez",
+    "collectiveComingSoonTitle": "Kollektíva weboldal — hamarosan",
+    "collectiveComingSoonDesc": "A kollektívák saját weboldalának funkciója fejlesztés alatt áll. Addig is a személyes weboldalad szerkeszthető."
   },
   "collectives": {
     "pageTitle": "Kollektívák",

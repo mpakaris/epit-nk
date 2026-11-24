@@ -1345,7 +1345,9 @@
     "contactSocialPlaceholder": "@benutzername",
     "slugSettingsPlaceholder": "z.B. hans-mueller-maler",
     "openSiteButton": "Öffnen",
-    "activateHint": "Zum Veröffentlichen des aktuellen Inhalts"
+    "activateHint": "Zum Veröffentlichen des aktuellen Inhalts",
+    "collectiveComingSoonTitle": "Kollektiv-Webseite — demnächst",
+    "collectiveComingSoonDesc": "Eigene Webseiten für Kollektive sind in Entwicklung. In der Zwischenzeit kannst du deine persönliche Webseite weiterhin bearbeiten."
   },
   "collectives": {
     "pageTitle": "Kollektive",

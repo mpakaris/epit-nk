@@ -4,8 +4,8 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
 import { useApp } from '@/context/AppContext';
 import { COLOR_SCHEMES, TYPOGRAPHY } from '@/lib/websiteThemes';
-import { podColor } from '@/lib/podColor';
 import Modal from '@/components/Modal';
+import WorkspacePodStack from '@/components/desktop/WorkspacePodStack';
 import { SECTION_META } from '../components/SectionCard';
 import SectionContentEditor from '../components/SectionContentEditor';
 import QrModal from '../components/QrModal';
@@ -22,7 +22,7 @@ function SectionHeader({ children }) {
     <h2 style={{
       margin: '0 0 10px 2px',
       fontFamily: "'Bricolage Grotesque', sans-serif",
-      fontSize: 18, fontWeight: 700, letterSpacing: '-0.02em', color: '#fff',
+      fontSize: 18, fontWeight: 700, letterSpacing: '-0.02em', color: '#0E1116',
     }}>
       {children}
     </h2>
@@ -166,9 +166,6 @@ export default function WebsiteDesktop({ website: initialWebsite, sections: init
   const [sections, setSections] = useState(initialSections);
   const { isDemoMode, activeCollectiveId } = useApp();
   const navPrefix = isDemoMode ? '/demo' : '';
-  const wsStyle = activeCollectiveId
-    ? { '--dk-c': podColor(activeCollectiveId).deep, '--dk-deep': podColor(activeCollectiveId).deep }
-    : {};
 
   const [showPublishWarning, setShowPublishWarning] = useState(false);
   const [expandedSection,    setExpandedSection]    = useState(null);
@@ -328,7 +325,7 @@ export default function WebsiteDesktop({ website: initialWebsite, sections: init
   const isPublished = website.status === 'published';
 
   return (
-    <div className="dk-page dk-mod-weboldalam" style={wsStyle}>
+    <div className="dk-page dk-mod-weboldalam">
 
       {/* QR and banner image modals */}
       {showQr && <QrModal url={publicUrl} onClose={() => setShowQr(false)} />}
@@ -355,19 +352,36 @@ export default function WebsiteDesktop({ website: initialWebsite, sections: init
           <h1 className="dk-h1">{t('pageHeading')}</h1>
         </div>
 
-        {/* Status badge */}
-        <span style={{
-          height: 32, padding: '0 14px', borderRadius: 16, fontSize: 12, fontWeight: 700,
-          display: 'inline-flex', alignItems: 'center', flexShrink: 0, whiteSpace: 'nowrap',
-          background: isPublished ? '#14532D' : 'rgba(255,255,255,0.14)',
-          color: isPublished ? '#fff' : 'rgba(255,255,255,0.75)',
-        }}>
-          {isPublished ? t('statusLive') : t('statusNotPublished')}
-        </span>
       </header>
 
       {/* ── Body ───────────────────────────────────────────────────────────────── */}
-      <div className="dk-body">
+      <div className="dk-body" style={{ background: 'var(--dk-deep)', padding: '16px 32px 24px' }}>
+        <WorkspacePodStack localOnly headerExtra={
+          <span style={{
+            height: 28, padding: '0 12px', borderRadius: 14, fontSize: 12, fontWeight: 700,
+            display: 'inline-flex', alignItems: 'center', whiteSpace: 'nowrap',
+            background: isPublished ? '#14532D' : 'rgba(255,255,255,0.14)',
+            color: isPublished ? '#fff' : 'rgba(255,255,255,0.75)',
+          }}>
+            {isPublished ? t('statusLive') : t('statusNotPublished')}
+          </span>
+        }>
+          {(openId) => openId !== null ? (
+
+          /* Collective workspace: coming soon */
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16, padding: '48px 24px', textAlign: 'center' }}>
+            <Globe size={40} style={{ color: '#5A5F68' }} aria-hidden="true" />
+            <div>
+              <div style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 20, fontWeight: 700, color: '#0E1116', letterSpacing: '-0.02em', marginBottom: 6 }}>
+                {t('collectiveComingSoonTitle')}
+              </div>
+              <p style={{ fontSize: 14, color: '#5A5F68', margin: 0, lineHeight: 1.5 }}>
+                {t('collectiveComingSoonDesc')}
+              </p>
+            </div>
+          </div>
+
+          ) : (<>
 
         {/* Error banner */}
         {error && (
@@ -676,6 +690,9 @@ export default function WebsiteDesktop({ website: initialWebsite, sections: init
 
           </div>{/* end right column */}
         </div>{/* end two-column */}
+          </>)}
+        </WorkspacePodStack>
+
       </div>{/* end dk-body */}
 
       {/* Free user publish warning */}

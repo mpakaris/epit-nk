@@ -5,11 +5,11 @@ import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useApp } from '@/context/AppContext';
 import { formatDate, formatMoney } from '@/lib/constants';
-import { podColor } from '@/lib/podColor';
 import Modal from '@/components/Modal';
 import StatusBadge from '@/components/StatusBadge';
 import { WorkspaceNotActivatedBanner, WorkspaceFrozenBanner } from '@/components/desktop/WorkspaceStatusBanners';
 import TransferToCollectiveModal from '@/components/TransferToCollectiveModal';
+import WorkspacePodStack from '@/components/desktop/WorkspacePodStack';
 import { Search, Plus, Trash2, X, ArrowRightLeft, MoreHorizontal } from 'lucide-react';
 
 const GRID = '2.2fr 1.4fr 1.1fr 110px 90px 90px 40px';
@@ -33,11 +33,7 @@ export default function OfferListDesktop() {
   const fmt = (n) => formatMoney(n, userCurrency);
 
   const activeColl = (collectives || []).find(c => c.collective_id === activeCollectiveId);
-  const workspaceLabel = activeColl ? activeColl.name : t('desktop.workspacePersonal');
 
-  const wsStyle = activeCollectiveId
-    ? { '--dk-c': podColor(activeCollectiveId).deep }
-    : {};
 
   const [search, setSearch]           = useState('');
   const [filter, setFilter]           = useState('all');
@@ -120,13 +116,13 @@ export default function OfferListDesktop() {
   ];
 
   return (
-    <div className="dk-page dk-mod-quotes" style={wsStyle}>
+    <div className="dk-page dk-mod-quotes">
 
       {/* ── Header ──────────────────────────────────────────────────────────────── */}
       <header className="dk-mh">
         <span className="dk-gl" aria-hidden="true" />
         <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 4 }}>
-          <span className="dk-kick">{t('desktop.kicker')} · {workspaceLabel}</span>
+          <span className="dk-kick">{t('desktop.kicker')}</span>
           <h1 className="dk-h1">{t('pageTitle')}</h1>
         </div>
         <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
@@ -151,16 +147,10 @@ export default function OfferListDesktop() {
       </header>
 
       {/* ── Body ────────────────────────────────────────────────────────────────── */}
-      <div className="dk-body">
-
-        {contextSwitching && (
-          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 300 }}>
-            <div className="dk-ws-spinner" />
-          </div>
-        )}
-
-        {!contextSwitching && activeColl?.status === 'not_activated' && <WorkspaceNotActivatedBanner />}
-        {!contextSwitching && activeColl?.status !== 'not_activated' && (
+      <div className="dk-body" style={{ background: 'var(--dk-deep)', padding: '16px 32px 24px' }}>
+        <WorkspacePodStack>
+          {activeColl?.status === 'not_activated' && <WorkspaceNotActivatedBanner />}
+          {activeColl?.status !== 'not_activated' && (
           <>
             {activeColl?.status === 'frozen' && <WorkspaceFrozenBanner isOwner={activeColl?.role === 'owner'} />}
             {/* Stats strip */}
@@ -168,12 +158,12 @@ export default function OfferListDesktop() {
               {STATS.map(stat => (
                 <div
                   key={stat.label}
-                  style={{ background: 'rgba(255,255,255,.12)', borderRadius: 18, padding: '14px 18px' }}
+                  style={{ background: '#F4F5F8', borderRadius: 18, padding: '14px 18px' }}
                 >
-                  <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', color: 'rgba(255,255,255,.65)', marginBottom: 6 }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', color: '#5A5F68', marginBottom: 6 }}>
                     {stat.label}
                   </div>
-                  <div style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 700, fontSize: 28, color: '#fff', letterSpacing: '-0.02em', lineHeight: 1 }}>
+                  <div style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 700, fontSize: 28, color: '#0E1116', letterSpacing: '-0.02em', lineHeight: 1 }}>
                     {stat.value}
                   </div>
                 </div>
@@ -189,15 +179,15 @@ export default function OfferListDesktop() {
                     className="dk-chip"
                     onClick={() => setFilter(f.key)}
                     style={{
-                      background: f.key === filter ? '#fff' : 'rgba(255,255,255,.14)',
-                      color: f.key === filter ? '#0E1116' : '#fff',
+                      background: f.key === filter ? '#6D3FD1' : '#F1F1F3',
+                      color: f.key === filter ? '#fff' : '#0E1116',
                     }}
                   >
                     {f.label}
                   </button>
                 ))}
               </div>
-              <span style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,.75)' }}>
+              <span style={{ fontSize: 13, fontWeight: 600, color: '#5A5F68' }}>
                 {t('desktop.shown', { shown: filtered.length, total: allQuotes.length })}
               </span>
             </div>
@@ -336,6 +326,7 @@ export default function OfferListDesktop() {
             </div>
           </>
         )}
+        </WorkspacePodStack>
       </div>
 
       {/* Delete modal */}

@@ -5,12 +5,12 @@ import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useApp } from '@/context/AppContext';
 import { formatDate } from '@/lib/constants';
-import { podColor } from '@/lib/podColor';
 import Modal from '@/components/Modal';
 import { WorkspaceNotActivatedBanner, WorkspaceFrozenBanner } from '@/components/desktop/WorkspaceStatusBanners';
 import TransferToCollectiveModal from '@/components/TransferToCollectiveModal';
 import SurveyMediaModal from '@/components/survey/SurveyMediaModal';
 import SurveyDrawingsModal from '@/components/survey/SurveyDrawingsModal';
+import WorkspacePodStack from '@/components/desktop/WorkspacePodStack';
 import { Search, Plus, Trash2, X, ArrowRightLeft, Camera, Edit3, MoreHorizontal } from 'lucide-react';
 
 const GRID = '20px 2.4fr 1.8fr 1.4fr 44px';
@@ -44,11 +44,7 @@ export default function SurveyListDesktop() {
   const p = (path) => `${navPrefix}${path}`;
 
   const activeColl = (collectives || []).find(c => c.collective_id === activeCollectiveId);
-  const workspaceLabel = activeColl ? activeColl.name : t('desktop.workspacePersonal');
 
-  const wsStyle = activeCollectiveId
-    ? { '--dk-c': podColor(activeCollectiveId).deep }
-    : {};
 
   const [search, setSearch]           = useState('');
   const [filter, setFilter]           = useState('all');
@@ -156,13 +152,13 @@ export default function SurveyListDesktop() {
     && !isDemoMode;
 
   return (
-    <div className="dk-page dk-mod-surveys" style={wsStyle}>
+    <div className="dk-page dk-mod-surveys">
 
       {/* ── Header ──────────────────────────────────────────────────────────────── */}
       <header className="dk-mh">
         <span className="dk-gl" aria-hidden="true" />
         <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 4 }}>
-          <span className="dk-kick">{t('desktop.kicker')} · {workspaceLabel}</span>
+          <span className="dk-kick">{t('desktop.kicker')}</span>
           <h1 className="dk-h1">{t('pageTitle')}</h1>
         </div>
         <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
@@ -187,16 +183,10 @@ export default function SurveyListDesktop() {
       </header>
 
       {/* ── Body ────────────────────────────────────────────────────────────────── */}
-      <div className="dk-body">
-
-        {contextSwitching && (
-          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 300 }}>
-            <div className="dk-ws-spinner" />
-          </div>
-        )}
-
-        {!contextSwitching && activeColl?.status === 'not_activated' && <WorkspaceNotActivatedBanner />}
-        {!contextSwitching && activeColl?.status !== 'not_activated' && (
+      <div className="dk-body" style={{ background: 'var(--dk-deep)', padding: '16px 32px 24px' }}>
+        <WorkspacePodStack>
+          {activeColl?.status === 'not_activated' && <WorkspaceNotActivatedBanner />}
+          {activeColl?.status !== 'not_activated' && (
           <>
             {activeColl?.status === 'frozen' && <WorkspaceFrozenBanner isOwner={activeColl?.role === 'owner'} />}
             {/* Filter chips + count */}
@@ -213,15 +203,15 @@ export default function SurveyListDesktop() {
                     className="dk-chip"
                     onClick={() => setFilter(f.key)}
                     style={{
-                      background: f.key === filter ? '#fff' : 'rgba(255,255,255,.14)',
-                      color: f.key === filter ? '#0E1116' : '#fff',
+                      background: f.key === filter ? '#0A7F72' : '#F1F1F3',
+                      color: f.key === filter ? '#fff' : '#0E1116',
                     }}
                   >
                     {f.label}
                   </button>
                 ))}
               </div>
-              <span style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,.75)' }}>
+              <span style={{ fontSize: 13, fontWeight: 600, color: '#5A5F68' }}>
                 {t('desktop.shown', { shown: filtered.length, total: allSurveys.length })}
               </span>
             </div>
@@ -400,6 +390,7 @@ export default function SurveyListDesktop() {
             </div>
           </>
         )}
+        </WorkspacePodStack>
       </div>
 
       <Modal

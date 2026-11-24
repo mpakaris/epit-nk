@@ -1345,7 +1345,9 @@
     "contactSocialPlaceholder": "@username",
     "slugSettingsPlaceholder": "e.g. john-smith-painter",
     "openSiteButton": "Open",
-    "activateHint": "To publish the current content"
+    "activateHint": "To publish the current content",
+    "collectiveComingSoonTitle": "Collective website — coming soon",
+    "collectiveComingSoonDesc": "Dedicated websites for collectives are under development. In the meantime, you can still edit your personal website."
   },
   "collectives": {
     "pageTitle": "Collectives",
