@@ -7,7 +7,7 @@ import { useApp } from '@/context/AppContext';
 import { PERSONAL_COLOR, podColor } from '@/lib/podColor';
 import {
   LayoutDashboard, Ruler, FileText, FolderKanban, BookUser,
-  MessageSquare, Calendar, Package, Globe,
+  MessageSquare, Calendar, LayoutTemplate, Globe,
   UsersRound, ChevronRight, CreditCard, Lock,
 } from 'lucide-react';
 
@@ -22,7 +22,7 @@ const MODULE_ACTIVE_COLOR = {
   elofizetes: '#B45309',
   kollektivak:'#1E1A4E',
   naptar:     '#2A2F3A',
-  katalogus:  '#2A2F3A',
+  sablonok:   '#7C5C2D',
   weboldalam: '#1A3A5C',
 };
 
@@ -92,7 +92,7 @@ export default function DesktopSidebar() {
   const workNavItems = [
     // { key: 'uzenetek',   href: `${navPrefix}/uzenetek`,   icon: MessageSquare, label: t('nav.messages')    },
     { key: 'naptar',     href: `${navPrefix}/naptar`,     icon: Calendar,      label: t('nav.calendar')    },
-    { key: 'katalogus',  href: `${navPrefix}/katalogus`,  icon: Package,       label: t('nav.catalogue')   },
+    { key: 'sablonok',   href: `${navPrefix}/sablonok`,   icon: LayoutTemplate, label: t('nav.templates')   },
     { key: 'weboldalam', href: `${navPrefix}/weboldalam`, icon: Globe,         label: t('nav.website')     },
     { key: 'kollektivak',  href: `${navPrefix}/kollektivak`,  icon: UsersRound,  label: t('nav.collectives')  },
     { key: 'elofizetes',   href: `${navPrefix}/elofizetes`,   icon: CreditCard,  label: t('nav.subscription') },

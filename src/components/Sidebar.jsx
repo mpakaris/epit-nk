@@ -11,7 +11,7 @@ import {
   Building2, LayoutDashboard, FolderKanban, Users, BookUser,
   FileText, Calendar, User, LogOut, ShieldAlert,
   ChevronLeft, ChevronRight, Eye, X, Menu, ClipboardList, Ruler,
-  Globe, ImageIcon, UsersRound, CreditCard, Package, MessageSquare, Mail,
+  Globe, ImageIcon, UsersRound, CreditCard, LayoutTemplate, MessageSquare, Mail,
 } from 'lucide-react';
 import FloatingNav from './mobile/FloatingNav';
 import NotificationBell from './NotificationBell';
@@ -58,7 +58,7 @@ function buildNavItems(isSuperAdmin, isAdmin, impersonating, websiteUnread = 0, 
     { href: prefix + '/felmeres',     label: t('nav.surveys'),        icon: Ruler,        count: counts.surveys  },
     { href: prefix + '/ajanlatok',    label: t('nav.quotes'),         icon: FileText,     count: counts.quotes   },
     { href: prefix + '/projektek',    label: t('nav.projects'),       icon: FolderKanban, count: counts.projects },
-    { href: prefix + '/katalogus',    label: t('nav.catalogue'),      icon: Package },
+    { href: prefix + '/sablonok',      label: t('nav.templates'),      icon: LayoutTemplate },
     { divider: true, key: 'd-kapcs',  group: t('groups.contacts') },
     { href: prefix + '/ugyfelek',     label: t('nav.clients'),        icon: BookUser,  count: counts.clients },
     // MESSAGING DISABLED — keep route but hide from nav until messaging is re-enabled
