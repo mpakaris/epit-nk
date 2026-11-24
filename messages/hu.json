@@ -1148,6 +1148,7 @@
     "collectiveTitle": "Kollektíva weboldal",
     "collectiveDesc": "A kollektívák számára készülő weboldalfunkció hamarosan elérhetővé válik.",
     "collectiveSoon": "Hamarosan",
+    "goToPersonal": "Személyes weboldalra",
     "previewButton": "Előnézet",
     "sectionHeroLabel": "Bemutatkozó fejléc",
     "sectionAboutLabel": "Rólam",
@@ -1266,7 +1267,8 @@
     "contactEmailPlaceholder": "neve@email.hu",
     "contactPhonePlaceholder": "+36 70 123 45 67",
     "contactSocialPlaceholder": "@felhasznalonev",
-    "slugSettingsPlaceholder": "pl. kovacs-janos-felujtio"
+    "slugSettingsPlaceholder": "pl. kovacs-janos-felujtio",
+    "openSiteButton": "Megnyitás"
   },
   "ideas": {
     "pageTitle": "Ötletek",
@@ -1495,7 +1497,8 @@
     "createError": "Hiba történt a létrehozáskor.",
     "createSuccess": "Kollektíva létrehozva",
     "showMembers": "Tagok megjelenítése",
-    "hideMembers": "Tagok elrejtése"
+    "hideMembers": "Tagok elrejtése",
+    "kickerLabel": "Munka"
   },
   "profile": {
     "pageTitle": "Profilom",
@@ -1736,7 +1739,11 @@
     "trialDaysLeftBanner": "— még {days} nap van hátra. Utána a Bázis csomagra vált a fiókod.",
     "securePayment": "🔒 Biztonságos fizetés – Creem",
     "mySubscriptionTitle": "Előfizetésem",
-    "planFree": "Ingyenes csomag"
+    "planFree": "Ingyenes csomag",
+    "kickerLabel": "Fiókom",
+    "sectionActiveSubscriptions": "Aktív előfizetések",
+    "sectionTiers": "Basic / Premium",
+    "sectionCollectives": "Kollektívák"
   },
   "dashboard": {
     "viewAll": "Összes",

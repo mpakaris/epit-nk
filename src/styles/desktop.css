@@ -161,7 +161,10 @@ body:has(.dk-root) {
 .dk-mod-projects  { --dk-c: #263248; --dk-deep: #0B0F17; --dk-active: #3A4963; background: var(--dk-deep); color: #fff; }
 .dk-mod-clients   { --dk-c: #B8456B; --dk-deep: #2A0F1A; --dk-active: #B8456B; background: var(--dk-deep); color: #fff; }
 .dk-mod-profile   { --dk-c: #44413B; --dk-deep: #121110; --dk-active: #44413B; background: var(--dk-deep); color: #fff; }
-.dk-mod-calendar  { --dk-c: #1E3059; --dk-deep: #0A1225; --dk-active: #1E3059; background: var(--dk-deep); color: #fff; }
+.dk-mod-calendar     { --dk-c: #1E3059; --dk-deep: #0A1225; --dk-active: #1E3059; background: var(--dk-deep); color: #fff; }
+.dk-mod-collectives  { --dk-c: #1E1A4E; --dk-deep: #0D0F13; --dk-active: #2D2A66; background: var(--dk-deep); color: #fff; }
+.dk-mod-subscription { --dk-c: #B45309; --dk-deep: #0D0F13; --dk-active: #B45309; background: var(--dk-deep); color: #fff; }
+.dk-mod-weboldalam   { --dk-c: #1A3A5C; --dk-deep: #0A1225; --dk-active: #2A4A6C; background: var(--dk-deep); color: #fff; }
 
 /* ── Module header ───────────────────────────────────────────────────────────── */
 .dk-mh {
@@ -456,4 +459,97 @@ body:has(.dk-root) {
     overflow: visible;
     height: 100vh;
   }
+}
+
+/* ── Section-body form controls — flat dk style ──────────────────────────────
+   Scoped under .dk-root so mobile (outside the shell) keeps its own styles.
+   The editor components (HeroEditor, ListEditor, etc.) remain unchanged —
+   their existing .form-control/.btn classes are simply restyled here.        */
+
+.dk-root .form-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #5A5F68;
+  margin-bottom: 8px;
+}
+
+.dk-root .form-group {
+  margin: 0;
+}
+
+.dk-root .form-control {
+  height: 44px;
+  width: 100%;
+  border: 0;
+  outline: none;
+  border-radius: 14px;
+  background: #fff;
+  color: #0E1116;
+  padding: 0 14px;
+  font-size: 14px;
+  font-weight: 500;
+  font-family: inherit;
+  box-shadow: none;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.dk-root .form-control:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(14, 17, 22, 0.08);
+}
+
+.dk-root textarea.form-control {
+  height: auto;
+  padding: 12px 14px;
+  resize: vertical;
+}
+
+.dk-root select.form-control {
+  background-image: none;
+}
+
+.dk-root .form-control-sm {
+  height: 38px;
+  padding: 0 12px;
+  font-size: 13px;
+  border-radius: 11px;
+}
+
+.dk-root textarea.form-control-sm {
+  height: auto;
+  padding: 10px 12px;
+}
+
+.dk-root .btn {
+  height: 40px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 700;
+  font-family: inherit;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: opacity 0.12s;
+  box-shadow: none;
+}
+
+.dk-root .btn:hover    { opacity: 0.85; }
+.dk-root .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.dk-root .btn-secondary { background: #EDEBE5; color: #0E1116; }
+.dk-root .btn-primary   { background: #0E1116; color: #fff; }
+.dk-root .btn-danger    { background: #FEE2E2; color: #B91C1C; }
+
+.dk-root .btn-sm {
+  height: 36px;
+  padding: 0 14px;
+  font-size: 12px;
+  border-radius: 18px;
 }

@@ -1225,6 +1225,7 @@
     "collectiveTitle": "Kollektiv-Website",
     "collectiveDesc": "Die Website-Funktion für Kollektive wird bald verfügbar sein.",
     "collectiveSoon": "Demnächst",
+    "goToPersonal": "Zur persönlichen Website",
     "previewButton": "Vorschau",
     "sectionHeroLabel": "Einführungsheader",
     "sectionAboutLabel": "Über mich",
@@ -1343,7 +1344,8 @@
     "contactEmailPlaceholder": "name@email.de",
     "contactPhonePlaceholder": "+49 170 123 4567",
     "contactSocialPlaceholder": "@benutzername",
-    "slugSettingsPlaceholder": "z.B. hans-mueller-maler"
+    "slugSettingsPlaceholder": "z.B. hans-mueller-maler",
+    "openSiteButton": "Öffnen"
   },
   "ideas": {
     "pageTitle": "Ideen",
@@ -1572,7 +1574,8 @@
     "createError": "Beim Erstellen ist ein Fehler aufgetreten.",
     "createSuccess": "Kollektiv erstellt",
     "showMembers": "Mitglieder anzeigen",
-    "hideMembers": "Mitglieder ausblenden"
+    "hideMembers": "Mitglieder ausblenden",
+    "kickerLabel": "Arbeit"
   },
   "profile": {
     "pageTitle": "Mein Profil",
@@ -1813,7 +1816,11 @@
     "trialDaysLeftBanner": "— noch {days} Tage übrig. Danach wechselt dein Konto zum Basis-Plan.",
     "securePayment": "🔒 Sichere Zahlung – Creem",
     "mySubscriptionTitle": "Mein Abonnement",
-    "planFree": "Kostenloses Paket"
+    "planFree": "Kostenloses Paket",
+    "kickerLabel": "Konto",
+    "sectionActiveSubscriptions": "Aktive Abonnements",
+    "sectionTiers": "Basic / Premium",
+    "sectionCollectives": "Kollektive"
   },
   "mobile": {
     "floatingNav": {

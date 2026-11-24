@@ -1225,6 +1225,7 @@
     "collectiveTitle": "Collective website",
     "collectiveDesc": "The website feature for collectives is coming soon.",
     "collectiveSoon": "Coming soon",
+    "goToPersonal": "Go to personal website",
     "previewButton": "Preview",
     "sectionHeroLabel": "Intro header",
     "sectionAboutLabel": "About me",
@@ -1343,7 +1344,8 @@
     "contactEmailPlaceholder": "name@email.com",
     "contactPhonePlaceholder": "+44 20 1234 5678",
     "contactSocialPlaceholder": "@username",
-    "slugSettingsPlaceholder": "e.g. john-smith-painter"
+    "slugSettingsPlaceholder": "e.g. john-smith-painter",
+    "openSiteButton": "Open"
   },
   "ideas": {
     "pageTitle": "Ideas",
@@ -1572,7 +1574,8 @@
     "createError": "An error occurred while creating.",
     "createSuccess": "Collective created",
     "showMembers": "Show members",
-    "hideMembers": "Hide members"
+    "hideMembers": "Hide members",
+    "kickerLabel": "Work"
   },
   "profile": {
     "pageTitle": "My profile",
@@ -1813,7 +1816,11 @@
     "trialDaysLeftBanner": "— {days} days remaining. After that your account switches to the Basic plan.",
     "securePayment": "🔒 Secure payment – Creem",
     "mySubscriptionTitle": "My subscription",
-    "planFree": "Free plan"
+    "planFree": "Free plan",
+    "kickerLabel": "Account",
+    "sectionActiveSubscriptions": "Active Subscriptions",
+    "sectionTiers": "Basic / Premium",
+    "sectionCollectives": "Collectives"
   },
   "mobile": {
     "floatingNav": {
