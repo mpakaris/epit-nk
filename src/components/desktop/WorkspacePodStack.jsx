@@ -109,7 +109,7 @@ export default function WorkspacePodStack({ children, localOnly = false, headerE
             <div key={String(ws.id)} style={{ borderRadius: 24, overflow: 'hidden' }}>
               <PodHeader ws={ws} collapsed={false} extra={headerExtra} />
               <div style={{
-                background: '#fff', color: '#0E1116',
+                background: '#EDEBE5', color: '#0E1116',
                 display: 'flex', flexDirection: 'column', gap: 16,
                 padding: '20px 28px 28px',
               }}>
