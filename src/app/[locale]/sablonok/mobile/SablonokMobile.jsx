@@ -722,7 +722,7 @@ export default function SablonokMobile() {
         <div style={{ padding: '0 14px' }}>
 
           {/* Search bar */}
-          <div style={{ position: 'relative', padding: '14px 0 4px' }}>
+          <div style={{ position: 'relative', padding: '14px 0 16px' }}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8A8F9A" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
               <circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/>
             </svg>
