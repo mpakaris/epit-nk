@@ -1345,7 +1345,8 @@
     "contactPhonePlaceholder": "+44 20 1234 5678",
     "contactSocialPlaceholder": "@username",
     "slugSettingsPlaceholder": "e.g. john-smith-painter",
-    "openSiteButton": "Open"
+    "openSiteButton": "Open",
+    "activateHint": "To publish the current content"
   },
   "ideas": {
     "pageTitle": "Ideas",

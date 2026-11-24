@@ -1345,7 +1345,8 @@
     "contactPhonePlaceholder": "+49 170 123 4567",
     "contactSocialPlaceholder": "@benutzername",
     "slugSettingsPlaceholder": "z.B. hans-mueller-maler",
-    "openSiteButton": "Öffnen"
+    "openSiteButton": "Öffnen",
+    "activateHint": "Zum Veröffentlichen des aktuellen Inhalts"
   },
   "ideas": {
     "pageTitle": "Ideen",

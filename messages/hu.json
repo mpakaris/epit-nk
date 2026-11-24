@@ -1268,7 +1268,8 @@
     "contactPhonePlaceholder": "+36 70 123 45 67",
     "contactSocialPlaceholder": "@felhasznalonev",
     "slugSettingsPlaceholder": "pl. kovacs-janos-felujtio",
-    "openSiteButton": "Megnyitás"
+    "openSiteButton": "Megnyitás",
+    "activateHint": "Az aktuális tartalom közzétételéhez"
   },
   "ideas": {
     "pageTitle": "Ötletek",

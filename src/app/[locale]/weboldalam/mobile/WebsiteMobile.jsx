@@ -241,7 +241,6 @@ export default function WebsiteMobile({ website: initialWebsite, sections: initi
   const [showQr, setShowQr] = useState(false);
   const [toast, setToast] = useState('');
   const [showPublishWarning, setShowPublishWarning] = useState(false);
-  const [isDirty, setIsDirty] = useState(false);
   const [bannerPickerOpen,  setBannerPickerOpen]  = useState(false);
   const [bannerPickerIndex, setBannerPickerIndex] = useState(0);
 
@@ -292,7 +291,6 @@ export default function WebsiteMobile({ website: initialWebsite, sections: initi
 
   const updateTheme = async (next) => {
     setTheme(next);
-    setIsDirty(true);
     if (isDemoMode) { try { localStorage.setItem(DEMO_WB_LS_KEY, JSON.stringify({ sections, theme: next })); } catch {} return; }
     try { const r = await fetch('/api/website', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ theme: next }) }); if (r.ok) flash(t('changesSaved')); } catch {}
   };
@@ -303,7 +301,6 @@ export default function WebsiteMobile({ website: initialWebsite, sections: initi
       if (isDemoMode) { try { localStorage.setItem(DEMO_WB_LS_KEY, JSON.stringify({ sections: next, theme })); } catch {} }
       return next;
     });
-    setIsDirty(true);
     if (isDemoMode) return;
     clearTimeout(saveTimers.current[updated.section_type]);
     saveTimers.current[updated.section_type] = setTimeout(async () => {
@@ -320,7 +317,7 @@ export default function WebsiteMobile({ website: initialWebsite, sections: initi
       if (!sr.ok) return;
       const pr = await fetch('/api/website', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'publish' }) });
       const d = await pr.json();
-      if (pr.ok) { setWebsite(d.website); setSections(d.sections); setIsDirty(false); flash(t('published')); setOpenSheet(null); }
+      if (pr.ok) { setWebsite(d.website); setSections(d.sections); flash(t('published')); setOpenSheet(null); }
     } finally { setPublishing(false); }
   };
 
@@ -335,7 +332,7 @@ export default function WebsiteMobile({ website: initialWebsite, sections: initi
       const r = await fetch('/api/website', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'update_slug', slug: settingsSlug }) });
       const d = await r.json();
       if (!r.ok) { setSlugSaveErr(d.error || t('savingError')); return; }
-      setWebsite(d.website); setSlugSaveOk(true); setSlugResult(null); setIsDirty(true);
+      setWebsite(d.website); setSlugSaveOk(true); setSlugResult(null);
       flash(t('changesSaved'));
       setTimeout(() => setSlugSaveOk(false), 3000);
     } catch { setSlugSaveErr(t('networkRetry')); }
@@ -349,7 +346,7 @@ export default function WebsiteMobile({ website: initialWebsite, sections: initi
     try {
       const r = await fetch('/api/website', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ trade_id: newTradeId || null, custom_trade: null }) });
       const d = await r.json();
-      if (r.ok) { setWebsite(d.website); setIsDirty(true); flash(t('changesSaved')); }
+      if (r.ok) { setWebsite(d.website); flash(t('changesSaved')); }
     } catch {}
   };
 
@@ -360,7 +357,7 @@ export default function WebsiteMobile({ website: initialWebsite, sections: initi
     try {
       const r = await fetch('/api/website', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ trade_id: null, custom_trade: customTrade.trim() }) });
       const d = await r.json();
-      if (r.ok) { setWebsite(d.website); setIsDirty(true); flash(t('changesSaved')); }
+      if (r.ok) { setWebsite(d.website); flash(t('changesSaved')); }
     } catch {}
   };
 
@@ -480,17 +477,6 @@ export default function WebsiteMobile({ website: initialWebsite, sections: initi
         </div>
       </header>
 
-      {/* ── Dirty banner ─────────────────────────────────────────────── */}
-      {isDirty && (
-        <div style={{ background: '#7A3300', color: '#fff', padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span style={{ flex: 1, fontSize: 13, fontWeight: 600, lineHeight: 1.4 }}>{t('dirtyBanner')}</span>
-          <button onClick={() => website.is_premium ? handlePublish() : setShowPublishWarning(true)} disabled={publishing}
-            style={{ flexShrink: 0, height: 36, padding: '0 14px', border: 0, borderRadius: 18, background: '#fff', color: '#7A3300', fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
-            {publishing ? <SpinSvg s={14} /> : <GlobeSvg />}{t('dirtyBannerBtn')}
-          </button>
-        </div>
-      )}
-
       {/* ── Pods ────────────────────────────────────────────────────────── */}
       <div style={{ padding: '20px 16px 120px', display: 'flex', flexDirection: 'column', gap: 20 }}>
 
@@ -538,10 +524,10 @@ export default function WebsiteMobile({ website: initialWebsite, sections: initi
           style={{ flexShrink: 0, height: 60, padding: '0 20px', border: 0, borderRadius: 30, background: '#0A7F72', color: '#fff', fontSize: 15, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', textDecoration: 'none' }}>
           {t('previewButton')}
         </a>
-        <button onClick={() => website.is_premium ? handlePublish() : setShowPublishWarning(true)} disabled={publishing || (isPublished && !isDirty)}
-          style={{ flex: 1, height: 60, border: 0, borderRadius: 30, background: (isPublished && !isDirty) ? 'rgba(255,255,255,0.15)' : HDR, color: '#fff', fontSize: 17, fontWeight: 700, cursor: (isPublished && !isDirty) ? 'default' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, opacity: publishing ? 0.7 : 1, boxShadow: (isPublished && !isDirty) ? 'none' : '0 14px 26px -12px rgba(14,17,22,0.3)' }}>
+        <button onClick={() => website.is_premium ? handlePublish() : setShowPublishWarning(true)} disabled={publishing}
+          style={{ flex: 1, height: 60, border: 0, borderRadius: 30, background: HDR, color: '#fff', fontSize: 17, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, opacity: publishing ? 0.7 : 1, boxShadow: '0 14px 26px -12px rgba(14,17,22,0.3)' }}>
           {publishing ? <SpinSvg s={18} /> : <GlobeSvg />}
-          {isPublished ? t('statusLive') : t('publishButton')}
+          {t('publishButton')}
         </button>
       </div>
 

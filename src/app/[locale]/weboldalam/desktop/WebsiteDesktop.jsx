@@ -11,7 +11,7 @@ import SectionContentEditor from '../components/SectionContentEditor';
 import QrModal from '../components/QrModal';
 import ImagePickerModal from '../components/ImagePickerModal';
 import {
-  Globe, Check, X, Loader2, AlertTriangle, ExternalLink, Eye,
+  Globe, Check, Loader2, AlertTriangle, ExternalLink, Eye,
   CheckCircle2, Copy, QrCode, Trash2, Image as ImageIcon, ChevronDown,
 } from 'lucide-react';
 
@@ -285,20 +285,6 @@ export default function WebsiteDesktop({ website: initialWebsite, sections: init
     finally { setPublishing(false); }
   };
 
-  const handleUnpublish = async () => {
-    if (isDemoMode) { showToast(t('demoPublishUnavailable')); return; }
-    setPublishing(true);
-    try {
-      const r = await fetch('/api/website', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'unpublish' }),
-      });
-      const d = await r.json();
-      if (r.ok) { setWebsite(d.website); setSections(d.sections); }
-    } catch {}
-    finally { setPublishing(false); }
-  };
-
   const handleSaveTrade = async (newTradeId) => {
     if (isDemoMode) { showToast(t('demoUnavailable')); return; }
     setSettingsTradeId(newTradeId);
@@ -339,8 +325,7 @@ export default function WebsiteDesktop({ website: initialWebsite, sections: init
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const isPublished        = website.status === 'published';
-  const wasPreviouslyPublished = !isPublished && !!website.published_at;
+  const isPublished = website.status === 'published';
 
   return (
     <div className="dk-page dk-mod-weboldalam" style={wsStyle}>
@@ -377,25 +362,8 @@ export default function WebsiteDesktop({ website: initialWebsite, sections: init
           background: isPublished ? '#14532D' : 'rgba(255,255,255,0.14)',
           color: isPublished ? '#fff' : 'rgba(255,255,255,0.75)',
         }}>
-          {isPublished ? t('statusLive') : wasPreviouslyPublished ? t('statusDraftWasLive') : t('statusNotPublished')}
+          {isPublished ? t('statusLive') : t('statusNotPublished')}
         </span>
-
-        {/* Publish / Draft action */}
-        <div style={{ flexShrink: 0 }}>
-          {isPublished ? (
-            <button type="button" className="dk-btn dk-btn-w" onClick={handleUnpublish} disabled={publishing}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 44, fontSize: 14 }}>
-              {publishing ? <Loader2 size={15} className="animate-spin" /> : <X size={15} />}
-              {t('draftButton')}
-            </button>
-          ) : (
-            <button type="button" className="dk-btn dk-btn-w" onClick={handlePublishClick} disabled={publishing}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 44, fontSize: 14 }}>
-              {publishing ? <Loader2 size={15} className="animate-spin" /> : <Globe size={15} />}
-              {t('publishButton')}
-            </button>
-          )}
-        </div>
       </header>
 
       {/* ── Body ───────────────────────────────────────────────────────────────── */}
@@ -485,6 +453,21 @@ export default function WebsiteDesktop({ website: initialWebsite, sections: init
                       <ExternalLink size={15} /> {t('openSiteButton')}
                     </a>
                   )}
+                </div>
+
+                {/* Activate / Save */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <span style={{ flex: 1, fontSize: 12, fontWeight: 600, color: '#5A5F68', lineHeight: 1.4 }}>
+                    {t('activateHint')}
+                  </span>
+                  <button
+                    type="button" onClick={handlePublishClick} disabled={publishing}
+                    className="dk-btn dk-btn-dark"
+                    style={{ flexShrink: 0, fontSize: 14, display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                  >
+                    {publishing ? <Loader2 size={15} className="animate-spin" /> : <Globe size={15} />}
+                    {t('publishButton')}
+                  </button>
                 </div>
 
               </div>
