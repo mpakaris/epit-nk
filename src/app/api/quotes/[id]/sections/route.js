@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { logAudit } from '@/lib/audit';
+import { checkCollectiveStatus } from '@/lib/collectiveGuard';
 
 async function getCtx(quoteId) {
   const supabase = await createClient();
@@ -50,6 +51,9 @@ export async function POST(request, { params }) {
   const { id: quoteId } = await params;
   const ctx = await getCtx(quoteId);
   if (ctx.err) return Response.json({ error: ctx.err }, { status: ctx.status });
+
+  const statusBlocked = await checkCollectiveStatus(ctx.admin, ctx.quote.collective_id);
+  if (statusBlocked) return statusBlocked;
 
   const { name, description, width_m, length_m, height_m, window_count, door_count, sort_order, survey_entry_id, start_date, end_date } = await request.json();
   if (!name?.trim()) return Response.json({ error: 'Szekció neve kötelező' }, { status: 400 });

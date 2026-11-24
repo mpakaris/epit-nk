@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { checkSurveyAccess } from '@/lib/surveyAccess';
 import { logAudit } from '@/lib/audit';
+import { checkCollectiveStatus } from '@/lib/collectiveGuard';
 
 async function getCtx(surveyId) {
   const supabase = await createClient();
@@ -23,6 +24,9 @@ export async function POST(request, { params }) {
   const { id: surveyId } = await params;
   const ctx = await getCtx(surveyId);
   if (ctx.err) return Response.json({ error: ctx.err }, { status: ctx.status });
+
+  const statusBlocked = await checkCollectiveStatus(ctx.admin, ctx.survey.collective_id);
+  if (statusBlocked) return statusBlocked;
 
   const { name, description, width_m, length_m, height_m, window_count, door_count, sort_order } = await request.json();
   if (!name?.trim()) return Response.json({ error: 'A hely neve kötelező' }, { status: 400 });

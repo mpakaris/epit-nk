@@ -49,14 +49,17 @@ export async function GET(request) {
   // Return collective memberships for the context switcher
   const { data: membershipsRaw } = await admin
     .from('collective_members')
-    .select('collective_id, role, status, collectives(id, name, collective_tier, creem_subscription_id, subscription_status, subscription_period_end, is_inclusive)')
+    .select('collective_id, role, status, collectives(id, name, status, collective_tier, is_inclusive, creem_subscription_id, subscription_status, subscription_period_end)')
     .eq('user_id', effectiveUserId)
     .eq('status', 'active');
 
   const collectives = (membershipsRaw || []).map(m => ({
-    collective_id: m.collective_id,
-    role:          m.role,
-    name:          m.collectives?.name || null,
+    collective_id:  m.collective_id,
+    role:           m.role,
+    name:           m.collectives?.name || null,
+    status:         m.collectives?.status ?? 'active',
+    collective_tier: m.collectives?.collective_tier ?? null,
+    is_inclusive:   m.collectives?.is_inclusive ?? false,
   }));
 
   // Return owned paid collective subscriptions for the subscription management panel

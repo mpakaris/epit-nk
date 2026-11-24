@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { logAudit } from '@/lib/audit';
+import { checkCollectiveStatus } from '@/lib/collectiveGuard';
 
 async function getCallerAndProject(admin, userId, projectId) {
   const { data: profile } = await admin.from('profiles').select('id, role, display_name').eq('id', userId).single();
@@ -77,6 +78,9 @@ export async function POST(request) {
   const ctx = await getCallerAndProject(admin, user.id, project_id);
   if (ctx.err) return Response.json({ error: ctx.err }, { status: ctx.status });
   if (ctx.project.status === 'closed' || ctx.project.status === 'expired') return Response.json({ error: 'Lezárt projekthez nem lehet adatot hozzáadni.' }, { status: 423 });
+
+  const statusBlocked = await checkCollectiveStatus(admin, ctx.project.collective_id);
+  if (statusBlocked) return statusBlocked;
 
   const { data: entry, error: insertErr } = await admin.from('diary_entries').insert([{
     project_id,

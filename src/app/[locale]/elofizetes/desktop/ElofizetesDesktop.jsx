@@ -1,15 +1,18 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
+import { useCollectives } from '@/hooks/useCollectives';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import {
   Check, Zap, Star, Building2, Clock,
   AlertCircle, CheckCircle2, X, Loader2, RefreshCw,
-  CreditCard, AlertTriangle, ChevronDown,
+  CreditCard, AlertTriangle, ChevronDown, Lock, Rocket,
+  Users, ChevronRight,
 } from 'lucide-react';
+import { TIER_DISPLAY } from '@/lib/collectivesService';
 import { isEffectivePremium } from '@/lib/subscriptionLimits';
 import { formatDate } from '@/lib/constants';
 import Modal, { AlertModal } from '@/components/Modal';
@@ -133,11 +136,14 @@ function PlanCard({ plan, isCurrent, isLoading, onAction, lockedBanner, t }) {
 // ── Main component ────────────────────────────────────────────────────────────
 
 export default function ElofizetesDesktop() {
-  const { currentUser, refreshSupabaseData, refreshCurrentUser } = useApp();
+  const { currentUser, refreshSupabaseData, refreshCurrentUser, collectives: appCollectives } = useApp();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const t  = useTranslations('subscription');
   const tp = useTranslations('profile');
   const tc = useTranslations('common');
+  const tk = useTranslations('collectives');
+  const { collectives: fullCollectives, refresh: refreshCollectives } = useCollectives();
 
   // ── Checkout state ─────────────────────────────────────────────────────────
   const [loadingPlan,       setLoadingPlan]       = useState(null);
@@ -160,6 +166,20 @@ export default function ElofizetesDesktop() {
   const [collectiveSubs,           setCollectiveSubs]           = useState([]);
   const [historyOpen,              setHistoryOpen]              = useState(false);
   const [subReloadKey,             setSubReloadKey]             = useState(0);
+
+  // ── Collective management state ────────────────────────────────────────────
+  const [activateModal,          setActivateModal]          = useState(null); // { id, name } of collective to activate
+  const [activateTier,           setActivateTier]           = useState(null); // 's'|'m'|'l'|'xl'
+  const [activatingCollective,   setActivatingCollective]   = useState(false);
+  const [collectiveCheckoutUrl,  setCollectiveCheckoutUrl]  = useState(null);
+  const [collectiveCheckoutId,   setCollectiveCheckoutId]   = useState(null); // which collective we're activating
+  const collectiveCheckoutPollRef = useRef(null);
+  const collectiveWebhookPollRef  = useRef(null);
+  const [changePlanModal,        setChangePlanModal]        = useState(null); // { id, name, tier } of collective
+  const [changePlanTier,         setChangePlanTier]         = useState(null);
+  const [changingPlan,           setChangingPlan]           = useState(false);
+  const [changePlanError,        setChangePlanError]        = useState('');
+  const activateCardRef = useRef(null);
 
   // ── Modal state ────────────────────────────────────────────────────────────
   const [cancelPremiumModal,    setCancelPremiumModal]    = useState(false);
@@ -206,6 +226,17 @@ export default function ElofizetesDesktop() {
       href: '/kollektivak',
     },
   ];
+
+  // ── Auto-open activation modal from ?activate=<id> query param ───────────
+  useEffect(() => {
+    const activateId = searchParams?.get('activate');
+    if (!activateId || !appCollectives?.length) return;
+    const col = appCollectives.find(c => c.collective_id === activateId);
+    if (col && col.status === 'not_activated') {
+      setActivateModal({ id: col.collective_id, name: col.name });
+      setActivateTier(null);
+    }
+  }, [searchParams, appCollectives]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Load subscription data ─────────────────────────────────────────────────
   useEffect(() => {
@@ -345,6 +376,137 @@ export default function ElofizetesDesktop() {
     } catch { setAlertModal({ variant: 'error', message: tp('cancelErrorMsg') }); }
     finally { setCancelingCollective(false); }
   };
+
+  // ── Collective activation checkout ─────────────────────────────────────────
+  const TIER_PRODUCT = {
+    s: process.env.NEXT_PUBLIC_CREEM_COLLECTIVE_SMALL_PRODUCT_ID,
+    m: process.env.NEXT_PUBLIC_CREEM_COLLECTIVE_MEDIUM_PRODUCT_ID,
+    l: process.env.NEXT_PUBLIC_CREEM_COLLECTIVE_LARGE_PRODUCT_ID,
+  };
+
+  async function handleActivateCollective(collectiveId, tier) {
+    if (!collectiveId || !tier || tier === 'xl') return;
+    const productId = TIER_PRODUCT[tier];
+    if (!productId) { setAlertModal({ variant: 'error', message: `A(z) ${tier.toUpperCase()} csomag termékidentifikátora nincs konfigurálva.` }); return; }
+    setActivatingCollective(true);
+    // Clear any stale success entry so the 400ms poll doesn't skip over it
+    localStorage.removeItem('creem_checkout_done');
+    try {
+      const res  = await fetch('/api/checkout', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ productId, collectiveId, successUrl: '/checkout-popup-success?checkout_type=collective_activate' }) });
+      const data = await res.json();
+      if (!data.checkoutUrl) { setAlertModal({ variant: 'error', message: data.error || t('checkoutError') }); setActivatingCollective(false); return; }
+
+      const capturedName = activateModal?.name || '';
+
+      const onCollectiveSuccess = async () => {
+        clearInterval(collectiveCheckoutPollRef.current); collectiveCheckoutPollRef.current = null;
+        clearInterval(collectiveWebhookPollRef.current);  collectiveWebhookPollRef.current  = null;
+        window.removeEventListener('storage', onColStorage);
+        window.removeEventListener('message', onColMessage);
+        setCollectiveCheckoutUrl(null);
+        localStorage.removeItem('creem_checkout_done');
+        await refreshCurrentUser?.();
+        refreshCollectives?.();
+        setSubReloadKey(k => k + 1); // reload ownedCollectiveSubs so Active Subscriptions shows the new entry
+        setActivateModal(null);
+        setAlertModal({ variant: 'success', title: tk('activateSuccess', { name: capturedName }), message: '' });
+        setActivatingCollective(false);
+      };
+
+      const onColStorage = (e) => {
+        if (e.key !== 'creem_checkout_done') return;
+        let d; try { d = JSON.parse(e.newValue); } catch { return; }
+        if (d?.checkoutType !== 'collective_activate') return;
+        onCollectiveSuccess();
+      };
+      const onColMessage = (e) => {
+        if (e.origin !== window.location.origin) return;
+        if (e.data?.type !== 'creem_checkout_success') return;
+        if (e.data?.checkoutType !== 'collective_activate') return;
+        onCollectiveSuccess();
+      };
+
+      collectiveCheckoutPollRef.current = setInterval(() => {
+        const stored = localStorage.getItem('creem_checkout_done');
+        if (!stored) return;
+        let d; try { d = JSON.parse(stored); } catch { return; }
+        if (d?.checkoutType !== 'collective_activate') return;
+        onCollectiveSuccess();
+      }, 400);
+      window.addEventListener('storage', onColStorage);
+      window.addEventListener('message', onColMessage);
+      setCollectiveCheckoutId(collectiveId);
+      setCollectiveCheckoutUrl(data.checkoutUrl);
+      setActivateModal(null); // close tier picker so the Creem iframe is accessible
+
+      // Poll the profile every 1.5s — the webhook sets collectives.status='active';
+      // this is the primary auto-close path when the localStorage signal is missed
+      collectiveWebhookPollRef.current = setInterval(async () => {
+        try {
+          const r = await fetch('/api/auth/profile?real=1', { cache: 'no-store' });
+          if (!r.ok) return;
+          const { profile } = await r.json();
+          const updated = (profile?.collectives || []).find(c => c.collective_id === collectiveId);
+          if (updated?.status === 'active') onCollectiveSuccess();
+        } catch {}
+      }, 1500);
+    } catch { setAlertModal({ variant: 'error', message: t('checkoutError') }); setActivatingCollective(false); }
+  }
+
+  async function closeCollectiveCheckout() {
+    clearInterval(collectiveCheckoutPollRef.current); collectiveCheckoutPollRef.current = null;
+    clearInterval(collectiveWebhookPollRef.current);  collectiveWebhookPollRef.current  = null;
+    setCollectiveCheckoutUrl(null);
+    setActivatingCollective(false);
+    await refreshCurrentUser?.();
+    refreshCollectives?.();
+    setSubReloadKey(k => k + 1); // reload ownedCollectiveSubs so Active Subscriptions reflects new state
+  }
+
+  // ── Resume collective subscription ──────────────────────────────────────────
+  const [resumeCollectiveModal, setResumeCollectiveModal] = useState(null); // { collectiveId, name, creem_subscription_id, periodEnd }
+  const [resumingCollectiveId,  setResumingCollectiveId]  = useState(null);
+
+  async function handleResumeCollective() {
+    const { collectiveId, creem_subscription_id } = resumeCollectiveModal || {};
+    if (!creem_subscription_id) { setAlertModal({ variant: 'error', message: tk('resumeError') }); return; }
+    setResumingCollectiveId(collectiveId);
+    try {
+      const res  = await fetch('/api/subscriptions/resume', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ subscriptionId: creem_subscription_id, collectiveId }) });
+      const data = await res.json();
+      if (res.ok) {
+        setCollectiveSubs(prev => prev.map(c => c.collective_id === collectiveId ? { ...c, subscription_status: 'active', subscription_period_end: null } : c));
+        await refreshCurrentUser?.();
+        setResumeCollectiveModal(null);
+        setAlertModal({ variant: 'success', title: tk('resumeSuccess'), message: '' });
+      } else {
+        setAlertModal({ variant: 'error', message: data.error || tk('resumeError') });
+      }
+    } catch { setAlertModal({ variant: 'error', message: tk('resumeError') }); }
+    finally { setResumingCollectiveId(null); }
+  }
+
+  // ── Change plan ─────────────────────────────────────────────────────────────
+  async function handleChangePlan(collectiveId, tier) {
+    if (!tier) return;
+    setChangingPlan(true);
+    setChangePlanError('');
+    try {
+      const res  = await fetch(`/api/collectives/${collectiveId}/change-plan`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tier }) });
+      const data = await res.json();
+      if (res.status === 422 && data.error === 'too_many_members') {
+        setChangePlanError(tk('changePlanDowngradeBlock', { n: data.current - data.allowed }));
+        setChangingPlan(false);
+        return;
+      }
+      if (!res.ok) { setChangePlanError(data.error || tk('errorGeneric')); setChangingPlan(false); return; }
+      setChangePlanModal(null);
+      setAlertModal({ variant: 'success', title: tk('upgradeSuccess'), message: tk('tierChangeSuccessMsg', { name: tier.toUpperCase() }) });
+      await refreshCurrentUser?.();
+      refreshCollectives?.();
+    } catch { setChangePlanError(tk('connectionError')); }
+    finally { setChangingPlan(false); }
+  }
 
   async function handleCheckout(plan) {
     if (!plan.productId) { if (plan.href) router.push(plan.href); return; }
@@ -529,12 +691,12 @@ export default function ElofizetesDesktop() {
                         {resumingPremium ? <><Loader2 size={13} className="animate-spin" /> {tp('subResumingBtn')}</> : <><RefreshCw size={13} /> {tp('subResumeBtn')}</>}
                       </button>
                     ) : (
-                      <button type="button" onClick={() => setCancelPremiumModal(true)} style={{ height: 38, padding: '0 16px', border: '1px solid var(--danger-border)', borderRadius: 19, background: 'transparent', color: 'var(--danger-text)', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+                      <button type="button" onClick={() => setCancelPremiumModal(true)} style={{ height: 38, padding: '0 16px', border: 0, borderRadius: 19, background: '#B71C1C', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
                         {tp('premiumCancel')}
                       </button>
                     )
                   )}
-                  <button type="button" onClick={handleOpenPortal} disabled={portalLoading} style={{ height: 38, padding: '0 16px', border: '1px solid #EDEBE5', borderRadius: 19, background: '#fff', color: '#5A5F68', fontSize: 13, fontWeight: 600, cursor: portalLoading ? 'default' : 'pointer', display: 'flex', alignItems: 'center', gap: 6, opacity: portalLoading ? 0.6 : 1 }}>
+                  <button type="button" onClick={handleOpenPortal} disabled={portalLoading} style={{ height: 38, padding: '0 16px', border: 0, borderRadius: 19, background: '#1e3a8a', color: '#fff', fontSize: 13, fontWeight: 700, cursor: portalLoading ? 'default' : 'pointer', display: 'flex', alignItems: 'center', gap: 6, opacity: portalLoading ? 0.6 : 1 }}>
                     {portalLoading ? <><Loader2 size={13} className="animate-spin" /> {tp('portalOpening')}</> : tp('managePayment')}
                   </button>
                 </div>
@@ -563,8 +725,12 @@ export default function ElofizetesDesktop() {
                         <span style={{ height: 22, padding: '0 8px', borderRadius: 11, fontSize: 11, fontWeight: 700, background: isScheduled ? '#FFF4E5' : '#E7F4EC', color: isScheduled ? '#6B3A00' : '#14532D', display: 'inline-flex', alignItems: 'center', flexShrink: 0 }}>
                           {isScheduled ? tp('subCancels') : tp('subActive')}
                         </span>
-                        {!isScheduled && (
-                          <button type="button" onClick={() => setCancelCollectiveModal({ collective_id: c.collective_id, name: c.name, creem_subscription_id: c.creem_subscription_id })} style={{ height: 34, padding: '0 12px', border: '1px solid var(--danger-border)', borderRadius: 17, background: 'transparent', color: 'var(--danger-text)', fontSize: 12, fontWeight: 700, cursor: 'pointer', flexShrink: 0 }}>
+                        {isScheduled ? (
+                          <button type="button" onClick={() => setResumeCollectiveModal({ collectiveId: c.collective_id, name: c.name, creem_subscription_id: c.creem_subscription_id, periodEnd: c.subscription_period_end })} disabled={resumingCollectiveId === c.collective_id} style={{ height: 34, padding: '0 12px', border: 0, borderRadius: 17, background: '#14532D', color: '#fff', fontSize: 12, fontWeight: 700, cursor: 'pointer', flexShrink: 0, display: 'flex', alignItems: 'center', gap: 6, opacity: resumingCollectiveId === c.collective_id ? 0.7 : 1 }}>
+                            {resumingCollectiveId === c.collective_id ? tk('resumingLabel') : tk('resumeConfirmLabel')}
+                          </button>
+                        ) : (
+                          <button type="button" onClick={() => setCancelCollectiveModal({ collective_id: c.collective_id, name: c.name, creem_subscription_id: c.creem_subscription_id })} style={{ height: 34, padding: '0 12px', border: 0, borderRadius: 17, background: '#B71C1C', color: '#fff', fontSize: 12, fontWeight: 700, cursor: 'pointer', flexShrink: 0 }}>
                             {tp('cancelSubscriptionBtn')}
                           </button>
                         )}
@@ -616,21 +782,88 @@ export default function ElofizetesDesktop() {
           })}
         </div>
 
-        {/* Section 3: Collectives */}
-        <SectionHeader>{t('sectionCollectives')}</SectionHeader>
-        {(() => {
-          const plan = PLANS.find(p => p.key === 'collective');
-          const lockedBanner = !effectivePremium ? t('collectiveLockedBanner') : null;
+        {/* Section 3: Collective cards */}
+        <SectionHeader>{tk('collectiveCardSectionTitle')}</SectionHeader>
+        {!effectivePremium && (
+          <div style={{ background: 'rgba(255,255,255,0.08)', borderRadius: 16, padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 12 }}>
+            <Lock size={16} color="rgba(255,255,255,0.5)" style={{ flexShrink: 0 }} />
+            <span style={{ flex: 1, fontSize: 14, color: 'rgba(255,255,255,0.65)' }}>{t('collectiveLockedBanner')}</span>
+            <Link href="/elofizetes" onClick={() => handleCheckout(PLANS.find(p => p.key === 'premium'))} style={{ height: 36, padding: '0 14px', border: 0, borderRadius: 18, background: '#fff', color: '#0E1116', fontSize: 13, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 6, textDecoration: 'none', flexShrink: 0, cursor: 'pointer' }}>
+              <Zap size={13} /> {t('upgradeButton')}
+            </Link>
+          </div>
+        )}
+        {effectivePremium && (() => {
+          const ownedCollectives = (appCollectives || []).filter(c => c.role === 'owner');
+          if (ownedCollectives.length === 0) return (
+            <div style={{ background: 'rgba(255,255,255,0.06)', borderRadius: 16, padding: '24px 20px', textAlign: 'center' }}>
+              <Users size={32} color="rgba(255,255,255,0.3)" style={{ marginBottom: 8 }} />
+              <div style={{ fontSize: 15, color: 'rgba(255,255,255,0.5)' }}>{tk('emptyTitle')}</div>
+            </div>
+          );
           return (
-            <div style={{ maxWidth: 'calc(50% - 8px)' }}>
-              <PlanCard
-                plan={plan}
-                isCurrent={false}
-                isLoading={loadingPlan === 'collective'}
-                onAction={() => handleCheckout(plan)}
-                lockedBanner={lockedBanner}
-                t={t}
-              />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {ownedCollectives.map(col => {
+                const isInclusive   = col.is_inclusive ?? false;
+                const colStatus     = col.status ?? 'active';
+                const isNotAct      = colStatus === 'not_activated';
+                const isFrozen      = colStatus === 'frozen';
+                const tier          = TIER_DISPLAY?.[col.collective_tier] ?? null;
+                const subData       = collectiveSubs.find(s => s.collective_id === col.collective_id);
+                const isScheduled   = subData?.subscription_status === 'scheduled_cancel';
+                const periodEnd     = subData?.subscription_period_end ? formatDate(subData.subscription_period_end) : null;
+                const STATUS_BADGE  = { not_activated: { bg: '#FFF4CD', color: '#B45309', label: tk('statusNotActivated') }, frozen: { bg: '#FDECEC', color: '#B71C1C', label: tk('statusFrozen') }, active: { bg: '#E7F4EC', color: '#14532D', label: tk('statusActive') } };
+                const badge         = STATUS_BADGE[colStatus] || STATUS_BADGE.active;
+                return (
+                  <div key={col.collective_id} className="dk-card" ref={searchParams?.get('activate') === col.collective_id ? activateCardRef : null} style={{ padding: '16px 20px', border: searchParams?.get('activate') === col.collective_id ? '2px solid #FFF4CD' : '2px solid transparent' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                      <div style={{ width: 42, height: 42, borderRadius: 14, flexShrink: 0, background: '#F1F1F3', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        {isInclusive ? <Star size={20} color="#B45309" /> : <Building2 size={20} color="#2563eb" />}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>
+                          <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 700, fontSize: 16, color: '#0E1116' }}>{col.name}</span>
+                          <span style={{ fontSize: 11, fontWeight: 800, padding: '2px 8px', borderRadius: 999, background: badge.bg, color: badge.color }}>{badge.label}</span>
+                          {isInclusive && <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 999, background: '#FFF7ED', color: '#B45309' }}>{tk('includedInPremium')}</span>}
+                          {isScheduled && <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 999, background: '#FFF4E5', color: '#6B3A00' }}>{periodEnd ? tp('subActiveUntil', { date: periodEnd }) : tp('subActiveUntilPeriod')}</span>}
+                        </div>
+                        <div style={{ fontSize: 13, color: '#5A5F68', display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                          {tier && <span>{col.collective_tier?.toUpperCase()} — {tier.seats} {tk('seatsLabel')}</span>}
+                          {!isInclusive && tier?.price && <span style={{ fontWeight: 700, color: '#0E1116' }}>{tier.price} + ÁFA{tk('perMonthVat')}</span>}
+                        </div>
+                      </div>
+                      {/* Actions */}
+                      <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+                        {isNotAct && (
+                          <button type="button" onClick={() => { setActivateModal({ id: col.collective_id, name: col.name }); setActivateTier(null); }} style={{ height: 38, padding: '0 16px', border: 0, borderRadius: 19, background: '#B45309', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <Rocket size={13} /> {tk('activateBtn')}
+                          </button>
+                        )}
+                        {isFrozen && !isInclusive && (
+                          <button type="button" onClick={handleOpenPortal} disabled={portalLoading} style={{ height: 38, padding: '0 16px', border: 0, borderRadius: 19, background: '#B71C1C', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
+                            {tk('resumeSubscription')}
+                          </button>
+                        )}
+                        {!isNotAct && !isFrozen && !isInclusive && isScheduled && (
+                          <button type="button" onClick={() => setResumeCollectiveModal({ collectiveId: col.collective_id, name: col.name, creem_subscription_id: subData?.creem_subscription_id, periodEnd: subData?.subscription_period_end })} disabled={resumingCollectiveId === col.collective_id} style={{ height: 38, padding: '0 16px', border: 0, borderRadius: 19, background: '#14532D', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, opacity: resumingCollectiveId === col.collective_id ? 0.7 : 1 }}>
+                            {resumingCollectiveId === col.collective_id ? tk('resumingLabel') : tk('resumeConfirmLabel')}
+                          </button>
+                        )}
+                        {!isNotAct && !isFrozen && !isInclusive && !isScheduled && (
+                          <>
+                            <button type="button" onClick={() => { setChangePlanModal({ id: col.collective_id, name: col.name, tier: col.collective_tier }); setChangePlanTier(col.collective_tier || 's'); setChangePlanError(''); }} style={{ height: 38, padding: '0 16px', border: 0, borderRadius: 19, background: '#1e3a8a', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+                              {tk('menuChangePlan')}
+                            </button>
+                            <button type="button" onClick={() => setCancelCollectiveModal({ collective_id: col.collective_id, name: col.name, creem_subscription_id: subData?.creem_subscription_id })} style={{ height: 38, padding: '0 16px', border: 0, borderRadius: 19, background: '#B71C1C', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+                              {tk('menuCancelSub')}
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           );
         })()}
@@ -642,6 +875,127 @@ export default function ElofizetesDesktop() {
         </p>
 
       </div>
+
+      {/* ── Collective checkout iframe ──────────────────────────────────────── */}
+      <Modal isOpen={!!collectiveCheckoutUrl} onClose={closeCollectiveCheckout} title={tk('activateTitle')} maxWidth="860px" maxHeight="92vh" persistent>
+        <div style={{ margin: '0 -1.5rem -1.5rem', height: 'calc(88vh - 90px)', borderTop: '1px solid var(--border-subtle)', overflow: 'hidden', borderBottomLeftRadius: 'var(--radius-xl)', borderBottomRightRadius: 'var(--radius-xl)' }}>
+          <iframe src={collectiveCheckoutUrl || ''} style={{ width: '100%', height: '100%', border: 'none', display: 'block' }} title={tk('activateTitle')} allow="payment" />
+        </div>
+      </Modal>
+
+      {/* ── Activation modal (tier picker) ──────────────────────────────────── */}
+      <Modal isOpen={!!activateModal} onClose={() => !activatingCollective && setActivateModal(null)} title={tk('activateTitle')}>
+        {activateModal && (() => {
+          const TIERS = [
+            { code: 's', label: tk('tierS'), price: '4.500 Ft', seats: 3, total: '12.490 Ft' },
+            { code: 'm', label: tk('tierM'), price: '9.000 Ft', seats: 6, total: '16.990 Ft' },
+            { code: 'l', label: tk('tierL'), price: '13.500 Ft', seats: 9, total: '21.490 Ft' },
+            { code: 'xl', label: tk('tierXl'), price: null, seats: null, total: null },
+          ];
+          return (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <p style={{ fontSize: 14, color: 'var(--text-secondary)', margin: 0 }}><strong>{activateModal.name}</strong> — {tk('activateSubtitle')}</p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {TIERS.map(tier => {
+                  const isXl = tier.code === 'xl';
+                  const isSelected = activateTier === tier.code;
+                  return (
+                    <button
+                      key={tier.code}
+                      type="button"
+                      onClick={() => !isXl && setActivateTier(tier.code)}
+                      style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '12px 16px', borderRadius: 16, border: `2px solid ${isSelected ? '#B45309' : '#EDEBE5'}`, background: isSelected ? '#FFF7ED' : '#fff', cursor: isXl ? 'default' : 'pointer', textAlign: 'left' }}
+                    >
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontWeight: 700, fontSize: 15, color: '#0E1116', marginBottom: 2 }}>{tier.label}</div>
+                        {tier.price && (
+                          <div style={{ fontSize: 13, color: '#5A5F68' }}>
+                            {tier.price} + ÁFA{tk('perMonthVat')} · {tier.total} + ÁFA {tk('totalWithPremium')}
+                          </div>
+                        )}
+                        {isXl && (
+                          <a href="mailto:info@okosszaki.hu" style={{ fontSize: 13, color: '#2563eb', fontWeight: 600 }}>{tk('xlContactLink')}</a>
+                        )}
+                      </div>
+                      {isSelected && <Check size={18} color="#B45309" />}
+                    </button>
+                  );
+                })}
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+                <button type="button" className="dk-btn dk-btn-l" onClick={() => setActivateModal(null)} disabled={activatingCollective} style={{ height: 44, fontSize: 15 }}>{tk('cancel')}</button>
+                <button
+                  type="button"
+                  className="dk-btn dk-btn-dark"
+                  disabled={!activateTier || activateTier === 'xl' || activatingCollective}
+                  onClick={() => handleActivateCollective(activateModal.id, activateTier)}
+                  style={{ height: 44, fontSize: 15, opacity: (!activateTier || activateTier === 'xl') ? 0.4 : 1 }}
+                >
+                  {activatingCollective ? <><Loader2 size={15} className="animate-spin" /> {tk('loadingCheckout')}</> : tk('proceedToPayment')}
+                </button>
+              </div>
+            </div>
+          );
+        })()}
+      </Modal>
+
+      {/* ── Change plan modal ───────────────────────────────────────────────── */}
+      <Modal isOpen={!!changePlanModal} onClose={() => !changingPlan && setChangePlanModal(null)} title={tk('changePlanTitle')}>
+        {changePlanModal && (() => {
+          const TIERS = [
+            { code: 's', label: tk('tierS'), price: '4.500 Ft', seats: 3 },
+            { code: 'm', label: tk('tierM'), price: '9.000 Ft', seats: 6 },
+            { code: 'l', label: tk('tierL'), price: '13.500 Ft', seats: 9 },
+          ];
+          return (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <p style={{ fontSize: 14, color: 'var(--text-secondary)', margin: 0 }}><strong>{changePlanModal.name}</strong></p>
+              {changePlanError && (
+                <div style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', borderRadius: 12, padding: '10px 14px', fontSize: 14, color: 'var(--danger-text)', display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+                  <AlertCircle size={15} style={{ flexShrink: 0, marginTop: 1 }} /><span>{changePlanError}{' '}
+                    <Link href="/kollektivak" style={{ color: 'var(--accent)', fontWeight: 700 }}>{tk('changePlanManageMembers')}</Link>
+                  </span>
+                </div>
+              )}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {TIERS.map(tier => {
+                  const isSelected = changePlanTier === tier.code;
+                  const isCurrent  = changePlanModal.tier === tier.code;
+                  return (
+                    <button
+                      key={tier.code}
+                      type="button"
+                      onClick={() => { setChangePlanTier(tier.code); setChangePlanError(''); }}
+                      style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '12px 16px', borderRadius: 16, border: `2px solid ${isSelected ? '#2563eb' : '#EDEBE5'}`, background: isSelected ? '#EFF6FF' : '#fff', cursor: 'pointer', textAlign: 'left' }}
+                    >
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontWeight: 700, fontSize: 15, color: '#0E1116', display: 'flex', gap: 8, alignItems: 'center' }}>
+                          {tier.label}
+                          {isCurrent && <span style={{ fontSize: 10, fontWeight: 800, padding: '2px 8px', borderRadius: 999, background: '#E7F4EC', color: '#14532D' }}>{t('currentPlan')}</span>}
+                        </div>
+                        <div style={{ fontSize: 13, color: '#5A5F68' }}>{tier.price} + ÁFA{tk('perMonthVat')}</div>
+                      </div>
+                      {isSelected && <Check size={18} color="#2563eb" />}
+                    </button>
+                  );
+                })}
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+                <button type="button" className="dk-btn dk-btn-l" onClick={() => setChangePlanModal(null)} disabled={changingPlan} style={{ height: 44, fontSize: 15 }}>{tk('cancel')}</button>
+                <button
+                  type="button"
+                  className="dk-btn dk-btn-dark"
+                  disabled={!changePlanTier || changePlanTier === changePlanModal.tier || changingPlan}
+                  onClick={() => handleChangePlan(changePlanModal.id, changePlanTier)}
+                  style={{ height: 44, fontSize: 15 }}
+                >
+                  {changingPlan ? <><Loader2 size={15} className="animate-spin" /> {tk('menuChecking')}</> : tk('upgradeConfirmLabel')}
+                </button>
+              </div>
+            </div>
+          );
+        })()}
+      </Modal>
 
       {/* ── Checkout iframe modal ───────────────────────────────────────────── */}
       <Modal isOpen={!!checkoutIframeUrl} onClose={closeCheckoutIframe} title={t('securePayment')} maxWidth="860px" maxHeight="92vh" persistent>
@@ -749,6 +1103,42 @@ export default function ElofizetesDesktop() {
               <p style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.5, margin: 0 }}>{tp('canRestoreAnytime')}</p>
               <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
                 <button type="button" className="dk-btn dk-btn-dark" onClick={() => setCancelSuccessModal(null)} style={{ height: 44, fontSize: 15 }}>{tp('ok')}</button>
+              </div>
+            </div>
+          );
+        })()}
+      </Modal>
+
+      {/* ── Resume collective confirmation modal ───────────────────────────── */}
+      <Modal isOpen={!!resumeCollectiveModal} onClose={() => !resumingCollectiveId && setResumeCollectiveModal(null)} title={tk('resumeMenuTitle')}>
+        {resumeCollectiveModal && (() => {
+          const fmtDate = iso => iso ? new Date(iso).toLocaleDateString('hu-HU', { year: 'numeric', month: 'long', day: 'numeric' }) : null;
+          const endDate  = fmtDate(resumeCollectiveModal.periodEnd);
+          const isResuming = resumingCollectiveId === resumeCollectiveModal.collectiveId;
+          return (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <p style={{ fontSize: 14, color: 'var(--text-secondary)', margin: 0 }}>
+                <strong>{resumeCollectiveModal.name}</strong>
+              </p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, background: '#F9F8F5', borderRadius: 14, padding: '14px 16px' }}>
+                {endDate && (
+                  <div style={{ fontSize: 14, color: 'var(--text-primary)' }}>
+                    {tk('resumeModalCurrentEnd', { date: endDate })}
+                  </div>
+                )}
+                <div style={{ fontSize: 14, color: 'var(--text-primary)' }}>
+                  {endDate
+                    ? tk('resumeModalNextPayment', { date: endDate })
+                    : tk('resumeMenuConfirmMsg', { name: resumeCollectiveModal.name })}
+                </div>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+                <button type="button" className="dk-btn dk-btn-l" onClick={() => setResumeCollectiveModal(null)} disabled={isResuming} style={{ height: 44, fontSize: 15 }}>
+                  {tk('cancel')}
+                </button>
+                <button type="button" className="dk-btn dk-btn-dark" onClick={handleResumeCollective} disabled={isResuming} style={{ height: 44, fontSize: 15, opacity: isResuming ? 0.7 : 1, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  {isResuming ? <><Loader2 size={15} className="animate-spin" /> {tk('resumingLabel')}</> : tk('resumeConfirmLabel')}
+                </button>
               </div>
             </div>
           );

@@ -2,7 +2,9 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from '@/navigation';
+import { useSearchParams } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
+import { useCollectives } from '@/hooks/useCollectives';
 import { useTranslations } from 'next-intl';
 import { Check, Zap, Star, Building2, Clock, AlertCircle, CheckCircle2, X } from 'lucide-react';
 import { isEffectivePremium } from '@/lib/subscriptionLimits';
@@ -106,11 +108,14 @@ function PlanCard({ plan, isCurrent, isOpen, onToggle, isLoading, onAction, lock
 
 // ── Main component ───────────────────────────────────────────────────────────
 export default function ElofizetesPageMobile() {
-  const { currentUser, refreshSupabaseData, refreshCurrentUser, logout, isDemoMode } = useApp();
+  const { currentUser, refreshSupabaseData, refreshCurrentUser, logout, isDemoMode, collectives: appCollectives } = useApp();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const t  = useTranslations('subscription');
   const tp = useTranslations('profile');
   const tc = useTranslations('common');
+  const tk = useTranslations('collectives');
+  const { collectives: fullCollectives, refresh: refreshCollectives } = useCollectives();
 
   // ── Checkout state ────────────────────────────────────────────────────────
   const [loadingPlan,       setLoadingPlan]       = useState(null);
@@ -139,11 +144,151 @@ export default function ElofizetesPageMobile() {
   const [subAlertMsg,              setSubAlertMsg]              = useState('');
   const [subReloadKey,             setSubReloadKey]             = useState(0);
 
+  // ── Collective management state ──────────────────────────────────────────
+  const [activateSheet,          setActivateSheet]          = useState(null); // { id, name }
+  const [activateTier,           setActivateTier]           = useState(null);
+  const [activatingCollective,   setActivatingCollective]   = useState(false);
+  const [collectiveCheckoutUrl,  setCollectiveCheckoutUrl]  = useState(null);
+  const collectiveCheckoutPollRef = useRef(null);
+  const collectiveWebhookPollRef  = useRef(null);
+  const [changePlanSheet,        setChangePlanSheet]        = useState(null); // { id, name, tier }
+  const [changePlanTier,         setChangePlanTier]         = useState(null);
+  const [changingPlan,           setChangingPlan]           = useState(false);
+  const [changePlanError,        setChangePlanError]        = useState('');
+  const [cancelColSheet,         setCancelColSheet]         = useState(null); // { id, name, creem_subscription_id }
+
   const PLANS = [
     { key: 'basic', name: t('basic'), price: t('free'), priceNote: t('forever'), icon: Zap, color: '#6B7280', features: [t('basicFeature1'), t('basicFeature2'), t('basicFeature3'), t('basicFeature4'), t('basicFeature5')] },
     { key: 'premium', name: t('premium'), price: t('premiumPrice'), priceNote: t('perMonthVat'), icon: Star, color: HEADER, highlight: true, productId: process.env.NEXT_PUBLIC_CREEM_PREMIUM_PRODUCT_ID, features: [t('premiumFeature1'), t('premiumFeature2'), { text: t('premiumFeature3'), highlight: true }, t('premiumFeature4'), t('premiumFeature5'), t('premiumFeature6')], cta: t('upgradeButton') },
     { key: 'collective', name: t('collective'), price: t('collectivePriceLabel'), priceNote: t('perPackage'), icon: Building2, color: 'var(--accent)', features: [t('collectiveFeature1'), t('collectiveFeature2'), t('collectiveFeature3'), t('collectiveFeature4'), t('collectiveFeature5')], note: t('collectiveNote'), cta: t('startCollective'), href: '/kollektivak' },
   ];
+
+  // ── Auto-open activation sheet from ?activate=<id> ───────────────────────
+  useEffect(() => {
+    const activateId = searchParams?.get('activate');
+    if (!activateId || !appCollectives?.length) return;
+    const col = appCollectives.find(c => c.collective_id === activateId);
+    if (col && col.status === 'not_activated') {
+      setActivateSheet({ id: col.collective_id, name: col.name });
+      setActivateTier(null);
+    }
+  }, [searchParams, appCollectives]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Collective activation checkout ───────────────────────────────────────
+  const TIER_PRODUCT_M = {
+    s: process.env.NEXT_PUBLIC_CREEM_COLLECTIVE_SMALL_PRODUCT_ID,
+    m: process.env.NEXT_PUBLIC_CREEM_COLLECTIVE_MEDIUM_PRODUCT_ID,
+    l: process.env.NEXT_PUBLIC_CREEM_COLLECTIVE_LARGE_PRODUCT_ID,
+  };
+
+  async function handleActivateCollectiveMobile(collectiveId, tier) {
+    if (!collectiveId || !tier || tier === 'xl') return;
+    const productId = TIER_PRODUCT_M[tier];
+    if (!productId) return;
+    setActivatingCollective(true);
+    // Clear any stale success entry so the 400ms poll doesn't trigger on old data
+    localStorage.removeItem('creem_checkout_done');
+    try {
+      const res  = await fetch('/api/checkout', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ productId, collectiveId, successUrl: '/checkout-popup-success?checkout_type=collective_activate' }) });
+      const data = await res.json();
+      if (!data.checkoutUrl) { setActivatingCollective(false); return; }
+
+      const onColSuccess = async () => {
+        clearInterval(collectiveCheckoutPollRef.current); collectiveCheckoutPollRef.current = null;
+        clearInterval(collectiveWebhookPollRef.current);  collectiveWebhookPollRef.current  = null;
+        setCollectiveCheckoutUrl(null);
+        localStorage.removeItem('creem_checkout_done');
+        await refreshCurrentUser?.();
+        refreshCollectives?.();
+        setSubReloadKey(k => k + 1); // reload ownedCollectiveSubs so Active Subscriptions shows the new entry
+        setActivateSheet(null);
+        setActivatingCollective(false);
+      };
+
+      const onColStorage = (e) => { if (e.key !== 'creem_checkout_done') return; let d; try { d = JSON.parse(e.newValue); } catch { return; } if (d?.checkoutType !== 'collective_activate') return; onColSuccess(); };
+      const onColMessage = (e) => { if (e.origin !== window.location.origin) return; if (e.data?.type !== 'creem_checkout_success') return; if (e.data?.checkoutType !== 'collective_activate') return; onColSuccess(); };
+
+      collectiveCheckoutPollRef.current = setInterval(() => {
+        const stored = localStorage.getItem('creem_checkout_done');
+        if (!stored) return;
+        let d; try { d = JSON.parse(stored); } catch { return; }
+        if (d?.checkoutType !== 'collective_activate') return;
+        onColSuccess();
+      }, 400);
+      window.addEventListener('storage', onColStorage);
+      window.addEventListener('message', onColMessage);
+      setCollectiveCheckoutUrl(data.checkoutUrl);
+
+      // Poll every 1.5s — webhook sets collectives.status='active'; this is the primary
+      // auto-close path when the localStorage success signal is missed
+      collectiveWebhookPollRef.current = setInterval(async () => {
+        try {
+          const r = await fetch('/api/auth/profile?real=1', { cache: 'no-store' });
+          if (!r.ok) return;
+          const { profile } = await r.json();
+          const updated = (profile?.collectives || []).find(c => c.collective_id === collectiveId);
+          if (updated?.status === 'active') onColSuccess();
+        } catch {}
+      }, 1500);
+    } catch { setActivatingCollective(false); }
+  }
+
+  async function closeCollectiveCheckoutMobile() {
+    clearInterval(collectiveCheckoutPollRef.current); collectiveCheckoutPollRef.current = null;
+    clearInterval(collectiveWebhookPollRef.current);  collectiveWebhookPollRef.current  = null;
+    setCollectiveCheckoutUrl(null);
+    setActivatingCollective(false);
+    await refreshCurrentUser?.();
+    refreshCollectives?.();
+    setSubReloadKey(k => k + 1);
+  }
+
+  const [resumeColSheet,       setResumeColSheet]       = useState(null); // { collectiveId, name, creem_subscription_id, periodEnd }
+  const [resumingCollectiveId, setResumingCollectiveId] = useState(null);
+
+  async function handleResumeCollectiveMobile() {
+    const { collectiveId, creem_subscription_id } = resumeColSheet || {};
+    if (!creem_subscription_id) return;
+    setResumingCollectiveId(collectiveId);
+    try {
+      const res  = await fetch('/api/subscriptions/resume', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ subscriptionId: creem_subscription_id, collectiveId }) });
+      const data = await res.json();
+      if (res.ok) {
+        setCollectiveSubs(prev => prev.map(c => c.collective_id === collectiveId ? { ...c, subscription_status: 'active', subscription_period_end: null } : c));
+        await refreshCurrentUser?.();
+        setResumeColSheet(null);
+      } else {
+        setSubAlertMsg(data.error || tk('resumeError'));
+      }
+    } catch { setSubAlertMsg(tk('resumeError')); }
+    finally { setResumingCollectiveId(null); }
+  }
+
+  const [portalLoading, setPortalLoading] = useState(false);
+
+  async function handleOpenPortal() {
+    setPortalLoading(true);
+    try {
+      const res  = await fetch('/api/billing/portal');
+      const data = await res.json();
+      if (data.portalUrl) window.open(data.portalUrl, '_blank', 'noopener,noreferrer');
+    } catch {}
+    finally { setPortalLoading(false); }
+  }
+
+  async function handleChangePlanMobile(collectiveId, tier) {
+    if (!tier) return;
+    setChangingPlan(true); setChangePlanError('');
+    try {
+      const res  = await fetch(`/api/collectives/${collectiveId}/change-plan`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tier }) });
+      const data = await res.json();
+      if (res.status === 422 && data.error === 'too_many_members') { setChangePlanError(tk('changePlanDowngradeBlock', { n: data.current - data.allowed })); setChangingPlan(false); return; }
+      if (!res.ok) { setChangePlanError(data.error || tk('errorGeneric')); setChangingPlan(false); return; }
+      setChangePlanSheet(null);
+      await refreshCurrentUser?.(); refreshCollectives?.();
+    } catch { setChangePlanError(tk('connectionError')); }
+    finally { setChangingPlan(false); }
+  }
 
   // ── Load subscription data on mount ──────────────────────────────────────
   useEffect(() => {
@@ -408,6 +553,9 @@ export default function ElofizetesPageMobile() {
           </div>
         )}
 
+        {/* ── Section: Active Subscriptions ──────────────────────────────── */}
+        <h2 style={{ margin: '8px 0 4px', fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 20, fontWeight: 700, letterSpacing: '-0.02em', color: '#fff' }}>{t('sectionActiveSubscriptions')}</h2>
+
         {/* ── Pod 0: My Subscription ─────────────────────────────────────── */}
         <div style={{ background: '#fff', borderRadius: 26, boxShadow: CARD_SH, overflow: 'hidden', border: `2px solid ${isPremium ? HEADER : '#6B7280'}`, transition: 'border-color 0.2s' }}>
           <div style={{ height: 5, background: isPremium ? HEADER : '#6B7280' }} />
@@ -453,8 +601,15 @@ export default function ElofizetesPageMobile() {
 
               {/* Cancel / Resume button */}
               {isPremium && premiumSubId && (
-                <button onClick={() => premiumIsScheduledCancel ? handleResumePremium() : setSubSheet('cancelPrem')} disabled={subBusy} style={{ width: '100%', height: 48, border: 0, borderRadius: 24, fontSize: 14, fontWeight: 700, cursor: subBusy ? 'default' : 'pointer', background: premiumIsScheduledCancel ? '#14532D' : '#FDECEC', color: premiumIsScheduledCancel ? '#fff' : '#B71C1C', opacity: subBusy ? 0.7 : 1 }}>
+                <button onClick={() => premiumIsScheduledCancel ? handleResumePremium() : setSubSheet('cancelPrem')} disabled={subBusy} style={{ width: '100%', height: 48, border: 0, borderRadius: 24, fontSize: 14, fontWeight: 700, cursor: subBusy ? 'default' : 'pointer', background: premiumIsScheduledCancel ? '#14532D' : '#B71C1C', color: '#fff', opacity: subBusy ? 0.7 : 1 }}>
                   {subBusy ? (premiumIsScheduledCancel ? tp('subResumingBtn') : tp('cancelingBtn')) : (premiumIsScheduledCancel ? tp('subResumeBtn') : tp('premiumCancel'))}
+                </button>
+              )}
+
+              {/* Manage payment details */}
+              {isPremium && (
+                <button onClick={handleOpenPortal} disabled={portalLoading} style={{ width: '100%', height: 48, border: 0, borderRadius: 24, fontSize: 14, fontWeight: 700, cursor: portalLoading ? 'default' : 'pointer', background: '#1e3a8a', color: '#fff', opacity: portalLoading ? 0.6 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                  {portalLoading ? tp('portalOpening') : tp('managePayment')}
                 </button>
               )}
 
@@ -469,7 +624,7 @@ export default function ElofizetesPageMobile() {
                         <div style={{ fontSize: 12, color: '#5A5F68' }}>{c.members_count <= 3 ? tp('collectiveSmall') : c.members_count <= 7 ? tp('collectiveMedium') : tp('collectiveLarge')}</div>
                       </div>
                       {c.subscription_status !== 'scheduled_cancel' && (
-                        <button onClick={() => setSubSheet({ type: 'cancelCol', collective: c })} style={{ height: 36, padding: '0 12px', border: 0, borderRadius: 18, background: '#FDECEC', color: '#B71C1C', fontSize: 13, fontWeight: 700, cursor: 'pointer', flexShrink: 0 }}>
+                        <button onClick={() => setSubSheet({ type: 'cancelCol', collective: c })} style={{ height: 36, padding: '0 12px', border: 0, borderRadius: 18, background: '#B71C1C', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', flexShrink: 0 }}>
                           {tp('cancelSubscriptionBtn')}
                         </button>
                       )}
@@ -514,20 +669,209 @@ export default function ElofizetesPageMobile() {
           )}
         </div>
 
+        {/* ── Section: Basic / Premium ───────────────────────────────────── */}
+        <h2 style={{ margin: '12px 0 4px', fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 20, fontWeight: 700, letterSpacing: '-0.02em', color: '#fff' }}>{t('sectionTiers')}</h2>
+
         {/* ── Plan cards (upgrade options) ───────────────────────────────── */}
-        {PLANS.map(plan => {
+        {PLANS.filter(p => p.key !== 'collective').map(plan => {
           const isCurrent    = (plan.key === 'basic' && !effectivePremium) || (plan.key === 'premium' && isPremium);
-          const lockedBanner = plan.key === 'collective' && !effectivePremium ? t('collectiveLockedBanner') : null;
           return (
-            <PlanCard key={plan.key} plan={plan} isCurrent={isCurrent} isOpen={openPlan === plan.key} onToggle={() => setOpenPlan(prev => prev === plan.key ? null : plan.key)} isLoading={loadingPlan === plan.key} onAction={() => !isCurrent && handleCheckout(plan)} lockedBanner={lockedBanner} t={t} />
+            <PlanCard key={plan.key} plan={plan} isCurrent={isCurrent} isOpen={openPlan === plan.key} onToggle={() => setOpenPlan(prev => prev === plan.key ? null : plan.key)} isLoading={loadingPlan === plan.key} onAction={() => !isCurrent && handleCheckout(plan)} lockedBanner={null} t={t} />
           );
         })}
+        {!effectivePremium && (() => {
+          const plan = PLANS.find(p => p.key === 'collective');
+          return plan ? <PlanCard key="collective" plan={plan} isCurrent={false} isOpen={openPlan === 'collective'} onToggle={() => setOpenPlan(prev => prev === 'collective' ? null : 'collective')} isLoading={false} onAction={() => handleCheckout(plan)} lockedBanner={t('collectiveLockedBanner')} t={t} /> : null;
+        })()}
+
+        {/* ── Section: Collectives ───────────────────────────────────────── */}
+        {effectivePremium && <h2 style={{ margin: '12px 0 4px', fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 20, fontWeight: 700, letterSpacing: '-0.02em', color: '#fff' }}>{tk('collectiveCardSectionTitle')}</h2>}
+
+        {/* ── Collective cards ────────────────────────────────────────────── */}
+        {effectivePremium && (() => {
+          const ownedCollectives = (appCollectives || []).filter(c => c.role === 'owner');
+          if (!ownedCollectives.length) return null;
+          const STATUS_BADGE = { not_activated: { bg: '#FFF4CD', color: '#B45309', label: tk('statusNotActivated') }, frozen: { bg: '#FDECEC', color: '#B71C1C', label: tk('statusFrozen') }, active: { bg: '#E7F4EC', color: '#14532D', label: tk('statusActive') } };
+          return (
+            <>
+              {ownedCollectives.map(col => {
+                const isInclusive = col.is_inclusive ?? false;
+                const colStatus   = col.status ?? 'active';
+                const isNotAct    = colStatus === 'not_activated';
+                const isFrozen    = colStatus === 'frozen';
+                const badge       = STATUS_BADGE[colStatus] || STATUS_BADGE.active;
+                const subData     = collectiveSubs.find(s => s.collective_id === col.collective_id);
+                const isScheduled = subData?.subscription_status === 'scheduled_cancel';
+                const tierCode    = col.collective_tier?.toUpperCase() || '';
+                return (
+                  <div key={col.collective_id} style={{ background: '#fff', borderRadius: 22, padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 10, boxShadow: CARD_SH }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>
+                          <span style={{ fontWeight: 700, fontSize: 16, color: '#0E1116' }}>{col.name}</span>
+                          <span style={{ fontSize: 11, fontWeight: 800, padding: '2px 8px', borderRadius: 999, background: badge.bg, color: badge.color }}>{badge.label}</span>
+                          {isInclusive && <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 999, background: '#FFF7ED', color: '#B45309' }}>{tk('includedInPremium')}</span>}
+                        </div>
+                        {tierCode && <div style={{ fontSize: 13, color: '#5A5F68' }}>{tierCode}</div>}
+                      </div>
+                    </div>
+                    {isNotAct && (
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <button type="button" onClick={() => { setActivateSheet({ id: col.collective_id, name: col.name }); setActivateTier(null); }} style={{ flex: 2, height: 44, border: 0, borderRadius: 22, background: '#B45309', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>
+                          {tk('activateBtn')}
+                        </button>
+                      </div>
+                    )}
+                    {isFrozen && !isInclusive && (
+                      <button type="button" onClick={handleOpenPortal} style={{ height: 44, border: 0, borderRadius: 22, background: '#B71C1C', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                        {tk('resumeSubscription')}
+                      </button>
+                    )}
+                    {!isNotAct && !isFrozen && !isInclusive && isScheduled && (
+                      <button type="button" onClick={() => setResumeColSheet({ collectiveId: col.collective_id, name: col.name, creem_subscription_id: subData?.creem_subscription_id, periodEnd: subData?.subscription_period_end })} style={{ width: '100%', height: 44, border: 0, borderRadius: 22, background: '#14532D', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>
+                        {tk('resumeConfirmLabel')}
+                      </button>
+                    )}
+                    {!isNotAct && !isFrozen && !isInclusive && !isScheduled && (
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <button type="button" onClick={() => { setChangePlanSheet({ id: col.collective_id, name: col.name, tier: col.collective_tier }); setChangePlanTier(col.collective_tier || 's'); setChangePlanError(''); }} style={{ flex: 1, height: 44, border: 0, borderRadius: 22, background: '#1e3a8a', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+                          {tk('menuChangePlan')}
+                        </button>
+                        <button type="button" onClick={() => setCancelColSheet({ id: col.collective_id, name: col.name, creem_subscription_id: subData?.creem_subscription_id })} style={{ flex: 1, height: 44, border: 0, borderRadius: 22, background: '#B71C1C', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+                          {tk('menuCancelSub')}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </>
+          );
+        })()}
 
         <p style={{ textAlign: 'center', fontSize: 13, color: 'rgba(255,255,255,0.45)', marginTop: 8 }}>
           {t('contactQuestion')}{' '}
           <a href="mailto:info@okosszaki.hu" style={{ color: 'rgba(255,255,255,0.65)', fontWeight: 600 }}>info@okosszaki.hu</a>
         </p>
       </div>
+
+      {/* ── Collective checkout iframe ───────────────────────────────────────── */}
+      {collectiveCheckoutUrl && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(3px)' }}>
+          <div style={{ position: 'absolute', inset: 0 }} onClick={closeCollectiveCheckoutMobile} />
+          <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '92vh', borderRadius: '16px 16px 0 0', overflow: 'hidden', background: '#fff', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.6rem 1rem 0.5rem', borderBottom: '1px solid #e2e8f0', background: '#f8fafc', flexShrink: 0 }}>
+              <span style={{ fontSize: '0.78rem', fontWeight: 700, color: '#64748b' }}>{tk('activateTitle')}</span>
+              <button type="button" onClick={closeCollectiveCheckoutMobile} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', color: '#64748b' }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+              </button>
+            </div>
+            <iframe src={collectiveCheckoutUrl} style={{ flex: 1, border: 'none', width: '100%' }} title={tk('activateTitle')} allow="payment" />
+          </div>
+        </div>
+      )}
+
+      {/* ── Activation sheet (tier picker) ──────────────────────────────────── */}
+      <Sheet open={!!activateSheet} onClose={() => !activatingCollective && setActivateSheet(null)} title={tk('activateTitle')} z={60}>
+        {activateSheet && (() => {
+          const TIERS = [
+            { code: 's', label: tk('tierS'), price: '4.500 Ft' },
+            { code: 'm', label: tk('tierM'), price: '9.000 Ft' },
+            { code: 'l', label: tk('tierL'), price: '13.500 Ft' },
+            { code: 'xl', label: tk('tierXl'), price: null },
+          ];
+          return (
+            <>
+              <span style={{ fontSize: 14, color: '#5A5F68', fontWeight: 600 }}>{activateSheet.name}</span>
+              {TIERS.map(tier => {
+                const isXl = tier.code === 'xl';
+                const isSelected = activateTier === tier.code;
+                return (
+                  <button key={tier.code} type="button" onClick={() => !isXl && setActivateTier(tier.code)} style={{ width: '100%', padding: '12px 16px', borderRadius: 18, border: `2px solid ${isSelected ? '#B45309' : '#EDEBE5'}`, background: isSelected ? '#FFF7ED' : '#fff', cursor: isXl ? 'default' : 'pointer', textAlign: 'left', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <div style={{ fontWeight: 700, fontSize: 15, color: '#0E1116' }}>{tier.label}</div>
+                      {tier.price && <div style={{ fontSize: 13, color: '#5A5F68' }}>{tier.price} + ÁFA{tk('perMonthVat')}</div>}
+                      {isXl && <a href="mailto:info@okosszaki.hu" style={{ fontSize: 13, color: '#2563eb' }}>{tk('xlContactLink')}</a>}
+                    </div>
+                    {isSelected && <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#B45309" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12l5 5 9-10"/></svg>}
+                  </button>
+                );
+              })}
+              <button type="button" disabled={!activateTier || activateTier === 'xl' || activatingCollective} onClick={() => handleActivateCollectiveMobile(activateSheet.id, activateTier)} style={{ width: '100%', height: 60, border: 0, borderRadius: 30, background: '#B45309', color: '#fff', fontSize: 17, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, opacity: (!activateTier || activateTier === 'xl') ? 0.4 : 1 }}>
+                {activatingCollective ? tk('loadingCheckout') : tk('proceedToPayment')}
+              </button>
+              <button type="button" onClick={() => setActivateSheet(null)} style={{ width: '100%', height: 56, border: 0, borderRadius: 28, background: '#EFEDE6', color: '#0E1116', fontSize: 15, fontWeight: 700, cursor: 'pointer' }}>
+                {tk('cancel')}
+              </button>
+            </>
+          );
+        })()}
+      </Sheet>
+
+      {/* ── Change plan sheet ────────────────────────────────────────────────── */}
+      <Sheet open={!!changePlanSheet} onClose={() => !changingPlan && setChangePlanSheet(null)} title={tk('changePlanTitle')} z={60}>
+        {changePlanSheet && (() => {
+          const TIERS = [
+            { code: 's', label: tk('tierS'), price: '4.500 Ft' },
+            { code: 'm', label: tk('tierM'), price: '9.000 Ft' },
+            { code: 'l', label: tk('tierL'), price: '13.500 Ft' },
+          ];
+          return (
+            <>
+              {changePlanError && (
+                <div style={{ padding: '10px 14px', borderRadius: 14, background: '#FDECEC', fontSize: 14, color: '#B71C1C' }}>
+                  {changePlanError}{' '}
+                  <a href="/kollektivak" style={{ color: '#B71C1C', fontWeight: 700 }}>{tk('changePlanManageMembers')}</a>
+                </div>
+              )}
+              {TIERS.map(tier => {
+                const isSelected = changePlanTier === tier.code;
+                const isCurrent  = changePlanSheet.tier === tier.code;
+                return (
+                  <button key={tier.code} type="button" onClick={() => { setChangePlanTier(tier.code); setChangePlanError(''); }} style={{ width: '100%', padding: '12px 16px', borderRadius: 18, border: `2px solid ${isSelected ? '#2563eb' : '#EDEBE5'}`, background: isSelected ? '#EFF6FF' : '#fff', cursor: 'pointer', textAlign: 'left', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <div style={{ fontWeight: 700, fontSize: 15, color: '#0E1116', display: 'flex', gap: 8, alignItems: 'center' }}>
+                        {tier.label}
+                        {isCurrent && <span style={{ fontSize: 10, fontWeight: 800, padding: '2px 8px', borderRadius: 999, background: '#E7F4EC', color: '#14532D' }}>{t('currentPlan')}</span>}
+                      </div>
+                      <div style={{ fontSize: 13, color: '#5A5F68' }}>{tier.price} + ÁFA{tk('perMonthVat')}</div>
+                    </div>
+                  </button>
+                );
+              })}
+              <button type="button" disabled={!changePlanTier || changePlanTier === changePlanSheet.tier || changingPlan} onClick={() => handleChangePlanMobile(changePlanSheet.id, changePlanTier)} style={{ width: '100%', height: 60, border: 0, borderRadius: 30, background: '#0E1116', color: '#fff', fontSize: 17, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                {changingPlan ? tk('menuChecking') : tk('upgradeConfirmLabel')}
+              </button>
+              <button type="button" onClick={() => setChangePlanSheet(null)} style={{ width: '100%', height: 56, border: 0, borderRadius: 28, background: '#EFEDE6', color: '#0E1116', fontSize: 15, fontWeight: 700, cursor: 'pointer' }}>
+                {tk('cancel')}
+              </button>
+            </>
+          );
+        })()}
+      </Sheet>
+
+      {/* ── Cancel collective sheet ──────────────────────────────────────────── */}
+      <Sheet open={!!cancelColSheet} onClose={() => setCancelColSheet(null)} title={tk('cancelConfirmTitle')} z={60}>
+        {cancelColSheet && (
+          <>
+            <span style={{ fontSize: 14, lineHeight: 1.5, color: '#0E1116' }}>
+              {tk('cancelConfirmBody', { name: cancelColSheet.name, date: '—' })}
+            </span>
+            <button type="button" onClick={async () => {
+              const c = cancelColSheet; setCancelColSheet(null);
+              try {
+                await fetch('/api/subscriptions/cancel', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ subscriptionId: c.creem_subscription_id, collectiveId: c.id }) });
+                await refreshCurrentUser?.(); refreshCollectives?.();
+              } catch {}
+            }} style={{ width: '100%', height: 60, border: 0, borderRadius: 30, background: '#B71C1C', color: '#fff', fontSize: 17, fontWeight: 700, cursor: 'pointer' }}>
+              {tk('menuCancelSub')}
+            </button>
+            <button type="button" onClick={() => setCancelColSheet(null)} style={{ width: '100%', height: 56, border: 0, borderRadius: 28, background: '#EFEDE6', color: '#0E1116', fontSize: 15, fontWeight: 700, cursor: 'pointer' }}>
+              {tk('cancel')}
+            </button>
+          </>
+        )}
+      </Sheet>
 
       {/* ── Checkout iframe ─────────────────────────────────────────────────── */}
       {checkoutIframeUrl && (
@@ -593,6 +937,38 @@ export default function ElofizetesPageMobile() {
             <button onClick={() => setSubSheet(null)} style={{ height: 60, border: 0, borderRadius: 30, background: HEADER, color: '#fff', fontSize: 17, fontWeight: 700, cursor: 'pointer' }}>{tp('ok')}</button>
           </>
         )}
+      </Sheet>
+
+      {/* ── Resume collective confirmation sheet ─────────────────────────────── */}
+      <Sheet open={!!resumeColSheet} onClose={() => !resumingCollectiveId && setResumeColSheet(null)} title={tk('resumeMenuTitle')} z={70}>
+        {resumeColSheet && (() => {
+          const fmtDate  = iso => iso ? new Date(iso).toLocaleDateString('hu-HU', { year: 'numeric', month: 'long', day: 'numeric' }) : null;
+          const endDate  = fmtDate(resumeColSheet.periodEnd);
+          const isResuming = resumingCollectiveId === resumeColSheet.collectiveId;
+          return (
+            <>
+              <span style={{ fontSize: 14, fontWeight: 600, color: '#5A5F68' }}>{resumeColSheet.name}</span>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, background: '#F5F4F0', borderRadius: 16, padding: '14px 16px' }}>
+                {endDate && (
+                  <span style={{ fontSize: 14, color: '#0E1116', lineHeight: 1.5 }}>
+                    {tk('resumeModalCurrentEnd', { date: endDate })}
+                  </span>
+                )}
+                <span style={{ fontSize: 14, color: '#0E1116', lineHeight: 1.5 }}>
+                  {endDate
+                    ? tk('resumeModalNextPayment', { date: endDate })
+                    : tk('resumeMenuConfirmMsg', { name: resumeColSheet.name })}
+                </span>
+              </div>
+              <button type="button" onClick={handleResumeCollectiveMobile} disabled={isResuming} style={{ width: '100%', height: 60, border: 0, borderRadius: 30, background: '#14532D', color: '#fff', fontSize: 17, fontWeight: 700, cursor: 'pointer', opacity: isResuming ? 0.7 : 1 }}>
+                {isResuming ? tk('resumingLabel') : tk('resumeConfirmLabel')}
+              </button>
+              <button type="button" onClick={() => setResumeColSheet(null)} disabled={isResuming} style={{ width: '100%', height: 56, border: 0, borderRadius: 28, background: '#EFEDE6', color: '#0E1116', fontSize: 15, fontWeight: 700, cursor: 'pointer' }}>
+                {tk('cancel')}
+              </button>
+            </>
+          );
+        })()}
       </Sheet>
 
       <Sheet open={!!subAlertMsg} onClose={() => setSubAlertMsg('')} title={tc('error')} z={80}>

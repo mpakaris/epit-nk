@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { logAudit } from '@/lib/audit';
 import { hasPendingTransfer, canUnlockToPersonal } from '@/lib/transferLock';
+import { checkCollectiveStatus } from '@/lib/collectiveGuard';
 
 async function getCallerAndQuote(id) {
   const supabase = await createClient();
@@ -67,6 +68,11 @@ export async function PATCH(request, { params }) {
 
   if (!isOwner && !isSuperAdmin && !isKollektivOwner)
     return Response.json({ error: 'Csak a tulajdonos módosíthatja az ajánlatot.' }, { status: 403 });
+
+  if (fields._action !== 'unlock') {
+    const statusBlocked = await checkCollectiveStatus(ctx.admin, ctx.quote.collective_id);
+    if (statusBlocked) return statusBlocked;
+  }
 
   // Unlock action
   if (fields._action === 'unlock') {
@@ -158,6 +164,9 @@ export async function DELETE(request, { params }) {
   const isKollektivOwner = ctx.memberRole === 'owner' || ctx.memberRole === 'admin';
   if (!isOwner && !isSuperAdmin && !isKollektivOwner)
     return Response.json({ error: 'Csak a tulajdonos törölheti az ajánlatot.' }, { status: 403 });
+
+  const statusBlockedDel = await checkCollectiveStatus(ctx.admin, ctx.quote.collective_id);
+  if (statusBlockedDel) return statusBlockedDel;
 
   if (!isSuperAdmin && await hasPendingTransfer('quote', id))
     return Response.json({ error: 'Ez a dokumentum átadás alatt áll, ezért nem módosítható.' }, { status: 423 });

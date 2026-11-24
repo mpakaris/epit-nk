@@ -78,8 +78,15 @@ export async function respondToTransfer(requestId, action) {
 }
 
 export const TIER_DISPLAY = {
-  small:      { seats: 3,    price: '€15' },
-  medium:     { seats: 6,    price: '€30' },
-  large:      { seats: 9,    price: '€45' },
-  enterprise: { seats: null, price: '—'  },
+  // new short codes (from migration 159)
+  xs: { seats: 1,    price: null },
+  s:  { seats: 3,    price: '4.500 Ft' },
+  m:  { seats: 6,    price: '9.000 Ft' },
+  l:  { seats: 9,    price: '13.500 Ft' },
+  xl: { seats: null, price: null },
+  // legacy codes — kept for backward compat during rollout
+  small:      { seats: 3,    price: '4.500 Ft' },
+  medium:     { seats: 6,    price: '9.000 Ft' },
+  large:      { seats: 9,    price: '13.500 Ft' },
+  enterprise: { seats: null, price: null },
 };

@@ -7,6 +7,7 @@ import { useTranslations } from 'next-intl';
 import { useApp } from '@/context/AppContext';
 import { formatMoney } from '@/lib/constants';
 import { AlertModal } from '@/components/Modal';
+import { WorkspaceNotActivatedBanner, WorkspaceFrozenBanner } from '@/components/desktop/WorkspaceStatusBanners';
 import StatusBadge from '@/components/StatusBadge';
 import {
   Plus, Search, Phone, Mail, MapPin, Globe, Copy, Check,
@@ -136,8 +137,10 @@ export default function ClientsDesktop() {
   const {
     currentUser, clients, quotes, quoteEntries, projects, invoices, surveys,
     createClient, updateClient, deleteClient,
-    isDemoMode, userCurrency,
+    isDemoMode, userCurrency, collectives, activeCollectiveId,
   } = useApp();
+
+  const activeColl = (collectives || []).find(c => c.collective_id === activeCollectiveId);
 
   const navPrefix = isDemoMode ? '/demo' : '';
   const AppLink = isDemoMode ? Link : LocaleLink;
@@ -334,6 +337,11 @@ export default function ClientsDesktop() {
         </header>
 
         <div className="dk-body">
+          {activeColl?.status === 'not_activated' ? (
+            <WorkspaceNotActivatedBanner />
+          ) : (
+          <>
+          {activeColl?.status === 'frozen' && <WorkspaceFrozenBanner isOwner={activeColl?.role === 'owner'} />}
           <div style={{ display: 'flex', gap: 16, flex: 1, minHeight: 0 }}>
 
               {/* ── LEFT PANEL ── */}
@@ -653,6 +661,9 @@ export default function ClientsDesktop() {
                 <div style={{ flex: 1 }} />
               )}
           </div>
+
+          </>
+          )}
         </div>
 
         {/* ── PODs Edit Modal — absolute within dk-page, sidebar stays visible ── */}

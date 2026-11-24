@@ -19,6 +19,7 @@ import PageHeader from '@/components/mobile/pods/PageHeader';
 import Dock from '@/components/mobile/pods/Dock';
 import { NotifSheet, MessagesSheet, MenuSheet } from '@/components/mobile/pods/Sheets';
 import NewAppointmentModal from '@/components/NewAppointmentModal';
+import { MobileWorkspaceNotActivatedBanner, MobileWorkspaceFrozenBanner } from '@/components/mobile/WorkspaceStatusBanners';
 import AppointmentDetailModal from '@/components/AppointmentDetailModal';
 
 // ─── Per-month color palette (12 entries, one per calendar month) ────────────
@@ -348,7 +349,8 @@ export default function CalendarMobile() {
   const locale = useLocale();
   const router = useRouter();
 
-  const { projects = [], quotes = [], clients = [], loading, projectRooms, isDemoMode } = useApp();
+  const { projects = [], quotes = [], clients = [], loading, projectRooms, isDemoMode, collectives, activeCollectiveId } = useApp();
+  const activeColl = (collectives || []).find(c => c.collective_id === activeCollectiveId);
 
   const navPrefix = isDemoMode ? '/demo' : '';
   const AppLink = isDemoMode ? Link : LocaleLink;
@@ -419,6 +421,9 @@ export default function CalendarMobile() {
       />
 
       <div style={{ padding: '108px 16px 190px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+
+        {activeColl?.status === 'not_activated' && <MobileWorkspaceNotActivatedBanner />}
+        {activeColl?.status === 'frozen' && <MobileWorkspaceFrozenBanner isOwner={activeColl?.role === 'owner'} />}
 
         {/* Page heading */}
         <button

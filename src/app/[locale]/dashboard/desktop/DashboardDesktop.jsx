@@ -8,6 +8,7 @@ import { useApp } from '@/context/AppContext';
 import { formatMoney, formatDate } from '@/lib/constants';
 import { PERSONAL_COLOR, podColor } from '@/lib/podColor';
 import Modal from '@/components/Modal';
+import { WorkspaceNotActivatedBanner, WorkspaceFrozenBanner } from '@/components/desktop/WorkspaceStatusBanners';
 import DashboardWeekCalendar from './DashboardWeekCalendar';
 import {
   Bell, Plus, X,
@@ -324,7 +325,11 @@ export default function DashboardDesktop({
           </div>
         )}
 
-        {!contextSwitching && <>
+        {!contextSwitching && activeColl?.status === 'not_activated' && <WorkspaceNotActivatedBanner />}
+
+        {!contextSwitching && activeColl?.status !== 'not_activated' && <>
+
+        {activeColl?.status === 'frozen' && <WorkspaceFrozenBanner isOwner={activeColl?.role === 'owner'} />}
 
         {/* Banners */}
         {(pendingInvitations.length > 0 || pendingTransfers.length > 0) && (

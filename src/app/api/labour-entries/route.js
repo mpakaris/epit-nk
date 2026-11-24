@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { logAudit } from '@/lib/audit';
+import { checkCollectiveStatus } from '@/lib/collectiveGuard';
 
 export async function POST(request) {
   const supabase = await createClient();
@@ -53,6 +54,9 @@ export async function POST(request) {
   }
   if (!isSuperAdmin && !isOwner && !isMember)
     return Response.json({ error: 'Nincs hozzáférés' }, { status: 403 });
+
+  const statusBlocked = await checkCollectiveStatus(admin, project.collective_id);
+  if (statusBlocked) return statusBlocked;
 
   const valueHuf = hours != null && hourlyRate != null
     ? Math.round(Number(hours) * Number(hourlyRate))

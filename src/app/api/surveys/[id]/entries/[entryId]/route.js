@@ -3,6 +3,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { deleteFromR2 } from '@/lib/r2';
 import { checkSurveyAccess } from '@/lib/surveyAccess';
 import { logAudit } from '@/lib/audit';
+import { checkCollectiveStatus } from '@/lib/collectiveGuard';
 
 async function getCtx(surveyId) {
   const supabase = await createClient();
@@ -26,7 +27,7 @@ async function getCtx(surveyId) {
   }
 
   const isKollektivOwner = memberRole === 'owner' || memberRole === 'admin';
-  return { user, profile, admin, isSurveyOwner, isKollektivOwner, isSuperAdmin };
+  return { user, profile, admin, isSurveyOwner, isKollektivOwner, isSuperAdmin, collectiveId: survey.collective_id || null };
 }
 
 export async function PATCH(request, { params }) {
@@ -43,6 +44,9 @@ export async function PATCH(request, { params }) {
     logAudit({ entityId: ctx.user.id, userId: ctx.user.id, userName: ctx.profile.display_name || '', action: 'Survey entry update denied', targetType: 'survey_entry', targetId: entryId, details: { error: 'Permission denied', entryId, surveyId } });
     return Response.json({ error: 'Csak a bejegyzés létrehozója vagy a kollektíva tulajdonosa módosíthat.' }, { status: 403 });
   }
+
+  const statusBlocked = await checkCollectiveStatus(ctx.admin, ctx.collectiveId);
+  if (statusBlocked) return statusBlocked;
 
   const fields = await request.json();
   const allowed = ['name', 'description', 'width_m', 'length_m', 'height_m', 'window_count', 'door_count', 'sort_order'];
@@ -79,6 +83,9 @@ export async function DELETE(request, { params }) {
     logAudit({ entityId: ctx.user.id, userId: ctx.user.id, userName: ctx.profile.display_name || '', action: 'Survey entry delete denied', targetType: 'survey_entry', targetId: entryId, details: { error: 'Permission denied', entryId, surveyId } });
     return Response.json({ error: 'Csak a bejegyzés létrehozója vagy a kollektíva tulajdonosa törölhet.' }, { status: 403 });
   }
+
+  const statusBlockedDel = await checkCollectiveStatus(ctx.admin, ctx.collectiveId);
+  if (statusBlockedDel) return statusBlockedDel;
 
   const { data: media } = await ctx.admin.from('survey_media').select('id, drive_file_id').eq('entry_id', entryId);
   if (media?.length) {

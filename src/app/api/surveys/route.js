@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { logAudit, logError } from '@/lib/audit';
 import { isEffectivePremium, checkPersonalLimit } from '@/lib/subscriptionLimits';
+import { checkCollectiveStatus } from '@/lib/collectiveGuard';
 
 async function getCallerProfile(supabase, admin) {
   const { data: { user }, error } = await supabase.auth.getUser();
@@ -80,6 +81,9 @@ export async function POST(request) {
     if (!mem || (mem.role !== 'owner' && mem.role !== 'admin'))
       return Response.json({ error: 'Csak a kollektíva tulajdonosa hozhat létre felmérést.' }, { status: 403 });
   }
+
+  const statusBlocked = await checkCollectiveStatus(admin, collectiveId);
+  if (statusBlocked) return statusBlocked;
 
   const { data: survey, error: insertErr } = await admin.from('surveys').insert([{
     owner_id:      user.id,

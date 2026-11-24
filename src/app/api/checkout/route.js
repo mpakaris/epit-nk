@@ -8,7 +8,7 @@ export async function POST(request) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const { productId, successUrl } = await request.json();
+  const { productId, successUrl, collectiveId } = await request.json();
   if (!productId) return NextResponse.json({ error: 'productId required' }, { status: 400 });
 
   const admin = createAdminClient();
@@ -27,7 +27,7 @@ export async function POST(request) {
     product_id: productId,
     success_url: returnUrl,
     customer: { email: profile?.email || user.email },
-    metadata: { userId: user.id },
+    metadata: { userId: user.id, ...(collectiveId ? { collectiveId } : {}) },
   };
 
   const res = await fetch('https://test-api.creem.io/v1/checkouts', {

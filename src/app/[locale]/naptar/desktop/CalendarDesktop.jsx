@@ -8,6 +8,7 @@ import { formatDate, QUOTE_STATUSES } from '@/lib/constants';
 import { useTranslations, useLocale } from 'next-intl';
 import { ChevronLeft, ChevronRight, FolderKanban, FileText, Calendar, List, Clock } from 'lucide-react';
 import NewAppointmentModal from '@/components/NewAppointmentModal';
+import { WorkspaceNotActivatedBanner, WorkspaceFrozenBanner } from '@/components/desktop/WorkspaceStatusBanners';
 import AppointmentDetailModal from '@/components/AppointmentDetailModal';
 
 // ─── Pure helpers ─────────────────────────────────────────────────────────────
@@ -259,7 +260,8 @@ function MonthCard({ monthLabel, year, weeks, weekSlices, today, AppLink, setSel
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function CalendarDesktop() {
-  const { projects, quotes, clients, projectRooms, isDemoMode, contextSwitching } = useApp();
+  const { projects, quotes, clients, projectRooms, isDemoMode, contextSwitching, collectives, activeCollectiveId } = useApp();
+  const activeColl = (collectives || []).find(c => c.collective_id === activeCollectiveId);
   const t = useTranslations('calendar');
   const locale = useLocale();
   const navPrefix = isDemoMode ? '/demo' : '';
@@ -376,8 +378,11 @@ export default function CalendarDesktop() {
           <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <div className="dk-ws-spinner" />
           </div>
+        ) : activeColl?.status === 'not_activated' ? (
+          <WorkspaceNotActivatedBanner />
         ) : (
           <>
+            {activeColl?.status === 'frozen' && <WorkspaceFrozenBanner isOwner={activeColl?.role === 'owner'} />}
             {/* Legend + month navigation row */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 20, flexWrap: 'wrap' }}>
               {/* Legend */}

@@ -2,10 +2,12 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { useApp } from '@/context/AppContext';
 import { useCollectives } from '@/hooks/useCollectives';
 import { isEffectivePremium } from '@/lib/subscriptionLimits';
+import { TIER_DISPLAY } from '@/lib/collectivesService';
 import { formatDate } from '@/lib/constants';
 import { podColor } from '@/lib/podColor';
 import Modal, { ConfirmModal, AlertModal } from '@/components/Modal';
@@ -25,6 +27,11 @@ const STATUS_LABEL = {
   active: 'Aktív', scheduled_cancel: 'Lemondás ütemezve',
   canceled: 'Lemondva', expired: 'Lejárt',
   paused: 'Szüneteltetett', past_due: 'Késedelmes',
+};
+const LIFECYCLE_BADGE = {
+  not_activated: { bg: '#FFF4CD', color: '#B45309', label: 'Nem aktivált' },
+  frozen:        { bg: '#FDECEC', color: '#B71C1C', label: 'Felfüggesztett' },
+  active:        { bg: '#E7F4EC', color: '#14532D', label: 'Aktív' },
 };
 
 // ── Sheet (bottom sheet) ──────────────────────────────────────────────────────
@@ -58,12 +65,17 @@ function CollectiveBody({ collective, transfers, colors, currentUser, t, onInvit
   const [menuOpen, setMenuOpen] = useState(false);
   const isOwner        = collective.my_role === 'owner';
   const isInclusive    = collective.is_inclusive ?? false;
+  const colStatus      = collective.status ?? 'active';
+  const isNotActivated = colStatus === 'not_activated';
+  const isFrozen       = colStatus === 'frozen';
   const activeMembers  = (collective.members || []).filter(m => m.status === 'active');
   const blockedMembers = (collective.members || []).filter(m => m.status === 'blocked');
   const pendingInvs    = collective.pending_invitations  || [];
   const declinedInvs   = collective.declined_invitations || [];
   const subStatus      = collective.subscription_status ?? 'active';
-  const isInclusiveFrozen = isInclusive && (subStatus === 'canceled' || subStatus === 'expired');
+  const isInclusiveFrozen = isInclusive && (subStatus === 'canceled' || subStatus === 'expired' || isFrozen);
+  const tier      = TIER_DISPLAY?.[collective.collective_tier] ?? null;
+  const usedSeats = activeMembers.filter(m => m.role !== 'owner').length + pendingInvs.length;
 
   function SecHead({ children }) {
     return <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.07em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.55)', padding: '4px 2px 0' }}>{children}</div>;
@@ -105,17 +117,48 @@ function CollectiveBody({ collective, transfers, colors, currentUser, t, onInvit
     );
   }
 
+  // Not-activated: show activate + delete only, no member management
+  if (isOwner && isNotActivated) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div style={{ background: '#FFF4CD', borderRadius: 16, padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span style={{ flex: 1, fontSize: 13, fontWeight: 600, color: '#B45309' }}>{t('notActivatedBannerTitle')}</span>
+        </div>
+        <Link href={`/elofizetes?activate=${collective.id}`} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, height: 52, borderRadius: 26, background: '#B45309', color: '#fff', fontSize: 15, fontWeight: 700, textDecoration: 'none' }}>
+          {t('activateBtn')}
+        </Link>
+        <button type="button" onClick={onDelete} style={{ width: '100%', height: 52, border: '1.5px solid #B71C1C', borderRadius: 26, background: '#fff', color: '#B71C1C', fontSize: 15, fontWeight: 700, cursor: 'pointer' }}>
+          {t('deleteNotActivated')}
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+
+      {/* Status badge + seat count */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+        {colStatus !== 'active' && (
+          <span style={{ fontSize: 11, fontWeight: 800, padding: '3px 10px', borderRadius: 999, background: LIFECYCLE_BADGE[colStatus]?.bg, color: LIFECYCLE_BADGE[colStatus]?.color }}>
+            {LIFECYCLE_BADGE[colStatus]?.label}
+          </span>
+        )}
+        {tier && (
+          <span style={{ fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.65)' }}>
+            {t('seatsUsed', { used: usedSeats, total: tier.seats })}
+          </span>
+        )}
+      </div>
 
       {/* Frozen warning */}
       {isInclusiveFrozen && (
         <div style={{ background: '#FDECEC', borderRadius: 16, padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 10 }}>
           <AlertCircle size={16} color="#B71C1C" style={{ flexShrink: 0 }} />
           <span style={{ flex: 1, fontSize: 13, fontWeight: 600, color: '#B71C1C' }}>{t('premiumNeeded')}</span>
-          <a href="/elofizetes" style={{ flexShrink: 0, fontSize: 12, fontWeight: 700, color: '#fff', textDecoration: 'none', background: '#B71C1C', padding: '4px 10px', borderRadius: 999 }}>
+          <Link href="/elofizetes" style={{ flexShrink: 0, fontSize: 12, fontWeight: 700, color: '#fff', textDecoration: 'none', background: '#B71C1C', padding: '4px 10px', borderRadius: 999 }}>
             {t('restorePremiumLink')}
-          </a>
+          </Link>
         </div>
       )}
 
@@ -123,9 +166,9 @@ function CollectiveBody({ collective, transfers, colors, currentUser, t, onInvit
       {isOwner && !isInclusive && (
         <div style={{ background: 'rgba(255,255,255,0.10)', borderRadius: 14, padding: '8px 12px', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
           <span style={{ fontSize: 13, fontWeight: 700, color: 'rgba(255,255,255,0.9)' }}>{STATUS_LABEL[subStatus] ?? subStatus}</span>
-          <a href="/elofizetes" style={{ marginLeft: 'auto', fontSize: 12, fontWeight: 700, color: fg, textDecoration: 'none', background: 'rgba(255,255,255,0.18)', padding: '4px 10px', borderRadius: 999, display: 'flex', alignItems: 'center', gap: 4 }}>
+          <Link href="/elofizetes" style={{ marginLeft: 'auto', fontSize: 12, fontWeight: 700, color: fg, textDecoration: 'none', background: 'rgba(255,255,255,0.18)', padding: '4px 10px', borderRadius: 999, display: 'flex', alignItems: 'center', gap: 4 }}>
             {t('menuManageSubscription')} <ArrowUpRight size={11} />
-          </a>
+          </Link>
         </div>
       )}
 
@@ -310,11 +353,12 @@ export default function KollektivakMobile() {
   const [inviting,         setInviting]         = useState(false);
   const [inviteError,      setInviteError]      = useState('');
 
-  const [confirmModal,     setConfirmModal]     = useState(null);
-  const [alertModal,       setAlertModal]       = useState(null);
-  const [deleteModal,      setDeleteModal]      = useState(null);
-  const [deleteInput,      setDeleteInput]      = useState('');
-  const [deleteConfirming, setDeleteConfirming] = useState(false);
+  const [confirmModal,       setConfirmModal]       = useState(null);
+  const [alertModal,         setAlertModal]         = useState(null);
+  const [deleteModal,        setDeleteModal]        = useState(null);
+  const [deleteInput,        setDeleteInput]        = useState('');
+  const [deleteConfirming,   setDeleteConfirming]   = useState(false);
+  const [deleteBlockedModal, setDeleteBlockedModal] = useState(null);
 
   const [reInvitingId,         setReInvitingId]         = useState(null);
   const [retractingId,         setRetractingId]         = useState(null);
@@ -326,17 +370,19 @@ export default function KollektivakMobile() {
   if (loading || !dataReady || fetching) return <PageSpinner />;
 
   const isPremium = isEffectivePremium(currentUser ?? {});
+  const hasPendingCollective = collectives.some(c => c.my_role === 'owner' && c.status === 'not_activated');
 
   // Build PodList workspace objects
   const collectivePods = collectives.map(c => {
     const active  = (c.members || []).filter(m => m.status === 'active');
     const pending = (c.pending_invitations || []).length;
     const trs     = transferRequests.filter(r => r.collective_id === c.id);
+    const badge   = LIFECYCLE_BADGE[c.status] || LIFECYCLE_BADGE.active;
     return {
       id:        c.id,
       isPersonal: false,
       name:      c.name,
-      sub:       `${active.length} tag · ${c.my_role === 'owner' ? t('owner') : t(c.my_role)}`,
+      sub:       `${c.status !== 'active' ? badge.label + ' · ' : ''}${active.length} tag · ${c.my_role === 'owner' ? t('owner') : t(c.my_role)}`,
       count:     active.length + pending,
       members:   active,
       _collective: { ...c, _transferRequests: trs },
@@ -419,7 +465,7 @@ export default function KollektivakMobile() {
   function handleDelete(collective) {
     if (collective.is_inclusive) { setAlertModal({ variant: 'warning', title: t('cantDeleteInclusiveTitle'), message: t('cantDeleteInclusiveMsg') }); return; }
     const sub = collective.subscription_status ?? 'active';
-    if (sub === 'active' || sub === 'trialing' || sub === 'paused' || sub === 'past_due') { setAlertModal({ variant: 'warning', message: t('deleteBlockedActiveMsg', { name: collective.name }) }); return; }
+    if (sub === 'active' || sub === 'trialing' || sub === 'paused' || sub === 'past_due') { setDeleteBlockedModal({ name: collective.name }); return; }
     setDeleteInput(''); setDeleteModal(collective);
   }
 
@@ -484,9 +530,9 @@ export default function KollektivakMobile() {
                 <div style={{ fontSize: 13, color: '#8A8F98' }}>{t('inclusiveLockedText')}</div>
               </div>
             </div>
-            <a href="/elofizetes" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, height: 52, borderRadius: 26, background: '#0E1116', color: '#fff', fontSize: 15, fontWeight: 700, textDecoration: 'none' }}>
+            <Link href="/elofizetes" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, height: 52, borderRadius: 26, background: '#0E1116', color: '#fff', fontSize: 15, fontWeight: 700, textDecoration: 'none' }}>
               <Zap size={18} /> {t('premiumActivateBtn')}
-            </a>
+            </Link>
           </div>
         )}
 
@@ -546,9 +592,9 @@ export default function KollektivakMobile() {
               <AlertCircle size={18} color="#C2410C" style={{ flexShrink: 0, marginTop: 1 }} />
               <span style={{ fontSize: 14, color: '#7C2D12', lineHeight: 1.55 }}>{t('premiumGateText')}</span>
             </div>
-            <a href="/elofizetes" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, height: 60, border: 0, borderRadius: 30, background: '#0E1116', color: '#fff', fontSize: 17, fontWeight: 700, textDecoration: 'none' }}>
+            <Link href="/elofizetes" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, height: 60, border: 0, borderRadius: 30, background: '#0E1116', color: '#fff', fontSize: 17, fontWeight: 700, textDecoration: 'none' }}>
               <Zap size={18} /> {t('premiumActivateBtn')}
-            </a>
+            </Link>
             <button type="button" onClick={() => setCreateOpen(false)} style={{ width: '100%', height: 60, border: 0, borderRadius: 30, background: '#EFEDE6', color: '#0E1116', fontSize: 17, fontWeight: 700, cursor: 'pointer' }}>
               {t('close')}
             </button>
@@ -624,6 +670,25 @@ export default function KollektivakMobile() {
         <button type="button" onClick={() => setDeleteModal(null)} disabled={deleteConfirming} style={{ width: '100%', height: 60, border: 0, borderRadius: 30, background: '#EFEDE6', color: '#0E1116', fontSize: 17, fontWeight: 700, cursor: 'pointer', marginTop: 8 }}>
           {t('cancel')}
         </button>
+      </Modal>
+
+      <Modal isOpen={!!deleteBlockedModal} onClose={() => setDeleteBlockedModal(null)} title={t('deleteTitle')}>
+        {deleteBlockedModal && (
+          <>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '12px 14px', borderRadius: 14, background: '#FFF7ED', border: '1px solid #FED7AA', marginBottom: 16 }}>
+              <AlertTriangle size={18} color="#C2410C" style={{ flexShrink: 0, marginTop: 1 }} />
+              <span style={{ fontSize: 14, color: '#7C2D12', lineHeight: 1.5 }}>
+                {t('deleteBlockedActiveMsg', { name: deleteBlockedModal.name })}
+              </span>
+            </div>
+            <Link href="/elofizetes" onClick={() => setDeleteBlockedModal(null)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: 60, border: 0, borderRadius: 30, background: '#1e3a8a', color: '#fff', fontSize: 17, fontWeight: 700, textDecoration: 'none' }}>
+              {t('deleteBlockedManageBtn')}
+            </Link>
+            <button type="button" onClick={() => setDeleteBlockedModal(null)} style={{ width: '100%', height: 60, border: 0, borderRadius: 30, background: '#EFEDE6', color: '#0E1116', fontSize: 17, fontWeight: 700, cursor: 'pointer', marginTop: 8 }}>
+              {t('cancel')}
+            </button>
+          </>
+        )}
       </Modal>
 
       <ConfirmModal isOpen={!!confirmModal} onClose={() => setConfirmModal(null)} onConfirm={() => confirmModal?.onConfirm()} title={confirmModal?.title ?? t('confirmation')} message={confirmModal?.message} confirmLabel={confirmModal?.confirmLabel} />

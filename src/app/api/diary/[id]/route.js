@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { logAudit } from '@/lib/audit';
+import { checkCollectiveStatus } from '@/lib/collectiveGuard';
 
 async function getAuth(supabase, admin) {
   const { data: { user }, error: authErr } = await supabase.auth.getUser();
@@ -17,15 +18,16 @@ async function resolveEntry(entryId, userId, profile, admin) {
     .is('deleted_at', null)
     .single();
   if (!entry) return null;
-  if (profile.role === 'superadmin') return { ...entry, isKollektivOwner: true };
+  if (profile.role === 'superadmin') return { ...entry, isKollektivOwner: true, collectiveId: null };
   // Verify user can access the project
   const { data: project } = await admin.from('projects').select('owner_id, collective_id, created_by').eq('id', entry.project_id).is('deleted_at', null).single();
   if (!project) return null;
+  const collectiveId = project.collective_id || null;
   const isProjectOwner = project.owner_id === userId || project.created_by === userId;
-  if (isProjectOwner) return { ...entry, isKollektivOwner: true };
-  if (project.collective_id) {
-    const { data: mem } = await admin.from('collective_members').select('role').eq('collective_id', project.collective_id).eq('user_id', userId).eq('status', 'active').maybeSingle();
-    if (mem) return { ...entry, isKollektivOwner: mem.role === 'owner' || mem.role === 'admin' };
+  if (isProjectOwner) return { ...entry, isKollektivOwner: true, collectiveId };
+  if (collectiveId) {
+    const { data: mem } = await admin.from('collective_members').select('role').eq('collective_id', collectiveId).eq('user_id', userId).eq('status', 'active').maybeSingle();
+    if (mem) return { ...entry, isKollektivOwner: mem.role === 'owner' || mem.role === 'admin', collectiveId };
   }
   return null;
 }
@@ -48,6 +50,9 @@ export async function PATCH(request, { params }) {
     logAudit({ entityId: entry.project_id, userId: user.id, userName: profile.display_name, action: 'Diary entry edit denied', targetType: 'diary_entry', targetId: id, details: { error: 'Permission denied' } });
     return Response.json({ error: 'Nincs jogosultsága szerkeszteni ezt a bejegyzést.' }, { status: 403 });
   }
+
+  const statusBlocked = await checkCollectiveStatus(admin, entry.collectiveId);
+  if (statusBlocked) return statusBlocked;
 
   const body = await request.json();
   const { title, body: entryBody, work_type, internal_note, client_note, entry_date, add_photo_ids, is_public, room_id } = body;
@@ -121,6 +126,9 @@ export async function DELETE(request, { params }) {
   if (!isSuperAdmin && !entry.isKollektivOwner && !isCreator) {
     return Response.json({ error: 'Nincs jogosultsága törölni ezt a bejegyzést' }, { status: 403 });
   }
+
+  const statusBlockedDel = await checkCollectiveStatus(admin, entry.collectiveId);
+  if (statusBlockedDel) return statusBlockedDel;
 
   const { error: delErr } = await admin.from('diary_entries')
     .update({ deleted_at: new Date().toISOString() })

@@ -21,6 +21,7 @@ import PageHeader from '@/components/mobile/pods/PageHeader';
 import PodList from '@/components/mobile/pods/PodList';
 import Dock from '@/components/mobile/pods/Dock';
 import { NotifSheet, MessagesSheet, MenuSheet } from '@/components/mobile/pods/Sheets';
+import { MobileWorkspaceNotActivatedBanner, MobileWorkspaceFrozenBanner } from '@/components/mobile/WorkspaceStatusBanners';
 
 // ─── Project status config ────────────────────────────────────────────────────
 function projectStatusStyle(status, t) {
@@ -170,6 +171,7 @@ export default function ProjectsListMobile() {
     collectives: userMemberships = [], userCurrency, quotes = [],
     activeCollectiveId, setActiveContext,
   } = useApp();
+  const activeColl = (userMemberships || []).find(c => c.collective_id === activeCollectiveId);
 
   const navPrefix = isDemoMode ? '/demo' : '';
   const p = useCallback((path) => `${navPrefix}${path}`, [navPrefix]);
@@ -297,6 +299,9 @@ export default function ProjectsListMobile() {
 
       {/* paddingTop 108px clears the 100px PageHeader */}
       <div style={{ padding: '108px 16px 190px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+
+        {activeColl?.status === 'not_activated' && <MobileWorkspaceNotActivatedBanner />}
+        {activeColl?.status === 'frozen' && <MobileWorkspaceFrozenBanner isOwner={activeColl?.role === 'owner'} />}
 
         {!isOnline && (
           <div style={{ padding: '10px 16px', borderRadius: 20, background: '#B71C1C', color: '#fff', fontSize: 14, fontWeight: 700, textAlign: 'center' }}>

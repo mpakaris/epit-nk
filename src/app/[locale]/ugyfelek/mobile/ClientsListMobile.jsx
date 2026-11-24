@@ -12,6 +12,7 @@ import { useApp } from '@/context/AppContext';
 import useOnline from '@/hooks/useOnline';
 import Dock from '@/components/mobile/pods/Dock';
 import ClientDetailMobile from './ClientDetailMobile';
+import { MobileWorkspaceNotActivatedBanner, MobileWorkspaceFrozenBanner } from '@/components/mobile/WorkspaceStatusBanners';
 
 const CLIENTS_BG = '#B8456B';
 const CLIENTS_DEEP = '#2A0F1A';
@@ -122,7 +123,8 @@ export default function ClientsListMobile() {
   const t = useTranslations('clients');
   const router = useRouter();
   const isOnline = useOnline();
-  const { loading, dataReady, clients = [], quotes = [], projects = [], isDemoMode } = useApp();
+  const { loading, dataReady, clients = [], quotes = [], projects = [], isDemoMode, collectives, activeCollectiveId } = useApp();
+  const activeColl = (collectives || []).find(c => c.collective_id === activeCollectiveId);
 
   const navPrefix = isDemoMode ? '/demo' : '';
 
@@ -168,6 +170,14 @@ export default function ClientsListMobile() {
 
   return (
     <div className="pod-screen-dark" style={{ background: CLIENTS_DEEP, minHeight: '100dvh', position: 'relative' }}>
+
+      {/* ── Workspace status banners ── */}
+      {activeColl?.status === 'not_activated' && (
+        <div style={{ padding: '0 16px 10px' }}><MobileWorkspaceNotActivatedBanner /></div>
+      )}
+      {activeColl?.status === 'frozen' && (
+        <div style={{ padding: '0 16px 10px' }}><MobileWorkspaceFrozenBanner isOwner={activeColl?.role === 'owner'} /></div>
+      )}
 
       {/* ── Offline banner ── */}
       {!isOnline && (

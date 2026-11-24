@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { logAudit } from '@/lib/audit';
 import { hasPendingTransfer, canUnlockToPersonal } from '@/lib/transferLock';
+import { checkCollectiveStatus } from '@/lib/collectiveGuard';
 import { sendEmail } from '@/lib/email';
 import { wrapEmail, buildProjectStatusEmailHtml } from '@/lib/emailTemplates';
 
@@ -110,6 +111,12 @@ export async function PATCH(request, { params }) {
 
   if (!isOwner && !isSuperAdmin && !isKollektivOwner)
     return Response.json({ error: 'Csak a tulajdonos módosíthatja a projektet.' }, { status: 403 });
+
+  // Unlock is a recovery action allowed even on frozen collectives
+  if (fields._action !== 'unlock') {
+    const statusBlocked = await checkCollectiveStatus(ctx.admin, ctx.project.collective_id);
+    if (statusBlocked) return statusBlocked;
+  }
 
   // Unlock action
   if (fields._action === 'unlock') {
@@ -221,6 +228,9 @@ export async function DELETE(request, { params }) {
   const isKollektivOwner = ctx.memberRole === 'owner' || ctx.memberRole === 'admin';
   if (!isOwner && !isSuperAdmin && !isKollektivOwner)
     return Response.json({ error: 'Csak a tulajdonos törölheti a projektet.' }, { status: 403 });
+
+  const statusBlockedDel = await checkCollectiveStatus(ctx.admin, ctx.project.collective_id);
+  if (statusBlockedDel) return statusBlockedDel;
 
   if (!isSuperAdmin && await hasPendingTransfer('project', id))
     return Response.json({ error: 'Ez a dokumentum átadás alatt áll, ezért nem módosítható.' }, { status: 423 });

@@ -99,6 +99,9 @@ export default function PodStack({ workspaces, activeId, onActivate, onCreateIn,
     <div style={{ position: 'relative', flexShrink: 0, height: STACK_H }}>
       {workspaces.map((ws, i) => {
         const isActive = ws.id === activeId;
+        const wsStatus      = ws.status || 'active';
+        const isNotActivated = wsStatus === 'not_activated';
+        const isFrozen       = wsStatus === 'frozen';
         const colors = ws.isPersonal ? PERSONAL_COLOR : podColor(ws.id);
         const { bg, deep, fg, soft, glass, glow } = colors;
 
@@ -152,6 +155,7 @@ export default function PodStack({ workspaces, activeId, onActivate, onCreateIn,
               top, height,
               boxShadow: '0 24px 40px -24px rgba(14,17,22,0.5)',
               transition: 'top .5s cubic-bezier(.2,.8,.2,1), height .5s cubic-bezier(.2,.8,.2,1)',
+              opacity: isNotActivated ? 0.65 : 1,
             }}
           >
             {/* Pod strip / header */}
@@ -166,11 +170,16 @@ export default function PodStack({ workspaces, activeId, onActivate, onCreateIn,
                 aria-pressed={isActive}
                 style={{ position: 'relative', width: '100%', height: 64, boxSizing: 'border-box', padding: '0 16px 0 14px', border: 0, background: 'transparent', color: 'inherit', display: 'flex', alignItems: 'center', gap: 12, textAlign: 'left', cursor: isActive ? 'default' : 'pointer' }}
               >
-                <span style={{ flexShrink: 0, width: 42, height: 42, borderRadius: 21, background: glass, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <span style={{ position: 'relative', flexShrink: 0, width: 42, height: 42, borderRadius: 21, background: glass, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   {ws.isPersonal ? (
                     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 018 0v3"/></svg>
                   ) : (
                     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c0-3.5 2.9-6 6.5-6s6.5 2.5 6.5 6M16 5a3.5 3.5 0 010 7M18 14c2.2.6 3.5 2.6 3.5 6"/></svg>
+                  )}
+                  {(isNotActivated || isFrozen) && (
+                    <span aria-hidden="true" style={{ position: 'absolute', bottom: -2, right: -2, width: 18, height: 18, borderRadius: 9, background: isNotActivated ? '#B45309' : '#B71C1C', display: 'flex', alignItems: 'center', justifyContent: 'center', border: `2px solid ${bg}` }}>
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+                    </span>
                   )}
                 </span>
                 <span style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 1 }}>

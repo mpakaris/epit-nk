@@ -8,7 +8,7 @@ import { PERSONAL_COLOR, podColor } from '@/lib/podColor';
 import {
   LayoutDashboard, Ruler, FileText, FolderKanban, BookUser,
   MessageSquare, Calendar, Package, Globe,
-  UsersRound, ChevronRight, CreditCard,
+  UsersRound, ChevronRight, CreditCard, Lock,
 } from 'lucide-react';
 
 /* Per-module nav active background colour */
@@ -138,6 +138,8 @@ export default function DesktopSidebar() {
         {(collectives || []).map(col => {
           const colors = podColor(col.collective_id);
           const isActive = activeCollectiveId === col.collective_id;
+          const isNotActivated = col.status === 'not_activated';
+          const isFrozen = col.status === 'frozen';
           return (
             <button
               key={col.collective_id}
@@ -146,13 +148,21 @@ export default function DesktopSidebar() {
               style={{
                 background: colors.deep,
                 boxShadow: isActive ? 'inset 0 0 0 2px #fff' : 'none',
+                opacity: isNotActivated ? 0.55 : 1,
               }}
             >
-              <span style={{ width: 10, height: 10, borderRadius: 5, background: colors.bg, flexShrink: 0 }} />
+              <span style={{ position: 'relative', width: 10, height: 10, borderRadius: 5, background: colors.bg, flexShrink: 0 }}>
+                {(isNotActivated || isFrozen) && (
+                  <Lock
+                    size={8}
+                    style={{ position: 'absolute', top: -3, right: -3, color: '#fff', background: isNotActivated ? '#B45309' : '#B71C1C', borderRadius: 3, padding: 1 }}
+                  />
+                )}
+              </span>
               <span style={{ flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 {col.name}
               </span>
-              {isActive && (
+              {isActive && !isNotActivated && (
                 <span className="dk-badge" style={{ background: '#fff', color: '#0E1116', height: 22, padding: '0 8px', fontSize: 11 }}>
                   {totalDocs}
                 </span>

@@ -7,6 +7,7 @@ import { useApp } from '@/context/AppContext';
 import { formatDate } from '@/lib/constants';
 import { podColor } from '@/lib/podColor';
 import Modal from '@/components/Modal';
+import { WorkspaceNotActivatedBanner, WorkspaceFrozenBanner } from '@/components/desktop/WorkspaceStatusBanners';
 import TransferToCollectiveModal from '@/components/TransferToCollectiveModal';
 import SurveyMediaModal from '@/components/survey/SurveyMediaModal';
 import SurveyDrawingsModal from '@/components/survey/SurveyDrawingsModal';
@@ -194,8 +195,10 @@ export default function SurveyListDesktop() {
           </div>
         )}
 
-        {!contextSwitching && (
+        {!contextSwitching && activeColl?.status === 'not_activated' && <WorkspaceNotActivatedBanner />}
+        {!contextSwitching && activeColl?.status !== 'not_activated' && (
           <>
+            {activeColl?.status === 'frozen' && <WorkspaceFrozenBanner isOwner={activeColl?.role === 'owner'} />}
             {/* Filter chips + count */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div style={{ display: 'flex', gap: 8 }}>

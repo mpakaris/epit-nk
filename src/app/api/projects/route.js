@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { logAudit } from '@/lib/audit';
 import { isEffectivePremium, checkPersonalLimit } from '@/lib/subscriptionLimits';
+import { checkCollectiveStatus } from '@/lib/collectiveGuard';
 
 export async function POST(request) {
   const supabase = await createClient();
@@ -47,6 +48,9 @@ export async function POST(request) {
     if (!mem || (mem.role !== 'owner' && mem.role !== 'admin'))
       return Response.json({ error: 'Csak a kollektíva tulajdonosa hozhat létre projektet.' }, { status: 403 });
   }
+
+  const statusBlocked = await checkCollectiveStatus(admin, collectiveId);
+  if (statusBlocked) return statusBlocked;
 
   const { data: creatorProfile } = await admin.from('profiles').select('display_name').eq('id', user.id).single();
 

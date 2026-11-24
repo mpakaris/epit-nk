@@ -8,6 +8,7 @@ import { formatDate, formatMoney } from '@/lib/constants';
 import { podColor } from '@/lib/podColor';
 import Modal from '@/components/Modal';
 import StatusBadge from '@/components/StatusBadge';
+import { WorkspaceNotActivatedBanner, WorkspaceFrozenBanner } from '@/components/desktop/WorkspaceStatusBanners';
 import TransferToCollectiveModal from '@/components/TransferToCollectiveModal';
 import { Search, Plus, Trash2, X, ArrowRightLeft, MoreHorizontal } from 'lucide-react';
 
@@ -158,8 +159,10 @@ export default function OfferListDesktop() {
           </div>
         )}
 
-        {!contextSwitching && (
+        {!contextSwitching && activeColl?.status === 'not_activated' && <WorkspaceNotActivatedBanner />}
+        {!contextSwitching && activeColl?.status !== 'not_activated' && (
           <>
+            {activeColl?.status === 'frozen' && <WorkspaceFrozenBanner isOwner={activeColl?.role === 'owner'} />}
             {/* Stats strip */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
               {STATS.map(stat => (

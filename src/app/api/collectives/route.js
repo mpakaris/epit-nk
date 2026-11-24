@@ -71,7 +71,7 @@ export async function GET(request) {
   // missing column (migration 087 not yet applied) doesn't break the whole query.
   const { data: memberships } = await admin
     .from('collective_members')
-    .select('collective_id, role, status, collectives(id, name, created_at, collective_tier, creem_subscription_id, subscription_status, subscription_period_end)')
+    .select('collective_id, role, status, collectives(id, name, created_at, status, collective_tier, is_inclusive, creem_subscription_id, subscription_status, subscription_period_end)')
     .eq('user_id', userId)
     .eq('status', 'active');
 
@@ -107,11 +107,12 @@ export async function GET(request) {
     id:                    m.collective_id,
     name:                  m.collectives?.name,
     created_at:            m.collectives?.created_at,
+    status:                m.collectives?.status ?? 'active',
     collective_tier:          m.collectives?.collective_tier ?? null,
     creem_subscription_id:    m.collectives?.creem_subscription_id ?? null,
     subscription_status:      m.collectives?.subscription_status ?? 'active',
     subscription_period_end:  m.collectives?.subscription_period_end ?? null,
-    is_inclusive:             inclusiveMap[m.collective_id] ?? false,
+    is_inclusive:             m.collectives?.is_inclusive ?? inclusiveMap[m.collective_id] ?? false,
     my_role:               m.role,
     members:  allMembers
       .filter(mb => mb.collective_id === m.collective_id)
@@ -164,6 +165,8 @@ export async function GET(request) {
       id:                  newId,
       name:                workspaceName,
       is_inclusive:        true,
+      status:              'active',
+      collective_tier:     'xs',
       subscription_status: 'active',
       owner_id:            userId,
     });
@@ -177,7 +180,8 @@ export async function GET(request) {
       id:                    newId,
       name:                  workspaceName,
       created_at:            now,
-      collective_tier:          null,
+      collective_tier:       'xs',
+      status:                'active',
       creem_subscription_id:    null,
       subscription_status:      'active',
       subscription_period_end:  null,
@@ -207,9 +211,10 @@ export async function GET(request) {
     );
     if (activeInclusive) {
       await admin.from('collectives')
-        .update({ subscription_status: 'canceled' })
+        .update({ subscription_status: 'canceled', status: 'frozen' })
         .eq('id', activeInclusive.id);
       activeInclusive.subscription_status = 'canceled';
+      activeInclusive.status = 'frozen';
 
       // Notify all active members (fire-and-forget)
       const memberIds = (activeInclusive.members || [])
@@ -237,13 +242,41 @@ export async function POST(req) {
   const isSuperAdmin = profile?.role === 'superadmin';
 
   if (!isSuperAdmin && !isEffectivePremium(profile ?? {})) {
-    return Response.json({ error: 'PREMIUM_REQUIRED' }, { status: 403 });
+    return Response.json({ error: 'Prémium előfizetés szükséges.' }, { status: 403 });
   }
 
   const { name, creem_subscription_id, collective_tier } = await req.json();
   if (!name?.trim()) return Response.json({ error: 'A kollektíva neve kötelező' }, { status: 400 });
 
-  const insertData = { id: crypto.randomUUID(), name: name.trim() };
+  // Block creation if the user already has a not_activated collective pending activation
+  const { data: pendingCollective } = await admin
+    .from('collectives')
+    .select('id')
+    .eq('owner_id', user.id)
+    .eq('status', 'not_activated')
+    .is('deleted_at', null)
+    .maybeSingle();
+
+  if (pendingCollective) {
+    logAudit({
+      entityId:   pendingCollective.id,
+      userId:     user.id,
+      userName:   profile.display_name || user.email,
+      action:     'Kollektíva létrehozás megtagadva — már van nem aktivált',
+      targetType: 'collective',
+      details:    { pending_id: pendingCollective.id },
+    });
+    return Response.json({
+      error: 'Már van egy nem aktivált kollektívád. Aktiváld vagy töröld, mielőtt újat hozol létre.',
+    }, { status: 409 });
+  }
+
+  const insertData = {
+    id:       crypto.randomUUID(),
+    name:     name.trim(),
+    status:   'not_activated',
+    owner_id: user.id,
+  };
   if (creem_subscription_id) insertData.creem_subscription_id = creem_subscription_id;
   if (collective_tier) insertData.collective_tier = collective_tier;
 

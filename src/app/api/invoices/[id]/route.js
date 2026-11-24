@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { logAudit } from '@/lib/audit';
+import { checkCollectiveStatus } from '@/lib/collectiveGuard';
 
 async function resolveAccess(user, invoiceId) {
   const admin = createAdminClient();
@@ -46,6 +47,9 @@ export async function PATCH(request, { params }) {
   if (!ctx) return Response.json({ error: 'Nincs hozzáférés' }, { status: 403 });
   const { admin, profile, project } = ctx;
 
+  const statusBlocked = await checkCollectiveStatus(admin, project.collective_id);
+  if (statusBlocked) return statusBlocked;
+
   const fields = await request.json();
   const allowed = ['value_huf', 'category', 'description', 'room_id', 'ai_line_items', 'ai_total', 'image_url', 'storage_path', 'portal_visible'];
   const update = {};
@@ -82,6 +86,9 @@ export async function DELETE(request, { params }) {
   const ctx = await resolveAccess(user, id);
   if (!ctx) return Response.json({ error: 'Nincs hozzáférés' }, { status: 403 });
   const { admin, profile, project } = ctx;
+
+  const statusBlockedDel = await checkCollectiveStatus(admin, project.collective_id);
+  if (statusBlockedDel) return statusBlockedDel;
 
   const { error } = await admin.from('invoices').update({
     deleted_at:       new Date().toISOString(),

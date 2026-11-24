@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { logAudit } from '@/lib/audit';
 import { isEffectivePremium, checkPersonalLimit } from '@/lib/subscriptionLimits';
+import { checkCollectiveStatus } from '@/lib/collectiveGuard';
 
 // Returns the caller's personal quotes (collective_id IS NULL) regardless of active workspace.
 // Used by the project/survey new-form pickers when the user is in collective context.
@@ -69,6 +70,9 @@ export async function POST(request) {
     if (!mem || (mem.role !== 'owner' && mem.role !== 'admin'))
       return Response.json({ error: 'Csak a kollektíva tulajdonosa hozhat létre ajánlatot.' }, { status: 403 });
   }
+
+  const statusBlocked = await checkCollectiveStatus(admin, collectiveId);
+  if (statusBlocked) return statusBlocked;
 
   // Validate shared_with — only include IDs that are real profile UUIDs
   let safeSharedWith = [];

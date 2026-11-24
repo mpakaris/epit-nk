@@ -7,6 +7,7 @@ import { useApp } from '@/context/AppContext';
 import { formatMoney } from '@/lib/constants';
 import { podColor } from '@/lib/podColor';
 import Modal, { AlertModal, ConfirmModal } from '@/components/Modal';
+import { WorkspaceNotActivatedBanner, WorkspaceFrozenBanner } from '@/components/desktop/WorkspaceStatusBanners';
 import ClientSelect from '@/components/ClientSelect';
 import WorkspacePicker from '@/components/mobile/WorkspacePicker';
 import { useTransferRequests } from '@/hooks/useTransferRequests';
@@ -55,6 +56,8 @@ export default function ProjectsListDesktop({
   const rawProjects = dataReady
     ? (ctxProjects || []).filter(p => !p.deleted_at)
     : [...(initialPersonalProjects || []), ...(initialSharedProjects || [])].filter(p => !p.deleted_at);
+
+  const activeColl = (collectives || []).find(c => c.collective_id === activeCollectiveId);
 
   const wsStyle = activeCollectiveId
     ? { '--dk-c': podColor(activeCollectiveId).deep }
@@ -341,8 +344,11 @@ export default function ProjectsListDesktop({
           <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <div className="dk-ws-spinner" />
           </div>
+        ) : activeColl?.status === 'not_activated' ? (
+          <WorkspaceNotActivatedBanner />
         ) : (
           <>
+            {activeColl?.status === 'frozen' && <WorkspaceFrozenBanner isOwner={activeColl?.role === 'owner'} />}
             {/* Filter chips */}
             <div style={{ display: 'flex', gap: 8 }}>
               {[

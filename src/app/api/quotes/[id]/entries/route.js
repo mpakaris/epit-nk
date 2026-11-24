@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { logAudit } from '@/lib/audit';
+import { checkCollectiveStatus } from '@/lib/collectiveGuard';
 
 export async function POST(request, { params }) {
   const { id: quoteId } = await params;
@@ -22,6 +23,9 @@ export async function POST(request, { params }) {
     const { data: mem } = await admin.from('collective_members').select('role').eq('collective_id', quote.collective_id).eq('user_id', user.id).eq('status', 'active').maybeSingle();
     if (!mem) return Response.json({ error: 'Forbidden' }, { status: 403 });
   }
+
+  const statusBlocked = await checkCollectiveStatus(admin, quote.collective_id);
+  if (statusBlocked) return statusBlocked;
 
   const body = await request.json();
   const { data, error } = await admin.from('quote_entries').insert([{

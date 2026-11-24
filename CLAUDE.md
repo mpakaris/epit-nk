@@ -295,8 +295,13 @@ Stop impersonation:
 |---|---|---|
 | Basic | free | max 5 surveys, max 5 quotes, max 1 project |
 | Trial | free 14 days | full Premium features; assigned on first registration; same email cannot re-trial |
-| Premium | 6.999 Ft/month + ÁFA | unlimited everything, required to create collectives |
-| Collective seat | 1.999 Ft/seat/month + ÁFA | owner pays for all seats; owner NOT counted as a seat; Basic users can be invited |
+| Premium | 7.990 Ft/month + ÁFA | unlimited everything + 1 included XS collective (owner + 1 collaborator) |
+| Collective seat | 1.500 Ft/seat/month + ÁFA | owner pays for all seats; owner NOT counted as a seat; Basic users can be invited |
+
+Collective packages: S = 3 seats (4.500 Ft), M = 6 seats (9.000 Ft), L = 9 seats (13.500 Ft), XL = contact us.
+The included XS collective (`is_inclusive = true`) cannot be deleted; goes read-only when Premium lapses; reactivates when Premium resumes.
+Paid collectives can only be deleted after cancelling the subscription (frozen state). On deletion, owner is prompted to transfer documents to personal workspace as permanently read-only.
+Full spec: see `PRICING.md`.
 
 Fields: `profiles.is_subscription_premium` (boolean, paid premium), `profiles.subscription_tier` ('basic'|'trial'|'premium'), `profiles.trial_started_at`, `profiles.trial_ends_at`.
 Helper: `isEffectivePremium(profile)` in `src/lib/subscriptionLimits.js` — returns true for paid premium OR active trial.

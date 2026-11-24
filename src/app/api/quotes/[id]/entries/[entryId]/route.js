@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { logAudit } from '@/lib/audit';
+import { checkCollectiveStatus } from '@/lib/collectiveGuard';
 
 async function getCtx(quoteId, entryId) {
   const supabase = await createClient();
@@ -15,17 +16,20 @@ async function getCtx(quoteId, entryId) {
   const isSuperAdmin = profile?.role === 'superadmin';
   const isOwn = entry.user_id === user.id;
 
-  if (isSuperAdmin || isOwn) return { user, admin, entry, isSuperAdmin };
+  // Always fetch quote so we have collective_id for status check
+  const { data: quote } = await admin.from('quotes').select('collective_id, owner_id, created_by').eq('id', quoteId).is('deleted_at', null).single();
+  const collectiveId = quote?.collective_id || null;
+
+  if (isSuperAdmin || isOwn) return { user, admin, entry, isSuperAdmin, collectiveId };
 
   // Quote owner or collective owner can also modify
-  const { data: quote } = await admin.from('quotes').select('collective_id, owner_id, created_by').eq('id', quoteId).is('deleted_at', null).single();
   const isQuoteOwner = quote?.owner_id === user.id || quote?.created_by === user.id;
-  if (isQuoteOwner) return { user, admin, entry, isSuperAdmin };
+  if (isQuoteOwner) return { user, admin, entry, isSuperAdmin, collectiveId };
 
-  if (quote?.collective_id) {
+  if (collectiveId) {
     const { data: mem } = await admin.from('collective_members')
-      .select('role').eq('collective_id', quote.collective_id).eq('user_id', user.id).eq('status', 'active').maybeSingle();
-    if (mem?.role === 'owner' || mem?.role === 'admin') return { user, admin, entry, isSuperAdmin };
+      .select('role').eq('collective_id', collectiveId).eq('user_id', user.id).eq('status', 'active').maybeSingle();
+    if (mem?.role === 'owner' || mem?.role === 'admin') return { user, admin, entry, isSuperAdmin, collectiveId };
   }
 
   return { err: 'Forbidden', status: 403 };
@@ -36,6 +40,9 @@ export async function PATCH(request, { params }) {
   const ctx = await getCtx(quoteId, entryId);
   if (ctx.err) return Response.json({ error: ctx.err }, { status: ctx.status });
 
+  const statusBlocked = await checkCollectiveStatus(ctx.admin, ctx.collectiveId);
+  if (statusBlocked) return statusBlocked;
+
   const fields = await request.json();
   const allowed = ['work_description', 'quantity', 'unit', 'unit_price', 'amount_huf', 'notes', 'entry_type', 'section_id'];
   const update = {};
@@ -45,9 +52,8 @@ export async function PATCH(request, { params }) {
   if (error) return Response.json({ error: error.message }, { status: 400 });
 
   const { data: prof } = await ctx.admin.from('profiles').select('display_name').eq('id', ctx.user.id).single();
-  const { data: quote } = await ctx.admin.from('quotes').select('collective_id').eq('id', quoteId).is('deleted_at', null).single();
   logAudit({
-    entityId: quote?.collective_id || ctx.user.id, userId: ctx.user.id,
+    entityId: ctx.collectiveId || ctx.user.id, userId: ctx.user.id,
     userName: prof?.display_name || ctx.user.email,
     action: 'entry.edited', targetType: 'quote', targetId: quoteId,
     details: { work_description: data.work_description, amount_huf: data.amount_huf },
@@ -61,15 +67,17 @@ export async function DELETE(request, { params }) {
   const ctx = await getCtx(quoteId, entryId);
   if (ctx.err) return Response.json({ error: ctx.err }, { status: ctx.status });
 
+  const statusBlockedDel = await checkCollectiveStatus(ctx.admin, ctx.collectiveId);
+  if (statusBlockedDel) return statusBlockedDel;
+
   const entryName = ctx.entry.work_description;
   const entryAmt  = ctx.entry.amount_huf;
   const { error } = await ctx.admin.from('quote_entries').delete().eq('id', entryId);
   if (error) return Response.json({ error: error.message }, { status: 400 });
 
   const { data: prof } = await ctx.admin.from('profiles').select('display_name').eq('id', ctx.user.id).single();
-  const { data: quote } = await ctx.admin.from('quotes').select('collective_id').eq('id', quoteId).is('deleted_at', null).single();
   logAudit({
-    entityId: quote?.collective_id || ctx.user.id, userId: ctx.user.id,
+    entityId: ctx.collectiveId || ctx.user.id, userId: ctx.user.id,
     userName: prof?.display_name || ctx.user.email,
     action: 'entry.deleted', targetType: 'quote', targetId: quoteId,
     details: { work_description: entryName, amount_huf: entryAmt },

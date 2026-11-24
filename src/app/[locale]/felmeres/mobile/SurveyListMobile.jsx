@@ -13,6 +13,7 @@ import PageHeader from '@/components/mobile/pods/PageHeader';
 import PodList from '@/components/mobile/pods/PodList';
 import Dock from '@/components/mobile/pods/Dock';
 import { NotifSheet, MessagesSheet, MenuSheet } from '@/components/mobile/pods/Sheets';
+import { MobileWorkspaceNotActivatedBanner, MobileWorkspaceFrozenBanner } from '@/components/mobile/WorkspaceStatusBanners';
 
 const STATUS_COLORS = {
   active:    { bg: '#E7F4EC', fg: '#14532D' },
@@ -222,7 +223,9 @@ export default function SurveyListMobile() {
   const {
     surveys, clients, collectives,
     deleteSurvey, isDemoMode, currentUser, dataReady,
+    activeCollectiveId,
   } = useApp();
+  const activeColl = (collectives || []).find(c => c.collective_id === activeCollectiveId);
   const p = (path) => isDemoMode ? `/demo${path}` : path;
 
   const [activePodId, setActivePodId] = useState('personal');
@@ -328,6 +331,10 @@ export default function SurveyListMobile() {
 
       {/* Scroll body — paddingTop matches PageHeader height (100px) + 8px gap */}
       <div style={{ padding: '108px 16px 170px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+
+        {/* Workspace status banners */}
+        {activeColl?.status === 'not_activated' && <MobileWorkspaceNotActivatedBanner />}
+        {activeColl?.status === 'frozen' && <MobileWorkspaceFrozenBanner isOwner={activeColl?.role === 'owner'} />}
 
         {/* Offline banner */}
         {!online && (

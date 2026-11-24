@@ -15,7 +15,8 @@ import PageSpinner from '@/components/PageSpinner';
 import {
   Plus, Users, Mail, Crown, UserCheck, Ban, UserMinus, Trash2, Loader2,
   X, CheckCircle2, ArrowUpRight, Zap, AlertCircle, AlertTriangle, Lock,
-  ShieldCheck, Pencil, Check, MoreHorizontal, ChevronRight, RefreshCw,
+  ShieldCheck, Pencil, Check, MoreHorizontal, ChevronRight, ChevronDown, RefreshCw,
+  Rocket,
 } from 'lucide-react';
 
 const CARD_SH = 'inset 0 1px 0 #fff, 0 16px 26px -14px rgba(0,0,0,.70), 0 3px 6px -2px rgba(0,0,0,.30)';
@@ -128,12 +129,13 @@ function MemberRow({ member, collective, isOwner, currentUser, t, onRemoveMember
 // ── Collective pod card ───────────────────────────────────────────────────────
 
 function CollectivePodCard({
-  collective, currentUser, t,
+  collective, currentUser, t, initialExpanded = false,
   onInvite, onRename, onRemoveMember, onBlockMember, onRetract, onReInvite,
   onDelete, onTransferResponse,
   reInvitingId, retractingId, blockingId, respondingTransferId,
 }) {
   const colors = podColor(collective.id);
+  const [expanded,    setExpanded]    = useState(initialExpanded);
   const [menuOpen,    setMenuOpen]    = useState(false);
   const [editingName, setEditingName] = useState(false);
   const [nameValue,   setNameValue]   = useState(collective.name);
@@ -141,15 +143,25 @@ function CollectivePodCard({
 
   const isOwner        = collective.my_role === 'owner';
   const isInclusive    = collective.is_inclusive ?? false;
+  const colStatus      = collective.status ?? 'active';
+  const isNotActivated = colStatus === 'not_activated';
+  const isFrozen       = colStatus === 'frozen';
   const activeMembers  = (collective.members || []).filter(m => m.status === 'active');
   const blockedMembers = (collective.members || []).filter(m => m.status === 'blocked');
   const pendingInvs    = collective.pending_invitations  || [];
   const declinedInvs   = collective.declined_invitations || [];
   const transfers      = collective._transferRequests    || [];
   const subStatus      = collective.subscription_status ?? 'active';
-  const isInclusiveFrozen = isInclusive && (subStatus === 'canceled' || subStatus === 'expired');
+  const isInclusiveFrozen = isInclusive && (subStatus === 'canceled' || subStatus === 'expired' || isFrozen);
   const tier     = TIER_DISPLAY?.[collective.collective_tier] ?? null;
   const usedSeats = activeMembers.filter(m => m.role !== 'owner').length + pendingInvs.length;
+
+  const STATUS_BADGE = {
+    not_activated: { label: t('statusNotActivated'), bg: '#FFF4CD', color: '#B45309' },
+    frozen:        { label: t('statusFrozen'),        bg: '#FDECEC', color: '#B71C1C' },
+    active:        { label: t('statusActive'),        bg: '#E7F4EC', color: '#14532D' },
+  };
+  const statusBadge = STATUS_BADGE[colStatus] || STATUS_BADGE.active;
 
   async function saveName() {
     const name = nameValue.trim();
@@ -172,6 +184,10 @@ function CollectivePodCard({
         </div>
 
         <div style={{ flex: 1, minWidth: 0 }}>
+          {/* Status badge */}
+          <span style={{ alignSelf: 'flex-start', fontSize: 11, fontWeight: 800, padding: '2px 8px', borderRadius: 999, background: statusBadge.bg, color: statusBadge.color }}>
+            {statusBadge.label}
+          </span>
           {isOwner && editingName ? (
             <form onSubmit={e => { e.preventDefault(); saveName(); }} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
               <input
@@ -211,13 +227,41 @@ function CollectivePodCard({
         </div>
 
         {/* Action buttons */}
-        <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
-          {isOwner && subStatus === 'active' && (
+        <div style={{ display: 'flex', gap: 8, flexShrink: 0, alignItems: 'center' }}>
+          <button
+            type="button"
+            onClick={() => setExpanded(v => !v)}
+            aria-label={expanded ? 'Összecsukás' : 'Kibontás'}
+            style={{ width: 40, height: 40, border: 0, borderRadius: 20, background: 'rgba(255,255,255,0.12)', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
+          >
+            <ChevronDown size={18} style={{ transform: expanded ? 'rotate(0deg)' : 'rotate(-90deg)', transition: 'transform 0.2s ease' }} />
+          </button>
+          {/* Not-activated: Activate + Delete only */}
+          {isOwner && isNotActivated && (
+            <>
+              <Link
+                href={`/elofizetes?activate=${collective.id}`}
+                className="dk-btn dk-btn-w"
+                style={{ height: 40, fontSize: 14, display: 'inline-flex', alignItems: 'center', gap: 6, textDecoration: 'none' }}
+              >
+                <Rocket size={15} /> {t('activateBtn')}
+              </Link>
+              <button
+                type="button"
+                onClick={() => onDelete(collective)}
+                style={{ height: 40, padding: '0 14px', border: '1px solid rgba(255,255,255,0.3)', borderRadius: 20, background: 'transparent', color: 'rgba(255,255,255,0.7)', fontSize: 14, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
+              >
+                <Trash2 size={15} /> {t('deleteNotActivated')}
+              </button>
+            </>
+          )}
+          {/* Active: Invite + menu */}
+          {isOwner && !isNotActivated && subStatus === 'active' && !isFrozen && (
             <button type="button" className="dk-btn dk-btn-g" onClick={() => onInvite(collective)} style={{ height: 40, fontSize: 14 }}>
               <Mail size={15} /> {t('menuInvite')}
             </button>
           )}
-          {isOwner && (
+          {isOwner && !isNotActivated && (
             <div style={{ position: 'relative' }}>
               <button type="button" onClick={() => setMenuOpen(v => !v)} style={{ width: 40, height: 40, border: 0, borderRadius: 20, background: 'rgba(255,255,255,0.14)', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <MoreHorizontal size={18} />
@@ -284,8 +328,8 @@ function CollectivePodCard({
         </div>
       )}
 
-      {/* Active members */}
-      {activeMembers.length > 0 && (
+      {/* Members — collapsible */}
+      {expanded && activeMembers.length > 0 && (
         <>
           <SecHead>{t('activeMembers', { count: activeMembers.length })}</SecHead>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -307,8 +351,7 @@ function CollectivePodCard({
         </>
       )}
 
-      {/* Blocked members */}
-      {isOwner && blockedMembers.length > 0 && (
+      {expanded && isOwner && blockedMembers.length > 0 && (
         <>
           <SecHead>{t('blockedMembers')}</SecHead>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -330,8 +373,7 @@ function CollectivePodCard({
         </>
       )}
 
-      {/* Pending invitations */}
-      {isOwner && pendingInvs.length > 0 && (
+      {expanded && isOwner && pendingInvs.length > 0 && (
         <>
           <SecHead>{t('pendingInvitationsSection')}</SecHead>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -358,8 +400,7 @@ function CollectivePodCard({
         </>
       )}
 
-      {/* Declined invitations */}
-      {isOwner && declinedInvs.length > 0 && (
+      {expanded && isOwner && declinedInvs.length > 0 && (
         <>
           <SecHead>{t('declinedInvitations')}</SecHead>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -381,8 +422,7 @@ function CollectivePodCard({
         </>
       )}
 
-      {/* Transfer requests */}
-      {isOwner && transfers.length > 0 && (
+      {expanded && isOwner && transfers.length > 0 && (
         <>
           <SecHead>{t('transferRequests')} ({transfers.length})</SecHead>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -489,17 +529,19 @@ export default function KollektivakDesktop() {
   const [respondingTransferId, setRespondingTransferId] = useState(null);
 
   // ── Global modals ─────────────────────────────────────────────────────────
-  const [confirmModal,     setConfirmModal]     = useState(null);
-  const [alertModal,       setAlertModal]       = useState(null);
-  const [deleteModal,      setDeleteModal]      = useState(null);
-  const [deleteInput,      setDeleteInput]      = useState('');
-  const [deleteConfirming, setDeleteConfirming] = useState(false);
+  const [confirmModal,       setConfirmModal]       = useState(null);
+  const [alertModal,         setAlertModal]         = useState(null);
+  const [deleteModal,        setDeleteModal]        = useState(null);
+  const [deleteInput,        setDeleteInput]        = useState('');
+  const [deleteConfirming,   setDeleteConfirming]   = useState(false);
+  const [deleteBlockedModal, setDeleteBlockedModal] = useState(null); // { name } — active sub blocks delete
 
   if (loading || !dataReady) return <PageSpinner />;
 
   const isPremium = isEffectivePremium(currentUser ?? {});
   const myCollectives = collectives.filter(c => c.my_role === 'owner');
   const memberOf      = collectives.filter(c => c.my_role !== 'owner');
+  const hasPendingCollective = myCollectives.some(c => c.status === 'not_activated');
 
   const collectivesWithTransfers = myCollectives.map(c => ({
     ...c,
@@ -598,9 +640,22 @@ export default function KollektivakDesktop() {
       setAlertModal({ variant: 'warning', title: t('cantDeleteInclusiveTitle'), message: t('cantDeleteInclusiveMsg') });
       return;
     }
+    // Not-activated: simple confirm (no data, no subscription)
+    if (collective.status === 'not_activated') {
+      setConfirmModal({
+        message: t('deleteNotActivatedConfirmBody', { name: collective.name }),
+        onConfirm: async () => {
+          const result = await actions.remove(collective.id);
+          setConfirmModal(null);
+          if (!result.ok) { setAlertModal({ message: result.data?.error }); return; }
+          setAlertModal({ variant: 'success', title: t('deleteSuccess'), message: t('deleteSuccessMsg', { name: collective.name }) });
+        },
+      });
+      return;
+    }
     const sub = collective.subscription_status ?? 'active';
     if (sub === 'active' || sub === 'trialing' || sub === 'paused' || sub === 'past_due') {
-      setAlertModal({ variant: 'warning', message: t('deleteBlockedActiveMsg', { name: collective.name }) });
+      setDeleteBlockedModal({ name: collective.name });
       return;
     }
     setDeleteInput('');
@@ -657,7 +712,14 @@ export default function KollektivakDesktop() {
           <button type="button" className="dk-btn dk-btn-g" onClick={refresh} disabled={fetching} title={t('refresh')}>
             <RefreshCw size={15} style={fetching ? { animation: 'spin 1s linear infinite' } : {}} />
           </button>
-          <button type="button" className="dk-btn dk-btn-w" onClick={() => { setCreateName(''); setCreateError(''); setCreateOpen(true); }}>
+          <button
+            type="button"
+            className="dk-btn dk-btn-w"
+            onClick={() => { setCreateName(''); setCreateError(''); setCreateOpen(true); }}
+            disabled={hasPendingCollective || !isPremium}
+            title={hasPendingCollective ? t('newCollectiveDisabledHasPending') : !isPremium ? t('newCollectiveDisabledNoPremium') : undefined}
+            style={{ opacity: (hasPendingCollective || !isPremium) ? 0.5 : 1, cursor: (hasPendingCollective || !isPremium) ? 'default' : 'pointer' }}
+          >
             <Plus size={15} /> {t('new')}
           </button>
         </div>
@@ -718,8 +780,8 @@ export default function KollektivakDesktop() {
             {collectivesWithTransfers.length > 0 && (
               <div style={{ marginBottom: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
                 <SectionLabel label={t('createdByMe')} />
-                {collectivesWithTransfers.map(c => (
-                  <CollectivePodCard key={c.id} collective={c} {...cardProps} />
+                {collectivesWithTransfers.map((c, i) => (
+                  <CollectivePodCard key={c.id} collective={c} initialExpanded={i === 0} {...cardProps} />
                 ))}
               </div>
             )}
@@ -728,8 +790,8 @@ export default function KollektivakDesktop() {
             {memberOf.length > 0 && (
               <div style={{ marginBottom: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
                 <SectionLabel label={t('invitedTo')} />
-                {memberOf.map(c => (
-                  <CollectivePodCard key={c.id} collective={{ ...c, _transferRequests: [] }} {...cardProps} />
+                {memberOf.map((c, i) => (
+                  <CollectivePodCard key={c.id} collective={{ ...c, _transferRequests: [] }} initialExpanded={i === 0} {...cardProps} />
                 ))}
               </div>
             )}
@@ -870,6 +932,28 @@ export default function KollektivakDesktop() {
             {deleteConfirming ? <><Loader2 size={15} className="animate-spin" /> {t('deleting')}</> : <><Trash2 size={15} /> {t('deleteButton')}</>}
           </button>
         </div>
+      </Modal>
+
+      {/* ── Delete blocked: active subscription modal ─────────────────────── */}
+      <Modal isOpen={!!deleteBlockedModal} onClose={() => setDeleteBlockedModal(null)} title={t('deleteTitle')}>
+        {deleteBlockedModal && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '12px 14px', borderRadius: 14, background: '#FFF7ED', border: '1px solid #FED7AA' }}>
+              <AlertTriangle size={18} color="#C2410C" style={{ flexShrink: 0, marginTop: 1 }} />
+              <span style={{ fontSize: 14, color: '#7C2D12', lineHeight: 1.5 }}>
+                {t('deleteBlockedActiveMsg', { name: deleteBlockedModal.name })}
+              </span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+              <button type="button" className="dk-btn dk-btn-l" onClick={() => setDeleteBlockedModal(null)} style={{ height: 44, fontSize: 15 }}>
+                {t('cancel')}
+              </button>
+              <Link href="/elofizetes" className="dk-btn dk-btn-dark" onClick={() => setDeleteBlockedModal(null)} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, textDecoration: 'none', height: 44, fontSize: 15 }}>
+                {t('deleteBlockedManageBtn')}
+              </Link>
+            </div>
+          </div>
+        )}
       </Modal>
 
       <ConfirmModal

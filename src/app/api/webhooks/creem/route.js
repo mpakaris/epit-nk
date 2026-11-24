@@ -22,6 +22,12 @@ const ADDON_PRODUCT_IDS = [
   process.env.NEXT_PUBLIC_CREEM_COLLECTIVE_LARGE_PRODUCT_ID,
 ].filter(Boolean);
 
+const PRODUCT_TO_TIER = {
+  [process.env.NEXT_PUBLIC_CREEM_COLLECTIVE_SMALL_PRODUCT_ID]:  's',
+  [process.env.NEXT_PUBLIC_CREEM_COLLECTIVE_MEDIUM_PRODUCT_ID]: 'm',
+  [process.env.NEXT_PUBLIC_CREEM_COLLECTIVE_LARGE_PRODUCT_ID]:  'l',
+};
+
 function getProductFamily(productId) {
   if (!productId) return 'unknown';
   if (productId === process.env.NEXT_PUBLIC_CREEM_PREMIUM_PRODUCT_ID) return 'premium';
@@ -69,17 +75,20 @@ async function grantPremium(admin, userId, subscriptionId, family = 'premium') {
   if (ownedIds.length > 0) {
     const { data: inclusive } = await admin
       .from('collectives')
-      .select('id, subscription_status')
+      .select('id, status, subscription_status')
       .in('id', ownedIds)
       .eq('is_inclusive', true)
       .maybeSingle();
 
     if (inclusive) {
-      if (inclusive.subscription_status !== 'active') {
+      // BK-05: unfreeze inclusive collective on Premium grant
+      if (inclusive.subscription_status !== 'active' || inclusive.status !== 'active') {
         await admin.from('collectives')
-          .update({ subscription_status: 'active' })
+          .update({ subscription_status: 'active', status: 'active' })
           .eq('id', inclusive.id);
+        logAudit({ userId, action: 'Inclusive collective unfrozen', targetType: 'collective', targetId: inclusive.id, details: { reason: 'premium_granted' } });
       }
+      // Paid collectives remain frozen — owner must reactivate manually via Creem
     } else {
       // No inclusive collective yet — create one
       const profile = await getProfile(admin, userId);
@@ -89,7 +98,10 @@ async function grantPremium(admin, userId, subscriptionId, family = 'premium') {
         id:                  newId,
         name:                `${displayName} Csapata`,
         is_inclusive:        true,
+        status:              'active',
+        collective_tier:     'xs',
         subscription_status: 'active',
+        owner_id:            userId,
       });
       await admin.from('collective_members').insert({
         collective_id: newId,
@@ -107,7 +119,10 @@ async function grantPremium(admin, userId, subscriptionId, family = 'premium') {
       id:                  newId,
       name:                `${displayName} Csapata`,
       is_inclusive:        true,
+      status:              'active',
+      collective_tier:     'xs',
       subscription_status: 'active',
+      owner_id:            userId,
     });
     await admin.from('collective_members').insert({
       collective_id: newId,
@@ -137,7 +152,7 @@ async function revokePremium(admin, userId, subscriptionId) {
     .eq('id', userId);
   logAudit({ userId, action: error ? 'Premium revoke failed' : 'Premium revoked', targetType: 'subscription', targetId: subscriptionId, details: error ? { error: error.message } : undefined });
 
-  // Collective addons require premium as their basis — freeze them all
+  // Fetch all collectives owned by this user
   const { data: ownedMemberships } = await admin
     .from('collective_members')
     .select('collective_id')
@@ -146,11 +161,38 @@ async function revokePremium(admin, userId, subscriptionId) {
     .eq('status', 'active');
 
   const ownedIds = (ownedMemberships || []).map(m => m.collective_id);
-  if (ownedIds.length > 0) {
+  if (!ownedIds.length) return;
+
+  const { data: ownedCollectives } = await admin
+    .from('collectives')
+    .select('id, status, is_inclusive')
+    .in('id', ownedIds)
+    .is('deleted_at', null);
+
+  const toDelete   = (ownedCollectives || []).filter(c => c.status === 'not_activated').map(c => c.id);
+  const toFreeze   = (ownedCollectives || []).filter(c => c.status === 'active').map(c => c.id);
+
+  // BK-04: hard-delete not_activated collectives (no data exists, cannot be activated without premium)
+  if (toDelete.length > 0) {
+    await admin.from('collectives').delete().in('id', toDelete);
+    for (const id of toDelete) {
+      logAudit({ userId, action: 'Collective auto-deleted (premium revoked)', targetType: 'collective', targetId: id, details: { reason: 'premium_revoked' } });
+    }
+  }
+
+  // BK-05: freeze all active collectives (both inclusive and paid)
+  if (toFreeze.length > 0) {
     await admin.from('collectives')
-      .update({ subscription_status: 'canceled' })
-      .in('id', ownedIds)
-      .in('subscription_status', ['active', 'trialing']);
+      .update({ subscription_status: 'canceled', status: 'frozen' })
+      .in('id', toFreeze);
+    // Auto-retract pending invitations
+    await admin.from('collective_members')
+      .update({ status: 'retracted' })
+      .in('collective_id', toFreeze)
+      .eq('status', 'invited');
+    for (const id of toFreeze) {
+      logAudit({ userId, action: 'Collective frozen (premium revoked)', targetType: 'collective', targetId: id, details: { reason: 'premium_revoked' } });
+    }
   }
 }
 
@@ -161,10 +203,16 @@ function parsePeriodEnd(raw) {
   return new Date(raw).toISOString(); // ISO string from Creem (e.g. currentPeriodEndDate)
 }
 
-async function updateCollectiveStatus(admin, subscriptionId, status, periodEnd) {
-  const update = { subscription_status: status };
+async function updateCollectiveStatus(admin, subscriptionId, subscriptionStatus, periodEnd) {
+  // Map Creem subscription_status → collective lifecycle status
+  const lifecycleStatus = subscriptionStatus === 'active' ? 'active' : 'frozen';
+  const update = { subscription_status: subscriptionStatus, status: lifecycleStatus };
   const iso = parsePeriodEnd(periodEnd);
   if (iso) update.subscription_period_end = iso;
+  if (lifecycleStatus === 'active') {
+    // On activation: also retract any stale invitations that were retracted on freeze
+    // (members must be re-invited manually per PRICING.md §5)
+  }
   const { error } = await admin.from('collectives').update(update).eq('creem_subscription_id', subscriptionId);
   if (error) console.error('[creem webhook] updateCollectiveStatus error:', error.message);
 }
@@ -216,6 +264,11 @@ export async function POST(request) {
     payload?.checkout?.metadata?.userId ||
     payload?.metadata?.user_id ||
     payload?.checkout?.metadata?.user_id;
+
+  const collectiveId =
+    payload?.metadata?.collectiveId ||
+    payload?.checkout?.metadata?.collectiveId ||
+    null;
 
   const productId =
     payload?.product_id ||
@@ -318,6 +371,19 @@ export async function POST(request) {
       } else if (family === 'premium' && !userId) {
         logAudit({ action: 'Checkout completed — premium not granted: userId missing', targetType: 'payment', targetId: subscriptionId, details: { event_type: eventType, product_id: productId } });
       }
+      if (family === 'addon' && collectiveId && subscriptionId) {
+        const tierCode = PRODUCT_TO_TIER[productId] || null;
+        const updateData = { creem_subscription_id: subscriptionId, status: 'active' };
+        if (tierCode) updateData.collective_tier = tierCode;
+        const { error: colErr } = await admin.from('collectives')
+          .update(updateData)
+          .eq('id', collectiveId);
+        if (colErr) {
+          logAudit({ userId: userId || null, action: 'Collective activation failed (checkout.completed)', targetType: 'collective', targetId: collectiveId, details: { error: colErr.message, subscription_id: subscriptionId, tier: tierCode } });
+        } else {
+          logAudit({ userId: userId || null, action: 'Collective activated', targetType: 'collective', targetId: collectiveId, details: { subscription_id: subscriptionId, tier: tierCode } });
+        }
+      }
       if (userId) {
         const profile = await getProfile(admin, userId);
         await notifyAdmin({
@@ -353,8 +419,26 @@ export async function POST(request) {
         logAudit({ action: `Subscription ${eventType} — userId missing`, targetType: 'payment', targetId: subscriptionId, details: { family, error: 'Cannot grant premium: userId not in payload' } });
       }
       if ((family === 'addon') && subscriptionId) {
-        await updateCollectiveStatus(admin, subscriptionId, 'active', periodEnd);
-        logAudit({ userId: userId || null, action: 'Addon subscription activated', targetType: 'payment', targetId: subscriptionId, details: { family, period_end: periodEnd || null } });
+        // checkout.completed stored the checkout ID (ch_xxx) in creem_subscription_id;
+        // subscription.active carries the real subscription ID (sub_xxx).
+        // If collectiveId is in the metadata, update by collective.id so the correct
+        // subscription ID is written and cancel/resume calls work against the right resource.
+        if (collectiveId) {
+          const addonPeriodIso = parsePeriodEnd(periodEnd);
+          const addonUpdate = { creem_subscription_id: subscriptionId, status: 'active', subscription_status: 'active' };
+          if (addonPeriodIso) addonUpdate.subscription_period_end = addonPeriodIso;
+          const { error: addonErr } = await admin.from('collectives').update(addonUpdate).eq('id', collectiveId);
+          if (addonErr) console.error('[creem webhook] addon activation by collectiveId error:', addonErr.message);
+          // Store in subscriptions table so cancel/resume can look up by collective_id
+          if (userId) {
+            const addonRow = { user_id: userId, creem_subscription_id: subscriptionId, product_family: 'addon', status: 'active', collective_id: collectiveId, updated_at: new Date().toISOString() };
+            if (addonPeriodIso) addonRow.period_end = addonPeriodIso;
+            await admin.from('subscriptions').upsert(addonRow, { onConflict: 'creem_subscription_id' });
+          }
+        } else {
+          await updateCollectiveStatus(admin, subscriptionId, 'active', periodEnd);
+        }
+        logAudit({ userId: userId || null, action: 'Addon subscription activated', targetType: 'payment', targetId: subscriptionId, details: { family, collective_id: collectiveId || null, period_end: periodEnd || null } });
       }
       break;
     }
@@ -363,6 +447,16 @@ export async function POST(request) {
       if (family === 'addon') {
         if (subscriptionId) {
           await updateCollectiveStatus(admin, subscriptionId, 'canceled', periodEnd);
+          // Auto-retract pending invitations on freeze (BK-05)
+          const { data: frozenCollective } = await admin
+            .from('collectives').select('id').eq('creem_subscription_id', subscriptionId).maybeSingle();
+          if (frozenCollective?.id) {
+            await admin.from('collective_members')
+              .update({ status: 'retracted' })
+              .eq('collective_id', frozenCollective.id)
+              .eq('status', 'invited');
+            logAudit({ userId: userId || null, action: 'Collective invitations retracted (addon canceled)', targetType: 'collective', targetId: frozenCollective.id, details: { subscription_id: subscriptionId } });
+          }
           logAudit({ userId: userId || null, action: 'Addon subscription canceled', targetType: 'payment', targetId: subscriptionId, details: { family } });
         }
       } else {
