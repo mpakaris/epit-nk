@@ -22,7 +22,7 @@ import {
   Plus, Trash2, FileText, Check, Loader2, AlertCircle,
   RefreshCw, CheckCircle2, Edit3, X, Copy, Clipboard,
   ArrowLeft, MoreHorizontal, GripVertical, Search, Camera, ChevronLeft,
-  ChevronRight, Ruler,
+  ChevronRight, Ruler, Pencil,
 } from 'lucide-react';
 import {
   ITEM_TYPE_ORDER, ITEM_TYPE_ICONS, ITEM_TYPE_COLORS, ITEM_TYPE_LABEL_KEYS, inferType,
@@ -902,6 +902,7 @@ function SectionPod({
                 { icon: Ruler,     label: ts('desktop.detailDimsTitle'),     action: onMeasurements  },
                 { icon: FileText,  label: ts('desktop.detailNotesTitle'),    action: onNotes         },
                 { icon: Camera,    label: ts('desktop.detailMediaTitle'),    action: onMedia         },
+                { icon: Pencil,    label: ts('desktop.detailDrawingsTitle'),   action: onDrawings      },
               ].map(({ icon: Icon, label, action }) => (
                 <button key={label} type="button"
                   onClick={() => { action(); onMenuToggle(null); }}
@@ -956,6 +957,22 @@ function SectionPod({
           {display.length === 0 && (
             <div style={{ padding: '10px 18px', fontSize: 13, color: '#8A8F98', fontStyle: 'italic', borderTop: '1px solid #EDEBE5' }}>
               {ts('desktop.detailNoItems')}
+            </div>
+          )}
+
+          {/* Quick-access: media + sketches — always visible when pod is open */}
+          {canAdd && (
+            <div style={{ display: 'flex', gap: 8, padding: '8px 16px', borderTop: '1px solid #EDEBE5', background: '#F8F8F9' }}>
+              <button type="button" onClick={onMedia}
+                style={{ display: 'flex', alignItems: 'center', gap: 6, height: 32, padding: '0 12px', border: 0, borderRadius: 16, background: '#fff', color: '#5A5F68', fontSize: 13, fontWeight: 600, cursor: 'pointer', boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }}>
+                <Camera size={14} aria-hidden="true" />
+                {ts('desktop.detailMediaTitle')}
+              </button>
+              <button type="button" onClick={onDrawings}
+                style={{ display: 'flex', alignItems: 'center', gap: 6, height: 32, padding: '0 12px', border: 0, borderRadius: 16, background: '#fff', color: '#5A5F68', fontSize: 13, fontWeight: 600, cursor: 'pointer', boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }}>
+                <Edit3 size={14} aria-hidden="true" />
+                {ts('desktop.detailDrawingsTitle')}
+              </button>
             </div>
           )}
 
