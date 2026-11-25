@@ -564,3 +564,10 @@ body:has(.dk-root) {
   font-size: 12px;
   border-radius: 18px;
 }
+
+/* ── Modal overrides for desktop ────────────────────────────────────────────── */
+.dk-root .modal-dialog {
+  background: #EFEDE6;
+  border-color: rgba(0,0,0,0.08);
+}
+

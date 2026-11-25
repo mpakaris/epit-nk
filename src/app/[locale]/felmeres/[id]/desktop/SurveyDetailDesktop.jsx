@@ -1233,13 +1233,13 @@ export default function SurveyDetailDesktop() {
           </div>
         ) : (
           <>
-            {/* ── Top bar: search + add section ────────────────────────────────── */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <label style={{ position: 'relative', display: 'block', flex: 1, maxWidth: 360 }}>
+            {/* ── Top bar: search + add section (right-aligned) ───────────────── */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 10 }}>
+              <label style={{ position: 'relative', display: 'block', width: 280 }}>
                 <span style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#5A5F68', display: 'flex', pointerEvents: 'none' }}>
                   <Search size={18} aria-hidden="true" />
                 </span>
-                <input className="dk-input" placeholder={ts('desktop.detailSearchAll')} value={search} onChange={e => setSearch(e.target.value)} style={{ paddingLeft: 42, borderRadius: 23, height: 44 }} />
+                <input className="dk-input" placeholder={ts('desktop.detailSearchAll')} value={search} onChange={e => setSearch(e.target.value)} style={{ paddingLeft: 42, borderRadius: 23, height: 44, width: '100%' }} />
               </label>
               {canAdd && entries.length < 30 && (
                 <button className="dk-btn dk-btn-g" onClick={() => setShowAddEntry(true)} style={{ gap: 6, flexShrink: 0 }}>
