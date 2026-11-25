@@ -42,10 +42,10 @@ const LANGUAGES  = [
 ];
 
 const CURRENCIES = [
-  { code: 'HUF', label: 'HUF', sub: 'Forint'  },
-  { code: 'EUR', label: 'EUR', sub: 'Euro'     },
-  { code: 'GBP', label: 'GBP', sub: 'Pound'   },
-  { code: 'USD', label: 'USD', sub: 'Dollar'   },
+  { code: 'HUF', label: 'HUF', sub: 'Forint' },
+  { code: 'EUR', label: 'EUR', sub: 'Euro'    },
+  { code: 'GBP', label: 'GBP', sub: 'Pound'  },
+  { code: 'USD', label: 'USD', sub: 'Dollar'  },
 ];
 
 function detectInitialLocale() {
@@ -89,90 +89,100 @@ export default function OnboardingModal() {
     }
   };
 
-  const pillBase = {
-    flex: 1, padding: '0.65rem 0.5rem',
-    border: '1.5px solid var(--border-subtle)',
-    borderRadius: 'var(--radius-md)', cursor: 'pointer', fontFamily: 'inherit',
-    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
-    transition: 'all 0.15s', background: 'var(--bg-base)',
-  };
-  const pillActive = { border: '1.5px solid var(--accent)', background: 'var(--accent-bg, #eff6ff)' };
-
   return (
     <Modal isOpen={true} onClose={() => {}} persistent hideClose maxWidth="440px"
       title={
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-          <div style={{ width: 36, height: 36, borderRadius: 10, background: 'linear-gradient(135deg, var(--accent), #7c3aed)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-            <Languages size={17} color="#fff" />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div className="dk-ic" style={{ background: '#0E1116', color: '#fff', flexShrink: 0 }}>
+            <Languages size={18} aria-hidden="true" />
           </div>
           <span>{T.title}</span>
         </div>
       }
     >
-      <p style={{ fontSize: '0.83rem', color: 'var(--text-muted)', margin: '0 0 1.5rem', lineHeight: 1.6 }}>
+      <p style={{ fontSize: 14, color: '#5A5F68', margin: '0 0 20px', lineHeight: 1.6, fontWeight: 500 }}>
         {T.subtitle}
       </p>
 
       {/* Language */}
-      <div style={{ marginBottom: '1.25rem' }}>
-        <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.6rem' }}>
+      <div style={{ marginBottom: 20 }}>
+        <span className="dk-kick" style={{ display: 'block', marginBottom: 10, color: '#5A5F68' }}>
           {T.langLabel}
-        </label>
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
+        </span>
+        <div style={{ display: 'flex', gap: 8 }}>
           {LANGUAGES.map(lang => (
-            <button key={lang.code} type="button" onClick={() => setLocale(lang.code)}
-              style={{ ...pillBase, ...(locale === lang.code ? pillActive : {}) }}>
-              <span style={{ fontSize: '0.82rem', fontWeight: 700, color: locale === lang.code ? 'var(--accent)' : 'var(--text-primary)' }}>
-                {lang.label}
-              </span>
+            <button
+              key={lang.code}
+              type="button"
+              onClick={() => setLocale(lang.code)}
+              className="dk-btn"
+              style={{
+                flex: 1,
+                height: 44,
+                background: locale === lang.code ? '#0E1116' : '#F1F1F3',
+                color: locale === lang.code ? '#fff' : '#0E1116',
+              }}
+            >
+              {lang.label}
             </button>
           ))}
         </div>
       </div>
 
       {/* Currency */}
-      <div style={{ marginBottom: '1.5rem' }}>
-        <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.6rem' }}>
+      <div style={{ marginBottom: 20 }}>
+        <span className="dk-kick" style={{ display: 'block', marginBottom: 10, color: '#5A5F68' }}>
           {T.currLabel}
-        </label>
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
+        </span>
+        <div style={{ display: 'flex', gap: 8 }}>
           {CURRENCIES.map(cur => (
-            <button key={cur.code} type="button" onClick={() => setCurrency(cur.code)}
-              style={{ ...pillBase, ...(currency === cur.code ? pillActive : {}) }}>
-              <span style={{ fontSize: '0.82rem', fontWeight: 800, color: currency === cur.code ? 'var(--accent)' : 'var(--text-primary)' }}>
-                {cur.label}
-              </span>
-              <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>{cur.sub}</span>
+            <button
+              key={cur.code}
+              type="button"
+              onClick={() => setCurrency(cur.code)}
+              className="dk-btn"
+              style={{
+                flex: 1,
+                height: 52,
+                flexDirection: 'column',
+                gap: 2,
+                background: currency === cur.code ? '#0E1116' : '#F1F1F3',
+                color: currency === cur.code ? '#fff' : '#0E1116',
+              }}
+            >
+              <span style={{ fontSize: 14, fontWeight: 800 }}>{cur.label}</span>
+              <span style={{ fontSize: 11, fontWeight: 600, opacity: 0.65 }}>{cur.sub}</span>
             </button>
           ))}
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', marginTop: '0.6rem', padding: '0.5rem 0.65rem', background: '#fef9c3', border: '1px solid #fde047', borderRadius: 'var(--radius-sm)' }}>
-          <Lock size={11} color="#854d0e" style={{ flexShrink: 0 }} />
-          <span style={{ fontSize: '0.72rem', color: '#854d0e', fontWeight: 600 }}>{T.currNote}</span>
+
+        {/* Lock warning */}
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 8,
+          marginTop: 10, padding: '10px 12px',
+          background: '#FFF7E6', borderRadius: 12,
+        }}>
+          <Lock size={13} color="#92400E" style={{ flexShrink: 0 }} />
+          <span style={{ fontSize: 12, color: '#92400E', fontWeight: 600, lineHeight: 1.4 }}>
+            {T.currNote}
+          </span>
         </div>
       </div>
 
       {error && (
-        <p style={{ fontSize: '0.8rem', color: 'var(--danger-text)', marginBottom: '0.75rem' }}>{error}</p>
+        <p style={{ fontSize: 13, color: '#B71C1C', marginBottom: 12, fontWeight: 600 }}>{error}</p>
       )}
 
       <button
         type="button"
         onClick={handleSave}
         disabled={saving}
-        style={{
-          width: '100%', padding: '0.85rem', borderRadius: 'var(--radius-md)',
-          background: saving ? 'var(--bg-subtle)' : 'var(--accent)',
-          color: saving ? 'var(--text-muted)' : '#fff',
-          fontWeight: 800, fontSize: '0.95rem', border: 'none',
-          cursor: saving ? 'default' : 'pointer', fontFamily: 'inherit',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
-          transition: 'background 0.15s',
-        }}
+        className="dk-btn dk-btn-dark"
+        style={{ width: '100%', height: 52, fontSize: 16, gap: 8, opacity: saving ? 0.6 : 1 }}
       >
         {saving
           ? <><Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} /> {T.saving}</>
-          : <>{T.saveBtn} <ArrowRight size={15} /></>
+          : <>{T.saveBtn} <ArrowRight size={16} /></>
         }
       </button>
       <style>{`@keyframes spin { from { transform: rotate(0deg) } to { transform: rotate(360deg) } }`}</style>
