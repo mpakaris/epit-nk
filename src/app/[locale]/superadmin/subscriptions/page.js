@@ -53,19 +53,27 @@ export default function SuperadminSubscriptionsPage() {
     if (!appLoading && isSuperAdmin) fetchUsers();
   }, [appLoading, isSuperAdmin, fetchUsers]);
 
-  const handlePersonalToggle = async (user) => {
+  const handleTierChange = async (user, tier) => {
+    if (user.role === 'superadmin') return;
     setToggling(user.id);
-    const next = !user.is_subscription_premium;
     try {
       const res = await fetch('/api/superadmin/subscriptions', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: user.id, is_subscription_premium: next }),
+        body: JSON.stringify({ userId: user.id, tier }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
-      setUsers(prev => prev.map(u => u.id === user.id ? { ...u, is_subscription_premium: next } : u));
-      setSuccessMsg(`${user.display_name} — personal: ${next ? 'Premium' : 'Basic'}`);
+      // Update local state to reflect new tier
+      const isPremium = tier === 'premium';
+      const now = new Date();
+      setUsers(prev => prev.map(u => u.id === user.id ? {
+        ...u,
+        is_subscription_premium: isPremium,
+        subscription_tier: tier,
+        trial_ends_at: tier === 'trial' ? new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000).toISOString() : null,
+      } : u));
+      setSuccessMsg(`${user.display_name} → ${tier}`);
       setTimeout(() => setSuccessMsg(''), 3000);
     } catch (err) {
       setAlertModal({ message: err.message });
@@ -251,25 +259,49 @@ export default function SuperadminSubscriptionsPage() {
                       {formatDate(u.created_at)}
                     </td>
 
-                    {/* Personal subscription */}
+                    {/* Personal subscription — 3-state pill */}
                     <td style={{ textAlign: 'center' }}>
-                      <button
-                        type="button"
-                        onClick={() => handlePersonalToggle(u)}
-                        disabled={toggling === u.id || u.role === 'superadmin'}
-                        className={u.is_subscription_premium ? 'btn btn-sm' : 'btn btn-secondary btn-sm'}
-                        style={u.is_subscription_premium ? {
-                          background: 'linear-gradient(135deg, #d97706, #f59e0b)',
-                          color: '#fff',
-                          border: 'none',
-                          gap: '0.35rem',
-                          minWidth: '82px',
-                        } : { gap: '0.35rem', minWidth: '82px' }}
-                        title={u.role === 'superadmin' ? 'Cannot modify superadmin' : undefined}
-                      >
-                        {u.is_subscription_premium ? <Crown size={13} /> : <Star size={13} />}
-                        {toggling === u.id ? '...' : (u.is_subscription_premium ? 'Premium' : u.subscription_tier === 'trial' ? 'Trial' : 'Basic')}
-                      </button>
+                      {u.role === 'superadmin' ? (
+                        <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>SA</span>
+                      ) : (
+                        <div style={{ display: 'flex', gap: 3, justifyContent: 'center' }}>
+                          {[
+                            { key: 'basic',   label: 'Basic',   bg: '#F1F5F9', color: '#475569', activeBg: '#334155', activeColor: '#fff' },
+                            { key: 'trial',   label: 'Trial',   bg: '#FFF7ED', color: '#C2410C', activeBg: '#EA580C', activeColor: '#fff' },
+                            { key: 'premium', label: 'Premium', bg: '#FFFBEB', color: '#B45309', activeBg: '#D97706', activeColor: '#fff' },
+                          ].map(opt => {
+                            const effectiveTier = u.is_subscription_premium ? 'premium'
+                              : (u.trial_ends_at && new Date(u.trial_ends_at) > new Date()) ? 'trial'
+                              : 'basic';
+                            const isActive = effectiveTier === opt.key;
+                            return (
+                              <button
+                                key={opt.key}
+                                type="button"
+                                disabled={toggling === u.id}
+                                onClick={() => handleTierChange(u, opt.key)}
+                                style={{
+                                  padding: '3px 8px', fontSize: '0.72rem', fontWeight: 700,
+                                  border: 'none', borderRadius: 6, cursor: toggling === u.id ? 'default' : 'pointer',
+                                  background: isActive ? opt.activeBg : opt.bg,
+                                  color: isActive ? opt.activeColor : opt.color,
+                                  opacity: toggling === u.id && !isActive ? 0.5 : 1,
+                                }}
+                              >
+                                {toggling === u.id && isActive ? '…' : opt.label}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                      {/* Trial expiry hint */}
+                      {u.trial_ends_at && !u.is_subscription_premium && (
+                        <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: 2 }}>
+                          {new Date(u.trial_ends_at) > new Date()
+                            ? `ends ${new Date(u.trial_ends_at).toLocaleDateString()}`
+                            : `expired ${new Date(u.trial_ends_at).toLocaleDateString()}`}
+                        </div>
+                      )}
                     </td>
 
                     {/* Collective tier */}

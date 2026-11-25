@@ -59,49 +59,61 @@ export async function PATCH(request) {
   const body = await request.json();
   const now = new Date().toISOString();
 
-  // Personal subscription update
+  // Personal subscription update — accepts { userId, tier: 'basic' | 'trial' | 'premium' }
   if (body.userId !== undefined) {
-    const { userId, is_subscription_premium } = body;
-    if (!userId || typeof is_subscription_premium !== 'boolean') {
-      return Response.json({ error: 'userId and is_subscription_premium are required' }, { status: 400 });
+    const { userId, tier } = body;
+    if (!userId || !['basic', 'trial', 'premium'].includes(tier)) {
+      return Response.json({ error: "userId and tier ('basic'|'trial'|'premium') are required" }, { status: 400 });
     }
 
     const CREEM_BASE = process.env.CREEM_API_KEY?.startsWith('creem_test_')
       ? 'https://test-api.creem.io'
       : 'https://api.creem.io';
 
-    // 1. Update profile flags + clear trial fields when revoking
-    const profileUpdate = {
-      is_subscription_premium,
-      subscription_tier: is_subscription_premium ? 'premium' : 'basic',
-    };
-    if (!is_subscription_premium) {
-      profileUpdate.trial_started_at = null;
-      profileUpdate.trial_ends_at    = null;
+    // Build profile update based on target tier
+    let profileUpdate;
+    if (tier === 'premium') {
+      profileUpdate = {
+        subscription_tier:    'premium',
+        is_subscription_premium: true,
+        trial_started_at:     null,
+        trial_ends_at:        null,
+      };
+    } else if (tier === 'trial') {
+      const trialStart = new Date();
+      const trialEnd   = new Date(trialStart.getTime() + 14 * 24 * 60 * 60 * 1000);
+      profileUpdate = {
+        subscription_tier:    'trial',
+        is_subscription_premium: false,
+        trial_started_at:     trialStart.toISOString(),
+        trial_ends_at:        trialEnd.toISOString(),
+      };
+    } else {
+      // basic
+      profileUpdate = {
+        subscription_tier:    'basic',
+        is_subscription_premium: false,
+        trial_started_at:     null,
+        trial_ends_at:        null,
+      };
     }
+
     const { error: profileErr } = await admin.from('profiles').update(profileUpdate).eq('id', userId);
     if (profileErr) return Response.json({ error: profileErr.message }, { status: 500 });
 
-    // 2. Keep subscriptions table in sync
-    if (is_subscription_premium) {
-      // Cancel any stale active rows first, then insert an admin-granted row
-      const { error: cancelErr } = await admin.from('subscriptions')
+    // Keep subscriptions table in sync
+    if (tier === 'premium') {
+      await admin.from('subscriptions')
         .update({ status: 'canceled', updated_at: now })
         .eq('user_id', userId)
         .in('product_family', ['premium', 'bundle'])
         .in('status', ['active', 'trialing', 'scheduled_cancel', 'paused', 'past_due']);
-      if (cancelErr) console.error('[sa/subscriptions] cancel stale rows failed:', cancelErr.message);
-
-      const { error: insertErr } = await admin.from('subscriptions').insert({
-        user_id:               userId,
-        creem_subscription_id: null, // admin-granted, no Creem billing attached
-        product_family:        'premium',
-        status:                'active',
-        updated_at:            now,
+      await admin.from('subscriptions').insert({
+        user_id: userId, creem_subscription_id: null,
+        product_family: 'premium', status: 'active', updated_at: now,
       });
-      if (insertErr) console.error('[sa/subscriptions] insert admin-grant failed:', insertErr.message);
     } else {
-      // Fetch active Creem subscription IDs before canceling so we can also cancel in Creem
+      // For basic/trial: cancel any active Creem subscriptions
       const { data: activeSubs } = await admin.from('subscriptions')
         .select('creem_subscription_id')
         .eq('user_id', userId)
@@ -109,31 +121,22 @@ export async function PATCH(request) {
         .in('status', ['active', 'trialing', 'scheduled_cancel', 'paused', 'past_due'])
         .not('creem_subscription_id', 'is', null);
 
-      // Cancel all active premium rows in our DB first
-      const { error: cancelErr } = await admin.from('subscriptions')
+      await admin.from('subscriptions')
         .update({ status: 'canceled', updated_at: now })
         .eq('user_id', userId)
         .in('product_family', ['premium', 'bundle'])
         .in('status', ['active', 'trialing', 'scheduled_cancel', 'paused', 'past_due']);
-      if (cancelErr) console.error('[sa/subscriptions] cancel rows failed:', cancelErr.message);
 
-      // Also cancel in Creem so webhooks don't re-activate the user
       for (const { creem_subscription_id } of (activeSubs ?? [])) {
         if (!creem_subscription_id) continue;
-        try {
-          const r = await fetch(`${CREEM_BASE}/v1/subscriptions/${creem_subscription_id}/cancel`, {
-            method: 'POST',
-            headers: { 'x-api-key': process.env.CREEM_API_KEY, 'Content-Type': 'application/json' },
-          });
-          if (!r.ok) console.error('[sa/subscriptions] Creem cancel failed for', creem_subscription_id, r.status);
-          else console.log('[sa/subscriptions] Creem subscription canceled:', creem_subscription_id);
-        } catch (e) {
-          console.error('[sa/subscriptions] Creem cancel error for', creem_subscription_id, e.message);
-        }
+        fetch(`${CREEM_BASE}/v1/subscriptions/${creem_subscription_id}/cancel`, {
+          method: 'POST',
+          headers: { 'x-api-key': process.env.CREEM_API_KEY, 'Content-Type': 'application/json' },
+        }).catch(e => console.error('[sa/subscriptions] Creem cancel error:', e.message));
       }
     }
 
-    logAudit({ userId: auth.user.id, userName: auth.caller.display_name || '', action: `Subscription ${is_subscription_premium ? 'granted' : 'revoked'} by superadmin`, targetType: 'subscription', targetId: userId, details: { is_subscription_premium, tier: is_subscription_premium ? 'premium' : 'basic' } });
+    logAudit({ userId: auth.user.id, userName: auth.caller.display_name || '', action: `Subscription set to ${tier} by superadmin`, targetType: 'subscription', targetId: userId, details: { tier } });
     return Response.json({ ok: true });
   }
 
