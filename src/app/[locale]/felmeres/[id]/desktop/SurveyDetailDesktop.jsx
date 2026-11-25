@@ -833,7 +833,7 @@ function SectionPod({
   isOpen, onToggle,
   openMenuId, onMenuToggle,
   onAddItem, onEditItem,
-  onApplyTemplate, onMeasurements, onNotes, onMedia, onDrawings,
+  onRename, onApplyTemplate, onMeasurements, onNotes, onMedia, onDrawings,
 }) {
   const t  = useTranslations('surveyDetail');
   const ts = useTranslations('surveys');
@@ -897,11 +897,11 @@ function SectionPod({
             <div onClick={e => e.stopPropagation()}
               style={{ position: 'absolute', right: 0, top: 42, zIndex: 50, background: '#fff', borderRadius: 14, boxShadow: '0 8px 24px -8px rgba(0,0,0,.35), 0 2px 8px -2px rgba(0,0,0,.12)', padding: 6, minWidth: 210 }}>
               {[
+                { icon: Edit3,     label: ts('desktop.renameSection'),       action: onRename        },
                 { icon: Clipboard, label: ts('desktop.applyTemplate'),       action: onApplyTemplate },
                 { icon: Ruler,     label: ts('desktop.detailDimsTitle'),     action: onMeasurements  },
                 { icon: FileText,  label: ts('desktop.detailNotesTitle'),    action: onNotes         },
                 { icon: Camera,    label: ts('desktop.detailMediaTitle'),    action: onMedia         },
-                { icon: Edit3,     label: ts('desktop.detailDrawingsTitle'), action: onDrawings      },
               ].map(({ icon: Icon, label, action }) => (
                 <button key={label} type="button"
                   onClick={() => { action(); onMenuToggle(null); }}
@@ -1028,6 +1028,7 @@ export default function SurveyDetailDesktop() {
   const [addItemEntryId,      setAddItemEntryId]      = useState(null);
   const [showMenu,            setShowMenu]            = useState(false);
   const [showAddEntry,        setShowAddEntry]        = useState(false);
+  const [editingEntry,        setEditingEntry]        = useState(null); // { id, name } for rename
   const [editingItem,         setEditingItem]         = useState(null);
   const [showMetaDrawer,      setShowMetaDrawer]      = useState(false);
   const [confirmModal,        setConfirmModal]        = useState(null);
@@ -1278,6 +1279,7 @@ export default function SurveyDetailDesktop() {
                   onMenuToggle={setOpenPodMenuId}
                   onAddItem={eid => setAddItemEntryId(eid)}
                   onEditItem={item => setEditingItem(item)}
+                  onRename={() => setEditingEntry({ id: entry.id, name: entry.name })}
                   onApplyTemplate={() => { setModalEntry(entry); setShowApplyTemplate(true); }}
                   onMeasurements={() => { setModalEntry(entry); setMeasOpen(true); }}
                   onNotes={() => { setModalEntry(entry); setNotesOpen(true); }}
@@ -1323,6 +1325,31 @@ export default function SurveyDetailDesktop() {
             </button>
           ))}
         </div>
+      </Modal>
+
+      {/* ── Rename section modal ───────────────────────────────────────────────── */}
+      <Modal isOpen={!!editingEntry} onClose={() => setEditingEntry(null)} title={ts('desktop.renameSection')} maxWidth="420px">
+        {editingEntry && (
+          <form onSubmit={async (e) => {
+            e.preventDefault();
+            const name = editingEntry.name.trim();
+            if (!name) return;
+            await updateSurveyEntry(id, editingEntry.id, { name });
+            setEditingEntry(null);
+          }}>
+            <input
+              autoFocus
+              className="dk-input"
+              value={editingEntry.name}
+              onChange={e => setEditingEntry(prev => ({ ...prev, name: e.target.value }))}
+              style={{ width: '100%', marginBottom: 16, boxSizing: 'border-box' }}
+            />
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <button type="button" className="dk-btn dk-btn-l" onClick={() => setEditingEntry(null)}>{t('cancelBtn')}</button>
+              <button type="submit" className="dk-btn dk-btn-dark">{ts('desktop.renameSave')}</button>
+            </div>
+          </form>
+        )}
       </Modal>
 
       {/* ── Add room modal ─────────────────────────────────────────────────────── */}

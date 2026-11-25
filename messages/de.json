@@ -699,6 +699,8 @@
       "detailMediaEmpty": "Keine Mediendateien für diesen Abschnitt.",
       "detailMediaDeleteAria": "Datei löschen",
       "detailDrawingsTitle": "Skizzen",
+      "renameSection": "Abschnitt umbenennen",
+      "renameSave": "Speichern",
       "applyTemplate": "Vorlage anwenden",
       "detailDrawingsEmpty": "Keine Skizzen für diesen Abschnitt.",
       "detailDrawingsDeleteAria": "Skizze löschen",

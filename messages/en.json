@@ -699,6 +699,8 @@
       "detailMediaEmpty": "No media files for this section.",
       "detailMediaDeleteAria": "Delete file",
       "detailDrawingsTitle": "Sketches",
+      "renameSection": "Rename section",
+      "renameSave": "Save",
       "applyTemplate": "Apply template",
       "detailDrawingsEmpty": "No sketches for this section.",
       "detailDrawingsDeleteAria": "Delete sketch",

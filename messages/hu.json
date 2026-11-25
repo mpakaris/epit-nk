@@ -619,6 +619,8 @@
       "detailMediaEmpty": "Nincsenek médiafájlok ehhez a szekcióhoz.",
       "detailMediaDeleteAria": "Fájl törlése",
       "detailDrawingsTitle": "Vázlatok",
+      "renameSection": "Szekció átnevezése",
+      "renameSave": "Mentés",
       "applyTemplate": "Sablon alkalmazása",
       "detailDrawingsEmpty": "Nincsenek vázlatok ehhez a szekcióhoz.",
       "detailDrawingsDeleteAria": "Vázlat törlése",
