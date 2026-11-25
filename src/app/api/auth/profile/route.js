@@ -4,6 +4,140 @@ import { logAudit } from '@/lib/audit';
 import { resolveEffectiveUserId } from '@/lib/godMode';
 import { applyDowngradeLock } from '@/lib/downgradeLock';
 
+const SEED_TITLES = {
+  hu: {
+    survey:            'Első felmérésem',
+    quote:             'Első ajánlatom',
+    project:           'Első projektem',
+    collectiveSurvey:  'Első közös felmérés',
+    collectiveQuote:   'Első közös ajánlat',
+    collectiveProject: 'Első közös projekt',
+    collective:        (name) => `${name} Csapata`,
+    sectionMaterials:  'Anyagok',
+    sectionLabour:     'Munkadíj',
+    roomLiving:        'Nappali',
+    roomKitchen:       'Konyha',
+  },
+  de: {
+    survey:            'Meine erste Aufnahme',
+    quote:             'Mein erstes Angebot',
+    project:           'Mein erstes Projekt',
+    collectiveSurvey:  'Erste Team-Aufnahme',
+    collectiveQuote:   'Erstes Team-Angebot',
+    collectiveProject: 'Erstes Team-Projekt',
+    collective:        (name) => `Team ${name}`,
+    sectionMaterials:  'Materialien',
+    sectionLabour:     'Arbeitskosten',
+    roomLiving:        'Wohnzimmer',
+    roomKitchen:       'Küche',
+  },
+  en: {
+    survey:            'My First Survey',
+    quote:             'My First Quote',
+    project:           'My First Project',
+    collectiveSurvey:  'My First Collective Survey',
+    collectiveQuote:   'My First Collective Quote',
+    collectiveProject: 'My First Collective Project',
+    collective:        (name) => `${name}'s Team`,
+    sectionMaterials:  'Materials',
+    sectionLabour:     'Labour',
+    roomLiving:        'Living Room',
+    roomKitchen:       'Kitchen',
+  },
+};
+
+async function createSeedDocuments(admin, userId, locale, displayName) {
+  const T = SEED_TITLES[locale] || SEED_TITLES.hu;
+
+  // Guard: skip if personal seed docs already exist (idempotent)
+  const { count } = await admin.from('surveys')
+    .select('id', { count: 'exact', head: true })
+    .eq('owner_id', userId).is('collective_id', null).eq('is_seed', true);
+  if (count > 0) return;
+
+  // ── Personal workspace ────────────────────────────────────────────────────
+
+  const { data: survey } = await admin.from('surveys')
+    .insert({ owner_id: userId, collective_id: null, title: T.survey, is_seed: true, created_by: userId })
+    .select('id').single();
+  if (survey?.id) {
+    await admin.from('survey_entries').insert([
+      { survey_id: survey.id, name: T.roomLiving,  sort_order: 0 },
+      { survey_id: survey.id, name: T.roomKitchen, sort_order: 1 },
+    ]);
+  }
+
+  const { data: quote } = await admin.from('quotes')
+    .insert({ owner_id: userId, collective_id: null, title: T.quote, status: 'draft', is_seed: true, created_by: userId })
+    .select('id').single();
+  if (quote?.id) {
+    const { data: sec1 } = await admin.from('quote_sections')
+      .insert({ quote_id: quote.id, name: T.sectionMaterials, sort_order: 0 }).select('id').single();
+    if (sec1?.id) {
+      await admin.from('quote_entries').insert([
+        { quote_id: quote.id, section_id: sec1.id, work_description: 'Villanyszerelési anyagok', entry_type: 'material', quantity: 1, unit: 'tétel', unit_price: 25000 },
+        { quote_id: quote.id, section_id: sec1.id, work_description: 'Festék és alapozó',       entry_type: 'material', quantity: 2, unit: 'vödör', unit_price: 8500  },
+      ]);
+    }
+    const { data: sec2 } = await admin.from('quote_sections')
+      .insert({ quote_id: quote.id, name: T.sectionLabour, sort_order: 1 }).select('id').single();
+    if (sec2?.id) {
+      await admin.from('quote_entries').insert(
+        { quote_id: quote.id, section_id: sec2.id, work_description: 'Bontás és előkészítés', entry_type: 'labour', quantity: 8, unit: 'óra', unit_price: 6500 }
+      );
+    }
+  }
+
+  await admin.from('projects')
+    .insert({ owner_id: userId, collective_id: null, name: T.project, is_seed: true, created_by: userId });
+
+  // ── Inclusive collective workspace ────────────────────────────────────────
+
+  const { data: membership } = await admin.from('collective_members')
+    .select('collective_id')
+    .eq('user_id', userId).eq('role', 'owner').eq('status', 'active')
+    .limit(1).maybeSingle();
+
+  if (!membership) return;
+  const cid = membership.collective_id;
+
+  // Update collective name to localized version
+  await admin.from('collectives').update({ name: T.collective(displayName) }).eq('id', cid);
+
+  const { data: cSurvey } = await admin.from('surveys')
+    .insert({ owner_id: userId, collective_id: cid, title: T.collectiveSurvey, is_seed: true, created_by: userId })
+    .select('id').single();
+  if (cSurvey?.id) {
+    await admin.from('survey_entries').insert([
+      { survey_id: cSurvey.id, name: T.roomLiving,  sort_order: 0 },
+      { survey_id: cSurvey.id, name: T.roomKitchen, sort_order: 1 },
+    ]);
+  }
+
+  const { data: cQuote } = await admin.from('quotes')
+    .insert({ owner_id: userId, collective_id: cid, title: T.collectiveQuote, status: 'draft', is_seed: true, created_by: userId })
+    .select('id').single();
+  if (cQuote?.id) {
+    const { data: cs1 } = await admin.from('quote_sections')
+      .insert({ quote_id: cQuote.id, name: T.sectionMaterials, sort_order: 0 }).select('id').single();
+    if (cs1?.id) {
+      await admin.from('quote_entries').insert(
+        { quote_id: cQuote.id, section_id: cs1.id, work_description: 'Villanyszerelési anyagok', entry_type: 'material', quantity: 1, unit: 'tétel', unit_price: 25000 }
+      );
+    }
+    const { data: cs2 } = await admin.from('quote_sections')
+      .insert({ quote_id: cQuote.id, name: T.sectionLabour, sort_order: 1 }).select('id').single();
+    if (cs2?.id) {
+      await admin.from('quote_entries').insert(
+        { quote_id: cQuote.id, section_id: cs2.id, work_description: 'Bontás és előkészítés', entry_type: 'labour', quantity: 8, unit: 'óra', unit_price: 6500 }
+      );
+    }
+  }
+
+  await admin.from('projects')
+    .insert({ owner_id: userId, collective_id: cid, name: T.collectiveProject, is_seed: true, created_by: userId });
+}
+
 export async function GET(request) {
   const supabase = await createClient();
   const { data: { user }, error: authErr } = await supabase.auth.getUser();
@@ -134,7 +268,7 @@ export async function PATCH(request) {
 
   // Onboarding: locale (always writable) + currency (write-once)
   if ('locale' in body || 'currency' in body) {
-    const { data: current } = await admin.from('profiles').select('currency').eq('id', user.id).single();
+    const { data: current } = await admin.from('profiles').select('currency, locale, display_name').eq('id', user.id).single();
     const onboardingUpdate = {};
     const VALID_LOCALES = ['hu', 'de', 'en'];
     const VALID_CURRENCIES = ['HUF', 'EUR', 'GBP', 'USD'];
@@ -145,6 +279,13 @@ export async function PATCH(request) {
     if (Object.keys(onboardingUpdate).length > 0) {
       const { data, error } = await admin.from('profiles').update(onboardingUpdate).eq('id', user.id).select().single();
       if (error) return Response.json({ error: error.message }, { status: 500 });
+
+      // First-time locale set → create seed documents in the user's language
+      const isFirstLocale = !current?.locale && onboardingUpdate.locale;
+      if (isFirstLocale) {
+        await createSeedDocuments(admin, user.id, onboardingUpdate.locale, current?.display_name || user.email.split('@')[0]);
+      }
+
       return Response.json({ profile: data });
     }
     return Response.json({ success: true });
