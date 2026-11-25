@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
-import { useMobile } from '@/hooks/useMobile';
+import useMobile from '@/hooks/useMobile';
 import { useApp } from '@/context/AppContext';
 
 const LOCK_ICON = (
