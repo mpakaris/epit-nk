@@ -31,6 +31,9 @@ export async function POST(request, { params }) {
     return Response.json({ error: 'Csak a tulajdonos fogadhatja el az ajánlatot.' }, { status: 403 });
   }
 
+  if (quote.is_read_only)
+    return Response.json({ error: 'Ez a dokumentum csak olvasható. Prémium csomagra váltva újra szerkeszthetővé válik.', read_only: true }, { status: 403 });
+
   if (quote.status === 'accepted') {
     return Response.json({ error: 'Az ajánlat már el van fogadva.' }, { status: 409 });
   }

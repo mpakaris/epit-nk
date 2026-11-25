@@ -50,6 +50,9 @@ export async function POST(request, { params }) {
   if (!isSuperAdmin && !isOwner && !isKollektivOwner)
     return Response.json({ error: 'Csak az ajánlat tulajdonosa küldhet ajánlatot az ügyfélnek.' }, { status: 403 });
 
+  if (!isSuperAdmin && quote.is_read_only)
+    return Response.json({ error: 'Ez a dokumentum csak olvasható. Prémium csomagra váltva újra szerkeszthetővé válik.', read_only: true }, { status: 403 });
+
   // Resolve recipient — override wins; fall back to attached client's email
   let recipientEmail = toEmailOverride || null;
   let recipientName  = '';

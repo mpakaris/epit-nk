@@ -13,7 +13,7 @@ export async function POST(request, { params }) {
   const { data: profile } = await admin.from('profiles').select('id, role').eq('id', user.id).single();
   if (!profile) return Response.json({ error: 'Forbidden' }, { status: 403 });
 
-  const { data: project } = await admin.from('projects').select('id, owner_id, created_by, collective_id').eq('id', projectId).is('deleted_at', null).single();
+  const { data: project } = await admin.from('projects').select('id, owner_id, created_by, collective_id, is_read_only').eq('id', projectId).is('deleted_at', null).single();
   if (!project) return Response.json({ error: 'Project not found' }, { status: 404 });
 
   const isSuperAdmin = profile.role === 'superadmin';
@@ -25,6 +25,8 @@ export async function POST(request, { params }) {
   }
   if (!isSuperAdmin && !isOwner && !isCollectiveMember)
     return Response.json({ error: 'Forbidden' }, { status: 403 });
+  if (!isSuperAdmin && project.is_read_only)
+    return Response.json({ error: 'Ez a dokumentum csak olvasható. Prémium csomagra váltva újra szerkeszthetővé válik.', read_only: true }, { status: 403 });
 
   // Find the linked quote (exclude soft-deleted)
   const { data: linkedQuote } = await admin

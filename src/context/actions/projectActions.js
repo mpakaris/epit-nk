@@ -1,3 +1,5 @@
+import { throwOnError } from '@/lib/ReadOnlyError';
+
 export function makeProjectActions({
   projects, invoices, labourEntries, projectRooms,
   setProjects, setInvoices, setLabourEntries, setProjectRooms,
@@ -37,7 +39,7 @@ export function makeProjectActions({
       body: JSON.stringify(fields),
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Hiba a projekt módosításakor');
+    throwOnError(res, data, 'Hiba a projekt módosításakor');
     setProjects(prev => prev.map(p => p.id === projectId ? { ...p, ...data.project, members: p.members } : p));
     return data.project;
   };
@@ -52,7 +54,7 @@ export function makeProjectActions({
       body: JSON.stringify({ memberIds }),
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Hiba a tagok mentésekor');
+    throwOnError(res, data, 'Hiba a tagok mentésekor');
     setProjects(prev => prev.map(p => p.id === projectId ? { ...p, members: memberIds } : p));
   };
 
@@ -72,7 +74,7 @@ export function makeProjectActions({
     if (!isAdmin && !isCreator && !isKollektivOwner) throw new Error('Nincs jogosultsága törölni ezt a projektet!');
     const res = await fetch(`/api/projects/${projectId}`, { method: 'DELETE' });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Hiba a projekt törlésekor');
+    throwOnError(res, data, 'Hiba a projekt törlésekor');
     setProjects(prev => prev.filter(p => p.id !== projectId));
     setInvoices(prev => prev.filter(inv => inv.project_id !== projectId));
     setLabourEntries(prev => prev.filter(e => e.project_id !== projectId));
@@ -90,7 +92,7 @@ export function makeProjectActions({
       body: JSON.stringify({ name, size_m2, work_types, description, quoted_amount_net, sort_order, source_section_id }),
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Hiba a helyiség létrehozásakor');
+    throwOnError(res, data, 'Hiba a helyiség létrehozásakor');
     setProjectRooms(prev => [...prev, data.room]);
     return data.room;
   };
@@ -104,7 +106,7 @@ export function makeProjectActions({
       body: JSON.stringify(fields),
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Hiba a helyiség módosításakor');
+    throwOnError(res, data, 'Hiba a helyiség módosításakor');
     setProjectRooms(prev => prev.map(r => r.id === roomId ? data.room : r));
     return data.room;
   };
@@ -114,7 +116,7 @@ export function makeProjectActions({
     if (!isAdmin && proj?.owner_id !== uid && proj?.created_by !== uid) throw new Error('Nincs jogosultsága!');
     const res = await fetch(`/api/projects/${projectId}/rooms/${roomId}`, { method: 'DELETE' });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Hiba a helyiség törlésekor');
+    throwOnError(res, data, 'Hiba a helyiség törlésekor');
     setProjectRooms(prev => prev.filter(r => r.id !== roomId));
   };
 
@@ -123,7 +125,7 @@ export function makeProjectActions({
     if (!isAdmin && proj?.owner_id !== uid && proj?.created_by !== uid) throw new Error('Nincs jogosultsága!');
     const res = await fetch(`/api/projects/${projectId}/rooms/sync-from-quote`, { method: 'POST' });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Hiba a szinkronizáláskor');
+    throwOnError(res, data, 'Hiba a szinkronizáláskor');
     if (data.rooms && data.rooms.length > 0) {
       setProjectRooms(prev => [...prev, ...data.rooms]);
     }

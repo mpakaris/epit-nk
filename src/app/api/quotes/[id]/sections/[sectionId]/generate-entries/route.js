@@ -23,7 +23,7 @@ export async function POST(request, { params }) {
   if (!profile) return Response.json({ error: 'Forbidden' }, { status: 403 });
 
   const { data: quote } = await admin.from('quotes')
-    .select('id, owner_id, created_by, collective_id, survey_id').eq('id', quoteId).is('deleted_at', null).single();
+    .select('id, owner_id, created_by, collective_id, survey_id, is_read_only').eq('id', quoteId).is('deleted_at', null).single();
   if (!quote) return Response.json({ error: 'Ajánlat nem található' }, { status: 404 });
 
   if (profile.role !== 'superadmin') {
@@ -35,6 +35,9 @@ export async function POST(request, { params }) {
       if (!mem) return Response.json({ error: 'Forbidden' }, { status: 403 });
     }
   }
+
+  if (profile.role !== 'superadmin' && quote.is_read_only)
+    return Response.json({ error: 'Ez a dokumentum csak olvasható.', read_only: true }, { status: 403 });
 
   const { data: section } = await admin.from('quote_sections')
     .select('id, name, description, width_m, length_m, size_m2, height_m, window_count, door_count')

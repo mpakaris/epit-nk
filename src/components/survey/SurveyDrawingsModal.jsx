@@ -21,7 +21,7 @@ const extractInner = s => s?.match(/<svg[^>]*>([\s\S]*)<\/svg>/)?.[1] ?? '';
  *   onCreated(newDrawing) — called after save; parent updates local state
  *   onDeleted(drawingId)  — called after delete; parent updates local state
  */
-export default function SurveyDrawingsModal({ isOpen, onClose, surveyId, entryId = null, entryName, drawings, onCreated, onDeleted }) {
+export default function SurveyDrawingsModal({ isOpen, onClose, surveyId, entryId = null, entryName, drawings, canAdd = true, onCreated, onDeleted }) {
   const ts = useTranslations('surveys');
   const { deleteSurveyDrawing, createSurveyDrawing } = useApp();
   const isMobile = useMobile();
@@ -74,10 +74,12 @@ export default function SurveyDrawingsModal({ isOpen, onClose, surveyId, entryId
       <Modal isOpen={isOpen} onClose={onClose} title={ts('desktop.detailDrawingsTitle')} maxWidth="600px">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
           <span style={{ fontSize: 13, fontWeight: 600, color: '#5A5F68' }}>{items.length} {ts('desktop.detailLabelItem')}</span>
-          <button className="dk-btn dk-btn-l" onClick={openNew} style={{ gap: 8 }}>
-            <Plus size={16} aria-hidden="true" />
-            {ts('desktop.detailAddItemBtn')}
-          </button>
+          {canAdd && (
+            <button className="dk-btn dk-btn-l" onClick={openNew} style={{ gap: 8 }}>
+              <Plus size={16} aria-hidden="true" />
+              {ts('desktop.detailAddItemBtn')}
+            </button>
+          )}
         </div>
 
         {items.length === 0 ? (

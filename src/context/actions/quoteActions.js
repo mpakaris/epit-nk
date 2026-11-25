@@ -1,4 +1,5 @@
 import { canMutateEntry } from '@/lib/permissions';
+import { throwOnError } from '@/lib/ReadOnlyError';
 
 export function makeQuoteActions({
   quotes, quoteEntries, quoteSections, users,
@@ -51,7 +52,7 @@ export function makeQuoteActions({
       }),
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Hiba az ajánlat módosításakor');
+    throwOnError(res, data, 'Hiba az ajánlat módosításakor');
     setQuotes(prev => prev.map(q => q.id === quoteId ? data.quote : q));
     return data.quote;
   };
@@ -83,7 +84,7 @@ export function makeQuoteActions({
       body: JSON.stringify({ name, description, width_m, length_m, height_m, window_count, door_count, survey_entry_id, sort_order, start_date, end_date }),
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Hiba a szekció létrehozásakor');
+    throwOnError(res, data, 'Hiba a szekció létrehozásakor');
     setQuoteSections(prev => [...prev, data.section]);
     return data.section;
   };
@@ -99,7 +100,7 @@ export function makeQuoteActions({
       body: JSON.stringify(fields),
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Hiba a módosításkor');
+    throwOnError(res, data, 'Hiba a módosításkor');
     setQuoteSections(prev => prev.map(s => s.id === sectionId ? data.section : s));
     return data.section;
   };
@@ -111,7 +112,7 @@ export function makeQuoteActions({
       throw new Error('Nincs jogosultsága!');
     const res = await fetch(`/api/quotes/${quoteId}/sections/${sectionId}`, { method: 'DELETE' });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Hiba a törléskor');
+    throwOnError(res, data, 'Hiba a törléskor');
     setQuoteSections(prev => prev.filter(s => s.id !== sectionId));
     setQuoteEntries(prev => prev.map(e => e.section_id === sectionId ? { ...e, section_id: null } : e));
   };
@@ -157,7 +158,7 @@ export function makeQuoteActions({
       body: JSON.stringify(payload),
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Hiba a tétel létrehozásakor');
+    throwOnError(res, data, 'Hiba a tétel létrehozásakor');
     setQuoteEntries(prev => [...prev, data.entry]);
     return data.entry;
   };
@@ -174,7 +175,7 @@ export function makeQuoteActions({
       body: JSON.stringify(fields),
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Hiba a tétel módosításakor');
+    throwOnError(res, data, 'Hiba a tétel módosításakor');
     setQuoteEntries(prev => prev.map(e => e.id === entryId ? data.entry : e));
     return data.entry;
   };
@@ -187,7 +188,7 @@ export function makeQuoteActions({
       throw new Error('Nincs jogosultsága!');
     const res = await fetch(`/api/quotes/${entry.quote_id}/entries/${entryId}`, { method: 'DELETE' });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Hiba a tétel törlésekor');
+    throwOnError(res, data, 'Hiba a tétel törlésekor');
     setQuoteEntries(prev => prev.filter(e => e.id !== entryId));
   };
 

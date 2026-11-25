@@ -3,6 +3,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { logAudit } from '@/lib/audit';
 import { resolveEffectiveUserId } from '@/lib/godMode';
 import { applyDowngradeLock } from '@/lib/downgradeLock';
+import { isEffectivePremium } from '@/lib/subscriptionLimits';
 
 const SEED_TITLES = {
   hu: {
@@ -192,6 +193,27 @@ export async function GET(request) {
     // Re-fetch the updated profile so the response reflects the new tier
     const { data: updated } = await admin.from('profiles').select('*').eq('id', user.id).maybeSingle();
     if (updated) profile = updated;
+  }
+
+  // Lazy lock catch-up: Basic users who bypassed the normal downgrade flow (e.g. manually set to
+  // 'basic' via SA, or created before downgrade-lock code existed) may still have unlocked non-seed
+  // docs. If we find any, apply the lock now. The function is idempotent; subsequent loads cost one
+  // cheap count query that returns 0 and exit immediately.
+  if (
+    !isEffectivePremium(profile) &&
+    profile.subscription_tier === 'basic' &&
+    effectiveUserId === user.id
+  ) {
+    const { count } = await admin.from('surveys')
+      .select('id', { count: 'exact', head: true })
+      .eq('owner_id', user.id)
+      .is('collective_id', null)
+      .is('deleted_at', null)
+      .eq('is_seed', false)
+      .eq('is_read_only', false);
+    if ((count || 0) > 0) {
+      await applyDowngradeLock(user.id, admin);
+    }
   }
 
   // Return collective memberships for the context switcher

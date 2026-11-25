@@ -6,7 +6,7 @@ async function getCtx(projectId, userId) {
   const admin = createAdminClient();
   const { data: profile } = await admin.from('profiles').select('id, role').eq('id', userId).single();
   if (!profile) return { err: 'Forbidden', status: 403 };
-  const { data: project } = await admin.from('projects').select('id, owner_id, created_by, collective_id').eq('id', projectId).is('deleted_at', null).single();
+  const { data: project } = await admin.from('projects').select('id, owner_id, created_by, collective_id, is_read_only').eq('id', projectId).is('deleted_at', null).single();
   if (!project) return { err: 'Project not found', status: 404 };
 
   const isSuperAdmin = profile.role === 'superadmin';
@@ -31,6 +31,9 @@ export async function PATCH(request, { params }) {
 
   const ctx = await getCtx(projectId, user.id);
   if (ctx.err) return Response.json({ error: ctx.err }, { status: ctx.status });
+
+  if (ctx.profile.role !== 'superadmin' && ctx.project.is_read_only)
+    return Response.json({ error: 'Ez a dokumentum csak olvasható. Prémium csomagra váltva újra szerkeszthetővé válik.', read_only: true }, { status: 403 });
 
   const body = await request.json();
   const allowed = ['name', 'size_m2', 'work_types', 'description', 'quoted_amount_net', 'sort_order'];
@@ -71,6 +74,9 @@ export async function DELETE(request, { params }) {
 
   const ctx = await getCtx(projectId, user.id);
   if (ctx.err) return Response.json({ error: ctx.err }, { status: ctx.status });
+
+  if (ctx.profile.role !== 'superadmin' && ctx.project.is_read_only)
+    return Response.json({ error: 'Ez a dokumentum csak olvasható. Prémium csomagra váltva újra szerkeszthetővé válik.', read_only: true }, { status: 403 });
 
   // Unassign all related entries before deleting the room (move to general/unassigned)
   await Promise.all([

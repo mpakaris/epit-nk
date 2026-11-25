@@ -43,9 +43,12 @@ import NewExpenseModal from './components/NewExpenseModal';
 import CollectiveChatSection from '@/components/CollectiveChatSection';
 import ProjectDetailMobile from '../mobile/ProjectDetailMobile';
 import ReadOnlyBanner from '@/components/ReadOnlyBanner';
+import UpgradeModal from '@/components/UpgradeModal';
+import { useReadOnlyUpgrade } from '@/hooks/useReadOnlyUpgrade';
+import { ReadOnlyUpgradeProvider } from '@/context/ReadOnlyUpgradeContext';
 
 
-export default function ProjectDetailClient({
+function ProjectDetailClientInner({
   project,
   initialUsers,
   initialInvoices,
@@ -136,6 +139,7 @@ export default function ProjectDetailClient({
   const handleExpenseTabChange = (key) => { setActiveExpenseTab(key); setTabSearch(''); };
   const [confirmModal, setConfirmModal] = useState(null);
   const [alertModal, setAlertModal] = useState(null);
+  const { handleError: handleReadOnly, guardReadOnly: _guard } = useReadOnlyUpgrade();
   const [lockedModalOpen, setLockedModalOpen] = useState(() => !!project?.locked_reason);
 
   // History
@@ -265,6 +269,7 @@ export default function ProjectDetailClient({
 
   const isDocLocked      = !!project.locked_reason;
   const isReadOnly       = !!project.is_read_only;
+  const guardReadOnly = (flag = isReadOnly) => _guard(flag);
   const isKollektivOwner = collectives?.some(c => c.collective_id === project.collective_id && (c.role === 'owner' || c.role === 'admin'));
   const canManageProject = !isDocLocked && !isReadOnly && (isKollektivOwner || project.created_by === currentUser?.id || project.owner_id === currentUser?.id);
 
@@ -320,6 +325,7 @@ export default function ProjectDetailClient({
   };
 
   const handleStatusReasonSubmit = async () => {
+    if (guardReadOnly()) return;
     const { status: newStatus, reason } = statusReasonModal;
     if (!reason.trim()) return;
     const extra = newStatus === 'closed' ? { closed_at: new Date().toISOString() } : newStatus === 'active' ? { closed_at: null } : {};
@@ -363,6 +369,7 @@ export default function ProjectDetailClient({
     setConfirmModal({
       message: t('deleteInvoiceConfirm'),
       onConfirm: async () => {
+        if (guardReadOnly()) return;
         try { await ctxDeleteInvoice(invId); router.refresh(); }
         catch (err) { setAlertModal({ message: err.message || t('deleteError') }); }
       }
@@ -373,6 +380,7 @@ export default function ProjectDetailClient({
     setConfirmModal({
       message: t('deleteLabourConfirm'),
       onConfirm: async () => {
+        if (guardReadOnly()) return;
         try {
           await ctxDeleteLabourEntry(entryId);
           setToast(t('labourDeleted'));
@@ -426,7 +434,7 @@ export default function ProjectDetailClient({
           const res = await fetch(`/api/diary/share/${token.id}`, { method: 'DELETE' });
           if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Hiba'); }
           setShareTokens(prev => prev.filter(t => t.id !== token.id));
-        } catch (err) { setAlertModal({ message: err.message }); }
+        } catch (err) { if (handleReadOnly(err)) return; setAlertModal({ message: err.message }); }
       }
     });
   };
@@ -466,6 +474,7 @@ export default function ProjectDetailClient({
     : [];
 
   const handleSaveRoom = async (fields) => {
+    if (guardReadOnly()) return;
     if (editingRoom) {
       await updateProjectRoom(project.id, editingRoom.id, fields);
     } else {
@@ -482,19 +491,21 @@ export default function ProjectDetailClient({
     setConfirmModal({
       message,
       onConfirm: async () => {
+        if (guardReadOnly()) return;
         try {
           await deleteProjectRoom(project.id, room.id);
           setToast(t('roomDeleted'));
           setTimeout(() => setToast(''), 2500);
-        } catch (err) { setAlertModal({ message: err.message }); }
+        } catch (err) { if (handleReadOnly(err)) return; setAlertModal({ message: err.message }); }
         setConfirmModal(null);
       },
     });
   };
 
   const handleSyncRooms = async () => {
+    if (guardReadOnly()) return;
     setSyncing(true);
-    try { await syncRoomsFromQuote(project.id); } catch (err) { setAlertModal({ message: err.message }); } finally { setSyncing(false); }
+    try { await syncRoomsFromQuote(project.id); } catch (err) { if (handleReadOnly(err)) return; setAlertModal({ message: err.message }); } finally { setSyncing(false); }
   };
 
   const fmt = (d) => d ? new Date(d).toLocaleDateString('hu-HU', { year: 'numeric', month: 'short', day: 'numeric' }) : null;
@@ -503,6 +514,7 @@ export default function ProjectDetailClient({
   const toggleSection = (key) => setOpenSections(prev => ({ ...prev, [key]: !prev[key] }));
 
   const handleCreatePayment = async (fields, file) => {
+    if (guardReadOnly()) return;
     const res = await fetch('/api/payment-plan', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ project_id: project.id, ...fields }) });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || t('saveError'));
@@ -519,6 +531,7 @@ export default function ProjectDetailClient({
   };
 
   const handleUpdatePayment = async (itemId, fields) => {
+    if (guardReadOnly()) return;
     const res = await fetch(`/api/payment-plan/${itemId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(fields) });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || t('saveError'));
@@ -1811,4 +1824,8 @@ export default function ProjectDetailClient({
       />
     </div>
   );
+}
+
+export default function ProjectDetailClient(props) {
+  return <ReadOnlyUpgradeProvider><ProjectDetailClientInner {...props} /></ReadOnlyUpgradeProvider>;
 }

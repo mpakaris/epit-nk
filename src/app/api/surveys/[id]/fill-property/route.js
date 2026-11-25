@@ -18,12 +18,18 @@ export async function POST(request, { params }) {
 
 
   const admin = createAdminClient();
+  const { data: profile } = await admin.from('profiles').select('role').eq('id', user.id).single();
+  if (!profile) return Response.json({ error: 'Forbidden' }, { status: 403 });
+
   const { data: survey } = await admin.from('surveys')
-    .select('owner_id, created_by, collective_id').eq('id', surveyId).is('deleted_at', null).single();
+    .select('owner_id, created_by, collective_id, is_read_only').eq('id', surveyId).is('deleted_at', null).single();
   if (!survey) return Response.json({ error: 'Not found' }, { status: 404 });
 
   const access = await checkSurveyAccess(admin, survey, user.id, surveyId);
   if (!access.allowed) return Response.json({ error: 'Forbidden' }, { status: 403 });
+
+  if (profile.role !== 'superadmin' && survey.is_read_only)
+    return Response.json({ error: 'Ez a dokumentum csak olvasható.', read_only: true }, { status: 403 });
 
   const { transcript } = await request.json();
   if (!transcript?.trim()) return Response.json({ error: 'Nincs szöveg' }, { status: 400 });

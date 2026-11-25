@@ -17,19 +17,20 @@ async function getCtx(quoteId, entryId) {
   const isOwn = entry.user_id === user.id;
 
   // Always fetch quote so we have collective_id for status check
-  const { data: quote } = await admin.from('quotes').select('collective_id, owner_id, created_by').eq('id', quoteId).is('deleted_at', null).single();
+  const { data: quote } = await admin.from('quotes').select('collective_id, owner_id, created_by, is_read_only').eq('id', quoteId).is('deleted_at', null).single();
   const collectiveId = quote?.collective_id || null;
+  const isReadOnly   = !!quote?.is_read_only;
 
-  if (isSuperAdmin || isOwn) return { user, admin, entry, isSuperAdmin, collectiveId };
+  if (isSuperAdmin || isOwn) return { user, admin, entry, isSuperAdmin, collectiveId, isReadOnly };
 
   // Quote owner or collective owner can also modify
   const isQuoteOwner = quote?.owner_id === user.id || quote?.created_by === user.id;
-  if (isQuoteOwner) return { user, admin, entry, isSuperAdmin, collectiveId };
+  if (isQuoteOwner) return { user, admin, entry, isSuperAdmin, collectiveId, isReadOnly };
 
   if (collectiveId) {
     const { data: mem } = await admin.from('collective_members')
       .select('role').eq('collective_id', collectiveId).eq('user_id', user.id).eq('status', 'active').maybeSingle();
-    if (mem?.role === 'owner' || mem?.role === 'admin') return { user, admin, entry, isSuperAdmin, collectiveId };
+    if (mem?.role === 'owner' || mem?.role === 'admin') return { user, admin, entry, isSuperAdmin, collectiveId, isReadOnly };
   }
 
   return { err: 'Forbidden', status: 403 };
@@ -39,6 +40,9 @@ export async function PATCH(request, { params }) {
   const { id: quoteId, entryId } = await params;
   const ctx = await getCtx(quoteId, entryId);
   if (ctx.err) return Response.json({ error: ctx.err }, { status: ctx.status });
+
+  if (!ctx.isSuperAdmin && ctx.isReadOnly)
+    return Response.json({ error: 'Ez a dokumentum csak olvasható. Prémium csomagra váltva újra szerkeszthetővé válik.', read_only: true }, { status: 403 });
 
   const statusBlocked = await checkCollectiveStatus(ctx.admin, ctx.collectiveId);
   if (statusBlocked) return statusBlocked;
@@ -66,6 +70,9 @@ export async function DELETE(request, { params }) {
   const { id: quoteId, entryId } = await params;
   const ctx = await getCtx(quoteId, entryId);
   if (ctx.err) return Response.json({ error: ctx.err }, { status: ctx.status });
+
+  if (!ctx.isSuperAdmin && ctx.isReadOnly)
+    return Response.json({ error: 'Ez a dokumentum csak olvasható. Prémium csomagra váltva újra szerkeszthetővé válik.', read_only: true }, { status: 403 });
 
   const statusBlockedDel = await checkCollectiveStatus(ctx.admin, ctx.collectiveId);
   if (statusBlockedDel) return statusBlockedDel;

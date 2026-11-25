@@ -71,7 +71,8 @@ function SurveyCard({ survey, client, isTeam, onOpen, onMore }) {
 
       {/* Card body — tap opens the survey */}
       <button onClick={onOpen} style={{ width: '100%', boxSizing: 'border-box', padding: '14px 64px 14px 16px', border: 0, background: 'transparent', textAlign: 'left', display: 'flex', flexDirection: 'column', gap: 8, minHeight: 84, cursor: 'pointer' }}>
-        <span style={{ fontSize: 18, fontWeight: 700, lineHeight: 1.25, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+        <span style={{ fontSize: 18, fontWeight: 700, lineHeight: 1.25, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'flex', alignItems: 'center', gap: 6 }}>
+          {survey.is_read_only && <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#92400E" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ flexShrink: 0, opacity: 0.8 }}><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>}
           {survey.title}
         </span>
         <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>

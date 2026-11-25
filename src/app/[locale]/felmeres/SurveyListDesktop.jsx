@@ -13,7 +13,7 @@ import TransferToCollectiveModal from '@/components/TransferToCollectiveModal';
 import SurveyMediaModal from '@/components/survey/SurveyMediaModal';
 import SurveyDrawingsModal from '@/components/survey/SurveyDrawingsModal';
 import WorkspacePodStack from '@/components/desktop/WorkspacePodStack';
-import { Search, Plus, Trash2, X, ArrowRightLeft, Camera, Edit3, MoreHorizontal } from 'lucide-react';
+import { Search, Plus, Trash2, X, ArrowRightLeft, Camera, Edit3, MoreHorizontal, Lock } from 'lucide-react';
 
 const GRID = '20px 2.4fr 1.8fr 1.4fr 44px';
 
@@ -153,6 +153,7 @@ export default function SurveyListDesktop() {
   const canTransfer = selectedSurvey
     && isOwner(selectedSurvey)
     && !selectedSurvey.collective_id
+    && !selectedSurvey.is_read_only
     && (collectives || []).some(c => c.collective_id)
     && !isDemoMode;
 
@@ -250,7 +251,8 @@ export default function SurveyListDesktop() {
                       <span style={{ minWidth: 0, display: 'flex', alignItems: 'center' }}>
                         <span style={{ width: 12, height: 12, borderRadius: 6, background: '#0A7F72', flexShrink: 0 }} />
                       </span>
-                      <span style={{ minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      <span style={{ minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'flex', alignItems: 'center', gap: 6 }}>
+                        {survey.is_read_only && <Lock size={13} style={{ flexShrink: 0, color: '#92400E', opacity: 0.8 }} aria-hidden="true" />}
                         <b>{survey.title}</b>
                       </span>
                       <span style={{ minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -459,7 +461,8 @@ export default function SurveyListDesktop() {
           onClose={() => setMediaOpen(false)}
           surveyId={selectedSurvey.id}
           entryId={null}
-          canEdit={isOwner(selectedSurvey)}
+          canEdit={isOwner(selectedSurvey) && !selectedSurvey?.is_read_only}
+          canDelete={isOwner(selectedSurvey)}
           mediaItems={sidePhotos}
           onUploaded={(newItems) => setSidePhotos(prev => [...prev, ...newItems])}
           onDeleted={(mediaId) => setSidePhotos(prev => prev.filter(m => m.id !== mediaId))}
@@ -474,6 +477,7 @@ export default function SurveyListDesktop() {
           entryId={null}
           entryName={selectedSurvey.title}
           drawings={sideDrawings}
+          canAdd={isOwner(selectedSurvey) && !selectedSurvey?.is_read_only}
           onCreated={(d) => setSideDrawings(prev => [...prev, d])}
           onDeleted={(id) => setSideDrawings(prev => prev.filter(dr => dr.id !== id))}
         />

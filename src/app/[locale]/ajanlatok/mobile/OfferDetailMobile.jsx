@@ -13,6 +13,9 @@ import { useApp } from '@/context/AppContext';
 import { formatMoney, formatDate } from '@/lib/constants';
 import useOnline from '@/hooks/useOnline';
 import { AlertModal, ConfirmModal } from '@/components/Modal';
+import UpgradeModal from '@/components/UpgradeModal';
+import { useReadOnlyUpgrade } from '@/hooks/useReadOnlyUpgrade';
+import { ReadOnlyUpgradeProvider } from '@/context/ReadOnlyUpgradeContext';
 import QuickClientSheet from './QuickClientSheet';
 import HistorySheet from '@/components/mobile/pods/HistorySheet';
 import DrawingsSection from '@/components/DrawingsSection';
@@ -64,7 +67,7 @@ function EntryTile({ entry, userCurrency }) {
   );
 }
 
-export default function OfferDetailMobile({ quoteId }) {
+function OfferDetailMobileInner({ quoteId }) {
   const t  = useTranslations('quotes');
   const tM = useTranslations('mobilePods');
   const tc = useTranslations('common');
@@ -90,6 +93,7 @@ export default function OfferDetailMobile({ quoteId }) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [alertModal, setAlertModal] = useState({ open: false, message: '' });
+  const { handleError: handleReadOnly, guardReadOnly: _guard } = useReadOnlyUpgrade();
   const [sendEmail, setSendEmail] = useState('');
   const [sendLoading, setSendLoading] = useState(false);
   const [attachTerms,       setAttachTerms]       = useState(true);
@@ -217,6 +221,7 @@ export default function OfferDetailMobile({ quoteId }) {
   const isMember = !!quote?.collective_id && !canOwnerAct;
   const isLocked = quote?.status === 'accepted' || quote?.status === 'rejected';
   const isReadOnly = !!quote?.is_read_only;
+  const guardReadOnly = (flag = isReadOnly) => _guard(flag);
 
   const net = useMemo(() => (sections || []).reduce((s, sec) => s + (sec.entries || []).reduce((a, e) => {
     return a + Number(e.amount_huf || 0);
@@ -237,6 +242,7 @@ export default function OfferDetailMobile({ quoteId }) {
   }, 0), [sections]);
 
   const handleSaveMeta = async () => {
+    if (guardReadOnly()) return;
     if (!quote) return;
     if (quote.status === 'sent') { setMode('revert'); return; }
     setSaving(true);
@@ -272,11 +278,13 @@ export default function OfferDetailMobile({ quoteId }) {
       await deleteQuote(quoteId);
       router.push(p('/ajanlatok'));
     } catch (err) {
+      if (handleReadOnly(err)) return;
       setAlertModal({ open: true, message: err.message || t('errorUnknown') });
     }
   };
 
   const handleRevert = async () => {
+    if (guardReadOnly()) return;
     const res = await fetch(`/api/quotes/${quoteId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'draft' }) });
     if (!res.ok) {
       const { error } = await res.json().catch(() => ({}));
@@ -349,6 +357,7 @@ export default function OfferDetailMobile({ quoteId }) {
   };
 
   const handleSend = async () => {
+    if (guardReadOnly()) return;
     const email = sendEmail.trim();
     if (!email) {
       setAlertModal({ open: true, message: t('sendNoEmail') });
@@ -371,6 +380,7 @@ export default function OfferDetailMobile({ quoteId }) {
   };
 
   const handleClientAttach = async (clientId) => {
+    if (guardReadOnly()) return;
     const res = await fetch(`/api/quotes/${quoteId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
@@ -387,16 +397,19 @@ export default function OfferDetailMobile({ quoteId }) {
 
 
   const handleSectionDelete = async (sectionId) => {
+    if (guardReadOnly()) return;
     try {
       await deleteQuoteSection(quoteId, sectionId);
       setSections(prev => prev.filter(s => s.id !== sectionId));
       setSectionMenuId(null);
     } catch (err) {
+      if (handleReadOnly(err)) return;
       setAlertModal({ open: true, message: err.message || t('errorUnknown') });
     }
   };
 
   const handleClientRemove = async () => {
+    if (guardReadOnly()) return;
     const res = await fetch(`/api/quotes/${quoteId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
@@ -1562,6 +1575,7 @@ function InfoPod({ isOpen, onToggle, title, headerRight, action, children }) {
 
 // ─── SectionEditSheet ─────────────────────────────────────────────────────────
 function SectionEditSheet({ isNew, initial, quoteId, onSave, onClose, t }) {
+  const { openUpgrade } = useReadOnlyUpgradeContext();
   const [name,    setName]    = useState(() => initial?.name         || '');
   const [widthM,  setWidthM]  = useState(() => initial?.width_m  != null ? String(initial.width_m)  : '');
   const [lengthM, setLengthM] = useState(() => initial?.length_m != null ? String(initial.length_m) : '');
@@ -1599,6 +1613,7 @@ function SectionEditSheet({ isNew, initial, quoteId, onSave, onClose, t }) {
       });
       if (!res.ok) {
         const d = await res.json().catch(() => ({}));
+        if (d.read_only) { openUpgrade(); setSaving(false); return; }
         setErr(d.error || t('sectionSaveError'));
         setSaving(false);
         return;
@@ -1884,3 +1899,7 @@ function ToggleRow({ checked, onToggle, label, sub }) {
 }
 
 const isTeam = false; // used in delete sheet — computed above in component
+
+export default function OfferDetailMobile({ quoteId }) {
+  return <ReadOnlyUpgradeProvider><OfferDetailMobileInner quoteId={quoteId} /></ReadOnlyUpgradeProvider>;
+}

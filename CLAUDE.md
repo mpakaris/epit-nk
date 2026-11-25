@@ -304,6 +304,14 @@ Local dev: ngrok required for webhooks. Set `NEXT_PUBLIC_APP_URL` to ngrok URL; 
 - Missing `dk-mh > .dk-gl { position: absolute }` rule after editing desktop.css
 - Curly quotes in JSON locale files after Edit tool
 - `pathnames` changed in `src/i18n/routing.js` without prod webpack build test
+- **Missing `is_read_only` guard on sub-resource routes** — Every mutation route (POST/PATCH/PUT/DELETE) on a sub-resource of `surveys`, `quotes`, or `projects` **must** include `is_read_only` in the parent-document select AND check it before mutating. This includes: entries, entry items, sections, drawings, rooms, AI-fill routes, import, copy, duplicate-media routes. Pattern:
+  ```js
+  // 1. Add is_read_only to the parent select
+  .select('..., is_read_only')
+  // 2. Guard every mutation handler (after auth/permission check, before body parse)
+  if (profile.role !== 'superadmin' && parentDoc.is_read_only)
+    return Response.json({ error: 'Ez a dokumentum csak olvasható. Prémium csomagra váltva újra szerkeszthetővé válik.', read_only: true }, { status: 403 });
+  ```
 
 ---
 

@@ -20,13 +20,16 @@ export async function POST(request, { params }) {
   const { data: profile } = await admin.from('profiles').select('role').eq('id', user.id).single();
   if (!profile) return Response.json({ error: 'Forbidden' }, { status: 403 });
 
-  const { data: survey } = await admin.from('surveys').select('owner_id, collective_id, shared_with, created_by').eq('id', surveyId).is('deleted_at', null).single();
+  const { data: survey } = await admin.from('surveys').select('owner_id, collective_id, shared_with, created_by, is_read_only').eq('id', surveyId).is('deleted_at', null).single();
   if (!survey) return Response.json({ error: 'Not found' }, { status: 404 });
 
   if (profile.role !== 'superadmin') {
     const access = await checkSurveyAccess(admin, survey, user.id, surveyId);
     if (!access.allowed) return Response.json({ error: 'Forbidden' }, { status: 403 });
   }
+
+  if (profile.role !== 'superadmin' && survey.is_read_only)
+    return Response.json({ error: 'Ez a dokumentum csak olvasható.', read_only: true }, { status: 403 });
 
   const { data: entry } = await admin.from('survey_entries')
     .select('id, name, description, width_m, length_m, height_m, size_m2, window_count, door_count')

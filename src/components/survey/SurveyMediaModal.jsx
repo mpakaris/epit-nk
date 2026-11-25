@@ -15,13 +15,14 @@ import MediaThumb from '@/components/MediaThumb';
  *   surveyId     — required
  *   entryId      — null for survey-level, entry.id for section-level
  *   mediaItems   — array of committed media objects to display (live from context)
- *   canEdit      — whether the user can upload/delete
+ *   canEdit      — whether the user can upload new media
+ *   canDelete    — whether the user can delete existing media (defaults to canEdit)
  *   enqueue      — optional upload queue fn (from useUploadQueue); if absent, uploads directly
  *   pendingQueue — items from useUploadQueue for this entry (pending/uploading/error)
  *   onUploaded   — called after a direct upload (no enqueue)
  *   onDeleted    — called after delete
  */
-export default function SurveyMediaModal({ isOpen, onClose, surveyId, entryId = null, canEdit, mediaItems, enqueue, pendingQueue = [], onUploaded, onDeleted }) {
+export default function SurveyMediaModal({ isOpen, onClose, surveyId, entryId = null, canEdit, canDelete, mediaItems, enqueue, pendingQueue = [], onUploaded, onDeleted }) {
   const ts = useTranslations('surveys');
   const { uploadSurveyMedia, deleteSurveyMedia } = useApp();
   const inputRef  = useRef(null);
@@ -30,6 +31,7 @@ export default function SurveyMediaModal({ isOpen, onClose, surveyId, entryId = 
   const [previewIdx, setPreviewIdx] = useState(null);
 
   const items = mediaItems || [];
+  const canDeleteItem = canDelete !== undefined ? canDelete : canEdit;
   const activePending = pendingQueue.filter(q => q.status === 'pending' || q.status === 'uploading' || q.status === 'error');
   const previewItem = previewIdx !== null ? items[previewIdx] : null;
 
@@ -120,7 +122,7 @@ export default function SurveyMediaModal({ isOpen, onClose, surveyId, entryId = 
                     {item.file_name}
                   </div>
                 )}
-                {canEdit && (
+                {canDeleteItem && (
                   <button onClick={(e) => { e.stopPropagation(); handleDelete(item.id); }} disabled={!!deleting}
                     aria-label={ts('desktop.detailMediaDeleteAria')}
                     style={{ position: 'absolute', top: 6, right: 6, width: 28, height: 28, borderRadius: 14, background: deleting === item.id ? 'rgba(0,0,0,.35)' : 'rgba(183,28,28,.85)', border: 0, color: '#fff', cursor: deleting === item.id ? 'default' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1 }}>

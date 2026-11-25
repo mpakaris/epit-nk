@@ -18,6 +18,9 @@ import PageSpinner from '@/components/PageSpinner';
 import { processMediaFile } from '@/lib/mediaGate';
 import { useUploadQueue } from '@/hooks/useUploadQueue';
 import ReadOnlyBanner from '@/components/ReadOnlyBanner';
+import UpgradeModal from '@/components/UpgradeModal';
+import { useReadOnlyUpgrade } from '@/hooks/useReadOnlyUpgrade';
+import { ReadOnlyUpgradeProvider, useReadOnlyUpgradeContext } from '@/context/ReadOnlyUpgradeContext';
 import {
   Plus, Trash2, FileText, Check, Loader2, AlertCircle,
   RefreshCw, CheckCircle2, Edit3, X, Copy, Clipboard,
@@ -48,6 +51,7 @@ function AddItemModal({ isOpen, onClose, surveyId, entryId }) {
   const t  = useTranslations('surveyDetail');
   const tc = useTranslations('common');
   const { createSurveyItem } = useApp();
+  const { handleError } = useReadOnlyUpgrade();
 
   const [entryType, setEntryType] = useState('material');
   const [desc,  setDesc]  = useState('');
@@ -79,7 +83,7 @@ function AddItemModal({ isOpen, onClose, surveyId, entryId }) {
         notes: notes.trim() || null, source: 'manual', is_confirmed: true,
       });
       onClose();
-    } catch (err) { setError(err.message); setSaving(false); }
+    } catch (err) { if (handleError(err)) return; setError(err.message); setSaving(false); }
   };
 
   const PLACEHOLDERS = {
@@ -299,6 +303,7 @@ function measSummaryStr(entry, overrideL, overrideW, overrideH, td) {
 
 // ── EntryForm — add a new section (name + notes only; measurements added later via context menu) ──
 function EntryForm({ surveyId, onSave, onCancel }) {
+  const { handleError } = useReadOnlyUpgrade();
   const t  = useTranslations('surveyDetail');
   const tc = useTranslations('common');
   const [name,        setName]        = useState('');
@@ -313,7 +318,7 @@ function EntryForm({ surveyId, onSave, onCancel }) {
     try {
       await onSave({ name: name.trim(), description: description.trim() || null });
       onCancel();
-    } catch (err) { setError(err.message || t('entrySaveError')); setSaving(false); }
+    } catch (err) { if (handleError(err)) return; setError(err.message || t('entrySaveError')); setSaving(false); }
   };
 
   const lbl = { fontSize: 11, fontWeight: 700, letterSpacing: '.07em', textTransform: 'uppercase', color: '#5A6070', display: 'block', marginBottom: 6 };
@@ -351,6 +356,7 @@ function EntryForm({ surveyId, onSave, onCancel }) {
 
 // ── MetaDrawer — edit survey-level title, date, client etc. ───────────────────
 function MetaDrawer({ survey, clients: clientsProp, isOpen, onClose, onSave }) {
+  const { handleError } = useReadOnlyUpgrade();
   const t  = useTranslations('surveyDetail');
   const tc = useTranslations('common');
   const [title, setTitle] = useState(''); const [date, setDate] = useState('');
@@ -373,7 +379,7 @@ function MetaDrawer({ survey, clients: clientsProp, isOpen, onClose, onSave }) {
     if (!title.trim()) { setError(t('metaNameRequired')); return; }
     setSaving(true); setError('');
     try { await onSave({ title: title.trim(), date: date || null, location: location.trim(), notes: notes.trim(), client_id: clientId || null }); onClose(); }
-    catch (err) { setError(err.message || t('metaSaveError')); setSaving(false); }
+    catch (err) { if (handleError(err)) return; setError(err.message || t('metaSaveError')); setSaving(false); }
   };
 
   const lbl = { fontSize: 11, fontWeight: 700, letterSpacing: '.07em', textTransform: 'uppercase', color: '#5A6070', display: 'block', marginBottom: 6 };
@@ -460,6 +466,7 @@ function MetaDrawer({ survey, clients: clientsProp, isOpen, onClose, onSave }) {
 
 // ── ItemEditModal — edit a single survey item ─────────────────────────────────
 function ItemEditModal({ item, surveyId, isOpen, onClose, onDuplicate, onDelete }) {
+  const { handleError } = useReadOnlyUpgrade();
   const t  = useTranslations('surveyDetail');
   const td = useTranslations('surveys');
   const tc = useTranslations('common');
@@ -481,7 +488,7 @@ function ItemEditModal({ item, surveyId, isOpen, onClose, onDuplicate, onDelete 
     if (!desc.trim()) { setError(t('itemsDescRequired')); return; }
     setSaving(true); setError('');
     try { await updateSurveyItem(surveyId, item.id, { description: desc.trim(), quantity: qty ? parseFloat(qty) : null, unit: unit.trim() || null, notes: notes.trim() || null }); onClose(); }
-    catch (err) { setError(err.message); setSaving(false); }
+    catch (err) { if (handleError(err)) return; setError(err.message); setSaving(false); }
   };
 
   const lbl = { fontSize: 11, fontWeight: 700, letterSpacing: '.07em', textTransform: 'uppercase', color: '#5A6070', display: 'block', marginBottom: 6 };
@@ -830,6 +837,7 @@ function ApplyTemplateModal({ isOpen, onClose, surveyId, entryId }) {
 // ── SectionPod ────────────────────────────────────────────────────────────────
 function SectionPod({
   entry, idx, allItems, drawings, canAdd, canEditFn, surveyId,
+  isReadOnly, canInteract,
   isOpen, onToggle,
   openMenuId, onMenuToggle,
   onAddItem, onEditItem,
@@ -837,6 +845,7 @@ function SectionPod({
 }) {
   const t  = useTranslations('surveyDetail');
   const ts = useTranslations('surveys');
+  const { openUpgrade } = useReadOnlyUpgradeContext();
   const [itemSearch, setItemSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('all');
 
@@ -897,8 +906,8 @@ function SectionPod({
             <div onClick={e => e.stopPropagation()}
               style={{ position: 'absolute', right: 0, top: 42, zIndex: 50, background: '#fff', borderRadius: 14, boxShadow: '0 8px 24px -8px rgba(0,0,0,.35), 0 2px 8px -2px rgba(0,0,0,.12)', padding: 6, minWidth: 210 }}>
               {[
-                { icon: Edit3,     label: ts('desktop.renameSection'),       action: onRename        },
-                { icon: Clipboard, label: ts('desktop.applyTemplate'),       action: onApplyTemplate },
+                { icon: Edit3,     label: ts('desktop.renameSection'),       action: isReadOnly ? openUpgrade : onRename        },
+                { icon: Clipboard, label: ts('desktop.applyTemplate'),       action: isReadOnly ? openUpgrade : onApplyTemplate },
                 { icon: Ruler,     label: ts('desktop.detailDimsTitle'),     action: onMeasurements  },
                 { icon: FileText,  label: ts('desktop.detailNotesTitle'),    action: onNotes         },
                 { icon: Camera,    label: ts('desktop.detailMediaTitle'),    action: onMedia         },
@@ -961,7 +970,7 @@ function SectionPod({
           )}
 
           {/* Quick-access: media + sketches — always visible when pod is open */}
-          {canAdd && (
+          {canInteract && (
             <div style={{ display: 'flex', gap: 8, padding: '8px 16px', borderTop: '1px solid #EDEBE5', background: '#F8F8F9' }}>
               <button type="button" onClick={onMedia}
                 style={{ display: 'flex', alignItems: 'center', gap: 6, height: 32, padding: '0 12px', border: 0, borderRadius: 16, background: '#fff', color: '#5A5F68', fontSize: 13, fontWeight: 600, cursor: 'pointer', boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }}>
@@ -1007,7 +1016,7 @@ function SectionPod({
 }
 
 // ── Main desktop component ────────────────────────────────────────────────────
-export default function SurveyDetailDesktop() {
+function SurveyDetailDesktopInner() {
   const { id }   = useParams();
   const router   = useRouter();
   const t        = useTranslations('surveyDetail');
@@ -1050,6 +1059,7 @@ export default function SurveyDetailDesktop() {
   const [showMetaDrawer,      setShowMetaDrawer]      = useState(false);
   const [confirmModal,        setConfirmModal]        = useState(null);
   const [alertModal,          setAlertModal]          = useState(null);
+  const { handleError: handleReadOnly, guardReadOnly: _guard, openUpgrade } = useReadOnlyUpgrade();
   const [lockedModalOpen,     setLockedModalOpen]     = useState(false);
   const [transferAttemptCount,setTransferAttemptCount]= useState(0);
   const [pendingAnalysisLayout,setPendingAnalysisLayout]= useState(null);
@@ -1123,6 +1133,7 @@ export default function SurveyDetailDesktop() {
   const isCollMember     = !!myCollectiveRole;
   const isDocLocked      = !!survey.locked_reason;
   const isReadOnly       = !!survey.is_read_only;
+  const guardReadOnly = (flag = isReadOnly) => _guard(flag);
   const canAdd           = !isDocLocked && !isReadOnly && (isOwner || isCollMember);
   const canEditMeta      = !isDocLocked && !isReadOnly && (isKollektivOwner || isOwner);
   const canEditEntry     = (entry) => !isDocLocked && !isReadOnly && (isKollektivOwner || isOwner || entry.created_by === currentUser?.id);
@@ -1145,9 +1156,10 @@ export default function SurveyDetailDesktop() {
   // ── Handlers ────────────────────────────────────────────────────────────────
 
   const handleDuplicate = async (item) => {
+    if (guardReadOnly()) return;
     try {
       await createSurveyItem(id, { entry_id: item.entry_id, description: item.description, entry_type: item.entry_type || 'material', quantity: item.quantity, unit: item.unit, notes: item.notes, source: 'manual', is_confirmed: true });
-    } catch (err) { setAlertModal({ message: err.message }); }
+    } catch (err) { if (handleReadOnly(err)) return; setAlertModal({ message: err.message }); }
   };
 
   const handleDeleteItem = (item) => {
@@ -1156,11 +1168,13 @@ export default function SurveyDetailDesktop() {
 
   const confirmDeleteItem = async () => {
     if (!deleteItemModal) return;
+    if (guardReadOnly()) return;
     setDeleteItemLoading(true);
     try {
       await deleteSurveyItem(id, deleteItemModal.id);
       setDeleteItemModal(null);
     } catch (err) {
+      if (handleReadOnly(err)) return;
       setAlertModal({ message: err.message });
     } finally {
       setDeleteItemLoading(false);
@@ -1180,7 +1194,7 @@ export default function SurveyDetailDesktop() {
       message: t('deleteSurveyConfirm', { title: survey.title, detail }),
       onConfirm: async () => {
         try { await deleteSurvey(id); router.push(p('/felmeres')); }
-        catch (err) { setAlertModal({ message: err.message }); }
+        catch (err) { if (handleReadOnly(err)) return; setAlertModal({ message: err.message }); }
       },
     });
   };
@@ -1193,10 +1207,11 @@ export default function SurveyDetailDesktop() {
     setConfirmModal({
       message: t('deleteEntryConfirm', { name: entry.name, detail }),
       onConfirm: async () => {
+        if (guardReadOnly()) return;
         try {
           await deleteSurveyEntry(id, entry.id);
           setOpenPodIds(prev => { const next = new Set(prev); next.delete(entry.id); return next; });
-        } catch (err) { setAlertModal({ message: err.message }); }
+        } catch (err) { if (handleReadOnly(err)) return; setAlertModal({ message: err.message }); }
       },
     });
   };
@@ -1287,6 +1302,8 @@ export default function SurveyDetailDesktop() {
                   canAdd={canAdd}
                   canEditFn={canEditEntry}
                   surveyId={id}
+                  isReadOnly={isReadOnly}
+                  canInteract={!isDocLocked && (isOwner || isCollMember)}
                   isOpen={openPodIds.has(entry.id)}
                   onToggle={() => setOpenPodIds(prev => {
                     const next = new Set(prev);
@@ -1331,8 +1348,8 @@ export default function SurveyDetailDesktop() {
       <Modal isOpen={showMenu} onClose={() => setShowMenu(false)} title={ts('desktop.detailActionsTitle')} maxWidth="560px">
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {[
-            { label: ts('desktop.detailEditClient'), icon: Edit3, onClick: () => { setShowMenu(false); setShowMetaDrawer(true); } },
-            { label: ts('desktop.createQuote'), icon: FileText, onClick: () => { setShowMenu(false); router.push(p(`/ajanlatok/uj?from_survey=${id}`)); } },
+            { label: ts('desktop.detailEditClient'), icon: Edit3, onClick: () => { setShowMenu(false); if (isReadOnly) { openUpgrade(); return; } setShowMetaDrawer(true); } },
+            { label: ts('desktop.createQuote'), icon: FileText, onClick: () => { setShowMenu(false); if (isReadOnly) { openUpgrade(); return; } router.push(p(`/ajanlatok/uj?from_survey=${id}`)); } },
             ...(!survey.is_seed ? [{ label: t('deleteBtn'), icon: Trash2, danger: true, onClick: () => { setShowMenu(false); handleDeleteSurvey(); } }] : []),
           ].map(action => (
             <button key={action.label} className="dk-sr"
@@ -1446,6 +1463,7 @@ export default function SurveyDetailDesktop() {
           surveyId={id}
           entryId={modalEntry.id}
           canEdit={canEditEntry(modalEntry)}
+          canDelete={!isDocLocked && (isKollektivOwner || isOwner || (modalEntry?.created_by === currentUser?.id))}
           enqueue={canAdd ? enqueue : undefined}
           mediaItems={modalEntryMedia}
           pendingQueue={uploadQueue.filter(q => q.meta?.entryId === modalEntry.id && q.status !== 'done')}
@@ -1461,6 +1479,7 @@ export default function SurveyDetailDesktop() {
           entryId={modalEntry.id}
           entryName={modalEntry.name}
           drawings={modalEntryDrawings}
+          canAdd={!isReadOnly && !isDocLocked && (isKollektivOwner || isOwner || (modalEntry?.created_by === currentUser?.id))}
         />
       )}
 
@@ -1487,4 +1506,8 @@ export default function SurveyDetailDesktop() {
       <LockedDocumentModal isOpen={lockedModalOpen} documentType="survey" documentId={id} lockedReason={survey.locked_reason} transferAttempts={transferAttemptCount} onDelete={async () => { await deleteSurvey(id); router.push(p('/felmeres')); }} onUnlocked={() => setLockedModalOpen(false)} onKeepReadOnly={() => setLockedModalOpen(false)} />
     </div>
   );
+}
+
+export default function SurveyDetailDesktop() {
+  return <ReadOnlyUpgradeProvider><SurveyDetailDesktopInner /></ReadOnlyUpgradeProvider>;
 }

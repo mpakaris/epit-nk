@@ -11,6 +11,9 @@ import { podColor } from '@/lib/podColor';
 import Modal, { ConfirmModal, AlertModal } from '@/components/Modal';
 import LockedDocumentModal from '@/components/LockedDocumentModal';
 import ReadOnlyBanner from '@/components/ReadOnlyBanner';
+import UpgradeModal from '@/components/UpgradeModal';
+import { useReadOnlyUpgrade } from '@/hooks/useReadOnlyUpgrade';
+import { ReadOnlyUpgradeProvider } from '@/context/ReadOnlyUpgradeContext';
 import StatusBadge from '@/components/StatusBadge';
 import CollectiveBanner from '@/components/CollectiveBanner';
 import ClientSelect from '@/components/ClientSelect';
@@ -39,7 +42,7 @@ function calcAmount(t, qty, up, flat) {
   return parseInt(flat, 10) || 0;
 }
 
-export default function OfferDetailDesktop() {
+function OfferDetailDesktopInner() {
   const t  = useTranslations('quotes');
   const tc = useTranslations('common');
   const { id } = useParams();
@@ -141,6 +144,7 @@ export default function OfferDetailDesktop() {
   // ── UI state ──────────────────────────────────────────────────────────────
   const [confirmModal,       setConfirmModal]       = useState(null);
   const [alertModal,         setAlertModal]         = useState(null);
+  const { handleError: handleReadOnly, guardReadOnly: _guard } = useReadOnlyUpgrade();
   const [copied,             setCopied]             = useState(false);
   const [showClientModal,    setShowClientModal]    = useState(false);
   const [showTermsModal,     setShowTermsModal]     = useState(false);
@@ -335,6 +339,7 @@ export default function OfferDetailDesktop() {
   const isCollMember     = !!(quote.collective_id && collectives?.some(c => c.collective_id === quote.collective_id));
   const isDocLocked   = !!quote.locked_reason;
   const isReadOnly    = !!quote.is_read_only;
+  const guardReadOnly = (flag = isReadOnly) => _guard(flag);
   const canModify     = !isDocLocked && !isReadOnly && (isQuoteOwner || isKollektivOwner || (quote.shared_with || []).includes(currentUser?.id) || isCollMember);
   const isLocked      = quote.status === 'accepted' || quote.status === 'rejected';
   const canEdit       = canModify && !isLocked;
@@ -393,6 +398,7 @@ export default function OfferDetailDesktop() {
   };
 
   const handleSendEmail = async () => {
+    if (guardReadOnly()) return;
     setShowSendConfirm(false);
     setSendProgress({ step: 0, done: false, error: null });
     if (isDemoMode) {
@@ -422,6 +428,7 @@ export default function OfferDetailDesktop() {
 
   // ── Meta save ─────────────────────────────────────────────────────────────
   const doSaveMeta = async (revert) => {
+    if (guardReadOnly()) return;
     setSavingMeta(true);
     try {
       const metaUpdated = await updateQuote(id, {
@@ -438,7 +445,7 @@ export default function OfferDetailDesktop() {
       const reverted = revert ? await updateQuoteStatus(id, 'draft') : null;
       if (fallbackQuote) setFallbackQuote(reverted || metaUpdated);
       setMetaInitialized(false);
-    } catch (err) { setAlertModal({ message: err.message }); }
+    } catch (err) { if (handleReadOnly(err)) return; setAlertModal({ message: err.message }); }
     finally { setSavingMeta(false); }
   };
 
@@ -456,6 +463,7 @@ export default function OfferDetailDesktop() {
   };
 
   const autoSaveMeta = (overrides = {}) => {
+    if (guardReadOnly()) return;
     if (!metaInitialized) return;
     if (!quote || quote.status !== 'draft') return;
     const v = { ...metaRef.current, ...overrides };
@@ -476,6 +484,7 @@ export default function OfferDetailDesktop() {
 
   // ── Status handlers ───────────────────────────────────────────────────────
   const handleStatusChange = async (newStatus) => {
+    if (guardReadOnly()) return;
     if (newStatus === 'accepted') { setConvertedProject(null); setConvertError(null); setShowConvertModal(true); return; }
     if (newStatus === 'rejected') {
       setConfirmModal({
@@ -486,7 +495,7 @@ export default function OfferDetailDesktop() {
           try {
             const updated = await updateQuoteStatus(id, 'rejected');
             if (fallbackQuote && updated) setFallbackQuote(updated);
-          } catch (err) { setAlertModal({ message: err.message }); }
+          } catch (err) { if (handleReadOnly(err)) return; setAlertModal({ message: err.message }); }
         },
       });
       return;
@@ -494,10 +503,11 @@ export default function OfferDetailDesktop() {
     try {
       const updated = await updateQuoteStatus(id, newStatus);
       if (fallbackQuote && updated) setFallbackQuote(updated);
-    } catch (err) { setAlertModal({ message: err.message }); }
+    } catch (err) { if (handleReadOnly(err)) return; setAlertModal({ message: err.message }); }
   };
 
   const handleConvert = async () => {
+    if (guardReadOnly()) return;
     setIsConverting(true); setConvertError(null);
     try { const proj = await convertQuoteToProject(id); setConvertedProject(proj); }
     catch (err) { setConvertError(err.message || tc('error')); }
@@ -515,10 +525,11 @@ export default function OfferDetailDesktop() {
   };
 
   const handleResetToDraft = async () => {
+    if (guardReadOnly()) return;
     try {
       const updated = await updateQuoteStatus(id, 'draft');
       if (fallbackQuote && updated) setFallbackQuote(updated);
-    } catch (err) { setAlertModal({ message: err.message }); }
+    } catch (err) { if (handleReadOnly(err)) return; setAlertModal({ message: err.message }); }
   };
 
   const handleDuplicate = async () => {
@@ -549,12 +560,13 @@ export default function OfferDetailDesktop() {
       }
       setShowDuplicateModal(false);
       router.push(p(`/ajanlatok/${newQuote.id}`));
-    } catch (err) { setAlertModal({ message: err.message }); }
+    } catch (err) { if (handleReadOnly(err)) return; setAlertModal({ message: err.message }); }
     finally { setIsDuplicating(false); }
   };
 
   // ── Section handlers ──────────────────────────────────────────────────────
   const handleAddSection = async (fields) => {
+    if (guardReadOnly()) return;
     try {
       await createQuoteSection(id, {
         name: fields.name, description: fields.description || null,
@@ -565,7 +577,7 @@ export default function OfferDetailDesktop() {
         start_date: fields.start_date || null, end_date: fields.end_date || null,
       });
       setShowAddSection(false);
-    } catch (err) { setAlertModal({ message: err.message }); }
+    } catch (err) { if (handleReadOnly(err)) return; setAlertModal({ message: err.message }); }
   };
 
   const handleDeleteSection = (section) => {
@@ -573,6 +585,7 @@ export default function OfferDetailDesktop() {
     setConfirmModal({
       message: t('deleteSectionConfirm', { name: section.name, extra: entryCount ? t('deleteSectionEntries', { count: entryCount }) : '' }),
       onConfirm: async () => {
+        if (guardReadOnly()) return;
         try { await deleteQuoteSection(id, section.id); }
         catch (err) { setAlertModal({ message: err.message }); }
       },
@@ -589,6 +602,7 @@ export default function OfferDetailDesktop() {
 
   const handleSaveEditSection = async () => {
     if (!editingSection || !editSecName.trim()) return;
+    if (guardReadOnly()) return;
     setSavingSection(true);
     try {
       await updateQuoteSection(id, editingSection.id, {
@@ -603,7 +617,7 @@ export default function OfferDetailDesktop() {
         end_date: editingSection.end_date || null,
       });
       setShowEditSectionModal(false);
-    } catch (err) { setAlertModal({ message: err.message }); }
+    } catch (err) { if (handleReadOnly(err)) return; setAlertModal({ message: err.message }); }
     finally { setSavingSection(false); }
   };
 
@@ -649,6 +663,7 @@ export default function OfferDetailDesktop() {
   };
 
   const doSaveEntry = async (revert) => {
+    if (guardReadOnly()) return;
     const hasCurrent = entryForm.work_description.trim();
     setSavingEntry(true);
     try {
@@ -664,11 +679,13 @@ export default function OfferDetailDesktop() {
       setPendingEntries([]);
       setShowEntryModal(false);
     } catch (err) {
+      if (handleReadOnly(err)) return;
       setEntryError(err.message || tc('error'));
     } finally { setSavingEntry(false); }
   };
 
   const handleSaveEntry = async () => {
+    if (guardReadOnly()) return;
     setEntryError('');
     const hasCurrent = entryForm.work_description.trim();
     if (!hasCurrent && pendingEntries.length === 0) { setEntryError(t('entryNameRequired')); return; }
@@ -688,6 +705,7 @@ export default function OfferDetailDesktop() {
     setConfirmModal({
       message: t('deleteEntryConfirm', { desc: entry.work_description }),
       onConfirm: async () => {
+        if (guardReadOnly()) return;
         try { await deleteQuoteEntry(entry.id); }
         catch (err) { setAlertModal({ message: err.message }); }
       },
@@ -1676,7 +1694,7 @@ export default function OfferDetailDesktop() {
                     setTermsLocal(p => ({ ...p, attachments: d.quote.terms_attachments || [] }));
                     cacheQuote(d.quote);
                     if (fallbackQuote) setFallbackQuote(d.quote);
-                  } catch (err) { setAlertModal({ message: err.message }); }
+                  } catch (err) { if (handleReadOnly(err)) return; setAlertModal({ message: err.message }); }
                   finally { setUploadingTerms(false); e.target.value = ''; }
                 }} />
                 <span className="dk-btn dk-btn-l" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, opacity: uploadingTerms ? 0.5 : 1 }}>
@@ -1915,14 +1933,14 @@ export default function OfferDetailDesktop() {
             autoFocus
             value={renameValue}
             onChange={e => setRenameValue(e.target.value)}
-            onKeyDown={async e => { if (e.key === 'Enter') { e.preventDefault(); if (!renameValue.trim() || savingRename) return; setSavingRename(true); try { setMetaTitle(renameValue.trim()); await updateQuote(id, { title: renameValue.trim() }); setShowRenameModal(false); } catch (err) { setAlertModal({ message: err.message }); } finally { setSavingRename(false); } } }}
+            onKeyDown={async e => { if (e.key === 'Enter') { e.preventDefault(); if (!renameValue.trim() || savingRename) return; setSavingRename(true); try { setMetaTitle(renameValue.trim()); await updateQuote(id, { title: renameValue.trim() }); setShowRenameModal(false); } catch (err) { if (handleReadOnly(err)) return; setAlertModal({ message: err.message }); } finally { setSavingRename(false); } } }}
             placeholder={t('metaTitlePlaceholder')}
           />
         </div>
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
           <button type="button" className="dk-btn dk-btn-l" onClick={() => setShowRenameModal(false)} disabled={savingRename}>{tc('cancel')}</button>
           <button type="button" className="dk-btn dk-btn-dark" disabled={!renameValue.trim() || savingRename}
-            onClick={async () => { setSavingRename(true); try { setMetaTitle(renameValue.trim()); await updateQuote(id, { title: renameValue.trim() }); setShowRenameModal(false); } catch (err) { setAlertModal({ message: err.message }); } finally { setSavingRename(false); } }}>
+            onClick={async () => { setSavingRename(true); try { setMetaTitle(renameValue.trim()); await updateQuote(id, { title: renameValue.trim() }); setShowRenameModal(false); } catch (err) { if (handleReadOnly(err)) return; setAlertModal({ message: err.message }); } finally { setSavingRename(false); } }}>
             {savingRename ? <><Loader2 size={16} className="animate-spin" />{tc('saving')}</> : <><Check size={16} />{tc('save')}</>}
           </button>
         </div>
@@ -1999,4 +2017,8 @@ export default function OfferDetailDesktop() {
       </Modal>
     </div>
   );
+}
+
+export default function OfferDetailDesktop() {
+  return <ReadOnlyUpgradeProvider><OfferDetailDesktopInner /></ReadOnlyUpgradeProvider>;
 }

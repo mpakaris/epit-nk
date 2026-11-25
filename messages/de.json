@@ -696,6 +696,7 @@
       "detailNotesTitle": "Anmerkung",
       "detailMediaTitle": "Mediendateien",
       "detailMediaUpload": "Datei hochladen",
+      "detailMediaUploading": "Wird hochgeladen…",
       "detailMediaEmpty": "Keine Mediendateien für diesen Abschnitt.",
       "detailMediaDeleteAria": "Datei löschen",
       "detailDrawingsTitle": "Skizzen",
@@ -3224,6 +3225,8 @@
   "upgrade": {
     "title": "Kostenloses Limit erreicht",
     "body": "Im kostenlosen Basispaket kann maximal 1 {docType} erstellt werden. Wechsle zu Premium für unbegrenzte Nutzung.",
+    "readOnlyTitle": "Nur-Lese-Dokument",
+    "readOnlyBody": "Dieses Dokument kann im Basispaket nicht bearbeitet werden. Wechsle zu Premium und arbeite sofort weiter.",
     "premiumLabel": "Premium-Paket",
     "bullet1": "Unbegrenzte Aufnahmen, Angebote und Projekte",
     "bullet2": "Kollektiv-Funktionen und Teamarbeit",

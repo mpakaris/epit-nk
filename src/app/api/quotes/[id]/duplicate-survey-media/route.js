@@ -15,10 +15,12 @@ export async function POST(request, { params }) {
 
   const admin = createAdminClient();
 
-  const { data: quote } = await admin.from('quotes').select('id, title, owner_id, created_by, client_id').eq('id', quoteId).is('deleted_at', null).single();
+  const { data: quote } = await admin.from('quotes').select('id, title, owner_id, created_by, client_id, is_read_only').eq('id', quoteId).is('deleted_at', null).single();
   if (!quote) return Response.json({ error: 'Quote not found' }, { status: 404 });
   if (quote.owner_id !== user.id && quote.created_by !== user.id)
     return Response.json({ error: 'Forbidden' }, { status: 403 });
+  if (quote.is_read_only)
+    return Response.json({ error: 'Ez a dokumentum csak olvasható.', read_only: true }, { status: 403 });
 
   const { source_survey_id } = await request.json();
   if (!source_survey_id) return Response.json({ error: 'source_survey_id required' }, { status: 400 });

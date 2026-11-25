@@ -16,12 +16,14 @@ export async function POST(request, { params }) {
   const { data: profile } = await admin.from('profiles').select('id, role, display_name').eq('id', user.id).single();
   if (!profile) return Response.json({ error: 'Forbidden' }, { status: 403 });
 
-  const { data: quote } = await admin.from('quotes').select('id, owner_id, created_by, collective_id, shared_with, survey_id').eq('id', quoteId).is('deleted_at', null).single();
+  const { data: quote } = await admin.from('quotes').select('id, owner_id, created_by, collective_id, shared_with, survey_id, is_read_only').eq('id', quoteId).is('deleted_at', null).single();
   if (!quote) return Response.json({ error: 'Quote not found' }, { status: 404 });
   const isSuperAdmin = profile.role === 'superadmin';
   const isOwner = quote.owner_id === user.id || quote.created_by === user.id;
   const isShared = (quote.shared_with || []).includes(user.id);
   if (!isSuperAdmin && !isOwner && !isShared) return Response.json({ error: 'Forbidden' }, { status: 403 });
+  if (!isSuperAdmin && quote.is_read_only)
+    return Response.json({ error: 'Ez a dokumentum csak olvasható.', read_only: true }, { status: 403 });
   if (!quote.survey_id) return Response.json({ sections: [] });
 
   // Skip if sections already exist

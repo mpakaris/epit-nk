@@ -7,17 +7,20 @@ import Modal from '@/components/Modal';
 import { Sparkles, Lock } from 'lucide-react';
 
 /**
- * Shown when a Basic user hits a document creation limit.
+ * Shown when a Basic user hits a document creation limit OR tries to edit a
+ * read-only (write-locked) document.
  * Props:
  *   isOpen   boolean
  *   onClose  () => void
- *   docType  'survey' | 'quote' | 'project'  (from API response)
+ *   mode     'create' (default) | 'readOnly'
+ *   docType  'survey' | 'quote' | 'project'  (used in create mode only)
  */
-export default function UpgradeModal({ isOpen, onClose, docType }) {
+export default function UpgradeModal({ isOpen, onClose, mode = 'create', docType }) {
   const t = useTranslations('upgrade');
   const { isDemoMode } = useApp();
   const href = `${isDemoMode ? '/demo' : ''}/elofizetes`;
 
+  const isReadOnly = mode === 'readOnly';
   const docLabel = t(`docTypes.${docType || 'document'}`);
 
   return (
@@ -31,12 +34,12 @@ export default function UpgradeModal({ isOpen, onClose, docType }) {
 
         {/* Title */}
         <h2 style={{ margin: '0 0 10px', fontSize: 22, fontWeight: 800, color: '#0E1116', letterSpacing: '-0.02em', fontFamily: "'Bricolage Grotesque', sans-serif" }}>
-          {t('title')}
+          {isReadOnly ? t('readOnlyTitle') : t('title')}
         </h2>
 
         {/* Body */}
         <p style={{ margin: '0 0 24px', fontSize: 15, color: '#5A5F68', lineHeight: 1.6, fontWeight: 500 }}>
-          {t('body', { docType: docLabel })}
+          {isReadOnly ? t('readOnlyBody') : t('body', { docType: docLabel })}
         </p>
 
         {/* Premium features */}

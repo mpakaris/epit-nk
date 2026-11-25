@@ -15,6 +15,9 @@ import { calculateProjectFinancials } from '@/lib/calculations';
 import { processMediaFile } from '@/lib/mediaGate';
 import useOnline from '@/hooks/useOnline';
 import { AlertModal } from '@/components/Modal';
+import UpgradeModal from '@/components/UpgradeModal';
+import { useReadOnlyUpgrade } from '@/hooks/useReadOnlyUpgrade';
+import { ReadOnlyUpgradeProvider } from '@/context/ReadOnlyUpgradeContext';
 import Lightbox from '@/components/Lightbox';
 import HistorySheet from '@/components/mobile/pods/HistorySheet';
 import BottomSheet from '@/components/mobile/BottomSheet';
@@ -211,7 +214,7 @@ function CostChart({ events, target, userCurrency, t }) {
   );
 }
 
-export default function ProjectDetailMobile({ projectId }) {
+function ProjectDetailMobileInner({ projectId }) {
   const t = useTranslations('projectDetail');
   const tProj = useTranslations('projects');
   const tProj2 = useTranslations('projects');
@@ -255,6 +258,7 @@ export default function ProjectDetailMobile({ projectId }) {
   const [savingEdit, setSavingEdit] = useState(false);
   const [costTargetInput, setCostTargetInput] = useState('');
   const [alertModal, setAlertModal] = useState({ open: false, message: '' });
+  const { handleError: handleReadOnly, guardReadOnly: _guard } = useReadOnlyUpgrade();
   const [copiedLink, setCopiedLink] = useState(false);
   const [statusReason, setStatusReason] = useState('');
   const [savingStatus, setSavingStatus] = useState(false);
@@ -311,6 +315,7 @@ export default function ProjectDetailMobile({ projectId }) {
   const isOwner = project ? (project.owner_id === currentUser?.id || project.created_by === currentUser?.id) : false;
   const isKollektivOwner = memberRole === 'owner' || memberRole === 'admin';
   const isReadOnly  = !!project?.is_read_only;
+  const guardReadOnly = (flag = isReadOnly) => _guard(flag);
   const canOwnerAct = (isOwner || isKollektivOwner) && !isReadOnly;
   const isMember = !!project?.collective_id && !(isOwner || isKollektivOwner);
   const isClosed = project?.status === 'closed' || project?.status === 'expired';
@@ -427,6 +432,7 @@ export default function ProjectDetailMobile({ projectId }) {
   };
 
   const handleStatusChange = async (newStatus) => {
+    if (guardReadOnly()) return;
     if (!statusReason.trim()) {
       setAlertModal({ open: true, message: t('statusReasonRequired') });
       return;
@@ -508,6 +514,7 @@ export default function ProjectDetailMobile({ projectId }) {
   };
 
   const handleInvoiceSubmit = async () => {
+    if (guardReadOnly()) return;
     if (!invoiceItems.length) return;
     if (invoiceItems.some(i => i.status === 'processing' || i.status === 'pending')) {
       setAlertModal({ open: true, message: tProj2('processingOcr') }); return;
@@ -543,6 +550,7 @@ export default function ProjectDetailMobile({ projectId }) {
   };
 
   const handleSaveEdit = async () => {
+    if (guardReadOnly()) return;
     if (!editForm.name.trim()) return;
     setSavingEdit(true);
     const res = await fetch(`/api/projects/${projectId}`, {
@@ -566,6 +574,7 @@ export default function ProjectDetailMobile({ projectId }) {
   };
 
   const handleSaveCostTarget = async () => {
+    if (guardReadOnly()) return;
     const val = parseFloat(costTargetInput.replace(/\s/g, '').replace(',', '.'));
     if (!val || val <= 0) return;
     const res = await fetch(`/api/projects/${projectId}`, {
@@ -622,6 +631,7 @@ export default function ProjectDetailMobile({ projectId }) {
   };
 
   const handleAddPayment = async (andSend = false) => {
+    if (guardReadOnly()) return;
     if (!paymentForm.label.trim() || !(Number(paymentForm.amount) > 0)) return;
     setSavingPayment(true);
     try {
@@ -681,6 +691,7 @@ export default function ProjectDetailMobile({ projectId }) {
 
 
   const handleSendInvoice = async (itemId, toEmail) => {
+    if (guardReadOnly()) return;
     setSendingItemId(itemId);
     const res = await fetch(`/api/payment-plan/${itemId}/send`, {
       method: 'POST',
@@ -698,6 +709,7 @@ export default function ProjectDetailMobile({ projectId }) {
   };
 
   const handleSaveNote = async () => {
+    if (guardReadOnly()) return;
     if (!noteItem) return;
     setSavingNote(true);
     const res = await fetch(`/api/payment-plan/${noteItem.id}`, {
@@ -726,6 +738,7 @@ export default function ProjectDetailMobile({ projectId }) {
   };
 
   const handleAddDiary = async () => {
+    if (guardReadOnly()) return;
     if (!diaryForm.title.trim()) return;
     setSavingDiary(true);
     try {
@@ -749,6 +762,7 @@ export default function ProjectDetailMobile({ projectId }) {
       setDiaryFiles([]);
       setDiaryPreviews([]);
     } catch (err) {
+      if (handleReadOnly(err)) return;
       setAlertModal({ open: true, message: err.message || t('saveError') });
     } finally {
       setSavingDiary(false);
@@ -756,6 +770,7 @@ export default function ProjectDetailMobile({ projectId }) {
   };
 
   const handleAddLabour = async () => {
+    if (guardReadOnly()) return;
     if (!labourForm.work_type || !(labourForm.quantity > 0) || !labourForm.unit_price) return;
     setSavingLabour(true);
     const res = await fetch('/api/labour-entries', {
@@ -2198,4 +2213,8 @@ export default function ProjectDetailMobile({ projectId }) {
       />
     </div>
   );
+}
+
+export default function ProjectDetailMobile({ projectId }) {
+  return <ReadOnlyUpgradeProvider><ProjectDetailMobileInner projectId={projectId} /></ReadOnlyUpgradeProvider>;
 }

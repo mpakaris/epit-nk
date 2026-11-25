@@ -11,7 +11,7 @@ import StatusBadge from '@/components/StatusBadge';
 import { WorkspaceNotActivatedBanner, WorkspaceFrozenBanner } from '@/components/desktop/WorkspaceStatusBanners';
 import TransferToCollectiveModal from '@/components/TransferToCollectiveModal';
 import WorkspacePodStack from '@/components/desktop/WorkspacePodStack';
-import { Search, Plus, Trash2, X, ArrowRightLeft, MoreHorizontal } from 'lucide-react';
+import { Search, Plus, Trash2, X, ArrowRightLeft, MoreHorizontal, Lock } from 'lucide-react';
 import { isEffectivePremium } from '@/lib/subscriptionLimits';
 
 const GRID = '2.2fr 1.4fr 1.1fr 110px 90px 90px 40px';
@@ -226,7 +226,8 @@ export default function OfferListDesktop() {
                       onClick={() => router.push(p(`/ajanlatok/${quote.id}`))}
                       style={{ gridTemplateColumns: GRID, background: isSelected ? '#E9E0FF' : 'transparent', cursor: 'pointer' }}
                     >
-                      <span style={{ minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      <span style={{ minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'flex', alignItems: 'center', gap: 6 }}>
+                        {quote.is_read_only && <Lock size={13} style={{ flexShrink: 0, color: '#92400E', opacity: 0.8 }} aria-hidden="true" />}
                         <b>{quote.title}</b>
                       </span>
                       <span style={{ minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>

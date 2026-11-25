@@ -14,6 +14,9 @@ import useOnline from '@/hooks/useOnline';
 import AnalyzeLayoutSheet from './AnalyzeLayoutSheet';
 import { RoomEditorSheet } from './RoomEditorMobile';
 import ReadOnlyBanner from '@/components/ReadOnlyBanner';
+import UpgradeModal from '@/components/UpgradeModal';
+import { useReadOnlyUpgrade } from '@/hooks/useReadOnlyUpgrade';
+import { ReadOnlyUpgradeProvider } from '@/context/ReadOnlyUpgradeContext';
 
 const SURVEY_BG   = '#0A7F72';
 const SURVEY_DEEP = '#121110';
@@ -509,7 +512,7 @@ function PropInfoSheet({ survey, surveyId, canEdit, onSave, onClose }) {
   );
 }
 
-export default function SurveyDetailMobile() {
+function SurveyDetailMobileInner() {
   const { id }  = useParams();
   const router  = useRouter();
   const t       = useTranslations('surveyDetail');
@@ -640,6 +643,8 @@ export default function SurveyDetailMobile() {
   const isOwner          = survey.owner_id === currentUser?.id || survey.created_by === currentUser?.id;
   const isDocLocked      = !!survey.locked_reason;
   const isReadOnly       = !!survey.is_read_only;
+  const guardReadOnly = (flag = isReadOnly) => _guard(flag);
+  const { handleError: handleReadOnly, guardReadOnly: _guard } = useReadOnlyUpgrade();
   const canAdd           = !isDocLocked && !isReadOnly && (isOwner || !!myCollectiveRole);
   const canEditMeta      = !isDocLocked && !isReadOnly && (isKollektivOwner || isOwner);
 
@@ -653,6 +658,7 @@ export default function SurveyDetailMobile() {
   // ── Handlers ────────────────────────────────────────────────────────────────
 
   const handleStatusChange = async (newStatus) => {
+    if (guardReadOnly()) return;
     if (statusSaving) return;
     setStatusSaving(true);
     try {
@@ -667,6 +673,7 @@ export default function SurveyDetailMobile() {
   };
 
   const handleArchive = async () => {
+    if (guardReadOnly()) return;
     const val = survey.archived_at ? null : new Date().toISOString();
     try {
       const res = await fetch(`/api/surveys/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ archived_at: val }) });
@@ -683,15 +690,18 @@ export default function SurveyDetailMobile() {
   };
 
   const handleAddRoom = async (fields) => {
+    if (guardReadOnly()) return;
     await createSurveyEntry(id, fields);
   };
 
   const handleMetaSave = async (fields) => {
+    if (guardReadOnly()) return;
     await fetch(`/api/surveys/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(fields) });
     await updateSurvey?.(id, fields);
   };
 
   const handlePropSave = async (fields) => {
+    if (guardReadOnly()) return;
     await fetch(`/api/surveys/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(fields) });
     await updateSurvey?.(id, fields);
   };
@@ -1414,4 +1424,8 @@ export default function SurveyDetailMobile() {
 
     </div>
   );
+}
+
+export default function SurveyDetailMobile() {
+  return <ReadOnlyUpgradeProvider><SurveyDetailMobileInner /></ReadOnlyUpgradeProvider>;
 }

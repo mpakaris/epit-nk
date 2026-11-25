@@ -1,5 +1,6 @@
 import { processMediaFiles } from '@/lib/mediaGate';
 import { canMutateEntry } from '@/lib/permissions';
+import { throwOnError } from '@/lib/ReadOnlyError';
 
 export function makeSurveyActions({
   surveys, surveyEntriesBySurvey, surveyDrawingsBySurvey, surveyItemsBySurvey,
@@ -39,7 +40,7 @@ export function makeSurveyActions({
       body: JSON.stringify(fields),
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Hiba a felmérés módosításakor');
+    throwOnError(res, data, 'Hiba a felmérés módosításakor');
     setSurveys(prev => prev.map(s => s.id === surveyId ? data.survey : s));
     return data.survey;
   };
@@ -53,7 +54,7 @@ export function makeSurveyActions({
     if (!isAdmin && !isSurveyOwner && !isKollektivOwner) throw new Error('Csak adminisztrátor vagy a felmérés tulajdonosa törölhet!');
     const res = await fetch(`/api/surveys/${surveyId}`, { method: 'DELETE' });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Hiba a felmérés törlésekor');
+    throwOnError(res, data, 'Hiba a felmérés törlésekor');
     setSurveys(prev => prev.filter(s => s.id !== surveyId));
     setSurveyMediaBySurvey(prev =>    { const n = { ...prev }; delete n[surveyId]; return n; });
     setSurveyLayoutsBySurvey(prev =>  { const n = { ...prev }; delete n[surveyId]; return n; });
@@ -98,7 +99,7 @@ export function makeSurveyActions({
     formData.append('media_type', mediaType);
     const res = await fetch('/api/surveys/upload', { method: 'POST', body: formData });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Hiba a feltöltés közben');
+    throwOnError(res, data, 'Hiba a feltöltés közben');
     if (entryId) {
       setSurveyEntriesBySurvey(prev => ({
         ...prev,
@@ -130,7 +131,7 @@ export function makeSurveyActions({
     if (!isAdmin && !isOwner && !isShared && !isKollektivOwner && !isCollMember) throw new Error('Nincs jogosultsága!');
     const res = await fetch(`/api/surveys/${surveyId}/media/${mediaId}`, { method: 'DELETE' });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Hiba a média törlésekor');
+    throwOnError(res, data, 'Hiba a média törlésekor');
     if (entryId) {
       setSurveyEntriesBySurvey(prev => ({
         ...prev,
@@ -160,7 +161,7 @@ export function makeSurveyActions({
       body: JSON.stringify({ name, description, width_m, length_m, height_m, window_count, door_count, sort_order }),
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Hiba a helyiség létrehozásakor');
+    throwOnError(res, data, 'Hiba a helyiség létrehozásakor');
     setSurveyEntriesBySurvey(prev => ({
       ...prev,
       [surveyId]: [...(prev[surveyId] || []), data.entry],
@@ -179,7 +180,7 @@ export function makeSurveyActions({
       body: JSON.stringify(fields),
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Hiba a módosításkor');
+    throwOnError(res, data, 'Hiba a módosításkor');
     setSurveyEntriesBySurvey(prev => ({
       ...prev,
       [surveyId]: (prev[surveyId] || []).map(e =>
@@ -196,7 +197,7 @@ export function makeSurveyActions({
       throw new Error('Nincs jogosultsága!');
     const res = await fetch(`/api/surveys/${surveyId}/entries/${entryId}`, { method: 'DELETE' });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Hiba a törléskor');
+    throwOnError(res, data, 'Hiba a törléskor');
     setSurveyEntriesBySurvey(prev => ({
       ...prev,
       [surveyId]: (prev[surveyId] || []).filter(e => e.id !== entryId),
@@ -221,7 +222,7 @@ export function makeSurveyActions({
       body: JSON.stringify(itemData),
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Hiba a tétel létrehozásakor');
+    throwOnError(res, data, 'Hiba a tétel létrehozásakor');
     setSurveyItemsBySurvey(prev => ({
       ...prev,
       [surveyId]: [...(prev[surveyId] || []), data.item],
@@ -236,7 +237,7 @@ export function makeSurveyActions({
       body: JSON.stringify(fields),
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Hiba a tétel módosításakor');
+    throwOnError(res, data, 'Hiba a tétel módosításakor');
     setSurveyItemsBySurvey(prev => ({
       ...prev,
       [surveyId]: (prev[surveyId] || []).map(i => i.id === itemId ? data.item : i),
@@ -247,7 +248,7 @@ export function makeSurveyActions({
   const deleteSurveyItem = async (surveyId, itemId) => {
     const res = await fetch(`/api/surveys/${surveyId}/items/${itemId}`, { method: 'DELETE' });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Hiba a tétel törlésekor');
+    throwOnError(res, data, 'Hiba a tétel törlésekor');
     setSurveyItemsBySurvey(prev => ({
       ...prev,
       [surveyId]: (prev[surveyId] || []).filter(i => i.id !== itemId),
@@ -261,7 +262,7 @@ export function makeSurveyActions({
       body: JSON.stringify({}),
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Hiba a tételek generálásakor');
+    throwOnError(res, data, 'Hiba a tételek generálásakor');
     if (data.items) {
       setSurveyItemsBySurvey(prev => ({
         ...prev,
@@ -280,7 +281,7 @@ export function makeSurveyActions({
       body: JSON.stringify({ svg_data, entry_id: entry_id || null }),
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Hiba a vázlat mentésekor');
+    throwOnError(res, data, 'Hiba a vázlat mentésekor');
     setSurveyDrawingsBySurvey(prev => ({
       ...prev,
       [surveyId]: [...(prev[surveyId] || []), data.drawing],
@@ -291,7 +292,7 @@ export function makeSurveyActions({
   const deleteSurveyDrawing = async (surveyId, drawingId) => {
     const res = await fetch(`/api/surveys/${surveyId}/drawings/${drawingId}`, { method: 'DELETE' });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Hiba a vázlat törlésekor');
+    throwOnError(res, data, 'Hiba a vázlat törlésekor');
     setSurveyDrawingsBySurvey(prev => ({
       ...prev,
       [surveyId]: (prev[surveyId] || []).filter(d => d.id !== drawingId),

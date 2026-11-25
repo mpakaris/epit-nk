@@ -19,9 +19,13 @@ export async function DELETE(request, { params }) {
   const isAdmin   = ['admin', 'superadmin'].includes(profile.role);
   const isCreator = drawing.created_by === user.id;
 
+  const { data: surveyForLock } = await admin.from('surveys').select('collective_id, is_read_only').eq('id', id).is('deleted_at', null).single();
+  if (!isAdmin && surveyForLock?.is_read_only)
+    return Response.json({ error: 'Ez a dokumentum csak olvasható.', read_only: true }, { status: 403 });
+
   let isKollektivOwner = false;
   if (!isAdmin && !isCreator) {
-    const { data: survey } = await admin.from('surveys').select('collective_id').eq('id', id).is('deleted_at', null).single();
+    const survey = surveyForLock;
     if (survey?.collective_id) {
       const { data: mem } = await admin.from('collective_members')
         .select('role').eq('collective_id', survey.collective_id).eq('user_id', user.id).eq('status', 'active').maybeSingle();

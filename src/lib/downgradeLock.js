@@ -17,12 +17,11 @@ export async function applyDowngradeLock(userId, admin) {
     .update({ subscription_tier: 'basic', is_subscription_premium: false, trial_ends_at: null, trial_started_at: null })
     .eq('id', userId);
 
-  // 2. For each doc type: keep the oldest, lock all others
+  // 2. For each doc type: keep the seed doc writable; lock all non-seed docs.
+  //    Fallback to "oldest" if no seed doc exists (defensive — seeds should always exist).
   for (const table of ['surveys', 'quotes', 'projects']) {
-    const nameCol = table === 'projects' ? 'name' : 'title';
-
     const { data: docs } = await admin.from(table)
-      .select('id, created_at')
+      .select('id, is_seed, created_at')
       .eq('owner_id', userId)
       .is('collective_id', null)
       .is('deleted_at', null)
@@ -30,8 +29,10 @@ export async function applyDowngradeLock(userId, admin) {
 
     if (!docs || docs.length <= 1) continue;
 
-    // Keep the first (oldest) writable; lock the rest
-    const toLock = docs.slice(1).map(d => d.id);
+    const hasSeed = docs.some(d => d.is_seed);
+    const toLock = hasSeed
+      ? docs.filter(d => !d.is_seed).map(d => d.id)
+      : docs.slice(1).map(d => d.id); // fallback: keep oldest
     if (toLock.length === 0) continue;
 
     await admin.from(table)

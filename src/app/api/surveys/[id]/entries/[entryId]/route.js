@@ -12,7 +12,7 @@ async function getCtx(surveyId) {
   const admin = createAdminClient();
   const { data: profile } = await admin.from('profiles').select('id, role, display_name').eq('id', user.id).single();
   if (!profile) return { err: 'Forbidden', status: 403 };
-  const { data: survey } = await admin.from('surveys').select('owner_id, collective_id, shared_with, created_by').eq('id', surveyId).is('deleted_at', null).single();
+  const { data: survey } = await admin.from('surveys').select('owner_id, collective_id, shared_with, created_by, is_read_only').eq('id', surveyId).is('deleted_at', null).single();
   if (!survey) return { err: 'Not found', status: 404 };
 
   const isSuperAdmin   = profile.role === 'superadmin';
@@ -27,13 +27,16 @@ async function getCtx(surveyId) {
   }
 
   const isKollektivOwner = memberRole === 'owner' || memberRole === 'admin';
-  return { user, profile, admin, isSurveyOwner, isKollektivOwner, isSuperAdmin, collectiveId: survey.collective_id || null };
+  return { user, profile, admin, survey, isSurveyOwner, isKollektivOwner, isSuperAdmin, collectiveId: survey.collective_id || null };
 }
 
 export async function PATCH(request, { params }) {
   const { id: surveyId, entryId } = await params;
   const ctx = await getCtx(surveyId);
   if (ctx.err) return Response.json({ error: ctx.err }, { status: ctx.status });
+
+  if (!ctx.isSuperAdmin && ctx.survey.is_read_only)
+    return Response.json({ error: 'Ez a dokumentum csak olvasható. Prémium csomagra váltva újra szerkeszthetővé válik.', read_only: true }, { status: 403 });
 
   // Load entry to check ownership
   const { data: entry } = await ctx.admin.from('survey_entries').select('created_by').eq('id', entryId).eq('survey_id', surveyId).single();
@@ -73,6 +76,9 @@ export async function DELETE(request, { params }) {
   const { id: surveyId, entryId } = await params;
   const ctx = await getCtx(surveyId);
   if (ctx.err) return Response.json({ error: ctx.err }, { status: ctx.status });
+
+  if (!ctx.isSuperAdmin && ctx.survey.is_read_only)
+    return Response.json({ error: 'Ez a dokumentum csak olvasható. Prémium csomagra váltva újra szerkeszthetővé válik.', read_only: true }, { status: 403 });
 
   // Load entry to check ownership
   const { data: entry } = await ctx.admin.from('survey_entries').select('created_by').eq('id', entryId).eq('survey_id', surveyId).single();

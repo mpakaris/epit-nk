@@ -616,6 +616,7 @@
       "detailNotesTitle": "Megjegyzés",
       "detailMediaTitle": "Médiafájlok",
       "detailMediaUpload": "Fájl feltöltése",
+      "detailMediaUploading": "Feltöltés…",
       "detailMediaEmpty": "Nincsenek médiafájlok ehhez a szekcióhoz.",
       "detailMediaDeleteAria": "Fájl törlése",
       "detailDrawingsTitle": "Vázlatok",
@@ -3224,6 +3225,8 @@
   "upgrade": {
     "title": "Elértük az ingyenes korlátot",
     "body": "Sajnos a Bázis csomagban legfeljebb 1 {docType} hozható létre. Váltj Prémiumra a korlátlan hozzáférésért.",
+    "readOnlyTitle": "Csak olvasható dokumentum",
+    "readOnlyBody": "Ez a dokumentum a Bázis csomag korlátai miatt nem szerkeszthető. Váltj Prémiumra, és azonnal folytathatod a munkát.",
     "premiumLabel": "Prémium csomag",
     "bullet1": "Korlátlan felmérés, ajánlat és projekt",
     "bullet2": "Kollektíva funkciók és csapatmunka",
