@@ -11,7 +11,6 @@ import WorkspacePodStack from '@/components/desktop/WorkspacePodStack';
 import ClientSelect from '@/components/ClientSelect';
 import WorkspacePicker from '@/components/mobile/WorkspacePicker';
 import { useTransferRequests } from '@/hooks/useTransferRequests';
-import { podColor, PERSONAL_COLOR } from '@/lib/podColor';
 import {
   Plus, Search, Loader2, FileText, X, FolderKanban, ArrowLeft,
 } from 'lucide-react';
@@ -51,9 +50,6 @@ export default function ProjectsListDesktop() {
   const collectives = (effectiveCollectives || []).map(c => ({ id: c.collective_id, name: c.name, role: c.role }));
   const activeColl  = collectives.find(c => c.id === activeCollectiveId);
 
-  const wsStyle = activeCollectiveId
-    ? { '--dk-c': podColor(activeCollectiveId).deep, '--dk-deep': podColor(activeCollectiveId).deep }
-    : {};
 
 
   const [filter, setFilter] = useState('all');
@@ -305,7 +301,7 @@ export default function ProjectsListDesktop() {
     : t('personalWorkspace');
 
   return (
-    <div className="dk-page dk-mod-projects" style={wsStyle}>
+    <div className="dk-page dk-mod-projects">
       <header className="dk-mh">
         <span className="dk-gl" aria-hidden="true" />
         <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -562,14 +558,6 @@ export default function ProjectsListDesktop() {
                               </div>
                             )}
                           </div>
-                          <button
-                            type="button"
-                            onClick={() => { closeCreate(); router.push(`${navPrefix}/ajanlatok/uj`); }}
-                            style={{ alignSelf: 'flex-start', height: 44, padding: '0 16px', borderRadius: 22, border: 0, background: 'var(--bg-subtle)', color: 'var(--text-secondary)', fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 4 }}
-                          >
-                            <Plus size={15} aria-hidden="true" />
-                            {t('createOfferBtn')}
-                          </button>
                         </>
                       )}
                     </div>

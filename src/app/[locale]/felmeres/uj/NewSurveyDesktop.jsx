@@ -155,58 +155,90 @@ export default function NewSurveyPage() {
     </div>
   );
 
-  // ── Step 2 on desktop (has collectives): show form in a modal ──
+  // ── Step 2 on desktop (has collectives): same overlay style as WorkspacePicker / new-quote ──
   if (!isMobile && collectives.length > 0) {
+    const handleBack = () => setMobileStep(1);
     return (
       <>
-        <Modal isOpen={true} onClose={() => setMobileStep(1)} title={t('new')} maxWidth="600px">
-          {collectiveId && selectedCollective && (
-            <div style={{ marginBottom: 16 }}>
-              <SharingBanner collectiveName={selectedCollective.name} />
-            </div>
-          )}
-
-          <ErrorBanner message={error} style={{ marginBottom: '1rem' }} />
-
-          <form onSubmit={handleSubmit}>
-            <div className="form-group">
-              <label className="form-label" htmlFor="sv-title">{t('titleLabel')}</label>
-              <input id="sv-title" type="text" className="form-control" required autoFocus value={title} onChange={e => setTitle(e.target.value)} placeholder={t('titlePlaceholder')} />
-            </div>
-
-            <div className="form-group">
-              <label className="form-label" htmlFor="sv-location">{t('locationLabel')}</label>
-              <div style={{ position: 'relative' }}>
-                <MapPin size={16} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#64748b', pointerEvents: 'none' }} aria-hidden="true" />
-                <input id="sv-location" type="text" className="form-control" style={{ paddingLeft: 40 }} value={location} onChange={e => setLocation(e.target.value)} placeholder={t('locationPlaceholder')} />
-              </div>
+        <div
+          style={{ position: 'fixed', inset: 0, zIndex: 100, background: 'rgba(15,23,42,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}
+          onClick={handleBack}
+        >
+          <div
+            style={{ background: 'var(--bg-base)', borderRadius: 'var(--radius-lg)', width: '100%', maxWidth: 480, maxHeight: '90vh', display: 'flex', flexDirection: 'column', boxShadow: '0 24px 64px rgba(15,23,42,0.22)', overflow: 'hidden' }}
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Top bar */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', height: 64, flexShrink: 0 }}>
+              <button type="button" onClick={handleBack}
+                style={{ width: 48, height: 48, borderRadius: '50%', background: 'var(--bg-subtle)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <ArrowLeft size={22} color="#0f172a" strokeWidth={1.75} aria-hidden="true" />
+              </button>
+              <span style={{ fontSize: 15, fontWeight: 600, color: '#64748b' }}>2 / 2</span>
             </div>
 
-            {clientRow}
+            {/* Scrollable content */}
+            <div style={{ flex: 1, overflowY: 'auto', padding: '8px 16px 24px' }}>
+              <h1 style={{ fontSize: 24, fontWeight: 800, color: '#0f172a', letterSpacing: '-0.025em', lineHeight: '30px', marginBottom: 6 }}>
+                {t('new')}
+              </h1>
+              <p style={{ fontSize: 15, fontWeight: 500, color: '#475569', marginBottom: 24, lineHeight: '22px' }}>
+                {collectiveId && selectedCollective ? selectedCollective.name : t('desktop.workspacePersonal')}
+              </p>
 
-            <div className="form-group">
-              <label className="form-label" style={{ display: 'block', marginBottom: 10 }}>{t('roomsLabel')}</label>
-              <RoomChips selected={rooms} onChange={setRooms} />
+              {collectiveId && selectedCollective && (
+                <div style={{ marginBottom: 16 }}>
+                  <SharingBanner collectiveName={selectedCollective.name} />
+                </div>
+              )}
+
+              {error && (
+                <div style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', color: 'var(--danger-text)', padding: '0.6rem 0.85rem', borderRadius: 'var(--radius-md)', fontSize: '0.825rem', marginBottom: '1rem' }}>
+                  {error}
+                </div>
+              )}
+
+              <form id="new-survey-form" onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <label style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-secondary)' }} htmlFor="sv-title">{t('titleLabel')}</label>
+                  <input id="sv-title" type="text" className="dk-input" required autoFocus value={title} onChange={e => setTitle(e.target.value)} placeholder={t('titlePlaceholder')} />
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <label style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-secondary)' }} htmlFor="sv-location">{t('locationLabel')}</label>
+                  <div style={{ position: 'relative' }}>
+                    <MapPin size={16} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#64748b', pointerEvents: 'none' }} aria-hidden="true" />
+                    <input id="sv-location" type="text" className="dk-input" style={{ paddingLeft: 42 }} value={location} onChange={e => setLocation(e.target.value)} placeholder={t('locationPlaceholder')} />
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <label style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-secondary)' }}>{t('clientLabel')}</label>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <ClientSelect value={clientId} onChange={e => setClientId(e.target.value)} clients={clients} style={{ flex: 1 }} className="dk-input" />
+                    <button type="button" onClick={() => setShowNewClientModal(true)}
+                      style={{ width: 46, height: 46, borderRadius: 23, border: 0, background: '#2563EB', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}>
+                      <Plus size={20} aria-hidden="true" />
+                    </button>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <label style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-secondary)', display: 'block' }}>{t('roomsLabel')}</label>
+                  <RoomChips selected={rooms} onChange={setRooms} />
+                </div>
+              </form>
             </div>
 
-            <div className="form-group">
-              <label className="form-label" htmlFor="sv-date">{t('dateLabel')}</label>
-              <input id="sv-date" type="date" className="form-control" value={date} onChange={e => setDate(e.target.value)} />
-            </div>
-
-            <div className="form-group">
-              <label className="form-label" htmlFor="sv-notes">{t('notesLabel')}</label>
-              <textarea id="sv-notes" rows={3} className="form-control" value={notes} onChange={e => setNotes(e.target.value)} placeholder={t('notesPlaceholder')} />
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
-              <button type="button" className="btn btn-secondary" onClick={() => setMobileStep(1)}>{tc('cancel')}</button>
-              <button type="submit" className="btn btn-primary" disabled={isSubmitting}>
-                {isSubmitting ? <><Loader2 size={16} className="animate-spin" />{t('saving')}</> : <><Check size={16} />{t('createSurvey')}</>}
+            {/* Submit */}
+            <div style={{ padding: '0 16px 24px', flexShrink: 0 }}>
+              <button type="submit" form="new-survey-form" disabled={isSubmitting || !title.trim()}
+                style={{ width: '100%', height: 56, borderRadius: 999, background: '#0f172a', border: 'none', color: '#fff', fontSize: 17, fontWeight: 700, cursor: 'pointer', opacity: (!title.trim() || isSubmitting) ? 0.5 : 1 }}>
+                {isSubmitting ? t('saving') : t('createSurvey')}
               </button>
             </div>
-          </form>
-        </Modal>
+          </div>
+        </div>
 
         <NewClientModal isOpen={showNewClientModal} onClose={() => setShowNewClientModal(false)} onCreate={handleClientCreated} />
       </>
