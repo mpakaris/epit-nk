@@ -1,6 +1,6 @@
 export function makeGodModeActions({
   isSuperAdmin, currentUser,
-  setImpersonating, setImpersonatingCollectives, setCurrentUser, setDataReady,
+  setImpersonating, setImpersonatingCollectives, setCurrentUser, setDataReady, setContextSwitching,
   setProjects, setClients, setQuotes, setInvoices, setLabourEntries,
   setSurveys, setProjectRooms, setQuoteEntries, setQuoteSections, setUsers,
   refreshSupabaseData, router, setGodCookie, clearGodCookie,
@@ -65,14 +65,23 @@ export function makeGodModeActions({
   };
 
   const setActiveContext = async (collectiveId) => {
-    const res = await fetch('/api/auth/context', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ collective_id: collectiveId }),
-    });
-    if (!res.ok) throw new Error('Hiba a kontextus váltásakor');
+    // Optimistic: flip the workspace colour immediately (before the API round-trip).
     setCurrentUser(prev => prev ? { ...prev, active_collective_id: collectiveId } : prev);
-    await refreshSupabaseData();
+    // Signal a context switch so the main view can show a spinner WITHOUT
+    // triggering LoadingGate's full-screen overlay (which watches dataReady).
+    setContextSwitching(true);
+
+    try {
+      const res = await fetch('/api/auth/context', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ collective_id: collectiveId }),
+      });
+      if (!res.ok) throw new Error('Hiba a kontextus váltásakor');
+      await refreshSupabaseData();
+    } finally {
+      setContextSwitching(false);
+    }
   };
 
   const switchImpersonatingContext = async (collectiveId) => {

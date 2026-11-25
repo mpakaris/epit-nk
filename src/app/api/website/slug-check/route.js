@@ -2,7 +2,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 
 const RESERVED = new Set([
   'api', 'admin', 'superadmin', 'login', 'weboldalam', 'projektek',
-  'felmeres', 'ajanlatok', 'naptar', 'ugyfelek', 'otletek', 'szakemberek',
+  'felmeres', 'ajanlatok', 'naptar', 'ugyfelek', 'otletek', 'pro',
   'naplo', 'clients', 'p', 'change-password', 'www', 'app', 'support',
 ]);
 

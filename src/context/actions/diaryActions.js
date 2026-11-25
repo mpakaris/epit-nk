@@ -1,6 +1,7 @@
 import { processMediaFiles } from '@/lib/mediaGate';
+import { canMutateEntry } from '@/lib/permissions';
 
-export function makeDiaryActions({ setDiaryEntriesByProject, effectiveUser }) {
+export function makeDiaryActions({ diaryEntriesByProject, projects, setDiaryEntriesByProject, uid, isAdmin, collectives, effectiveUser }) {
   const fetchDiaryEntries = async (projectId) => {
     const res = await fetch(`/api/diary?project_id=${projectId}`);
     const data = await res.json();
@@ -25,6 +26,13 @@ export function makeDiaryActions({ setDiaryEntriesByProject, effectiveUser }) {
   };
 
   const updateDiaryEntry = async (entryId, fields) => {
+    const allEntries = Object.values(diaryEntriesByProject).flat();
+    const entry = allEntries.find(e => e.id === entryId);
+    const proj  = entry ? projects.find(p => p.id === entry.project_id) : null;
+    if (proj) {
+      if (!canMutateEntry({ doc: proj, entry: { ...entry, user_id: entry.created_by }, uid, isAdmin, collectives }))
+        throw new Error('Nincs jogosultsága!');
+    }
     const res = await fetch(`/api/diary/${entryId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },

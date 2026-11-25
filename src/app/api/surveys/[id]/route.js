@@ -3,6 +3,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { logAudit } from '@/lib/audit';
 import { hasPendingTransfer, canUnlockToPersonal } from '@/lib/transferLock';
 import { checkSurveyAccess } from '@/lib/surveyAccess';
+import { checkCollectiveStatus } from '@/lib/collectiveGuard';
 
 async function getCallerAndSurvey(id) {
   const supabase = await createClient();
@@ -72,6 +73,14 @@ export async function PATCH(request, { params }) {
   if (!isOwner && !isSuperAdmin && !isKollektivOwner && !isContributor)
     return Response.json({ error: 'Csak a tulajdonos módosíthatja a felmérést.' }, { status: 403 });
 
+  if (!isSuperAdmin && ctx.survey.is_read_only)
+    return Response.json({ error: 'Ez a dokumentum csak olvasható. Prémium csomagra váltva újra szerkeszthetővé válik.', read_only: true }, { status: 403 });
+
+  if (fields._action !== 'unlock') {
+    const statusBlocked = await checkCollectiveStatus(ctx.admin, ctx.survey.collective_id);
+    if (statusBlocked) return statusBlocked;
+  }
+
   // Unlock action — clears locked_reason after quota check
   if (fields._action === 'unlock') {
     if (!isOwner && !isSuperAdmin)
@@ -134,6 +143,12 @@ export async function DELETE(request, { params }) {
   const isKollektivOwner = ctx.memberRole === 'owner' || ctx.memberRole === 'admin';
   if (!isOwner && !isSuperAdmin && !isKollektivOwner)
     return Response.json({ error: 'Csak a tulajdonos törölheti a felmérést.' }, { status: 403 });
+
+  if (!isSuperAdmin && ctx.survey.is_seed)
+    return Response.json({ error: 'A mintadokumentum nem törölhető.' }, { status: 403 });
+
+  const statusBlockedDel = await checkCollectiveStatus(ctx.admin, ctx.survey.collective_id);
+  if (statusBlockedDel) return statusBlockedDel;
 
   if (!isSuperAdmin && await hasPendingTransfer('survey', id))
     return Response.json({ error: 'Ez a dokumentum átadás alatt áll, ezért nem módosítható.' }, { status: 423 });

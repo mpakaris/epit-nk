@@ -1,15 +1,17 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { logAudit } from '@/lib/audit';
+import { checkCollectiveStatus } from '@/lib/collectiveGuard';
+import { checkSectionLimit } from '@/lib/subscriptionLimits';
 
 async function getCtx(quoteId) {
   const supabase = await createClient();
   const { data: { user }, error } = await supabase.auth.getUser();
   if (error || !user) return { err: 'Unauthenticated', status: 401 };
   const admin = createAdminClient();
-  const { data: profile } = await admin.from('profiles').select('id, role, display_name').eq('id', user.id).single();
+  const { data: profile } = await admin.from('profiles').select('id, role, display_name, is_subscription_premium, subscription_tier, trial_ends_at').eq('id', user.id).single();
   if (!profile) return { err: 'Forbidden', status: 403 };
-  const { data: quote } = await admin.from('quotes').select('id, owner_id, created_by, collective_id, survey_id').eq('id', quoteId).is('deleted_at', null).single();
+  const { data: quote } = await admin.from('quotes').select('id, owner_id, created_by, collective_id, survey_id, is_read_only').eq('id', quoteId).is('deleted_at', null).single();
   if (!quote) return { err: 'Quote not found', status: 404 };
 
   const isSuperAdmin = profile.role === 'superadmin';
@@ -27,10 +29,39 @@ async function getCtx(quoteId) {
   return { user, profile, admin, quote, isOwner, isSuperAdmin };
 }
 
+export async function GET(request, { params }) {
+  const { id: quoteId } = await params;
+  const ctx = await getCtx(quoteId);
+  if (ctx.err) return Response.json({ error: ctx.err }, { status: ctx.status });
+
+  const [secRes, entRes] = await Promise.all([
+    ctx.admin.from('quote_sections').select('*').eq('quote_id', quoteId).order('sort_order').order('created_at'),
+    ctx.admin.from('quote_entries').select('*').eq('quote_id', quoteId).order('created_at'),
+  ]);
+
+  const entries  = entRes.data || [];
+  const sections = (secRes.data || []).map(sec => ({
+    ...sec,
+    entries: entries.filter(e => e.section_id === sec.id),
+  }));
+
+  return Response.json({ sections });
+}
+
 export async function POST(request, { params }) {
   const { id: quoteId } = await params;
   const ctx = await getCtx(quoteId);
   if (ctx.err) return Response.json({ error: ctx.err }, { status: ctx.status });
+
+  if (!ctx.isSuperAdmin && ctx.quote.is_read_only)
+    return Response.json({ error: 'Ez a dokumentum csak olvasható. Prémium csomagra váltva újra szerkeszthetővé válik.', read_only: true }, { status: 403 });
+
+  const secCheck = await checkSectionLimit(ctx.admin, quoteId, 'quote_sections', 'quote_id', ctx.profile, !!ctx.quote.collective_id);
+  if (!secCheck.allowed)
+    return Response.json({ error: `Bázis csomagban ajánlathoz maximum ${secCheck.limit} szekció adható hozzá. Váltj Prémiumra a korlátlan használathoz.` }, { status: 403 });
+
+  const statusBlocked = await checkCollectiveStatus(ctx.admin, ctx.quote.collective_id);
+  if (statusBlocked) return statusBlocked;
 
   const { name, description, width_m, length_m, height_m, window_count, door_count, sort_order, survey_entry_id, start_date, end_date } = await request.json();
   if (!name?.trim()) return Response.json({ error: 'Szekció neve kötelező' }, { status: 400 });
@@ -61,8 +92,8 @@ export async function POST(request, { params }) {
   logAudit({
     entityId: ctx.quote.collective_id || ctx.user.id, userId: ctx.user.id,
     userName: ctx.profile.display_name || ctx.user.email,
-    action: 'Szekció hozzáadva', targetType: 'quote', targetId: quoteId,
-    details: { name: section.name },
+    action: 'section.added', targetType: 'quote', targetId: quoteId,
+    details: { name: section.name, entry_count: 0 },
   });
 
   return Response.json({ section }, { status: 201 });

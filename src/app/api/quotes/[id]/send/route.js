@@ -17,7 +17,8 @@ export async function POST(request, { params }) {
   if (!allowed) return Response.json({ error: 'Túl sok kérés. Kérjük, próbáld újra később.' }, { status: 429 });
 
   const body = await request.json().catch(() => ({}));
-  const attachTerms = body.attachTerms !== false; // default true
+  const toEmailOverride = typeof body.to_email === 'string' ? body.to_email.trim() : null;
+  const selectedTerms = body.selectedTerms || { profileTerms: true, fileIds: [] };
 
   const admin = createAdminClient();
   const { data: profile } = await admin.from('profiles').select('role, display_name, locale, terms_pdf_url, terms_pdf_name').eq('id', user.id).single();
@@ -49,9 +50,15 @@ export async function POST(request, { params }) {
   if (!isSuperAdmin && !isOwner && !isKollektivOwner)
     return Response.json({ error: 'Csak az ajánlat tulajdonosa küldhet ajánlatot az ügyfélnek.' }, { status: 403 });
 
-  if (!quote.client_id) return Response.json({ error: 'Nincs ügyfél rendelve az ajánlathoz' }, { status: 400 });
-  const { data: client } = await admin.from('clients').select('name, email').eq('id', quote.client_id).is('deleted_at', null).single();
-  if (!client?.email) return Response.json({ error: 'Az ügyfélnek nincs megadva email cím' }, { status: 400 });
+  // Resolve recipient — override wins; fall back to attached client's email
+  let recipientEmail = toEmailOverride || null;
+  let recipientName  = '';
+  if (quote.client_id) {
+    const { data: clientRow } = await admin.from('clients').select('name, email').eq('id', quote.client_id).is('deleted_at', null).single();
+    recipientName = clientRow?.name || '';
+    if (!recipientEmail) recipientEmail = clientRow?.email || null;
+  }
+  if (!recipientEmail) return Response.json({ error: 'Nincs megadva email-cím a küldéshez' }, { status: 400 });
 
   // Totals for email body
   const allEntries = (quote.quote_sections || []).flatMap(s => s.quote_entries || []);
@@ -63,7 +70,7 @@ export async function POST(request, { params }) {
   const sections = quote.quote_sections || [];
   const locale   = profile.locale || 'hu';
   const vars = {
-    client_name:        client.name,
+    client_name:        recipientName,
     offer_title:        quote.title,
     offer_summary_html: buildOfferDetailHtml({
       sections,
@@ -77,7 +84,7 @@ export async function POST(request, { params }) {
   // Use production domain — NEXT_PUBLIC_APP_URL is localhost in dev
   const rawAppUrl = process.env.NEXT_PUBLIC_APP_URL || '';
   const appUrl    = rawAppUrl.includes('localhost') ? 'https://okosszaki.hu' : (rawAppUrl || 'https://okosszaki.hu');
-  const portalUrl = `${appUrl}/portal?email=${encodeURIComponent(client.email)}&lang=${locale}`;
+  const portalUrl = `${appUrl}/portal?email=${encodeURIComponent(recipientEmail)}&lang=${locale}`;
 
   const { subject, bodyHtml: rawBody } = getEmailContent('offer_sent', locale, vars);
   const bodyHtml = rawBody + buildPortalCtaHtml(portalUrl, locale);
@@ -95,21 +102,28 @@ export async function POST(request, { params }) {
     ? quote.offer_number.replace(/\//g, '-').replace(/[^\w\s-]/g, '').trim()
     : quote.title.replace(/[^a-zA-Z0-9áéíóöőúüűÁÉÍÓÖŐÚÜŰ\s-]/g, '').trim().replace(/\s+/g, '_');
 
-  // Fetch terms PDF if user has one and it's requested
   const attachments = [{ filename: `Ajanlat_${safeName}.pdf`, content: pdfBuffer, contentType: 'application/pdf' }];
-  if (attachTerms && profile.terms_pdf_url) {
+
+  // Profile default T&C — only if selected for this send
+  if (selectedTerms.profileTerms && profile.terms_pdf_url) {
     try {
-      const termRes = await fetch(profile.terms_pdf_url);
-      if (termRes.ok) {
-        const termBuf = Buffer.from(await termRes.arrayBuffer());
-        attachments.push({ filename: profile.terms_pdf_name || 'ASZF.pdf', content: termBuf, contentType: 'application/pdf' });
-      }
-    } catch { /* skip if fetch fails */ }
+      const r = await fetch(profile.terms_pdf_url);
+      if (r.ok) attachments.push({ filename: profile.terms_pdf_name || 'ASZF.pdf', content: Buffer.from(await r.arrayBuffer()), contentType: 'application/pdf' });
+    } catch { /* skip */ }
+  }
+
+  // Per-quote custom T&C — only the ones selected for this send
+  for (const att of (quote.terms_attachments || [])) {
+    if (!att.url || !selectedTerms.fileIds?.includes(att.id)) continue;
+    try {
+      const r = await fetch(att.url);
+      if (r.ok) attachments.push({ filename: att.name || 'melleklet.pdf', content: Buffer.from(await r.arrayBuffer()), contentType: 'application/pdf' });
+    } catch { /* skip */ }
   }
 
   try {
     await sendEmail({
-      to: client.email,
+      to: recipientEmail,
       cc: user.email || undefined,
       replyTo: user.email || undefined,
       subject,
@@ -133,12 +147,12 @@ export async function POST(request, { params }) {
     entityId:   quote.collective_id || user.id,
     userId:     user.id,
     userName:   profile.display_name || user.email,
-    action:     'Ajánlat elküldve',
+    action:     'quote.sent',
     targetType: 'quote',
     targetId:   id,
     targetName: quote.title,
-    details:    { to: client.email },
+    details:    { to: recipientEmail },
   });
 
-  return Response.json({ ok: true, quote: updated, sentTo: client.email });
+  return Response.json({ ok: true, quote: updated, sentTo: recipientEmail });
 }

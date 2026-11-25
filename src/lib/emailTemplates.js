@@ -323,9 +323,50 @@ export const EMAIL_TEMPLATES = {
   },
 
   /**
+   * Portal link sent to client.
+   * Vars: client_name, portal_url, sender_name
+   */
+  portal_link_sent: {
+    id: 'portal_link_sent',
+    name: 'Portál link küldése',
+    subject: 'Hozzáférés az ügyfélportálhoz',
+    bodyHtml: `
+<p style="margin:0 0 20px;font-size:15px;color:#334155;line-height:1.6;">
+  Kedves <strong>{{client_name}}</strong>!
+</p>
+<p style="margin:0 0 24px;font-size:14px;color:#64748b;line-height:1.7;">
+  Az alábbi linken elérheti saját ügyfélportálját, ahol megtekintheti az Önnek küldött árajánlatokat és projekteket.
+</p>
+<div style="margin:0 0 28px;padding:20px;background:#f0f9ff;border:1px solid #bae6fd;border-radius:12px;text-align:center;">
+  <p style="margin:0 0 14px;font-size:13px;color:#0369a1;font-weight:700;letter-spacing:0.02em;">📋 Ügyfélportál</p>
+  <a href="{{portal_url}}"
+     style="display:inline-block;padding:14px 32px;background:#2563eb;color:#fff;font-size:15px;font-weight:800;border-radius:10px;text-decoration:none;letter-spacing:0.01em;">
+    Portál megnyitása →
+  </a>
+  <p style="margin:14px 0 0;font-size:12px;color:#64748b;line-height:1.5;">
+    Belépéshez csak az e-mail-cím szükséges – regisztráció nem szükséges.
+  </p>
+</div>
+<p style="margin:0;font-size:14px;color:#334155;font-weight:700;">{{sender_name}}</p>
+`,
+  },
+
+  /**
    * Offer sent to client.
    * Vars: client_name, offer_title, offer_summary_html, offer_url, sender_name
    */
+  invoice_sent: {
+    id: 'invoice_sent',
+    name: 'Számla küldése ügyfélnek',
+    subject: 'Számla: {{invoice_label}} – {{project_name}}',
+    bodyHtml: `
+<p style="margin:0 0 20px;font-size:15px;color:#334155;line-height:1.6;">Kedves <strong>{{client_name}}</strong>!</p>
+<p style="margin:0 0 20px;font-size:14px;color:#64748b;line-height:1.7;">Csatolva megtalálja a(z) <strong style="color:#1e293b;">{{project_name}}</strong> projekthez kiállított <strong style="color:#1e293b;">{{invoice_label}}</strong> tárgyú számlát (<strong>{{invoice_amount}}</strong>).</p>
+<p style="margin:0 0 28px;font-size:14px;color:#64748b;line-height:1.7;">Kérdés esetén kérjük, forduljon hozzánk bizalommal!</p>
+<p style="margin:0;font-size:14px;color:#334155;font-weight:700;">{{sender_name}}</p>
+`,
+  },
+
   offer_sent: {
     id: 'offer_sent',
     name: 'Ajánlat kiküldése',
@@ -647,6 +688,178 @@ const TEMPLATES_I18N = {
   </tr>
 </table>
 <p style="margin:0;font-size:12px;color:#94a3b8;line-height:1.6;">If you weren't expecting this invitation, simply ignore this email.</p>`,
+    },
+  },
+
+  portal_link_sent: {
+    subject: {
+      hu: 'Hozzáférés az ügyfélportálhoz',
+      de: 'Zugang zu Ihrem Kundenportal',
+      en: 'Access your client portal',
+    },
+    bodyHtml: {
+      hu: () => `
+<p style="margin:0 0 20px;font-size:15px;color:#334155;line-height:1.6;">Kedves <strong>{{client_name}}</strong>!</p>
+<p style="margin:0 0 20px;font-size:14px;color:#64748b;line-height:1.7;">
+  Az alábbi linken elérheti saját ügyfélportálját, ahol megtekintheti az Önnek küldött árajánlatokat és projekteket.
+</p>
+
+<table style="width:100%;border-collapse:collapse;margin:0 0 24px;">
+  <tr>
+    <td style="padding:10px 14px;vertical-align:top;width:32px;">
+      <div style="width:28px;height:28px;border-radius:50%;background:#1e293b;color:#fff;font-size:13px;font-weight:800;text-align:center;line-height:28px;flex-shrink:0;">1</div>
+    </td>
+    <td style="padding:10px 0;font-size:14px;color:#334155;line-height:1.6;border-bottom:1px solid #f1f5f9;">
+      Kattintson az alábbi gombra a portál megnyitásához.
+    </td>
+  </tr>
+  <tr>
+    <td style="padding:10px 14px;vertical-align:top;">
+      <div style="width:28px;height:28px;border-radius:50%;background:#1e293b;color:#fff;font-size:13px;font-weight:800;text-align:center;line-height:28px;">2</div>
+    </td>
+    <td style="padding:10px 0;font-size:14px;color:#334155;line-height:1.6;border-bottom:1px solid #f1f5f9;">
+      Adja meg email-címét: <strong style="color:#1e293b;font-family:monospace;">{{client_email}}</strong>
+    </td>
+  </tr>
+  <tr>
+    <td style="padding:10px 14px;vertical-align:top;">
+      <div style="width:28px;height:28px;border-radius:50%;background:#1e293b;color:#fff;font-size:13px;font-weight:800;text-align:center;line-height:28px;">3</div>
+    </td>
+    <td style="padding:10px 0;font-size:14px;color:#334155;line-height:1.6;border-bottom:1px solid #f1f5f9;">
+      Kap egy <strong>6 jegyű egyszer használatos kódot</strong> emailben.
+    </td>
+  </tr>
+  <tr>
+    <td style="padding:10px 14px;vertical-align:top;">
+      <div style="width:28px;height:28px;border-radius:50%;background:#2563eb;color:#fff;font-size:13px;font-weight:800;text-align:center;line-height:28px;">4</div>
+    </td>
+    <td style="padding:10px 0;font-size:14px;color:#334155;line-height:1.6;">
+      Írja be a kódot — máris megtekintheti az árajánlatokat és projekteket.
+    </td>
+  </tr>
+</table>
+
+<div style="margin:0 0 28px;padding:20px;background:#f0f9ff;border:1px solid #bae6fd;border-radius:12px;text-align:center;">
+  <a href="{{portal_url}}" style="display:inline-block;padding:14px 32px;background:#2563eb;color:#fff;font-size:15px;font-weight:800;border-radius:10px;text-decoration:none;">Portál megnyitása →</a>
+</div>
+<p style="margin:0;font-size:14px;color:#334155;font-weight:700;">{{sender_name}}</p>`,
+
+      de: () => `
+<p style="margin:0 0 20px;font-size:15px;color:#334155;line-height:1.6;">Sehr geehrte/r <strong>{{client_name}}</strong>,</p>
+<p style="margin:0 0 20px;font-size:14px;color:#64748b;line-height:1.7;">
+  Über den folgenden Link können Sie Ihr persönliches Kundenportal aufrufen, um Angebote und Projekte einzusehen.
+</p>
+
+<table style="width:100%;border-collapse:collapse;margin:0 0 24px;">
+  <tr>
+    <td style="padding:10px 14px;vertical-align:top;width:32px;">
+      <div style="width:28px;height:28px;border-radius:50%;background:#1e293b;color:#fff;font-size:13px;font-weight:800;text-align:center;line-height:28px;">1</div>
+    </td>
+    <td style="padding:10px 0;font-size:14px;color:#334155;line-height:1.6;border-bottom:1px solid #f1f5f9;">
+      Klicken Sie auf die Schaltfläche unten, um das Portal zu öffnen.
+    </td>
+  </tr>
+  <tr>
+    <td style="padding:10px 14px;vertical-align:top;">
+      <div style="width:28px;height:28px;border-radius:50%;background:#1e293b;color:#fff;font-size:13px;font-weight:800;text-align:center;line-height:28px;">2</div>
+    </td>
+    <td style="padding:10px 0;font-size:14px;color:#334155;line-height:1.6;border-bottom:1px solid #f1f5f9;">
+      Geben Sie Ihre E-Mail-Adresse ein: <strong style="color:#1e293b;font-family:monospace;">{{client_email}}</strong>
+    </td>
+  </tr>
+  <tr>
+    <td style="padding:10px 14px;vertical-align:top;">
+      <div style="width:28px;height:28px;border-radius:50%;background:#1e293b;color:#fff;font-size:13px;font-weight:800;text-align:center;line-height:28px;">3</div>
+    </td>
+    <td style="padding:10px 0;font-size:14px;color:#334155;line-height:1.6;border-bottom:1px solid #f1f5f9;">
+      Sie erhalten einen <strong>6-stelligen Einmal-Code</strong> per E-Mail.
+    </td>
+  </tr>
+  <tr>
+    <td style="padding:10px 14px;vertical-align:top;">
+      <div style="width:28px;height:28px;border-radius:50%;background:#2563eb;color:#fff;font-size:13px;font-weight:800;text-align:center;line-height:28px;">4</div>
+    </td>
+    <td style="padding:10px 0;font-size:14px;color:#334155;line-height:1.6;">
+      Geben Sie den Code ein — und Sie können Ihre Angebote und Projekte einsehen.
+    </td>
+  </tr>
+</table>
+
+<div style="margin:0 0 28px;padding:20px;background:#f0f9ff;border:1px solid #bae6fd;border-radius:12px;text-align:center;">
+  <a href="{{portal_url}}" style="display:inline-block;padding:14px 32px;background:#2563eb;color:#fff;font-size:15px;font-weight:800;border-radius:10px;text-decoration:none;">Kundenportal öffnen →</a>
+</div>
+<p style="margin:0;font-size:14px;color:#334155;font-weight:700;">{{sender_name}}</p>`,
+
+      en: () => `
+<p style="margin:0 0 20px;font-size:15px;color:#334155;line-height:1.6;">Dear <strong>{{client_name}}</strong>,</p>
+<p style="margin:0 0 20px;font-size:14px;color:#64748b;line-height:1.7;">
+  You can access your personal client portal at the link below to view your quotes and projects.
+</p>
+
+<table style="width:100%;border-collapse:collapse;margin:0 0 24px;">
+  <tr>
+    <td style="padding:10px 14px;vertical-align:top;width:32px;">
+      <div style="width:28px;height:28px;border-radius:50%;background:#1e293b;color:#fff;font-size:13px;font-weight:800;text-align:center;line-height:28px;">1</div>
+    </td>
+    <td style="padding:10px 0;font-size:14px;color:#334155;line-height:1.6;border-bottom:1px solid #f1f5f9;">
+      Click the button below to open the portal.
+    </td>
+  </tr>
+  <tr>
+    <td style="padding:10px 14px;vertical-align:top;">
+      <div style="width:28px;height:28px;border-radius:50%;background:#1e293b;color:#fff;font-size:13px;font-weight:800;text-align:center;line-height:28px;">2</div>
+    </td>
+    <td style="padding:10px 0;font-size:14px;color:#334155;line-height:1.6;border-bottom:1px solid #f1f5f9;">
+      Enter your email address: <strong style="color:#1e293b;font-family:monospace;">{{client_email}}</strong>
+    </td>
+  </tr>
+  <tr>
+    <td style="padding:10px 14px;vertical-align:top;">
+      <div style="width:28px;height:28px;border-radius:50%;background:#1e293b;color:#fff;font-size:13px;font-weight:800;text-align:center;line-height:28px;">3</div>
+    </td>
+    <td style="padding:10px 0;font-size:14px;color:#334155;line-height:1.6;border-bottom:1px solid #f1f5f9;">
+      You'll receive a <strong>6-digit one-time code</strong> by email.
+    </td>
+  </tr>
+  <tr>
+    <td style="padding:10px 14px;vertical-align:top;">
+      <div style="width:28px;height:28px;border-radius:50%;background:#2563eb;color:#fff;font-size:13px;font-weight:800;text-align:center;line-height:28px;">4</div>
+    </td>
+    <td style="padding:10px 0;font-size:14px;color:#334155;line-height:1.6;">
+      Enter the code — and you're in. View your quotes and projects instantly.
+    </td>
+  </tr>
+</table>
+
+<div style="margin:0 0 28px;padding:20px;background:#f0f9ff;border:1px solid #bae6fd;border-radius:12px;text-align:center;">
+  <a href="{{portal_url}}" style="display:inline-block;padding:14px 32px;background:#2563eb;color:#fff;font-size:15px;font-weight:800;border-radius:10px;text-decoration:none;">Open client portal →</a>
+</div>
+<p style="margin:0;font-size:14px;color:#334155;font-weight:700;">{{sender_name}}</p>`,
+    },
+  },
+
+  invoice_sent: {
+    subject: {
+      hu: 'Számla: {{invoice_label}} – {{project_name}}',
+      de: 'Rechnung: {{invoice_label}} – {{project_name}}',
+      en: 'Invoice: {{invoice_label}} – {{project_name}}',
+    },
+    bodyHtml: {
+      hu: () => `
+<p style="margin:0 0 20px;font-size:15px;color:#334155;line-height:1.6;">Kedves <strong>{{client_name}}</strong>!</p>
+<p style="margin:0 0 20px;font-size:14px;color:#64748b;line-height:1.7;">Csatolva megtalálja a(z) <strong style="color:#1e293b;">{{project_name}}</strong> projekthez kiállított <strong style="color:#1e293b;">{{invoice_label}}</strong> tárgyú számlát (<strong>{{invoice_amount}}</strong>).</p>
+<p style="margin:0 0 28px;font-size:14px;color:#64748b;line-height:1.7;">Kérdés esetén kérjük, forduljon hozzánk bizalommal!</p>
+<p style="margin:0;font-size:14px;color:#334155;font-weight:700;">{{sender_name}}</p>`,
+      de: () => `
+<p style="margin:0 0 20px;font-size:15px;color:#334155;line-height:1.6;">Sehr geehrte/r <strong>{{client_name}}</strong>,</p>
+<p style="margin:0 0 20px;font-size:14px;color:#64748b;line-height:1.7;">anbei erhalten Sie die Rechnung <strong style="color:#1e293b;">{{invoice_label}}</strong> (<strong>{{invoice_amount}}</strong>) für das Projekt <strong style="color:#1e293b;">{{project_name}}</strong>.</p>
+<p style="margin:0 0 28px;font-size:14px;color:#64748b;line-height:1.7;">Bei Fragen stehen wir Ihnen gerne zur Verfügung!</p>
+<p style="margin:0;font-size:14px;color:#334155;font-weight:700;">{{sender_name}}</p>`,
+      en: () => `
+<p style="margin:0 0 20px;font-size:15px;color:#334155;line-height:1.6;">Dear <strong>{{client_name}}</strong>,</p>
+<p style="margin:0 0 20px;font-size:14px;color:#64748b;line-height:1.7;">Please find attached the invoice <strong style="color:#1e293b;">{{invoice_label}}</strong> (<strong>{{invoice_amount}}</strong>) for project <strong style="color:#1e293b;">{{project_name}}</strong>.</p>
+<p style="margin:0 0 28px;font-size:14px;color:#64748b;line-height:1.7;">If you have any questions, please don't hesitate to get in touch!</p>
+<p style="margin:0;font-size:14px;color:#334155;font-weight:700;">{{sender_name}}</p>`,
     },
   },
 

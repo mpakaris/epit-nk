@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { logAudit } from '@/lib/audit';
+import { checkCollectiveStatus } from '@/lib/collectiveGuard';
 
 async function resolveAccess(user, entryId) {
   const admin = createAdminClient();
@@ -21,9 +22,19 @@ async function resolveAccess(user, entryId) {
   const isProjectOwner = project.owner_id === user.id || project.created_by === user.id;
   const isOwnEntry     = entry.uploaded_by === user.id;
 
-  if (!isSuperAdmin && !isProjectOwner && !isOwnEntry) return null;
+  if (isSuperAdmin || isProjectOwner || isOwnEntry) return { admin, profile, entry, project };
 
-  return { admin, profile, entry, project };
+  if (project.collective_id) {
+    const { data: mem } = await admin.from('collective_members')
+      .select('role')
+      .eq('collective_id', project.collective_id)
+      .eq('user_id', user.id)
+      .eq('status', 'active')
+      .maybeSingle();
+    if (mem && (mem.role === 'owner' || mem.role === 'admin')) return { admin, profile, entry, project };
+  }
+
+  return null;
 }
 
 export async function PATCH(request, { params }) {
@@ -36,8 +47,11 @@ export async function PATCH(request, { params }) {
   if (!ctx) return Response.json({ error: 'Nincs hozzáférés' }, { status: 403 });
   const { admin, profile, entry, project } = ctx;
 
+  const statusBlocked = await checkCollectiveStatus(admin, project.collective_id);
+  if (statusBlocked) return statusBlocked;
+
   const fields = await request.json();
-  const allowed = ['labour_type', 'hours', 'hourly_rate', 'unit', 'date', 'description', 'room_id', 'portal_visible'];
+  const allowed = ['labour_type', 'hours', 'hourly_rate', 'unit', 'date', 'end_date', 'description', 'room_id', 'portal_visible', 'counts_as_expense'];
   const update = {};
   for (const k of allowed) if (k in fields) update[k] = fields[k];
 
@@ -79,6 +93,9 @@ export async function DELETE(request, { params }) {
   if (!ctx) return Response.json({ error: 'Nincs hozzáférés' }, { status: 403 });
   const { admin, profile, project } = ctx;
 
+  const statusBlockedDel = await checkCollectiveStatus(admin, project.collective_id);
+  if (statusBlockedDel) return statusBlockedDel;
+
   const { error } = await admin.from('labour_entries').delete().eq('id', id);
   if (error) return Response.json({ error: error.message }, { status: 400 });
 
@@ -86,7 +103,7 @@ export async function DELETE(request, { params }) {
     entityId:   project.collective_id || user.id,
     userId:     user.id,
     userName:   profile.display_name || user.email,
-    action:     'Munkabejegyzés törölve',
+    action:     'labour.deleted',
     targetType: 'project',
     targetId:   project.id,
     targetName: project.name,

@@ -1,12 +1,14 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { logAudit } from '@/lib/audit';
+import { checkSectionLimit } from '@/lib/subscriptionLimits';
+import { checkCollectiveStatus } from '@/lib/collectiveGuard';
 
 async function getCtx(projectId, userId) {
   const admin = createAdminClient();
-  const { data: profile } = await admin.from('profiles').select('id, role').eq('id', userId).single();
+  const { data: profile } = await admin.from('profiles').select('id, role, display_name, is_subscription_premium, subscription_tier, trial_ends_at').eq('id', userId).single();
   if (!profile) return { err: 'Forbidden', status: 403 };
-  const { data: project } = await admin.from('projects').select('id, owner_id, created_by, collective_id').eq('id', projectId).is('deleted_at', null).single();
+  const { data: project } = await admin.from('projects').select('id, owner_id, created_by, collective_id, is_read_only').eq('id', projectId).is('deleted_at', null).single();
   if (!project) return { err: 'Project not found', status: 404 };
 
   const isSuperAdmin = profile.role === 'superadmin';
@@ -50,6 +52,16 @@ export async function POST(request, { params }) {
   const ctx = await getCtx(projectId, user.id);
   if (ctx.err) return Response.json({ error: ctx.err }, { status: ctx.status });
 
+  if (ctx.profile.role !== 'superadmin' && ctx.project.is_read_only)
+    return Response.json({ error: 'Ez a dokumentum csak olvasható. Prémium csomagra váltva újra szerkeszthetővé válik.', read_only: true }, { status: 403 });
+
+  const statusBlocked = await checkCollectiveStatus(ctx.admin, ctx.project.collective_id);
+  if (statusBlocked) return statusBlocked;
+
+  const secCheck = await checkSectionLimit(ctx.admin, projectId, 'project_rooms', 'project_id', ctx.profile, !!ctx.project.collective_id);
+  if (!secCheck.allowed)
+    return Response.json({ error: `Bázis csomagban projekthez maximum ${secCheck.limit} helyiség adható hozzá. Váltj Prémiumra a korlátlan használathoz.` }, { status: 403 });
+
   const body = await request.json();
   const { name, size_m2, work_types, description, quoted_amount_net, sort_order, source_section_id } = body;
   if (!name?.trim()) return Response.json({ error: 'A helyiség neve kötelező' }, { status: 400 });
@@ -71,7 +83,7 @@ export async function POST(request, { params }) {
     entityId: ctx.project.collective_id || ctx.project.owner_id,
     userId: user.id,
     userName: ctx.profile.display_name || user.email,
-    action: 'Helyiség létrehozva',
+    action: 'room.created',
     targetType: 'project_room',
     targetId: room.id,
     targetName: room.name,

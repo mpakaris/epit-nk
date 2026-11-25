@@ -7,8 +7,8 @@ import { User, Calendar, Home, Sparkles, PencilLine, Paperclip, HardHat } from '
 
 export default function InvoiceCard({ invoice, room, media = [], onClick }) {
   const { userCurrency } = useApp();
-  const c        = INVOICE_CATEGORY_COLORS[invoice.category] ?? INVOICE_CATEGORY_COLORS['Egyéb'];
-  const isLabour = invoice.category === 'Munka';
+  const c        = INVOICE_CATEGORY_COLORS[invoice.category] ?? INVOICE_CATEGORY_COLORS['other'];
+  const isLabour = invoice.category === 'labour';
   const hasItems = Array.isArray(invoice.ai_line_items) && invoice.ai_line_items.length > 0;
 
   return (

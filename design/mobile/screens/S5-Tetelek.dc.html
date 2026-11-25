@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="hu"><head><meta charset="utf-8"><title>OkosSzaki — Helyiség tételei</title><script src="./support.js"></script></head>
+<body><x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&amp;family=Plus+Jakarta+Sans:wght@500;600;700&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}
+button,input,textarea{font-family:inherit}
+button{cursor:pointer}
+*{scrollbar-width:none;-ms-overflow-style:none}
+*::-webkit-scrollbar{display:none;width:0;height:0}
+.root{position:relative;width:390px;height:844px;overflow:hidden;background:#EDEBE5;color:#0E1116;font-family:'Plus Jakarta Sans',system-ui,sans-serif}
+.scroll{position:absolute;inset:0;z-index:1;overflow-y:auto;box-sizing:border-box;padding:0 0 170px}
+.hd{position:relative;overflow:hidden;box-sizing:border-box;padding:18px 16px 20px;border-radius:0 0 32px 32px;display:flex;flex-direction:column;gap:12px}
+.glow{position:absolute;right:-90px;top:-120px;width:300px;height:300px;border-radius:150px}
+.top{position:relative;display:flex;align-items:center;justify-content:space-between}
+.rnd{width:48px;height:48px;border:0;border-radius:24px;display:flex;align-items:center;justify-content:center;padding:0}
+.pill{height:36px;padding:0 14px;border-radius:18px;font-size:13px;font-weight:700;display:inline-flex;align-items:center;gap:8px}
+.ttl{position:relative;margin:0;font-family:'Bricolage Grotesque',sans-serif;font-size:30px;font-weight:700;letter-spacing:-.02em;line-height:1.1}
+.kick{position:relative;font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+.sub{position:relative;font-size:15px;font-weight:600}
+.body{padding:16px 16px 0;display:flex;flex-direction:column;gap:14px}
+.card{box-sizing:border-box;border-radius:26px;background:#fff;box-shadow:0 1px 0 rgba(14,17,22,.05),0 14px 26px -18px rgba(14,17,22,.35)}
+.lbl{font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#5A5F68}
+.h2{margin:0;font-family:'Bricolage Grotesque',sans-serif;font-size:22px;font-weight:700}
+.fld{width:100%;box-sizing:border-box;height:56px;border:0;border-radius:20px;background:#fff;padding:0 16px;font-size:17px;font-weight:500;color:#0E1116;box-shadow:0 1px 0 rgba(14,17,22,.05),0 10px 20px -16px rgba(14,17,22,.4)}
+.fld::placeholder{color:#6B7078}
+.chip{height:52px;padding:0 18px;border:0;border-radius:26px;font-size:15px;font-weight:700;display:inline-flex;align-items:center;gap:8px;color:#0E1116}
+.bar{position:absolute;z-index:20;left:0;right:0;bottom:0;box-sizing:border-box;padding:28px 16px 18px;background:linear-gradient(to top,#EDEBE5 70%,rgba(237,235,229,0));display:flex;gap:10px}
+.pri{flex:1;height:60px;border:0;border-radius:30px;background:#0E1116;color:#fff;font-size:17px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:10px;box-shadow:0 14px 26px -12px rgba(14,17,22,.6)}
+.sq{flex:none;width:60px;height:60px;border:0;border-radius:30px;background:#fff;color:#0E1116;display:flex;align-items:center;justify-content:center;box-shadow:0 10px 22px -10px rgba(14,17,22,.4)}
+.ic{flex:none;width:44px;height:44px;border-radius:15px;background:#F1F1F3;color:#1A1D23;display:flex;align-items:center;justify-content:center}
+.row{width:100%;min-height:64px;box-sizing:border-box;padding:10px 14px;border:0;border-radius:22px;background:#fff;color:#0E1116;text-align:left;display:flex;align-items:center;gap:12px;font-size:16px;font-weight:700;box-shadow:0 1px 0 rgba(14,17,22,.05),0 12px 22px -18px rgba(14,17,22,.35)}
+.scrim{position:absolute;inset:0;z-index:40;border:0;padding:0;background:rgba(14,17,22,.5)}
+.sheet{position:absolute;z-index:50;left:0;right:0;bottom:0;box-sizing:border-box;padding:10px 16px 18px;border-radius:32px 32px 0 0;background:#FBFAF7;display:flex;flex-direction:column;gap:12px;max-height:90%;overflow-y:auto}
+.grab{align-self:center;flex:none;width:44px;height:5px;border-radius:3px;background:#D5D2C8}
+.sh{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.sht{font-family:'Bricolage Grotesque',sans-serif;font-size:25px;font-weight:700;line-height:1.1}
+.x{width:48px;height:48px;border:0;border-radius:24px;background:#EFEDE6;color:#0E1116;display:flex;align-items:center;justify-content:center;flex:none}
+.sw{flex:none;width:64px;height:38px;border-radius:19px;position:relative}
+.sw>i{position:absolute;top:4px;width:30px;height:30px;border-radius:15px;background:#fff;box-shadow:0 2px 6px rgba(14,17,22,.3)}
+.badge{height:26px;padding:0 10px;border-radius:13px;font-size:12px;font-weight:700;display:inline-flex;align-items:center;gap:4px;background:#F0F0F2;color:#2B3038;flex:none}
+.m{font-size:13px;font-weight:600;color:#5A5F68}
+.n{font-family:'Bricolage Grotesque',sans-serif;font-weight:700;letter-spacing:-.02em}
+.stat{flex:1;box-sizing:border-box;padding:10px 12px;border-radius:18px}
+
+.root{background:var(--deep);color:#fff}
+.hd{border-radius:0 0 32px 32px}
+.bar{background:linear-gradient(to top,var(--deep) 65%,rgba(0,0,0,0))}
+.card{color:#0E1116;box-shadow:inset 0 1px 0 #fff,0 16px 26px -14px rgba(0,0,0,.7),0 3px 6px -2px rgba(0,0,0,.3)}
+.row{color:#0E1116;box-shadow:inset 0 1px 0 #fff,0 14px 22px -14px rgba(0,0,0,.7),0 3px 6px -2px rgba(0,0,0,.3)}
+.sheet,.sht{color:#0E1116}
+.h2{color:#fff}
+.lbl{color:rgba(255,255,255,.78)}
+.sheet .lbl{color:#5A5F68}
+.sq{color:#0E1116}
+</style>
+</helmet>
+<div class="root" style="--deep: #06302C">
+ <div class="scroll">
+  <header class="hd" style="background: #0A7F72; color: #fff">
+   <span class="glow" aria-hidden="true" style="background: rgba(255,255,255,0.10)"></span>
+   <div class="top"><button class="rnd" aria-label="Vissza" style="background: rgba(255,255,255,0.18); color: #fff"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="{{ic.back}}"/></svg></button><span class="pill" style="background: rgba(255,255,255,0.18)">Lakásfelújítás · Konyha</span><span style="width: 48px"></span></div>
+   <h1 class="ttl">Tételek ({{items.length}})</h1>
+   <span class="sub" style="color: rgba(255,255,255,0.92)">Anyag, munkadíj, bérlés, szállítás — ebből lesz az ajánlat.</span>
+  </header>
+
+  <div class="body">
+   <sc-if value="{{aiLine}}" hint-placeholder-val="{{ false }}"><div style="box-sizing: border-box; padding: 12px 16px; border-radius: 20px; background: {{aiBg}}; color: {{aiFg}}; display: flex; align-items: center; gap: 10px; font-size: 15px; font-weight: 700"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/></svg>{{aiLine}}</div></sc-if>
+
+   <!-- AI suggestions -->
+   <sc-if value="{{hasSug}}" hint-placeholder-val="{{ true }}">
+    <section class="card" style="padding: 14px; display: flex; flex-direction: column; gap: 10px; box-shadow: 0 0 0 2px #C7D2FF, 0 14px 26px -18px rgba(14,17,22,0.35)">
+     <div style="display: flex; align-items: center; justify-content: space-between"><span class="h2" style="font-size: 19px">AI javaslat</span><button onClick="{{selAll}}" style="height: 44px; padding: 0 14px; border: 0; border-radius: 22px; background: #F1F1F3; color: #0E1116; font-size: 14px; font-weight: 700">{{selAllLabel}}</button></div>
+     <sc-for list="{{sug}}" as="s" hint-placeholder-count="3">
+      <button onClick="{{s.pick}}" aria-pressed="{{s.on}}" class="row" style="min-height: 72px; box-shadow: none; background: {{s.bg}}">
+       <span style="flex: none; width: 28px; height: 28px; border-radius: 9px; border: 2px solid {{s.ring}}; background: {{s.fill}}; color: #fff; display: flex; align-items: center; justify-content: center"><sc-if value="{{s.on}}" hint-placeholder-val="{{ false }}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="{{ic.check}}"/></svg></sc-if></span>
+       <span style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px"><span style="font-size: 15px; line-height: 1.25">{{s.desc}}</span><span style="display: flex; gap: 6px; align-items: center"><span class="badge" style="background: {{s.tbg}}; color: {{s.tfg}}">{{s.type}}</span><span class="m">{{s.qty}}</span></span></span></button>
+     </sc-for>
+     <div style="display: grid; grid-template-columns: 1.4fr 1fr; gap: 8px"><button onClick="{{accept}}" style="min-height: 56px; border: 0; border-radius: 28px; background: #0E1116; color: #fff; font-size: 16px; font-weight: 700">Elfogad ({{selCount}})</button><button onClick="{{dropSug}}" style="min-height: 56px; border: 0; border-radius: 28px; background: #FDECEC; color: #B71C1C; font-size: 16px; font-weight: 700">Törlés ({{selCount}})</button></div>
+    </section>
+   </sc-if>
+
+   <!-- Items -->
+   <sc-if value="{{noItems}}" hint-placeholder-val="{{ false }}"><div class="card" style="padding: 24px; text-align: center; font-size: 15px; font-weight: 600; color: #5A5F68">Nincs tétel.</div></sc-if>
+   <sc-for list="{{items}}" as="i" hint-placeholder-count="4">
+    <button class="row" onClick="{{i.edit}}" style="min-height: 76px; align-items: flex-start; padding: 12px 14px">
+     <span class="badge" style="margin-top: 2px; min-width: 70px; justify-content: center; background: {{i.tbg}}; color: {{i.tfg}}">{{i.type}}</span>
+     <span style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px"><span style="font-size: 16px; line-height: 1.3">{{i.desc}}</span><span class="m">{{i.qty}} {{i.unit}}</span><sc-if value="{{i.note}}" hint-placeholder-val="{{ false }}"><span style="font-size: 13px; font-weight: 500; color: #4A4F57; font-style: italic">{{i.note}}</span></sc-if></span>
+     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#5A5F68" stroke-width="2.4" stroke-linecap="round" style="margin-top: 4px; flex: none"><path d="M9 6l6 6-6 6"/></svg></button>
+   </sc-for>
+  </div>
+ </div>
+
+ <div class="bar" style="gap: 8px">
+  <button onClick="{{toRec}}" aria-label="Diktálás" class="sq"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6a3 3 0 106 0v6a3 3 0 10-6 0zM5 11a7 7 0 0014 0M12 18v3"/></svg></button>
+  <button onClick="{{doGen}}" class="pri" style="flex: 1.2; background: #fff; color: #0E1116; box-shadow: 0 10px 22px -10px rgba(14,17,22,0.4)"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/></svg>AI javaslat</button>
+  <button onClick="{{newItem}}" class="pri" style="flex: 1"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"><path d="{{ic.plus}}"/></svg>Tétel</button>
+ </div>
+
+ <sc-if value="{{mode}}" hint-placeholder-val="{{ false }}"><button class="scrim" onClick="{{close}}" aria-label="Bezárás"></button></sc-if>
+
+ <!-- Recording -->
+ <sc-if value="{{isRec}}" hint-placeholder-val="{{ false }}">
+  <div class="sheet" role="dialog" aria-label="Diktálás"><span class="grab"></span>
+   <div class="sh"><span class="sht">Mondd el, mi a feladat</span><button class="x" onClick="{{close}}" aria-label="Bezárás"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="{{ic.x}}"/></svg></button></div>
+   <span style="font-size: 15px; font-weight: 600; color: #4A4F57; line-height: 1.4">Méretek, ablakok, ajtók és a munkák — az AI kitölti a mezőket és javaslatot ad a tételekre.</span>
+   <div style="display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 8px 0"><span style="width: 96px; height: 96px; border-radius: 48px; background: #C62828; color: #fff; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 0 12px rgba(198,40,40,0.15)"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6a3 3 0 106 0v6a3 3 0 10-6 0zM5 11a7 7 0 0014 0M12 18v3"/></svg></span><span class="n" style="font-size: 28px">00:14</span></div>
+   <button onClick="{{toMerge}}" style="height: 60px; border: 0; border-radius: 30px; background: #0E1116; color: #fff; font-size: 17px; font-weight: 700">Leállítás</button>
+  </div>
+ </sc-if>
+
+ <!-- Merge + generate -->
+ <sc-if value="{{isMerge}}" hint-placeholder-val="{{ false }}">
+  <div class="sheet" role="dialog" aria-label="Átirat"><span class="grab"></span>
+   <span class="sht">Átirat</span>
+   <div class="card" style="padding: 14px 16px; font-size: 16px; font-weight: 500; line-height: 1.45; box-shadow: none; background: #fff">„Négy kettő meg három hatvan, két ablak, egy ajtó. Régi csempe bontás, glettelés, festés két rétegben.”</div>
+   <div style="display: flex; gap: 6px; flex-wrap: wrap"><span class="badge">3,2 × 4,4 m</span><span class="badge">2 ablak</span><span class="badge">1 ajtó</span></div>
+   <div style="display: flex; gap: 8px"><button onClick="{{pickMerge}}" aria-pressed="{{mAppend}}" class="chip" style="flex: 1; justify-content: center; background: {{mAppendBg}}; color: {{mAppendFg}}">Hozzáfűzés →</button><button onClick="{{pickOver}}" aria-pressed="{{mOver}}" class="chip" style="flex: 1; justify-content: center; background: {{mOverBg}}; color: {{mOverFg}}">Felülírás →</button></div>
+   <span class="lbl">Generáljuk a tételeket?</span>
+   <button onClick="{{genYes}}" style="height: 60px; border: 0; border-radius: 30px; background: #0A7F72; color: #fff; font-size: 17px; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 10px"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/></svg>Igen, generálás</button>
+   <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px"><button onClick="{{close}}" style="height: 56px; border: 0; border-radius: 28px; background: #EFEDE6; color: #0E1116; font-size: 16px; font-weight: 700">Csak mentés</button><button onClick="{{toRec}}" style="height: 56px; border: 0; border-radius: 28px; background: #EFEDE6; color: #0E1116; font-size: 16px; font-weight: 700">← Vissza</button></div>
+  </div>
+ </sc-if>
+
+ <!-- Item drawer -->
+ <sc-if value="{{isDrawer}}" hint-placeholder-val="{{ false }}">
+  <div class="sheet" role="dialog" aria-label="Tétel"><span class="grab"></span>
+   <div class="sh"><span class="sht">{{drawerTitle}}</span><button class="x" onClick="{{close}}" aria-label="Bezárás"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="{{ic.x}}"/></svg></button></div>
+   <div style="display: flex; gap: 8px; overflow-x: auto"><sc-for list="{{types}}" as="t" hint-placeholder-count="5"><button onClick="{{t.pick}}" aria-pressed="{{t.on}}" class="chip" style="flex: none; background: {{t.bg}}; color: {{t.fg}}">{{t.label}}</button></sc-for></div>
+   <label style="display: flex; flex-direction: column; gap: 4px"><span style="font-size: 14px; font-weight: 700">Leírás *</span><input class="fld" placeholder="{{ph}}" value="{{desc}}"></label>
+   <div style="display: flex; align-items: center; justify-content: space-between; box-sizing: border-box; padding: 8px 8px 8px 16px; border-radius: 28px; background: #fff"><span style="display: flex; flex-direction: column"><span class="m">Mennyiség ({{unit}})</span><span class="n" style="font-size: 28px; line-height: 1.1">{{qty}}</span></span>
+    <span style="display: flex; gap: 8px"><button onClick="{{qDec}}" aria-label="Kevesebb" style="width: 56px; height: 56px; border: 0; border-radius: 28px; background: #F1F1F3; color: #1A1D23; display: flex; align-items: center; justify-content: center"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"><path d="M5 12h14"/></svg></button><button onClick="{{qInc}}" aria-label="Több" style="width: 56px; height: 56px; border: 0; border-radius: 28px; background: #0E1116; color: #fff; display: flex; align-items: center; justify-content: center"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"><path d="{{ic.plus}}"/></svg></button></span></div>
+   <div style="display: flex; gap: 8px; overflow-x: auto"><sc-for list="{{units}}" as="u" hint-placeholder-count="5"><button onClick="{{u.pick}}" aria-pressed="{{u.on}}" class="chip" style="flex: none; height: 46px; background: {{u.bg}}; color: {{u.fg}}">{{u.label}}</button></sc-for></div>
+   <label style="display: flex; flex-direction: column; gap: 4px"><span style="font-size: 14px; font-weight: 700">Megjegyzés</span><input class="fld" placeholder="Opcionális"></label>
+   <div style="display: flex; gap: 8px"><sc-if value="{{isEdit}}" hint-placeholder-val="{{ false }}"><button onClick="{{delItem}}" aria-label="Törlés" style="flex: none; width: 60px; height: 60px; border: 0; border-radius: 30px; background: #FDECEC; color: #B71C1C; display: flex; align-items: center; justify-content: center"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg></button></sc-if>
+    <button onClick="{{saveItem}}" class="pri">{{saveLabel}}</button></div>
+  </div>
+ </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  state = { mode: null, items: [
+    { id: 1, type: 'Anyag', desc: 'Glett, Dispersit', qty: 14, unit: 'm²', note: '' },
+    { id: 2, type: 'Munkadíj', desc: 'Glettelés, festés 2 réteg', qty: 14, unit: 'm²', note: 'A mennyezet nélkül' },
+    { id: 3, type: 'Szállítás', desc: 'Törmelék elszállítása', qty: 1, unit: 'út', note: '' }
+  ], sug: [], sel: [], status: null, edit: null, dType: 'Anyag', dUnit: 'm²', dQty: 1, dDesc: '', merge: 'append' };
+  renderVals() {
+    const st = this.state;
+    const IC = { back: 'M15 6l-6 6 6 6', plus: 'M12 5v14M5 12h14', x: 'M6 6l12 12M18 6L6 18', check: 'M5 12l5 5 9-10' };
+    const TY = { Anyag: ['#D9F2EE', '#0A5C53', 'm²', 'pl. Csempe, Ragasztó, Gipszkarton'], Munkadíj: ['#FFE9D2', '#8A4200', 'm²', 'pl. Csempe rakás, Festés, Glettelés'], Eszközbérlés: ['#EDE9FE', '#4C1D95', 'nap', 'pl. Állványzat bérlés, Betonkeverő'], Szállítás: ['#E7E7EB', '#2B3038', 'út', 'pl. Törmelék elszállítás'], Egyéb: ['#E7E7EB', '#2B3038', 'db', 'pl. Engedély, Tervezési díj'] };
+    const UN = ['m²', 'fm', 'db', 'óra', 'nap', 'út', 'zsák', 'átalány'];
+    const set = (p) => () => this.setState(p);
+    const mapIt = (i) => ({ type: i.type, tbg: TY[i.type][0], tfg: TY[i.type][1], desc: i.desc, qty: i.qty, unit: i.unit, note: i.note,
+      edit: () => this.setState({ mode: 'drawer', edit: i.id, dType: i.type, dUnit: i.unit, dQty: i.qty, dDesc: i.desc }) });
+    const sug = st.sug.map((s) => ({ ...mapIt(s), qty: s.qty + ' ' + s.unit, on: st.sel.includes(s.id), bg: st.sel.includes(s.id) ? '#E8F7F4' : '#F7F5EF', ring: st.sel.includes(s.id) ? '#0A7F72' : '#B9B5AA', fill: st.sel.includes(s.id) ? '#0A7F72' : 'transparent',
+      pick: () => this.setState({ sel: st.sel.includes(s.id) ? st.sel.filter((x) => x !== s.id) : st.sel.concat(s.id) }) }));
+    const aiMap = { filling: 'Méretek és leírás kinyerése…', generating: 'Tételek generálása…', done: 'Kész — tételek hozzáadva', error: 'Hiba a feldolgozás során' };
+    const gen = () => {
+      this.setState({ mode: null, status: 'generating', sug: [] });
+      setTimeout(() => this.setState({ status: 'done', sug: [
+        { id: 11, type: 'Anyag', desc: 'Csempe 30×60, fehér', qty: 5, unit: 'm²', note: '' },
+        { id: 12, type: 'Munkadíj', desc: 'Régi csempe bontása', qty: 5, unit: 'm²', note: '' },
+        { id: 13, type: 'Anyag', desc: 'Csempe ragasztó', qty: 4, unit: 'zsák', note: '' }], sel: [11, 12, 13] }), 900);
+    };
+    const save = () => {
+      const row = { id: st.edit || Date.now(), type: st.dType, desc: st.dDesc || 'Új tétel', qty: st.dQty, unit: st.dUnit, note: '' };
+      this.setState({ items: st.edit ? st.items.map((x) => (x.id === st.edit ? row : x)) : st.items.concat(row), mode: null, edit: null });
+    };
+    return {
+      ic: IC, items: st.items.map(mapIt), noItems: st.items.length === 0, sug, hasSug: st.sug.length > 0, selCount: st.sel.length,
+      selAllLabel: st.sel.length === st.sug.length ? 'Egyik sem' : 'Összes', selAll: () => this.setState({ sel: st.sel.length === st.sug.length ? [] : st.sug.map((s) => s.id) }),
+      accept: () => this.setState({ items: st.items.concat(st.sug.filter((s) => st.sel.includes(s.id))), sug: st.sug.filter((s) => !st.sel.includes(s.id)), sel: [] }),
+      dropSug: () => this.setState({ sug: st.sug.filter((s) => !st.sel.includes(s.id)), sel: [] }),
+      aiLine: st.status ? aiMap[st.status] : '', aiBg: st.status === 'done' ? '#E7F4EC' : st.status === 'error' ? '#FDECEC' : '#D9F2EE', aiFg: st.status === 'done' ? '#14532D' : st.status === 'error' ? '#9B1C1C' : '#0A5C53',
+      mode: !!st.mode, close: set({ mode: null }), isRec: st.mode === 'rec', isMerge: st.mode === 'merge', isDrawer: st.mode === 'drawer',
+      toRec: set({ mode: 'rec' }), toMerge: set({ mode: 'merge' }), doGen: gen, genYes: gen,
+      mAppend: st.merge === 'append', mOver: st.merge === 'over', pickMerge: set({ merge: 'append' }), pickOver: set({ merge: 'over' }),
+      mAppendBg: st.merge === 'append' ? '#0E1116' : '#fff', mAppendFg: st.merge === 'append' ? '#fff' : '#0E1116', mOverBg: st.merge === 'over' ? '#0E1116' : '#fff', mOverFg: st.merge === 'over' ? '#fff' : '#0E1116',
+      newItem: set({ mode: 'drawer', edit: null, dType: 'Anyag', dUnit: 'm²', dQty: 1, dDesc: '' }), isEdit: !!st.edit, drawerTitle: st.edit ? 'Tétel szerkesztése' : 'Új tétel', saveLabel: st.edit ? 'Módosítás' : 'Hozzáadás',
+      types: Object.keys(TY).map((k) => ({ label: k, on: st.dType === k, bg: st.dType === k ? '#0E1116' : '#fff', fg: st.dType === k ? '#fff' : '#0E1116', pick: set({ dType: k, dUnit: TY[k][2] }) })),
+      units: UN.map((u) => ({ label: u, on: st.dUnit === u, bg: st.dUnit === u ? '#0A7F72' : '#fff', fg: st.dUnit === u ? '#fff' : '#0E1116', pick: set({ dUnit: u }) })),
+      ph: TY[st.dType][3], desc: st.dDesc, unit: st.dUnit, qty: st.dQty, qDec: set({ dQty: Math.max(1, st.dQty - 1) }), qInc: set({ dQty: st.dQty + 1 }),
+      saveItem: save, delItem: () => this.setState({ items: st.items.filter((x) => x.id !== st.edit), mode: null, edit: null })
+    };
+  }
+}
+</script></body></html>

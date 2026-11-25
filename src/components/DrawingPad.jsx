@@ -1,122 +1,171 @@
 'use client';
 
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useImperativeHandle, forwardRef } from 'react';
 import dynamic from 'next/dynamic';
-import { Undo2, Trash2, Check, X, Loader2 } from 'lucide-react';
+import { useTranslations } from 'next-intl';
+import useMobile from '@/hooks/useMobile';
 
 const ReactSketchCanvas = dynamic(
   () => import('react-sketch-canvas').then(m => m.ReactSketchCanvas),
-  { ssr: false, loading: () => <div style={{ height: 300, background: '#f8fafc', borderRadius: 'var(--radius-md)' }} /> }
+  { ssr: false, loading: () => <div style={{ flex: 1, background: '#f8fafc' }} /> }
 );
 
-const COLORS = [
-  { value: '#1e293b', label: 'Fekete' },
-  { value: '#2563eb', label: 'Kék' },
-  { value: '#dc2626', label: 'Piros' },
-  { value: '#16a34a', label: 'Zöld' },
+const COLOR_VALUES = [
+  { value: '#1e293b', key: 'colorBlack' },
+  { value: '#2563eb', key: 'colorBlue'  },
+  { value: '#dc2626', key: 'colorRed'   },
+  { value: '#16a34a', key: 'colorGreen' },
 ];
 
 const STROKES = [
-  { value: 2, size: 2 },
-  { value: 4, size: 4 },
-  { value: 8, size: 7 },
+  { value: 2,  size: 2 },
+  { value: 4,  size: 4 },
+  { value: 8,  size: 7 },
 ];
 
-
-export default function DrawingPad({ onSave, onCancel, saving }) {
+const DrawingPad = forwardRef(function DrawingPad({ onSave, onCancel, saving, backgroundSvg, onDirtyChange }, ref) {
+  const t  = useTranslations('drawings');
+  const tc = useTranslations('common');
+  const isMobile = useMobile();
   const canvasRef = useRef();
-  const [color, setColor]   = useState('#1e293b');
-  const [stroke, setStroke] = useState(4);
+  const [color,          setColor]          = useState('#1e293b');
+  const [stroke,         setStroke]         = useState(4);
+  const [isDirty,        setIsDirty]        = useState(false);
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
+
+  // Convert SVG string to a data URL so ReactSketchCanvas can use it as background
+  const bgDataUrl = backgroundSvg
+    ? 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(backgroundSvg)))
+    : undefined;
+
+  // Expose requestClose() so the parent sheet's ✕ button can go through the dirty check
+  useImperativeHandle(ref, () => ({
+    requestClose: () => {
+      if (isDirty) { setConfirmDiscard(true); }
+      else { onCancel(); }
+    },
+  }), [isDirty, onCancel]);
 
   const handleSave = async () => {
     const svg = await canvasRef.current.exportSvg();
+    setIsDirty(false);
+    onDirtyChange?.(false);
     onSave(svg);
   };
 
+  const handleCancel = () => {
+    if (isDirty) { setConfirmDiscard(true); return; }
+    onCancel();
+  };
+
   return (
-    <div>
+    <div style={{ width: '100%', display: 'flex', flexDirection: 'column', padding: '10px 14px 14px', gap: 10, boxSizing: 'border-box' }}>
+
       {/* Toolbar */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', marginBottom: '0.65rem', flexWrap: 'wrap' }}>
-        {/* Colors */}
-        <div style={{ display: 'flex', gap: '0.4rem' }}>
-          {COLORS.map(c => (
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+        {/* Color dots */}
+        <div style={{ display: 'flex', gap: 6 }}>
+          {COLOR_VALUES.map(c => (
             <button
               key={c.value}
               type="button"
               onClick={() => setColor(c.value)}
-              title={c.label}
+              aria-label={t(c.key)}
+              aria-pressed={color === c.value}
               style={{
-                width: 26, height: 26, borderRadius: '50%',
+                width: 30, height: 30, borderRadius: 15, padding: 0, cursor: 'pointer',
                 background: c.value,
-                border: color === c.value ? '3px solid white' : '2px solid transparent',
+                border: color === c.value ? '3px solid #fff' : '2px solid transparent',
                 outline: color === c.value ? `2px solid ${c.value}` : 'none',
-                cursor: 'pointer', padding: 0, flexShrink: 0,
+                flexShrink: 0,
               }}
             />
           ))}
         </div>
 
         {/* Stroke widths */}
-        <div style={{ display: 'flex', gap: '0.3rem' }}>
+        <div style={{ display: 'flex', gap: 4 }}>
           {STROKES.map(s => (
             <button
               key={s.value}
               type="button"
               onClick={() => setStroke(s.value)}
-              title={`${s.value}px`}
+              aria-pressed={stroke === s.value}
               style={{
-                width: 34, height: 28, borderRadius: 'var(--radius-sm)',
-                border: stroke === s.value ? '2px solid var(--accent)' : '1px solid var(--border-subtle)',
-                background: stroke === s.value ? 'var(--accent-light)' : '#fff',
-                cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0,
+                width: 38, height: 34, borderRadius: 17, border: 0, cursor: 'pointer',
+                background: stroke === s.value ? '#0E1116' : '#F0F0F2',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0,
               }}
             >
-              <div style={{ width: 16, height: s.size, background: color, borderRadius: 2 }} />
+              <div style={{ width: 16, height: s.size, background: stroke === s.value ? '#fff' : color, borderRadius: 2 }} />
             </button>
           ))}
         </div>
 
-        {/* Undo + Clear */}
-        <div style={{ display: 'flex', gap: '0.3rem', marginLeft: 'auto' }}>
-          <button type="button" onClick={() => canvasRef.current?.undo()} className="btn btn-secondary btn-sm" style={{ padding: '0.3rem 0.55rem' }} title="Visszavonás">
-            <Undo2 size={14} />
-          </button>
-          <button type="button" onClick={() => canvasRef.current?.clearCanvas()} className="btn btn-secondary btn-sm" style={{ padding: '0.3rem 0.55rem' }} title="Törlés">
-            <Trash2 size={14} />
-          </button>
-        </div>
+        {/* Undo */}
+        <button
+          type="button"
+          onClick={() => canvasRef.current?.undo()}
+          aria-label={t('undo')}
+          style={{ marginLeft: 'auto', width: 44, height: 44, borderRadius: 22, border: 0, background: '#F0F0F2', color: '#0E1116', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M9 14L4 9l5-5M4 9h11a5 5 0 010 10h-3"/>
+          </svg>
+        </button>
       </div>
 
-      {/* Canvas */}
+      {/* Canvas — 9:16 portrait on mobile, 16:9 landscape on desktop */}
       <div style={{
-        width: '100%',
-        height: 'min(680px, 62vh)',
-        borderRadius: 'var(--radius-md)', overflow: 'hidden',
-        border: '1.5px solid var(--border-subtle)',
-        backgroundImage: 'radial-gradient(circle, #94a3b8 1px, transparent 1px)',
+        width: '100%', aspectRatio: isMobile ? '9/16' : '16/9', borderRadius: 16, overflow: 'hidden',
+        border: '1.5px solid #EDEBE5',
+        backgroundImage: 'radial-gradient(circle, #cbd5e1 1px, transparent 1px)',
         backgroundSize: '20px 20px', backgroundColor: '#f8fafc',
         touchAction: 'none',
       }}>
         <ReactSketchCanvas
           ref={canvasRef}
-          width="800"
-          height="760"
           strokeColor={color}
           strokeWidth={stroke}
           canvasColor="transparent"
+          backgroundImage={bgDataUrl}
+          preserveBackgroundImageAspectRatio="none"
+          onChange={(paths) => { if (paths?.length > 0 && !isDirty) { setIsDirty(true); onDirtyChange?.(true); } }}
           style={{ display: 'block', width: '100%', height: '100%', touchAction: 'none' }}
         />
       </div>
 
-      {/* Actions */}
-      <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', marginTop: '0.75rem' }}>
-        <button type="button" onClick={onCancel} className="btn btn-secondary btn-sm" disabled={saving}>
-          <X size={14} /> Mégse
-        </button>
-        <button type="button" onClick={handleSave} className="btn btn-primary btn-sm" disabled={saving}>
-          {saving ? <><Loader2 size={14} className="animate-spin" />Mentés</> : <><Check size={14} /> Mentés</>}
-        </button>
-      </div>
+      {/* Actions — or discard confirmation */}
+      {confirmDiscard ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flexShrink: 0 }}>
+          <span style={{ textAlign: 'center', fontSize: 14, fontWeight: 700, color: '#5A5F68' }}>{t('unsavedWarning')}</span>
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button type="button" onClick={() => setConfirmDiscard(false)} style={{ flex: 1, height: 56, border: 0, borderRadius: 28, background: '#F0F0F2', color: '#0E1116', fontSize: 16, fontWeight: 700, cursor: 'pointer' }}>
+              {t('keepDrawing')}
+            </button>
+            <button type="button" onClick={() => { onDirtyChange?.(false); onCancel(); }} style={{ flex: 1, height: 56, border: 0, borderRadius: 28, background: '#B71C1C', color: '#fff', fontSize: 16, fontWeight: 700, cursor: 'pointer' }}>
+              {t('discardBtn')}
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div style={{ display: 'flex', gap: 10, flexShrink: 0 }}>
+          <button type="button" onClick={handleCancel} disabled={saving} style={{ flex: 1, height: 56, border: 0, borderRadius: 28, background: '#F0F0F2', color: '#0E1116', fontSize: 16, fontWeight: 700, cursor: 'pointer', opacity: saving ? 0.6 : 1 }}>
+            {tc('cancel')}
+          </button>
+          <button type="button" onClick={handleSave} disabled={saving} style={{ flex: 2, height: 56, border: 0, borderRadius: 28, background: '#0E1116', color: '#fff', fontSize: 16, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, opacity: saving ? 0.7 : 1 }}>
+            {saving ? (
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" style={{ animation: 'dpspin 1s linear infinite' }} aria-hidden="true"><path d="M21 12a9 9 0 1 1-18 0"/></svg>
+            ) : (
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg>
+            )}
+            {tc('save')}
+          </button>
+        </div>
+      )}
+      <style>{`@keyframes dpspin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );
-}
+});
+
+export default DrawingPad;

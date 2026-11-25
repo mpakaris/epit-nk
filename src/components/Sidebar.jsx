@@ -10,8 +10,8 @@ import { useApp } from '@/context/AppContext';
 import {
   Building2, LayoutDashboard, FolderKanban, Users, BookUser,
   FileText, Calendar, User, LogOut, ShieldAlert,
-  ChevronLeft, ChevronRight, Eye, X, Menu, ClipboardList, Ruler, Lightbulb,
-  Globe, ImageIcon, UsersRound, CreditCard, Package, MessageSquare, Mail,
+  ChevronLeft, ChevronRight, Eye, X, Menu, ClipboardList, Ruler,
+  Globe, ImageIcon, UsersRound, CreditCard, LayoutTemplate, MessageSquare, Mail,
 } from 'lucide-react';
 import FloatingNav from './mobile/FloatingNav';
 import NotificationBell from './NotificationBell';
@@ -58,14 +58,14 @@ function buildNavItems(isSuperAdmin, isAdmin, impersonating, websiteUnread = 0, 
     { href: prefix + '/felmeres',     label: t('nav.surveys'),        icon: Ruler,        count: counts.surveys  },
     { href: prefix + '/ajanlatok',    label: t('nav.quotes'),         icon: FileText,     count: counts.quotes   },
     { href: prefix + '/projektek',    label: t('nav.projects'),       icon: FolderKanban, count: counts.projects },
-    { href: prefix + '/katalogus',    label: t('nav.catalogue'),      icon: Package },
+    { href: prefix + '/sablonok',      label: t('nav.templates'),      icon: LayoutTemplate },
     { divider: true, key: 'd-kapcs',  group: t('groups.contacts') },
     { href: prefix + '/ugyfelek',     label: t('nav.clients'),        icon: BookUser,  count: counts.clients },
-    { href: prefix + '/uzenetek',     label: t('nav.messages'),       icon: MessageSquare, badge: msgUnread },
+    // MESSAGING DISABLED — keep route but hide from nav until messaging is re-enabled
+    // { href: prefix + '/uzenetek',     label: t('nav.messages'),       icon: MessageSquare, badge: msgUnread },
     { href: prefix + '/kollektivak',  label: t('nav.collectives'),    icon: UsersRound, count: counts.collectives, badge: invitationCount },
     { divider: true, key: 'd-egyeb',  group: t('groups.other') },
     { href: prefix + '/naptar',       label: t('nav.calendar'),       icon: Calendar },
-    { href: prefix + '/otletek',      label: t('nav.ideas'),          icon: Lightbulb },
     { href: prefix + '/weboldalam',   label: t('nav.website'),        icon: Globe, badge: websiteUnread },
     { divider: true, key: 'd-profil' },
     { href: prefix + '/profil',              label: t('nav.myProfile'),      icon: User },
@@ -147,19 +147,19 @@ export default function Sidebar() {
       .catch(() => {});
   }, [currentUser, isSuperAdmin, impersonating, isDemoMode]);
 
-  // Fetch unread client message count for the Üzenetek badge
-  useEffect(() => {
-    if (!currentUser || isSuperAdmin || impersonating || isDemoMode) return;
-    const fetchCount = () => {
-      fetch('/api/messages/unread-count')
-        .then(r => r.ok ? r.json() : { count: 0 })
-        .then(d => setMsgUnread(d.count || 0))
-        .catch(() => {});
-    };
-    fetchCount();
-    window.addEventListener('epitek:msg-read', fetchCount);
-    return () => window.removeEventListener('epitek:msg-read', fetchCount);
-  }, [currentUser, isSuperAdmin, impersonating, isDemoMode, pathname]);
+  // MESSAGING DISABLED — re-enable this effect when messaging is re-introduced
+  // useEffect(() => {
+  //   if (!currentUser || isSuperAdmin || impersonating || isDemoMode) return;
+  //   const fetchCount = () => {
+  //     fetch('/api/messages/unread-count')
+  //       .then(r => r.ok ? r.json() : { count: 0 })
+  //       .then(d => setMsgUnread(d.count || 0))
+  //       .catch(() => {});
+  //   };
+  //   fetchCount();
+  //   window.addEventListener('epitek:msg-read', fetchCount);
+  //   return () => window.removeEventListener('epitek:msg-read', fetchCount);
+  // }, [currentUser, isSuperAdmin, impersonating, isDemoMode, pathname]);
 
   useEffect(() => {
     document.documentElement.style.setProperty('--sidebar-w', collapsed ? '60px' : '240px');
@@ -222,7 +222,7 @@ export default function Sidebar() {
 
   if (!currentUser && pathname === '/login') return null;
   if (!currentUser) return null;
-  if (pathname.startsWith('/naplo/') || pathname.startsWith('/szakemberek/') || pathname.startsWith('/demo/szakemberek/') || pathname.startsWith('/invitations/') || pathname.startsWith('/impressum') || pathname.startsWith('/adatkezeles') || pathname.startsWith('/aszf') || pathname.startsWith('/about')) return null;
+  if (pathname.startsWith('/naplo/') || pathname.startsWith('/pro/') || pathname.startsWith('/demo/pro/') || pathname.startsWith('/invitations/') || pathname.startsWith('/impressum') || pathname.startsWith('/adatkezeles') || pathname.startsWith('/aszf') || pathname.startsWith('/about')) return null;
 
   const counts = (!isSuperAdmin || impersonating) ? {
     surveys:     totalCounts ? totalCounts.surveys  : (surveys  || []).filter(s => s.status !== 'done').length,
@@ -444,6 +444,7 @@ export default function Sidebar() {
         {impersonating && <Eye size={15} style={{ flexShrink: 0, color: '#7c3aed' }} />}
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', flexShrink: 0 }}>
+          {/* MESSAGING DISABLED — restore AppLink to /uzenetek when re-enabled
           {!isSuperAdmin && !isDemoMode && (
             <AppLink
               href={`${navPrefix}/uzenetek`}
@@ -456,6 +457,7 @@ export default function Sidebar() {
               )}
             </AppLink>
           )}
+          */}
           <button type="button" className="mobile-menu-btn" onClick={() => setMobileOpen(true)} aria-label={t('menu')}>
             <Menu size={20} />
           </button>

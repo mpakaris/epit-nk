@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { logAudit } from '@/lib/audit';
+import { checkCollectiveStatus } from '@/lib/collectiveGuard';
 
 async function resolveAccess(user, invoiceId) {
   const admin = createAdminClient();
@@ -17,13 +18,23 @@ async function resolveAccess(user, invoiceId) {
     .is('deleted_at', null).single();
   if (!project) return null;
 
-  const isSuperAdmin  = profile.role === 'superadmin';
+  const isSuperAdmin   = profile.role === 'superadmin';
   const isProjectOwner = project.owner_id === user.id || project.created_by === user.id;
-  const isOwnEntry    = invoice.uploaded_by === user.id;
+  const isOwnEntry     = invoice.uploaded_by === user.id;
 
-  if (!isSuperAdmin && !isProjectOwner && !isOwnEntry) return null;
+  if (isSuperAdmin || isProjectOwner || isOwnEntry) return { admin, profile, invoice, project };
 
-  return { admin, profile, invoice, project };
+  if (project.collective_id) {
+    const { data: mem } = await admin.from('collective_members')
+      .select('role')
+      .eq('collective_id', project.collective_id)
+      .eq('user_id', user.id)
+      .eq('status', 'active')
+      .maybeSingle();
+    if (mem && (mem.role === 'owner' || mem.role === 'admin')) return { admin, profile, invoice, project };
+  }
+
+  return null;
 }
 
 export async function PATCH(request, { params }) {
@@ -36,8 +47,11 @@ export async function PATCH(request, { params }) {
   if (!ctx) return Response.json({ error: 'Nincs hozzáférés' }, { status: 403 });
   const { admin, profile, project } = ctx;
 
+  const statusBlocked = await checkCollectiveStatus(admin, project.collective_id);
+  if (statusBlocked) return statusBlocked;
+
   const fields = await request.json();
-  const allowed = ['value_huf', 'category', 'description', 'ai_line_items', 'ai_total', 'image_url', 'storage_path', 'portal_visible'];
+  const allowed = ['value_huf', 'category', 'description', 'room_id', 'ai_line_items', 'ai_total', 'image_url', 'storage_path', 'portal_visible'];
   const update = {};
   for (const k of allowed) if (k in fields) update[k] = fields[k];
 
@@ -50,8 +64,8 @@ export async function PATCH(request, { params }) {
     userId:     user.id,
     userName:   profile.display_name || user.email,
     action:     isPortalToggle
-      ? (update.portal_visible ? 'Számla megjelent a portálon' : 'Számla eltávolítva a portálról')
-      : 'Számla módosítva',
+      ? (update.portal_visible ? 'invoice.portal_shown' : 'invoice.portal_hidden')
+      : 'invoice.edited',
     targetType: 'project',
     targetId:   project.id,
     targetName: project.name,
@@ -73,6 +87,9 @@ export async function DELETE(request, { params }) {
   if (!ctx) return Response.json({ error: 'Nincs hozzáférés' }, { status: 403 });
   const { admin, profile, project } = ctx;
 
+  const statusBlockedDel = await checkCollectiveStatus(admin, project.collective_id);
+  if (statusBlockedDel) return statusBlockedDel;
+
   const { error } = await admin.from('invoices').update({
     deleted_at:       new Date().toISOString(),
     deleted_by_name:  profile.display_name || user.email,
@@ -83,7 +100,7 @@ export async function DELETE(request, { params }) {
     entityId:   project.collective_id || user.id,
     userId:     user.id,
     userName:   profile.display_name || user.email,
-    action:     'Számla törölve',
+    action:     'invoice.deleted',
     targetType: 'project',
     targetId:   project.id,
     targetName: project.name,

@@ -172,7 +172,7 @@ export async function buildAgentContext(account, conversation) {
   // Build system prompt
   const lines = [
     'Te Whinself vagy — az OkosSzaki (Epitek) WhatsApp asszisztense.',
-    'Az OkosSzaki egy alkalmazás magyar szakembereknek: felmérések, árajánlatok, projektek.',
+    'Az OkosSzaki egy alkalmazás magyar pronek: felmérések, árajánlatok, projektek.',
     'Felmérés státuszok: active=folyamatban, reopened=újranyitva (volt lezárva, de pótmunka miatt újra szerkesztik). A lezárt (done) felmérések nem jelennek meg itt — a felhasználó az alkalmazásban láthatja őket.',
     '',
     `Felhasználó: ${account.displayName}`,

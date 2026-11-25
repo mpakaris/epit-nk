@@ -1,0 +1,29 @@
+/* OkosSzaki mobile design tokens ("Pods").
+   Scope these under the mobile shell root (e.g. .m-root) so the desktop app is untouched. */
+.m-root {
+  /* neutrals */
+  --m-canvas: #EDEBE5;      /* page behind light sheets */
+  --m-sheet: #FBFAF7;       /* bottom sheets */
+  --m-card: #FFFFFF;
+  --m-ink: #0E1116;
+  --m-ink-2: #5A5F68;
+  --m-line: #EDEBE5;
+  --m-danger: #B71C1C; --m-danger-bg: #FDECEC;
+  --m-ok: #14532D;     --m-ok-bg: #E7F4EC;
+
+  /* DOCUMENT TYPE colours: own the header + deep body + accent of a document screen */
+  --m-survey: #0A7F72;  --m-survey-deep: #06302C; --m-survey-tint: #D9F2EE; --m-survey-ink: #0A5C53;
+  --m-offer:  #6D3FD1;  --m-offer-deep:  #1C1038; --m-offer-tint:  #EDE7FB; --m-offer-ink:  #4A2796;  /* designed in drop 2 */
+  --m-project:#263248;  --m-project-deep:#0B0F17; --m-project-tint:#E3E7EE; --m-project-ink:#263248;  /* slate-navy, the serious one (designed in drop 3) */
+  --m-clients:#B8456B;  --m-clients-deep:#2A0F1A; --m-clients-tint:#F8E4EC; --m-clients-ink:#8A2B4C;  /* rose — PROPOSED, drop 4, owner has not approved */
+  --m-profile:#44413B;  --m-profile-deep:#121110; --m-profile-tint:#ECEAE5; --m-profile-ink:#44413B;  /* stone/charcoal — PROPOSED, drop 4 */
+
+  /* WORKSPACE identity colours: pod strips, dock "+" and workspace chip only */
+  --m-ws-personal: #15181E; --m-ws-personal-deep: #0D0F13;
+  --m-ws-cobalt:   #2F5BFF; --m-ws-cobalt-deep:   #0E1840;
+  --m-ws-orange:   #FF8A2B; --m-ws-orange-deep:   #241409;
+
+  /* shape / touch */
+  --m-r-card: 26px; --m-r-btn: 30px; --m-r-header: 0 0 32px 32px; --m-r-sheet: 32px 32px 0 0;
+  --m-tap: 48px; --m-cta: 60px;
+}

@@ -3,6 +3,8 @@ import { sendEmail } from '@/lib/email';
 import { wrapEmail } from '@/lib/emailTemplates';
 import { logAudit } from '@/lib/audit';
 import { getPortalSession } from '@/lib/portalSession';
+import { createNotification, quoteNotifTitle, quoteEmailSubject, quoteEmailIntro, quoteEmailLabels } from '@/lib/notificationService';
+import { findOrCreateClientThread, insertMessage } from '@/lib/messageService';
 
 export async function POST(request, { params }) {
   const { id } = await params;
@@ -38,15 +40,16 @@ export async function POST(request, { params }) {
 
   if (!client) return Response.json({ error: 'Forbidden' }, { status: 403 });
 
-  // Fetch contractor email for notifications
+  // Fetch contractor profile (locale determines notification language)
   const { data: contractor } = await admin
     .from('profiles')
-    .select('display_name, company_name, email')
+    .select('display_name, company_name, email, locale')
     .eq('id', quote.owner_id)
     .single();
 
-  const contractorEmail = contractor?.email;
-  const contractorName  = contractor?.company_name || contractor?.display_name || 'Vállalkozó';
+  const contractorEmail  = contractor?.email;
+  const contractorName   = contractor?.company_name || contractor?.display_name || 'Vállalkozó';
+  const contractorLocale = contractor?.locale || 'hu';
 
   // Update quote status (not for 'question' — that keeps it as 'sent')
   if (action !== 'question') {
@@ -67,100 +70,61 @@ export async function POST(request, { params }) {
     client_name:  client.name,
   });
 
-  // For 'question': find or create a thread, then insert the message
+  // For 'question': find or create a thread, then insert the client's message
   if (action === 'question' && comment.trim()) {
-    let thread = null;
-    const { data: existing } = await admin
-      .from('threads')
-      .select('id')
-      .eq('owner_id', quote.owner_id)
-      .eq('client_id', quote.client_id)
-      .eq('quote_id', id)
-      .maybeSingle();
-    if (existing) {
-      thread = existing;
-    } else {
-      const { data: created } = await admin
-        .from('threads')
-        .insert({ type: 'client', owner_id: quote.owner_id, client_id: quote.client_id, quote_id: id })
-        .select('id').single();
-      thread = created;
-    }
-    if (thread) {
-      await admin.from('messages').insert({
-        thread_id:        thread.id,
-        sender_type:      'client',
-        sender_client_id: client.id,
-        body:             comment.trim(),
-      });
-    }
+    try {
+      const threadId = await findOrCreateClientThread(admin, { ownerId: quote.owner_id, clientId: quote.client_id, quoteId: id });
+      await insertMessage(admin, { threadId, senderClientId: client.id, senderType: 'client', body: comment.trim() });
+    } catch { /* non-fatal — notification still fires */ }
   }
 
-  // Write in-app notification for contractor
-  const notifTitles = {
-    accepted: `Elfogadott ajánlat: ${quote.title}`,
-    rejected: `Elutasított ajánlat: ${quote.title}`,
-    question: `Kérdés érkezett: ${quote.title}`,
-  };
-  const notifTypes = {
-    accepted: 'quote_accepted',
-    rejected: 'quote_rejected',
-    question: 'client_question',
-  };
-  await admin.from('notifications').insert({
-    user_id:     quote.owner_id,
-    type:        notifTypes[action],
-    title:       notifTitles[action],
-    body:        comment.trim() ? `${client.name}: ${comment.trim().slice(0, 120)}` : client.name,
-    link:        `/ajanlatok/${id}`,
-    source_type: 'quote',
-    source_id:   id,
-  });
+  // Map action → notification type
+  const notifTypeMap = { accepted: 'quote_accepted', rejected: 'quote_rejected', question: 'client_question' };
 
-  // Send email notification to contractor
+  // Write in-app notification in the contractor's language
+  try {
+    await createNotification(admin, {
+      userId:     quote.owner_id,
+      type:       notifTypeMap[action],
+      title:      quoteNotifTitle(notifTypeMap[action], contractorLocale, quote.title),
+      body:       comment.trim() ? `${client.name}: ${comment.trim().slice(0, 120)}` : client.name,
+      link:       `/ajanlatok/${id}`,
+      sourceType: 'quote',
+      sourceId:   id,
+    });
+  } catch { /* non-fatal */ }
+
+  // Send email notification to contractor (in contractor's language)
   if (contractorEmail) {
     try {
-      const subjectMap = {
-        accepted: `✅ Elfogadott ajánlat: ${quote.title}`,
-        rejected: `❌ Elutasított ajánlat: ${quote.title}`,
-        question: `💬 Kérdés az ajánlathoz: ${quote.title}`,
-      };
-      const introMap = {
-        accepted: `<p style="color:#15803d;font-weight:700;font-size:1rem;">Az ügyfél elfogadta az ajánlatot.</p>`,
-        rejected: `<p style="color:#b91c1c;font-weight:700;font-size:1rem;">Az ügyfél elutasította az ajánlatot.</p>`,
-        question: `<p style="color:#1e40af;font-weight:700;font-size:1rem;">Az ügyfél kérdést / módosítási kérelmet küldött.</p>`,
-      };
+      const subject  = quoteEmailSubject(action, contractorLocale, quote.title);
+      const labels   = quoteEmailLabels(contractorLocale);
       const bodyHtml = `
-        <p>Kedves ${contractorName}!</p>
-        ${introMap[action]}
+        <p>${labels.greeting(contractorName)}</p>
+        ${quoteEmailIntro(action, contractorLocale)}
         <table style="width:100%;border-collapse:collapse;margin:16px 0;">
-          <tr><td style="padding:8px 12px;background:#f8fafc;border:1px solid #e2e8f0;font-weight:700;width:120px;">Ajánlat</td>
+          <tr><td style="padding:8px 12px;background:#f8fafc;border:1px solid #e2e8f0;font-weight:700;width:120px;">${labels.quoteRow}</td>
               <td style="padding:8px 12px;border:1px solid #e2e8f0;">${quote.title}</td></tr>
-          <tr><td style="padding:8px 12px;background:#f8fafc;border:1px solid #e2e8f0;font-weight:700;">Ügyfél</td>
+          <tr><td style="padding:8px 12px;background:#f8fafc;border:1px solid #e2e8f0;font-weight:700;">${labels.clientRow}</td>
               <td style="padding:8px 12px;border:1px solid #e2e8f0;">${client.name} (${session.email})</td></tr>
         </table>
         ${comment.trim() ? `
           <div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:16px;margin:16px 0;">
             <p style="margin:0 0 8px;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:#0369a1;">
-              ${action === 'question' ? 'Üzenet' : 'Indoklás'}
+              ${action === 'question' ? labels.msgLabel : labels.reasonLabel}
             </p>
             <p style="margin:0;color:#0c4a6e;white-space:pre-wrap;">${comment.trim()}</p>
           </div>` : ''}
-        <p style="color:#64748b;font-size:14px;">Az ügyfél a portálon keresztül válaszolt.</p>
+        <p style="color:#64748b;font-size:14px;">${labels.footer}</p>
       `;
-      await sendEmail({
-        to: contractorEmail,
-        replyTo: session.email,
-        subject: subjectMap[action],
-        html: wrapEmail(bodyHtml, subjectMap[action]),
-      });
+      await sendEmail({ to: contractorEmail, replyTo: session.email, subject, html: wrapEmail(bodyHtml, subject) });
     } catch { /* email failure is non-fatal */ }
   }
 
   const actionLabels = {
-    accepted: 'Ügyfél elfogadta az ajánlatot',
-    rejected: 'Ügyfél elutasította az ajánlatot',
-    question: 'Ügyfél kérdést küldött',
+    accepted: 'Client accepted the quote',
+    rejected: 'Client rejected the quote',
+    question: 'Client sent a question',
   };
   logAudit({
     entityId:   quote.owner_id,

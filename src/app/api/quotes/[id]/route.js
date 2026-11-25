@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { logAudit } from '@/lib/audit';
 import { hasPendingTransfer, canUnlockToPersonal } from '@/lib/transferLock';
+import { checkCollectiveStatus } from '@/lib/collectiveGuard';
 
 async function getCallerAndQuote(id) {
   const supabase = await createClient();
@@ -39,17 +40,19 @@ export async function GET(request, { params }) {
   const ctx = await getCallerAndQuote(id);
   if (ctx.err) return Response.json({ error: ctx.err }, { status: ctx.status });
 
-  const [sectionsRes, entriesRes, mediaItemsRes] = await Promise.all([
+  const [sectionsRes, entriesRes, mediaItemsRes, drawingsRes] = await Promise.all([
     ctx.admin.from('quote_sections').select('*').eq('quote_id', id).order('created_at'),
     ctx.admin.from('quote_entries').select('*').eq('quote_id', id).order('created_at'),
     ctx.admin.from('media_items').select('*').eq('document_type', 'quote').eq('document_id', id).order('sort_order'),
+    ctx.admin.from('quote_drawings').select('*').eq('quote_id', id).order('created_at'),
   ]);
 
   return Response.json({
-    quote:      ctx.quote,
-    sections:   sectionsRes.data    || [],
-    entries:    entriesRes.data     || [],
-    mediaItems: mediaItemsRes.data  || [],
+    quote:         ctx.quote,
+    sections:      sectionsRes.data   || [],
+    entries:       entriesRes.data    || [],
+    mediaItems:    mediaItemsRes.data || [],
+    quoteDrawings: drawingsRes.data   || [],
   });
 }
 
@@ -65,6 +68,14 @@ export async function PATCH(request, { params }) {
 
   if (!isOwner && !isSuperAdmin && !isKollektivOwner)
     return Response.json({ error: 'Csak a tulajdonos módosíthatja az ajánlatot.' }, { status: 403 });
+
+  if (!isSuperAdmin && ctx.quote.is_read_only)
+    return Response.json({ error: 'Ez a dokumentum csak olvasható. Prémium csomagra váltva újra szerkeszthetővé válik.', read_only: true }, { status: 403 });
+
+  if (fields._action !== 'unlock') {
+    const statusBlocked = await checkCollectiveStatus(ctx.admin, ctx.quote.collective_id);
+    if (statusBlocked) return statusBlocked;
+  }
 
   // Unlock action
   if (fields._action === 'unlock') {
@@ -114,26 +125,19 @@ export async function PATCH(request, { params }) {
   const { data, error } = await ctx.admin.from('quotes').update(update).eq('id', id).select().single();
   if (error) return Response.json({ error: error.message }, { status: 400 });
 
-  const FIELD_LABELS = {
-    title: 'Ajánlat neve', location: 'Helyszín', work_type: 'Munka típusa',
-    description: 'Leírás', start_date: 'Kezdés', end_date: 'Befejezés',
-    client_id: 'Ügyfél', tax_percent: 'ÁFA kulcs', offer_number: 'Ajánlat száma',
-    valid_until: 'Érvényesség', offer_terms_text: 'Feltételek',
-    payment_deadline_days: 'Fizetési határidő', payment_method: 'Fizetési mód',
-    deposit_percent: 'Előleg', warranty_months: 'Garancia',
-  };
+  const FIELD_CODES = new Set([
+    'title', 'location', 'work_type', 'description', 'start_date', 'end_date',
+    'client_id', 'tax_percent', 'offer_number', 'valid_until', 'offer_terms_text',
+    'payment_deadline_days', 'payment_method', 'deposit_percent', 'warranty_months',
+  ]);
   const changedFields = (update.status || 'portal_visible' in update) ? null : Object.keys(update)
-    .filter(k => !['updated_at', 'updated_by_name'].includes(k) && update[k] !== ctx.quote[k])
-    .map(k => FIELD_LABELS[k])
-    .filter(Boolean);
-
-  const statusLabels = { draft: 'Tervezet', sent: 'Kiküldve', accepted: 'Elfogadva', rejected: 'Elutasítva' };
+    .filter(k => !['updated_at', 'updated_by_name'].includes(k) && FIELD_CODES.has(k) && update[k] !== ctx.quote[k]);
 
   const auditAction = 'portal_visible' in update && !update.status
-    ? (update.portal_visible ? 'Ajánlat megjelent a portálon' : 'Ajánlat eltávolítva a portálról')
+    ? (update.portal_visible ? 'quote.portal_shown' : 'quote.portal_hidden')
     : update.status
-      ? `Státusz: ${statusLabels[update.status] || update.status}`
-      : 'Ajánlat módosítva';
+      ? 'quote.status_changed'
+      : 'quote.edited';
 
   logAudit({
     entityId: ctx.quote.collective_id || ctx.user.id,
@@ -144,7 +148,7 @@ export async function PATCH(request, { params }) {
     targetId:   id,
     targetName: ctx.quote.title,
     details: update.status
-      ? { status: update.status, portal_visible: data.portal_visible }
+      ? { status: update.status }
       : 'portal_visible' in update
         ? { portal_visible: update.portal_visible }
         : (changedFields?.length ? { changed_fields: changedFields } : null),
@@ -164,6 +168,12 @@ export async function DELETE(request, { params }) {
   if (!isOwner && !isSuperAdmin && !isKollektivOwner)
     return Response.json({ error: 'Csak a tulajdonos törölheti az ajánlatot.' }, { status: 403 });
 
+  if (!isSuperAdmin && ctx.quote.is_seed)
+    return Response.json({ error: 'A mintadokumentum nem törölhető.' }, { status: 403 });
+
+  const statusBlockedDel = await checkCollectiveStatus(ctx.admin, ctx.quote.collective_id);
+  if (statusBlockedDel) return statusBlockedDel;
+
   if (!isSuperAdmin && await hasPendingTransfer('quote', id))
     return Response.json({ error: 'Ez a dokumentum átadás alatt áll, ezért nem módosítható.' }, { status: 423 });
 
@@ -174,7 +184,7 @@ export async function DELETE(request, { params }) {
     entityId: ctx.quote.collective_id || ctx.user.id,
     userId:   ctx.user.id,
     userName: ctx.profile.display_name || ctx.user.email,
-    action:   'Ajánlat törölve',
+    action:   'quote.deleted',
     targetType: 'quote',
     targetId:   id,
     targetName: ctx.quote.title,

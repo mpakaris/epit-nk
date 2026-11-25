@@ -56,7 +56,67 @@ export async function POST(request, { params }) {
     logAudit({ entityId: quote.collective_id || user.id, userId: user.id, userName: profile.display_name || user.email || '', action: 'Survey import failed', targetType: 'quote', targetId: quoteId, details: { error: error.message, survey_id: quote.survey_id } });
     return Response.json({ error: error.message }, { status: 500 });
   }
-  logAudit({ entityId: quote.collective_id || user.id, userId: user.id, userName: profile.display_name || user.email || '', action: 'Survey imported to quote', targetType: 'quote', targetId: quoteId, targetName: quote.id, details: { survey_id: quote.survey_id, sections_created: sections?.length || 0 } });
+
+  // Build a map: survey_entry_id → quote_section_id
+  const sectionMap = {};
+  for (const s of sections) if (s.survey_entry_id) sectionMap[s.survey_entry_id] = s.id;
+
+  // Fetch survey items for all entries
+  const entryIds = surveyEntries.map(e => e.id);
+  const { data: surveyItems } = await admin
+    .from('survey_entry_items')
+    .select('*')
+    .in('entry_id', entryIds)
+    .order('sort_order')
+    .order('created_at');
+
+  let entriesCreated = 0;
+  if (surveyItems?.length) {
+    const entryRows = surveyItems
+      .filter(item => sectionMap[item.entry_id])
+      .map(item => ({
+        quote_id:         quoteId,
+        section_id:       sectionMap[item.entry_id],
+        survey_entry_id:  item.entry_id,
+        work_description: item.description,
+        entry_type:       item.entry_type || 'material',
+        quantity:         item.quantity   || null,
+        unit:             item.unit       || null,
+        unit_price:       null,
+        amount_huf:       0,
+        user_id:          user.id,
+        created_by_name:  profile.display_name || '',
+      }));
+
+    if (entryRows.length) {
+      const sourceItems = surveyItems.filter(item => sectionMap[item.entry_id]);
+      const { data: createdEntries, error: entriesErr } = await admin
+        .from('quote_entries')
+        .insert(entryRows)
+        .select('id');
+
+      if (!entriesErr && createdEntries?.length) {
+        entriesCreated = createdEntries.length;
+        // Back-link each survey item to its new quote entry (positional match)
+        await Promise.all(
+          createdEntries.map((qe, i) =>
+            sourceItems[i]
+              ? admin.from('survey_entry_items').update({ quote_entry_id: qe.id }).eq('id', sourceItems[i].id)
+              : Promise.resolve()
+          )
+        );
+      }
+    }
+  }
+
+  logAudit({ entityId: quote.collective_id || user.id, userId: user.id, userName: profile.display_name || user.email || '', action: 'Survey imported to quote', targetType: 'quote', targetId: quoteId, targetName: quote.id, details: { survey_id: quote.survey_id, sections_created: sections?.length || 0, entries_created: entriesCreated } });
+
+  // Copy survey media and drawings into the quote (fire-and-forget — non-fatal)
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+  await Promise.allSettled([
+    fetch(`${baseUrl}/api/quotes/${quoteId}/copy-survey-media`,    { method: 'POST', headers: { cookie: request.headers.get('cookie') || '' } }),
+    fetch(`${baseUrl}/api/quotes/${quoteId}/copy-survey-drawings`, { method: 'POST', headers: { cookie: request.headers.get('cookie') || '' } }),
+  ]);
 
   // Flip survey to done on first import (only if still active)
   const { data: survey } = await admin.from('surveys').select('status').eq('id', quote.survey_id).is('deleted_at', null).single();

@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { logAudit } from '@/lib/audit';
 import { hasPendingTransfer, canUnlockToPersonal } from '@/lib/transferLock';
+import { checkCollectiveStatus } from '@/lib/collectiveGuard';
 import { sendEmail } from '@/lib/email';
 import { wrapEmail, buildProjectStatusEmailHtml } from '@/lib/emailTemplates';
 
@@ -111,6 +112,15 @@ export async function PATCH(request, { params }) {
   if (!isOwner && !isSuperAdmin && !isKollektivOwner)
     return Response.json({ error: 'Csak a tulajdonos módosíthatja a projektet.' }, { status: 403 });
 
+  if (!isSuperAdmin && ctx.project.is_read_only)
+    return Response.json({ error: 'Ez a dokumentum csak olvasható. Prémium csomagra váltva újra szerkeszthetővé válik.', read_only: true }, { status: 403 });
+
+  // Unlock is a recovery action allowed even on frozen collectives
+  if (fields._action !== 'unlock') {
+    const statusBlocked = await checkCollectiveStatus(ctx.admin, ctx.project.collective_id);
+    if (statusBlocked) return statusBlocked;
+  }
+
   // Unlock action
   if (fields._action === 'unlock') {
     if (!isOwner && !isSuperAdmin)
@@ -135,6 +145,7 @@ export async function PATCH(request, { params }) {
   const statusReason = typeof fields.status_reason === 'string' ? fields.status_reason.trim() : null;
 
   const allowed = ['name', 'description', 'start_date', 'end_date', 'client_id', 'closed_at', 'archived_at', 'status',
+                   'cost_target',
                    ...(isOwner || isSuperAdmin || isKollektivOwner ? ['collective_id'] : [])];
   const update = {};
   for (const k of allowed) if (k in fields) update[k] = fields[k];
@@ -147,10 +158,7 @@ export async function PATCH(request, { params }) {
     return Response.json({ error: error.message }, { status: 400 });
   }
 
-  const statusLabels = { active: 'Aktív', paused: 'Szüneteltetett', closed: 'Lezárt' };
-  const auditAction = fields.status
-    ? `Státusz módosítva: ${statusLabels[fields.status] || fields.status}`
-    : 'Projekt módosítva';
+  const auditAction = fields.status ? 'project.status_changed' : 'project.edited';
   logAudit({
     entityId: ctx.project.collective_id || ctx.user.id,
     userId: ctx.user.id,
@@ -159,12 +167,15 @@ export async function PATCH(request, { params }) {
     targetType: 'project',
     targetId: id,
     targetName: data.name,
-    details: statusReason ? { status_reason: statusReason } : null,
+    details: fields.status
+      ? { status: fields.status, ...(statusReason ? { status_reason: statusReason } : {}) }
+      : null,
   });
 
+  const STATUS_EMAIL_LABELS = { active: 'Aktív', paused: 'Szüneteltetett', closed: 'Lezárt' };
   // Fire-and-forget email notifications to all project members (except the actor)
   if (fields.status) {
-    const newStatusLabel = statusLabels[fields.status] || fields.status;
+    const newStatusLabel = STATUS_EMAIL_LABELS[fields.status] || fields.status;
     const actorName      = ctx.profile.display_name || ctx.user.email;
     const projectUrl     = `${process.env.NEXT_PUBLIC_APP_URL}/projektek/${id}`;
 
@@ -221,6 +232,12 @@ export async function DELETE(request, { params }) {
   if (!isOwner && !isSuperAdmin && !isKollektivOwner)
     return Response.json({ error: 'Csak a tulajdonos törölheti a projektet.' }, { status: 403 });
 
+  if (!isSuperAdmin && ctx.project.is_seed)
+    return Response.json({ error: 'A mintadokumentum nem törölhető.' }, { status: 403 });
+
+  const statusBlockedDel = await checkCollectiveStatus(ctx.admin, ctx.project.collective_id);
+  if (statusBlockedDel) return statusBlockedDel;
+
   if (!isSuperAdmin && await hasPendingTransfer('project', id))
     return Response.json({ error: 'Ez a dokumentum átadás alatt áll, ezért nem módosítható.' }, { status: 423 });
 
@@ -232,7 +249,7 @@ export async function DELETE(request, { params }) {
     entityId: ctx.project.collective_id || ctx.user.id,
     userId: ctx.user.id,
     userName: ctx.profile.display_name || ctx.user.email,
-    action: 'Projekt törölve',
+    action: 'project.deleted',
     targetType: 'project',
     targetId: id,
     targetName: ctx.project.name,

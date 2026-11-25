@@ -1,100 +1,78 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { useScrollLock } from '@/hooks/useScrollLock';
-import { AlertCircle, Loader2, Check, ChevronLeft, ChevronRight, Calendar, Flag, Play, Square, X, Trash2 } from 'lucide-react';
+import { Loader2, Check, Trash2, Send, FileText, X, Image as ImageIcon } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import Modal from '@/components/Modal';
-import ErrorBanner from '@/components/ErrorBanner';
-
-const ROMAN = ['I','II','III','IV','V','VI','VII','VIII','IX','X','XI','XII','XIII','XIV','XV','XVI','XVII','XVIII','XIX','XX'];
-
-
-export const MILESTONE_SUGGESTIONS = [
-  'Anyag helyszínen', 'Bontási munkák kész', 'Alapozási munkák kész',
-  'Falszerkezet kész', 'Tetőfedés kész', 'Nyílászárók beépítve',
-  'Gépészet kész', 'Vakolás kész', 'Burkolás kész', 'Festés kész',
-  'Szerkezet kész', 'Épület átadva',
-];
-
-export const TRIGGER_DISPLAY = {
-  start:     { labelKey: 'triggerStart',     bg: '#eff6ff', color: '#1d4ed8', border: '#bfdbfe' },
-  end:       { labelKey: 'triggerEnd',       bg: '#f0fdf4', color: '#15803d', border: '#bbf7d0' },
-  milestone: { labelKey: 'triggerMilestone', bg: '#fefce8', color: '#a16207', border: '#fde68a' },
-  date:      { labelKey: 'triggerDate',      bg: '#faf5ff', color: '#7e22ce', border: '#e9d5ff' },
-};
 
 export const STATUS_DISPLAY = {
-  pending:   { labelKey: 'statusPendingLabel',   bg: '#fefce8', color: '#a16207', border: '#fde68a' },
-  paid:      { labelKey: 'statusPaidLabel',      bg: '#f0fdf4', color: '#15803d', border: '#bbf7d0' },
-  cancelled: { labelKey: 'statusCancelledLabel', bg: '#f8fafc', color: '#64748b', border: '#e2e8f0' },
+  pending:   { labelKey: 'statusPending',  bg: '#fefce8', color: '#a16207' },
+  sent:      { labelKey: 'statusSent',     bg: '#eff6ff', color: '#1d4ed8' },
+  paid:      { labelKey: 'statusPaid',     bg: '#f0fdf4', color: '#15803d' },
+  cancelled: { labelKey: 'statusCanceled', bg: '#f8fafc', color: '#64748b' },
 };
 
-const S = {
-  heading: { fontSize: 20, fontWeight: 800, color: '#0f172a', margin: '0 0 6px', lineHeight: 1.25 },
-  sub:     { fontSize: 14, color: '#64748b', margin: '0 0 20px', lineHeight: 1.5 },
-  label:   { display: 'block', fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' },
-};
+const DK_LABEL = { display: 'block', fontSize: 11, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: '#5A5F68', marginBottom: 6 };
 
-export default function PaymentPlanModal({ isOpen, onClose, onSave, editItem, itemCount }) {
+export default function PaymentPlanModal({
+  isOpen, onClose,
+  editItem,
+  onSave,           // (fields, file) => Promise — file may be null
+  onSend,           // (toEmail) => Promise
+  onStatusChange,   // (newStatus) => Promise
+  onDelete,         // () => void
+  clientEmail,
+}) {
   const t = useTranslations('projectDetail');
-  const [step, setStep] = useState(1);
-  const TOTAL = 3;
 
-  const [amountHuf,     setAmountHuf]     = useState('');
-  const [triggerType,   setTriggerType]   = useState('milestone');
-  const [milestoneName, setMilestoneName] = useState('');
-  const [dueDate,       setDueDate]       = useState('');
-  const [label,         setLabel]         = useState('');
-  const [note,          setNote]          = useState('');
-  const [saving,        setSaving]        = useState(false);
-  const [saveStatus,    setSaveStatus]    = useState('idle');
-  const [error,         setError]         = useState('');
+  const [label,    setLabel]    = useState('');
+  const [amount,   setAmount]   = useState('');
+  const [dueDate,  setDueDate]  = useState('');
+  const [note,     setNote]     = useState('');
+  const [file,          setFile]          = useState(null);
+  const [currentStatus, setCurrentStatus] = useState('pending');
+  const [changingStatus, setChangingStatus] = useState(false);
+  const [saving,   setSaving]   = useState(false);
+  const [sending,  setSending]  = useState(false);
+  const [marking,  setMarking]  = useState(false);
+  const [error,    setError]    = useState('');
+  const [sendEmail, setSendEmail] = useState('');
+  const [showSend,  setShowSend]  = useState(false);
+  const [saveStatus, setSaveStatus] = useState('idle');
 
+  const fileRef    = useRef(null);
   const savedRef   = useRef(null);
   const timerRef   = useRef(null);
   const savedTimer = useRef(null);
 
-  const snap = (a, t, m, d, l, n) => JSON.stringify({ a, t, m, d, l, n });
-
-  useScrollLock(isOpen);
+  const snap = (l, a, d, n) => JSON.stringify({ l, a, d, n });
 
   useEffect(() => {
     if (!isOpen) return;
-    setStep(1); setError(''); setSaving(false); setSaveStatus('idle');
+    setError(''); setSaving(false); setSending(false); setMarking(false);
+    setShowSend(false); setFile(null); setSaveStatus('idle'); setChangingStatus(false);
     if (editItem) {
-      setAmountHuf(editItem.amount_huf?.toString() || '');
-      setTriggerType(editItem.trigger_type || 'milestone');
-      setMilestoneName(editItem.milestone_name || '');
-      setDueDate(editItem.due_date || '');
+      setCurrentStatus(editItem.status || 'pending');
       setLabel(editItem.label || '');
+      setAmount(editItem.amount_huf?.toString() || '');
+      setDueDate(editItem.due_date || '');
       setNote(editItem.note || '');
-      savedRef.current = snap(
-        editItem.amount_huf?.toString() || '',
-        editItem.trigger_type || 'milestone',
-        editItem.milestone_name || '',
-        editItem.due_date || '',
-        editItem.label || '',
-        editItem.note || '',
-      );
+      setSendEmail(clientEmail || '');
+      savedRef.current = snap(editItem.label || '', editItem.amount_huf?.toString() || '', editItem.due_date || '', editItem.note || '');
     } else {
-      setAmountHuf('');
-      setTriggerType('milestone');
-      setMilestoneName('');
-      setDueDate('');
-      setLabel(`Fizetés ${ROMAN[itemCount] ?? (itemCount + 1)}`);
-      setNote('');
+      setLabel(''); setAmount(''); setDueDate(''); setNote('');
+      setSendEmail(clientEmail || '');
       savedRef.current = null;
     }
-  }, [isOpen, editItem?.id, itemCount]);
+  }, [isOpen, editItem?.id]);
 
-  // Auto-save for edit mode
+  // Auto-save in edit mode
   useEffect(() => {
-    if (!editItem || savedRef.current === null) return;
-    const current = snap(amountHuf, triggerType, milestoneName, dueDate, label, note);
+    if (!editItem || !isOpen || savedRef.current === null) return;
+    const current = snap(label, amount, dueDate, note);
     if (current === savedRef.current) return;
-    const amt = Math.round(Number(amountHuf));
-    if (!amt || amt <= 0 || !label.trim()) return;
+    const amt = Math.round(Number(amount));
+    if (!label.trim() || !amt || amt <= 0) return;
 
     clearTimeout(timerRef.current);
     clearTimeout(savedTimer.current);
@@ -103,14 +81,7 @@ export default function PaymentPlanModal({ isOpen, onClose, onSave, editItem, it
     timerRef.current = setTimeout(async () => {
       setSaveStatus('saving');
       try {
-        await onSave({
-          label:          label.trim(),
-          trigger_type:   triggerType,
-          milestone_name: triggerType === 'milestone' ? milestoneName.trim() || null : null,
-          amount_huf:     amt,
-          due_date:       dueDate || null,
-          note:           note.trim() || null,
-        });
+        await onSave({ label: label.trim(), amount_huf: amt, due_date: dueDate || null, note: note.trim() || null }, null);
         savedRef.current = current;
         setSaveStatus('saved');
         savedTimer.current = setTimeout(() => setSaveStatus('idle'), 2500);
@@ -121,36 +92,21 @@ export default function PaymentPlanModal({ isOpen, onClose, onSave, editItem, it
     }, 700);
 
     return () => { clearTimeout(timerRef.current); clearTimeout(savedTimer.current); };
-  }, [amountHuf, triggerType, milestoneName, dueDate, label, note]);
+  }, [label, amount, dueDate, note]);
 
-  const validate = () => {
-    if (step === 1) {
-      const amt = Math.round(Number(amountHuf));
-      if (!amt || amt <= 0) return t('amountRequired');
-    }
-    if (step === 3 && !label.trim()) return t('nameRequiredPay');
-    return null;
-  };
+  if (!isOpen) return null;
 
-  const handleNext = async () => {
-    const err = validate();
-    if (err) { setError(err); return; }
-    setError('');
-    if (step < TOTAL) { setStep(s => s + 1); return; }
-    // Edit mode: auto-save is handling changes; just close
-    if (editItem) { onClose(); return; }
-    // Create mode: persist now
+  const canSave = label.trim() && Number(amount) > 0;
+  const existingFiles = editItem?.files || [];
+  const hasFile = existingFiles.length > 0;
+  const statusInfo = STATUS_DISPLAY[editItem?.status] || STATUS_DISPLAY.pending;
+
+  const handleCreate = async () => {
+    if (!canSave) return;
     setSaving(true);
+    setError('');
     try {
-      const amt = Math.round(Number(amountHuf));
-      await onSave({
-        label:          label.trim(),
-        trigger_type:   triggerType,
-        milestone_name: triggerType === 'milestone' ? milestoneName.trim() || null : null,
-        amount_huf:     amt,
-        due_date:       dueDate || null,
-        note:           note.trim() || null,
-      });
+      await onSave({ label: label.trim(), amount_huf: Math.round(Number(amount)), due_date: dueDate || null, note: note.trim() || null }, file);
       onClose();
     } catch (e) {
       setError(e.message || t('saveError'));
@@ -158,200 +114,173 @@ export default function PaymentPlanModal({ isOpen, onClose, onSave, editItem, it
     }
   };
 
-  const TRIGGER_TYPES_I18N = [
-    { key: 'start',     label: t('triggerStart'),     icon: Play,     desc: t('triggerStartDesc') },
-    { key: 'milestone', label: t('triggerMilestone'), icon: Flag,     desc: t('triggerMilestoneDesc') },
-    { key: 'date',      label: t('triggerDate'),       icon: Calendar, desc: t('triggerDateDesc') },
-    { key: 'end',       label: t('triggerEnd'),        icon: Square,   desc: t('triggerEndDesc') },
-  ];
+  const handleSend = async () => {
+    setSending(true);
+    setError('');
+    try {
+      await onSend(sendEmail.trim() || null);
+      setShowSend(false);
+      setSaveStatus('saved');
+      savedTimer.current = setTimeout(() => setSaveStatus('idle'), 2500);
+    } catch (e) {
+      setError(e.message || t('saveError'));
+    } finally {
+      setSending(false);
+    }
+  };
 
-  if (!isOpen) return null;
+  const handleStatusChange = async (newStatus) => {
+    if (newStatus === currentStatus || changingStatus) return;
+    setChangingStatus(true);
+    setError('');
+    try {
+      await onStatusChange(newStatus);
+      setCurrentStatus(newStatus);
+    } catch (e) {
+      setError(e.message || t('saveError'));
+    } finally {
+      setChangingStatus(false);
+    }
+  };
 
   const saveIndicator = saveStatus === 'idle' ? null
     : saveStatus === 'saved'
       ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 12, color: 'var(--success-text)', fontWeight: 700 }}><Check size={12} /> {t('savedText')}</span>
       : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 12, color: 'var(--text-muted)', fontWeight: 600 }}><Loader2 size={12} className="animate-spin" /> {t('savingText')}</span>;
 
-  // ── Edit mode: flat single-screen modal ──
-  if (editItem) {
-    return (
-      <Modal isOpen={true} onClose={onClose} title={t('payEditTitle')}>
-        <ErrorBanner message={error} style={{ marginBottom: '0.85rem' }} />
-        <div>
-          <div className="form-group">
-            <label className="form-label">{t('nameLabel')}</label>
-            <input type="text" className="form-control" value={label} onChange={e => setLabel(e.target.value)} placeholder={t('paymentNamePh')} />
-          </div>
-          <div className="form-group">
-            <label className="form-label">{t('amountLabel')}</label>
-            <div style={{ position: 'relative' }}>
-              <input type="number" min="1" className="form-control text-mono" value={amountHuf} onChange={e => setAmountHuf(e.target.value)} style={{ fontWeight: 800, fontSize: '1.1rem', paddingRight: '2.5rem' }} />
-              <span style={{ position: 'absolute', right: '0.6rem', top: '50%', transform: 'translateY(-50%)', fontWeight: 700, color: 'var(--text-muted)', fontSize: '0.85rem', pointerEvents: 'none' }}>Ft</span>
-            </div>
-          </div>
-          <div className="form-group">
-            <label className="form-label">{t('dueDateTypeLabel')}</label>
-            <select className="form-control" value={triggerType} onChange={e => setTriggerType(e.target.value)}>
-              {TRIGGER_TYPES_I18N.map(tt => <option key={tt.key} value={tt.key}>{tt.label}</option>)}
-            </select>
-          </div>
-          {triggerType === 'milestone' && (
-            <div className="form-group">
-              <label className="form-label">{t('milestoneNameLabel')}</label>
-              <input type="text" className="form-control" list="milestone-sugg-edit" value={milestoneName} onChange={e => setMilestoneName(e.target.value)} placeholder={t('milestonePh')} />
-              <datalist id="milestone-sugg-edit">{MILESTONE_SUGGESTIONS.map(s => <option key={s} value={s} />)}</datalist>
-            </div>
-          )}
-          {triggerType === 'date' && (
-            <div className="form-group">
-              <label className="form-label">{t('dueDateLabel')}</label>
-              <input type="date" className="form-control" value={dueDate} onChange={e => setDueDate(e.target.value)} />
-            </div>
-          )}
-          <div className="form-group" style={{ marginBottom: 0 }}>
-            <label className="form-label">{t('noteLabel')}</label>
-            <textarea rows={2} className="form-control" value={note} onChange={e => setNote(e.target.value)} placeholder={t('internalNotePh')} />
-          </div>
-          <div style={{ marginTop: '1.25rem', paddingTop: '1rem', borderTop: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center' }}>
-            {saveIndicator}
-          </div>
-        </div>
-      </Modal>
-    );
-  }
-
-  // ── Create mode: stepper ──
-  const isLast = step === TOTAL;
-  const stepLabels = [t('stepAmount'), t('stepWhen'), t('stepDetails')];
-  const numVal = Math.round(Number(amountHuf)) || 0;
-
-  const StepAmount = () => (
-    <>
-      <h2 style={S.heading}>{t('stepAmountHeading')}</h2>
-      <p style={S.sub}>{t('stepAmountSub')}</p>
-      <label style={S.label}>{t('stepAmountFieldLabel')}</label>
-      <div style={{ position: 'relative', marginBottom: 16 }}>
-        <input type="number" inputMode="numeric" min="1" className="form-control text-mono" placeholder="0" value={amountHuf} onChange={e => setAmountHuf(e.target.value)}
-          style={{ fontSize: 30, fontWeight: 800, height: 68, paddingRight: '3.2rem', letterSpacing: '-0.02em' }} />
-        <span style={{ position: 'absolute', right: '1rem', top: '50%', transform: 'translateY(-50%)', fontWeight: 700, fontSize: '1.1rem', color: 'var(--text-muted)' }}>Ft</span>
-      </div>
-      {numVal > 0 && <div style={{ fontSize: 13, color: 'var(--text-muted)', fontWeight: 600 }}>{numVal.toLocaleString('hu-HU')} Ft</div>}
-    </>
-  );
-
-  const StepTrigger = () => (
-    <>
-      <h2 style={S.heading}>{t('stepTriggerHeading')}</h2>
-      <p style={S.sub}>{t('stepTriggerSub')}</p>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 20 }}>
-        {TRIGGER_TYPES_I18N.map(tt => {
-          const active = triggerType === tt.key;
-          const Icon = tt.icon;
-          return (
-            <button key={tt.key} type="button" onClick={() => setTriggerType(tt.key)}
-              style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '12px 16px', borderRadius: 14, border: `2px solid ${active ? '#0f172a' : '#e2e8f0'}`, background: active ? '#0f172a' : '#f8fafc', cursor: 'pointer', textAlign: 'left', transition: 'all 0.15s' }}>
-              <div style={{ width: 40, height: 40, borderRadius: 10, background: active ? 'rgba(255,255,255,0.15)' : '#e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                <Icon size={18} color={active ? '#fff' : '#64748b'} strokeWidth={1.75} />
-              </div>
-              <div>
-                <div style={{ fontSize: 15, fontWeight: 700, color: active ? '#fff' : '#334155' }}>{tt.label}</div>
-                <div style={{ fontSize: 12, color: active ? 'rgba(255,255,255,0.65)' : '#94a3b8', marginTop: 1 }}>{tt.desc}</div>
-              </div>
-              {active && <Check size={18} color="#fff" style={{ marginLeft: 'auto', flexShrink: 0 }} />}
-            </button>
-          );
-        })}
-      </div>
-      {triggerType === 'milestone' && (
-        <div>
-          <label style={S.label}>{t('milestoneNameLabel')}</label>
-          <input type="text" className="form-control" list="milestone-sugg" value={milestoneName} onChange={e => setMilestoneName(e.target.value)} placeholder={t('milestonePh')} style={{ fontSize: 16 }} />
-          <datalist id="milestone-sugg">{MILESTONE_SUGGESTIONS.map(s => <option key={s} value={s} />)}</datalist>
-        </div>
-      )}
-      {triggerType === 'date' && (
-        <div>
-          <label style={S.label}>{t('dueDateLabel')}</label>
-          <input type="date" className="form-control" value={dueDate} onChange={e => setDueDate(e.target.value)} />
-        </div>
-      )}
-    </>
-  );
-
-  const StepDetails = () => (
-    <>
-      <h2 style={S.heading}>{t('stepDetailHeading')}</h2>
-      <p style={S.sub}>{t('stepDetailSub')}</p>
-      <div style={{ marginBottom: 20 }}>
-        <label style={S.label}>{t('nameRequiredLabel')}</label>
-        <input type="text" className="form-control" value={label} onChange={e => setLabel(e.target.value)} placeholder={t('paymentNamePh')} style={{ fontSize: 17, fontWeight: 600 }} />
-      </div>
-      <div>
-        <label style={S.label}>{t('noteOptionalLabel')}</label>
-        <textarea rows={3} className="form-control" value={note} onChange={e => setNote(e.target.value)} placeholder={t('noteOptionalPh')} style={{ resize: 'none' }} />
-      </div>
-    </>
-  );
-
-  const renderStep = () => {
-    if (step === 1) return StepAmount();
-    if (step === 2) return StepTrigger();
-    if (step === 3) return StepDetails();
-  };
+  const title = editItem ? editItem.label : t('addPaymentItem');
 
   return (
     <>
-      <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,.45)', zIndex: 200 }} aria-hidden="true" />
-      <div role="dialog" aria-modal="true" aria-label="Új fizetési tétel"
-        style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: '#fff', borderRadius: '24px 24px 0 0', zIndex: 201, maxHeight: '92dvh', display: 'flex', flexDirection: 'column' }}>
-        <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 12, paddingBottom: 4, flexShrink: 0 }}>
-          <div style={{ width: 36, height: 4, borderRadius: 2, background: '#e2e8f0' }} />
+    <Modal isOpen={isOpen && !showSend} onClose={onClose} title={title}>
+      {error && (
+        <div style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', color: 'var(--danger-text)', padding: '0.55rem 0.75rem', borderRadius: 10, fontSize: 13, marginBottom: 16 }}>
+          {error}
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', padding: '6px 16px 12px', flexShrink: 0, borderBottom: '1px solid #f1f5f9', gap: 10 }}>
-          <span style={{ flex: 1, fontSize: 16, fontWeight: 700, color: '#0f172a' }}>{t('payNewTitle')}</span>
-          <button type="button" onClick={onClose} disabled={saving}
-            style={{ width: 36, height: 36, borderRadius: '50%', border: 'none', background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#64748b', flexShrink: 0 }}>
-            <X size={16} />
-          </button>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '14px 20px 10px', flexShrink: 0 }}>
-          {stepLabels.map((lbl, i) => {
-            const idx = i + 1; const done = idx < step; const curr = idx === step;
+      )}
+
+      {/* Status picker — edit mode only */}
+      {editItem && (
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 16 }}>
+          {Object.entries(STATUS_DISPLAY).map(([key, s]) => {
+            const isActive = currentStatus === key;
             return (
-              <React.Fragment key={i}>
-                {i > 0 && <div style={{ flex: 1, height: 2, background: done ? '#0f172a' : '#e2e8f0', borderRadius: 1, marginTop: 13, transition: 'background 0.2s' }} />}
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, flexShrink: 0, width: 56 }}>
-                  <div style={{ width: 28, height: 28, borderRadius: '50%', background: curr || done ? '#0f172a' : '#f1f5f9', border: `2px solid ${curr || done ? '#0f172a' : '#e2e8f0'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}>
-                    {done ? <Check size={14} color="#fff" strokeWidth={2.5} /> : <span style={{ fontSize: 12, fontWeight: 800, color: curr ? '#fff' : '#94a3b8' }}>{idx}</span>}
-                  </div>
-                  <span style={{ fontSize: 10, fontWeight: curr ? 700 : 500, color: curr ? '#0f172a' : done ? '#475569' : '#94a3b8', whiteSpace: 'nowrap', textAlign: 'center' }}>{lbl}</span>
-                </div>
-              </React.Fragment>
+              <button key={key} type="button" disabled={changingStatus} onClick={() => handleStatusChange(key)}
+                style={{ height: 32, padding: '0 14px', borderRadius: 16, border: `1.5px solid ${isActive ? s.color : '#EDEBE5'}`, background: isActive ? s.bg : '#fff', color: isActive ? s.color : '#5A5F68', fontSize: 12, fontWeight: 700, cursor: changingStatus ? 'default' : 'pointer', opacity: changingStatus && !isActive ? 0.5 : 1, transition: 'all 0.12s' }}>
+                {t(s.labelKey)}
+              </button>
             );
           })}
         </div>
-        <div style={{ flex: 1, overflowY: 'auto', padding: '4px 20px 8px', WebkitOverflowScrolling: 'touch' }}>
-          {error && (
-            <div style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', color: 'var(--danger-text)', padding: '0.55rem 0.75rem', borderRadius: 10, fontSize: 13, display: 'flex', gap: 6, marginBottom: 16, alignItems: 'flex-start' }}>
-              <AlertCircle size={14} style={{ flexShrink: 0, marginTop: 1 }} /><span>{error}</span>
+      )}
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+
+        {/* File — always first */}
+        <div>
+          <label style={DK_LABEL}>{t('attachFile')}</label>
+          {/* Existing files */}
+          {existingFiles.map(f => (
+            <div key={f.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 10, background: '#f0fdf4', border: '1px solid #bbf7d0', marginBottom: 6 }}>
+              <FileText size={14} color="#15803d" />
+              <span style={{ flex: 1, fontSize: 13, fontWeight: 600, color: '#14532d', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.file_name || t('filesViewTitle')}</span>
+              <a href={f.file_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, fontWeight: 700, color: '#15803d', textDecoration: 'none' }}>{t('viewBtn')}</a>
             </div>
-          )}
-          {renderStep()}
-          <div style={{ height: 8 }} />
-        </div>
-        <div style={{ padding: '12px 16px', paddingBottom: 'calc(12px + env(safe-area-inset-bottom))', flexShrink: 0, borderTop: '1px solid #f1f5f9', display: 'flex', gap: 10 }}>
-          {step > 1 && (
-            <button type="button" onClick={() => { setError(''); setStep(s => s - 1); }} disabled={saving}
-              style={{ width: 52, height: 54, borderRadius: 14, border: '1.5px solid #e2e8f0', background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#475569', flexShrink: 0 }}>
-              <ChevronLeft size={22} />
+          ))}
+          {/* New file picker */}
+          {file ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 10, background: '#eff6ff', border: '1px solid #bfdbfe' }}>
+              <ImageIcon size={14} color="#1d4ed8" />
+              <span style={{ flex: 1, fontSize: 13, fontWeight: 600, color: '#1e40af', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{file.name}</span>
+              <button type="button" onClick={() => setFile(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', display: 'flex', padding: 2 }}><X size={14} /></button>
+            </div>
+          ) : (
+            <button type="button" className="dk-btn" style={{ width: '100%', justifyContent: 'center', fontSize: 13, background: '#263248', color: '#fff' }} onClick={() => fileRef.current?.click()}>
+              <ImageIcon size={14} /> {t('attachFile')}
             </button>
           )}
-          <button type="button" onClick={handleNext} disabled={saving}
-            style={{ flex: 1, height: 54, borderRadius: 14, border: 'none', background: isLast ? '#16a34a' : '#0f172a', color: '#fff', fontSize: 16, fontWeight: 700, cursor: saving ? 'default' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, opacity: saving ? 0.75 : 1, transition: 'background 0.2s' }}>
-            {saving ? <><Loader2 size={18} className="animate-spin" /> {t('addingBtn')}</> : isLast ? <><Check size={18} /> {t('addItemBtn')}</> : <>{t('nextBtn')} <ChevronRight size={18} /></>}
+          <input ref={fileRef} type="file" accept="image/*,application/pdf" style={{ display: 'none' }} onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; if (f) setFile(f); }} />
+        </div>
+
+        {/* Label */}
+        <div>
+          <label style={DK_LABEL}>{t('paymentLabelField')} *</label>
+          <input type="text" className="dk-input" value={label} onChange={e => setLabel(e.target.value)} style={{ width: '100%' }} />
+        </div>
+
+        {/* Amount + Due date */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div>
+            <label style={DK_LABEL}>{t('paymentAmountField')} *</label>
+            <input type="number" inputMode="numeric" min="0" className="dk-input" value={amount} onChange={e => setAmount(e.target.value)} style={{ width: '100%' }} />
+          </div>
+          <div>
+            <label style={DK_LABEL}>{t('paymentDueField')}</label>
+            <input type="date" className="dk-input" value={dueDate} onChange={e => setDueDate(e.target.value)} style={{ width: '100%' }} />
+          </div>
+        </div>
+
+        {/* Note */}
+        <div>
+          <label style={DK_LABEL}>{t('paymentNoteField')}</label>
+          <textarea rows={2} className="form-control" value={note} onChange={e => setNote(e.target.value)} placeholder={t('paymentNotePlaceholder')} style={{ borderRadius: 12, fontSize: 14 }} />
+        </div>
+
+        {/* Footer */}
+        <div style={{ paddingTop: '1rem', borderTop: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', gap: 8 }}>
+          {saveIndicator}
+          <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
+            {editItem && onDelete && (
+              <button type="button" className="dk-btn" style={{ background: 'var(--danger)', color: '#fff' }} onClick={onDelete}>
+                <Trash2 size={13} /> {t('deletePaymentItem')}
+              </button>
+            )}
+            {editItem && onSend && (
+              <button type="button" className="dk-btn dk-btn-l" style={{ fontSize: 13 }} onClick={() => setShowSend(true)}>
+                <Send size={13} /> {t('sendInvoice')}
+              </button>
+            )}
+            {!editItem && (
+              <button type="button" className="dk-btn" style={{ background: '#263248', color: '#fff', justifyContent: 'center' }} disabled={!canSave || saving} onClick={handleCreate}>
+                {saving ? <><Loader2 size={14} className="animate-spin" /> {t('savingText')}</> : <><Check size={14} /> {t('addPaymentItem')}</>}
+              </button>
+            )}
+            {editItem && (
+              <button type="button" className="dk-btn" style={{ background: '#263248', color: '#fff' }} onClick={onClose}>
+                <Check size={13} /> {t('saveEntryBtn')}
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    </Modal>
+
+    {/* Send-to-client modal — focused, replaces edit modal visually */}
+    <Modal isOpen={!!editItem && showSend} onClose={() => setShowSend(false)} title={t('sendInvoice')}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <div>
+          <label style={DK_LABEL}>{t('invoiceSendEmailLabel')}</label>
+          {clientEmail
+            ? <p style={{ fontSize: 12, color: '#5A5F68', margin: '0 0 8px' }}>{t('invoiceSendEmailPrefilled')}</p>
+            : <p style={{ fontSize: 12, color: '#5A5F68', margin: '0 0 8px' }}>{t('invoiceSendNoEmailHint')}</p>
+          }
+          <input autoFocus type="email" className="dk-input" value={sendEmail} onChange={e => setSendEmail(e.target.value)} style={{ width: '100%' }} />
+        </div>
+        {error && (
+          <div style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', color: 'var(--danger-text)', padding: '0.55rem 0.75rem', borderRadius: 10, fontSize: 13 }}>
+            {error}
+          </div>
+        )}
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+          <button type="button" className="dk-btn dk-btn-l" onClick={() => { setShowSend(false); setError(''); }}>
+            {t('closeBtn')}
+          </button>
+          <button type="button" className="dk-btn" style={{ background: '#263248', color: '#fff' }} disabled={sending || !sendEmail.trim()} onClick={handleSend}>
+            {sending ? <><Loader2 size={14} className="animate-spin" /> {t('savingText')}</> : <><Send size={14} /> {t('sendInvoice')}</>}
           </button>
         </div>
       </div>
+    </Modal>
     </>
   );
 }

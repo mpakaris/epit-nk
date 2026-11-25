@@ -10,7 +10,7 @@ const FROM = `OkosSzaki <${process.env.SMTP_FROM_EMAIL || 'noreply@okosszaki.hu'
  * @param {string} [opts.replyTo]
  * @param {Array<{filename: string, content: string, contentType?: string}>} [opts.attachments]
  */
-export async function sendEmail({ to, subject, html, text, replyTo, attachments }) {
+export async function sendEmail({ to, cc, subject, html, text, replyTo, attachments }) {
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) throw new Error('RESEND_API_KEY env var is missing');
 
@@ -19,6 +19,7 @@ export async function sendEmail({ to, subject, html, text, replyTo, attachments 
     to:      Array.isArray(to) ? to : [to],
     subject,
     html,
+    ...(cc      ? { cc: Array.isArray(cc) ? cc : [cc] } : {}),
     ...(text     ? { text }                  : {}),
     ...(replyTo  ? { reply_to: replyTo }     : {}),
     ...(attachments?.length ? {

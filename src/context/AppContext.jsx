@@ -35,6 +35,7 @@ export function AppProvider({ children }) {
 
   // ---- Data state -------------------------------------------------------------
   const [dataReady, setDataReady] = useState(false);
+  const [contextSwitching, setContextSwitching] = useState(false);
   const [entities, setEntities] = useState([]);
   const [users, setUsers] = useState([]);
   const [projects, setProjects] = useState([]);
@@ -227,6 +228,7 @@ export function AppProvider({ children }) {
             subscription_tier: profile?.subscription_tier ?? 'basic',
             trial_started_at: profile?.trial_started_at ?? null,
             trial_ends_at: profile?.trial_ends_at ?? null,
+            subscription_grace_until: profile?.subscription_grace_until ?? null,
             default_tax_percent: profile?.default_tax_percent ?? 27,
             locale:   profile?.locale   || null,
             currency: profile?.currency || null,
@@ -317,7 +319,7 @@ export function AppProvider({ children }) {
     makeAuthActions({ supabase, router, fetchProfile, refreshSupabaseData, setCurrentUser, setLoading, setImpersonating, currentUser, clearGodCookie });
 
   const { startImpersonation, stopImpersonation, setActiveContext, switchImpersonatingContext } =
-    makeGodModeActions({ isSuperAdmin, currentUser, setImpersonating, setImpersonatingCollectives, setCurrentUser, setDataReady, setProjects, setClients, setQuotes, setInvoices, setLabourEntries, setSurveys, setProjectRooms, setQuoteEntries, setQuoteSections, setUsers, refreshSupabaseData, router, setGodCookie, clearGodCookie });
+    makeGodModeActions({ isSuperAdmin, currentUser, setImpersonating, setImpersonatingCollectives, setCurrentUser, setDataReady, setContextSwitching, setProjects, setClients, setQuotes, setInvoices, setLabourEntries, setSurveys, setProjectRooms, setQuoteEntries, setQuoteSections, setUsers, refreshSupabaseData, router, setGodCookie, clearGodCookie });
 
   const { createEntity, updateEntity, deleteEntity, createUser, deleteUser, resetUserPassword } =
     makeEntityUserActions({ isSuperAdmin, isAdmin, entities, projects, users, setEntities, setProjects, setQuotes, setInvoices, setUsers, effectiveEntityId, supabase });
@@ -341,7 +343,7 @@ export function AppProvider({ children }) {
     makeQuoteActions({ quotes, quoteEntries, quoteSections, users, setQuotes, setQuoteEntries, setQuoteSections, setProjects, uid, isAdmin, collectives, effectiveUser, activeCollectiveId, supabase });
 
   const { fetchDiaryEntries, createDiaryEntry, updateDiaryEntry, deleteDiaryEntry, deleteDiaryPhoto, uploadDiaryPhotos } =
-    makeDiaryActions({ setDiaryEntriesByProject, effectiveUser });
+    makeDiaryActions({ diaryEntriesByProject, projects, setDiaryEntriesByProject, uid, isAdmin, collectives, effectiveUser });
 
   // ---- deleteUser wrapper (needs currentUser.id) ------------------------------
   const deleteUserWrapped = (userId) => deleteUser(userId, currentUser?.id);
@@ -360,6 +362,7 @@ export function AppProvider({ children }) {
         activeCollectiveId,
         loading,
         dataReady,
+        contextSwitching,
         showWelcome,
         dismissWelcome: () => {
           setShowWelcome(false);
@@ -494,6 +497,26 @@ export function AppProvider({ children }) {
         refreshSupabaseData,
         refreshCollectives: fetchProfile,
         updateDisplayName: (name) => setCurrentUser(prev => prev ? { ...prev, display_name: name } : prev),
+        refreshCurrentUser: async () => {
+          try {
+            const profile = await fetchProfile();
+            if (!profile) return;
+            setCurrentUser(prev => prev ? {
+              ...prev,
+              is_subscription_premium:  profile.is_subscription_premium ?? false,
+              subscription_tier:        profile.subscription_tier ?? 'basic',
+              trial_started_at:         profile.trial_started_at ?? null,
+              trial_ends_at:            profile.trial_ends_at ?? null,
+              subscription_grace_until: profile.subscription_grace_until ?? null,
+              display_name:             profile.display_name || prev.display_name,
+              must_change_password:     profile.must_change_password ?? false,
+              locale:                   profile.locale   || prev.locale,
+              currency:                 profile.currency || prev.currency,
+            } : prev);
+          } catch (err) {
+            console.error('refreshCurrentUser error:', err);
+          }
+        },
       }}
     >
       {children}

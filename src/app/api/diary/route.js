@@ -1,12 +1,13 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { logAudit } from '@/lib/audit';
+import { checkCollectiveStatus } from '@/lib/collectiveGuard';
 
 async function getCallerAndProject(admin, userId, projectId) {
   const { data: profile } = await admin.from('profiles').select('id, role, display_name').eq('id', userId).single();
   if (!profile) return { err: 'Profile not found', status: 403 };
 
-  const { data: project } = await admin.from('projects').select('id, owner_id, collective_id, created_by').eq('id', projectId).is('deleted_at', null).single();
+  const { data: project } = await admin.from('projects').select('id, owner_id, collective_id, created_by, status').eq('id', projectId).is('deleted_at', null).single();
   if (!project) return { err: 'Project not found', status: 404 };
 
   if (profile.role === 'superadmin') return { profile, project };
@@ -76,6 +77,10 @@ export async function POST(request) {
   const admin = createAdminClient();
   const ctx = await getCallerAndProject(admin, user.id, project_id);
   if (ctx.err) return Response.json({ error: ctx.err }, { status: ctx.status });
+  if (ctx.project.status === 'closed' || ctx.project.status === 'expired') return Response.json({ error: 'Lezárt projekthez nem lehet adatot hozzáadni.' }, { status: 423 });
+
+  const statusBlocked = await checkCollectiveStatus(admin, ctx.project.collective_id);
+  if (statusBlocked) return statusBlocked;
 
   const { data: entry, error: insertErr } = await admin.from('diary_entries').insert([{
     project_id,
@@ -104,14 +109,14 @@ export async function POST(request) {
   }
 
   logAudit({
-    entityId: ctx.project.collective_id || user.id,
-    userId:   user.id,
-    userName: ctx.profile.display_name,
-    action:   'diary_entry_created',
-    targetType: 'diary_entry',
-    targetId:   entry.id,
+    entityId:   ctx.project.collective_id || user.id,
+    userId:     user.id,
+    userName:   ctx.profile.display_name,
+    action:     'diary.created',
+    targetType: 'project',
+    targetId:   project_id,
     targetName: title.trim(),
-    details: { project_id },
+    details:    { diary_entry_id: entry.id, title: title.trim(), is_public: Boolean(is_public) },
   });
 
   return Response.json({ entry: { ...entry, photos } }, { status: 201 });

@@ -8,13 +8,18 @@ export async function POST(request) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const { productId, successUrl } = await request.json();
+  const { productId, successUrl, collectiveId } = await request.json();
   if (!productId) return NextResponse.json({ error: 'productId required' }, { status: 400 });
 
   const admin = createAdminClient();
   const { data: profile } = await admin.from('profiles').select('email').eq('id', user.id).single();
 
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+  // Derive base URL from the actual request host so the success_url is always
+  // same-origin with the browsing context (works with ngrok, localhost, and production).
+  const fwdProto = request.headers.get('x-forwarded-proto')?.split(',')[0]?.trim();
+  const host     = request.headers.get('host') || '';
+  const proto    = fwdProto || (host.startsWith('localhost') ? 'http' : 'https');
+  const baseUrl  = host ? `${proto}://${host}` : (process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000');
   const base = successUrl ? `${baseUrl}${successUrl}` : `${baseUrl}/profil`;
   const returnUrl = `${base}${base.includes('?') ? '&' : '?'}upgraded=1`;
 
@@ -22,7 +27,7 @@ export async function POST(request) {
     product_id: productId,
     success_url: returnUrl,
     customer: { email: profile?.email || user.email },
-    metadata: { userId: user.id },
+    metadata: { userId: user.id, ...(collectiveId ? { collectiveId } : {}) },
   };
 
   const res = await fetch('https://test-api.creem.io/v1/checkouts', {

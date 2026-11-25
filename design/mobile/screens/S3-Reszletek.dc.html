@@ -1,0 +1,269 @@
+<!doctype html>
+<html lang="hu"><head><meta charset="utf-8"><title>OkosSzaki — Felmérés részletei</title><script src="./support.js"></script></head>
+<body><x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&amp;family=Plus+Jakarta+Sans:wght@500;600;700&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}
+button,input,textarea{font-family:inherit}
+button{cursor:pointer}
+*{scrollbar-width:none;-ms-overflow-style:none}
+*::-webkit-scrollbar{display:none;width:0;height:0}
+.root{position:relative;width:390px;height:844px;overflow:hidden;background:#EDEBE5;color:#0E1116;font-family:'Plus Jakarta Sans',system-ui,sans-serif}
+.scroll{position:absolute;inset:0;z-index:1;overflow-y:auto;box-sizing:border-box;padding:0 0 170px}
+.hd{position:relative;overflow:hidden;box-sizing:border-box;padding:18px 16px 20px;border-radius:0 0 32px 32px;display:flex;flex-direction:column;gap:12px}
+.glow{position:absolute;right:-90px;top:-120px;width:300px;height:300px;border-radius:150px}
+.top{position:relative;display:flex;align-items:center;justify-content:space-between}
+.rnd{width:48px;height:48px;border:0;border-radius:24px;display:flex;align-items:center;justify-content:center;padding:0}
+.pill{height:36px;padding:0 14px;border-radius:18px;font-size:13px;font-weight:700;display:inline-flex;align-items:center;gap:8px}
+.ttl{position:relative;margin:0;font-family:'Bricolage Grotesque',sans-serif;font-size:30px;font-weight:700;letter-spacing:-.02em;line-height:1.1}
+.kick{position:relative;font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+.sub{position:relative;font-size:15px;font-weight:600}
+.body{padding:16px 16px 0;display:flex;flex-direction:column;gap:14px}
+.card{box-sizing:border-box;border-radius:26px;background:#fff;box-shadow:0 1px 0 rgba(14,17,22,.05),0 14px 26px -18px rgba(14,17,22,.35)}
+.lbl{font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#5A5F68}
+.h2{margin:0;font-family:'Bricolage Grotesque',sans-serif;font-size:22px;font-weight:700}
+.fld{width:100%;box-sizing:border-box;height:56px;border:0;border-radius:20px;background:#fff;padding:0 16px;font-size:17px;font-weight:500;color:#0E1116;box-shadow:0 1px 0 rgba(14,17,22,.05),0 10px 20px -16px rgba(14,17,22,.4)}
+.fld::placeholder{color:#6B7078}
+.chip{height:52px;padding:0 18px;border:0;border-radius:26px;font-size:15px;font-weight:700;display:inline-flex;align-items:center;gap:8px;color:#0E1116}
+.bar{position:absolute;z-index:20;left:0;right:0;bottom:0;box-sizing:border-box;padding:28px 16px 18px;background:linear-gradient(to top,#EDEBE5 70%,rgba(237,235,229,0));display:flex;gap:10px}
+.pri{flex:1;height:60px;border:0;border-radius:30px;background:#0E1116;color:#fff;font-size:17px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:10px;box-shadow:0 14px 26px -12px rgba(14,17,22,.6)}
+.sq{flex:none;width:60px;height:60px;border:0;border-radius:30px;background:#fff;color:#0E1116;display:flex;align-items:center;justify-content:center;box-shadow:0 10px 22px -10px rgba(14,17,22,.4)}
+.ic{flex:none;width:44px;height:44px;border-radius:15px;background:#F1F1F3;color:#1A1D23;display:flex;align-items:center;justify-content:center}
+.row{width:100%;min-height:64px;box-sizing:border-box;padding:10px 14px;border:0;border-radius:22px;background:#fff;color:#0E1116;text-align:left;display:flex;align-items:center;gap:12px;font-size:16px;font-weight:700;box-shadow:0 1px 0 rgba(14,17,22,.05),0 12px 22px -18px rgba(14,17,22,.35)}
+.scrim{position:absolute;inset:0;z-index:40;border:0;padding:0;background:rgba(14,17,22,.5)}
+.sheet{position:absolute;z-index:50;left:0;right:0;bottom:0;box-sizing:border-box;padding:10px 16px 18px;border-radius:32px 32px 0 0;background:#FBFAF7;display:flex;flex-direction:column;gap:12px;max-height:90%;overflow-y:auto}
+.grab{align-self:center;flex:none;width:44px;height:5px;border-radius:3px;background:#D5D2C8}
+.sh{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.sht{font-family:'Bricolage Grotesque',sans-serif;font-size:25px;font-weight:700;line-height:1.1}
+.x{width:48px;height:48px;border:0;border-radius:24px;background:#EFEDE6;color:#0E1116;display:flex;align-items:center;justify-content:center;flex:none}
+.sw{flex:none;width:64px;height:38px;border-radius:19px;position:relative}
+.sw>i{position:absolute;top:4px;width:30px;height:30px;border-radius:15px;background:#fff;box-shadow:0 2px 6px rgba(14,17,22,.3)}
+.badge{height:26px;padding:0 10px;border-radius:13px;font-size:12px;font-weight:700;display:inline-flex;align-items:center;gap:4px;background:#F0F0F2;color:#2B3038;flex:none}
+.m{font-size:13px;font-weight:600;color:#5A5F68}
+.n{font-family:'Bricolage Grotesque',sans-serif;font-weight:700;letter-spacing:-.02em}
+.stat{flex:1;box-sizing:border-box;padding:10px 12px;border-radius:18px}
+
+.root{background:var(--deep);color:#fff}
+.hd{border-radius:0 0 32px 32px}
+.bar{background:linear-gradient(to top,var(--deep) 65%,rgba(0,0,0,0))}
+.card{color:#0E1116;box-shadow:inset 0 1px 0 #fff,0 16px 26px -14px rgba(0,0,0,.7),0 3px 6px -2px rgba(0,0,0,.3)}
+.row{color:#0E1116;box-shadow:inset 0 1px 0 #fff,0 14px 22px -14px rgba(0,0,0,.7),0 3px 6px -2px rgba(0,0,0,.3)}
+.sheet,.sht{color:#0E1116}
+.h2{color:#fff}
+.lbl{color:rgba(255,255,255,.78)}
+.sheet .lbl{color:#5A5F68}
+.sq{color:#0E1116}
+</style>
+</helmet>
+<div class="root" style="--deep: #06302C">
+ <div class="scroll" style="padding-bottom: 190px">
+  <header class="hd" style="background: #0A7F72; color: #fff">
+   <span class="glow" aria-hidden="true" style="background: rgba(255,255,255,0.10)"></span>
+   <div class="top">
+    <button class="rnd" aria-label="Vissza" style="background: rgba(255,255,255,0.18); color: #fff"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="{{ic.back}}"/></svg></button>
+    <span class="pill" style="background: rgba(255,255,255,0.18)"><span style="width: 8px; height: 8px; border-radius: 4px; background: #fff"></span>Ráday u. 8. · Csapat</span>
+    <button class="rnd" onClick="{{openMenu}}" aria-label="További műveletek" style="background: rgba(255,255,255,0.18); color: #fff"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="{{ic.dots}}"/></svg></button>
+   </div>
+   <span class="kick" style="color: rgba(255,255,255,0.85)">Felmérés</span>
+   <h1 class="ttl">Lakásfelújítás, teljes</h1>
+   <span class="sub" style="color: rgba(255,255,255,0.92)">Kiss Márta · Ráday u. 8., Budapest</span>
+   <div style="position: relative; display: flex; align-items: center; justify-content: space-between; gap: 10px">
+    <span class="badge" style="height: 32px; padding: 0 12px; font-size: 13px; background: {{stat.bg}}; color: {{stat.fg}}"><sc-if value="{{stat.check}}" hint-placeholder-val="{{ false }}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="{{ic.check}}"/></svg></sc-if>{{stat.label}}</span>
+    <span style="font-size: 13px; font-weight: 600; color: rgba(255,255,255,0.92)">{{stat.note}}</span>
+   </div>
+   <div style="position: relative; display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: rgba(255,255,255,0.92)"><span style="display: flex"><sc-for list="{{people}}" as="p" hint-placeholder-count="3"><span style="width: 30px; height: 30px; margin-right: -8px; border-radius: 15px; background: #fff; color: #0E1116; border: 2px solid #0A7F72; box-sizing: border-box; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700">{{p}}</span></sc-for></span><span style="padding-left: 10px">Rögzítette: Te · Résztvevők: Gábor, Zsolt</span></div>
+  </header>
+
+  <div class="body">
+   <sc-if value="{{locked}}" hint-placeholder-val="{{ false }}"><div style="box-sizing: border-box; padding: 14px 16px; border-radius: 22px; background: #FDECEC; color: #9B1C1C; display: flex; align-items: center; gap: 12px"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex: none"><path d="M5 11h14v10H5zM8 11V8a4 4 0 018 0v3"/></svg><span style="flex: 1; font-size: 15px; font-weight: 700">Ez a felmérés csak olvasható.</span><button onClick="{{toLocked}}" style="height: 44px; padding: 0 14px; border: 0; border-radius: 22px; background: #fff; color: #9B1C1C; font-size: 14px; font-weight: 700">Lehetőségeim</button></div></sc-if>
+
+   <!-- Property data -->
+   <section class="card" style="overflow: hidden">
+    <button onClick="{{toggleProp}}" aria-expanded="{{propOpen}}" style="width: 100%; min-height: 80px; box-sizing: border-box; padding: 12px 16px; border: 0; background: transparent; color: #0E1116; text-align: left; display: flex; align-items: center; gap: 12px">
+     <span class="ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11l8-7 8 7M6 10v10h12V10"/></svg></span>
+     <span style="flex: 1; display: flex; flex-direction: column; gap: 6px"><span style="font-size: 18px; font-weight: 700">Ingatlan adatok</span><span style="display: flex; gap: 6px; flex-wrap: wrap"><span class="badge">Telek: 620 m²</span><span class="badge">Kert: 240 m²</span><span class="badge">3 fázis · 32 A</span></span></span>
+     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#5A5F68" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="transform: rotate({{propRot}}deg)"><path d="{{ic.chevD}}"/></svg></button>
+    <sc-if value="{{propOpen}}" hint-placeholder-val="{{ false }}">
+     <div style="padding: 0 16px 16px; display: flex; flex-direction: column; gap: 12px">
+      <div style="display: flex; align-items: center; gap: 8px; box-sizing: border-box; padding: 10px 14px; border-radius: 18px; background: #E7F4EC; color: #14532D; font-size: 14px; font-weight: 700"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="{{ic.check}}"/></svg>Mezők kitöltve és mentve</div>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px">
+       <label style="display: flex; flex-direction: column; gap: 4px"><span class="m">Telek (m²)</span><input class="fld" value="620" style="height: 52px"></label>
+       <label style="display: flex; flex-direction: column; gap: 4px"><span class="m">Kert (m²)</span><input class="fld" value="240" style="height: 52px"></label>
+       <div style="display: flex; flex-direction: column; gap: 4px"><span class="m">Fázisok</span><div style="display: flex; gap: 6px"><button class="chip" style="flex: 1; justify-content: center; background: #fff">1 fázis</button><button class="chip" style="flex: 1; justify-content: center; background: #0E1116; color: #fff">3 fázis</button></div></div>
+       <label style="display: flex; flex-direction: column; gap: 4px"><span class="m">Biztosíték (A)</span><input class="fld" value="32" style="height: 52px"></label>
+       <label style="display: flex; flex-direction: column; gap: 4px"><span class="m">Feszültség (V)</span><input class="fld" value="400" style="height: 52px"></label>
+       <label style="display: flex; flex-direction: column; gap: 4px"><span class="m">Fűtési rendszer</span><input class="fld" value="Gázkazán" style="height: 52px"></label>
+      </div>
+      <div style="display: flex; gap: 10px"><div class="card" style="flex: 1; box-sizing: border-box; padding: 12px 14px; border-radius: 20px; box-shadow: none; background: #F7F5EF; font-size: 15px; font-weight: 500; line-height: 1.4">Mesélj az ingatlanról: telekméret, kert, elektromos rendszer…</div>
+       <button aria-label="Diktálás" style="flex: none; width: 64px; border: 0; border-radius: 22px; background: #0E1116; color: #fff; display: flex; align-items: center; justify-content: center"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6a3 3 0 106 0v6a3 3 0 10-6 0zM5 11a7 7 0 0014 0M12 18v3"/></svg></button></div>
+      <span class="lbl">Rendszerfotók</span>
+      <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px"><sc-for list="{{utils}}" as="u" hint-placeholder-count="3"><button style="height: 76px; border: 0; border-radius: 18px; background: #F1F1F3; color: #1A1D23; font-size: 12px; font-weight: 700; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="{{u.d}}"/></svg>{{u.t}}</button></sc-for></div>
+     </div>
+    </sc-if>
+   </section>
+
+   <!-- Floor plans + sketch -->
+   <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px">
+    <section class="card" style="padding: 14px; display: flex; flex-direction: column; gap: 10px"><span style="font-size: 16px; font-weight: 700">Alaprajzok (1)</span>
+     <div style="height: 76px; border-radius: 16px; background: linear-gradient(135deg, #EDEAE0, #D9D4C6); display: flex; align-items: center; justify-content: center; color: #5A5F68"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 4h16v16H4zM4 11h8M12 4v9M12 16h8"/></svg></div>
+     <button onClick="{{toLayout}}" style="min-height: 48px; border: 0; border-radius: 24px; background: #0E1116; color: #fff; font-size: 14px; font-weight: 700">+ Alaprajz</button></section>
+    <section class="card" style="padding: 14px; display: flex; flex-direction: column; gap: 10px"><span style="font-size: 16px; font-weight: 700">Vázlatok (2)</span>
+     <div style="height: 76px; border-radius: 16px; background: #F7F5EF; display: flex; align-items: center; justify-content: center; color: #5A5F68"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 3l5 5L9 20H4v-5z"/></svg></div>
+     <button style="min-height: 48px; border: 0; border-radius: 24px; background: #F1F1F3; color: #0E1116; font-size: 14px; font-weight: 700">Új vázlat</button></section>
+   </div>
+
+   <div style="display: flex; align-items: baseline; justify-content: space-between; padding: 4px 4px 0"><h2 class="h2">Helyiségek (5)</h2><span class="m" style="color: rgba(255,255,255,0.78)">max. 30</span></div>
+   <sc-for list="{{rooms}}" as="r" hint-placeholder-count="4">
+    <article class="card" style="overflow: hidden; border-top: {{r.top}}">
+     <sc-if value="{{r.isNew}}" hint-placeholder-val="{{ false }}"><div style="padding: 6px 16px; background: #FFF1E0; color: #8A4200; font-size: 12px; font-weight: 700">Új szekció — újranyitás után hozzáadva</div></sc-if>
+     <div style="display: flex; align-items: center"><button onClick="{{r.toggle}}" aria-expanded="{{r.isOpen}}" style="flex: 1; min-width: 0; min-height: 84px; box-sizing: border-box; padding: 12px 8px 12px 16px; border: 0; background: transparent; color: #0E1116; text-align: left; display: flex; align-items: center; gap: 12px">
+      <span style="flex: none; width: 52px; height: 52px; border-radius: 17px; background: {{r.c}}; color: #fff; display: flex; align-items: center; justify-content: center"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l2-3h6l2 3h3v12H4z M8.5 13a3.5 3.5 0 107 0 3.5 3.5 0 10-7 0"/></svg></span>
+      <span style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px"><span style="font-size: 18px; font-weight: 700">{{r.name}}</span><span style="font-size: 14px; font-weight: 600; color: #4A4F57">{{r.dims}}</span></span></button>
+      <button onClick="{{r.more}}" aria-label="Helyiség műveletei" style="flex: none; width: 48px; height: 48px; margin-right: 8px; border: 0; border-radius: 24px; background: transparent; color: #0E1116; display: flex; align-items: center; justify-content: center"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="{{ic.dots}}"/></svg></button></div>
+     <sc-if value="{{r.isOpen}}" hint-placeholder-val="{{ false }}">
+      <div style="padding: 0 14px 14px; display: flex; flex-direction: column; gap: 10px">
+       <div style="display: flex; gap: 6px; flex-wrap: wrap"><span class="badge">{{r.win}} ablak</span><span class="badge">{{r.door}} ajtó</span><span class="badge">{{r.photos}} fotó</span><span class="badge">{{r.items}} tétel</span></div>
+       <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px"><span style="height: 62px; border-radius: 14px; background: linear-gradient(135deg,#D8C7B1,#B09A7F)"></span><span style="height: 62px; border-radius: 14px; background: linear-gradient(135deg,#C9CFDB,#9AA3B5)"></span><span style="height: 62px; border-radius: 14px; background: linear-gradient(135deg,#BFC8C4,#8FA19B)"></span><button aria-label="Fotó hozzáadása" style="height: 62px; border: 2px dashed #C9C5BA; border-radius: 14px; background: transparent; color: #5A5F68; display: flex; align-items: center; justify-content: center"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="{{ic.plus}}"/></svg></button></div>
+       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px"><button style="min-height: 52px; border: 0; border-radius: 26px; background: #0E1116; color: #fff; font-size: 15px; font-weight: 700">Tételek ({{r.items}})</button><button style="min-height: 52px; border: 0; border-radius: 26px; background: #F1F1F3; color: #0E1116; font-size: 15px; font-weight: 700">Méretek</button></div>
+      </div>
+     </sc-if>
+    </article>
+   </sc-for>
+   <button style="min-height: 60px; border: 2px dashed #B9B5AA; border-radius: 26px; background: transparent; color: #0E1116; display: flex; align-items: center; justify-content: center; gap: 10px; font-size: 16px; font-weight: 700"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="{{ic.plus}}"/></svg>Helyiség hozzáadása</button>
+
+   <!-- Area summary -->
+   <section class="card" style="padding: 16px; display: flex; flex-direction: column; gap: 8px">
+    <h2 class="h2" style="font-size: 19px">Területek</h2>
+    <sc-for list="{{areas}}" as="a" hint-placeholder-count="4"><div style="display: flex; justify-content: space-between; font-size: 15px; font-weight: 600; padding: 6px 0; border-top: 1px solid #ECEAE4; color: {{a.c}}"><span>{{a.l}}</span><b>{{a.v}}</b></div></sc-for>
+    <span class="m">Ablak ~1,5 m² · Ajtó ~2,0 m² (standard becslés)</span>
+   </section>
+
+   <!-- Linked -->
+   <section class="card" style="padding: 14px 16px; display: flex; flex-direction: column; gap: 8px"><span class="lbl">Kapcsolódó</span>
+    <button class="row" style="min-height: 60px; background: #FFF1E0; color: #6B3300; box-shadow: none"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h7l5 5v13H7zM14 3v5h5"/></svg><span style="flex: 1">Ajánlat: Lakásfelújítás, teljes</span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg></button>
+    <button class="row" style="min-height: 60px; background: #E7F4EC; color: #14532D; box-shadow: none"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8h18v12H3zM9 8V5h6v3"/></svg><span style="flex: 1">Projekt: Lakásfelújítás, teljes</span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg></button>
+   </section>
+  </div>
+ </div>
+
+ <div class="bar">
+  <button onClick="{{mic}}" aria-label="Diktálás" class="sq"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6a3 3 0 106 0v6a3 3 0 10-6 0zM5 11a7 7 0 0014 0M12 18v3"/></svg></button>
+  <button onClick="{{primary}}" class="pri">{{primaryLabel}}<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+ </div>
+
+ <sc-if value="{{overlay}}" hint-placeholder-val="{{ false }}"><button class="scrim" onClick="{{close}}" aria-label="Bezárás"></button></sc-if>
+
+ <!-- Survey context menu -->
+ <sc-if value="{{isMenu}}" hint-placeholder-val="{{ false }}">
+  <div class="sheet" role="dialog" aria-label="Felmérés műveletei"><span class="grab"></span>
+   <div style="display: flex; flex-direction: column; gap: 2px"><span class="sht" style="font-size: 22px">Lakásfelújítás, teljes</span><span class="m">Kiss Márta · Felmérés</span></div>
+   <sc-for list="{{menu}}" as="m" hint-placeholder-count="7"><button class="row" onClick="{{m.pick}}" style="min-height: 60px; color: {{m.fg}}"><span class="ic" style="background: {{m.ibg}}; color: {{m.fg}}"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="{{m.d}}"/></svg></span>{{m.label}}</button></sc-for>
+  </div>
+ </sc-if>
+
+ <!-- Meta drawer -->
+ <sc-if value="{{isMeta}}" hint-placeholder-val="{{ false }}">
+  <div class="sheet" role="dialog" aria-label="Alapadatok szerkesztése"><span class="grab"></span>
+   <div class="sh"><span class="sht">Alapadatok szerkesztése</span><button class="x" onClick="{{close}}" aria-label="Bezárás"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="{{ic.x}}"/></svg></button></div>
+   <label style="display: flex; flex-direction: column; gap: 4px"><span style="font-size: 14px; font-weight: 700">Felmérés neve *</span><input class="fld" value="Lakásfelújítás, teljes"></label>
+   <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px"><label style="display: flex; flex-direction: column; gap: 4px"><span style="font-size: 14px; font-weight: 700">Dátum</span><input class="fld" value="2026. 11. 16."></label><label style="display: flex; flex-direction: column; gap: 4px"><span style="font-size: 14px; font-weight: 700">Ügyfél</span><input class="fld" value="Kiss Márta"></label></div>
+   <label style="display: flex; flex-direction: column; gap: 4px"><span style="font-size: 14px; font-weight: 700">Helyszín</span><input class="fld" placeholder="pl. 8600 Siófok, Fő u. 12." value="Ráday u. 8., Budapest"></label>
+   <label style="display: flex; flex-direction: column; gap: 4px"><span style="font-size: 14px; font-weight: 700">Megjegyzések</span><textarea class="fld" style="height: 92px; padding: 12px 16px; resize: none" placeholder="Felmérési megjegyzések, részletek…"></textarea></label>
+   <div style="display: flex; gap: 8px"><button style="flex: 1; height: 52px; border: 0; border-radius: 26px; background: #fff; color: #0E1116; font-size: 14px; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 1px 0 rgba(14,17,22,0.08)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M9 6a3 3 0 106 0v6a3 3 0 10-6 0zM5 11a7 7 0 0014 0M12 18v3"/></svg>Diktálás</button><button style="flex: 1; height: 52px; border: 0; border-radius: 26px; background: #fff; color: #0E1116; font-size: 14px; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 1px 0 rgba(14,17,22,0.08)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/></svg>AI formázás</button></div>
+   <button onClick="{{close}}" style="height: 60px; border: 0; border-radius: 30px; background: #0E1116; color: #fff; font-size: 17px; font-weight: 700">Mentés</button>
+  </div>
+ </sc-if>
+
+ <!-- Confirms -->
+ <sc-if value="{{isConfirm}}" hint-placeholder-val="{{ false }}">
+  <div class="sheet" role="alertdialog"><span class="grab"></span>
+   <span class="sht">{{cf.title}}</span><span style="font-size: 16px; font-weight: 500; line-height: 1.45">{{cf.msg}}</span>
+   <button onClick="{{cf.ok}}" style="height: 60px; border: 0; border-radius: 30px; background: {{cf.bg}}; color: #fff; font-size: 17px; font-weight: 700">{{cf.btn}}</button>
+   <button onClick="{{close}}" style="height: 60px; border: 0; border-radius: 30px; background: #EFEDE6; color: #0E1116; font-size: 17px; font-weight: 700">Mégse</button>
+  </div>
+ </sc-if>
+
+ <!-- Room menu -->
+ <sc-if value="{{isRoom}}" hint-placeholder-val="{{ false }}">
+  <div class="sheet" role="dialog" aria-label="Helyiség műveletei"><span class="grab"></span>
+   <span class="sht" style="font-size: 22px">{{roomName}}</span>
+   <sc-for list="{{roomMenu}}" as="m" hint-placeholder-count="7"><button class="row" onClick="{{close}}" style="min-height: 60px; color: {{m.fg}}"><span class="ic" style="background: {{m.ibg}}; color: {{m.fg}}"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="{{m.d}}"/></svg></span>{{m.label}}</button></sc-for>
+  </div>
+ </sc-if>
+
+ <!-- Locked options -->
+ <sc-if value="{{isLocked}}" hint-placeholder-val="{{ false }}">
+  <div class="sheet" role="dialog" aria-label="Zárolt dokumentum"><span class="grab"></span>
+   <div class="sh"><span class="sht">Dokumentum visszautasítva</span></div>
+   <span class="badge" style="align-self: flex-start; background: #FDECEC; color: #9B1C1C">Visszautasítva</span>
+   <span style="font-size: 15px; font-weight: 600; line-height: 1.45; color: #4A4F57">A kollektíva tulajdonosa visszautasította az áthelyezési kérelmet. Ez a dokumentum jelenleg csak olvasható.</span>
+   <span class="lbl">Mit tehetsz?</span>
+   <button class="row" onClick="{{close}}" style="min-height: 76px"><span class="ic" style="background: #E7F4EC; color: #14532D"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h6l2 3h10v9H3z"/></svg></span><span style="display: flex; flex-direction: column; gap: 2px"><span>Megtartás személyes munkaterületen</span><span class="m">Szerkeszthetővé válik — foglal egy helyet az előfizetésedből.</span></span></button>
+   <button class="row" onClick="{{close}}" style="min-height: 76px"><span class="ic" style="background: #D9F2EE; color: #0A5C53"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14L4 9l5-5M4 9h11a5 5 0 010 10h-3"/></svg></span><span style="display: flex; flex-direction: column; gap: 2px"><span>Újrapróbálás</span><span class="m">1 kísérlet maradt</span></span></button>
+   <button class="row" onClick="{{close}}" style="min-height: 64px; color: #B71C1C"><span class="ic" style="background: #FDECEC; color: #B71C1C"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg></span>Törlés</button>
+  </div>
+ </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  state = { status: 'reopened', arch: false, locked: false, prop: false, open: 'ko', ov: null, room: null };
+  renderVals() {
+    const st = this.state;
+    const IC = { back: 'M15 6l-6 6 6 6', plus: 'M12 5v14M5 12h14', dots: 'M5 12h.01M12 12h.01M19 12h.01', x: 'M6 6l12 12M18 6L6 18', check: 'M5 12l5 5 9-10', chevD: 'M6 9l6 6 6-6' };
+    const set = (ov, room) => () => this.setState({ ov, room: room === undefined ? st.room : room });
+    const S = {
+      active: { label: 'Aktív', bg: '#fff', fg: '#0A5C53', note: 'Szerkeszthető' },
+      done: { label: 'Lezárt', bg: '#fff', fg: '#0F172A', check: true, note: 'Lezárva: nov. 16.' },
+      reopened: { label: 'Újranyitva', bg: '#FFF1E0', fg: '#8A4200', note: 'Új szekciók adhatók hozzá' }
+    };
+    const stat = st.arch ? { label: 'Inaktív', bg: '#EEE', fg: '#555', note: 'Elrejtve a listában' } : S[st.status];
+    const isDone = st.status === 'done';
+    const P = { pencil: 'M16 3l5 5L9 20H4v-5z', mic: 'M9 6a3 3 0 106 0v6a3 3 0 10-6 0zM5 11a7 7 0 0014 0M12 18v3', ok: 'M5 12l5 5 9-10 M3 12a9 9 0 1018 0 9 9 0 10-18 0', redo: 'M4 4v6h6M20 20v-6h-6M20 10a8 8 0 00-14-3M4 14a8 8 0 0014 3', plan: 'M4 4h16v16H4zM4 11h8M12 4v9M12 16h8', sk: 'M3 17l5-5 4 4 8-9', eye: 'M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12M9 12a3 3 0 106 0 3 3 0 10-6 0', trash: 'M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13', sparks: 'M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z', cam: 'M4 8h3l2-3h6l2 3h3v12H4z M8.5 13a3.5 3.5 0 107 0 3.5 3.5 0 10-7 0', plus: 'M12 5v14M5 12h14' };
+    const mi = (label, d, pick, o) => ({ label, d, pick, fg: o === 'danger' ? '#B71C1C' : '#0E1116', ibg: o === 'danger' ? '#FDECEC' : '#F1F1F3' });
+    const menu = [
+      mi('Általános szerkesztése', P.pencil, set('meta')),
+      mi('Ingatlan megjegyzés diktálása', P.mic, () => this.setState({ ov: null, prop: true })),
+      isDone ? mi('Újranyitás', P.redo, set('reopen')) : mi('Lezárás', P.ok, set('close')),
+      mi('Alaprajz hozzáadása', P.plan, set('layout')),
+      mi('Általános vázlat', P.sk, set(null)),
+      mi(st.arch ? 'Visszaállítás aktívra' : 'Inaktiválás', P.eye, set('arch')),
+      mi('Törlés', P.trash, set('del'), 'danger')
+    ];
+    const CF = {
+      close: { title: 'Lezárod a felmérést?', msg: 'Lezárás után csak újranyitással szerkeszthető. Az ajánlat készítése továbbra is elérhető.', btn: 'Igen, lezárás', bg: '#0E1116', ok: () => this.setState({ status: 'done', ov: null }) },
+      reopen: { title: 'Újranyitod a felmérést?', msg: 'Az újranyitás után hozzáadott helyiségek külön jelölést kapnak.', btn: 'Újranyitás', bg: '#0E1116', ok: () => this.setState({ status: 'reopened', ov: null }) },
+      arch: { title: st.arch ? 'Visszaállítás aktívra' : 'Inaktiválás', msg: st.arch ? 'Biztosan visszaállítod aktív állapotba? A felmérés ismét látható és szerkeszthető lesz.' : 'Biztosan inaktiválod ezt a felmérést? Az állapotot később bármikor visszaállíthatod.', btn: st.arch ? 'Visszaállítás' : 'Inaktiválás', bg: '#0E1116', ok: () => this.setState({ arch: !st.arch, ov: null }) },
+      del: { title: 'Törlöd a felmérést?', msg: 'Biztosan törölni kívánja „Lakásfelújítás, teljes” felmérést? Véglegesen törlődik: 5 helyiség, 38 fotó / videó, 2 vázlat. Ez nem vonható vissza. Ez az egész csapat számára törlődik.', btn: 'Igen, törlés', bg: '#B71C1C', ok: set(null) },
+      layout: { title: 'Alaprajz elemzése', msg: 'Elemezzük az alaprajzot AI-val és azonosítsuk a helyiségeket, méreteket és nyílásokat?', btn: 'Igen, elemzés', bg: '#0A7F72', ok: set(null) }
+    };
+    const R = [
+      { id: 'fu', name: 'Fürdőszoba', w: 2.4, l: 3.1, h: 2.6, win: 1, door: 1, ph: 9, it: 7, c: '#0A7F72' },
+      { id: 'ko', name: 'Konyha', w: 3.2, l: 4.4, h: 2.7, win: 2, door: 1, ph: 11, it: 5, c: '#0A7F72' },
+      { id: 'na', name: 'Nappali', w: 4.2, l: 5.6, h: 2.7, win: 3, door: 2, ph: 8, it: 6, c: '#0A7F72' },
+      { id: 'ha', name: 'Hálószoba', w: 3.4, l: 3.9, h: 2.7, win: 1, door: 1, ph: 6, it: 4, c: '#0A7F72' },
+      { id: 'sp', name: 'Spájz', w: 1.6, l: 2.0, h: 2.6, win: 0, door: 1, ph: 4, it: 0, c: '#FF8A2B', isNew: true }
+    ];
+    const f = (n) => String(n.toFixed(1)).replace('.', ',');
+    const rooms = R.map((r) => ({
+      name: r.name, dims: f(r.w) + ' × ' + f(r.l) + ' m · ' + f(r.h) + ' m magas', win: r.win, door: r.door, photos: r.ph, items: r.it, c: r.c,
+      isNew: !!r.isNew && st.status === 'reopened', top: r.isNew && st.status === 'reopened' ? '2px solid #F2B56B' : '0',
+      isOpen: st.open === r.id, toggle: () => this.setState({ open: st.open === r.id ? null : r.id }), more: set('room', r.name)
+    }));
+    const area = R.reduce((s, r) => s + r.w * r.l, 0);
+    const gross = R.reduce((s, r) => s + 2 * (r.w + r.l) * r.h, 0);
+    const wopen = R.reduce((s, r) => s + r.win * 1.5 + r.door * 2, 0);
+    return {
+      ic: IC, stat, people: ['TE', 'GK', 'ZS'], locked: st.locked, rooms, menu, propOpen: st.prop, propRot: st.prop ? 180 : 0, toggleProp: () => this.setState({ prop: !st.prop }),
+      utils: [{ t: 'Villany', d: 'M13 3L5 14h6l-1 7 8-11h-6z' }, { t: 'Fűtés', d: 'M12 3c2 3 5 5 5 9a5 5 0 01-10 0c0-2 1-3 2-4 0 2 1 3 2 3 0-3-1-5 1-8z' }, { t: 'Bojler', d: 'M7 3h10v18H7zM10 8h4' }],
+      areas: [{ l: 'Padló / mennyezet', v: f(area) + ' m²', c: '#0E1116' }, { l: 'Falfelület (bruttó)', v: f(gross) + ' m²', c: '#0E1116' }, { l: 'Kivonások (7 ablak + 8 ajtó)', v: '−' + f(wopen) + ' m²', c: '#9B1C1C' }, { l: 'Falfelület (nettó)', v: f(gross - wopen) + ' m²', c: '#0E1116' }],
+      primaryLabel: isDone ? 'Újranyitás' : 'Ajánlat készítése', primary: isDone ? set('reopen') : () => {}, mic: () => this.setState({ prop: true }),
+      overlay: !!st.ov, close: set(null), openMenu: set('menu'), isMenu: st.ov === 'menu', isMeta: st.ov === 'meta', isRoom: st.ov === 'room', isLocked: st.ov === 'locked',
+      isConfirm: ['close', 'reopen', 'arch', 'del', 'layout'].includes(st.ov), cf: CF[st.ov] || CF.close,
+      toLocked: set('locked'), toLayout: set('layout'), roomName: st.room || '',
+      roomMenu: [mi('Diktálás', P.mic), mi('AI javaslat', P.sparks), mi('Tétel hozzáadása', P.plus), mi('Fotó / videó', P.cam), mi('Vázlat', P.sk), mi('Szerkesztés', P.pencil), mi('Törlés', P.trash, null, 'danger')]
+    };
+  }
+}
+</script></body></html>

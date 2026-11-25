@@ -74,6 +74,6 @@ export function proxy(request) {
 
 export const config = {
   matcher: [
-    '/((?!api|_next/static|_next/image|favicon\\.ico|szakemberek|clients|p/|invitations|auth|login|change-password|impressum|adatkezeles|aszf|about|checkout-popup-success|portal|demo).*)',
+    '/((?!api|_next/static|_next/image|favicon\\.ico|pro/|clients|p/|invitations|auth|login|change-password|impressum|adatkezeles|aszf|about|checkout-popup-success|portal|demo).*)',
   ],
 };

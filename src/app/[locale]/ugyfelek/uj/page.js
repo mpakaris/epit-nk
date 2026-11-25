@@ -9,8 +9,11 @@ import { useTranslations } from 'next-intl';
 import PageSpinner from '@/components/PageSpinner';
 import WorkspacePicker from '@/components/mobile/WorkspacePicker';
 import { ArrowLeft, AlertCircle, Check, Loader2 } from 'lucide-react';
+import useMobile from '@/hooks/useMobile';
+import ClientFormMobile from '../mobile/ClientFormMobile';
 
 export default function NewClientPage() {
+  const isMobile = useMobile();
   const router = useRouter();
   const { loading, dataReady, createClient, effectiveCollectives, isDemoMode } = useApp();
   const t = useTranslations('clients');
@@ -30,6 +33,8 @@ export default function NewClientPage() {
   const [gdpr, setGdpr]   = useState(false);
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  if (isMobile) return <ClientFormMobile />;
 
   const handleSubmit = async (e) => {
     e.preventDefault();

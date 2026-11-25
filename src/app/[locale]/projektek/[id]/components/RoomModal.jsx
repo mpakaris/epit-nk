@@ -4,8 +4,17 @@ import { useState, useEffect, useRef } from 'react';
 import { Loader2, Check, Trash2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import Modal from '@/components/Modal';
-import ErrorBanner from '@/components/ErrorBanner';
 import WorkTypeSelector from './WorkTypeSelector';
+
+const LABEL = {
+  display: 'block',
+  fontSize: 11,
+  fontWeight: 700,
+  letterSpacing: '0.07em',
+  textTransform: 'uppercase',
+  color: '#5A5F68',
+  marginBottom: 6,
+};
 
 export default function RoomModal({ isOpen, onClose, room, onSave, onDelete, canEdit = true }) {
   const t = useTranslations('projectDetail');
@@ -46,12 +55,10 @@ export default function RoomModal({ isOpen, onClose, room, onSave, onDelete, can
     description: description.trim() || null,
   });
 
-  // Auto-save for edits; auto-create for new rooms
   useEffect(() => {
     if (!canEdit) return;
 
     if (!isEdit) {
-      // Create mode: auto-create when name is typed
       if (!name.trim() || creatingRef.current) return;
       clearTimeout(timerRef.current);
       setSaveStatus('pending');
@@ -67,7 +74,6 @@ export default function RoomModal({ isOpen, onClose, room, onSave, onDelete, can
       return () => clearTimeout(timerRef.current);
     }
 
-    // Edit mode
     if (savedRef.current === null) return;
     const current = snap(name, sizeM2, workTypes, description);
     if (current === savedRef.current) return;
@@ -93,7 +99,6 @@ export default function RoomModal({ isOpen, onClose, room, onSave, onDelete, can
     return () => { clearTimeout(timerRef.current); clearTimeout(savedTimer.current); };
   }, [name, sizeM2, workTypes, description]);
 
-  // Close handler: if in create mode with a name typed, flush immediately
   const handleClose = async () => {
     if (!isEdit && canEdit && name.trim() && !creatingRef.current) {
       clearTimeout(timerRef.current);
@@ -107,47 +112,82 @@ export default function RoomModal({ isOpen, onClose, room, onSave, onDelete, can
 
   const title = canEdit ? (isEdit ? t('roomEditTitle') : t('roomNewTitle')) : t('roomViewTitle');
 
-  const SaveIndicator = () => {
-    if (!canEdit || saveStatus === 'idle') return null;
-    if (saveStatus === 'pending' || saveStatus === 'saving') return (
-      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 12, color: 'var(--text-muted)', fontWeight: 600 }}>
-        <Loader2 size={12} className="animate-spin" /> {t('savingText')}
-      </span>
-    );
-    return <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 12, color: 'var(--success-text)', fontWeight: 700 }}><Check size={12} /> {t('savedText')}</span>;
-  };
-
   return (
     <Modal isOpen={isOpen} onClose={handleClose} title={title}>
-      <ErrorBanner message={error} style={{ marginBottom: '0.85rem' }} />
-      <div>
-        <div className="form-group">
-          <label className="form-label">{t('roomNameLabel')}</label>
-          <input type="text" className="form-control" value={name} onChange={e => setName(e.target.value)}
-            placeholder={t('roomNamePh')} disabled={!canEdit} />
+      {error && (
+        <div style={{ background: '#FEF2F2', color: '#B91C1C', borderRadius: 10, padding: '10px 14px', fontSize: 13, fontWeight: 600, marginBottom: 16 }}>
+          {error}
         </div>
-        <div className="form-group">
-          <label className="form-label">{t('roomAreaLabel')}</label>
-          <input type="number" min="0" step="0.1" className="form-control" value={sizeM2}
-            onChange={e => setSizeM2(e.target.value)} placeholder={t('roomAreaPh')} disabled={!canEdit} />
-        </div>
-        <div className="form-group">
-          <label className="form-label">{t('roomWorkTypesLabel')}</label>
-          <WorkTypeSelector selected={workTypes} onChange={canEdit ? setWorkTypes : () => {}} disabled={!canEdit} />
-        </div>
-        <div className="form-group" style={{ marginBottom: isEdit && canEdit && onDelete ? '1.25rem' : 0 }}>
-          <label className="form-label">{t('roomDescLabel')}</label>
-          <textarea rows={2} className="form-control" value={description} onChange={e => setDescription(e.target.value)} disabled={!canEdit} />
+      )}
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+
+        {/* Name */}
+        <div>
+          <label style={LABEL}>{t('roomNameLabel')}</label>
+          <input
+            type="text"
+            className="dk-input"
+            value={name}
+            onChange={e => setName(e.target.value)}
+            placeholder={t('roomNamePh')}
+            disabled={!canEdit}
+           
+          />
         </div>
 
-        <div style={{ marginTop: '1.25rem', paddingTop: '1rem', borderTop: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <span style={{ marginRight: 'auto' }}><SaveIndicator /></span>
-          {isEdit && canEdit && onDelete && (
-            <button type="button" className="btn btn-danger btn-sm" onClick={onDelete}>
-              <Trash2 size={13} /> {t('deleteLabel')}
-            </button>
-          )}
+        {/* Area */}
+        <div>
+          <label style={LABEL}>{t('roomAreaLabel')}</label>
+          <input
+            type="number"
+            min="0"
+            step="0.1"
+            className="dk-input"
+            value={sizeM2}
+            onChange={e => setSizeM2(e.target.value)}
+            placeholder={t('roomAreaPh')}
+            disabled={!canEdit}
+           
+          />
         </div>
+
+        {/* Description */}
+        <div>
+          <label style={LABEL}>{t('roomDescLabel')}</label>
+          <textarea
+            rows={2}
+            className="dk-input"
+            value={description}
+            onChange={e => setDescription(e.target.value)}
+            disabled={!canEdit}
+           style={{ height: 'auto', padding: '12px 14px', resize: 'none' }}
+          />
+        </div>
+
+        {/* Footer */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600, minHeight: 20, color: saveStatus === 'saved' ? '#16a34a' : '#5A5F68' }}>
+            {canEdit && (saveStatus === 'pending' || saveStatus === 'saving')
+              ? <><Loader2 size={12} className="animate-spin" /> {t('savingText')}</>
+              : canEdit && saveStatus === 'saved'
+                ? <><Check size={12} /> {t('savedText')}</>
+                : null
+            }
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            {isEdit && canEdit && onDelete && (
+              <button type="button" className="dk-btn" onClick={onDelete}
+                style={{ height: 44, padding: '0 18px', background: '#FEF2F2', color: '#B91C1C', display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Trash2 size={15} /> {t('deleteLabel')}
+              </button>
+            )}
+            <button type="button" className="dk-btn dk-btn-dark" onClick={handleClose}>
+              {t('closeBtn')}
+            </button>
+          </div>
+        </div>
+
       </div>
     </Modal>
   );

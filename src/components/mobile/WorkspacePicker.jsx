@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import { User, Users, Check, X, Info } from 'lucide-react';
 import useMobile from '@/hooks/useMobile';
 import SharingBanner from './SharingBanner';
+import { podColor, PERSONAL_COLOR } from '@/lib/podColor';
 
 export default function WorkspacePicker({
   collectives = [],
@@ -17,7 +18,7 @@ export default function WorkspacePicker({
 }) {
   const t = useTranslations('mobile.workspace');
   const isMobile = useMobile();
-  const typeLabel = t(docType === 'quote' ? 'typeQuote' : 'typeSurvey');
+  const typeLabel = docType === 'quote' ? t('typeQuote') : docType === 'project' ? t('typeProject') : t('typeSurvey');
 
   if (!personalOnly && collectives.length === 0) return null;
 
@@ -66,6 +67,7 @@ export default function WorkspacePicker({
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             <WorkspaceOption
               type="personal"
+              colors={PERSONAL_COLOR}
               label={t('personal')}
               description={personalOnly ? t('personalGdprDesc') : t('personalDesc')}
               isSelected={selected === null}
@@ -82,6 +84,7 @@ export default function WorkspacePicker({
               <div key={col.id} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                 <WorkspaceOption
                   type={isOwned ? 'collective' : 'member'}
+                  colors={podColor(col.id)}
                   label={col.name}
                   description={isOwned ? t('ownedColDesc') : t('memberColDesc')}
                   isSelected={isThisSelected}
@@ -171,15 +174,10 @@ export default function WorkspacePicker({
   );
 }
 
-function WorkspaceOption({ type, label, description, isSelected, onSelect, t }) {
-  const isPersonal  = type === 'personal';
-  const isMember    = type === 'member';
-  const chipBg      = isPersonal ? '#eff6ff' : isMember ? '#fff7ed' : '#dcfce7';
-  const iconColor   = isPersonal ? '#2563eb' : isMember ? '#ea580c' : '#16a34a';
-  const ringColor   = isPersonal ? '#2563eb' : isMember ? '#ea580c' : '#16a34a';
-
+function WorkspaceOption({ type, colors, label, description, isSelected, onSelect, t }) {
+  const isPersonal = type === 'personal';
+  const isMember   = type === 'member';
   const badgeLabel = isPersonal ? t('private') : isMember ? t('member') : t('owner');
-  const badgeBg    = isPersonal ? '#2563eb' : isMember ? '#ea580c' : '#16a34a';
 
   return (
     <button
@@ -189,18 +187,19 @@ function WorkspaceOption({ type, label, description, isSelected, onSelect, t }) 
       style={{
         position: 'relative',
         display: 'flex', alignItems: 'flex-start', gap: 14,
-        minHeight: 120, padding: 20, textAlign: 'left',
-        background: '#fff', borderRadius: 20, cursor: 'pointer',
-        border: isSelected ? `2px solid ${ringColor}` : '2px solid transparent',
-        boxShadow: 'var(--shadow-card)',
+        minHeight: 100, padding: 20, textAlign: 'left',
+        background: colors.deep, borderRadius: 20, cursor: 'pointer',
+        border: isSelected ? `2px solid ${colors.bg}` : `2px solid transparent`,
+        boxShadow: '0 4px 16px -4px rgba(0,0,0,0.5)',
         transition: 'border-color 0.15s',
         width: '100%',
+        opacity: onSelect === undefined ? 0.65 : 1,
       }}
     >
       <span style={{
         position: 'absolute', top: 14, right: 52,
         fontSize: 10, fontWeight: 800, lineHeight: 1,
-        color: '#fff', background: badgeBg,
+        color: colors.fg, background: colors.glass,
         padding: '3px 8px', borderRadius: 999,
         whiteSpace: 'nowrap',
       }}>
@@ -208,34 +207,34 @@ function WorkspaceOption({ type, label, description, isSelected, onSelect, t }) 
       </span>
 
       <div style={{
-        width: 56, height: 56, borderRadius: '50%',
-        background: chipBg, flexShrink: 0,
+        width: 52, height: 52, borderRadius: '50%',
+        background: colors.bg, flexShrink: 0,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
       }}>
         {isPersonal
-          ? <User size={26} color={iconColor} strokeWidth={1.75} aria-hidden="true" />
-          : <Users size={26} color={iconColor} strokeWidth={1.75} aria-hidden="true" />}
+          ? <User size={24} color={colors.fg} strokeWidth={1.75} aria-hidden="true" />
+          : <Users size={24} color={colors.fg} strokeWidth={1.75} aria-hidden="true" />}
       </div>
 
       <div style={{ flex: 1, paddingTop: 4 }}>
         <div style={{ marginBottom: 4 }}>
-          <span style={{ fontSize: 20, fontWeight: 800, color: '#0f172a', lineHeight: '26px' }}>
+          <span style={{ fontSize: 19, fontWeight: 800, color: colors.fg, lineHeight: '25px' }}>
             {label}
           </span>
         </div>
-        <div style={{ fontSize: 14, fontWeight: 500, color: '#475569', lineHeight: '20px' }}>
+        <div style={{ fontSize: 13, fontWeight: 500, color: colors.soft, lineHeight: '19px' }}>
           {description}
         </div>
       </div>
 
       <div style={{
         width: 28, height: 28, borderRadius: '50%', flexShrink: 0, marginTop: 2,
-        background: isSelected ? ringColor : 'transparent',
-        border: `2px solid ${isSelected ? ringColor : '#cbd5e1'}`,
+        background: isSelected ? colors.bg : 'transparent',
+        border: `2px solid ${isSelected ? colors.bg : colors.glass}`,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         transition: 'background 0.15s, border-color 0.15s',
       }}>
-        {isSelected && <Check size={16} color="#fff" strokeWidth={3} aria-hidden="true" />}
+        {isSelected && <Check size={16} color={colors.fg} strokeWidth={3} aria-hidden="true" />}
       </div>
     </button>
   );

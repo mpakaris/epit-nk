@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="hu"><head><meta charset="utf-8"><title>OkosSzaki — Projektek</title><script src="./support.js"></script></head>
+<body><x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&amp;family=Plus+Jakarta+Sans:wght@500;600;700&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}
+button,input,textarea{font-family:inherit}
+button{cursor:pointer}
+*{scrollbar-width:none;-ms-overflow-style:none}
+*::-webkit-scrollbar{display:none;width:0;height:0}
+.root{position:relative;width:390px;height:844px;overflow:hidden;background:#EDEBE5;color:#0E1116;font-family:'Plus Jakarta Sans',system-ui,sans-serif}
+.scroll{position:absolute;inset:0;z-index:1;overflow-y:auto;box-sizing:border-box;padding:0 0 170px}
+.hd{position:relative;overflow:hidden;box-sizing:border-box;padding:18px 16px 20px;border-radius:0 0 32px 32px;display:flex;flex-direction:column;gap:12px}
+.glow{position:absolute;right:-90px;top:-120px;width:300px;height:300px;border-radius:150px}
+.top{position:relative;display:flex;align-items:center;justify-content:space-between}
+.rnd{width:48px;height:48px;border:0;border-radius:24px;display:flex;align-items:center;justify-content:center;padding:0}
+.pill{height:36px;padding:0 14px;border-radius:18px;font-size:13px;font-weight:700;display:inline-flex;align-items:center;gap:8px}
+.ttl{position:relative;margin:0;font-family:'Bricolage Grotesque',sans-serif;font-size:30px;font-weight:700;letter-spacing:-.02em;line-height:1.1}
+.kick{position:relative;font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+.sub{position:relative;font-size:15px;font-weight:600}
+.body{padding:16px 16px 0;display:flex;flex-direction:column;gap:14px}
+.card{box-sizing:border-box;border-radius:26px;background:#fff;box-shadow:0 1px 0 rgba(14,17,22,.05),0 14px 26px -18px rgba(14,17,22,.35)}
+.lbl{font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#5A5F68}
+.h2{margin:0;font-family:'Bricolage Grotesque',sans-serif;font-size:22px;font-weight:700}
+.fld{width:100%;box-sizing:border-box;height:56px;border:0;border-radius:20px;background:#fff;padding:0 16px;font-size:17px;font-weight:500;color:#0E1116;box-shadow:0 1px 0 rgba(14,17,22,.05),0 10px 20px -16px rgba(14,17,22,.4)}
+.fld::placeholder{color:#6B7078}
+.chip{height:52px;padding:0 18px;border:0;border-radius:26px;font-size:15px;font-weight:700;display:inline-flex;align-items:center;gap:8px;color:#0E1116}
+.bar{position:absolute;z-index:20;left:0;right:0;bottom:0;box-sizing:border-box;padding:28px 16px 18px;background:linear-gradient(to top,#EDEBE5 70%,rgba(237,235,229,0));display:flex;gap:10px}
+.pri{flex:1;height:60px;border:0;border-radius:30px;background:#0E1116;color:#fff;font-size:17px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:10px;box-shadow:0 14px 26px -12px rgba(14,17,22,.6)}
+.sq{flex:none;width:60px;height:60px;border:0;border-radius:30px;background:#fff;color:#0E1116;display:flex;align-items:center;justify-content:center;box-shadow:0 10px 22px -10px rgba(14,17,22,.4)}
+.ic{flex:none;width:44px;height:44px;border-radius:15px;background:#F1F1F3;color:#1A1D23;display:flex;align-items:center;justify-content:center}
+.row{width:100%;min-height:64px;box-sizing:border-box;padding:10px 14px;border:0;border-radius:22px;background:#fff;color:#0E1116;text-align:left;display:flex;align-items:center;gap:12px;font-size:16px;font-weight:700;box-shadow:0 1px 0 rgba(14,17,22,.05),0 12px 22px -18px rgba(14,17,22,.35)}
+.scrim{position:absolute;inset:0;z-index:40;border:0;padding:0;background:rgba(14,17,22,.5)}
+.sheet{position:absolute;z-index:50;left:0;right:0;bottom:0;box-sizing:border-box;padding:10px 16px 18px;border-radius:32px 32px 0 0;background:#FBFAF7;display:flex;flex-direction:column;gap:12px;max-height:90%;overflow-y:auto}
+.grab{align-self:center;flex:none;width:44px;height:5px;border-radius:3px;background:#D5D2C8}
+.sh{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.sht{font-family:'Bricolage Grotesque',sans-serif;font-size:25px;font-weight:700;line-height:1.1}
+.x{width:48px;height:48px;border:0;border-radius:24px;background:#EFEDE6;color:#0E1116;display:flex;align-items:center;justify-content:center;flex:none}
+.sw{flex:none;width:64px;height:38px;border-radius:19px;position:relative}
+.sw>i{position:absolute;top:4px;width:30px;height:30px;border-radius:15px;background:#fff;box-shadow:0 2px 6px rgba(14,17,22,.3)}
+.badge{height:26px;padding:0 10px;border-radius:13px;font-size:12px;font-weight:700;display:inline-flex;align-items:center;gap:4px;background:#F0F0F2;color:#2B3038;flex:none}
+.m{font-size:13px;font-weight:600;color:#5A5F68}
+.n{font-family:'Bricolage Grotesque',sans-serif;font-weight:700;letter-spacing:-.02em}
+.stat{flex:1;box-sizing:border-box;padding:10px 12px;border-radius:18px}
+
+.wcard{box-sizing:border-box;border-radius:24px;background:#fff;color:#0E1116;box-shadow:inset 0 1px 0 #fff,0 16px 26px -14px rgba(0,0,0,.7),0 3px 6px -2px rgba(0,0,0,.3)}
+</style>
+</helmet>
+<div class="root">
+ <!-- pinned app header -->
+ <header style="position: absolute; z-index: 15; left: 0; right: 0; top: 0; box-sizing: border-box; padding: 16px 16px 8px; display: flex; align-items: center; justify-content: space-between; background: linear-gradient(to bottom, #EDEBE5 70%, rgba(237,235,229,0))">
+  <span style="font-family: 'Bricolage Grotesque', sans-serif; font-size: 24px; font-weight: 700; letter-spacing: -0.02em">okosszaki<span style="color: #2F5BFF">.</span></span>
+  <span style="display: flex; gap: 8px">
+   <button aria-label="Üzenetek, 2 olvasatlan" class="rnd" style="position: relative; background: #fff; color: #0E1116"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H9l-5 4z"/></svg><span style="position: absolute; top: -2px; right: -2px; min-width: 20px; height: 20px; border-radius: 10px; background: #0E1116; color: #fff; border: 2px solid #EDEBE5; box-sizing: border-box; font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center">2</span></button>
+   <button aria-label="Értesítések, 3 olvasatlan" class="rnd" style="position: relative; background: #fff; color: #0E1116"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 17V11a6 6 0 0112 0v6l1.5 2h-15zM10 21h4"/></svg><span style="position: absolute; top: -2px; right: -2px; min-width: 20px; height: 20px; border-radius: 10px; background: #0E1116; color: #fff; border: 2px solid #EDEBE5; box-sizing: border-box; font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center">3</span></button>
+   <button aria-label="Menü" class="rnd" style="background: #0E1116; color: #fff"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+  </span>
+ </header>
+
+ <div style="position: absolute; inset: 0; z-index: 1; overflow-y: auto; box-sizing: border-box; padding: 84px 16px 190px; display: flex; flex-direction: column; gap: 10px">
+  <sc-for list="{{pods}}" as="p" hint-placeholder-count="3">
+   <section style="flex: none; border-radius: 28px; overflow: hidden; background: {{p.deep}}; color: #fff; box-shadow: 0 24px 40px -24px rgba(14,17,22,0.5)">
+    <div style="position: relative; height: 64px; overflow: hidden; background: {{p.bg}}; color: {{p.fg}}">
+     <span aria-hidden="true" style="position: absolute; right: -90px; top: -130px; width: 280px; height: 280px; border-radius: 140px; background: {{p.glow}}"></span>
+     <button onClick="{{p.pick}}" aria-label="{{p.name}} megnyitása" aria-pressed="{{p.isActive}}" style="position: relative; width: 100%; height: 64px; box-sizing: border-box; padding: 0 16px 0 14px; border: 0; background: transparent; color: inherit; display: flex; align-items: center; gap: 12px; text-align: left">
+      <span style="flex: none; width: 42px; height: 42px; border-radius: 21px; background: {{p.glass}}; display: flex; align-items: center; justify-content: center"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="{{p.icon}}"/></svg></span>
+      <span style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px"><span style="font-family: 'Bricolage Grotesque', sans-serif; font-size: 20px; font-weight: 700; letter-spacing: -0.01em; line-height: 1.15; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{p.name}}</span><span style="font-size: 13px; font-weight: 500; color: {{p.soft}}">{{p.sub}}</span></span>
+      <span style="flex: none; display: flex; align-items: center; padding-left: 8px"><sc-for list="{{p.members}}" as="m" hint-placeholder-count="3"><span style="width: 30px; height: 30px; margin-left: -9px; border-radius: 15px; background: #fff; color: #0E1116; border: 2px solid {{p.bg}}; box-sizing: border-box; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700">{{m}}</span></sc-for>
+       <span style="margin-left: 8px; min-width: 26px; height: 26px; padding: 0 8px; box-sizing: border-box; border-radius: 13px; background: #fff; color: #0E1116; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700">{{p.count}}</span></span>
+     </button>
+    </div>
+
+    <sc-if value="{{p.isActive}}" hint-placeholder-val="{{ true }}">
+     <div style="box-sizing: border-box; padding: 18px 16px 24px; display: flex; flex-direction: column; gap: 14px">
+      <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px">
+       <button style="height: 48px; padding: 0 18px 0 12px; border: 0; border-radius: 24px; background: #fff; color: #0E1116; display: flex; align-items: center; gap: 6px; font-size: 14px; font-weight: 700"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="{{ic.back}}"/></svg>{{p.shortName}}</button>
+       <span style="font-family: 'Bricolage Grotesque', sans-serif; font-size: 22px; font-weight: 700">Projektek</span>
+       <button aria-label="Új projekt" style="width: 48px; height: 48px; border: 0; border-radius: 24px; background: {{p.cta}}; color: {{p.ctaFg}}; display: flex; align-items: center; justify-content: center"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"><path d="{{ic.plus}}"/></svg></button>
+      </div>
+      <label style="position: relative; display: block"><span style="position: absolute; left: 18px; top: 50%; margin-top: -10px; color: #5A5F68; display: flex"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 11a7 7 0 1014 0 7 7 0 10-14 0M20 20l-4-4"/></svg></span>
+       <input class="fld" type="search" aria-label="Keresés" placeholder="Keresés név vagy ügyfél szerint" value="{{q}}" onInput="{{onQ}}" style="padding-left: 48px; border-radius: 28px"></label>
+      <div style="display: flex; gap: 8px; overflow-x: auto"><sc-for list="{{filters}}" as="f" hint-placeholder-count="5"><button onClick="{{f.pick}}" aria-pressed="{{f.on}}" class="chip" style="height: 44px; padding: 0 16px; background: {{f.bg}}; color: {{f.fg}}">{{f.label}}</button></sc-for></div>
+
+      <sc-if value="{{p.empty}}" hint-placeholder-val="{{ false }}"><div class="wcard" style="padding: 22px; text-align: center"><b style="font-size: 17px">Nincs találat</b><div class="m" style="margin-top: 4px">Próbáljon más keresési feltételt.</div></div></sc-if>
+
+      <sc-for list="{{p.items}}" as="s" hint-placeholder-count="3">
+       <article class="wcard" style="position: relative; overflow: hidden; opacity: {{s.op}}">
+        <div style="height: 6px; background: {{s.bar}}"></div>
+        <button aria-label="Megnyitás: {{s.title}}" style="width: 100%; box-sizing: border-box; padding: 14px 64px 12px 16px; border: 0; background: transparent; color: #0E1116; text-align: left; display: flex; flex-direction: column; gap: 6px; min-height: 84px">
+         <span style="font-size: 18px; font-weight: 700; line-height: 1.25; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{s.title}}</span>
+         <span style="font-size: 14px; font-weight: 600; color: #4A4F57; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{s.client}} · {{s.place}}</span>
+         <span style="display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 2px"><span style="display: flex; flex-direction: column; line-height: 1.15"><span class="m">Elköltve</span><span class="n" style="font-size: 23px">{{s.spent}}</span></span><span class="badge" style="background: {{s.sbg}}; color: {{s.sfg}}">{{s.status}}</span></span>
+         <span style="display: flex; flex-direction: column; gap: 4px"><span style="height: 8px; border-radius: 4px; background: #E3E7EE; overflow: hidden"><span style="display: block; height: 8px; width: {{s.pct}}%; background: {{s.pbar}}; border-radius: 4px"></span></span><span class="m">Ajánlat: {{s.quote}} · {{s.pct}}%</span></span>
+         <sc-if value="{{s.pending}}" hint-placeholder-val="{{ false }}"><span style="font-size: 13px; font-weight: 700; color: #3B2A8C; display: inline-flex; align-items: center; gap: 6px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12l16-8-6 16-3-6z"/></svg>Áthelyezési kérelem: {{s.pendingTo}}</span></sc-if>
+         <sc-if value="{{s.locked}}" hint-placeholder-val="{{ false }}"><span style="font-size: 13px; font-weight: 700; color: #9B1C1C; display: inline-flex; align-items: center; gap: 6px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 11h12v9H6zM9 11V8a3 3 0 016 0v3"/></svg>Csak olvasható</span></sc-if>
+        </button>
+        <button onClick="{{s.more}}" aria-label="További műveletek" style="position: absolute; right: 6px; top: 20px; width: 48px; height: 48px; border: 0; border-radius: 24px; background: transparent; color: #0E1116; display: flex; align-items: center; justify-content: center"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h.01M12 12h.01M19 12h.01"/></svg></button>
+       </article>
+      </sc-for>
+      <sc-if value="{{p.isPersonal}}" hint-placeholder-val="{{ true }}"><div style="box-sizing: border-box; padding: 12px 14px; border-radius: 20px; border: 2px dashed rgba(255,255,255,0.28); color: rgba(255,255,255,0.86); font-size: 14px; font-weight: 600; line-height: 1.4">Hozz létre egy kollektívát és oszd meg a felméréseidet.</div></sc-if>
+     </div>
+    </sc-if>
+   </section>
+  </sc-for>
+ </div>
+
+ <div style="position: absolute; z-index: 18; left: 0; right: 0; bottom: 0; height: 130px; background: linear-gradient(to top, #EDEBE5 55%, rgba(237,235,229,0)); pointer-events: none"></div>
+ <!-- floating dock -->
+ <nav aria-label="Fő navigáció" style="position: absolute; z-index: 20; left: 12px; right: 12px; bottom: 16px; height: 72px; border-radius: 28px; background: #fff; box-shadow: 0 8px 24px rgba(14,17,22,0.18), 0 2px 6px rgba(14,17,22,0.08); display: grid; grid-template-columns: repeat(5, 1fr); align-items: center">
+  <button style="height: 56px; border: 0; background: transparent; color: #5A5F68; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; font-size: 12px; font-weight: 700"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11l8-7 8 7M6 10v10h12V10"/></svg>Kezdő</button>
+  <button style="height: 56px; border: 0; background: transparent; color: #5A5F68; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; font-size: 12px; font-weight: 700"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8a3 3 0 013-3h12a3 3 0 013 3v11H3zM3 10h18M8 3v4M16 3v4"/></svg>Naptár</button>
+  <button aria-label="Új elem · {{cur.name}}" style="justify-self: center; width: 64px; height: 64px; margin-top: -26px; border: 4px solid #EDEBE5; border-radius: 32px; background: {{cur.cta}}; color: {{cur.ctaFg}}; display: flex; align-items: center; justify-content: center; box-shadow: 0 12px 22px -8px rgba(14,17,22,0.45)"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"><path d="{{ic.plus}}"/></svg></button>
+  <button style="height: 56px; border: 0; background: transparent; color: #5A5F68; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; font-size: 12px; font-weight: 700"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 8a3.5 3.5 0 107 0 3.5 3.5 0 10-7 0M2.5 20c0-3.5 2.9-6 6.5-6s6.5 2.5 6.5 6"/></svg>Ügyfél</button>
+  <button style="height: 56px; border: 0; background: transparent; color: #5A5F68; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; font-size: 12px; font-weight: 700"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 8a4 4 0 108 0 4 4 0 10-8 0M4 21c0-4 3.6-6.5 8-6.5s8 2.5 8 6.5"/></svg>Profil</button>
+ </nav>
+
+ <sc-if value="{{overlay}}" hint-placeholder-val="{{ false }}"><button class="scrim" onClick="{{close}}" aria-label="Bezárás"></button></sc-if>
+
+ <sc-if value="{{isMenu}}" hint-placeholder-val="{{ false }}">
+  <div class="sheet" role="dialog" aria-label="Műveletek"><span class="grab"></span>
+   <div style="display: flex; flex-direction: column; gap: 2px"><span class="sht" style="font-size: 22px">{{sel.title}}</span><span class="m">{{sel.client}} · elköltve {{sel.total}} · Projekt</span></div>
+   <button class="row" onClick="{{close}}" style="min-height: 60px;"><span class="ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>Megnyitás</button>
+   
+   
+   <sc-if value="{{sel.canTransfer}}" hint-placeholder-val="{{ true }}"><button class="row" onClick="{{toTransfer}}" style="min-height: 60px;"><span class="ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 8a3 3 0 106 0 3 3 0 10-6 0M3 20c0-3 2.7-5 6-5M21 20c0-3-2.7-5-6-5M7 20c0-2.2 2.2-4 5-4s5 1.8 5 4"/></svg></span>Áthelyezés kollektívába</button></sc-if>
+   <sc-if value="{{sel.pending}}" hint-placeholder-val="{{ true }}"><button class="row" onClick="{{close}}" style="min-height: 60px;"><span class="ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14L4 9l5-5M4 9h11a5 5 0 010 10h-3"/></svg></span>Áthelyezési kérelem visszavonása</button></sc-if>
+   <sc-if value="{{sel.canDelete}}" hint-placeholder-val="{{ true }}"><button class="row" onClick="{{toDelete}}" style="min-height: 60px; color: #B71C1C"><span class="ic" style="background: #FDECEC; color: #B71C1C"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 7h14M10 7V4h4v3M7 7l1 13h8l1-13"/></svg></span>Projekt törlése</button></sc-if>
+   <sc-if value="{{sel.noDelete}}" hint-placeholder-val="{{ false }}"><span class="m" style="padding: 0 4px">Csak a tulajdonos törölheti a csapat projektjét.</span></sc-if>
+  </div>
+ </sc-if>
+
+ <sc-if value="{{isTransfer}}" hint-placeholder-val="{{ false }}">
+  <div class="sheet" role="dialog" aria-label="Áthelyezés kollektívába"><span class="grab"></span>
+   <div class="sh"><span class="sht">Áthelyezés kollektívába</span><button class="x" onClick="{{close}}" aria-label="Bezárás"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+   <span style="font-size: 15px; font-weight: 600; color: #4A4F57; line-height: 1.4">„{{sel.title}}” a kollektíva tulajdonosának jóváhagyása után kerül át. A kérelem 7 napig érvényes, addig az projekt a tiéd marad.</span>
+   <sc-for list="{{targets}}" as="t" hint-placeholder-count="2"><button onClick="{{t.pick}}" aria-pressed="{{t.on}}" class="row" style="min-height: 72px; box-shadow: {{t.shadow}}"><span style="flex: none; width: 14px; height: 14px; border-radius: 7px; background: {{t.dot}}"></span><span style="flex: 1; display: flex; flex-direction: column"><b style="font-size: 17px">{{t.name}}</b><span class="m">{{t.role}}</span></span></button></sc-for>
+   <button onClick="{{close}}" style="height: 60px; border: 0; border-radius: 30px; background: #0E1116; color: #fff; font-size: 17px; font-weight: 700">Kérelem küldése</button>
+  </div>
+ </sc-if>
+
+ <sc-if value="{{isDelete}}" hint-placeholder-val="{{ false }}">
+  <div class="sheet" role="alertdialog" aria-label="Törlés megerősítése"><span class="grab"></span>
+   <span class="sht">Projekt törlése</span>
+   <span style="font-size: 16px; font-weight: 500; line-height: 1.45">Biztosan törölni kívánja „{{sel.title}}” projektet?<sc-if value="{{sel.team}}" hint-placeholder-val="{{ false }}"><b> Ez az egész csapat számára törlődik.</b></sc-if></span>
+   <button onClick="{{close}}" style="height: 60px; border: 0; border-radius: 30px; background: #B71C1C; color: #fff; font-size: 17px; font-weight: 700">Igen, törlés</button>
+   <button onClick="{{close}}" style="height: 60px; border: 0; border-radius: 30px; background: #EFEDE6; color: #0E1116; font-size: 17px; font-weight: 700">Mégse</button>
+  </div>
+ </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  state = { active: 'a', q: '', filter: 'all', sel: null, mode: null, target: 0 };
+  renderVals() {
+    const st = this.state;
+    const IC = { back: 'M15 6l-6 6 6 6', plus: 'M12 5v14M5 12h14', dots: 'M5 12h.01M12 12h.01M19 12h.01', x: 'M6 6l12 12M18 6L6 18', check: 'M5 12l5 5 9-10' };
+    const ST = { Aktív: ['#E7F4EC', '#14532D', '#2E9E5B', '#2E9E5B'], Szünetel: ['#FFF1E0', '#8A4200', '#FF8A2B', '#FF8A2B'], Lezárt: ['#E3E7EE', '#263248', '#8A94A8', '#8A94A8'], Lejárt: ['#FDECEC', '#9B1C1C', '#D64545', '#D64545'] };
+    const A = [
+      { id: 1, sp: 'p', title: 'Kazinczy u. 14. · fürdőfelújítás', client: 'Nagy Anna', place: 'Budapest VII.', st: 'Aktív', spent: '412 000 Ft', quote: '1 248 500 Ft', pct: 33, pending: true, to: 'Ráday u. 8.' },
+      { id: 2, sp: 'p', title: 'Bartók B. út 31. · konyha', client: 'Szabó Péter', place: 'Budapest XI.', st: 'Aktív', spent: '2 410 000 Ft', quote: '2 860 000 Ft', pct: 84 },
+      { id: 3, sp: 'p', title: 'Gödöllő · kerti kapu', client: 'Tóth Márta', place: 'Gödöllő', st: 'Lezárt', spent: '598 400 Ft', quote: '684 200 Ft', pct: 87, locked: true },
+      { id: 4, sp: 'a', title: 'Lakásfelújítás, teljes', client: 'Kiss Márta', place: 'Ráday u. 8.', st: 'Aktív', spent: '3 180 000 Ft', quote: '8 940 000 Ft', pct: 36, own: true },
+      { id: 5, sp: 'a', title: 'Ráday u. 8. · pince', client: 'Kiss Márta', place: 'Ráday u. 8.', st: 'Szünetel', spent: '120 000 Ft', quote: '1 120 000 Ft', pct: 11, own: false },
+      { id: 6, sp: 'b', title: 'Fő út 22. · tető', client: 'Tóth Gergő', place: 'Dunakeszi', st: 'Lejárt', spent: '5 980 000 Ft', quote: '5 410 000 Ft', pct: 100, own: false },
+      { id: 7, sp: 'b', title: 'Fő út 22. · garázs', client: 'Tóth Gergő', place: 'Dunakeszi', st: 'Aktív', spent: '310 000 Ft', quote: '960 000 Ft', pct: 32, own: true }
+    ];
+    const ICON = { p: 'M5 11h14v10H5zM8 11V8a4 4 0 018 0v3', c: 'M9 8a3 3 0 106 0 3 3 0 10-6 0M3 20c0-3 2.7-5 6-5M21 20c0-3-2.7-5-6-5M7 20c0-2.2 2.2-4 5-4s5 1.8 5 4' };
+    const SP = {
+      p: { name: 'Személyes', shortName: 'Személyes', sub: 'Csak te látod', bg: '#15181E', fg: '#fff', glow: 'rgba(255,255,255,0.05)', glass: 'rgba(255,255,255,0.16)', soft: 'rgba(255,255,255,0.76)', deep: '#0D0F13', cta: '#0E1116', ctaFg: '#fff', members: [], icon: ICON.p },
+      a: { name: 'Ráday u. 8.', shortName: 'Ráday', sub: 'Kollektíva · Tulajdonos', bg: '#2F5BFF', fg: '#fff', glow: 'rgba(255,255,255,0.10)', glass: 'rgba(255,255,255,0.20)', soft: 'rgba(255,255,255,0.88)', deep: '#0E1840', cta: '#2F5BFF', ctaFg: '#fff', members: ['TE', 'GK', 'ZS'], icon: ICON.c },
+      b: { name: 'Dunakeszi tető', shortName: 'Dunakeszi', sub: 'Kollektíva · Közreműködő', bg: '#FF8A2B', fg: '#0E1116', glow: 'rgba(255,255,255,0.22)', glass: 'rgba(14,17,22,0.12)', soft: 'rgba(14,17,22,0.8)', deep: '#241409', cta: '#FF8A2B', ctaFg: '#0E1116', members: ['DN', 'GK', 'TE'], icon: ICON.c }
+    };
+    const q = st.q.trim().toLowerCase();
+    const set = (sel, mode) => () => this.setState({ sel, mode });
+    const pods = ['p', 'a', 'b'].map((id) => {
+      const all = A.filter((s) => s.sp === id);
+      const vis = all.filter((s) => (st.filter === 'all' || (st.filter === 'Nyitott' ? s.st !== 'Lezárt' : s.st === st.filter)) && (!q || (s.title + ' ' + s.client).toLowerCase().includes(q)));
+      const isActive = st.active === id;
+      return { ...SP[id], isActive, isPersonal: id === 'p', count: all.length, empty: vis.length === 0,
+        pick: () => this.setState({ active: id }),
+        items: vis.map((s) => { const [sbg, sfg, bar, pbar] = ST[s.st];
+          return { title: s.title, client: s.client, place: s.place, spent: s.spent, quote: s.quote, pct: Math.min(100, s.pct), status: s.st, sbg, sfg, bar, pbar: s.pct > 95 ? '#D64545' : '#263248', pending: !!s.pending, pendingTo: s.to, locked: !!s.locked, op: s.locked ? 0.88 : 1, more: set(s.id, 'menu') }; }) };
+    });
+    const cs = A.find((s) => s.id === st.sel);
+    const sel = cs ? { title: cs.title, client: cs.client, total: cs.spent, team: cs.sp !== 'p', pending: !!cs.pending, canTransfer: cs.sp === 'p' && !cs.pending, canDelete: cs.sp === 'p' || cs.own === true, noDelete: cs.sp !== 'p' && cs.own === false } : { title: '', client: '', total: '' };
+    const T = [['Ráday u. 8.', 'Tulajdonos: Gábor K. · 3 tag', '#2F5BFF'], ['Dunakeszi tető', 'Tulajdonos: Dani N. · 3 tag', '#FF8A2B']];
+    const filters = ['Összes', 'Nyitott', 'Lezárt'].map((f) => { const key = f === 'Összes' ? 'all' : f, on = st.filter === key;
+      return { label: f, on, bg: on ? '#fff' : 'rgba(255,255,255,0.14)', fg: on ? '#0E1116' : '#fff', pick: () => this.setState({ filter: key }) }; });
+    return {
+      ic: IC, pods, cur: SP[st.active], q: st.q, onQ: (e) => this.setState({ q: e.target.value }), filters,
+      overlay: !!st.mode, close: set(null, null), sel, isMenu: st.mode === 'menu', isTransfer: st.mode === 'transfer', isDelete: st.mode === 'delete',
+      toTransfer: set(st.sel, 'transfer'), toDelete: set(st.sel, 'delete'),
+      targets: T.map((t, i) => ({ name: t[0], role: t[1], dot: t[2], on: st.target === i, shadow: st.target === i ? '0 0 0 3px ' + t[2] : '0 1px 0 rgba(14,17,22,0.05)', pick: () => this.setState({ target: i }) }))
+    };
+  }
+}
+</script></body></html>

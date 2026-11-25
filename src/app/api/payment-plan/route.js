@@ -41,7 +41,17 @@ export async function GET(request) {
     .order('created_at');
 
   if (error) return Response.json({ error: error.message }, { status: 400 });
-  return Response.json({ items: items || [] });
+
+  const itemIds = (items || []).map(i => i.id);
+  const { data: files } = itemIds.length
+    ? await admin.from('payment_item_files').select('id, item_id, file_url, file_name, mime_type').in('item_id', itemIds)
+    : { data: [] };
+
+  const enriched = (items || []).map(item => ({
+    ...item,
+    files: (files || []).filter(f => f.item_id === item.id),
+  }));
+  return Response.json({ items: enriched });
 }
 
 export async function POST(request) {
@@ -53,7 +63,7 @@ export async function POST(request) {
   if (!profile) return Response.json({ error: 'Forbidden' }, { status: 403 });
 
   const body = await request.json();
-  const { project_id, label, trigger_type, milestone_name, amount_huf, due_date, note } = body;
+  const { project_id, label, amount_huf, due_date, note } = body;
 
   if (!project_id) return Response.json({ error: 'project_id kötelező' }, { status: 400 });
   if (!label?.trim()) return Response.json({ error: 'A cím megadása kötelező' }, { status: 400 });
@@ -67,25 +77,24 @@ export async function POST(request) {
     }
   }
 
-  const { data: project } = await admin.from('projects').select('collective_id').eq('id', project_id).is('deleted_at', null).single();
+  const { data: project } = await admin.from('projects').select('collective_id, status').eq('id', project_id).is('deleted_at', null).single();
   if (!project) return Response.json({ error: 'Projekt nem található' }, { status: 404 });
+  if (project.status === 'closed' || project.status === 'expired') return Response.json({ error: 'Lezárt projekthez nem lehet adatot hozzáadni.' }, { status: 423 });
 
   const { data: existing } = await admin.from('payment_plan_items').select('sort_order').eq('project_id', project_id).order('sort_order', { ascending: false }).limit(1);
   const nextOrder = ((existing?.[0]?.sort_order ?? -1) + 1);
 
   const { data: item, error } = await admin.from('payment_plan_items').insert([{
     project_id,
-    sort_order:     nextOrder,
-    label:          label.trim(),
-    trigger_type:   trigger_type || 'milestone',
-    milestone_name: trigger_type === 'milestone' ? (milestone_name?.trim() || null) : null,
-    amount_huf:     Math.round(Number(amount_huf)),
-    due_date:       due_date || null,
-    note:           note?.trim() || null,
-    created_by:     user.id,
+    sort_order: nextOrder,
+    label:      label.trim(),
+    amount_huf: Math.round(Number(amount_huf)),
+    due_date:   due_date || null,
+    note:       note?.trim() || null,
+    created_by: user.id,
   }]).select().single();
 
   if (error) return Response.json({ error: error.message }, { status: 400 });
-  logAudit({ entityId: project?.collective_id || user.id, userId: user.id, userName: profile.display_name || '', action: 'Payment plan item created', targetType: 'payment_item', targetId: item.id, targetName: item.label, details: { project_id, amount_huf: item.amount_huf } });
+  logAudit({ entityId: project?.collective_id || user.id, userId: user.id, userName: profile.display_name || '', action: 'invoice.created', targetType: 'payment_item', targetId: item.id, targetName: item.label, details: { amount_huf: item.amount_huf, project_id } });
   return Response.json({ item });
 }

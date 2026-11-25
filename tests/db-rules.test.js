@@ -53,6 +53,7 @@ const ALLOWLIST_NO_AUTH = [
   '/api/trades',               // read-only public taxonomy
   '/api/demo/',
   '/api/szakemberek/',         // public tradesperson pages + contact form
+  '/api/pro/',                 // public pro pages + contact form
   '/api/invitations/',         // token-based, no session
   '/api/auth/request-password-reset',
   '/api/auth/confirm-password-reset',
@@ -317,14 +318,15 @@ describe('Rate limiting: expensive/public routes must use globalRateLimit (CLAUD
     '/api/quotes/',   // matches any quotes/[id]/send
     '/api/ocr',
     '/api/invoice-ai',
-    '/api/szakemberek/',  // matches /api/szakemberek/[slug]/contact
+    '/api/szakemberek/',  // legacy path
+    '/api/pro/',          // matches /api/pro/[slug]/contact
   ]
 
   // Routes that must specifically have globalRateLimit (not just the in-process one)
   const MUST_HAVE_GLOBAL_RL = [
     // Public / identity endpoints
     'src/app/api/auth/request-password-reset/route.js',
-    'src/app/api/szakemberek/[slug]/contact/route.js',
+    'src/app/api/pro/[slug]/contact/route.js',
     // Expensive per-call: Puppeteer + SMTP
     'src/app/api/quotes/[id]/send/route.js',
     // External paid APIs: Google Vision, OpenAI
@@ -387,7 +389,6 @@ describe('Soft delete: list queries on soft-delete tables must filter deleted_at
   const LIST_ROUTE_PATTERNS = [
     // pattern → table that must have deleted_at filter near its .from() call
     { pattern: /src\/app\/api\/diary\/route\.js$/, table: 'diary_entries' },
-    { pattern: /src\/app\/api\/ideas\/route\.js$/, table: 'ideas' },
     // Main bulk fetch
     { pattern: /src\/app\/api\/entity\/data\/route\.js$/, table: 'projects' },
     { pattern: /src\/app\/api\/entity\/data\/route\.js$/, table: 'quotes' },
@@ -555,7 +556,6 @@ describe('Soft delete: gatekeeper ID lookups must filter deleted_at (CLAUDE.md �
     { file: 'src/app/api/surveys/[id]/route.js',  table: 'surveys' },
     { file: 'src/app/api/invoices/[id]/route.js', table: 'invoices' },
     { file: 'src/app/api/diary/[id]/route.js',    table: 'diary_entries' },
-    { file: 'src/app/api/ideas/[id]/route.js',    table: 'ideas' },
     { file: 'src/app/api/clients/[id]/route.js',  table: 'clients' },
     // Sub-document routes — parent document lookup
     { file: 'src/app/api/quotes/[id]/sections/route.js',                      table: 'quotes' },

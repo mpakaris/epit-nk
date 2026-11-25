@@ -23,13 +23,16 @@ export async function GET(request) {
   if (include === 'collectives') {
     const { data: memberships } = await admin
       .from('collective_members')
-      .select('collective_id, role, collectives(id, name)')
+      .select('collective_id, role, collectives(id, name, status, collective_tier, is_inclusive)')
       .eq('user_id', userId)
       .eq('status', 'active');
     collectives = (memberships || []).map(m => ({
-      collective_id: m.collective_id,
-      name: m.collectives?.name || m.collective_id,
-      role: m.role,
+      collective_id:  m.collective_id,
+      name:           m.collectives?.name || m.collective_id,
+      role:           m.role,
+      status:         m.collectives?.status ?? 'active',
+      collective_tier: m.collectives?.collective_tier ?? null,
+      is_inclusive:   m.collectives?.is_inclusive ?? false,
     }));
   }
 

@@ -25,14 +25,30 @@ const nextConfig = {
   async headers() {
     return [
       {
+        // Global security headers — applied to all routes
         source: '/(.*)',
         headers: [
-          { key: 'X-Frame-Options',           value: 'DENY' },
-          { key: 'X-Content-Type-Options',     value: 'nosniff' },
-          { key: 'Strict-Transport-Security',  value: 'max-age=31536000; includeSubDomains' },
-          { key: 'Referrer-Policy',            value: 'strict-origin-when-cross-origin' },
-          { key: 'Permissions-Policy',         value: 'camera=(self), microphone=(self), geolocation=()' },
-          { key: 'X-XSS-Protection',           value: '1; mode=block' },
+          { key: 'X-Content-Type-Options',    value: 'nosniff' },
+          { key: 'Strict-Transport-Security', value: 'max-age=31536000; includeSubDomains' },
+          { key: 'Referrer-Policy',           value: 'strict-origin-when-cross-origin' },
+          { key: 'X-XSS-Protection',          value: '1; mode=block' },
+          // Allow payment API (needed when Creem checkout is embedded as iframe)
+          { key: 'Permissions-Policy',        value: 'camera=(self), microphone=(self), geolocation=(), payment=*' },
+        ],
+      },
+      {
+        // Allow our own pages to be embedded in iframes (checkout-popup-success must load inside the Creem iframe)
+        // All other pages remain non-embeddable via CSP frame-ancestors
+        source: '/checkout-popup-success',
+        headers: [
+          { key: 'Content-Security-Policy', value: "frame-ancestors *" },
+        ],
+      },
+      {
+        // All other pages: block being embedded in foreign iframes
+        source: '/((?!checkout-popup-success).*)',
+        headers: [
+          { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
         ],
       },
     ];

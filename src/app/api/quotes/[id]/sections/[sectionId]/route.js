@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { logAudit } from '@/lib/audit';
+import { checkCollectiveStatus } from '@/lib/collectiveGuard';
 
 async function getCtx(quoteId, sectionId) {
   const supabase = await createClient();
@@ -61,6 +62,9 @@ export async function PATCH(request, { params }) {
   if (!ctx.isSuperAdmin && !ctx.isQuoteOwner && !ctx.isKollektivOwner && !ctx.isSectionOwner)
     return Response.json({ error: 'Csak a saját szekciót szerkesztheted.' }, { status: 403 });
 
+  const statusBlocked = await checkCollectiveStatus(ctx.admin, ctx.quote.collective_id);
+  if (statusBlocked) return statusBlocked;
+
   const body = await request.json();
   const allowed = ['name', 'description', 'width_m', 'length_m', 'height_m', 'window_count', 'door_count', 'sort_order', 'start_date', 'end_date', 'survey_entry_id'];
   const update = {};
@@ -92,7 +96,11 @@ export async function DELETE(request, { params }) {
   if (!ctx.isSuperAdmin && !ctx.isQuoteOwner && !ctx.isKollektivOwner && !ctx.isSectionOwner)
     return Response.json({ error: 'Csak a saját szekciót törölheted.' }, { status: 403 });
 
+  const statusBlockedDel = await checkCollectiveStatus(ctx.admin, ctx.quote.collective_id);
+  if (statusBlockedDel) return statusBlockedDel;
+
   const sectionName = ctx.section.name;
+  const { count: entryCount } = await ctx.admin.from('quote_entries').select('id', { count: 'exact', head: true }).eq('section_id', sectionId);
   await ctx.admin.from('quote_entries').update({ section_id: null }).eq('section_id', sectionId);
   const { error } = await ctx.admin.from('quote_sections').delete().eq('id', sectionId).eq('quote_id', quoteId);
   if (error) return Response.json({ error: error.message }, { status: 400 });
@@ -100,8 +108,8 @@ export async function DELETE(request, { params }) {
   logAudit({
     entityId: ctx.quote?.collective_id || ctx.user.id, userId: ctx.user.id,
     userName: ctx.profile?.display_name || ctx.user.email,
-    action: 'Szekció törölve', targetType: 'quote', targetId: quoteId,
-    details: { name: sectionName },
+    action: 'section.deleted', targetType: 'quote', targetId: quoteId,
+    details: { name: sectionName, entry_count: entryCount ?? 0 },
   });
 
   return Response.json({ success: true });

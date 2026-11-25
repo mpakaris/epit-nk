@@ -168,3 +168,90 @@ describe('Project – personal workspace', () => {
     expect(found).toBeUndefined()
   })
 })
+
+describe('Project – closed/paused status guards', () => {
+  let closedProjectId
+  let pausedProjectId
+
+  beforeAll(async () => {
+    // Create a project to close
+    const { body: c } = await api('POST', '/api/projects', { name: '[TEST] Lezárt projekt', collectiveId: null }, cookie)
+    closedProjectId = c.project.id
+    await api('PATCH', `/api/projects/${closedProjectId}`, { status: 'closed', status_reason: 'Teszt lezárás' }, cookie)
+
+    // Create a project to pause
+    const { body: p } = await api('POST', '/api/projects', { name: '[TEST] Szüneteltetett projekt', collectiveId: null }, cookie)
+    pausedProjectId = p.project.id
+    await api('PATCH', `/api/projects/${pausedProjectId}`, { status: 'paused', status_reason: 'Teszt szünet' }, cookie)
+  })
+
+  afterAll(async () => {
+    for (const id of [closedProjectId, pausedProjectId].filter(Boolean)) {
+      await admin.from('invoices').delete().eq('project_id', id)
+      await admin.from('labour_entries').delete().eq('project_id', id)
+      await admin.from('diary_entries').delete().eq('project_id', id)
+      await admin.from('payment_plan_items').delete().eq('project_id', id)
+      await admin.from('projects').delete().eq('id', id)
+    }
+  })
+
+  // ── Closed: all data-entry routes must reject with 423 ──────────────────────
+
+  it('closed project rejects new invoice (423)', async () => {
+    const { status } = await api('POST', '/api/invoices', {
+      projectId: closedProjectId, valueHuf: 10000, category: 'material', description: '[TEST]',
+    }, cookie)
+    expect(status).toBe(423)
+  })
+
+  it('closed project rejects new labour entry (423)', async () => {
+    const { status } = await api('POST', '/api/labour-entries', {
+      project_id: closedProjectId, work_type: '[TEST]', date: '2026-01-01', quantity: 1, unit_price: 5000, unit: 'h',
+    }, cookie)
+    expect(status).toBe(423)
+  })
+
+  it('closed project rejects new diary entry (423)', async () => {
+    const { status } = await api('POST', '/api/diary', {
+      project_id: closedProjectId, title: '[TEST]', entry_date: '2026-01-01',
+    }, cookie)
+    expect(status).toBe(423)
+  })
+
+  it('closed project rejects new payment plan item (423)', async () => {
+    const { status } = await api('POST', '/api/payment-plan', {
+      project_id: closedProjectId, label: '[TEST]', amount_huf: 5000,
+    }, cookie)
+    expect(status).toBe(423)
+  })
+
+  // ── Paused: data entry must still be allowed ────────────────────────────────
+
+  it('paused project still accepts new invoice', async () => {
+    const { status } = await api('POST', '/api/invoices', {
+      projectId: pausedProjectId, valueHuf: 10000, category: 'material', description: '[TEST]',
+    }, cookie)
+    expect(status).toBe(201)
+  })
+
+  it('paused project still accepts new labour entry', async () => {
+    const { status } = await api('POST', '/api/labour-entries', {
+      project_id: pausedProjectId, work_type: '[TEST]', date: '2026-01-01', quantity: 1, unit_price: 5000, unit: 'h',
+    }, cookie)
+    expect(status).toBe(201)
+  })
+
+  it('paused project still accepts new diary entry', async () => {
+    const { status } = await api('POST', '/api/diary', {
+      project_id: pausedProjectId, title: '[TEST]', entry_date: '2026-01-01',
+    }, cookie)
+    expect(status).toBe(201)
+  })
+
+  it('paused project still accepts new payment plan item', async () => {
+    const { status } = await api('POST', '/api/payment-plan', {
+      project_id: pausedProjectId, label: '[TEST]', amount_huf: 5000,
+    }, cookie)
+    expect(status).toBe(201)
+  })
+})

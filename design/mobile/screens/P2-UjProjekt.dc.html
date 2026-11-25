@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="hu"><head><meta charset="utf-8"><title>OkosSzaki — Új projekt</title><script src="./support.js"></script></head>
+<body><x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&amp;family=Plus+Jakarta+Sans:wght@500;600;700&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}
+button,input,textarea{font-family:inherit}
+button{cursor:pointer}
+*{scrollbar-width:none;-ms-overflow-style:none}
+*::-webkit-scrollbar{display:none;width:0;height:0}
+.root{position:relative;width:390px;height:844px;overflow:hidden;background:#EDEBE5;color:#0E1116;font-family:'Plus Jakarta Sans',system-ui,sans-serif}
+.scroll{position:absolute;inset:0;z-index:1;overflow-y:auto;box-sizing:border-box;padding:0 0 170px}
+.hd{position:relative;overflow:hidden;box-sizing:border-box;padding:18px 16px 20px;border-radius:0 0 32px 32px;display:flex;flex-direction:column;gap:12px}
+.glow{position:absolute;right:-90px;top:-120px;width:300px;height:300px;border-radius:150px}
+.top{position:relative;display:flex;align-items:center;justify-content:space-between}
+.rnd{width:48px;height:48px;border:0;border-radius:24px;display:flex;align-items:center;justify-content:center;padding:0}
+.pill{height:36px;padding:0 14px;border-radius:18px;font-size:13px;font-weight:700;display:inline-flex;align-items:center;gap:8px}
+.ttl{position:relative;margin:0;font-family:'Bricolage Grotesque',sans-serif;font-size:30px;font-weight:700;letter-spacing:-.02em;line-height:1.1}
+.kick{position:relative;font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+.sub{position:relative;font-size:15px;font-weight:600}
+.body{padding:16px 16px 0;display:flex;flex-direction:column;gap:14px}
+.card{box-sizing:border-box;border-radius:26px;background:#fff;box-shadow:0 1px 0 rgba(14,17,22,.05),0 14px 26px -18px rgba(14,17,22,.35)}
+.lbl{font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#5A5F68}
+.h2{margin:0;font-family:'Bricolage Grotesque',sans-serif;font-size:22px;font-weight:700}
+.fld{width:100%;box-sizing:border-box;height:56px;border:0;border-radius:20px;background:#fff;padding:0 16px;font-size:17px;font-weight:500;color:#0E1116;box-shadow:0 1px 0 rgba(14,17,22,.05),0 10px 20px -16px rgba(14,17,22,.4)}
+.fld::placeholder{color:#6B7078}
+.chip{height:52px;padding:0 18px;border:0;border-radius:26px;font-size:15px;font-weight:700;display:inline-flex;align-items:center;gap:8px;color:#0E1116}
+.bar{position:absolute;z-index:20;left:0;right:0;bottom:0;box-sizing:border-box;padding:28px 16px 18px;background:linear-gradient(to top,#EDEBE5 70%,rgba(237,235,229,0));display:flex;gap:10px}
+.pri{flex:1;height:60px;border:0;border-radius:30px;background:#0E1116;color:#fff;font-size:17px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:10px;box-shadow:0 14px 26px -12px rgba(14,17,22,.6)}
+.sq{flex:none;width:60px;height:60px;border:0;border-radius:30px;background:#fff;color:#0E1116;display:flex;align-items:center;justify-content:center;box-shadow:0 10px 22px -10px rgba(14,17,22,.4)}
+.ic{flex:none;width:44px;height:44px;border-radius:15px;background:#F1F1F3;color:#1A1D23;display:flex;align-items:center;justify-content:center}
+.row{width:100%;min-height:64px;box-sizing:border-box;padding:10px 14px;border:0;border-radius:22px;background:#fff;color:#0E1116;text-align:left;display:flex;align-items:center;gap:12px;font-size:16px;font-weight:700;box-shadow:0 1px 0 rgba(14,17,22,.05),0 12px 22px -18px rgba(14,17,22,.35)}
+.scrim{position:absolute;inset:0;z-index:40;border:0;padding:0;background:rgba(14,17,22,.5)}
+.sheet{position:absolute;z-index:50;left:0;right:0;bottom:0;box-sizing:border-box;padding:10px 16px 18px;border-radius:32px 32px 0 0;background:#FBFAF7;display:flex;flex-direction:column;gap:12px;max-height:90%;overflow-y:auto}
+.grab{align-self:center;flex:none;width:44px;height:5px;border-radius:3px;background:#D5D2C8}
+.sh{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.sht{font-family:'Bricolage Grotesque',sans-serif;font-size:25px;font-weight:700;line-height:1.1}
+.x{width:48px;height:48px;border:0;border-radius:24px;background:#EFEDE6;color:#0E1116;display:flex;align-items:center;justify-content:center;flex:none}
+.sw{flex:none;width:64px;height:38px;border-radius:19px;position:relative}
+.sw>i{position:absolute;top:4px;width:30px;height:30px;border-radius:15px;background:#fff;box-shadow:0 2px 6px rgba(14,17,22,.3)}
+.badge{height:26px;padding:0 10px;border-radius:13px;font-size:12px;font-weight:700;display:inline-flex;align-items:center;gap:4px;background:#F0F0F2;color:#2B3038;flex:none}
+.m{font-size:13px;font-weight:600;color:#5A5F68}
+.n{font-family:'Bricolage Grotesque',sans-serif;font-weight:700;letter-spacing:-.02em}
+.stat{flex:1;box-sizing:border-box;padding:10px 12px;border-radius:18px}
+
+.root{background:var(--deep);color:#fff}
+.hd{border-radius:0 0 32px 32px}
+.bar{background:linear-gradient(to top,var(--deep) 65%,rgba(0,0,0,0))}
+.card{color:#0E1116;box-shadow:inset 0 1px 0 #fff,0 16px 26px -14px rgba(0,0,0,.7),0 3px 6px -2px rgba(0,0,0,.3)}
+.row{color:#0E1116;box-shadow:inset 0 1px 0 #fff,0 14px 22px -14px rgba(0,0,0,.7),0 3px 6px -2px rgba(0,0,0,.3)}
+.sheet,.sht{color:#0E1116}
+.h2{color:#fff}
+.lbl{color:rgba(255,255,255,.78)}
+.sheet .lbl{color:#5A5F68}
+.sq{color:#0E1116}
+</style>
+</helmet>
+<div class="root" style="--deep: {{dest.deep}}; background: {{dest.deep}}">
+ <div class="scroll">
+  <header class="hd" style="background: {{dest.bg}}; color: {{dest.fg}}">
+   <span class="glow" aria-hidden="true" style="background: {{dest.glow}}"></span>
+   <div class="top">
+    <button class="rnd" aria-label="Bezárás" style="background: {{dest.glass}}; color: {{dest.fg}}"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="{{ic.x}}"/></svg></button>
+    <span class="pill" style="background: {{dest.glass}}">{{stepLabel}}</span>
+    <span style="width: 48px"></span>
+   </div>
+   <span class="kick" style="color: {{dest.soft}}">Új projekt</span>
+   <h1 class="ttl">{{heading}}</h1>
+  </header>
+
+  <!-- STEP 1 -->
+  <sc-if value="{{isStep1}}" hint-placeholder-val="{{ true }}">
+  <div class="body">
+   <sc-for list="{{spaces}}" as="s" hint-placeholder-count="3">
+    <button onClick="{{s.pick}}" aria-pressed="{{s.on}}" class="card" style="min-height: 120px; padding: 16px; border: 0; text-align: left; color: #0E1116; display: flex; align-items: center; gap: 14px; box-shadow: {{s.shadow}}">
+     <span style="flex: none; width: 56px; height: 56px; border-radius: 28px; background: {{s.bg}}; color: {{s.fg}}; display: flex; align-items: center; justify-content: center"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="{{s.icon}}"/></svg></span>
+     <span style="flex: 1; display: flex; flex-direction: column; gap: 3px"><span style="font-family: 'Bricolage Grotesque', sans-serif; font-size: 22px; font-weight: 700">{{s.name}}</span><span style="font-size: 14px; font-weight: 600; color: #4A4F57">{{s.desc}}</span></span>
+     <span style="flex: none; width: 30px; height: 30px; border-radius: 15px; border: 2px solid {{s.ring}}; background: {{s.fill}}; color: #fff; display: flex; align-items: center; justify-content: center"><sc-if value="{{s.on}}" hint-placeholder-val="{{ false }}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="{{ic.check}}"/></svg></sc-if></span>
+    </button>
+   </sc-for>
+   <sc-if value="{{isShared}}" hint-placeholder-val="{{ false }}">
+    <div style="box-sizing: border-box; padding: 14px 16px; border-radius: 22px; background: #FFF3E3; color: #6B3300; display: flex; gap: 12px; align-items: flex-start"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex: none; margin-top: 2px"><path d="M12 8v5M12 16h.01M12 3a9 9 0 100 18 9 9 0 000-18z"/></svg><span style="font-size: 15px; font-weight: 600; line-height: 1.4"><b>{{noteTitle}}</b><br>{{noteText}}</span></div>
+   </sc-if>
+  </div>
+  </sc-if>
+
+  <!-- STEP 2 -->
+  <sc-if value="{{isStep2}}" hint-placeholder-val="{{ false }}">
+  <div class="body">
+   <button onClick="{{backTo1}}" style="align-self: flex-start; min-height: 48px; padding: 0 16px; border: 0; border-radius: 24px; background: {{dest.tint}}; color: #0E1116; display: inline-flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 700"><span style="width: 10px; height: 10px; border-radius: 5px; background: {{dest.dot}}"></span>{{dest.name}}<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button>
+   <label style="display: flex; flex-direction: column; gap: 6px"><span style="font-size: 15px; font-weight: 700">Projekt neve *</span><input class="fld" placeholder="pl. Kovács Béla felújítás" value="Lakásfelújítás, teljes"></label>
+   <div style="display: flex; flex-direction: column; gap: 6px"><span style="font-size: 15px; font-weight: 700">Kapcsolódó ajánlat <span class="m">(opcionális)</span></span>
+    <button onClick="{{openSurvey}}" class="fld" style="display: flex; align-items: center; gap: 10px; text-align: left; font-weight: 600; height: 64px"><span class="ic" style="width: 40px; height: 40px; background: #E3E7EE; color: #263248"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20l4-1L19 8l-3-3L5 16zM14 7l3 3"/></svg></span><span style="flex: 1; display: flex; flex-direction: column; line-height: 1.2"><span>{{surveyTitle}}</span><sc-if value="{{hasSurvey}}" hint-placeholder-val="{{ true }}"><span class="m">{{surveyMeta}}</span></sc-if></span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button>
+    <sc-if value="{{hasSurvey}}" hint-placeholder-val="{{ true }}"><button onClick="{{clearSurvey}}" style="align-self: flex-start; min-height: 44px; border: 0; background: transparent; color: #fff; font-size: 14px; font-weight: 700; text-decoration: underline">Ajánlat eltávolítása</button></sc-if></div>
+   <div style="display: flex; flex-direction: column; gap: 6px"><span style="font-size: 15px; font-weight: 700">Megrendelő *</span>
+    <div style="display: flex; gap: 10px"><button class="fld" style="flex: 1; display: flex; align-items: center; gap: 10px; text-align: left; font-weight: 600"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 8a4 4 0 108 0 4 4 0 10-8 0M4 21c0-4 3.6-6.5 8-6.5s8 2.5 8 6.5"/></svg><span style="flex: 1">Kiss Márta</span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button>
+    <button onClick="{{openClient}}" aria-label="Új ügyfél" style="flex: none; width: 56px; height: 56px; border: 0; border-radius: 20px; background: #0E1116; color: #fff; display: flex; align-items: center; justify-content: center"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg></button></div></div>
+   <label style="display: flex; flex-direction: column; gap: 6px"><span style="font-size: 15px; font-weight: 700">Helyszín</span><input class="fld" placeholder="pl. Budapest, Fő u. 12." value="Ráday u. 8., Budapest"></label>
+   <label style="display: flex; flex-direction: column; gap: 6px"><span style="font-size: 15px; font-weight: 700">Munka típusa</span><input class="fld" placeholder="pl. Teljes felújítás" value="Teljes felújítás"></label>
+   <div style="display: flex; gap: 10px"><label style="display: flex; flex-direction: column; gap: 6px"><span style="font-size: 15px; font-weight: 700">Kezdés</span><input class="fld" value="2026. dec. 1."></label><label style="display: flex; flex-direction: column; gap: 6px"><span style="font-size: 15px; font-weight: 700">Befejezés</span><input class="fld" value="2027. jan. 20."></label></div>
+   <sc-if value="{{isShared}}" hint-placeholder-val="{{ false }}"><div style="display: flex; flex-direction: column; gap: 8px"><span style="font-size: 15px; font-weight: 700">Résztvevők</span><div style="display: flex; flex-wrap: wrap; gap: 8px"><sc-for list="{{people}}" as="p" hint-placeholder-count="3"><button onClick="{{p.pick}}" aria-pressed="{{p.on}}" class="chip" style="background: {{p.bg}}; color: {{p.fg}}">{{p.label}}</button></sc-for></div></div></sc-if>
+   <label style="display: flex; flex-direction: column; gap: 6px"><span style="font-size: 15px; font-weight: 700">Leírás</span><textarea class="fld" rows="3" placeholder="Rövid leírás…" style="height: 96px; padding: 14px 16px; resize: none"></textarea></label>
+  </div>
+  </sc-if>
+ </div>
+
+ <div class="bar">
+  <sc-if value="{{isStep2}}" hint-placeholder-val="{{ false }}"><button onClick="{{backTo1}}" aria-label="Vissza" class="sq"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="{{ic.back}}"/></svg></button></sc-if>
+  <button onClick="{{primary}}" class="pri">{{primaryLabel}}<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="{{ic.arrow}}"/></svg></button>
+ </div>
+
+ <sc-if value="{{sheet}}" hint-placeholder-val="{{ false }}">
+  <button class="scrim" onClick="{{closeClient}}" aria-label="Bezárás"></button>
+  <div class="sheet" role="dialog" aria-label="Új ügyfél">
+   <span class="grab"></span>
+   <div class="sh"><span class="sht">Új ügyfél</span><button class="x" onClick="{{closeClient}}" aria-label="Bezárás"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="{{ic.x}}"/></svg></button></div>
+   <input class="fld" placeholder="Név * — pl. Horváth Béla">
+   <input class="fld" type="tel" placeholder="Telefon">
+   <input class="fld" type="email" placeholder="E-mail *">
+   <input class="fld" placeholder="Cím">
+   <button onClick="{{toggleGdpr}}" aria-pressed="{{gdpr}}" style="min-height: 72px; box-sizing: border-box; padding: 12px 14px; border: 0; border-radius: 22px; background: #fff; color: #0E1116; text-align: left; display: flex; gap: 12px; align-items: center; box-shadow: inset 0 0 0 2px {{gdprRing}}"><span style="flex: none; width: 30px; height: 30px; border-radius: 10px; border: 2px solid {{gdprRing}}; background: {{gdprFill}}; color: #fff; display: flex; align-items: center; justify-content: center"><sc-if value="{{gdpr}}" hint-placeholder-val="{{ false }}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="{{ic.check}}"/></svg></sc-if></span><span style="font-size: 14px; font-weight: 600; line-height: 1.35">Az ügyfél hozzájárult adatainak tárolásához. Az ügyféladatok mindig személyesek. *</span></button>
+   <button onClick="{{closeClient}}" style="height: 60px; border: 0; border-radius: 30px; background: {{gdprBtn}}; color: #fff; font-size: 17px; font-weight: 700">Ügyfél létrehozása</button>
+  </div>
+ </sc-if>
+<sc-if value="{{surveySheet}}" hint-placeholder-val="{{ false }}">
+  <button class="scrim" onClick="{{closeSurvey}}" aria-label="Bezárás"></button>
+  <div class="sheet" role="dialog" aria-label="Ajánlat kiválasztása" style="max-height: 88%">
+   <span class="grab"></span>
+   <div class="sh"><span class="sht">Ajánlat</span><button class="x" onClick="{{closeSurvey}}" aria-label="Bezárás"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+   <span style="font-size: 14px; font-weight: 600; color: #4A4F57; line-height: 1.4; background: #E3E7EE; border-radius: 16px; padding: 10px 12px">{{surveyContext}}</span>
+   <input class="fld" type="search" placeholder="Keresés az ajánlatok között…" value="{{sq}}" onInput="{{onSq}}">
+   <sc-if value="{{surveyEmpty}}" hint-placeholder-val="{{ false }}"><span class="m" style="padding: 8px 4px">Nincs találat</span></sc-if>
+   <sc-for list="{{groups}}" as="g" hint-placeholder-count="2">
+    <span class="lbl" style="margin-top: 4px">{{g.name}}</span>
+    <sc-for list="{{g.items}}" as="x" hint-placeholder-count="2"><button onClick="{{x.pick}}" class="row" style="min-height: 68px; opacity: {{x.op}}; box-shadow: {{x.shadow}}"><span style="flex: 1; display: flex; flex-direction: column; gap: 2px"><b style="font-size: 16px">{{x.title}}</b><span class="m">{{x.meta}}</span></span><sc-if value="{{x.inactive}}" hint-placeholder-val="{{ false }}"><span class="badge">Inaktív</span></sc-if></button></sc-for>
+   </sc-for>
+   <button onClick="{{toggleInactive}}" style="min-height: 52px; border: 0; border-radius: 26px; background: #EFEDE6; color: #0E1116; font-size: 15px; font-weight: 700">{{inactiveLabel}}</button>
+  </div>
+ </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  state = { step: 1, space: 'a', sheet: false, gdpr: false, surveySheet: false, survey: null, sq: '', inactive: false, vat: 27, ppl: [0, 1] };
+  renderVals() {
+    const st = this.state;
+    const IC = { x: 'M6 6l12 12M18 6L6 18', check: 'M5 12l5 5 9-10', plus: 'M12 5v14M5 12h14', back: 'M15 6l-6 6 6 6', chevD: 'M6 9l6 6 6-6', arrow: 'M5 12h14M13 6l6 6-6 6', user: 'M8 8a4 4 0 108 0 4 4 0 10-8 0M4 21c0-4 3.6-6.5 8-6.5s8 2.5 8 6.5' };
+    const D = {
+      p: { name: 'Személyes', deep: '#0D0F13', bg: '#15181E', fg: '#FFFFFF', glow: 'rgba(255,255,255,0.06)', glass: 'rgba(255,255,255,0.16)', soft: 'rgba(255,255,255,0.8)', tint: '#E3E5E9', dot: '#15181E', icon: IC.user, desc: 'Csak te látod ezt a munkát.', rb: '#15181E', rf: '#FFFFFF' },
+      a: { name: 'Ráday u. 8.', deep: '#0E1840', bg: '#2F5BFF', fg: '#FFFFFF', glow: 'rgba(255,255,255,0.10)', glass: 'rgba(255,255,255,0.18)', soft: 'rgba(255,255,255,0.88)', tint: '#DCE5FF', dot: '#2F5BFF', icon: 'M9 8a3 3 0 106 0 3 3 0 10-6 0M3 20c0-3 2.7-5 6-5M21 20c0-3-2.7-5-6-5M12 14c2.5 0 5 1.6 5 4v2H7v-2c0-2.4 2.5-4 5-4z', desc: 'Kollektíva · Tulajdonos', rb: '#2F5BFF', rf: '#FFFFFF' },
+      b: { name: 'Dunakeszi tető', deep: '#241409', bg: '#FF8A2B', fg: '#0E1116', glow: 'rgba(255,255,255,0.22)', glass: 'rgba(14,17,22,0.12)', soft: 'rgba(14,17,22,0.8)', tint: '#FFE3CC', dot: '#FF8A2B', icon: 'M9 8a3 3 0 106 0 3 3 0 10-6 0M3 20c0-3 2.7-5 6-5M21 20c0-3-2.7-5-6-5M12 14c2.5 0 5 1.6 5 4v2H7v-2c0-2.4 2.5-4 5-4z', desc: 'Kollektíva · Közreműködő', rb: '#FF8A2B', rf: '#0E1116' }
+    };
+    const dest = Object.assign({}, D[st.space], { deep: '#0B0F17', bg: '#263248', fg: '#FFFFFF', glow: 'rgba(255,255,255,0.10)', glass: 'rgba(255,255,255,0.18)', soft: 'rgba(255,255,255,0.88)', tint: '#E3E7EE' });
+    const spaces = ['p', 'a', 'b'].map((id) => {
+      const d = D[id], on = st.space === id;
+      return { name: d.name, desc: d.desc, icon: d.icon, bg: d.rb, fg: d.rf, on, ring: on ? d.dot : '#C9C5BA', fill: on ? d.dot : 'transparent',
+        shadow: on ? '0 0 0 3px ' + d.dot + ', 0 14px 26px -18px rgba(14,17,22,0.35)' : '0 1px 0 rgba(14,17,22,0.05), 0 14px 26px -18px rgba(14,17,22,0.35)',
+        pick: () => this.setState({ space: id, survey: null }) };
+    });
+    const SV = [
+      { id: 1, sp: 'p', title: 'Kazinczy u. 14. · fürdő', meta: 'Nagy Anna · Elfogadva · 1 248 500 Ft', inactive: false },
+      { id: 2, sp: 'p', title: 'Bartók B. út 31.', meta: 'Szabó Péter · Kiküldve · 2 860 000 Ft', inactive: false },
+      { id: 3, sp: 'p', title: 'Gödöllő · kerti kapu', meta: 'Tóth Márta · Elutasítva · 684 200 Ft', inactive: true },
+      { id: 4, sp: 'a', title: 'Lakásfelújítás, teljes', meta: 'Kiss Márta · Elfogadva · 8 940 000 Ft', inactive: false },
+      { id: 5, sp: 'a', title: 'Ráday u. 8. · pince', meta: 'Kiss Márta · Kiküldve · 1 120 000 Ft', inactive: false },
+      { id: 6, sp: 'b', title: 'Fő út 22. · tető', meta: 'Tóth Gergő · Elfogadva · 5 410 000 Ft', inactive: false }
+    ];
+    const q = st.sq.trim().toLowerCase();
+    const okSp = (x) => x.sp === 'p' || x.sp === st.space;
+    const vis = SV.filter((x) => okSp(x) && (st.inactive || !x.inactive) && (!q || (x.title + x.meta).toLowerCase().includes(q)));
+    const mkItem = (x) => ({ title: x.title, meta: x.meta, inactive: x.inactive, op: x.inactive ? 0.7 : 1, shadow: st.survey === x.id ? '0 0 0 3px #263248' : '0 1px 0 rgba(14,17,22,0.05)', pick: () => this.setState({ survey: x.id, surveySheet: false }) });
+    const groups = [{ name: 'Saját ajánlatok', items: vis.filter((x) => x.sp === 'p').map(mkItem) }];
+    if (st.space !== 'p') groups.push({ name: D[st.space].name, items: vis.filter((x) => x.sp === st.space).map(mkItem) });
+    const cur = SV.find((x) => x.id === st.survey);
+    const noteB = st.space === 'b';
+    const people = ['Te (én)', 'Gábor K.', 'Zsolt S.'].map((p, i) => ({ label: p, on: st.ppl.includes(i), bg: st.ppl.includes(i) ? '#fff' : 'rgba(255,255,255,0.14)', fg: st.ppl.includes(i) ? '#0E1116' : '#fff', pick: () => i === 0 ? null : this.setState({ ppl: st.ppl.includes(i) ? st.ppl.filter((y) => y !== i) : st.ppl.concat(i) }) }));
+    const vats = [27, 18, 5, 0].map((v) => ({ label: v + '%', on: st.vat === v, bg: st.vat === v ? '#fff' : 'rgba(255,255,255,0.14)', fg: st.vat === v ? '#0E1116' : '#fff', pick: () => this.setState({ vat: v }) }));
+    return {
+      ic: IC, dest, spaces, vats, people, isStep1: st.step === 1, isStep2: st.step === 2, isShared: st.space !== 'p',
+      noteTitle: noteB ? 'Közreműködőként itt nem hozhatsz létre projektet.' : 'Ez a teljes csapattal meg lesz osztva.',
+      noteText: noteB ? 'Személyes projekt készül, amit utána átadhatsz a kollektíva tulajdonosának.' : 'Minden tag látja. A státuszt csak a tulajdonos módosíthatja.',
+      stepLabel: st.step + ' / 2', heading: st.step === 1 ? 'Hova kerüljön?' : 'Alapadatok',
+      primaryLabel: st.step === 1 ? 'Tovább' : 'Projekt létrehozása', primary: () => this.setState({ step: st.step === 1 ? 2 : 1 }),
+      backTo1: () => this.setState({ step: 1 }), sheet: st.sheet, openClient: () => this.setState({ sheet: true }), closeClient: () => this.setState({ sheet: false }),
+      gdpr: st.gdpr, toggleGdpr: () => this.setState({ gdpr: !st.gdpr }), gdprRing: st.gdpr ? '#2E8B57' : '#C9C5BA', gdprFill: st.gdpr ? '#2E8B57' : 'transparent', gdprBtn: st.gdpr ? '#0E1116' : '#B9B5AA',
+      surveySheet: st.surveySheet, openSurvey: () => this.setState({ surveySheet: true }), closeSurvey: () => this.setState({ surveySheet: false }), clearSurvey: () => this.setState({ survey: null }),
+      hasSurvey: !!cur, surveyTitle: cur ? cur.title : 'Jelenleg nincs ajánlat', surveyMeta: cur ? cur.meta : '',
+      surveyContext: st.space === 'p' ? 'Csak a saját (személyes) ajánlataid láthatók itt.' : 'Csak a(z) ' + D[st.space].name + ' és saját ajánlataid láthatók itt.',
+      sq: st.sq, onSq: (e) => this.setState({ sq: e.target.value }), groups, surveyEmpty: vis.length === 0,
+      toggleInactive: () => this.setState({ inactive: !st.inactive }), inactiveLabel: st.inactive ? '✓ Elutasított ajánlatok elrejtése' : 'Elutasított ajánlatok megjelenítése'
+    };
+  }
+}
+</script></body></html>

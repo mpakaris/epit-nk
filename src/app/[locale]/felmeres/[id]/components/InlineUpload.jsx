@@ -2,15 +2,23 @@
 
 import { useState, useRef } from 'react';
 import { Camera, Plus, Loader2 } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { useApp } from '@/context/AppContext';
 import { processMediaFile } from '@/lib/mediaGate';
+import { isEffectivePremium } from '@/lib/subscriptionLimits';
 
 /** Compact inline upload button used inside survey entry cards. */
-export default function InlineUpload({ surveyId, entryId, mediaType, label = 'Fotók', enqueue, iconOnly }) {
-  const { uploadSurveyMedia } = useApp();
+export default function InlineUpload({ surveyId, entryId, mediaType, label = 'Fotók', enqueue, iconOnly, photoCount }) {
+  const { uploadSurveyMedia, currentUser } = useApp();
+  const t = useTranslations('surveys');
   const inputRef = useRef(null);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
+
+  const isPremium  = isEffectivePremium(currentUser || {});
+  const maxPhotos  = isPremium ? 20 : 3;
+  const atLimit    = mediaType === 'photo' && typeof photoCount === 'number' && photoCount >= maxPhotos;
+  const acceptAttr = isPremium ? 'image/*,video/*' : 'image/*';
 
   const handleFiles = async (e) => {
     const raw = Array.from(e.target.files || []);
@@ -30,13 +38,14 @@ export default function InlineUpload({ surveyId, entryId, mediaType, label = 'Fo
   if (iconOnly) {
     return (
       <>
-        <input ref={inputRef} type="file" accept="image/*,video/*" multiple onChange={handleFiles} style={{ display: 'none' }} />
+        <input ref={inputRef} type="file" accept={acceptAttr} multiple onChange={handleFiles} style={{ display: 'none' }} />
         <button
           type="button"
-          onClick={() => inputRef.current?.click()}
-          disabled={uploading}
-          aria-label={label}
-          style={{ width: 32, height: 32, borderRadius: '50%', background: '#f1f5f9', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          onClick={() => !atLimit && inputRef.current?.click()}
+          disabled={uploading || atLimit}
+          aria-label={atLimit ? t('desktop.photoAtLimit', { limit: maxPhotos }) : label}
+          title={atLimit ? t('desktop.photoAtLimit', { limit: maxPhotos }) : undefined}
+          style={{ width: 32, height: 32, borderRadius: '50%', background: '#f1f5f9', border: 'none', cursor: atLimit ? 'default' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: atLimit ? 0.45 : 1 }}
         >
           {uploading ? <Loader2 size={14} className="animate-spin" color="#475569" /> : <Plus size={16} color="#475569" strokeWidth={1.75} />}
         </button>
@@ -46,11 +55,14 @@ export default function InlineUpload({ surveyId, entryId, mediaType, label = 'Fo
 
   return (
     <div style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.25rem' }}>
-      <input ref={inputRef} type="file" accept="image/*,video/*" multiple onChange={handleFiles} style={{ display: 'none' }} />
-      <button type="button" onClick={() => inputRef.current?.click()} disabled={uploading} className="btn btn-secondary btn-sm" style={{ fontSize: '0.75rem' }}>
+      <input ref={inputRef} type="file" accept={acceptAttr} multiple onChange={handleFiles} style={{ display: 'none' }} />
+      <button type="button" onClick={() => !atLimit && inputRef.current?.click()} disabled={uploading || atLimit}
+        className="btn btn-secondary btn-sm"
+        style={{ fontSize: '0.75rem', opacity: atLimit ? 0.55 : 1, cursor: atLimit ? 'default' : 'pointer' }}>
         {uploading ? <><Loader2 size={13} className="animate-spin" />Feltöltés...</> : <><Camera size={13} />{label}</>}
       </button>
-      {error && <span style={{ fontSize: '0.7rem', color: 'var(--danger-text)', fontWeight: 600 }}>{error}</span>}
+      {atLimit && <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 600 }}>{t('desktop.photoAtLimit', { limit: maxPhotos })}</span>}
+      {!atLimit && error && <span style={{ fontSize: '0.7rem', color: 'var(--danger-text)', fontWeight: 600 }}>{error}</span>}
     </div>
   );
 }

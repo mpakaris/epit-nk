@@ -26,23 +26,25 @@ export async function POST(request, { params }) {
 
   if (!quote.survey_id) return Response.json({ copied: 0 });
 
+  // ── Fetch all survey media at once (both doc-level and section-level) ──────
+  const { data: allSurveyMedia } = await admin
+    .from('survey_media')
+    .select('id, drive_file_id, drive_view_url, thumbnail_url, mime_type, entry_id')
+    .eq('survey_id', quote.survey_id);
+
+  if (!allSurveyMedia?.length) return Response.json({ copied: 0 });
+
+  // ── Map survey_entry_id → quote_section.id ────────────────────────────────
   const { data: sections } = await admin
     .from('quote_sections')
     .select('id, survey_entry_id')
     .eq('quote_id', quoteId)
     .not('survey_entry_id', 'is', null);
 
-  if (!sections?.length) return Response.json({ copied: 0 });
+  const sectionByEntryId = {};
+  for (const s of (sections || [])) sectionByEntryId[s.survey_entry_id] = s.id;
 
-  const entryIds = sections.map(s => s.survey_entry_id);
-  const { data: surveyMediaRows } = await admin
-    .from('survey_media')
-    .select('id, drive_file_id, drive_view_url, thumbnail_url, mime_type, entry_id')
-    .in('entry_id', entryIds);
-
-  if (!surveyMediaRows?.length) return Response.json({ copied: 0 });
-
-  // Load existing media_items for this quote to enable idempotency check
+  // ── Idempotency: skip already-copied keys ─────────────────────────────────
   const { data: existing } = await admin
     .from('media_items')
     .select('owner_id, r2_key')
@@ -51,26 +53,41 @@ export async function POST(request, { params }) {
 
   const existingKeys = new Set((existing || []).map(m => `${m.owner_id}::${m.r2_key}`));
 
-  const sectionByEntryId = {};
-  for (const s of sections) sectionByEntryId[s.survey_entry_id] = s.id;
-
   const toInsert = [];
-  for (const m of surveyMediaRows) {
-    const sectionId = sectionByEntryId[m.entry_id];
-    if (!sectionId) continue;
-    if (existingKeys.has(`${sectionId}::${m.drive_file_id}`)) continue;
-    toInsert.push({
-      r2_key:       m.drive_file_id,
-      cdn_url:      m.drive_view_url,
-      thumbnail_url: m.thumbnail_url || null,
-      mime_type:    m.mime_type || null,
-      owner_type:   'quote_section',
-      owner_id:     sectionId,
-      document_type: 'quote',
-      document_id:  quoteId,
-      created_by:   user.id,
-      sort_order:   0,
-    });
+  for (const m of allSurveyMedia) {
+    if (m.entry_id === null) {
+      // Document-level: owner is the quote itself
+      if (existingKeys.has(`${quoteId}::${m.drive_file_id}`)) continue;
+      toInsert.push({
+        r2_key:        m.drive_file_id,
+        cdn_url:       m.drive_view_url,
+        thumbnail_url: m.thumbnail_url || null,
+        mime_type:     m.mime_type || null,
+        owner_type:    'quote',
+        owner_id:      quoteId,
+        document_type: 'quote',
+        document_id:   quoteId,
+        created_by:    user.id,
+        sort_order:    0,
+      });
+    } else {
+      // Section-level: owner is the matching quote_section
+      const sectionId = sectionByEntryId[m.entry_id];
+      if (!sectionId) continue;
+      if (existingKeys.has(`${sectionId}::${m.drive_file_id}`)) continue;
+      toInsert.push({
+        r2_key:        m.drive_file_id,
+        cdn_url:       m.drive_view_url,
+        thumbnail_url: m.thumbnail_url || null,
+        mime_type:     m.mime_type || null,
+        owner_type:    'quote_section',
+        owner_id:      sectionId,
+        document_type: 'quote',
+        document_id:   quoteId,
+        created_by:    user.id,
+        sort_order:    0,
+      });
+    }
   }
 
   if (!toInsert.length) return Response.json({ copied: 0 });

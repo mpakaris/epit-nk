@@ -80,6 +80,7 @@ export async function GET(request) {
     { data: rawLabourEntries },
     { data: rawDiary },
     { data: rawMedia },
+    { data: rawClientInvoices },
   ] = await Promise.all([
     // All invoices for total (existing behaviour)
     projectIds.length
@@ -122,7 +123,21 @@ export async function GET(request) {
           .eq('portal_visible', true)
           .order('created_at')
       : { data: [] },
+    // CP-17: client invoices (kiszámlázás) — sent and paid only
+    projectIds.length
+      ? admin.from('payment_plan_items')
+          .select('id, project_id, label, amount_huf, due_date, status, sent_at')
+          .in('project_id', projectIds)
+          .in('status', ['sent', 'paid'])
+          .order('created_at')
+      : { data: [] },
   ]);
+
+  // Client invoice files
+  const clientInvoiceIds = (rawClientInvoices || []).map(i => i.id);
+  const { data: rawClientInvoiceFiles } = clientInvoiceIds.length
+    ? await admin.from('payment_item_files').select('id, item_id, file_url, file_name, mime_type').in('item_id', clientInvoiceIds)
+    : { data: [] };
 
   // Diary photos
   const diaryEntries  = rawDiary || [];
@@ -178,6 +193,13 @@ export async function GET(request) {
         // CP-16: all portal-visible quotes linked to this project
         quotes: ownerQuotes.filter(q => q.project_id === p.id),
         diaryEntries: enrichedDiary.filter(d => d.project_id === p.id),
+        // CP-17: client invoices (kiszámlázás)
+        clientInvoices: (rawClientInvoices || [])
+          .filter(item => item.project_id === p.id)
+          .map(item => ({
+            ...item,
+            files: (rawClientInvoiceFiles || []).filter(f => f.item_id === item.id),
+          })),
       }));
 
     // The client_id is the clients.id record linking this email to this contractor.

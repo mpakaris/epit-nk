@@ -188,7 +188,7 @@ export default function PortalShareSection({ project, invoices, labourEntries, d
           color: totalShared > 0 ? '#fff' : (open ? 'rgba(255,255,255,0.6)' : 'var(--text-muted)'),
           borderRadius: 99, padding: '0.15rem 0.6rem', marginRight: '0.25rem',
         }}>
-          {totalShared > 0 ? t('portalSharedBadge').replace('{count}', totalShared) : t('portalNoneShared')}
+          {totalShared > 0 ? t('portalSharedBadge', { count: totalShared }) : t('portalNoneShared')}
         </span>
         {open ? <ChevronUp size={16} color={open ? '#fff' : 'var(--text-muted)'} /> : <ChevronDown size={16} color="var(--text-muted)" />}
       </button>

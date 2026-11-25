@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { logAudit } from '@/lib/audit';
 import { resolveEffectiveUserId } from '@/lib/godMode';
+import { applyDowngradeLock } from '@/lib/downgradeLock';
 
 export async function GET(request) {
   const supabase = await createClient();
@@ -46,17 +47,33 @@ export async function GET(request) {
 
   if (!profile) return Response.json({ error: 'Profile not found' }, { status: 404 });
 
+  // Lazy trial expiry: if still showing 'trial' but trial_ends_at has passed, apply downgrade lock now
+  if (
+    profile.subscription_tier === 'trial' &&
+    profile.trial_ends_at &&
+    new Date(profile.trial_ends_at) < new Date() &&
+    effectiveUserId === user.id  // never auto-downgrade an impersonated user mid-session
+  ) {
+    await applyDowngradeLock(user.id, admin);
+    // Re-fetch the updated profile so the response reflects the new tier
+    const { data: updated } = await admin.from('profiles').select('*').eq('id', user.id).maybeSingle();
+    if (updated) profile = updated;
+  }
+
   // Return collective memberships for the context switcher
   const { data: membershipsRaw } = await admin
     .from('collective_members')
-    .select('collective_id, role, status, collectives(id, name, collective_tier, creem_subscription_id, subscription_status, subscription_period_end, is_inclusive)')
+    .select('collective_id, role, status, collectives(id, name, status, collective_tier, is_inclusive, creem_subscription_id, subscription_status, subscription_period_end)')
     .eq('user_id', effectiveUserId)
     .eq('status', 'active');
 
   const collectives = (membershipsRaw || []).map(m => ({
-    collective_id: m.collective_id,
-    role:          m.role,
-    name:          m.collectives?.name || null,
+    collective_id:  m.collective_id,
+    role:           m.role,
+    name:           m.collectives?.name || null,
+    status:         m.collectives?.status ?? 'active',
+    collective_tier: m.collectives?.collective_tier ?? null,
+    is_inclusive:   m.collectives?.is_inclusive ?? false,
   }));
 
   // Return owned paid collective subscriptions for the subscription management panel
@@ -135,7 +152,7 @@ export async function PATCH(request) {
 
   // Letterhead / profile info update
   const allowed = ['display_name', 'first_name', 'last_name', 'company_name', 'street', 'street_number', 'zip', 'city', 'tax_number', 'default_tax_percent',
-                   'phone', 'bank_account', 'bank_name', 'offer_validity_days', 'offer_terms_text',
+                   'phone', 'bank_account', 'bank_name', 'iban', 'bic', 'offer_validity_days', 'offer_terms_text',
                    'payment_deadline_days', 'payment_method', 'deposit_percent', 'warranty_months'];
   const update = {};
   for (const k of allowed) if (k in body) update[k] = body[k] ?? null;

@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="hu"><head><meta charset="utf-8"><title>OkosSzaki — Helyiség</title><script src="./support.js"></script></head>
+<body><x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&amp;family=Plus+Jakarta+Sans:wght@500;600;700&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}
+button,input,textarea{font-family:inherit}
+button{cursor:pointer}
+*{scrollbar-width:none;-ms-overflow-style:none}
+*::-webkit-scrollbar{display:none;width:0;height:0}
+.root{position:relative;width:390px;height:844px;overflow:hidden;background:#EDEBE5;color:#0E1116;font-family:'Plus Jakarta Sans',system-ui,sans-serif}
+.scroll{position:absolute;inset:0;z-index:1;overflow-y:auto;box-sizing:border-box;padding:0 0 170px}
+.hd{position:relative;overflow:hidden;box-sizing:border-box;padding:18px 16px 20px;border-radius:0 0 32px 32px;display:flex;flex-direction:column;gap:12px}
+.glow{position:absolute;right:-90px;top:-120px;width:300px;height:300px;border-radius:150px}
+.top{position:relative;display:flex;align-items:center;justify-content:space-between}
+.rnd{width:48px;height:48px;border:0;border-radius:24px;display:flex;align-items:center;justify-content:center;padding:0}
+.pill{height:36px;padding:0 14px;border-radius:18px;font-size:13px;font-weight:700;display:inline-flex;align-items:center;gap:8px}
+.ttl{position:relative;margin:0;font-family:'Bricolage Grotesque',sans-serif;font-size:30px;font-weight:700;letter-spacing:-.02em;line-height:1.1}
+.kick{position:relative;font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+.sub{position:relative;font-size:15px;font-weight:600}
+.body{padding:16px 16px 0;display:flex;flex-direction:column;gap:14px}
+.card{box-sizing:border-box;border-radius:26px;background:#fff;box-shadow:0 1px 0 rgba(14,17,22,.05),0 14px 26px -18px rgba(14,17,22,.35)}
+.lbl{font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#5A5F68}
+.h2{margin:0;font-family:'Bricolage Grotesque',sans-serif;font-size:22px;font-weight:700}
+.fld{width:100%;box-sizing:border-box;height:56px;border:0;border-radius:20px;background:#fff;padding:0 16px;font-size:17px;font-weight:500;color:#0E1116;box-shadow:0 1px 0 rgba(14,17,22,.05),0 10px 20px -16px rgba(14,17,22,.4)}
+.fld::placeholder{color:#6B7078}
+.chip{height:52px;padding:0 18px;border:0;border-radius:26px;font-size:15px;font-weight:700;display:inline-flex;align-items:center;gap:8px;color:#0E1116}
+.bar{position:absolute;z-index:20;left:0;right:0;bottom:0;box-sizing:border-box;padding:28px 16px 18px;background:linear-gradient(to top,#EDEBE5 70%,rgba(237,235,229,0));display:flex;gap:10px}
+.pri{flex:1;height:60px;border:0;border-radius:30px;background:#0E1116;color:#fff;font-size:17px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:10px;box-shadow:0 14px 26px -12px rgba(14,17,22,.6)}
+.sq{flex:none;width:60px;height:60px;border:0;border-radius:30px;background:#fff;color:#0E1116;display:flex;align-items:center;justify-content:center;box-shadow:0 10px 22px -10px rgba(14,17,22,.4)}
+.ic{flex:none;width:44px;height:44px;border-radius:15px;background:#F1F1F3;color:#1A1D23;display:flex;align-items:center;justify-content:center}
+.row{width:100%;min-height:64px;box-sizing:border-box;padding:10px 14px;border:0;border-radius:22px;background:#fff;color:#0E1116;text-align:left;display:flex;align-items:center;gap:12px;font-size:16px;font-weight:700;box-shadow:0 1px 0 rgba(14,17,22,.05),0 12px 22px -18px rgba(14,17,22,.35)}
+.scrim{position:absolute;inset:0;z-index:40;border:0;padding:0;background:rgba(14,17,22,.5)}
+.sheet{position:absolute;z-index:50;left:0;right:0;bottom:0;box-sizing:border-box;padding:10px 16px 18px;border-radius:32px 32px 0 0;background:#FBFAF7;display:flex;flex-direction:column;gap:12px;max-height:90%;overflow-y:auto}
+.grab{align-self:center;flex:none;width:44px;height:5px;border-radius:3px;background:#D5D2C8}
+.sh{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.sht{font-family:'Bricolage Grotesque',sans-serif;font-size:25px;font-weight:700;line-height:1.1}
+.x{width:48px;height:48px;border:0;border-radius:24px;background:#EFEDE6;color:#0E1116;display:flex;align-items:center;justify-content:center;flex:none}
+.sw{flex:none;width:64px;height:38px;border-radius:19px;position:relative}
+.sw>i{position:absolute;top:4px;width:30px;height:30px;border-radius:15px;background:#fff;box-shadow:0 2px 6px rgba(14,17,22,.3)}
+.badge{height:26px;padding:0 10px;border-radius:13px;font-size:12px;font-weight:700;display:inline-flex;align-items:center;gap:4px;background:#F0F0F2;color:#2B3038;flex:none}
+.m{font-size:13px;font-weight:600;color:#5A5F68}
+.n{font-family:'Bricolage Grotesque',sans-serif;font-weight:700;letter-spacing:-.02em}
+.stat{flex:1;box-sizing:border-box;padding:10px 12px;border-radius:18px}
+
+.root{background:var(--deep);color:#fff}
+.hd{border-radius:0 0 32px 32px}
+.bar{background:linear-gradient(to top,var(--deep) 65%,rgba(0,0,0,0))}
+.card{color:#0E1116;box-shadow:inset 0 1px 0 #fff,0 16px 26px -14px rgba(0,0,0,.7),0 3px 6px -2px rgba(0,0,0,.3)}
+.row{color:#0E1116;box-shadow:inset 0 1px 0 #fff,0 14px 22px -14px rgba(0,0,0,.7),0 3px 6px -2px rgba(0,0,0,.3)}
+.sheet,.sht{color:#0E1116}
+.h2{color:#fff}
+.lbl{color:rgba(255,255,255,.78)}
+.sheet .lbl{color:#5A5F68}
+.sq{color:#0E1116}
+</style>
+</helmet>
+<div class="root" style="--deep: #06302C; display: flex; flex-direction: column">
+ <header class="hd" style="flex: none; padding: 14px 16px 14px; flex-direction: row; align-items: center; gap: 12px; background: #0A7F72; color: #fff; border-radius: 0 0 28px 28px">
+  <button class="rnd" aria-label="Vissza" style="flex: none; background: rgba(255,255,255,0.18); color: #fff"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="{{ic.back}}"/></svg></button>
+  <div style="position: relative; flex: 1; min-width: 0; display: flex; flex-direction: column"><span class="kick" style="font-size: 12px; color: rgba(255,255,255,0.85)">Lakásfelújítás · szerkesztés</span>
+   <input aria-label="Helyiség neve" value="Konyha" style="width: 100%; box-sizing: border-box; padding: 0; border: 0; background: transparent; color: #fff; font-family: 'Bricolage Grotesque', sans-serif; font-size: 26px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.15"></div>
+  <span class="pill" style="position: relative; flex: none; background: rgba(255,255,255,0.18)"><span style="width: 8px; height: 8px; border-radius: 4px; background: #7CFFB0"></span>Mentve</span>
+ </header>
+
+ <div style="flex: 1; min-height: 0; overflow-y: auto; box-sizing: border-box; padding: 14px 16px; display: flex; flex-direction: column; gap: 12px">
+  <!-- Media: Kamera / Galéria -->
+  <section style="display: flex; flex-direction: column; gap: 8px">
+   <div style="display: flex; gap: 10px">
+    <button style="flex: 1.3; height: 64px; border: 0; border-radius: 32px; background: #0E1116; color: #fff; display: flex; align-items: center; justify-content: center; gap: 10px; font-size: 16px; font-weight: 700; box-shadow: 0 14px 24px -12px rgba(14,17,22,0.6)"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l2-3h6l2 3h3v12H4z M8.5 13a3.5 3.5 0 107 0 3.5 3.5 0 10-7 0"/></svg>Kamera</button>
+    <button style="flex: 1; height: 64px; border: 0; border-radius: 32px; background: #fff; color: #0E1116; display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 16px; font-weight: 700; box-shadow: 0 1px 0 rgba(14,17,22,0.06), 0 10px 18px -12px rgba(14,17,22,0.35)"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8a3 3 0 013-3h12a3 3 0 013 3v8a3 3 0 01-3 3H6a3 3 0 01-3-3zM8 10a1.6 1.6 0 100 .01M4 17l5-5 4 4 3-3 4 4"/></svg>Galéria</button>
+   </div>
+   <div style="display: flex; gap: 8px; overflow-x: auto">
+    <sc-for list="{{thumbs}}" as="t" hint-placeholder-count="5"><div style="position: relative; flex: none; width: 84px; height: 84px; border-radius: 22px; background: {{t.bg}}; overflow: hidden">
+      <sc-if value="{{t.up}}" hint-placeholder-val="{{ false }}"><span style="position: absolute; inset: 0; background: rgba(14,17,22,0.55); color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; font-size: 12px; font-weight: 700">Feltöltés<span style="width: 52px; height: 6px; border-radius: 3px; background: rgba(255,255,255,0.3)"><span style="display: block; width: 62%; height: 100%; border-radius: 3px; background: #fff"></span></span></span></sc-if>
+      <sc-if value="{{t.vid}}" hint-placeholder-val="{{ false }}"><span style="position: absolute; left: 6px; bottom: 6px; height: 22px; padding: 0 8px; border-radius: 11px; background: rgba(14,17,22,0.75); color: #fff; font-size: 11px; font-weight: 700; display: inline-flex; align-items: center">0:12</span></sc-if>
+      <button aria-label="Törlés" style="position: absolute; right: 4px; top: 4px; width: 28px; height: 28px; border: 0; border-radius: 14px; background: rgba(14,17,22,0.7); color: #fff; padding: 0; display: flex; align-items: center; justify-content: center"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round"><path d="{{ic.x}}"/></svg></button></div></sc-for>
+   </div>
+  </section>
+
+  <!-- Dimensions -->
+  <section style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px">
+   <sc-for list="{{fields}}" as="f" hint-placeholder-count="3"><button onClick="{{f.pick}}" aria-pressed="{{f.isOn}}" style="min-height: 84px; box-sizing: border-box; padding: 10px 12px; border: 0; border-radius: 22px; background: #fff; color: #0E1116; text-align: left; display: flex; flex-direction: column; justify-content: space-between; box-shadow: {{f.shadow}}"><span class="m">{{f.label}}</span><span style="display: flex; align-items: baseline; gap: 4px"><span class="n" style="font-size: 32px; line-height: 1">{{f.val}}</span><span class="m">m</span></span></button></sc-for>
+  </section>
+
+  <section style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px">
+   <sc-for list="{{counters}}" as="c" hint-placeholder-count="2"><div class="card" style="padding: 8px 8px 8px 14px; border-radius: 22px; display: flex; align-items: center; justify-content: space-between"><span style="display: flex; flex-direction: column"><span class="m">{{c.label}}</span><span class="n" style="font-size: 28px; line-height: 1.1">{{c.val}}</span></span>
+    <span style="display: flex; gap: 6px"><button onClick="{{c.dec}}" aria-label="{{c.label}} −1" style="width: 48px; height: 48px; border: 0; border-radius: 24px; background: #F1F1F3; color: #1A1D23; display: flex; align-items: center; justify-content: center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"><path d="M5 12h14"/></svg></button><button onClick="{{c.inc}}" aria-label="{{c.label}} +1" style="width: 48px; height: 48px; border: 0; border-radius: 24px; background: #0E1116; color: #fff; display: flex; align-items: center; justify-content: center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"><path d="{{ic.plus}}"/></svg></button></span></div></sc-for>
+  </section>
+
+  <!-- Wall: auto or manual -->
+  <section style="box-sizing: border-box; padding: 14px 16px; border-radius: 24px; background: #1B2A66; color: #fff; display: flex; flex-direction: column; gap: 10px">
+   <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px"><div><div style="font-size: 13px; font-weight: 600; color: rgba(255,255,255,0.78)">Padló / mennyezet</div><div class="n" style="font-size: 26px">{{area}} m²</div></div>
+    <div><div style="font-size: 13px; font-weight: 600; color: rgba(255,255,255,0.78)">Falfelület {{wallTag}}</div><div class="n" style="font-size: 26px">{{wall}} m²</div></div></div>
+   <button onClick="{{toggleWall}}" aria-pressed="{{manualWall}}" style="min-height: 48px; border: 0; border-radius: 24px; background: rgba(255,255,255,0.14); color: #fff; font-size: 14px; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 8px">{{wallBtn}}</button>
+  </section>
+
+  <!-- Notes -->
+  <section style="display: flex; gap: 10px; align-items: stretch">
+   <label class="card" style="flex: 1; box-sizing: border-box; padding: 12px 16px; border-radius: 24px; display: flex; flex-direction: column; gap: 4px"><span class="m">Megjegyzés</span><textarea rows="3" placeholder="Állapot, munkák, megjegyzések…" style="border: 0; padding: 0; background: transparent; resize: none; font-size: 16px; font-weight: 500; color: #0E1116; line-height: 1.4">Régi csempe bontandó, a fal egyenetlen.</textarea></label>
+   <button aria-label="Diktálás" style="flex: none; width: 64px; border: 0; border-radius: 24px; background: #0E1116; color: #fff; display: flex; align-items: center; justify-content: center"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6a3 3 0 106 0v6a3 3 0 10-6 0zM5 11a7 7 0 0014 0M12 18v3"/></svg></button>
+  </section>
+ </div>
+
+ <section aria-label="Számbillentyűzet" style="color: #0E1116; flex: none; box-sizing: border-box; padding: 10px 12px 14px; background: #FBFAF7; border-radius: 28px 28px 0 0; box-shadow: 0 -14px 30px -18px rgba(14,17,22,0.35); display: flex; flex-direction: column; gap: 8px">
+  <div style="display: flex; align-items: center; justify-content: space-between; padding: 0 6px"><span style="font-size: 14px; font-weight: 700; color: #5A5F68">Szerkesztés: {{activeLabel}}</span><span class="n" style="font-size: 22px">{{activeVal}} m</span></div>
+  <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px"><sc-for list="{{keys}}" as="k" hint-placeholder-count="16"><button onClick="{{k.press}}" aria-label="{{k.aria}}" style="height: 50px; border: 0; border-radius: 18px; background: {{k.bg}}; color: {{k.fg}}; font-size: 21px; font-weight: 700; box-shadow: {{k.shadow}}">{{k.label}}</button></sc-for></div>
+  <button style="height: 56px; border: 0; border-radius: 28px; background: #0E1116; color: #fff; font-size: 17px; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 10px">Kész<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><path d="{{ic.check}}"/></svg></button>
+ </section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  state = { w: '3,2', l: '4,4', h: '2,7', win: 2, door: 1, on: 'l', fresh: false, manual: false, wm: '38,4' };
+  renderVals() {
+    const st = this.state;
+    const IC = { back: 'M15 6l-6 6 6 6', plus: 'M12 5v14M5 12h14', x: 'M6 6l12 12M18 6L6 18', check: 'M5 12l5 5 9-10' };
+    const num = (s) => parseFloat(String(s).replace(',', '.')) || 0;
+    const fmt = (n) => (Math.round(n * 10) / 10).toFixed(1).replace('.', ',');
+    const L = { w: 'Szélesség', l: 'Hosszúság', h: 'Magasság', wm: 'Falfelület' };
+    const set = (p) => this.setState(p);
+    const press = (ch) => () => {
+      let v = st.fresh ? '' : String(st[st.on]);
+      if (ch === 'del') v = v.slice(0, -1);
+      else if (ch === ',') { if (!v.includes(',')) v = (v || '0') + ','; }
+      else if (v.length < 5) v = v === '0' ? ch : v + ch;
+      set({ [st.on]: v, fresh: false });
+    };
+    const next = () => { const o = ['w', 'l', 'h']; set({ on: o[(o.indexOf(st.on) + 1) % 3], fresh: true }); };
+    const mk = (label, aria, fn, kind) => ({ label, aria, press: fn, bg: kind === 'dark' ? '#0E1116' : kind === 'accent' ? '#0A7F72' : '#fff', fg: kind ? '#fff' : '#0E1116', shadow: kind ? 'none' : '0 1px 0 rgba(14,17,22,0.06), 0 6px 12px -8px rgba(14,17,22,0.35)' });
+    const keys = [mk('7', '7', press('7')), mk('8', '8', press('8')), mk('9', '9', press('9')), mk('⌫', 'Törlés', press('del'), 'dark'),
+      mk('4', '4', press('4')), mk('5', '5', press('5')), mk('6', '6', press('6')), mk('→', 'Következő mező', next, 'accent'),
+      mk('1', '1', press('1')), mk('2', '2', press('2')), mk('3', '3', press('3')), mk(',', 'Tizedesvessző', press(',')),
+      mk('0', '0', press('0')), mk('0,5', '0,5', () => set({ [st.on]: '0,5' })), mk('2,6', '2,6', () => set({ [st.on]: '2,6' })), mk('2,7', '2,7', () => set({ [st.on]: '2,7' }))];
+    const fld = (k) => ({ label: L[k], val: st[k] || '0', isOn: st.on === k, shadow: st.on === k ? '0 0 0 3px #0A7F72, 0 12px 24px -16px rgba(10,127,114,0.5)' : '0 1px 0 rgba(14,17,22,0.05), 0 12px 24px -18px rgba(14,17,22,0.3)', pick: () => set({ on: k, fresh: true }) });
+    const w = num(st.w), l = num(st.l), h = num(st.h);
+    const auto = Math.max(0, 2 * (w + l) * h - st.win * 1.5 - st.door * 2);
+    const wall = st.manual ? num(st.wm) : auto;
+    return {
+      ic: IC, fields: [fld('w'), fld('l'), fld('h')], keys, activeLabel: L[st.on], activeVal: st[st.on] || '0',
+      counters: [{ label: 'Ablak (db)', val: st.win, dec: () => set({ win: Math.max(0, st.win - 1) }), inc: () => set({ win: st.win + 1 }) }, { label: 'Ajtó (db)', val: st.door, dec: () => set({ door: Math.max(0, st.door - 1) }), inc: () => set({ door: st.door + 1 }) }],
+      area: fmt(w * l), wall: fmt(wall), wallTag: st.manual ? '(kézi)' : '(nettó, auto)', manualWall: st.manual,
+      wallBtn: st.manual ? 'Vissza az automatikus számításra' : 'Falfelület átírása kézzel', toggleWall: () => set({ manual: !st.manual }),
+      thumbs: [{ bg: 'linear-gradient(135deg,#C9CFDB,#9AA3B5)', up: true }, { bg: 'linear-gradient(135deg,#D8CFC0,#B3A590)' }, { bg: 'linear-gradient(135deg,#BFC8C4,#8FA19B)', vid: true }, { bg: 'linear-gradient(135deg,#D3C8CF,#A593A0)' }, { bg: 'linear-gradient(135deg,#D8C7B1,#B09A7F)' }]
+    };
+  }
+}
+</script></body></html>

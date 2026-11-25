@@ -7,14 +7,21 @@ import { useTranslations, useLocale } from 'next-intl';
 import useMobile from '@/hooks/useMobile';
 
 const TYPE_ICON = {
-  quote_accepted:    { icon: '✅', bg: '#f0fdf4', border: '#bbf7d0', color: '#15803d' },
-  quote_rejected:    { icon: '❌', bg: '#fef2f2', border: '#fecaca', color: '#b91c1c' },
-  client_question:   { icon: '💬', bg: '#eff6ff', border: '#bfdbfe', color: '#1d4ed8' },
-  client_message:    { icon: '📩', bg: '#eff6ff', border: '#bfdbfe', color: '#1d4ed8' },
-  collective_message:{ icon: '👥', bg: '#f5f3ff', border: '#ddd6fe', color: '#7c3aed' },
+  // User-generated / system events
+  quote_accepted:     { icon: '✅', bg: '#f0fdf4', border: '#bbf7d0', color: '#15803d' },
+  quote_rejected:     { icon: '❌', bg: '#fef2f2', border: '#fecaca', color: '#b91c1c' },
+  client_question:    { icon: '💬', bg: '#eff6ff', border: '#bfdbfe', color: '#1d4ed8' },
+  client_message:     { icon: '📩', bg: '#eff6ff', border: '#bfdbfe', color: '#1d4ed8' },
+  collective_message: { icon: '👥', bg: '#f5f3ff', border: '#ddd6fe', color: '#7c3aed' },
   collective_activity:{ icon: '🏗', bg: '#fff7ed', border: '#fed7aa', color: '#c2410c' },
   direct_message:     { icon: '💬', bg: '#eff6ff', border: '#bfdbfe', color: '#1d4ed8' },
-  member_joined:     { icon: '🤝', bg: '#f0fdf4', border: '#bbf7d0', color: '#15803d' },
+  member_joined:      { icon: '🤝', bg: '#f0fdf4', border: '#bbf7d0', color: '#15803d' },
+  // Admin-pushed types (from /api/superadmin/send-notification)
+  info:               { icon: 'ℹ️', bg: '#eff6ff', border: '#bfdbfe', color: '#1d4ed8' },
+  success:            { icon: '✅', bg: '#f0fdf4', border: '#bbf7d0', color: '#15803d' },
+  warning:            { icon: '⚠️', bg: '#fffbeb', border: '#fde68a', color: '#d97706' },
+  announcement:       { icon: '📢', bg: '#f5f3ff', border: '#ddd6fe', color: '#7c3aed' },
+  system:             { icon: '⚙️', bg: '#f8fafc', border: '#e2e8f0', color: '#475569' },
 };
 
 function relativeTime(isoStr, locale = 'hu') {

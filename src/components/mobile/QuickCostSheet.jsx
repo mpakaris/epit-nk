@@ -12,12 +12,12 @@ import {
 } from 'lucide-react';
 
 const CAT_ICONS = {
-  'Anyag':            '📦',
-  'Munka':            '👷',
-  'Szerszám/Eszköz':  '🔧',
-  'Szállítás':        '🚚',
-  'Engedély/Hatóság': '📋',
-  'Egyéb':            '•',
+  'material':  '📦',
+  'labour':    '👷',
+  'equipment': '🔧',
+  'delivery':  '🚚',
+  'parking':   '📋',
+  'other':     '•',
 };
 
 const S = {
@@ -48,7 +48,7 @@ export default function QuickCostSheet({ isOpen, onClose, projectId, onSuccess }
   const [aiItems,   setAiItems]   = useState(null);
   const [aiTotal,   setAiTotal]   = useState(null);
   const [aiCurr,    setAiCurr]    = useState('HUF');
-  const [category,  setCategory]  = useState('Anyag');
+  const [category,  setCategory]  = useState('material');
   const [amount,    setAmount]    = useState('');
   const [invDesc,   setInvDesc]   = useState('');
   const [invRoom,   setInvRoom]   = useState('');
@@ -68,7 +68,7 @@ export default function QuickCostSheet({ isOpen, onClose, projectId, onSuccess }
     setStep(1);
     setFile(null); setPreview(''); setScanning(false); setAiLoading(false);
     setOcrValue(null); setAiItems(null); setAiTotal(null); setAiCurr('HUF');
-    setCategory('Anyag'); setAmount(''); setInvDesc(''); setInvRoom('');
+    setCategory('material'); setAmount(''); setInvDesc(''); setInvRoom('');
     setSubmitting(false); setError('');
   }, [isOpen]);
 

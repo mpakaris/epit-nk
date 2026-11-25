@@ -31,6 +31,8 @@ export function makeQuoteActions({
     if (!res.ok) throw new Error(payload.error || 'Hiba az ajánlat létrehozásakor');
     const data = payload.quote;
     setQuotes(prev => [data, ...prev]);
+    if (payload.sections?.length) setQuoteSections(prev => [...prev, ...payload.sections]);
+    if (payload.entries?.length)  setQuoteEntries(prev  => [...prev, ...payload.entries]);
     return data;
   };
 
@@ -55,14 +57,17 @@ export function makeQuoteActions({
   const deleteQuote = async (quoteId) => {
     const res = await fetch(`/api/quotes/${quoteId}`, { method: 'DELETE' });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Hiba az ajánlat törlésekor');
+    // 404 means already deleted — still clean up local state
+    if (!res.ok && res.status !== 404) throw new Error(data.error || 'Hiba az ajánlat törlésekor');
     setQuotes(prev => prev.filter(q => q.id !== quoteId));
     setQuoteEntries(prev => prev.filter(e => e.quote_id !== quoteId));
     setQuoteSections(prev => prev.filter(s => s.quote_id !== quoteId));
   };
 
   const cacheQuote = (quote) => {
-    setQuotes(prev => prev.some(q => q.id === quote.id) ? prev : [...prev, quote]);
+    setQuotes(prev => prev.some(q => q.id === quote.id)
+      ? prev.map(q => q.id === quote.id ? quote : q)
+      : [...prev, quote]);
   };
 
   // ---- Quote sections ---------------------------------------------------------

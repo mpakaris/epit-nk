@@ -11,6 +11,7 @@ import {
   FileText, Receipt, Coins, Globe, CreditCard, Image, Mail, Loader2,
   Skull, Search, X, Wrench, LayoutDashboard, ClipboardList,
   BarChart3, Settings, BookOpen, Camera, MessageCircle,
+  Send, Bell, Info, AlertTriangle, Megaphone, ChevronDown,
 } from 'lucide-react';
 
 // ── Navigation cards definition ────────────────────────────────────────────
@@ -56,6 +57,32 @@ export default function SuperAdminPage() {
   // WhatsApp test
   const [waSending, setWaSending] = useState(false);
   const [waResult,  setWaResult]  = useState(null);
+
+  // Send Message
+  const [msgRecipient, setMsgRecipient]   = useState(null);
+  const [msgSearch,    setMsgSearch]      = useState('');
+  const [msgShowDrop,  setMsgShowDrop]    = useState(false);
+  const [msgBody,      setMsgBody]        = useState('');
+  const [msgSending,   setMsgSending]     = useState(false);
+  const [msgResult,    setMsgResult]      = useState(null);
+
+  // Send Notification
+  const NOTIF_TYPES = [
+    { value: 'info',         label: 'Info',         color: '#2563eb', Icon: Info },
+    { value: 'success',      label: 'Success',      color: '#059669', Icon: CheckCircle2 },
+    { value: 'warning',      label: 'Warning',      color: '#d97706', Icon: AlertTriangle },
+    { value: 'announcement', label: 'Announcement', color: '#7c3aed', Icon: Megaphone },
+    { value: 'system',       label: 'System',       color: '#64748b', Icon: Bell },
+  ];
+  const [notifRecipient, setNotifRecipient] = useState(null);
+  const [notifSearch,    setNotifSearch]    = useState('');
+  const [notifShowDrop,  setNotifShowDrop]  = useState(false);
+  const [notifType,      setNotifType]      = useState('info');
+  const [notifTitle,     setNotifTitle]     = useState('');
+  const [notifBody,      setNotifBody]      = useState('');
+  const [notifLink,      setNotifLink]      = useState('');
+  const [notifSending,   setNotifSending]   = useState(false);
+  const [notifResult,    setNotifResult]    = useState(null);
 
   // Auth repair
   const [repairEmail, setRepairEmail]   = useState('');
@@ -185,6 +212,46 @@ export default function SuperAdminPage() {
       setRepairResult({ error: err.message });
     } finally {
       setRepairLoading(false);
+    }
+  };
+
+  const handleSendMessage = async () => {
+    if (!msgRecipient || !msgBody.trim()) return;
+    setMsgSending(true);
+    setMsgResult(null);
+    try {
+      const res = await fetch('/api/superadmin/send-message', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ recipient_user_id: msgRecipient.id, message: msgBody.trim() }),
+      });
+      const data = await res.json();
+      if (res.ok) { setMsgResult({ ok: true }); setMsgBody(''); }
+      else setMsgResult({ error: data.error });
+    } catch (err) {
+      setMsgResult({ error: err.message });
+    } finally {
+      setMsgSending(false);
+    }
+  };
+
+  const handleSendNotification = async () => {
+    if (!notifRecipient || !notifTitle.trim()) return;
+    setNotifSending(true);
+    setNotifResult(null);
+    try {
+      const res = await fetch('/api/superadmin/send-notification', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: notifRecipient.id, type: notifType, title: notifTitle.trim(), body: notifBody.trim() || undefined, link: notifLink.trim() || undefined }),
+      });
+      const data = await res.json();
+      if (res.ok) { setNotifResult({ ok: true }); setNotifTitle(''); setNotifBody(''); setNotifLink(''); }
+      else setNotifResult({ error: data.error });
+    } catch (err) {
+      setNotifResult({ error: err.message });
+    } finally {
+      setNotifSending(false);
     }
   };
 
@@ -406,6 +473,198 @@ export default function SuperAdminPage() {
       {/* ── Tools ── */}
       <h2 style={{ fontSize: '1.05rem', fontWeight: 800, marginBottom: '0.85rem' }}>Tools</h2>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 400px), 1fr))', gap: '0.85rem', marginBottom: '2rem' }}>
+
+        {/* Send Message */}
+        <div className="card" style={{ padding: '1rem 1.1rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.65rem' }}>
+            <Send size={15} color="var(--accent)" />
+            <h3 style={{ fontSize: '0.875rem', fontWeight: 800, margin: 0 }}>Send Message</h3>
+          </div>
+          <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: '0 0 0.65rem', lineHeight: 1.5 }}>
+            Send a direct message to any user. It will appear in their inbox thread.
+          </p>
+
+          {/* Recipient picker */}
+          <div style={{ position: 'relative', marginBottom: '0.5rem' }}>
+            <div
+              onClick={() => setMsgShowDrop(v => !v)}
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.4rem 0.65rem', border: '1.5px solid var(--border)', borderRadius: 'var(--radius-md)', cursor: 'pointer', fontSize: '0.825rem', background: 'var(--bg-base)', gap: '0.4rem' }}
+            >
+              {msgRecipient
+                ? <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{msgRecipient.display_name || msgRecipient.email}</span>
+                : <span style={{ color: 'var(--text-muted)' }}>Select recipient…</span>}
+              <ChevronDown size={13} color="var(--text-muted)" />
+            </div>
+            {msgShowDrop && (
+              <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 50, background: 'var(--bg-card)', border: '1.5px solid var(--border)', borderRadius: 'var(--radius-md)', boxShadow: '0 4px 16px rgba(0,0,0,.12)', marginTop: 2 }}>
+                <div style={{ padding: '0.4rem' }}>
+                  <input
+                    autoFocus
+                    type="text"
+                    placeholder="Search…"
+                    value={msgSearch}
+                    onChange={e => setMsgSearch(e.target.value)}
+                    className="form-control"
+                    style={{ fontSize: '0.8rem', padding: '0.35rem 0.6rem' }}
+                  />
+                </div>
+                <div style={{ maxHeight: 200, overflowY: 'auto' }}>
+                  {recallUsers
+                    .filter(u => { const q = msgSearch.toLowerCase(); return !q || (u.display_name||'').toLowerCase().includes(q) || (u.email||'').toLowerCase().includes(q); })
+                    .map(u => (
+                      <div
+                        key={u.id}
+                        onClick={() => { setMsgRecipient(u); setMsgShowDrop(false); setMsgSearch(''); setMsgResult(null); }}
+                        style={{ padding: '0.4rem 0.75rem', cursor: 'pointer', fontSize: '0.825rem', borderTop: '1px solid var(--border-subtle)' }}
+                        onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-subtle)'}
+                        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                      >
+                        <div style={{ fontWeight: 600 }}>{u.display_name || u.email}</div>
+                        {u.display_name && <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{u.email}</div>}
+                      </div>
+                    ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <textarea
+            placeholder="Message…"
+            value={msgBody}
+            onChange={e => { setMsgBody(e.target.value); setMsgResult(null); }}
+            className="form-control"
+            rows={3}
+            style={{ resize: 'vertical', fontSize: '0.825rem', marginBottom: '0.5rem' }}
+          />
+          <button
+            type="button"
+            className="btn btn-primary btn-sm"
+            onClick={handleSendMessage}
+            disabled={msgSending || !msgRecipient || !msgBody.trim()}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}
+          >
+            {msgSending ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />}
+            {msgSending ? 'Sending…' : 'Send'}
+          </button>
+          {msgResult && (
+            <div style={{ marginTop: '0.55rem', padding: '0.55rem 0.75rem', borderRadius: 'var(--radius-md)', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.4rem', background: msgResult.ok ? 'var(--success-bg)' : 'var(--danger-bg)', border: `1px solid ${msgResult.ok ? 'var(--success-border)' : 'var(--danger-border)'}`, color: msgResult.ok ? 'var(--success-text)' : 'var(--danger-text)' }}>
+              {msgResult.ok ? <><CheckCircle2 size={14} /> Message delivered to {msgRecipient?.display_name || msgRecipient?.email}</> : <><AlertCircle size={14} /> {msgResult.error}</>}
+            </div>
+          )}
+        </div>
+
+        {/* Send Notification */}
+        <div className="card" style={{ padding: '1rem 1.1rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.65rem' }}>
+            <Bell size={15} color="#7c3aed" />
+            <h3 style={{ fontSize: '0.875rem', fontWeight: 800, margin: 0 }}>Send Notification</h3>
+          </div>
+          <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: '0 0 0.65rem', lineHeight: 1.5 }}>
+            Push an in-app notification to any user with a custom type, title, body, and optional link.
+          </p>
+
+          {/* Recipient picker */}
+          <div style={{ position: 'relative', marginBottom: '0.5rem' }}>
+            <div
+              onClick={() => setNotifShowDrop(v => !v)}
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.4rem 0.65rem', border: '1.5px solid var(--border)', borderRadius: 'var(--radius-md)', cursor: 'pointer', fontSize: '0.825rem', background: 'var(--bg-base)', gap: '0.4rem' }}
+            >
+              {notifRecipient
+                ? <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{notifRecipient.display_name || notifRecipient.email}</span>
+                : <span style={{ color: 'var(--text-muted)' }}>Select recipient…</span>}
+              <ChevronDown size={13} color="var(--text-muted)" />
+            </div>
+            {notifShowDrop && (
+              <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 50, background: 'var(--bg-card)', border: '1.5px solid var(--border)', borderRadius: 'var(--radius-md)', boxShadow: '0 4px 16px rgba(0,0,0,.12)', marginTop: 2 }}>
+                <div style={{ padding: '0.4rem' }}>
+                  <input
+                    autoFocus
+                    type="text"
+                    placeholder="Search…"
+                    value={notifSearch}
+                    onChange={e => setNotifSearch(e.target.value)}
+                    className="form-control"
+                    style={{ fontSize: '0.8rem', padding: '0.35rem 0.6rem' }}
+                  />
+                </div>
+                <div style={{ maxHeight: 200, overflowY: 'auto' }}>
+                  {recallUsers
+                    .filter(u => { const q = notifSearch.toLowerCase(); return !q || (u.display_name||'').toLowerCase().includes(q) || (u.email||'').toLowerCase().includes(q); })
+                    .map(u => (
+                      <div
+                        key={u.id}
+                        onClick={() => { setNotifRecipient(u); setNotifShowDrop(false); setNotifSearch(''); setNotifResult(null); }}
+                        style={{ padding: '0.4rem 0.75rem', cursor: 'pointer', fontSize: '0.825rem', borderTop: '1px solid var(--border-subtle)' }}
+                        onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-subtle)'}
+                        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                      >
+                        <div style={{ fontWeight: 600 }}>{u.display_name || u.email}</div>
+                        {u.display_name && <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{u.email}</div>}
+                      </div>
+                    ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Type pills */}
+          <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap', marginBottom: '0.5rem' }}>
+            {NOTIF_TYPES.map(nt => {
+              const NIcon = nt.Icon;
+              const active = notifType === nt.value;
+              return (
+                <button
+                  key={nt.value}
+                  type="button"
+                  onClick={() => setNotifType(nt.value)}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', padding: '0.25rem 0.6rem', borderRadius: 'var(--radius-pill)', border: `1.5px solid ${active ? nt.color : 'var(--border)'}`, background: active ? nt.color : 'transparent', color: active ? '#fff' : 'var(--text-secondary)', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer' }}
+                >
+                  <NIcon size={11} /> {nt.label}
+                </button>
+              );
+            })}
+          </div>
+
+          <input
+            type="text"
+            placeholder="Title *"
+            value={notifTitle}
+            onChange={e => { setNotifTitle(e.target.value); setNotifResult(null); }}
+            className="form-control"
+            style={{ marginBottom: '0.4rem', fontSize: '0.825rem' }}
+          />
+          <textarea
+            placeholder="Body (optional)"
+            value={notifBody}
+            onChange={e => setNotifBody(e.target.value)}
+            className="form-control"
+            rows={2}
+            style={{ resize: 'vertical', fontSize: '0.825rem', marginBottom: '0.4rem' }}
+          />
+          <input
+            type="text"
+            placeholder="Link (optional, e.g. /ajanlatok)"
+            value={notifLink}
+            onChange={e => setNotifLink(e.target.value)}
+            className="form-control"
+            style={{ marginBottom: '0.5rem', fontSize: '0.825rem' }}
+          />
+          <button
+            type="button"
+            className="btn btn-primary btn-sm"
+            onClick={handleSendNotification}
+            disabled={notifSending || !notifRecipient || !notifTitle.trim()}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}
+          >
+            {notifSending ? <Loader2 size={13} className="animate-spin" /> : <Bell size={13} />}
+            {notifSending ? 'Sending…' : 'Send'}
+          </button>
+          {notifResult && (
+            <div style={{ marginTop: '0.55rem', padding: '0.55rem 0.75rem', borderRadius: 'var(--radius-md)', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.4rem', background: notifResult.ok ? 'var(--success-bg)' : 'var(--danger-bg)', border: `1px solid ${notifResult.ok ? 'var(--success-border)' : 'var(--danger-border)'}`, color: notifResult.ok ? 'var(--success-text)' : 'var(--danger-text)' }}>
+              {notifResult.ok ? <><CheckCircle2 size={14} /> Notification sent to {notifRecipient?.display_name || notifRecipient?.email}</> : <><AlertCircle size={14} /> {notifResult.error}</>}
+            </div>
+          )}
+        </div>
 
         {/* Auth Repair */}
         <div className="card" style={{ padding: '1rem 1.1rem' }}>

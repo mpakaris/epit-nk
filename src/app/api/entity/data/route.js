@@ -11,7 +11,7 @@ const PROFILE_COLS = [
   'id', 'display_name', 'role', 'email', 'active_collective_id',
   'is_subscription_premium', 'subscription_tier', 'trial_started_at', 'trial_ends_at',
   'company_name', 'locale', 'currency', 'phone', 'profile_slug', 'avatar_url',
-  'default_tax_percent', 'wa_enabled', 'wa_phone_number',
+  'default_tax_percent', 'wa_enabled', 'wa_phone_number', 'terms_pdf_name',
   'created_at', 'updated_at', 'deleted_at', 'scheduled_deletion_at',
 ].join(', ');
 

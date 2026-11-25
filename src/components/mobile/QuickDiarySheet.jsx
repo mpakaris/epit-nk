@@ -2,10 +2,11 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
-import { useScrollLock } from '@/hooks/useScrollLock';
 import { useApp } from '@/context/AppContext';
 import { processMediaFile } from '@/lib/mediaGate';
 import { MAX_DIARY_PHOTOS } from '@/lib/constants';
+import useMobile from '@/hooks/useMobile';
+import Modal from '@/components/Modal';
 import {
   Camera, Image as ImageIcon, X, Check, Loader2, AlertCircle,
   ChevronLeft, ChevronRight, Lock, Eye, Home, Video,
@@ -42,17 +43,19 @@ function PhotoGrid({ previews, onRemove, disabled }) {
   );
 }
 
-function AddPhotoButtons({ count, onCamera, onGallery, disabled, tCamera, tGallery }) {
+function AddPhotoButtons({ count, onCamera, onAddMedia, disabled, tCamera, tAddMedia, showCamera }) {
   if (count >= MAX_DIARY_PHOTOS) return null;
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-      <button type="button" onClick={onCamera} disabled={disabled}
-        style={{ height: 48, borderRadius: 12, border: '1.5px dashed #cbd5e1', background: '#f8fafc', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontSize: 13, fontWeight: 600, color: '#475569' }}>
-        <Camera size={16} /> {tCamera}
-      </button>
-      <button type="button" onClick={onGallery} disabled={disabled}
-        style={{ height: 48, borderRadius: 12, border: '1.5px dashed #cbd5e1', background: '#f8fafc', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontSize: 13, fontWeight: 600, color: '#475569' }}>
-        <ImageIcon size={16} /> {tGallery}
+    <div style={{ display: 'grid', gridTemplateColumns: showCamera ? '1fr 1fr' : '1fr', gap: 8 }}>
+      {showCamera && (
+        <button type="button" onClick={onCamera} disabled={disabled}
+          style={{ height: 48, borderRadius: 12, border: '1.5px dashed #cbd5e1', background: '#f8fafc', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontSize: 13, fontWeight: 600, color: '#475569' }}>
+          <Camera size={16} /> {tCamera}
+        </button>
+      )}
+      <button type="button" onClick={onAddMedia} disabled={disabled}
+        style={{ height: 48, borderRadius: 12, border: 'none', background: '#263248', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontSize: 13, fontWeight: 700, color: '#fff' }}>
+        <ImageIcon size={16} /> {tAddMedia}
       </button>
     </div>
   );
@@ -60,8 +63,9 @@ function AddPhotoButtons({ count, onCamera, onGallery, disabled, tCamera, tGalle
 
 export default function QuickDiarySheet({ isOpen, onClose, projectId, onSuccess }) {
   const { uploadDiaryPhotos, createDiaryEntry, projectRooms: ctxRooms } = useApp();
-  const t     = useTranslations('mobile.quickDiary');
-  const rooms = (ctxRooms || []).filter(r => r.project_id === projectId);
+  const t       = useTranslations('mobile.quickDiary');
+  const isMobile = useMobile();
+  const rooms   = (ctxRooms || []).filter(r => r.project_id === projectId);
 
   const WORK_TYPES = t.raw('workTypes');
 
@@ -89,8 +93,6 @@ export default function QuickDiarySheet({ isOpen, onClose, projectId, onSuccess 
   const [submitting, setSubmitting] = useState(false);
   const [error,      setError]      = useState('');
 
-  useScrollLock(isOpen);
-
   const today = () => new Date().toISOString().split('T')[0];
 
   useEffect(() => {
@@ -99,7 +101,7 @@ export default function QuickDiarySheet({ isOpen, onClose, projectId, onSuccess 
     setClientFiles([]); setClientPreviews([]);
     setPrivateFiles([]); setPrivatePreviews([]);
     setTitle(''); setDate(today()); setWorkType('');
-    setRoomId(''); setIsPublic(false); setClientNote(''); setInternalNote('');
+    setRoomId(''); setIsPublic(true); setClientNote(''); setInternalNote('');
     setSubmitting(false); setError('');
   }, [isOpen]);
 
@@ -184,7 +186,7 @@ export default function QuickDiarySheet({ isOpen, onClose, projectId, onSuccess 
           <span style={{ marginLeft: 'auto', fontSize: 12, color: '#94a3b8', fontWeight: 600 }}>{clientFiles.length}/{MAX_DIARY_PHOTOS}</span>
         </div>
         <PhotoGrid previews={clientPreviews} onRemove={removeClient} disabled={submitting} />
-        <AddPhotoButtons count={clientFiles.length} onCamera={() => clientCamRef.current?.click()} onGallery={() => clientGalRef.current?.click()} disabled={submitting} tCamera={t('cameraButton')} tGallery={t('galleryButton')} />
+        <AddPhotoButtons count={clientFiles.length} onCamera={() => clientCamRef.current?.click()} onAddMedia={() => clientGalRef.current?.click()} disabled={submitting} tCamera={t('cameraButton')} tAddMedia={t('addMediaBtn')} showCamera={isMobile} />
       </div>
 
       <div>
@@ -195,39 +197,43 @@ export default function QuickDiarySheet({ isOpen, onClose, projectId, onSuccess 
           <span style={{ marginLeft: 'auto', fontSize: 12, color: '#94a3b8', fontWeight: 600 }}>{privateFiles.length}/{MAX_DIARY_PHOTOS}</span>
         </div>
         <PhotoGrid previews={privatePreviews} onRemove={removePrivate} disabled={submitting} />
-        <AddPhotoButtons count={privateFiles.length} onCamera={() => privCamRef.current?.click()} onGallery={() => privGalRef.current?.click()} disabled={submitting} tCamera={t('cameraButton')} tGallery={t('galleryButton')} />
+        <AddPhotoButtons count={privateFiles.length} onCamera={() => privCamRef.current?.click()} onAddMedia={() => privGalRef.current?.click()} disabled={submitting} tCamera={t('cameraButton')} tAddMedia={t('addMediaBtn')} showCamera={isMobile} />
       </div>
     </>
   );
 
+  const inputCls = isMobile ? 'form-control' : 'dk-input';
+  const labelStyle = isMobile ? S.label : { display: 'block', fontSize: 11, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: '#5A5F68', marginBottom: 6 };
+
   const StepWhat = () => (
     <>
-      <h2 style={S.heading}>{t('whatHeading')}</h2>
-      <div style={{ marginBottom: 18 }}>
-        <label style={S.label}>{t('titleLabel')}</label>
+      {isMobile && <h2 style={S.heading}>{t('whatHeading')}</h2>}
+      <div style={{ marginBottom: 16 }}>
+        <label style={labelStyle}>{t('titleLabel')}</label>
         <input
           type="text"
-          className="form-control"
+          className={inputCls}
           placeholder={t('titlePlaceholder')}
           value={title}
           onChange={e => setTitle(e.target.value)}
-          style={{ fontSize: 18, fontWeight: 600 }}
+          style={isMobile ? { fontSize: 18, fontWeight: 600 } : { width: '100%', fontSize: 15, fontWeight: 600 }}
         />
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 18 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
         <div>
-          <label style={S.label}>{t('dateLabel')}</label>
-          <input type="date" className="form-control" value={date} onChange={e => setDate(e.target.value)} />
+          <label style={labelStyle}>{t('dateLabel')}</label>
+          <input type="date" className={inputCls} value={date} onChange={e => setDate(e.target.value)} style={isMobile ? {} : { width: '100%' }} />
         </div>
         <div>
-          <label style={S.label}>{t('workTypeLabel')}</label>
+          <label style={labelStyle}>{t('workTypeLabel')}</label>
           <input
             type="text"
-            className="form-control"
+            className={inputCls}
             placeholder={t('workTypePlaceholder')}
             list="diary-work-types"
             value={workType}
             onChange={e => setWorkType(e.target.value)}
+            style={isMobile ? {} : { width: '100%' }}
           />
           <datalist id="diary-work-types">
             {WORK_TYPES.map(wt => <option key={wt} value={wt} />)}
@@ -301,17 +307,80 @@ export default function QuickDiarySheet({ isOpen, onClose, projectId, onSuccess 
     if (step === 3) return StepDetails();
   };
 
+  const stepIndicator = (
+    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'center', marginBottom: 20 }}>
+      {stepLabels.map((label, i) => {
+        const idx  = i + 1;
+        const done = idx < step;
+        const curr = idx === step;
+        return (
+          <React.Fragment key={i}>
+            {i > 0 && <div style={{ flex: 1, height: 2, background: done ? '#0f172a' : '#e2e8f0', borderRadius: 1, marginTop: 13, transition: 'background 0.2s' }} />}
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, flexShrink: 0, width: 56 }}>
+              <div style={{ width: 28, height: 28, borderRadius: '50%', background: curr || done ? '#0f172a' : '#f1f5f9', border: `2px solid ${curr || done ? '#0f172a' : '#e2e8f0'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}>
+                {done ? <Check size={14} color="#fff" strokeWidth={2.5} /> : <span style={{ fontSize: 12, fontWeight: 800, color: curr ? '#fff' : '#94a3b8' }}>{idx}</span>}
+              </div>
+              <span style={{ fontSize: 10, fontWeight: curr ? 700 : 500, color: curr ? '#0f172a' : done ? '#475569' : '#94a3b8', whiteSpace: 'nowrap', textAlign: 'center' }}>{label}</span>
+            </div>
+          </React.Fragment>
+        );
+      })}
+    </div>
+  );
+
+  const navButtons = (
+    <div style={{ marginTop: '1.5rem', paddingTop: '1rem', borderTop: '1px solid var(--border-subtle)', display: 'flex', gap: 10 }}>
+      {step > 1 && (
+        <button type="button" onClick={() => { setError(''); setStep(s => s - 1); }} disabled={submitting}
+          className={isMobile ? undefined : 'dk-btn dk-btn-l'}
+          style={isMobile
+            ? { width: 44, height: 44, borderRadius: 12, border: '1.5px solid #e2e8f0', background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#475569', flexShrink: 0 }
+            : { width: 44, padding: 0, justifyContent: 'center', flexShrink: 0 }
+          }>
+          <ChevronLeft size={20} />
+        </button>
+      )}
+      <button type="button" onClick={handleNext} disabled={submitting}
+        className={isMobile ? undefined : 'dk-btn'}
+        style={isMobile
+          ? { flex: 1, height: 54, borderRadius: 14, border: 'none', background: isLast ? '#16a34a' : '#0f172a', color: '#fff', fontSize: 16, fontWeight: 700, cursor: submitting ? 'default' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, opacity: submitting ? 0.75 : 1, transition: 'background 0.2s' }
+          : { flex: 1, background: isLast ? '#16a34a' : '#263248', color: '#fff', opacity: submitting ? 0.75 : 1, justifyContent: 'center' }
+        }>
+        {submitting
+          ? <><Loader2 size={16} className="animate-spin" /> {t('savingBtn')}</>
+          : isLast
+            ? <><Check size={16} /> {t('saveEntryBtn')}</>
+            : <>{t('nextBtn')} <ChevronRight size={16} /></>
+        }
+      </button>
+    </div>
+  );
+
+  if (!isMobile) {
+    return (
+      <Modal isOpen={isOpen} onClose={onClose} title={t('sheetTitle')}>
+        {stepIndicator}
+        {error && (
+          <div style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', color: 'var(--danger-text)', padding: '0.55rem 0.75rem', borderRadius: 10, fontSize: 13, display: 'flex', gap: 6, marginBottom: 16, alignItems: 'flex-start' }}>
+            <AlertCircle size={14} style={{ flexShrink: 0, marginTop: 1 }} /><span>{error}</span>
+          </div>
+        )}
+        {renderStep()}
+        {navButtons}
+      </Modal>
+    );
+  }
+
+  // Mobile: bottom sheet
+  if (!isOpen) return null;
   return (
     <>
       <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,.45)', zIndex: 200 }} aria-hidden="true" />
-
       <div role="dialog" aria-modal="true" aria-label={t('ariaLabel')}
         style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: '#fff', borderRadius: '24px 24px 0 0', zIndex: 201, maxHeight: '92dvh', display: 'flex', flexDirection: 'column' }}>
-
         <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 12, paddingBottom: 4, flexShrink: 0 }}>
           <div style={{ width: 36, height: 4, borderRadius: 2, background: '#e2e8f0' }} />
         </div>
-
         <div style={{ display: 'flex', alignItems: 'center', padding: '6px 16px 12px', flexShrink: 0, borderBottom: '1px solid #f1f5f9', gap: 10 }}>
           <span style={{ flex: 1, fontSize: 16, fontWeight: 700, color: '#0f172a' }}>{t('sheetTitle')}</span>
           <button type="button" onClick={onClose} disabled={submitting}
@@ -319,13 +388,9 @@ export default function QuickDiarySheet({ isOpen, onClose, projectId, onSuccess 
             <X size={16} />
           </button>
         </div>
-
-        {/* Step indicator */}
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '14px 20px 10px', flexShrink: 0 }}>
           {stepLabels.map((label, i) => {
-            const idx  = i + 1;
-            const done = idx < step;
-            const curr = idx === step;
+            const idx  = i + 1; const done = idx < step; const curr = idx === step;
             return (
               <React.Fragment key={i}>
                 {i > 0 && <div style={{ flex: 1, height: 2, background: done ? '#0f172a' : '#e2e8f0', borderRadius: 1, marginTop: 13, transition: 'background 0.2s' }} />}
@@ -339,7 +404,6 @@ export default function QuickDiarySheet({ isOpen, onClose, projectId, onSuccess 
             );
           })}
         </div>
-
         <div style={{ flex: 1, overflowY: 'auto', padding: '4px 20px 8px', WebkitOverflowScrolling: 'touch' }}>
           {error && (
             <div style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', color: 'var(--danger-text)', padding: '0.55rem 0.75rem', borderRadius: 10, fontSize: 13, display: 'flex', gap: 6, marginBottom: 16, alignItems: 'flex-start' }}>
@@ -349,7 +413,6 @@ export default function QuickDiarySheet({ isOpen, onClose, projectId, onSuccess 
           {renderStep()}
           <div style={{ height: 8 }} />
         </div>
-
         <div style={{ padding: '12px 16px', paddingBottom: 'calc(12px + env(safe-area-inset-bottom))', flexShrink: 0, borderTop: '1px solid #f1f5f9', display: 'flex', gap: 10 }}>
           {step > 1 && (
             <button type="button" onClick={() => { setError(''); setStep(s => s - 1); }} disabled={submitting}

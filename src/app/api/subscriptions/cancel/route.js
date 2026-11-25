@@ -69,8 +69,28 @@ export async function POST(request) {
     collectiveCreatedAt = col?.created_at ?? null;
   }
 
+  // ── Helper: resolve the real Creem subscription ID ────────────────────────
+  // checkout.completed stores the checkout ID (ch_xxx) in creem_subscription_id.
+  // subscription.active writes the real sub ID into the subscriptions table with
+  // a collective_id FK. Look it up from there — no Creem API call needed.
+  async function resolveRealSubscriptionId() {
+    if (!collectiveId) return null;
+    const { data: row } = await admin
+      .from('subscriptions')
+      .select('creem_subscription_id')
+      .eq('collective_id', collectiveId)
+      .eq('product_family', 'addon')
+      .in('status', ['active', 'trialing', 'scheduled_cancel'])
+      .order('updated_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const id = row?.creem_subscription_id;
+    return (id && !id.startsWith('ch_')) ? id : null;
+  }
+
   // Cancel at end of current billing period
-  const res = await fetch(`${CREEM_BASE}/v1/subscriptions/${subscriptionId}/cancel`, {
+  let effectiveSubId = subscriptionId;
+  let res = await fetch(`${CREEM_BASE}/v1/subscriptions/${effectiveSubId}/cancel`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -79,11 +99,45 @@ export async function POST(request) {
     body: JSON.stringify({ mode: 'scheduled' }),
   });
 
+  // If Creem says "does not exist" and we have a collectiveId, the stored ID is probably a
+  // checkout ID (ch_xxx). Resolve the real subscription ID and retry once.
+  if (!res.ok && collectiveId) {
+    const errPeek = await res.json().catch(() => ({}));
+    const errMsg  = Array.isArray(errPeek.message) ? errPeek.message.join(', ') : (errPeek.message || '');
+    if (errMsg.toLowerCase().includes('does not exist') || errMsg.toLowerCase().includes('not found')) {
+      console.log('[subscriptions/cancel] stored ID looks like checkout ID, resolving real sub ID…');
+      const realId = await resolveRealSubscriptionId();
+      if (realId) {
+        console.log('[subscriptions/cancel] resolved real subscription ID:', realId);
+        // Persist the corrected ID so future operations use the right one
+        if (collectiveId) {
+          await admin.from('collectives').update({ creem_subscription_id: realId }).eq('id', collectiveId);
+        }
+        effectiveSubId = realId;
+        res = await fetch(`${CREEM_BASE}/v1/subscriptions/${effectiveSubId}/cancel`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.CREEM_API_KEY },
+          body: JSON.stringify({ mode: 'scheduled' }),
+        });
+      }
+    }
+  }
+
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     const msg = Array.isArray(err.message) ? err.message.join(', ') : (err.message || 'Lemondás sikertelen');
     console.error('[subscriptions/cancel] Creem error', res.status, msg);
-    logAudit({ userId: user.id, userName: user.email, action: 'Subscription cancel failed', targetType: 'payment', targetId: subscriptionId, details: { error: msg, creem_status: res.status, collective_id: collectiveId || null } });
+
+    // Subscription already canceled/expired in Creem — sync our DB and return friendly message
+    if (res.status === 400 && msg.toLowerCase().includes('canceled')) {
+      await admin.from('subscriptions')
+        .update({ status: 'canceled', updated_at: new Date().toISOString() })
+        .eq('creem_subscription_id', effectiveSubId);
+      logAudit({ userId: user.id, userName: user.email, action: 'Subscription cancel skipped — already canceled in Creem', targetType: 'payment', targetId: effectiveSubId, details: { creem_status: res.status } });
+      return NextResponse.json({ error: 'Az előfizetés már korábban lemondásra került. Nyisd újra az előfizetési lapot a friss állapot megtekintéséhez.' }, { status: 400 });
+    }
+
+    logAudit({ userId: user.id, userName: user.email, action: 'Subscription cancel failed', targetType: 'payment', targetId: effectiveSubId, details: { error: msg, creem_status: res.status, collective_id: collectiveId || null } });
     return NextResponse.json({ error: msg }, { status: res.status });
   }
 
@@ -101,7 +155,7 @@ export async function POST(request) {
 
   // If Creem didn't include it, try fetching the subscription
   if (!periodEnd) {
-    const subRes = await fetch(`${CREEM_BASE}/v1/subscriptions?subscription_id=${subscriptionId}`, {
+    const subRes = await fetch(`${CREEM_BASE}/v1/subscriptions?subscription_id=${effectiveSubId}`, {
       headers: { 'x-api-key': process.env.CREEM_API_KEY },
     });
     if (subRes.ok) {
@@ -149,7 +203,7 @@ export async function POST(request) {
     // Premium subscription cancel — update subscriptions table
     const update = { status: 'scheduled_cancel', updated_at: new Date().toISOString() };
     if (periodEndIso) update.period_end = periodEndIso;
-    const { error: dbErr } = await admin.from('subscriptions').update(update).eq('creem_subscription_id', subscriptionId);
+    const { error: dbErr } = await admin.from('subscriptions').update(update).eq('creem_subscription_id', effectiveSubId);
     if (dbErr) console.warn('[subscriptions/cancel] subscriptions DB update skipped:', dbErr.message);
     // is_subscription_premium stays true — user retains access until period_end
 
@@ -251,7 +305,7 @@ export async function POST(request) {
       userName: user.email,
       action: 'Premium subscription cancelled',
       targetType: 'subscription',
-      targetId: subscriptionId,
+      targetId: effectiveSubId,
       targetName: user.email,
       details: { period_end: periodEndIso, cascaded_collectives: canceledCollectives.length },
     });

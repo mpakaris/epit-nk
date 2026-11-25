@@ -162,7 +162,7 @@ export default function HomePage() {
                   </a>
                 </div>
                 <a
-                  href="/szakemberek/nemes-peter-felujito?preview=1"
+                  href="/pro/nemes-peter-felujito?preview=1"
                   target="_blank"
                   rel="noopener noreferrer"
                   style={{ display:'inline-flex', alignItems:'center', gap:'0.4rem', marginTop:'0.75rem', fontSize:'0.825rem', color:navy600, textDecoration:'none', fontWeight:600 }}
