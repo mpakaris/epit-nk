@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import { useApp } from '@/context/AppContext';
 import { formatMoney, INVOICE_CATEGORIES } from '@/lib/constants';
 import { ChevronDown, ChevronUp, Share2, Loader2, ExternalLink } from 'lucide-react';
+import MediaThumb from '@/components/MediaThumb';
 import useMobile from '@/hooks/useMobile';
 
 // ── toggle switch ─────────────────────────────────────────────────────────────
@@ -280,10 +281,7 @@ export default function PortalShareSection({ project, invoices, labourEntries, d
                       transition: 'border-color 0.15s',
                     }}
                   >
-                    {m.mime_type?.startsWith('video/')
-                      ? <div style={{ width: '100%', height: '100%', background: '#0f172a', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem' }}>▶️</div>
-                      : <img src={m.thumbnail_url || m.cdn_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} loading="lazy" />
-                    }
+                    <MediaThumb item={m} radius={0} />
                     {/* Overlay: shared indicator or spinner */}
                     <div style={{
                       position: 'absolute', inset: 0,

@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Plus, Play, X, Lock, Eye, Loader2, Check, Trash2, Image as ImageIcon } from 'lucide-react';
+import { Plus, X, Lock, Eye, Loader2, Check, Trash2, Image as ImageIcon } from 'lucide-react';
 import Lightbox from '@/components/Lightbox';
+import MediaThumb from '@/components/MediaThumb';
 import { useTranslations } from 'next-intl';
 import Modal from '@/components/Modal';
 import ErrorBanner from '@/components/ErrorBanner';
@@ -237,9 +238,7 @@ export default function EditDiaryEntryModal({
                   <div key={photo.id} style={{ position: 'relative', aspectRatio: '1', borderRadius: 'var(--radius-md)', overflow: 'hidden', border: '1px solid var(--border-subtle)', background: 'var(--bg-subtle)', opacity: isDeleting ? 0.4 : 1 }}>
                     <button type="button" onClick={() => setLightboxIndex(idx)}
                       style={{ width: '100%', height: '100%', border: 'none', padding: 0, cursor: 'zoom-in', display: 'block', background: 'none' }}>
-                      {isVideo
-                        ? <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#1a1a2e' }}><Play size={18} color="#fff" /></div>
-                        : <img src={photo.thumbnail_url || photo.drive_view_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />}
+                      <MediaThumb item={photo} radius={0} />
                     </button>
                     {canEdit && (
                       <button type="button" disabled={isDeleting} onClick={() => handleDeleteExisting(photo.id)}

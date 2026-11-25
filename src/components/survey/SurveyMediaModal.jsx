@@ -5,7 +5,8 @@ import { useTranslations } from 'next-intl';
 import { useApp } from '@/context/AppContext';
 import Modal from '@/components/Modal';
 import { processMediaFile } from '@/lib/mediaGate';
-import { Plus, Loader2, X, FileText, Camera, AlertCircle } from 'lucide-react';
+import { Plus, Loader2, X, AlertCircle } from 'lucide-react';
+import MediaThumb from '@/components/MediaThumb';
 
 /**
  * Reusable media gallery modal for both survey-level and section-level media.
@@ -110,34 +111,12 @@ export default function SurveyMediaModal({ isOpen, onClose, surveyId, entryId = 
 
           {/* Committed media */}
           {items.map((item, idx) => {
-            const isVideo = item.mime_type?.startsWith('video/');
-            const isPdf   = item.mime_type === 'application/pdf' || item.file_name?.toLowerCase().endsWith('.pdf');
-            const thumb   = item.thumbnail_url || item.drive_view_url;
+            const isPdf = item.mime_type === 'application/pdf' || item.file_name?.toLowerCase().endsWith('.pdf');
             return (
-              <div key={item.id} style={{ position: 'relative', borderRadius: 12, overflow: 'hidden', background: '#F4F5F8', aspectRatio: '1 / 1', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <button onClick={() => !isPdf && setPreviewIdx(idx)}
-                  style={{ position: 'absolute', inset: 0, border: 0, background: 'transparent', cursor: isPdf ? 'default' : 'pointer', padding: 0 }}
-                  aria-label={item.file_name || ''} />
-                {thumb ? (
-                  <img src={thumb} alt={item.file_name || ''} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', pointerEvents: 'none' }} />
-                ) : isPdf ? (
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, color: '#5A5F68', pointerEvents: 'none' }}>
-                    <FileText size={32} aria-hidden="true" />
-                    <span style={{ fontSize: 11, fontWeight: 700 }}>PDF</span>
-                  </div>
-                ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, color: '#5A5F68', pointerEvents: 'none' }}>
-                    <Camera size={32} aria-hidden="true" />
-                    <span style={{ fontSize: 11, fontWeight: 700 }}>{item.file_name?.split('.').pop()?.toUpperCase() || 'FILE'}</span>
-                  </div>
-                )}
-                {isVideo && (
-                  <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,.28)', pointerEvents: 'none' }}>
-                    <div style={{ width: 36, height: 36, borderRadius: 18, background: 'rgba(255,255,255,.88)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, paddingLeft: 3 }}>▶</div>
-                  </div>
-                )}
+              <div key={item.id} style={{ position: 'relative', aspectRatio: '1 / 1' }}>
+                <MediaThumb item={item} radius={12} onClick={() => !isPdf && setPreviewIdx(idx)} />
                 {item.file_name && (
-                  <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: 'linear-gradient(transparent, rgba(0,0,0,.65))', padding: '20px 8px 6px', fontSize: 10, color: '#fff', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', pointerEvents: 'none' }}>
+                  <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, borderRadius: '0 0 12px 12px', background: 'linear-gradient(transparent, rgba(0,0,0,.65))', padding: '20px 8px 6px', fontSize: 10, color: '#fff', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', pointerEvents: 'none' }}>
                     {item.file_name}
                   </div>
                 )}

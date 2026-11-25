@@ -10,8 +10,9 @@ import { MAX_DIARY_PHOTOS } from '@/lib/constants';
 import { AlertModal } from '@/components/Modal';
 import {
   ArrowLeft, Camera, X, Upload, CheckCircle2, Lock, Eye,
-  HardHat, Video, Image, Loader2, Trash2
+  HardHat, Loader2, Trash2
 } from 'lucide-react';
+import MediaThumb from '@/components/MediaThumb';
 
 const WORK_TYPES = [
   'Alapozás', 'Ácsmunka', 'Ajtócsere', 'Ablakcsere', 'Bontás',
@@ -28,9 +29,7 @@ function PhotoGrid({ photos, onDelete, deletingId, disabled }) {
         const isDeleting = deletingId === photo.id;
         return (
           <div key={photo.id} style={{ position: 'relative', aspectRatio: '1', borderRadius: 'var(--radius-md)', overflow: 'hidden', border: '1px solid var(--border-subtle)', background: 'var(--bg-subtle)', opacity: isDeleting ? 0.4 : 1, transition: 'opacity 0.15s' }}>
-            {isVideo
-              ? <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Video size={26} color="var(--accent)" /></div>
-              : <img src={photo.thumbnail_url || photo.drive_view_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
+            <MediaThumb item={photo} radius={0} />
             <button type="button" disabled={isDeleting || disabled} onClick={() => onDelete(photo.id)}
               style={{ position: 'absolute', top: 3, right: 3, background: 'rgba(220,38,38,0.85)', border: 'none', borderRadius: '50%', width: 22, height: 22, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#fff' }}>
               <Trash2 size={11} />

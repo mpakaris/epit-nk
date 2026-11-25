@@ -2,7 +2,8 @@
 
 import React, { useRef, useState, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
-import { Camera, ChevronLeft, ChevronRight, FileText, Loader2, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, FileText, Loader2, X } from 'lucide-react';
+import MediaThumb from '@/components/MediaThumb';
 import Modal from '@/components/Modal';
 import { processMediaFile } from '@/lib/mediaGate';
 
@@ -97,14 +98,8 @@ export default function QuoteMediaModal({ isOpen, onClose, quoteId, ownerType, o
                         {item.r2_key?.split('/').pop() || 'Dokumentum'}
                       </span>
                     </a>
-                  ) : item.mime_type?.startsWith('video/') ? (
-                    <button type="button" onClick={() => setLightboxIdx(viewIdx)}
-                      style={{ display: 'flex', width: '100%', aspectRatio: '1', alignItems: 'center', justifyContent: 'center', background: '#1a1a2e', color: '#fff', fontSize: 28, border: 0, cursor: 'pointer' }}>▶</button>
                   ) : (
-                    <button type="button" onClick={() => setLightboxIdx(viewIdx)}
-                      style={{ display: 'block', width: '100%', padding: 0, border: 0, background: 'none', cursor: 'zoom-in' }}>
-                      <img src={item.thumbnail_url || item.cdn_url} alt="" style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', display: 'block' }} />
-                    </button>
+                    <MediaThumb item={item} radius={8} style={{ aspectRatio: '1 / 1', cursor: 'pointer' }} onClick={() => setLightboxIdx(viewIdx)} />
                   )}
                   <button type="button" onClick={() => handleDelete(item)} disabled={deleting === item.id}
                     style={{ position: 'absolute', top: 6, right: 6, background: 'rgba(220,38,38,0.9)', border: 'none', borderRadius: '50%', width: 24, height: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#fff' }}>
