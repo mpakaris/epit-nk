@@ -30,7 +30,7 @@ const I18N = {
     langLabel:'App language',
     currLabel:'Working currency',
     currNote: 'Currency cannot be changed after saving.',
-    saveBtn:  'Save & continue',
+    saveBtn:  'Save & Continue',
     saving:   'Saving…',
   },
 };
