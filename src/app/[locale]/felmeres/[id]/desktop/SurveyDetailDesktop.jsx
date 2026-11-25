@@ -1125,7 +1125,7 @@ export default function SurveyDetailDesktop() {
   const isReadOnly       = !!survey.is_read_only;
   const canAdd           = !isDocLocked && !isReadOnly && (isOwner || isCollMember);
   const canEditMeta      = !isDocLocked && !isReadOnly && (isKollektivOwner || isOwner);
-  const canEditEntry     = (entry) => !isDocLocked && !isReadOnly && (isKollektivOwner || entry.created_by === currentUser?.id);
+  const canEditEntry     = (entry) => !isDocLocked && !isReadOnly && (isKollektivOwner || isOwner || entry.created_by === currentUser?.id);
 
   // Totals for header counters
   const totalItems = allItems.length;

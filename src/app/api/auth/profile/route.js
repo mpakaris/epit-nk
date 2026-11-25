@@ -62,8 +62,8 @@ async function createSeedDocuments(admin, userId, locale, displayName) {
     .select('id').single();
   if (survey?.id) {
     await admin.from('survey_entries').insert([
-      { survey_id: survey.id, name: T.roomLiving,  sort_order: 0 },
-      { survey_id: survey.id, name: T.roomKitchen, sort_order: 1 },
+      { survey_id: survey.id, name: T.roomLiving,  sort_order: 0, created_by: userId },
+      { survey_id: survey.id, name: T.roomKitchen, sort_order: 1, created_by: userId },
     ]);
   }
 
@@ -109,8 +109,8 @@ async function createSeedDocuments(admin, userId, locale, displayName) {
     .select('id').single();
   if (cSurvey?.id) {
     await admin.from('survey_entries').insert([
-      { survey_id: cSurvey.id, name: T.roomLiving,  sort_order: 0 },
-      { survey_id: cSurvey.id, name: T.roomKitchen, sort_order: 1 },
+      { survey_id: cSurvey.id, name: T.roomLiving,  sort_order: 0, created_by: userId },
+      { survey_id: cSurvey.id, name: T.roomKitchen, sort_order: 1, created_by: userId },
     ]);
   }
 
