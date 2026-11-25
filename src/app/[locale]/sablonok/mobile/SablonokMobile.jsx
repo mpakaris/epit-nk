@@ -59,7 +59,9 @@ const HEADER_BG = '#15181E';
 
 // ─── TemplateDetailSheet ─────────────────────────────────────────────────────
 
-function TemplateDetailSheet({ template, onClose, t }) {
+function TemplateDetailSheet({ template, onClose, onDuplicate, isPremium, t }) {
+  const [duplicating, setDuplicating] = useState(false);
+
   if (!template) return null;
 
   const entries = [...(template.template_entries || [])].sort((a, b) => a.sort_order - b.sort_order);
@@ -110,7 +112,7 @@ function TemplateDetailSheet({ template, onClose, t }) {
         </div>
 
         {/* Entry list */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '12px 0 20px' }}>
+        <div style={{ flex: 1, overflowY: 'auto', padding: '12px 0 8px' }}>
           {entries.map((entry, idx) => {
             const ec = ENTRY_TYPE_COLOR[entry.entry_type] || ENTRY_TYPE_COLOR.other;
             const fc = FORMULA_COLOR[entry.qty_formula] || FORMULA_COLOR.fixed;
@@ -148,6 +150,25 @@ function TemplateDetailSheet({ template, onClose, t }) {
             );
           })}
         </div>
+
+        {/* Duplicate footer */}
+        {onDuplicate && isPremium && (
+          <div style={{ padding: '8px 20px 12px', flexShrink: 0, borderTop: '1px solid #F1F5F9' }}>
+            <button
+              type="button"
+              onClick={async () => {
+                setDuplicating(true);
+                try { await onDuplicate(template); } catch {}
+                setDuplicating(false);
+              }}
+              disabled={duplicating}
+              style={{ width: '100%', height: 54, border: 0, borderRadius: 27, background: '#E8E5DF', color: '#15181E', fontSize: 16, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, opacity: duplicating ? 0.6 : 1 }}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+              {duplicating ? '…' : t('duplicateBtn')}
+            </button>
+          </div>
+        )}
       </div>
     </>
   );
@@ -363,17 +384,18 @@ function EntrySheet({ initial, onSave, onSaveAndNext, onDelete, onClose, t }) {
 }
 
 // ─── TemplateFormSheet — template name + entry list + EntrySheet ─────────────
-function TemplateFormSheet({ mode, template, onSave, onDelete, onClose, t }) {
+function TemplateFormSheet({ mode, template, onSave, onDelete, onClose, onDuplicate, t }) {
   const [title,     setTitle]     = useState(template?.name || '');
   const [entries,   setEntries]   = useState(
     (template?.template_entries || [])
       .sort((a, b) => a.sort_order - b.sort_order)
       .map(e => ({ ...e }))
   );
-  const [entrySheet, setEntrySheet] = useState(null); // null | 'new' | entry object
-  const [saving,     setSaving]     = useState(false);
-  const [confirmDel, setConfirmDel] = useState(false);
-  const [error,      setError]      = useState('');
+  const [entrySheet,  setEntrySheet]  = useState(null); // null | 'new' | entry object
+  const [saving,      setSaving]      = useState(false);
+  const [duplicating, setDuplicating] = useState(false);
+  const [confirmDel,  setConfirmDel]  = useState(false);
+  const [error,       setError]       = useState('');
 
   const handleSaveEntry = async (fields) => {
     if (entrySheet === 'new') {
@@ -490,7 +512,20 @@ function TemplateFormSheet({ mode, template, onSave, onDelete, onClose, t }) {
           {saving ? t('formSaving') : t('formSaveBtn')}
         </button>
 
-        {/* Delete */}
+        {/* Duplicate + Delete */}
+        {mode === 'edit' && !confirmDel && onDuplicate && (
+          <button type="button"
+            onClick={async () => {
+              setDuplicating(true);
+              try { await onDuplicate(template); } catch {}
+              setDuplicating(false);
+            }}
+            disabled={duplicating}
+            style={{ height: 54, border: 0, borderRadius: 27, background: '#E8E5DF', color: '#15181E', fontSize: 16, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, opacity: duplicating ? 0.6 : 1 }}>
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            {duplicating ? '…' : t('duplicateBtn')}
+          </button>
+        )}
         {mode === 'edit' && !confirmDel && (
           <button type="button" onClick={() => setConfirmDel(true)}
             style={{ height: 54, border: 0, borderRadius: 27, background: '#FDECEC', color: '#B71C1C', fontSize: 16, fontWeight: 700, cursor: 'pointer' }}>
@@ -538,6 +573,7 @@ export default function SablonokMobile() {
   const [tab, setTab]             = useState('platform');
   const [selected, setSelected]   = useState(null);
   const [query, setQuery]         = useState('');
+  const [openTrade, setOpenTrade] = useState(null);
   const [compactBar, setCompactBar] = useState(false);
   const [formOpen,       setFormOpen]       = useState(false);
   const [formMode,       setFormMode]       = useState('create');
@@ -562,6 +598,27 @@ export default function SablonokMobile() {
     const res = await fetch(`/api/sablonok/${id}`, { method: 'DELETE' });
     if (!res.ok) { const d = await res.json(); throw new Error(d.error); }
     await fetchTemplates();
+  }
+
+  async function handleDuplicate(template) {
+    const entries = (template.template_entries || []).map(e => ({
+      name: e.name,
+      entry_type: e.entry_type,
+      unit: e.unit,
+      qty_formula: e.qty_formula || 'area',
+      qty_rate: e.qty_rate ?? 1,
+      suggested_price_huf: e.suggested_price_huf ?? null,
+    }));
+    const res = await fetch('/api/sablonok', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: `${template.name}_copy`, trade: template.trade_key || template.trade || 'általános', entries }),
+    });
+    if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.error || 'Hiba történt'); }
+    await fetchTemplates();
+    setTab('user');
+    setSelected(null);
+    setFormOpen(false);
   }
 
   const scrollRef = useRef(null);
@@ -765,19 +822,40 @@ export default function SablonokMobile() {
                 </div>
               ) : <TileGrid templates={searchResults} onSelect={setSelected} t={t} showTrade={true} />
             ) : (
-              orderedTrades.map((key, i) => {
+              orderedTrades.map((key) => {
                 const tc = TRADE_COLOR[key] || TRADE_COLOR['általános'];
+                const isOpen = openTrade === key;
                 return (
-                  <div key={key} style={{ marginBottom: 24, marginTop: i === 0 ? 10 : 16 }}>
-                    <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 10, paddingLeft: 6, borderLeft: `3px solid ${tc.bg}` }}>
-                      <span style={{ fontSize: 16, fontWeight: 800, color: '#0E1116', textTransform: 'capitalize' }}>
+                  <div key={key} style={{ marginBottom: 8 }}>
+                    <button
+                      onClick={() => setOpenTrade(isOpen ? null : key)}
+                      style={{
+                        width: '100%', display: 'flex', alignItems: 'center', gap: 12,
+                        padding: '0 16px', height: 54,
+                        background: tc.bg, color: tc.fg,
+                        border: 0,
+                        borderRadius: isOpen ? '20px 20px 0 0' : '20px',
+                        cursor: 'pointer', textAlign: 'left',
+                        boxShadow: '0 4px 16px rgba(0,0,0,0.3)',
+                      }}
+                    >
+                      <span style={{ width: 10, height: 10, borderRadius: 5, background: 'rgba(255,255,255,0.3)', flexShrink: 0 }} aria-hidden="true" />
+                      <span style={{ flex: 1, fontSize: 15, fontWeight: 800, textTransform: 'capitalize', letterSpacing: '-0.01em' }}>
                         {tradeLabel[key] || key}
                       </span>
-                      <span style={{ fontSize: 12, color: '#8A8F9A', fontWeight: 600 }}>
+                      <span style={{ height: 22, padding: '0 10px', borderRadius: 11, background: 'rgba(255,255,255,0.18)', fontSize: 12, fontWeight: 700, display: 'inline-flex', alignItems: 'center', flexShrink: 0 }}>
                         {t('templateCount', { count: groups[key].length })}
                       </span>
-                    </div>
-                    <TileGrid templates={groups[key]} onSelect={setSelected} t={t} showTrade={false} />
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+                        style={{ transform: isOpen ? 'rotate(90deg)' : 'rotate(0)', transition: 'transform 0.2s', flexShrink: 0 }} aria-hidden="true">
+                        <path d="M9 18l6-6-6-6"/>
+                      </svg>
+                    </button>
+                    {isOpen && (
+                      <div style={{ borderRadius: '0 0 20px 20px', background: '#0D0F13', padding: 12, boxShadow: '0 6px 20px rgba(0,0,0,0.25)' }}>
+                        <TileGrid templates={groups[key]} onSelect={setSelected} t={t} showTrade={false} />
+                      </div>
+                    )}
                   </div>
                 );
               })
@@ -821,7 +899,15 @@ export default function SablonokMobile() {
       </div>
 
       {/* Template detail sheet (platform templates) */}
-      {selected && <TemplateDetailSheet template={selected} onClose={() => setSelected(null)} t={t} />}
+      {selected && (
+        <TemplateDetailSheet
+          template={selected}
+          onClose={() => setSelected(null)}
+          onDuplicate={isPremium ? handleDuplicate : null}
+          isPremium={isPremium}
+          t={t}
+        />
+      )}
 
       {/* Template form (create / edit user templates) */}
       {formOpen && (
@@ -831,6 +917,7 @@ export default function SablonokMobile() {
           onSave={handleSaveTemplate}
           onDelete={handleDeleteTemplate}
           onClose={() => setFormOpen(false)}
+          onDuplicate={handleDuplicate}
           t={t}
         />
       )}

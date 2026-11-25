@@ -2737,6 +2737,9 @@
   },
   "sablonok": {
     "kicker": "Munkasablonok",
+    "desktop": {
+      "kicker": "Munkasablonok"
+    },
     "title": "Sablonok",
     "tabPlatform": "Platform sablonok",
     "tabMine": "Saját sablonok",
@@ -2791,7 +2794,8 @@
     "typeMaterial": "Anyag",
     "typeFee": "Díj",
     "searchPlaceholder": "Sablon keresése…",
-    "searchEmpty": "Nincs találat"
+    "searchEmpty": "Nincs találat",
+    "duplicateBtn": "Másolat"
   },
   "drawings": {
     "drawLabel": "Vázlat rajzolása",

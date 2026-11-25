@@ -165,6 +165,7 @@ body:has(.dk-root) {
 .dk-mod-collectives  { --dk-c: #1E1A4E; --dk-deep: #0D0F13; --dk-active: #2D2A66; background: var(--dk-deep); color: #fff; }
 .dk-mod-subscription { --dk-c: #B45309; --dk-deep: #0D0F13; --dk-active: #B45309; background: var(--dk-deep); color: #fff; }
 .dk-mod-weboldalam   { --dk-c: #1A3A5C; --dk-deep: #0D0F13; --dk-active: #2A4A6C; background: var(--dk-deep); color: #fff; }
+.dk-mod-templates    { --dk-c: #15181E; --dk-deep: #0D0F13; --dk-active: #2A2F3A; background: var(--dk-deep); color: #fff; }
 
 /* ── Module header ───────────────────────────────────────────────────────────── */
 .dk-mh {

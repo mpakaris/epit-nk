@@ -2737,6 +2737,9 @@
   },
   "sablonok": {
     "kicker": "Work templates",
+    "desktop": {
+      "kicker": "Work templates"
+    },
     "title": "Templates",
     "tabPlatform": "Platform templates",
     "tabMine": "My templates",
@@ -2791,7 +2794,8 @@
     "typeMaterial": "Material",
     "typeFee": "Fee",
     "searchPlaceholder": "Search templates…",
-    "searchEmpty": "No results"
+    "searchEmpty": "No results",
+    "duplicateBtn": "Duplicate"
   },
   "drawings": {
     "drawLabel": "Draw a sketch",

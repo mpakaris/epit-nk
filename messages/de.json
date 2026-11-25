@@ -2737,6 +2737,9 @@
   },
   "sablonok": {
     "kicker": "Arbeitsvorlagen",
+    "desktop": {
+      "kicker": "Arbeitsvorlagen"
+    },
     "title": "Vorlagen",
     "tabPlatform": "Plattform-Vorlagen",
     "tabMine": "Meine Vorlagen",
@@ -2791,7 +2794,8 @@
     "typeMaterial": "Material",
     "typeFee": "Gebühr",
     "searchPlaceholder": "Vorlage suchen…",
-    "searchEmpty": "Keine Ergebnisse"
+    "searchEmpty": "Keine Ergebnisse",
+    "duplicateBtn": "Duplizieren"
   },
   "drawings": {
     "drawLabel": "Skizze zeichnen",
