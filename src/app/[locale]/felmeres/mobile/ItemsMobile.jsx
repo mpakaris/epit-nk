@@ -14,6 +14,17 @@ const SURVEY_INK  = '#0A5C53';
 
 const TYPE_ORDER = ['material', 'labour', 'equipment', 'transport', 'other'];
 
+const TRADE_COLORS = {
+  'burkoló':        '#6B2D0A',
+  'festő':          '#4A1A6B',
+  'gipszkartonos':  '#162850',
+  'kőműves':        '#6B1A0A',
+  'vízszerelő':     '#0A2254',
+  'villanyszerelő': '#54380A',
+  'ács':            '#0A3C14',
+  'általános':      '#1E1E1E',
+};
+
 const TYPE_META = {
   material:  { bg: '#eff6ff', fg: '#1d4ed8', border: '#bfdbfe', dark: '#1e3a8a' },
   labour:    { bg: '#fff7ed', fg: '#c2410c', border: '#fed7aa', dark: '#7c2d12' },
@@ -67,10 +78,14 @@ function TypeChip({ type, label, active, onClick, small }) {
 
 // ── Item row (confirmed list) ──────────────────────────────────────────────────
 
-function ItemRow({ item, onEdit, tS }) {
+function ItemRow({ item, onEdit }) {
   const m = TYPE_META[inferType(item)] || TYPE_META.other;
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0', borderTop: '1px solid #ECEAE4' }}>
+    <button
+      type="button"
+      onClick={() => onEdit(item)}
+      style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0', width: '100%', textAlign: 'left', cursor: 'pointer', background: 'transparent', borderTop: '1px solid #ECEAE4', borderLeft: 0, borderRight: 0, borderBottom: 0 }}
+    >
       <span style={{ width: 8, height: 8, borderRadius: 4, background: m.fg, flexShrink: 0 }} aria-hidden="true" />
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontSize: 15, fontWeight: 600, color: '#0E1116', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -78,19 +93,11 @@ function ItemRow({ item, onEdit, tS }) {
         </div>
         {item.notes && <div style={{ fontSize: 12, color: '#5A5F68', fontStyle: 'italic', marginTop: 1 }}>{item.notes}</div>}
       </div>
-      <span style={{ fontSize: 14, fontWeight: 700, color: '#0E1116', whiteSpace: 'nowrap' }}>
+      <span style={{ fontSize: 14, fontWeight: 700, color: '#0E1116', whiteSpace: 'nowrap', flexShrink: 0 }}>
         {item.quantity != null ? String(Number(item.quantity).toLocaleString('hu-HU')) : ''}
         {item.unit ? ` ${item.unit}` : ''}
       </span>
-      <button
-        type="button"
-        onClick={() => onEdit(item)}
-        aria-label={tS('itemsDrawerTitleEdit')}
-        style={{ flexShrink: 0, width: 36, height: 36, border: 0, borderRadius: 18, background: '#F1F1F3', color: '#0E1116', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
-      >
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M16 3l5 5L9 20H4v-5z"/></svg>
-      </button>
-    </div>
+    </button>
   );
 }
 
@@ -293,6 +300,257 @@ function ItemSheet({ initial, entryId, surveyId, onSave, onDelete, onClose, tS, 
   );
 }
 
+// ── Template Picker Sheet ──────────────────────────────────────────────────────
+
+function TemplateRow({ tmpl, onSelect, border }) {
+  const entriesCount = (tmpl.template_entries || []).length;
+  return (
+    <button
+      type="button"
+      onClick={() => onSelect(tmpl)}
+      style={{
+        display: 'flex', alignItems: 'center', gap: 10,
+        padding: '12px 0',
+        background: 'transparent',
+        borderWidth: 0, borderStyle: 'solid', borderColor: 'transparent',
+        borderTopWidth: border ? 1 : 0, borderTopColor: '#ECEAE4',
+        cursor: 'pointer', textAlign: 'left', width: '100%',
+      }}
+    >
+      <span style={{ flex: 1, fontSize: 15, fontWeight: 600, color: '#0E1116', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        {tmpl.name}
+      </span>
+      <span style={{ flexShrink: 0, fontSize: 13, color: '#5A5F68' }}>{entriesCount}×</span>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#C0BDB8" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true" style={{ flexShrink: 0 }}>
+        <path d="M9 18l6-6-6-6"/>
+      </svg>
+    </button>
+  );
+}
+
+function TemplatePickerSheet({ onApply, onClose, tM, tc }) {
+  const [loading,      setLoading]      = useState(true);
+  const [error,        setError]        = useState(false);
+  const [platform,     setPlatform]     = useState([]);
+  const [userTmpls,    setUserTmpls]    = useState([]);
+  const [tab,          setTab]          = useState('platform');
+  const [query,        setQuery]        = useState('');
+  const [preview,      setPreview]      = useState(null);
+  const [applying,     setApplying]     = useState(false);
+  const [appliedCount, setAppliedCount] = useState(0);
+
+  useEffect(() => {
+    fetch('/api/sablonok')
+      .then(r => r.json())
+      .then(data => { setPlatform(data.platform || []); setUserTmpls(data.user || []); })
+      .catch(() => setError(true))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const handleApply = async (template) => {
+    const entries = template.template_entries || [];
+    if (!entries.length) return;
+    setApplying(true);
+    try {
+      await onApply(entries);
+      setAppliedCount(c => c + entries.length);
+      setPreview(null);
+    } catch {}
+    setApplying(false);
+  };
+
+  const activeList = tab === 'platform' ? platform : userTmpls;
+  const q = query.trim().toLowerCase();
+  const filtered = q
+    ? activeList.filter(t =>
+        t.name.toLowerCase().includes(q) ||
+        (t.trade || '').toLowerCase().includes(q)
+      )
+    : activeList;
+
+  // ── Preview mode ──
+  if (preview) {
+    const entries = [...(preview.template_entries || [])].sort((a, b) => a.sort_order - b.sort_order);
+    return (
+      <>
+        <div style={{ alignSelf: 'center', width: 44, height: 5, borderRadius: 3, background: '#D5D2C8' }} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <button type="button" onClick={() => setPreview(null)} aria-label={tc('back')} style={{ flexShrink: 0, width: 44, height: 44, borderRadius: 22, border: 0, background: '#EFEDE6', color: '#0E1116', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>
+          </button>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 18, fontWeight: 700, color: '#0E1116', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {preview.name}
+            </div>
+          </div>
+          <button type="button" onClick={onClose} aria-label={tc('close')} style={{ flexShrink: 0, width: 44, height: 44, borderRadius: 22, border: 0, background: '#EFEDE6', color: '#0E1116', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+          </button>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
+          {entries.map((e, i) => {
+            const m = TYPE_META[e.entry_type] || TYPE_META.other;
+            return (
+              <div key={e.id || i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0', borderTop: '1px solid #ECEAE4' }}>
+                <span style={{ width: 8, height: 8, borderRadius: 4, background: m.fg, flexShrink: 0 }} aria-hidden="true" />
+                <span style={{ flex: 1, fontSize: 15, fontWeight: 600, color: '#0E1116', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.name}</span>
+                <span style={{ fontSize: 13, color: '#5A5F68', flexShrink: 0 }}>
+                  {e.qty_rate != null ? `${Number(e.qty_rate).toLocaleString('hu-HU')} ` : ''}{e.unit || ''}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+        <button
+          type="button"
+          onClick={() => handleApply(preview)}
+          disabled={applying}
+          style={{ height: 60, border: 0, borderRadius: 30, background: SURVEY_BG, color: '#fff', fontSize: 17, fontWeight: 700, cursor: applying ? 'not-allowed' : 'pointer', opacity: applying ? 0.6 : 1 }}
+        >
+          {applying ? tM('itemsTemplateApplying') : tM('itemsTemplateApplyBtn')}
+        </button>
+      </>
+    );
+  }
+
+  // ── List mode ──
+  return (
+    <>
+      <div style={{ alignSelf: 'center', width: 44, height: 5, borderRadius: 3, background: '#D5D2C8' }} />
+
+      {/* Header row */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 23, fontWeight: 700, color: '#0E1116' }}>
+          {tM('itemsTemplatePickerTitle')}
+        </span>
+        <button type="button" onClick={onClose} aria-label={tc('close')} style={{ width: 44, height: 44, border: 0, borderRadius: 22, background: '#EFEDE6', color: '#0E1116', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+        </button>
+      </div>
+
+      {/* Tabs */}
+      <div style={{ display: 'flex', gap: 6 }}>
+        {[
+          { key: 'platform', label: tM('itemsTabPlatform') },
+          { key: 'user',     label: tM('itemsTabMine') },
+        ].map(({ key, label }) => (
+          <button
+            key={key}
+            type="button"
+            onClick={() => { setTab(key); setQuery(''); }}
+            style={{
+              height: 36, padding: '0 16px', border: 0, borderRadius: 18, cursor: 'pointer',
+              fontSize: 13, fontWeight: 700,
+              background: tab === key ? '#0E1116' : '#EFEDE6',
+              color:      tab === key ? '#fff'    : '#5A5F68',
+            }}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {/* Search bar */}
+      <div style={{ position: 'relative' }}>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8A8F9A" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
+          <circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/>
+        </svg>
+        <input
+          type="search"
+          value={query}
+          onChange={e => setQuery(e.target.value)}
+          placeholder={tM('itemsTemplateSearch')}
+          style={{
+            width: '100%', boxSizing: 'border-box',
+            height: 46, paddingLeft: 40, paddingRight: query ? 42 : 16,
+            borderRadius: 14, border: 0,
+            background: '#EFEDE6', fontSize: 15, fontWeight: 500,
+            color: '#0E1116', outline: 'none',
+            WebkitAppearance: 'none', appearance: 'none',
+          }}
+        />
+        {query && (
+          <button
+            type="button"
+            onClick={() => setQuery('')}
+            aria-label={tc('close')}
+            style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: '#D5D2C8', border: 0, borderRadius: '50%', width: 22, height: 22, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+          >
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#5A5F68" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12"/></svg>
+          </button>
+        )}
+      </div>
+
+      {/* Applied banner */}
+      {appliedCount > 0 && (
+        <div style={{ padding: '10px 14px', borderRadius: 14, background: '#E7F4EC', border: '1px solid #A7F3D0', fontSize: 14, fontWeight: 700, color: '#14532D', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg>
+          {tM('itemsTemplateApplied', { count: appliedCount })}
+        </div>
+      )}
+
+      {/* Loading */}
+      {loading && (
+        <div style={{ padding: '32px 0', display: 'flex', justifyContent: 'center' }}>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={SURVEY_BG} strokeWidth="2" strokeLinecap="round" aria-hidden="true" style={{ animation: 'spin 1s linear infinite' }}>
+            <path d="M21 12a9 9 0 11-18 0 9 9 0 0118 0" opacity=".25"/><path d="M21 12a9 9 0 00-9-9"/>
+          </svg>
+        </div>
+      )}
+
+      {!loading && error && (
+        <div style={{ padding: '20px 0', textAlign: 'center', fontSize: 14, fontWeight: 600, color: '#B71C1C' }}>
+          {tM('itemsTemplateLoadError')}
+        </div>
+      )}
+
+      {!loading && !error && filtered.length === 0 && (
+        <div style={{ padding: '32px 0', textAlign: 'center', fontSize: 14, fontWeight: 600, color: '#5A5F68' }}>
+          {q ? tM('itemsTemplateNoResults') : tM('itemsTemplateEmpty')}
+        </div>
+      )}
+
+      {!loading && !error && filtered.length > 0 && (
+        tab === 'platform' && !q ? (
+          // Grouped by trade — section headers only on platform tab without active search
+          (() => {
+            const TRADE_ORDER_LOCAL = ['burkoló', 'festő', 'gipszkartonos', 'kőműves', 'vízszerelő', 'villanyszerelő', 'ács', 'általános'];
+            const groups = {};
+            const tradeLabel = {};
+            for (const tmpl of filtered) {
+              const key = tmpl.trade_key || tmpl.trade;
+              if (!groups[key]) groups[key] = [];
+              groups[key].push(tmpl);
+              tradeLabel[key] = tmpl.trade;
+            }
+            const orderedKeys = [
+              ...TRADE_ORDER_LOCAL.filter(k => groups[k]),
+              ...Object.keys(groups).filter(k => !TRADE_ORDER_LOCAL.includes(k)).sort(),
+            ];
+            return orderedKeys.map(key => (
+              <div key={key}>
+                <div style={{ paddingTop: 16, paddingBottom: 4, fontSize: 11, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: '#8A8F97' }}>
+                  {tradeLabel[key]}
+                </div>
+                {groups[key].map((tmpl, i) => (
+                  <TemplateRow key={tmpl.id} tmpl={tmpl} onSelect={setPreview} border={i > 0} />
+                ))}
+              </div>
+            ));
+          })()
+        ) : (
+          // Flat list — user tab or active search
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            {filtered.map((tmpl, i) => (
+              <TemplateRow key={tmpl.id} tmpl={tmpl} onSelect={setPreview} border={i > 0} />
+            ))}
+          </div>
+        )
+      )}
+    </>
+  );
+}
+
 // ── Main component ─────────────────────────────────────────────────────────────
 
 export default function ItemsMobile() {
@@ -317,9 +575,11 @@ export default function ItemsMobile() {
   const [aiStatus,     setAiStatus]     = useState('idle'); // idle|filling|generating|done|error
   const [genError,     setGenError]     = useState('');
   const [selectedIds,  setSelectedIds]  = useState(new Set());
-  const [addSheet,     setAddSheet]     = useState(null); // null | { mode:'add' } | { mode:'edit', item }
-  const [delConfirm,   setDelConfirm]   = useState(null); // item to delete
-  const [anySheet,     setAnySheet]     = useState(false);
+  const [addSheet,      setAddSheet]      = useState(null); // null | { mode:'add' } | { mode:'edit', item }
+  const [delConfirm,    setDelConfirm]    = useState(null); // item to delete
+  const [anySheet,      setAnySheet]      = useState(false);
+  const [contextMenu,   setContextMenu]   = useState(false);
+  const [templatePicker, setTemplatePicker] = useState(false);
   const [audioTrigger, setAudioTrigger] = useState(0);
   const [comingSoon,   setComingSoon]   = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
@@ -367,9 +627,31 @@ export default function ItemsMobile() {
     else if (mode === 'add') { setAddSheet({ mode: 'add' }); setAnySheet(true); }
   }, [dataReady, entry]);
 
-  const closeSheet = useCallback(() => { setAddSheet(null); setDelConfirm(null); setAnySheet(false); }, []);
+  const closeSheet = useCallback(() => {
+    setAddSheet(null);
+    setDelConfirm(null);
+    setContextMenu(false);
+    setTemplatePicker(false);
+    setAnySheet(false);
+  }, []);
   const openAdd    = () => { setAddSheet({ mode: 'add' });  setAnySheet(true); };
   const openEdit   = (item) => { setAddSheet({ mode: 'edit', item }); setAnySheet(true); };
+  const openContextMenu = () => { setContextMenu(true); setAnySheet(true); };
+  const openTemplatePicker = () => { setContextMenu(false); setTemplatePicker(true); setAnySheet(true); };
+
+  const handleApplyTemplateEntries = async (entries) => {
+    await Promise.allSettled(
+      entries.map(e => createSurveyItem(surveyId, {
+        entry_id: entryId,
+        description: e.name,
+        entry_type: e.entry_type,
+        quantity: e.qty_rate || null,
+        unit: e.unit || null,
+        source: 'manual',
+        is_confirmed: true,
+      }).catch(() => {}))
+    );
+  };
 
   // AI generate without dictation
   const handleGenerateDirect = async () => {
@@ -528,7 +810,16 @@ export default function ItemsMobile() {
                 {survey.title}
               </span>
             )}
-            <div style={{ width: 48 }} />
+            <button
+              type="button"
+              onClick={openContextMenu}
+              aria-label={tM('itemsContextMenuTitle')}
+              style={{ width: 48, height: 48, borderRadius: 24, border: 0, background: 'rgba(255,255,255,0.18)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/>
+              </svg>
+            </button>
           </div>
 
           {/* Kicker */}
@@ -654,7 +945,7 @@ export default function ItemsMobile() {
                 {isOpen && (
                   <div style={{ margin: '0 10px 10px', borderRadius: 18, background: '#fff', overflow: 'hidden', padding: '0 12px 4px' }}>
                     {typeItems.map(item => (
-                      <ItemRow key={item.id} item={item} onEdit={openEdit} tS={tS} />
+                      <ItemRow key={item.id} item={item} onEdit={openEdit} />
                     ))}
                   </div>
                 )}
@@ -730,6 +1021,58 @@ export default function ItemsMobile() {
             onDelete={handleDeleteItem}
             onClose={closeSheet}
             tS={tS}
+            tM={tM}
+            tc={tc}
+          />
+        </div>
+      )}
+
+      {/* ── Context menu sheet ── */}
+      {contextMenu && (
+        <div
+          role="dialog"
+          aria-label={tM('itemsContextMenuTitle')}
+          className="pod-sheet"
+          style={{ position: 'fixed', zIndex: 50, left: 0, right: 0, bottom: 0, boxSizing: 'border-box', padding: '10px 16px calc(20px + env(safe-area-inset-bottom))', borderRadius: '32px 32px 0 0', background: 'var(--m-sheet)', display: 'flex', flexDirection: 'column', gap: 12 }}
+        >
+          <div style={{ alignSelf: 'center', width: 44, height: 5, borderRadius: 3, background: '#D5D2C8' }} />
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 23, fontWeight: 700, color: '#0E1116' }}>
+              {tM('itemsContextMenuTitle')}
+            </span>
+            <button type="button" onClick={closeSheet} aria-label={tc('close')} style={{ width: 44, height: 44, border: 0, borderRadius: 22, background: '#EFEDE6', color: '#0E1116', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+            </button>
+          </div>
+          <button
+            type="button"
+            onClick={openTemplatePicker}
+            style={{ display: 'flex', alignItems: 'center', gap: 14, height: 64, padding: '0 16px', border: 0, borderRadius: 20, background: '#fff', cursor: 'pointer', boxShadow: 'inset 0 1px 0 #fff, 0 10px 20px -10px rgba(0,0,0,0.5)', textAlign: 'left' }}
+          >
+            <span style={{ flexShrink: 0, width: 40, height: 40, borderRadius: 20, background: '#E8E5DF', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#44413B" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M9 9h6M9 12h6M9 15h4"/></svg>
+            </span>
+            <span style={{ flex: 1, fontSize: 16, fontWeight: 700, color: '#0E1116' }}>
+              {tM('itemsApplyTemplate')}
+            </span>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#C0BDB8" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true" style={{ flexShrink: 0 }}>
+              <path d="M9 18l6-6-6-6"/>
+            </svg>
+          </button>
+        </div>
+      )}
+
+      {/* ── Template picker sheet ── */}
+      {templatePicker && (
+        <div
+          role="dialog"
+          aria-label={tM('itemsTemplatePickerTitle')}
+          className="pod-sheet"
+          style={{ position: 'fixed', zIndex: 50, left: 0, right: 0, bottom: 0, boxSizing: 'border-box', padding: '10px 16px calc(20px + env(safe-area-inset-bottom))', borderRadius: '32px 32px 0 0', background: 'var(--m-sheet)', display: 'flex', flexDirection: 'column', gap: 12, maxHeight: '88dvh', overflowY: 'auto' }}
+        >
+          <TemplatePickerSheet
+            onApply={handleApplyTemplateEntries}
+            onClose={closeSheet}
             tM={tM}
             tc={tc}
           />

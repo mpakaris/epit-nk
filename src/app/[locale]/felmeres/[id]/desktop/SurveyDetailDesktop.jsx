@@ -19,7 +19,7 @@ import { processMediaFile } from '@/lib/mediaGate';
 import { useUploadQueue } from '@/hooks/useUploadQueue';
 import {
   Plus, Trash2, FileText, Check, Loader2, AlertCircle,
-  RefreshCw, CheckCircle2, Edit3, X, Copy,
+  RefreshCw, CheckCircle2, Edit3, X, Copy, Clipboard,
   ArrowLeft, MoreHorizontal, GripVertical, Search, Camera, ChevronLeft,
   ChevronRight, Ruler,
 } from 'lucide-react';
@@ -628,6 +628,366 @@ function MeasurementsBar({ entry, surveyId, canEdit, enqueue, mediaItems }) {
   );
 }
 
+// ── ApplyTemplateModal ────────────────────────────────────────────────────────
+const TMPL_TRADE_ORDER = ['burkoló', 'festő', 'gipszkartonos', 'kőműves', 'vízszerelő', 'villanyszerelő', 'ács', 'általános'];
+
+function TemplateRowDesktop({ tmpl, onSelect, border }) {
+  const count = (tmpl.template_entries || []).length;
+  return (
+    <button
+      type="button"
+      className="dk-sr"
+      onClick={() => onSelect(tmpl)}
+      style={{ minHeight: 50, padding: '0 2px', borderTopWidth: border ? 1 : 0, borderTopStyle: 'solid', borderTopColor: '#EDEBE5', borderRadius: 0 }}
+    >
+      <span style={{ flex: 1, fontSize: 14, fontWeight: 600, color: '#0E1116', textAlign: 'left' }}>{tmpl.name}</span>
+      <span style={{ fontSize: 13, color: '#8A8F97', flexShrink: 0, marginRight: 4 }}>{count}×</span>
+      <ChevronRight size={16} style={{ color: '#C0BDB8', flexShrink: 0 }} aria-hidden="true" />
+    </button>
+  );
+}
+
+function ApplyTemplateModal({ isOpen, onClose, surveyId, entryId }) {
+  const tM = useTranslations('mobilePods');
+  const t  = useTranslations('surveyDetail');
+  const { createSurveyItem } = useApp();
+
+  const [loading,      setLoading]      = useState(true);
+  const [error,        setError]        = useState(false);
+  const [platform,     setPlatform]     = useState([]);
+  const [userTmpls,    setUserTmpls]    = useState([]);
+  const [tab,          setTab]          = useState('platform');
+  const [query,        setQuery]        = useState('');
+  const [preview,      setPreview]      = useState(null);
+  const [applying,     setApplying]     = useState(false);
+  const [appliedCount, setAppliedCount] = useState(0);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    setLoading(true); setError(false); setPreview(null);
+    setTab('platform'); setQuery(''); setAppliedCount(0);
+    fetch('/api/sablonok')
+      .then(r => r.json())
+      .then(data => { setPlatform(data.platform || []); setUserTmpls(data.user || []); })
+      .catch(() => setError(true))
+      .finally(() => setLoading(false));
+  }, [isOpen]);
+
+  const handleApply = async (template) => {
+    const entries = template.template_entries || [];
+    if (!entries.length) return;
+    setApplying(true);
+    try {
+      await Promise.allSettled(
+        entries.map(e => createSurveyItem(surveyId, {
+          entry_id: entryId,
+          description: e.name,
+          entry_type: e.entry_type,
+          quantity: e.qty_rate || null,
+          unit: e.unit || null,
+          source: 'manual',
+          is_confirmed: true,
+        }).catch(() => {}))
+      );
+      setAppliedCount(c => c + entries.length);
+      setPreview(null);
+    } catch {}
+    setApplying(false);
+  };
+
+  const activeList = tab === 'platform' ? platform : userTmpls;
+  const q = query.trim().toLowerCase();
+  const filtered = q
+    ? activeList.filter(tmpl => tmpl.name.toLowerCase().includes(q) || (tmpl.trade || '').toLowerCase().includes(q))
+    : activeList;
+
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} title={tM('itemsTemplatePickerTitle')} maxWidth="500px">
+
+      {/* Tabs */}
+      <div style={{ display: 'flex', gap: 6, marginBottom: 14 }}>
+        {[{ key: 'platform', label: tM('itemsTabPlatform') }, { key: 'user', label: tM('itemsTabMine') }].map(({ key, label }) => (
+          <button key={key} type="button"
+            className={`dk-btn ${tab === key ? 'dk-btn-dark' : 'dk-btn-l'}`}
+            onClick={() => { setTab(key); setQuery(''); setPreview(null); }}
+            style={{ height: 36, padding: '0 16px' }}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {/* Search */}
+      {!preview && (
+        <div style={{ position: 'relative', marginBottom: 14 }}>
+          <Search size={16} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#8A8F9A', pointerEvents: 'none' }} aria-hidden="true" />
+          <input className="dk-input" type="search" value={query} onChange={e => setQuery(e.target.value)}
+            placeholder={tM('itemsTemplateSearch')}
+            style={{ paddingLeft: 42, background: '#F4F5F8', boxShadow: 'none' }} />
+        </div>
+      )}
+
+      {/* Applied banner */}
+      {appliedCount > 0 && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', borderRadius: 12, background: '#E7F4EC', border: '1px solid #A7F3D0', fontSize: 14, fontWeight: 700, color: '#14532D', marginBottom: 14 }}>
+          <CheckCircle2 size={16} aria-hidden="true" />
+          {tM('itemsTemplateApplied', { count: appliedCount })}
+        </div>
+      )}
+
+      {/* ── Preview mode ── */}
+      {preview ? (
+        <>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+            <button type="button" className="dk-btn dk-btn-l" onClick={() => setPreview(null)}
+              style={{ width: 36, height: 36, padding: 0, justifyContent: 'center', borderRadius: 18, flexShrink: 0 }}>
+              <ChevronLeft size={18} aria-hidden="true" />
+            </button>
+            <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 18, fontWeight: 700, color: '#0E1116' }}>
+              {preview.name}
+            </span>
+          </div>
+
+          <div style={{ border: '1px solid #EDEBE5', borderRadius: 14, overflow: 'hidden', marginBottom: 16 }}>
+            {[...(preview.template_entries || [])].sort((a, b) => a.sort_order - b.sort_order).map((e, i) => {
+              const tc2 = ITEM_TYPE_COLORS[e.entry_type] || ITEM_TYPE_COLORS.other;
+              return (
+                <div key={e.id || i} style={{ display: 'grid', gridTemplateColumns: '1fr auto auto', gap: 12, alignItems: 'center', padding: '10px 14px', borderTop: i > 0 ? '1px solid #F4F5F8' : 'none', background: i % 2 === 1 ? '#FAFAF9' : '#fff' }}>
+                  <span style={{ fontSize: 14, fontWeight: 600, color: '#0E1116' }}>{e.name}</span>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: '#5A5F68', whiteSpace: 'nowrap' }}>
+                    {e.qty_rate != null ? `${e.qty_rate} ` : ''}{e.unit || ''}
+                  </span>
+                  <span style={{ height: 22, padding: '0 8px', borderRadius: 11, background: tc2.bg, color: tc2.color, border: `1px solid ${tc2.border}`, fontSize: 11, fontWeight: 700, display: 'inline-flex', alignItems: 'center', whiteSpace: 'nowrap' }}>
+                    {t(ITEM_TYPE_LABEL_KEYS[e.entry_type] || 'itemsTypeOther')}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+
+          <button type="button" className="dk-btn dk-btn-dark" onClick={() => handleApply(preview)} disabled={applying}
+            style={{ width: '100%', justifyContent: 'center', gap: 8, opacity: applying ? 0.6 : 1 }}>
+            {applying
+              ? <><Loader2 size={15} className="animate-spin" aria-hidden="true" />{tM('itemsTemplateApplying')}</>
+              : <><Check size={15} aria-hidden="true" />{tM('itemsTemplateApplyBtn')}</>}
+          </button>
+        </>
+      ) : (
+        <>
+          {loading && (
+            <div style={{ padding: '32px 0', display: 'flex', justifyContent: 'center' }}>
+              <Loader2 size={24} className="animate-spin" style={{ color: '#8A8F9A' }} aria-hidden="true" />
+            </div>
+          )}
+          {!loading && error && (
+            <div style={{ padding: '20px 0', textAlign: 'center', fontSize: 14, fontWeight: 600, color: '#B71C1C' }}>
+              {tM('itemsTemplateLoadError')}
+            </div>
+          )}
+          {!loading && !error && filtered.length === 0 && (
+            <div style={{ padding: '32px 0', textAlign: 'center', fontSize: 14, fontWeight: 600, color: '#5A5F68' }}>
+              {q ? tM('itemsTemplateNoResults') : tM('itemsTemplateEmpty')}
+            </div>
+          )}
+          {!loading && !error && filtered.length > 0 && (
+            tab === 'platform' && !q ? (
+              (() => {
+                const groups = {}, tradeLabel = {};
+                for (const tmpl of filtered) {
+                  const key = tmpl.trade_key || tmpl.trade;
+                  if (!groups[key]) groups[key] = [];
+                  groups[key].push(tmpl);
+                  tradeLabel[key] = tmpl.trade;
+                }
+                const orderedKeys = [
+                  ...TMPL_TRADE_ORDER.filter(k => groups[k]),
+                  ...Object.keys(groups).filter(k => !TMPL_TRADE_ORDER.includes(k)).sort(),
+                ];
+                return orderedKeys.map(key => (
+                  <div key={key}>
+                    <div style={{ padding: '10px 0 4px', fontSize: 11, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: '#8A8F97' }}>
+                      {tradeLabel[key]}
+                    </div>
+                    {groups[key].map((tmpl, i) => (
+                      <TemplateRowDesktop key={tmpl.id} tmpl={tmpl} onSelect={setPreview} border={i > 0} />
+                    ))}
+                  </div>
+                ));
+              })()
+            ) : (
+              filtered.map((tmpl, i) => (
+                <TemplateRowDesktop key={tmpl.id} tmpl={tmpl} onSelect={setPreview} border={i > 0} />
+              ))
+            )
+          )}
+        </>
+      )}
+    </Modal>
+  );
+}
+
+// ── SectionPod ────────────────────────────────────────────────────────────────
+function SectionPod({
+  entry, idx, allItems, drawings, canAdd, canEditFn, surveyId,
+  isOpen, onToggle,
+  openMenuId, onMenuToggle,
+  onAddItem, onEditItem,
+  onApplyTemplate, onMeasurements, onNotes, onMedia, onDrawings,
+}) {
+  const t  = useTranslations('surveyDetail');
+  const ts = useTranslations('surveys');
+  const [itemSearch, setItemSearch] = useState('');
+  const [typeFilter, setTypeFilter] = useState('all');
+
+  const pc         = getPodColor(idx);
+  const isMenuOpen = openMenuId === entry.id;
+  const entryItems = allItems.filter(item => item.entry_id === entry.id);
+  const area       = entryArea(entry);
+
+  useEffect(() => {
+    if (!isOpen) { setItemSearch(''); setTypeFilter('all'); }
+  }, [isOpen]);
+
+  const filtered = itemSearch.trim()
+    ? entryItems.filter(i => i.description?.toLowerCase().includes(itemSearch.toLowerCase()))
+    : entryItems;
+  const display = typeFilter === 'all' ? filtered : filtered.filter(i => inferType(i) === typeFilter);
+
+  return (
+    <div className="dk-card" style={{ overflow: 'hidden', padding: 0 }}>
+
+      {/* ── Pod header ── */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '0 14px 0 0', background: pc.c, minHeight: 60 }}>
+
+        {/* Toggle area — takes up most of the row */}
+        <button type="button" onClick={onToggle}
+          style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 10, background: 'transparent', border: 0, cursor: 'pointer', color: '#fff', padding: '14px 0 14px 16px', textAlign: 'left', minWidth: 0 }}>
+          <span style={{ width: 10, height: 10, borderRadius: 5, background: 'rgba(255,255,255,0.35)', flexShrink: 0 }} aria-hidden="true" />
+          <span style={{ flex: 1, fontSize: 16, fontWeight: 700, letterSpacing: '-0.01em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {entry.name}
+          </span>
+          <span style={{ height: 26, padding: '0 10px', borderRadius: 13, background: 'rgba(255,255,255,.18)', fontSize: 13, fontWeight: 700, display: 'inline-flex', alignItems: 'center', flexShrink: 0 }}>
+            {entryItems.length} {ts('desktop.detailLabelItem')}
+          </span>
+          {area && (
+            <span style={{ height: 26, padding: '0 10px', borderRadius: 13, background: 'rgba(255,255,255,.18)', fontSize: 13, fontWeight: 700, display: 'inline-flex', alignItems: 'center', flexShrink: 0 }}>
+              {area}
+            </span>
+          )}
+        </button>
+
+        {/* Add item button — only when open */}
+        {isOpen && canAdd && (
+          <button type="button" onClick={() => onAddItem(entry.id)}
+            style={{ display: 'flex', alignItems: 'center', gap: 5, height: 32, padding: '0 12px', border: 0, borderRadius: 16, background: 'rgba(255,255,255,.22)', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', flexShrink: 0 }}>
+            <Plus size={14} aria-hidden="true" />
+            {ts('desktop.detailAddItemBtn')}
+          </button>
+        )}
+
+        {/* Context menu */}
+        <div style={{ position: 'relative', flexShrink: 0 }}>
+          <button type="button"
+            onClick={(e) => { e.stopPropagation(); onMenuToggle(isMenuOpen ? null : entry.id); }}
+            style={{ width: 36, height: 36, border: 0, borderRadius: 18, background: 'rgba(255,255,255,.18)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+            <MoreHorizontal size={18} aria-hidden="true" />
+          </button>
+          {isMenuOpen && (
+            <div onClick={e => e.stopPropagation()}
+              style={{ position: 'absolute', right: 0, top: 42, zIndex: 50, background: '#fff', borderRadius: 14, boxShadow: '0 8px 24px -8px rgba(0,0,0,.35), 0 2px 8px -2px rgba(0,0,0,.12)', padding: 6, minWidth: 210 }}>
+              {[
+                { icon: Clipboard, label: ts('desktop.applyTemplate'),       action: onApplyTemplate },
+                { icon: Ruler,     label: ts('desktop.detailDimsTitle'),     action: onMeasurements  },
+                { icon: FileText,  label: ts('desktop.detailNotesTitle'),    action: onNotes         },
+                { icon: Camera,    label: ts('desktop.detailMediaTitle'),    action: onMedia         },
+                { icon: Edit3,     label: ts('desktop.detailDrawingsTitle'), action: onDrawings      },
+              ].map(({ icon: Icon, label, action }) => (
+                <button key={label} type="button"
+                  onClick={() => { action(); onMenuToggle(null); }}
+                  style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', border: 0, borderRadius: 10, background: 'transparent', fontSize: 14, fontWeight: 600, color: '#0E1116', cursor: 'pointer', textAlign: 'left' }}>
+                  <Icon size={15} aria-hidden="true" />
+                  {label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ── Pod body ── */}
+      {isOpen && (
+        <div>
+          {/* Filter bar */}
+          <div style={{ display: 'flex', gap: 8, padding: '10px 16px', flexWrap: 'nowrap', overflowX: 'auto', background: '#F8F8F9', borderBottom: '1px solid #EDEBE5', alignItems: 'center' }}>
+            <label style={{ position: 'relative', display: 'block', flexShrink: 0 }}>
+              <span style={{ position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)', color: '#5A5F68', display: 'flex', pointerEvents: 'none' }}>
+                <Search size={15} aria-hidden="true" />
+              </span>
+              <input className="dk-input" placeholder={ts('desktop.detailSearchItems')} value={itemSearch} onChange={e => setItemSearch(e.target.value)}
+                style={{ paddingLeft: 32, height: 36, width: 190, background: '#fff', boxShadow: 'none', borderRadius: 18, fontSize: 13 }} />
+            </label>
+            <button className="dk-chip" onClick={() => setTypeFilter('all')}
+              style={{ background: typeFilter === 'all' ? pc.c : '#fff', color: typeFilter === 'all' ? '#fff' : '#5A5F68', flexShrink: 0, height: 36 }}>
+              {ts('desktop.filterAll')} ({filtered.length})
+            </button>
+            {ITEM_TYPE_ORDER.map(type => {
+              const cnt = filtered.filter(i => inferType(i) === type).length;
+              return (
+                <button key={type} className="dk-chip" onClick={() => cnt > 0 && setTypeFilter(type)}
+                  style={{ background: typeFilter === type ? pc.c : '#fff', color: typeFilter === type ? '#fff' : '#5A5F68', flexShrink: 0, height: 36, opacity: cnt === 0 ? 0.35 : 1, cursor: cnt === 0 ? 'default' : 'pointer' }}>
+                  {t(ITEM_TYPE_LABEL_KEYS[type])} ({cnt})
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Column headers — quote style */}
+          {display.length > 0 && (
+            <div style={{ display: 'grid', gridTemplateColumns: '96px 1fr 80px 70px', padding: '0 18px', height: 40, alignItems: 'center', gap: 12, borderTop: '1px solid #EDEBE5', fontSize: 11, fontWeight: 700, letterSpacing: '.07em', textTransform: 'uppercase', color: '#5A5F68' }}>
+              <span>{ts('desktop.detailColType')}</span>
+              <span>{ts('desktop.detailColItem')}</span>
+              <span>{ts('desktop.detailColQty')}</span>
+              <span>{ts('desktop.detailColUnit')}</span>
+            </div>
+          )}
+
+          {/* Empty state */}
+          {display.length === 0 && (
+            <div style={{ padding: '10px 18px', fontSize: 13, color: '#8A8F98', fontStyle: 'italic', borderTop: '1px solid #EDEBE5' }}>
+              {ts('desktop.detailNoItems')}
+            </div>
+          )}
+
+          {/* Item rows — flat, quote style */}
+          {display.map(item => {
+            const type      = inferType(item);
+            const TypeIcon  = ITEM_TYPE_ICONS[type]  || MoreHorizontal;
+            const typeColor = ITEM_TYPE_COLORS[type] || ITEM_TYPE_COLORS.other;
+            return (
+              <button key={item.id} type="button"
+                onClick={() => onEditItem(item)}
+                style={{ display: 'grid', gridTemplateColumns: '96px 1fr 80px 70px', padding: '0 18px', minHeight: 60, alignItems: 'center', gap: 12, borderTop: '1px solid #EDEBE5', fontSize: 14, fontWeight: 600, cursor: 'pointer', background: 'transparent', border: 'none', borderTopWidth: 1, borderTopStyle: 'solid', borderTopColor: '#EDEBE5', width: '100%', textAlign: 'left' }}>
+                <span style={{ minWidth: 0 }}>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 9px', borderRadius: 12, background: typeColor.bg, color: typeColor.color, border: `1px solid ${typeColor.border}`, fontSize: 11, fontWeight: 700, whiteSpace: 'nowrap' }}>
+                    <TypeIcon size={10} aria-hidden="true" />
+                    {t(ITEM_TYPE_LABEL_KEYS[type])}
+                  </span>
+                </span>
+                <span style={{ minWidth: 0, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {item.description}
+                  {item.notes && <span style={{ fontSize: 12, color: '#8A8F98', fontWeight: 500, marginLeft: 6 }}>{item.notes}</span>}
+                </span>
+                <span style={{ color: '#5A5F68' }}>{item.quantity != null ? item.quantity : ''}</span>
+                <span style={{ color: '#5A5F68' }}>{item.unit || ''}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Main desktop component ────────────────────────────────────────────────────
 export default function SurveyDetailDesktop() {
   const { id }   = useParams();
@@ -661,10 +1021,10 @@ export default function SurveyDetailDesktop() {
     : {};
 
   // Page state
-  const [openPodIdx,          setOpenPodIdx]          = useState(null);
+  const [openPodIds,          setOpenPodIds]          = useState(() => new Set());
+  const [openPodMenuId,       setOpenPodMenuId]       = useState(null);
   const [search,              setSearch]              = useState('');
-  const [itemSearch,          setItemSearch]          = useState('');
-  const [showAddItem,         setShowAddItem]         = useState(false);
+  const [addItemEntryId,      setAddItemEntryId]      = useState(null);
   const [showMenu,            setShowMenu]            = useState(false);
   const [showAddEntry,        setShowAddEntry]        = useState(false);
   const [editingItem,         setEditingItem]         = useState(null);
@@ -678,29 +1038,27 @@ export default function SurveyDetailDesktop() {
   const [directSurvey,        setDirectSurvey]        = useState(null);
   const [directFetching,      setDirectFetching]      = useState(false);
   const [openItemMenuId,      setOpenItemMenuId]      = useState(null);
-  const [typeFilter,          setTypeFilter]          = useState('all');
   const [measOpen,            setMeasOpen]            = useState(false);
   const [notesOpen,           setNotesOpen]           = useState(false);
   const [mediaOpen,           setMediaOpen]           = useState(false);
   const [drawingsOpen,        setDrawingsOpen]        = useState(false);
-  const [openHeaderMenu,      setOpenHeaderMenu]      = useState(false);
+  const [modalEntry,          setModalEntry]          = useState(null);
   const [deleteItemModal,     setDeleteItemModal]     = useState(null);
   const [deleteItemLoading,   setDeleteItemLoading]   = useState(false);
+  const [showApplyTemplate,   setShowApplyTemplate]   = useState(false);
   const layoutInputRef = useRef(null);
 
   useEffect(() => {
-    if (!openItemMenuId && !openHeaderMenu) return;
-    const close = () => { setOpenItemMenuId(null); setOpenHeaderMenu(false); };
+    if (!openItemMenuId && !openPodMenuId) return;
+    const close = () => { setOpenItemMenuId(null); setOpenPodMenuId(null); };
     document.addEventListener('click', close);
     return () => document.removeEventListener('click', close);
-  }, [openItemMenuId, openHeaderMenu]);
+  }, [openItemMenuId, openPodMenuId]);
 
   useEffect(() => {
     if (!dataReady) return;
     fetchSurveyMedia(id).catch(() => {});
   }, [id, dataReady]);
-
-  useEffect(() => { setTypeFilter('all'); setItemSearch(''); setMeasOpen(false); setNotesOpen(false); setMediaOpen(false); setDrawingsOpen(false); }, [openPodIdx]);
 
   useEffect(() => {
     if (!dataReady) return;
@@ -722,9 +1080,6 @@ export default function SurveyDetailDesktop() {
       }
     }
   }, [id, surveys, directSurvey, isDemoMode]);
-
-  // Reset per-pod state when switching pods
-  useEffect(() => { setItemSearch(''); setShowAddItem(false); }, [openPodIdx]);
 
   if (loading || !dataReady || directFetching) return <PageSpinner />;
 
@@ -760,19 +1115,9 @@ export default function SurveyDetailDesktop() {
   }, 0);
   const totalAreaStr = totalArea > 0 ? totalArea.toFixed(1).replace('.', ',') : '0';
 
-  // Open pod data
-  const openEntry      = openPodIdx !== null ? (entries[openPodIdx] || null) : null;
-  const openPodColor   = openPodIdx !== null ? getPodColor(openPodIdx) : null;
-  const openEntryItems = openEntry ? allItems.filter(item => item.entry_id === openEntry.id) : [];
-  const filteredItems  = itemSearch.trim()
-    ? openEntryItems.filter(item => item.description?.toLowerCase().includes(itemSearch.toLowerCase()))
-    : openEntryItems;
-  const displayItems   = typeFilter === 'all'
-    ? filteredItems
-    : filteredItems.filter(item => inferType(item) === typeFilter);
-  const typesInEntry   = ITEM_TYPE_ORDER.filter(type => openEntryItems.some(item => inferType(item) === type));
-  const openEntryMedia    = openEntry?.media || [];
-  const openEntryDrawings = openEntry ? drawings.filter(d => d.entry_id === openEntry.id) : [];
+  // Modal entry derived values (used by measurements/notes/media/drawings/template modals)
+  const modalEntryMedia    = modalEntry?.media || [];
+  const modalEntryDrawings = modalEntry ? drawings.filter(d => d.entry_id === modalEntry.id) : [];
 
   const kicker = [ts('desktop.kicker'), client?.name].filter(Boolean).join(' · ');
 
@@ -829,7 +1174,7 @@ export default function SurveyDetailDesktop() {
       onConfirm: async () => {
         try {
           await deleteSurveyEntry(id, entry.id);
-          if (openPodIdx !== null && entries[openPodIdx]?.id === entry.id) setOpenPodIdx(null);
+          setOpenPodIds(prev => { const next = new Set(prev); next.delete(entry.id); return next; });
         } catch (err) { setAlertModal({ message: err.message }); }
       },
     });
@@ -888,263 +1233,68 @@ export default function SurveyDetailDesktop() {
           </div>
         ) : (
           <>
-            {/* ── Section strip — always visible ───────────────────────────────── */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, overflowX: 'auto', flexWrap: 'nowrap', paddingBottom: 2 }}>
-              {/* "All sections" chip — active when in overview */}
-              <button
-                className="dk-chip"
-                onClick={() => setOpenPodIdx(null)}
-                style={{
-                  background: openPodIdx === null ? '#0A7F72' : '#fff',
-                  color:      openPodIdx === null ? '#fff'    : '#0E1116',
-                  flexShrink: 0,
-                }}
-              >
-                {ts('desktop.detailBackToAll')}
-              </button>
-
-              {/* Per-section chips — active chip matches the section's own colour */}
-              {entries.map((entry, idx) => {
-                const pc      = getPodColor(idx);
-                const isActive = idx === openPodIdx;
-                const count   = allItems.filter(item => item.entry_id === entry.id).length;
-                return (
-                  <button
-                    key={entry.id}
-                    className="dk-chip"
-                    onClick={() => setOpenPodIdx(idx)}
-                    style={{
-                      background: isActive ? pc.c   : '#fff',
-                      color:      isActive ? '#fff' : '#0E1116',
-                      flexShrink: 0,
-                    }}
-                  >
-                    {entry.name}
-                    {count > 0 && <span style={{ opacity: 0.7, marginLeft: 4 }}>{count}</span>}
-                  </button>
-                );
-              })}
-
-              {/* + Section chip */}
+            {/* ── Top bar: search + add section ────────────────────────────────── */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <label style={{ position: 'relative', display: 'block', flex: 1, maxWidth: 360 }}>
+                <span style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#5A5F68', display: 'flex', pointerEvents: 'none' }}>
+                  <Search size={18} aria-hidden="true" />
+                </span>
+                <input className="dk-input" placeholder={ts('desktop.detailSearchAll')} value={search} onChange={e => setSearch(e.target.value)} style={{ paddingLeft: 42, borderRadius: 23, height: 44 }} />
+              </label>
               {canAdd && entries.length < 30 && (
-                <button
-                  className="dk-chip"
-                  onClick={() => setShowAddEntry(true)}
-                  style={{ background: 'transparent', color: '#fff', border: '2px dashed rgba(255,255,255,.4)', flexShrink: 0, gap: 6 }}
-                >
+                <button className="dk-btn dk-btn-g" onClick={() => setShowAddEntry(true)} style={{ gap: 6, flexShrink: 0 }}>
                   <Plus size={16} aria-hidden="true" />
-                  {ts('desktop.detailNewRoomChip')}
+                  {t('addRoomBtn')}
                 </button>
               )}
             </div>
 
-            {/* ── Overview or open section ─────────────────────────────────────── */}
-            {openPodIdx === null ? (
-              <>
-                {/* Search bar + hint */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <label style={{ position: 'relative', display: 'block', width: 340 }}>
-                    <span style={{ position: 'absolute', left: 14, top: 12, color: '#5A5F68', display: 'flex', pointerEvents: 'none' }}>
-                      <Search size={20} aria-hidden="true" />
-                    </span>
-                    <input className="dk-input" placeholder={ts('desktop.detailSearchAll')} value={search} onChange={e => setSearch(e.target.value)} style={{ paddingLeft: 42, borderRadius: 23, height: 44 }} />
-                  </label>
-                </div>
-
-                {/* Section pods grid */}
-                {(() => {
-                  const cols = entries.length > 10 ? 4 : 3;
-                  return (
-                    <div style={{ display: 'grid', gridTemplateColumns: `repeat(${cols}, 1fr)`, gap: 10 }}>
-                      {entries.map((entry, idx) => {
-                        const pc          = getPodColor(idx);
-                        const entryItems  = allItems.filter(item => item.entry_id === entry.id);
-                        const area        = entryArea(entry);
-                        const photoCount  = entry.media?.length || 0;
-                        const drawingCount = drawings.filter(d => d.entry_id === entry.id).length;
-                        const matchSearch = !search.trim() || entry.name.toLowerCase().includes(search.toLowerCase()) || entryItems.some(i => i.description?.toLowerCase().includes(search.toLowerCase()));
-                        if (!matchSearch) return null;
-                        return (
-                          <button key={entry.id} className="dk-card" onClick={() => setOpenPodIdx(idx)}
-                            style={{ border: 0, textAlign: 'left', padding: '16px', overflow: 'hidden', cursor: 'pointer', background: pc.c, position: 'relative', minHeight: 100, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: 10 }}>
-                            {/* Decorative glow */}
-                            <span aria-hidden="true" style={{ position: 'absolute', right: -50, top: -60, width: 180, height: 180, borderRadius: 90, background: 'rgba(255,255,255,.07)', pointerEvents: 'none' }} />
-                            {/* Section name */}
-                            <span className="dk-n" style={{ fontSize: 18, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', position: 'relative' }}>
-                              {entry.name}
-                            </span>
-                            {/* Chips */}
-                            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', position: 'relative' }}>
-                              {area && (
-                                <span className="dk-badge" style={{ background: 'rgba(255,255,255,.2)', color: '#fff' }}>{area}</span>
-                              )}
-                              <span className="dk-badge" style={{ background: 'rgba(255,255,255,.2)', color: '#fff', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                                {entryItems.length} {ts('desktop.detailLabelItem')}
-                              </span>
-                              {photoCount > 0 && (
-                                <span className="dk-badge" style={{ background: 'rgba(255,255,255,.2)', color: '#fff', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                                  <Camera size={11} aria-hidden="true" /> {photoCount}
-                                </span>
-                              )}
-                              {drawingCount > 0 && (
-                                <span className="dk-badge" style={{ background: 'rgba(255,255,255,.2)', color: '#fff', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                                  <Edit3 size={11} aria-hidden="true" /> {drawingCount}
-                                </span>
-                              )}
-                            </div>
-                          </button>
-                        );
-                      })}
-                      {canAdd && entries.length < 30 && (
-                        <button onClick={() => setShowAddEntry(true)}
-                          style={{ border: '2px dashed rgba(255,255,255,.35)', background: 'transparent', boxShadow: 'none', color: '#fff', borderRadius: 24, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6, fontSize: 15, fontWeight: 700, cursor: 'pointer', minHeight: 100 }}>
-                          <Plus size={24} aria-hidden="true" />
-                          {t('addRoomBtn')}
-                        </button>
-                      )}
-                    </div>
-                  );
-                })()}
-              </>
-            ) : null}
-
-            {/* Items card */}
-            {openEntry && openPodColor && (
-              <section className="dk-card" style={{ overflow: 'hidden', display: 'flex', flexDirection: 'column', maxHeight: 'calc(100vh - 260px)' }}>
-                {/* Title band — section's own colour, matches the active chip */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 16px', background: openPodColor.c, color: '#fff', gap: 12 }}>
-                  <span className="dk-n" style={{ fontSize: 24, flexShrink: 0 }}>
-                    {openEntry.name}{' '}
-                    <span style={{ opacity: 0.8, fontSize: 18 }}>· {openEntryItems.length} {ts('desktop.detailLabelItem')}</span>
-                  </span>
-                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
-                    <label style={{ position: 'relative', display: 'block', width: 240 }}>
-                      <span style={{ position: 'absolute', left: 14, top: 12, color: '#5A5F68', display: 'flex', pointerEvents: 'none' }}>
-                        <Search size={20} aria-hidden="true" />
-                      </span>
-                      <input className="dk-input" placeholder={ts('desktop.detailSearchItems')} value={itemSearch} onChange={e => setItemSearch(e.target.value)} style={{ paddingLeft: 42, borderRadius: 23, height: 44 }} />
-                    </label>
-                    {canAdd && (
-                      <button className="dk-btn dk-btn-w" onClick={() => setShowAddItem(true)} style={{ gap: 6, flexShrink: 0 }}>
-                        <Plus size={18} aria-hidden="true" />
-                        {ts('desktop.detailAddItemBtn')}
-                      </button>
-                    )}
-                    {/* Section context menu */}
-                    <div style={{ position: 'relative' }}>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); setOpenHeaderMenu(v => !v); }}
-                        style={{ width: 44, height: 44, border: 0, borderRadius: 22, background: 'rgba(255,255,255,.18)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}
-                      >
-                        <MoreHorizontal size={20} aria-hidden="true" />
-                      </button>
-                      {openHeaderMenu && (
-                        <div
-                          onClick={(e) => e.stopPropagation()}
-                          style={{ position: 'absolute', right: 0, top: 48, zIndex: 50, background: '#fff', borderRadius: 14, boxShadow: '0 8px 24px -8px rgba(0,0,0,.35), 0 2px 8px -2px rgba(0,0,0,.12)', padding: 6, minWidth: 200 }}
-                        >
-                          {[
-                            { icon: Ruler,    label: ts('desktop.detailDimsTitle'),      action: () => setMeasOpen(true)     },
-                            { icon: FileText, label: ts('desktop.detailNotesTitle'),     action: () => setNotesOpen(true)    },
-                            { icon: Camera,   label: ts('desktop.detailMediaTitle'),     action: () => setMediaOpen(true)    },
-                            { icon: Edit3,    label: ts('desktop.detailDrawingsTitle'),  action: () => setDrawingsOpen(true) },
-                          ].map(({ icon: Icon, label, action }) => (
-                            <button key={label}
-                              onClick={() => { action(); setOpenHeaderMenu(false); }}
-                              style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', border: 0, borderRadius: 10, background: 'transparent', fontSize: 14, fontWeight: 600, color: '#0E1116', cursor: 'pointer', textAlign: 'left' }}
-                            >
-                              <Icon size={15} aria-hidden="true" />
-                              {label}
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Type filter chips — always show all 5, dim empty ones */}
-                <div style={{ display: 'flex', gap: 8, padding: '10px 16px', flexWrap: 'nowrap', overflowX: 'auto' }} className="scroll-x-hidden">
-                  <button
-                    className="dk-chip"
-                    onClick={() => setTypeFilter('all')}
-                    style={{ background: typeFilter === 'all' ? openPodColor.c : '#F4F5F8', color: typeFilter === 'all' ? '#fff' : '#5A5F68', flexShrink: 0 }}
-                  >
-                    {ts('desktop.filterAll')} ({filteredItems.length})
-                  </button>
-                  {ITEM_TYPE_ORDER.map(type => {
-                    const count   = filteredItems.filter(item => inferType(item) === type).length;
-                    const isEmpty = count === 0;
-                    return (
-                      <button
-                        key={type}
-                        className="dk-chip"
-                        onClick={() => !isEmpty && setTypeFilter(type)}
-                        style={{ background: typeFilter === type ? openPodColor.c : '#F4F5F8', color: typeFilter === type ? '#fff' : '#5A5F68', flexShrink: 0, opacity: isEmpty ? 0.35 : 1, cursor: isEmpty ? 'default' : 'pointer' }}
-                      >
-                        {t(ITEM_TYPE_LABEL_KEYS[type])} ({count})
-                      </button>
-                    );
+            {/* ── Section pods ─────────────────────────────────────────────────── */}
+            {entries
+              .filter(entry => !search.trim() ||
+                entry.name.toLowerCase().includes(search.toLowerCase()) ||
+                allItems.filter(i => i.entry_id === entry.id).some(i => i.description?.toLowerCase().includes(search.toLowerCase()))
+              )
+              .map((entry, idx) => (
+                <SectionPod
+                  key={entry.id}
+                  entry={entry}
+                  idx={idx}
+                  allItems={allItems}
+                  drawings={drawings}
+                  canAdd={canAdd}
+                  canEditFn={canEditEntry}
+                  surveyId={id}
+                  isOpen={openPodIds.has(entry.id)}
+                  onToggle={() => setOpenPodIds(prev => {
+                    const next = new Set(prev);
+                    next.has(entry.id) ? next.delete(entry.id) : next.add(entry.id);
+                    return next;
                   })}
-                </div>
+                  openMenuId={openPodMenuId}
+                  onMenuToggle={setOpenPodMenuId}
+                  onAddItem={eid => setAddItemEntryId(eid)}
+                  onEditItem={item => setEditingItem(item)}
+                  onApplyTemplate={() => { setModalEntry(entry); setShowApplyTemplate(true); }}
+                  onMeasurements={() => { setModalEntry(entry); setMeasOpen(true); }}
+                  onNotes={() => { setModalEntry(entry); setNotesOpen(true); }}
+                  onMedia={() => { setModalEntry(entry); setMediaOpen(true); }}
+                  onDrawings={() => { setModalEntry(entry); setDrawingsOpen(true); }}
+                />
+              ))
+            }
 
-                {/* Table header */}
-                <div className="dk-th" style={{ gridTemplateColumns: '24px 1fr 100px 80px 1.2fr' }}>
-                  <span />
-                  <span>{ts('desktop.detailColItem')}</span>
-                  <span>{ts('desktop.detailColQty')}</span>
-                  <span>{ts('desktop.detailColUnit')}</span>
-                  <span>{ts('desktop.detailColNote')}</span>
-                </div>
-
-                <div className="scroll-y-hidden" style={{ flex: 1, overflowY: 'auto' }}>
-                {displayItems.length === 0 && (
-                  <div style={{ padding: '24px 16px', textAlign: 'center', color: '#5A5F68', fontSize: 14, fontWeight: 600 }}>
-                    {ts('desktop.detailNoItems')}
-                  </div>
-                )}
-
-                {/* Item rows — grouped by type */}
-                {ITEM_TYPE_ORDER
-                  .map(type => ({ type, items: displayItems.filter(item => inferType(item) === type) }))
-                  .filter(g => g.items.length > 0)
-                  .map(({ type, items: typeItems }) => {
-                    const typeColor = ITEM_TYPE_COLORS[type] || ITEM_TYPE_COLORS.other;
-                    const TypeIcon  = ITEM_TYPE_ICONS[type]  || MoreHorizontal;
-                    return (
-                      <div key={type}>
-                        {/* Type group header */}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 16px', background: typeColor.bg, borderTop: '1px solid #EDEBE5' }}>
-                          <div style={{ width: 30, height: 30, borderRadius: 10, background: '#fff', border: `1.5px solid ${typeColor.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                            <TypeIcon size={15} color={typeColor.color} aria-hidden="true" />
-                          </div>
-                          <span style={{ fontSize: 13, fontWeight: 700, letterSpacing: '.04em', textTransform: 'uppercase', color: typeColor.color }}>
-                            {t(ITEM_TYPE_LABEL_KEYS[type])}
-                          </span>
-                          <span style={{ fontSize: 12, fontWeight: 600, color: typeColor.color, opacity: 0.6 }}>({typeItems.length})</span>
-                        </div>
-
-                        {typeItems.map((item, j) => (
-                  <button key={item.id} className="dk-sr dk-tr"
-                    onClick={() => setEditingItem(item)}
-                    style={{ gridTemplateColumns: '24px 1fr 100px 80px 1.2fr', minHeight: 58, background: j % 2 === 1 ? openPodColor.tint : 'transparent', width: '100%', cursor: 'pointer' }}>
-                    <span style={{ color: '#9AA1AD', display: 'flex', alignItems: 'center' }}>
-                      <GripVertical size={18} aria-hidden="true" />
-                    </span>
-                    <b style={{ fontSize: 15 }}>{item.description}</b>
-                    <b>{item.quantity != null ? item.quantity : ''}</b>
-                    <span className="dk-m">{item.unit || ''}</span>
-                    <span className="dk-m" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.notes || ''}</span>
+            {entries.length === 0 && (
+              <div style={{ padding: '48px 0', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
+                <span style={{ fontSize: 14, fontWeight: 600, color: 'rgba(255,255,255,0.5)' }}>{ts('desktop.detailNoItems')}</span>
+                {canAdd && (
+                  <button className="dk-btn dk-btn-g" onClick={() => setShowAddEntry(true)} style={{ gap: 6 }}>
+                    <Plus size={16} aria-hidden="true" />
+                    {t('addRoomBtn')}
                   </button>
-                        ))}
-                      </div>
-                    );
-                  })
-                }
-                </div>
-              </section>
+                )}
+              </div>
             )}
-
           </>
         )}
       </div>
@@ -1181,10 +1331,10 @@ export default function SurveyDetailDesktop() {
 
       {/* ── Add item modal ─────────────────────────────────────────────────────── */}
       <AddItemModal
-        isOpen={showAddItem}
-        onClose={() => setShowAddItem(false)}
+        isOpen={!!addItemEntryId}
+        onClose={() => setAddItemEntryId(null)}
         surveyId={id}
-        entryId={openEntry?.id}
+        entryId={addItemEntryId}
       />
 
       {/* ── Edit item modal ────────────────────────────────────────────────────── */}
@@ -1232,38 +1382,46 @@ export default function SurveyDetailDesktop() {
 
       {/* ── Measurements modal ────────────────────────────────────────────────── */}
       <Modal isOpen={measOpen} onClose={() => setMeasOpen(false)} title={ts('desktop.detailDimsTitle')} maxWidth="480px">
-        {openEntry && <SectionDimensionsContent key={openEntry.id} entry={openEntry} surveyId={id} canEdit={canEditEntry(openEntry)} />}
+        {modalEntry && <SectionDimensionsContent key={modalEntry.id} entry={modalEntry} surveyId={id} canEdit={canEditEntry(modalEntry)} />}
       </Modal>
 
       {/* ── Notes modal ───────────────────────────────────────────────────────── */}
       <Modal isOpen={notesOpen} onClose={() => setNotesOpen(false)} title={ts('desktop.detailNotesTitle')} maxWidth="480px">
-        {openEntry && <SectionNotesContent key={openEntry.id} entry={openEntry} surveyId={id} canEdit={canEditEntry(openEntry)} />}
+        {modalEntry && <SectionNotesContent key={modalEntry.id} entry={modalEntry} surveyId={id} canEdit={canEditEntry(modalEntry)} />}
       </Modal>
 
       {/* ── Media modal ───────────────────────────────────────────────────────── */}
-      {openEntry && (
+      {modalEntry && (
         <SurveyMediaModal
           isOpen={mediaOpen}
           onClose={() => setMediaOpen(false)}
           surveyId={id}
-          entryId={openEntry.id}
-          canEdit={canEditEntry(openEntry)}
+          entryId={modalEntry.id}
+          canEdit={canEditEntry(modalEntry)}
           enqueue={canAdd ? enqueue : undefined}
-          mediaItems={openEntryMedia}
+          mediaItems={modalEntryMedia}
         />
       )}
 
       {/* ── Drawings modal ────────────────────────────────────────────────────── */}
-      {openEntry && (
+      {modalEntry && (
         <SurveyDrawingsModal
           isOpen={drawingsOpen}
           onClose={() => setDrawingsOpen(false)}
           surveyId={id}
-          entryId={openEntry.id}
-          entryName={openEntry.name}
-          drawings={openEntryDrawings}
+          entryId={modalEntry.id}
+          entryName={modalEntry.name}
+          drawings={modalEntryDrawings}
         />
       )}
+
+      {/* ── Apply template modal ──────────────────────────────────────────────── */}
+      <ApplyTemplateModal
+        isOpen={showApplyTemplate}
+        onClose={() => setShowApplyTemplate(false)}
+        surveyId={id}
+        entryId={modalEntry?.id}
+      />
 
       {/* ── Survey meta drawer ────────────────────────────────────────────────── */}
       <MetaDrawer survey={survey} clients={clients} isOpen={showMetaDrawer} onClose={() => setShowMetaDrawer(false)} onSave={(fields) => updateSurvey(id, fields)} />

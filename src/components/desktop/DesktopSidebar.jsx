@@ -4,11 +4,10 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useApp } from '@/context/AppContext';
-import { PERSONAL_COLOR, podColor } from '@/lib/podColor';
 import {
   LayoutDashboard, Ruler, FileText, FolderKanban, BookUser,
-  MessageSquare, Calendar, LayoutTemplate, Globe,
-  UsersRound, ChevronRight, CreditCard, Lock,
+  Calendar, LayoutTemplate, Globe,
+  UsersRound, ChevronRight, CreditCard,
 } from 'lucide-react';
 
 /* Per-module nav active background colour */
@@ -56,31 +55,16 @@ function NavLink({ href, icon: Icon, label, active, activeColor }) {
 export default function DesktopSidebar() {
   const t = useTranslations('sidebar');
   const pathname = usePathname();
-  const {
-    currentUser,
-    collectives,
-    activeCollectiveId,
-    setActiveContext,
-    projects,
-    quotes,
-    surveys,
-    isDemoMode,
-  } = useApp();
+  const { currentUser, isDemoMode } = useApp();
 
   const navPrefix = isDemoMode ? '/demo' : '';
   const moduleKey = getModuleKey(pathname.replace('/demo/', '/').replace('/demo', ''));
   const activeColor = MODULE_ACTIVE_COLOR[moduleKey] || '#2A2F3A';
 
-  const totalDocs = (projects?.length || 0) + (quotes?.length || 0) + (surveys?.length || 0);
-
   const tier = currentUser?.subscription_tier || 'basic';
   const tierLabel = t(`tierLabels.${tier}`, { defaultValue: tier });
   const displayName = currentUser?.display_name || currentUser?.email || '';
   const initials = getInitials(displayName);
-
-  function switchWorkspace(collectiveId) {
-    setActiveContext(collectiveId);
-  }
 
   const docNavItems = [
     { key: 'felmeres',  href: `${navPrefix}/felmeres`,  icon: Ruler,         label: t('nav.surveys')  },
@@ -108,68 +92,6 @@ export default function DesktopSidebar() {
       {/* Logo */}
       <div className="dk-logo">
         okosszaki<span style={{ color: '#6F93FF' }}>.</span>
-      </div>
-
-      {/* Workspace pods */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-        <span className="dk-sl">{t('workspaces')}</span>
-
-        {/* Personal pod */}
-        <button
-          className="dk-pod"
-          onClick={() => switchWorkspace(null)}
-          style={{
-            background: PERSONAL_COLOR.bg,
-            boxShadow: !activeCollectiveId ? 'inset 0 0 0 2px #fff' : 'none',
-          }}
-        >
-          <span style={{ width: 10, height: 10, borderRadius: 5, background: PERSONAL_COLOR.deep, flexShrink: 0 }} />
-          <span style={{ flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            {t('personal')}
-          </span>
-          {!activeCollectiveId && (
-            <span className="dk-badge" style={{ background: '#fff', color: '#0E1116', height: 22, padding: '0 8px', fontSize: 11 }}>
-              {totalDocs}
-            </span>
-          )}
-        </button>
-
-        {/* Collective pods */}
-        {(collectives || []).map(col => {
-          const colors = podColor(col.collective_id);
-          const isActive = activeCollectiveId === col.collective_id;
-          const isNotActivated = col.status === 'not_activated';
-          const isFrozen = col.status === 'frozen';
-          return (
-            <button
-              key={col.collective_id}
-              className="dk-pod"
-              onClick={() => switchWorkspace(col.collective_id)}
-              style={{
-                background: colors.deep,
-                boxShadow: isActive ? 'inset 0 0 0 2px #fff' : 'none',
-                opacity: isNotActivated ? 0.55 : 1,
-              }}
-            >
-              <span style={{ position: 'relative', width: 10, height: 10, borderRadius: 5, background: colors.bg, flexShrink: 0 }}>
-                {(isNotActivated || isFrozen) && (
-                  <Lock
-                    size={8}
-                    style={{ position: 'absolute', top: -3, right: -3, color: '#fff', background: isNotActivated ? '#B45309' : '#B71C1C', borderRadius: 3, padding: 1 }}
-                  />
-                )}
-              </span>
-              <span style={{ flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                {col.name}
-              </span>
-              {isActive && !isNotActivated && (
-                <span className="dk-badge" style={{ background: '#fff', color: '#0E1116', height: 22, padding: '0 8px', fontSize: 11 }}>
-                  {totalDocs}
-                </span>
-              )}
-            </button>
-          );
-        })}
       </div>
 
       {/* Navigation */}
