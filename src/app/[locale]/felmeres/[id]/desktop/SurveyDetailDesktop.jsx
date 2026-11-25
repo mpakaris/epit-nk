@@ -855,7 +855,7 @@ function SectionPod({
   const display = typeFilter === 'all' ? filtered : filtered.filter(i => inferType(i) === typeFilter);
 
   return (
-    <div className="dk-card" style={{ overflow: 'hidden', padding: 0 }}>
+    <div className="dk-card" style={{ padding: 0 }}>
 
       {/* ── Pod header ── */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '0 14px 0 0', background: pc.c, minHeight: 60 }}>
@@ -917,7 +917,7 @@ function SectionPod({
 
       {/* ── Pod body ── */}
       {isOpen && (
-        <div>
+        <div style={{ overflow: 'hidden', borderRadius: '0 0 24px 24px' }}>
           {/* Filter bar */}
           <div style={{ display: 'flex', gap: 8, padding: '10px 16px', flexWrap: 'nowrap', overflowX: 'auto', background: '#F8F8F9', borderBottom: '1px solid #EDEBE5', alignItems: 'center' }}>
             <label style={{ position: 'relative', display: 'block', flexShrink: 0 }}>
