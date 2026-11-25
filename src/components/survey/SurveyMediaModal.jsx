@@ -5,21 +5,22 @@ import { useTranslations } from 'next-intl';
 import { useApp } from '@/context/AppContext';
 import Modal from '@/components/Modal';
 import { processMediaFile } from '@/lib/mediaGate';
-import { Plus, Loader2, X, FileText, Camera } from 'lucide-react';
+import { Plus, Loader2, X, FileText, Camera, AlertCircle } from 'lucide-react';
 
 /**
  * Reusable media gallery modal for both survey-level and section-level media.
  *
  * Props:
- *   surveyId   — required
- *   entryId    — null for survey-level, entry.id for section-level
- *   mediaItems — array of media objects to display
- *   canEdit    — whether the user can upload/delete
- *   enqueue    — optional upload queue fn (from useUploadQueue); if absent, uploads directly
- *   onUploaded(newItems[]) — called after a direct upload (no enqueue); parent updates local state
- *   onDeleted(mediaId)     — called after delete; parent updates local state
+ *   surveyId     — required
+ *   entryId      — null for survey-level, entry.id for section-level
+ *   mediaItems   — array of committed media objects to display (live from context)
+ *   canEdit      — whether the user can upload/delete
+ *   enqueue      — optional upload queue fn (from useUploadQueue); if absent, uploads directly
+ *   pendingQueue — items from useUploadQueue for this entry (pending/uploading/error)
+ *   onUploaded   — called after a direct upload (no enqueue)
+ *   onDeleted    — called after delete
  */
-export default function SurveyMediaModal({ isOpen, onClose, surveyId, entryId = null, canEdit, mediaItems, enqueue, onUploaded, onDeleted }) {
+export default function SurveyMediaModal({ isOpen, onClose, surveyId, entryId = null, canEdit, mediaItems, enqueue, pendingQueue = [], onUploaded, onDeleted }) {
   const ts = useTranslations('surveys');
   const { uploadSurveyMedia, deleteSurveyMedia } = useApp();
   const inputRef  = useRef(null);
@@ -28,7 +29,11 @@ export default function SurveyMediaModal({ isOpen, onClose, surveyId, entryId = 
   const [previewIdx, setPreviewIdx] = useState(null);
 
   const items = mediaItems || [];
+  const activePending = pendingQueue.filter(q => q.status === 'pending' || q.status === 'uploading' || q.status === 'error');
   const previewItem = previewIdx !== null ? items[previewIdx] : null;
+
+  // Reset preview when modal closes
+  useEffect(() => { if (!isOpen) setPreviewIdx(null); }, [isOpen]);
 
   useEffect(() => {
     if (previewIdx === null) return;
@@ -67,25 +72,43 @@ export default function SurveyMediaModal({ isOpen, onClose, surveyId, entryId = 
     } finally { setDeleting(null); }
   };
 
+  const isUploading = uploading || activePending.some(q => q.status === 'uploading' || q.status === 'pending');
+  const totalCount  = items.length + activePending.length;
+
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={ts('desktop.detailMediaTitle')} maxWidth="600px">
       <input ref={inputRef} type="file" accept="image/*,video/*,.pdf,.heic,.heif" multiple onChange={handleFiles} style={{ display: 'none' }} />
+
+      {/* Header: count + upload button */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <span style={{ fontSize: 13, fontWeight: 600, color: '#5A5F68' }}>{items.length} {ts('desktop.detailLabelItem')}</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span style={{ fontSize: 13, fontWeight: 600, color: '#5A5F68' }}>
+            {items.length} {ts('desktop.detailLabelItem')}
+          </span>
+          {isUploading && (
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, fontWeight: 600, color: '#0A6B5E' }}>
+              <Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} aria-hidden="true" />
+              {ts('desktop.detailMediaUploading') || 'Feltöltés…'}
+            </span>
+          )}
+        </div>
         {canEdit && (
           <button className="dk-btn dk-btn-l" onClick={() => inputRef.current?.click()} disabled={uploading} style={{ gap: 8 }}>
-            {uploading ? <Loader2 size={16} className="animate-spin" aria-hidden="true" /> : <Plus size={16} aria-hidden="true" />}
+            <Plus size={16} aria-hidden="true" />
             {ts('desktop.detailMediaUpload')}
           </button>
         )}
       </div>
 
-      {items.length === 0 ? (
+      {/* Gallery */}
+      {totalCount === 0 ? (
         <div style={{ textAlign: 'center', padding: '32px 16px', color: '#5A5F68', fontSize: 14, fontWeight: 600 }}>
           {ts('desktop.detailMediaEmpty')}
         </div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
+
+          {/* Committed media */}
           {items.map((item, idx) => {
             const isVideo = item.mime_type?.startsWith('video/');
             const isPdf   = item.mime_type === 'application/pdf' || item.file_name?.toLowerCase().endsWith('.pdf');
@@ -122,12 +145,30 @@ export default function SurveyMediaModal({ isOpen, onClose, surveyId, entryId = 
                   <button onClick={(e) => { e.stopPropagation(); handleDelete(item.id); }} disabled={!!deleting}
                     aria-label={ts('desktop.detailMediaDeleteAria')}
                     style={{ position: 'absolute', top: 6, right: 6, width: 28, height: 28, borderRadius: 14, background: deleting === item.id ? 'rgba(0,0,0,.35)' : 'rgba(183,28,28,.85)', border: 0, color: '#fff', cursor: deleting === item.id ? 'default' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1 }}>
-                    {deleting === item.id ? <Loader2 size={12} className="animate-spin" /> : <X size={12} />}
+                    {deleting === item.id ? <Loader2 size={12} style={{ animation: 'spin 1s linear infinite' }} /> : <X size={12} />}
                   </button>
                 )}
               </div>
             );
           })}
+
+          {/* Pending / uploading tiles */}
+          {activePending.map(q => (
+            <div key={q.id} style={{ position: 'relative', borderRadius: 12, overflow: 'hidden', background: '#F4F5F8', aspectRatio: '1 / 1', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              {q.preview && (
+                <img src={q.preview} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', opacity: 0.5 }} />
+              )}
+              <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,0.65)', gap: 6 }}>
+                {q.status === 'error'
+                  ? <AlertCircle size={22} color="#B71C1C" aria-hidden="true" />
+                  : <Loader2 size={22} color="#0A6B5E" style={{ animation: 'spin 1s linear infinite' }} aria-hidden="true" />
+                }
+                <span style={{ fontSize: 11, fontWeight: 700, color: q.status === 'error' ? '#B71C1C' : '#0A6B5E' }}>
+                  {q.status === 'error' ? 'Hiba' : q.status === 'uploading' ? 'Feltöltés…' : 'Várakozás…'}
+                </span>
+              </div>
+            </div>
+          ))}
         </div>
       )}
 
@@ -163,6 +204,8 @@ export default function SurveyMediaModal({ isOpen, onClose, surveyId, entryId = 
           </div>
         </div>
       )}
+
+      <style>{`@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}`}</style>
     </Modal>
   );
 }

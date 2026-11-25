@@ -1032,7 +1032,7 @@ export default function SurveyDetailDesktop() {
     if (mediaType === 'layout' && uploaded?.length) setPendingAnalysisLayout(uploaded[0]);
   }, [uploadSurveyMedia]);
 
-  const { enqueue } = useUploadQueue({ uploadFn });
+  const { enqueue, queue: uploadQueue } = useUploadQueue({ uploadFn });
 
   const wsStyle = activeCollectiveId
     ? { '--dk-c': podColor(activeCollectiveId).deep }
@@ -1135,8 +1135,9 @@ export default function SurveyDetailDesktop() {
   }, 0);
   const totalAreaStr = totalArea > 0 ? totalArea.toFixed(1).replace('.', ',') : '0';
 
-  // Modal entry derived values (used by measurements/notes/media/drawings/template modals)
-  const modalEntryMedia    = modalEntry?.media || [];
+  // Modal entry derived values — read from live entries, not stale modalEntry snapshot
+  const liveModalEntry     = modalEntry ? entries.find(e => e.id === modalEntry.id) : null;
+  const modalEntryMedia    = liveModalEntry?.media || [];
   const modalEntryDrawings = modalEntry ? drawings.filter(d => d.entry_id === modalEntry.id) : [];
 
   const kicker = [ts('desktop.kicker'), client?.name].filter(Boolean).join(' · ');
@@ -1447,6 +1448,7 @@ export default function SurveyDetailDesktop() {
           canEdit={canEditEntry(modalEntry)}
           enqueue={canAdd ? enqueue : undefined}
           mediaItems={modalEntryMedia}
+          pendingQueue={uploadQueue.filter(q => q.meta?.entryId === modalEntry.id && q.status !== 'done')}
         />
       )}
 
