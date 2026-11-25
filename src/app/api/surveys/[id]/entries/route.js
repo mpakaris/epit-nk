@@ -3,13 +3,14 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { checkSurveyAccess } from '@/lib/surveyAccess';
 import { logAudit } from '@/lib/audit';
 import { checkCollectiveStatus } from '@/lib/collectiveGuard';
+import { checkSectionLimit } from '@/lib/subscriptionLimits';
 
 async function getCtx(surveyId) {
   const supabase = await createClient();
   const { data: { user }, error } = await supabase.auth.getUser();
   if (error || !user) return { err: 'Unauthenticated', status: 401 };
   const admin = createAdminClient();
-  const { data: profile } = await admin.from('profiles').select('id, role, display_name').eq('id', user.id).single();
+  const { data: profile } = await admin.from('profiles').select('id, role, display_name, is_subscription_premium, subscription_tier, trial_ends_at').eq('id', user.id).single();
   if (!profile) return { err: 'Forbidden', status: 403 };
   const { data: survey } = await admin.from('surveys').select('*').eq('id', surveyId).is('deleted_at', null).single();
   if (!survey) return { err: 'Not found', status: 404 };
@@ -25,14 +26,18 @@ export async function POST(request, { params }) {
   const ctx = await getCtx(surveyId);
   if (ctx.err) return Response.json({ error: ctx.err }, { status: ctx.status });
 
+  if (ctx.profile.role !== 'superadmin' && ctx.survey.is_read_only)
+    return Response.json({ error: 'Ez a dokumentum csak olvasható. Prémium csomagra váltva újra szerkeszthetővé válik.', read_only: true }, { status: 403 });
+
   const statusBlocked = await checkCollectiveStatus(ctx.admin, ctx.survey.collective_id);
   if (statusBlocked) return statusBlocked;
 
   const { name, description, width_m, length_m, height_m, window_count, door_count, sort_order } = await request.json();
   if (!name?.trim()) return Response.json({ error: 'A hely neve kötelező' }, { status: 400 });
 
-  const { count } = await ctx.admin.from('survey_entries').select('id', { count: 'exact', head: true }).eq('survey_id', surveyId);
-  if (count >= 30) return Response.json({ error: 'Egy felméréshez maximum 30 helyiség adható hozzá.' }, { status: 400 });
+  const secCheck = await checkSectionLimit(ctx.admin, surveyId, 'survey_entries', 'survey_id', ctx.profile, !!ctx.survey.collective_id);
+  if (!secCheck.allowed)
+    return Response.json({ error: `Bázis csomagban felméréshez maximum ${secCheck.limit} helyiség adható hozzá. Váltj Prémiumra a korlátlan használathoz.` }, { status: 403 });
 
   const wNum = width_m  != null && width_m  !== '' ? Number(width_m)  : null;
   const lNum = length_m != null && length_m !== '' ? Number(length_m) : null;

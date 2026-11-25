@@ -11,7 +11,7 @@ import { WorkspaceNotActivatedBanner, WorkspaceFrozenBanner } from '@/components
 import WorkspacePodStack from '@/components/desktop/WorkspacePodStack';
 import DashboardWeekCalendar from './DashboardWeekCalendar';
 import {
-  Bell, Plus, X,
+  Bell, Plus, X, AlertTriangle,
   Ruler, FileText, FolderKanban,
   Receipt, Hammer, BookOpen,
   TrendingUp, UsersRound,
@@ -313,6 +313,22 @@ export default function DashboardDesktop({
           {activeColl?.status !== 'not_activated' && <>
 
           {activeColl?.status === 'frozen' && <WorkspaceFrozenBanner isOwner={activeColl?.role === 'owner'} />}
+
+          {/* Payment grace period warning */}
+          {(() => {
+            const g = user?.subscription_grace_until;
+            if (!g) return null;
+            const daysLeft = Math.max(0, Math.ceil((new Date(g) - Date.now()) / 86400000));
+            if (daysLeft <= 0) return null;
+            return (
+              <BannerCard icon={AlertTriangle} iconBg="#D97706"
+                title={t('graceWarningTitle')}
+                meta={t('graceWarningMsg', { days: daysLeft })}
+                btnLabel={t('graceWarningBtn')}
+                onClick={() => router.push(p('/elofizetes'))}
+              />
+            );
+          })()}
 
           {/* Banners */}
           {(pendingInvitations.length > 0 || pendingTransfers.length > 0) && (

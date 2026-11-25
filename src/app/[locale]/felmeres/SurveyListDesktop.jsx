@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useApp } from '@/context/AppContext';
 import { formatDate } from '@/lib/constants';
+import { isEffectivePremium } from '@/lib/subscriptionLimits';
 import Modal from '@/components/Modal';
 import { WorkspaceNotActivatedBanner, WorkspaceFrozenBanner } from '@/components/desktop/WorkspaceStatusBanners';
 import TransferToCollectiveModal from '@/components/TransferToCollectiveModal';
@@ -33,6 +34,7 @@ function fmtArea(m2) {
 
 export default function SurveyListDesktop() {
   const t = useTranslations('surveys');
+  const tCommon = useTranslations('common');
   const router = useRouter();
   const {
     surveys, clients, quotes,
@@ -45,6 +47,7 @@ export default function SurveyListDesktop() {
 
   const activeColl = (collectives || []).find(c => c.collective_id === activeCollectiveId);
 
+  const atCreateLimit = !activeCollectiveId && !isEffectivePremium(currentUser || {}) && (surveys || []).length >= 1;
 
   const [search, setSearch]           = useState('');
   const [filter, setFilter]           = useState('all');
@@ -175,9 +178,14 @@ export default function SurveyListDesktop() {
               style={{ paddingLeft: 42, width: '100%', borderRadius: 23, height: 44 }}
             />
           </label>
-          <button className="dk-btn dk-btn-w" onClick={() => router.push(p('/felmeres/uj'))}>
+          <button
+            className="dk-btn dk-btn-w"
+            onClick={() => atCreateLimit ? router.push(p('/elofizetes')) : router.push(p('/felmeres/uj'))}
+            title={atCreateLimit ? tCommon('basicCreateLimit') : undefined}
+            style={atCreateLimit ? { opacity: 0.65 } : undefined}
+          >
             <Plus size={20} aria-hidden="true" />
-            {t('new')}
+            {atCreateLimit ? tCommon('upgradeCta') : t('new')}
           </button>
         </div>
       </header>
@@ -373,7 +381,7 @@ export default function SurveyListDesktop() {
                           {t('desktop.transferAction')}
                         </button>
                       )}
-                      {isOwner(selectedSurvey) && (
+                      {isOwner(selectedSurvey) && !selectedSurvey?.is_seed && (
                         <button
                           className="dk-btn"
                           onClick={() => setDeleteOpen(true)}

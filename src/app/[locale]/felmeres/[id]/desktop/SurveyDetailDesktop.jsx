@@ -17,6 +17,7 @@ import InlineUpload from '../components/InlineUpload';
 import PageSpinner from '@/components/PageSpinner';
 import { processMediaFile } from '@/lib/mediaGate';
 import { useUploadQueue } from '@/hooks/useUploadQueue';
+import ReadOnlyBanner from '@/components/ReadOnlyBanner';
 import {
   Plus, Trash2, FileText, Check, Loader2, AlertCircle,
   RefreshCw, CheckCircle2, Edit3, X, Copy, Clipboard,
@@ -619,7 +620,7 @@ function MeasurementsBar({ entry, surveyId, canEdit, enqueue, mediaItems }) {
             <div style={{ marginTop: 22 }}>
               <InlineUpload surveyId={surveyId} entryId={entry.id} mediaType="photo"
                 label={td('desktop.detailPhotosBtn', { count: photoCount })}
-                enqueue={enqueue} />
+                enqueue={enqueue} photoCount={photoCount} />
             </div>
           )}
         </div>
@@ -1103,9 +1104,10 @@ export default function SurveyDetailDesktop() {
   const isKollektivOwner = myCollectiveRole === 'owner' || myCollectiveRole === 'admin';
   const isCollMember     = !!myCollectiveRole;
   const isDocLocked      = !!survey.locked_reason;
-  const canAdd           = !isDocLocked && (isOwner || isCollMember);
-  const canEditMeta      = !isDocLocked && (isKollektivOwner || isOwner);
-  const canEditEntry     = (entry) => !isDocLocked && (isKollektivOwner || entry.created_by === currentUser?.id);
+  const isReadOnly       = !!survey.is_read_only;
+  const canAdd           = !isDocLocked && !isReadOnly && (isOwner || isCollMember);
+  const canEditMeta      = !isDocLocked && !isReadOnly && (isKollektivOwner || isOwner);
+  const canEditEntry     = (entry) => !isDocLocked && !isReadOnly && (isKollektivOwner || entry.created_by === currentUser?.id);
 
   // Totals for header counters
   const totalItems = allItems.length;
@@ -1233,6 +1235,7 @@ export default function SurveyDetailDesktop() {
           </div>
         ) : (
           <>
+            {isReadOnly && <ReadOnlyBanner />}
             {/* ── Top bar: search + add section (right-aligned) ───────────────── */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 10 }}>
               <label style={{ position: 'relative', display: 'block', width: 280 }}>
@@ -1310,7 +1313,7 @@ export default function SurveyDetailDesktop() {
           {[
             { label: ts('desktop.detailEditClient'), icon: Edit3, onClick: () => { setShowMenu(false); setShowMetaDrawer(true); } },
             { label: ts('desktop.createQuote'), icon: FileText, onClick: () => { setShowMenu(false); router.push(p(`/ajanlatok/uj?from_survey=${id}`)); } },
-            { label: t('deleteBtn'), icon: Trash2, danger: true, onClick: () => { setShowMenu(false); handleDeleteSurvey(); } },
+            ...(!survey.is_seed ? [{ label: t('deleteBtn'), icon: Trash2, danger: true, onClick: () => { setShowMenu(false); handleDeleteSurvey(); } }] : []),
           ].map(action => (
             <button key={action.label} className="dk-sr"
               onClick={action.onClick}

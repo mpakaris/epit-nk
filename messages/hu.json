@@ -31,7 +31,12 @@
     "notFound": "Nem található",
     "collectiveBannerTitle": "Kollektíva munkaterületen dolgozol{name}.",
     "collectiveBannerBody": "Az itt létrehozott tartalom automatikusan megosztódik a kollektíva összes tagjával.",
-    "uploading": "Feltöltés…"
+    "uploading": "Feltöltés…",
+    "readOnlyBannerTitle": "Csak olvasható dokumentum",
+    "readOnlyBannerMsg": "Ez a dokumentum csak olvasható. Prémium csomagra váltva újra szerkeszthetővé válik.",
+    "readOnlyBannerBtn": "Prémium",
+    "upgradeCta": "Prémiumra váltás",
+    "basicCreateLimit": "Bázis csomagban maximum 1 dokumentum hozható létre. Váltj Prémiumra."
   },
   "sidebar": {
     "expand": "Kibontás",
@@ -624,6 +629,7 @@
       "detailMeasCeilLabel": "Mennyezet",
       "detailMeasWallLabel": "Fal (nettó)",
       "detailPhotosBtn": "Fotók ({count})",
+      "photoAtLimit": "Max {limit} fotó (Bázis csomag)",
       "detailActionsTitle": "Műveletek",
       "detailEditClient": "Szerkesztés",
       "detailExportPdf": "Exportálás PDF-be",
@@ -1510,6 +1516,12 @@
     "cancelConfirmTitle": "Kollektíva lemondása",
     "cancelConfirmBody": "Biztosan lemondod a(z) {name} kollektíva előfizetését? A munkaterület {date}-ig aktív marad, utána csak olvasható lesz.",
     "deleteNotActivatedConfirmBody": "Biztosan törlöd a(z) {name} kollektívát? Még nincs rajta adat.",
+    "deleteTransferTitle": "Dokumentumok átvitele?",
+    "deleteTransferBody": "Átmásoljuk a kollektíva dokumentumait a személyes munkaterületedre? Az átvitt dokumentumok csak olvashatók lesznek — ez visszavonhatatlan.",
+    "deleteTransferYes": "Átvitel személyes munkaterületre",
+    "deleteTransferYesNote": "A dokumentumok megmaradnak csak olvasható formában.",
+    "deleteTransferNo": "Dokumentumok törlése",
+    "deleteTransferNoNote": "Minden kollektíva-dokumentum véglegesen törlődik.",
     "includedInPremium": "Prémiumba foglalt",
     "seatsUsage": "{used}/{total} szék",
     "tierXs": "XS — 1 közreműködő",
@@ -1848,7 +1860,10 @@
     "sectionStats": "Statisztikák",
     "sectionCalendar": "Naptár",
     "sectionOverview": "Áttekintés",
-    "sectionActivity": "Legújabb aktivitás"
+    "sectionActivity": "Legújabb aktivitás",
+    "graceWarningTitle": "Fizetési probléma",
+    "graceWarningMsg": "Rendezd a számlázást {days} napon belül, különben az előfizetésed felfüggesztésre kerül.",
+    "graceWarningBtn": "Számlázáshoz"
   },
   "mobile": {
     "floatingNav": {
@@ -3064,7 +3079,7 @@
     "noResults": "Nincs találat",
     "noResultsHint": "Próbáljon más keresési feltételt.",
     "collectiveNudge": "Hozz létre egy kollektívát és oszd meg a felméréseidet.",
-    "surveyLimitReached": "Elérted az ingyenes felmérések korlátját (5). Válts Prémiumra a korlátlan használathoz.",
+    "surveyLimitReached": "Elérted a Bázis csomag felmérés-korlátját (1). Válts Prémiumra a korlátlan használathoz.",
     "surveyDetailKicker": "Felmérés",
     "surveyMenuSub": "Felmérés",
     "createQuoteFromSurvey": "Ajánlat készítése",
@@ -3088,6 +3103,7 @@
     "roomAiSuggest": "AI javaslat",
     "roomAddItem": "Tétel hozzáadása",
     "roomPhotoVideo": "Fotó / videó",
+    "roomPhotoLimitBtn": "Max 3 fotó (Bázis)",
     "roomSketch": "Vázlat",
     "roomEditAction": "Szerkesztés",
     "roomDeleteAction": "Törlés",

@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useApp } from '@/context/AppContext';
 import { PERSONAL_COLOR, podColor } from '@/lib/podColor';
+import { isEffectivePremium } from '@/lib/subscriptionLimits';
 import PageSpinner from '@/components/PageSpinner';
 import { NotifSheet, MessagesSheet, MenuSheet } from '@/components/mobile/pods/Sheets';
 import AudioRecorder from '@/components/AudioRecorder';
@@ -12,6 +13,7 @@ import DrawingPad from '@/components/DrawingPad';
 import useOnline from '@/hooks/useOnline';
 import AnalyzeLayoutSheet from './AnalyzeLayoutSheet';
 import { RoomEditorSheet } from './RoomEditorMobile';
+import ReadOnlyBanner from '@/components/ReadOnlyBanner';
 
 const SURVEY_BG   = '#0A7F72';
 const SURVEY_DEEP = '#121110';
@@ -147,7 +149,10 @@ function MetaSheet({ survey, clients, onSave, onClose }) {
 function RoomCard({ entry, survey, isNewEntry, isOpen, onToggle, onMore, onDims, onItems, enqueue, surveyId, onMediaOpen, onSketchOpen, onAddSketch, drawings = [], itemCount = 0, index = 1 }) {
   const tM = useTranslations('mobilePods');
   const tS = useTranslations('surveyDetail');
+  const { currentUser } = useApp();
   const allMedia = entry.media || [];
+  const photoImgCount = allMedia.filter(m => m.mime_type?.startsWith('image/')).length;
+  const atPhotoLimit  = !isEffectivePremium(currentUser || {}) && photoImgCount >= 3;
   const photoInputRef = useRef(null);
 
   const w = entry.width_m, l = entry.length_m, h = entry.height_m;
@@ -238,9 +243,10 @@ function RoomCard({ entry, survey, isNewEntry, isOpen, onToggle, onMore, onDims,
                 )}
               </button>
               {enqueue && (
-                <button type="button" onClick={() => photoInputRef.current?.click()} style={{ height: 34, border: '1.5px dashed #C9C5BA', borderRadius: 10, background: 'transparent', color: '#5A5F68', fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
-                  {tM('roomPhotoVideo')}
+                <button type="button" onClick={() => !atPhotoLimit && photoInputRef.current?.click()} disabled={atPhotoLimit}
+                  style={{ height: 34, border: '1.5px dashed #C9C5BA', borderRadius: 10, background: 'transparent', color: atPhotoLimit ? '#A0A0A0' : '#5A5F68', fontSize: 12, fontWeight: 700, cursor: atPhotoLimit ? 'default' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, opacity: atPhotoLimit ? 0.6 : 1 }}>
+                  {!atPhotoLimit && <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>}
+                  {atPhotoLimit ? tM('roomPhotoLimitBtn') : tM('roomPhotoVideo')}
                 </button>
               )}
               <input ref={photoInputRef} type="file" accept="image/*,video/*" multiple capture="environment" style={{ display: 'none' }} onChange={e => {
@@ -633,8 +639,9 @@ export default function SurveyDetailMobile() {
   const isKollektivOwner = myCollectiveRole === 'owner' || myCollectiveRole === 'admin';
   const isOwner          = survey.owner_id === currentUser?.id || survey.created_by === currentUser?.id;
   const isDocLocked      = !!survey.locked_reason;
-  const canAdd           = !isDocLocked && (isOwner || !!myCollectiveRole);
-  const canEditMeta      = !isDocLocked && (isKollektivOwner || isOwner);
+  const isReadOnly       = !!survey.is_read_only;
+  const canAdd           = !isDocLocked && !isReadOnly && (isOwner || !!myCollectiveRole);
+  const canEditMeta      = !isDocLocked && !isReadOnly && (isKollektivOwner || isOwner);
 
   const workspaceCol  = collectives?.find(c => c.collective_id === survey.collective_id);
   const workspaceName = workspaceCol ? workspaceCol.name : tM('personal');
@@ -707,7 +714,7 @@ export default function SurveyDetailMobile() {
       label: isArchived ? t('ctxRestore') : t('ctxInactivate'),
       onClick: () => { closeSheet(); setConfirmOp('archive'); setSheet('confirm'); },
     },
-    canEditMeta && {
+    canEditMeta && !survey.is_seed && {
       icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg>,
       label: t('deleteBtn'), onClick: () => { closeSheet(); setConfirmOp('delete'); setSheet('confirm'); },
       danger: true,
@@ -842,6 +849,9 @@ export default function SurveyDetailMobile() {
 
         {/* ── Body ── */}
         <div style={{ padding: '16px 16px 0', display: 'flex', flexDirection: 'column', gap: 14 }}>
+
+          {/* Read-only banner (subscription downgrade) */}
+          {isReadOnly && <ReadOnlyBanner />}
 
           {/* Locked banner */}
           {isDocLocked && (

@@ -3,6 +3,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { sendEmail } from '@/lib/email';
 import { fillTemplate, wrapEmail, EMAIL_TEMPLATES } from '@/lib/emailTemplates';
 import { logAudit } from '@/lib/audit';
+import { checkCollectiveStatus } from '@/lib/collectiveGuard';
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 
@@ -27,6 +28,9 @@ export async function POST(req, { params }) {
   if (!callerMember || !['owner', 'admin'].includes(callerMember.role)) {
     return Response.json({ error: 'You do not have permission to invite members' }, { status: 403 });
   }
+
+  const statusBlocked = await checkCollectiveStatus(admin, id);
+  if (statusBlocked) return statusBlocked;
 
   const { email } = await req.json();
   const normalizedEmail = email?.trim().toLowerCase();
@@ -66,10 +70,12 @@ export async function POST(req, { params }) {
   }
 
   // Seat limit check — only for new invitations (not resends of existing pending ones)
-  // Inclusive collectives: max 2 non-owner seats (owner + 2 = 3 total)
-  const TIER_SEAT_LIMITS = { small: 3, medium: 6, large: 9 };
+  // Inclusive XS: owner + 1 collaborator = 1 non-owner seat.
+  // Paid tiers: 's'=3, 'm'=6, 'l'=9 non-owner seats (matches pricing_config).
+  const TIER_SEAT_LIMITS = { xs: 1, s: 3, m: 6, l: 9 };
   const { data: collective } = await admin.from('collectives').select('collective_tier, is_inclusive').eq('id', id).single();
-  const seatLimit = collective?.is_inclusive ? 2 : TIER_SEAT_LIMITS[collective?.collective_tier];
+  const tier = collective?.collective_tier ?? (collective?.is_inclusive ? 'xs' : null);
+  const seatLimit = tier ? TIER_SEAT_LIMITS[tier] : undefined;
 
   if (seatLimit !== undefined) {
     const { data: existingPending } = await admin
@@ -90,7 +96,7 @@ export async function POST(req, { params }) {
       const usedSeats = (activeCount ?? 0) + (pendingCount ?? 0);
       if (usedSeats >= seatLimit) {
         const msg = collective?.is_inclusive
-          ? `Az inkluzív kollektíva maximum 3 tagot támogat (${usedSeats} hely foglalt). Távolíts el egy tagot, vagy hozz létre fizetős kollektívát.`
+          ? `Az inkluzív XS kollektíva csak 1 közreműködőt támogat (${usedSeats} hely foglalt). Távolíts el egy tagot, vagy válts nagyobb csomagra a Előfizetés oldalon.`
           : `Elérted a(z) ${seatLimit} férőhelyes korlátot (${usedSeats} foglalt hely). Bővítsd a csomagot, vagy távolíts el egy tagot.`;
         return Response.json({ error: msg, seat_limit_reached: true }, { status: 403 });
       }

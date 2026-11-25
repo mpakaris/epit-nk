@@ -31,8 +31,12 @@ export async function renameCollective(id, name) {
   return { ok: res.ok, data: await res.json() };
 }
 
-export async function deleteCollective(id) {
-  const res = await fetch(`/api/collectives/${id}`, { method: 'DELETE' });
+export async function deleteCollective(id, transferDocs = false) {
+  const res = await fetch(`/api/collectives/${id}`, {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ transfer_docs: transferDocs }),
+  });
   return { ok: res.ok, data: await res.json() };
 }
 

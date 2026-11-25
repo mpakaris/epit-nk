@@ -13,6 +13,7 @@ import { useApp } from '@/context/AppContext';
 import { useTransferRequests } from '@/hooks/useTransferRequests';
 import { normalizeHU } from '@/lib/utils';
 import { formatMoney, formatDate } from '@/lib/constants';
+import { isEffectivePremium } from '@/lib/subscriptionLimits';
 import { podColor } from '@/lib/podColor';
 import useOnline from '@/hooks/useOnline';
 
@@ -136,7 +137,7 @@ function ActionSheet({ quote, isOwner, canTransfer, hasPending, onOpen, onPdf, o
         <SheetRow icon={<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M9 9h11v11H9zM5 15V4h11"/></svg>} label={t('actionCopy')} onClick={onCopy} />
         {canTransfer && <SheetRow icon={<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M9 8a3 3 0 106 0 3 3 0 10-6 0M3 20c0-3 2.7-5 6-5M21 20c0-3-2.7-5-6-5M7 20c0-2.2 2.2-4 5-4s5 1.8 5 4"/></svg>} label={t('offerTransfer')} onClick={onTransfer} />}
         {hasPending && <SheetRow icon={<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M9 14L4 9l5-5M4 9h11a5 5 0 010 10h-3"/></svg>} label={t('offerRevokeTransfer')} onClick={onRevoke} />}
-        {isOwner && <SheetRow icon={<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M5 7h14M10 7V4h4v3M7 7l1 13h8l1-13"/></svg>} label={t('actionDelete')} onClick={onDelete} danger />}
+        {isOwner && !quote?.is_seed && <SheetRow icon={<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M5 7h14M10 7V4h4v3M7 7l1 13h8l1-13"/></svg>} label={t('actionDelete')} onClick={onDelete} danger />}
         {noDelete && <span style={{ fontSize: 13, fontWeight: 600, color: '#5A5F68', padding: '0 4px', lineHeight: 1.4 }}>{t('offerMemberCannotDelete')}</span>}
       </div>
     </>
@@ -186,6 +187,7 @@ export default function OfferListMobile() {
     userCurrency, activeCollectiveId, refreshSupabaseData, setActiveContext,
   } = useApp();
   const activeColl = (userMemberships || []).find(c => c.collective_id === activeCollectiveId);
+  const atCreateLimit = !activeCollectiveId && !isEffectivePremium(currentUser || {}) && (quotes || []).filter(q => !q.collective_id && !q.deleted_at).length >= 1;
 
   const navPrefix = isDemoMode ? '/demo' : '';
   const p = useCallback((path) => `${navPrefix}${path}`, [navPrefix]);
@@ -360,7 +362,7 @@ export default function OfferListMobile() {
       {/* Dock */}
       <Dock
         activeTab="quotes"
-        onCreatePress={() => router.push(p('/ajanlatok/uj'))}
+        onCreatePress={() => atCreateLimit ? router.push(p('/elofizetes')) : router.push(p('/ajanlatok/uj'))}
         activePodColor={{ plusBg: '#6D3FD1', plusFg: '#FFFFFF' }}
         onMessages={() => setActiveSheet('messages')}
         onNotifications={() => setActiveSheet('notif')}

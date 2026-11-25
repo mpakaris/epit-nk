@@ -7,6 +7,7 @@ import { useApp } from '@/context/AppContext';
 import { useTransferRequests } from '@/hooks/useTransferRequests';
 import { normalizeHU } from '@/lib/utils';
 import { PERSONAL_COLOR, podColor } from '@/lib/podColor';
+import { isEffectivePremium } from '@/lib/subscriptionLimits';
 import useOnline from '@/hooks/useOnline';
 
 import PageHeader from '@/components/mobile/pods/PageHeader';
@@ -137,7 +138,7 @@ function ActionSheet({ survey, isOwner, canTransfer, hasPending, onOpen, onTrans
         </button>
       )}
 
-      {isOwner ? (
+      {isOwner && !survey?.is_seed ? (
         <button onClick={onDelete} style={{ width: '100%', minHeight: 60, boxSizing: 'border-box', padding: '10px 14px', border: 0, borderRadius: 22, background: '#fff', color: '#B71C1C', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 12, fontSize: 16, fontWeight: 700, boxShadow: '0 1px 0 rgba(14,17,22,0.05), 0 12px 22px -18px rgba(14,17,22,0.35)', cursor: 'pointer' }}>
           <span style={{ flexShrink: 0, width: 44, height: 44, borderRadius: 15, background: '#FDECEC', color: '#B71C1C', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg>
@@ -145,7 +146,7 @@ function ActionSheet({ survey, isOwner, canTransfer, hasPending, onOpen, onTrans
           {t('deleteAction')}
         </button>
       ) : (
-        <span style={{ fontSize: 13, fontWeight: 600, color: '#5A5F68', padding: '0 4px' }}>{t('deleteOwnerOnly')}</span>
+        !survey?.is_seed && <span style={{ fontSize: 13, fontWeight: 600, color: '#5A5F68', padding: '0 4px' }}>{t('deleteOwnerOnly')}</span>
       )}
     </div>
   );
@@ -227,6 +228,7 @@ export default function SurveyListMobile() {
   } = useApp();
   const activeColl = (collectives || []).find(c => c.collective_id === activeCollectiveId);
   const p = (path) => isDemoMode ? `/demo${path}` : path;
+  const atCreateLimit = !activeCollectiveId && !isEffectivePremium(currentUser || {}) && (surveys || []).filter(s => !s.collective_id).length >= 1;
 
   const [activePodId, setActivePodId] = useState('personal');
   const [search, setSearch] = useState('');
@@ -418,7 +420,7 @@ export default function SurveyListMobile() {
 
       {/* Dock */}
       <Dock
-        onCreatePress={() => router.push(p('/felmeres/uj'))}
+        onCreatePress={() => atCreateLimit ? router.push(p('/elofizetes')) : router.push(p('/felmeres/uj'))}
         activePodColor={{ plusBg: '#0A7F72', plusFg: '#FFFFFF' }}
         activePodName={activeWs?.name}
         activeTab="surveys"

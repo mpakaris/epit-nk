@@ -63,8 +63,8 @@ export function useCollectives() {
       return result;
     },
 
-    async remove(id) {
-      const result = await deleteCollective(id);
+    async remove(id, transferDocs = false) {
+      const result = await deleteCollective(id, transferDocs);
       if (result.ok) { await refresh(); refreshCollectives(); }
       return result;
     },

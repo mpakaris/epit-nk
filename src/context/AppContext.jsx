@@ -228,6 +228,7 @@ export function AppProvider({ children }) {
             subscription_tier: profile?.subscription_tier ?? 'basic',
             trial_started_at: profile?.trial_started_at ?? null,
             trial_ends_at: profile?.trial_ends_at ?? null,
+            subscription_grace_until: profile?.subscription_grace_until ?? null,
             default_tax_percent: profile?.default_tax_percent ?? 27,
             locale:   profile?.locale   || null,
             currency: profile?.currency || null,
@@ -502,10 +503,11 @@ export function AppProvider({ children }) {
             if (!profile) return;
             setCurrentUser(prev => prev ? {
               ...prev,
-              is_subscription_premium: profile.is_subscription_premium ?? false,
+              is_subscription_premium:  profile.is_subscription_premium ?? false,
               subscription_tier:        profile.subscription_tier ?? 'basic',
               trial_started_at:         profile.trial_started_at ?? null,
               trial_ends_at:            profile.trial_ends_at ?? null,
+              subscription_grace_until: profile.subscription_grace_until ?? null,
               display_name:             profile.display_name || prev.display_name,
               must_change_password:     profile.must_change_password ?? false,
               locale:                   profile.locale   || prev.locale,

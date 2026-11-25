@@ -398,7 +398,7 @@ export default function KollektivakMobile() {
     const result = await actions.create(createName.trim());
     setCreating(false);
     if (!result.ok) {
-      if (result.data?.error === 'PREMIUM_REQUIRED') { router.push('/elofizetes'); return; }
+      if (result.data?.code === 'PREMIUM_REQUIRED') { router.push('/elofizetes'); return; }
       setCreateError(result.data?.error || t('createError'));
       return;
     }

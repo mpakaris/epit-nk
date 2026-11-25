@@ -10,6 +10,7 @@ import { formatMoney, formatDate, QUOTE_ENTRY_TYPES, QUANTITY_UNITS, LABOUR_UNIT
 import { podColor } from '@/lib/podColor';
 import Modal, { ConfirmModal, AlertModal } from '@/components/Modal';
 import LockedDocumentModal from '@/components/LockedDocumentModal';
+import ReadOnlyBanner from '@/components/ReadOnlyBanner';
 import StatusBadge from '@/components/StatusBadge';
 import CollectiveBanner from '@/components/CollectiveBanner';
 import ClientSelect from '@/components/ClientSelect';
@@ -333,7 +334,8 @@ export default function OfferDetailDesktop() {
   const convertCollectiveName = collectives?.find(c => c.collective_id === quote.collective_id)?.name || null;
   const isCollMember     = !!(quote.collective_id && collectives?.some(c => c.collective_id === quote.collective_id));
   const isDocLocked   = !!quote.locked_reason;
-  const canModify     = !isDocLocked && (isQuoteOwner || isKollektivOwner || (quote.shared_with || []).includes(currentUser?.id) || isCollMember);
+  const isReadOnly    = !!quote.is_read_only;
+  const canModify     = !isDocLocked && !isReadOnly && (isQuoteOwner || isKollektivOwner || (quote.shared_with || []).includes(currentUser?.id) || isCollMember);
   const isLocked      = quote.status === 'accepted' || quote.status === 'rejected';
   const canEdit       = canModify && !isLocked;
   const isPendingOutgoingTransfer = outgoingTransfers.some(t => t.document_id === id && t.status === 'pending');
@@ -901,6 +903,8 @@ export default function OfferDetailDesktop() {
           <>
             <CollectiveBanner documentCollectiveId={quote.collective_id ?? null} />
 
+            {isReadOnly && <ReadOnlyBanner />}
+
             {isDocLocked && !lockedModalOpen && (
               <div style={{ padding: '0.75rem 1rem', marginBottom: '0.75rem', borderRadius: 'var(--radius-md)', background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
                 <span style={{ fontSize: '0.85rem', color: 'var(--danger-text)', fontWeight: 600 }}>{t('locked')}</span>
@@ -1205,7 +1209,7 @@ export default function OfferDetailDesktop() {
                     </button>
 
                     {/* Delete */}
-                    {canModify && (isQuoteOwner || isKollektivOwner) && (
+                    {canModify && (isQuoteOwner || isKollektivOwner) && !quote?.is_seed && (
                       <button className="dk-btn" onClick={handleDeleteQuote} style={{ width: '100%', justifyContent: 'flex-start', background: '#FDECEC', color: '#B71C1C' }}>
                         <Trash2 size={16} /> {t('actionDelete')}
                       </button>

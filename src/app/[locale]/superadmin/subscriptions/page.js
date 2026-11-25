@@ -7,7 +7,7 @@ import { AlertModal } from '@/components/Modal';
 import { formatDate } from '@/lib/constants';
 import {
   ArrowLeft, ShieldCheck, CheckCircle2, Crown, Star,
-  Users, Search, RefreshCw, Building2, UserCheck
+  Users, Search, RefreshCw, Building2
 } from 'lucide-react';
 
 function formatLastLogin(iso) {
@@ -34,9 +34,6 @@ export default function SuperadminSubscriptionsPage() {
   const [alertModal, setAlertModal] = useState(null);
   const [search, setSearch] = useState('');
   const [filterPremium, setFilterPremium] = useState('all');
-
-  // Inline seat editor state: { collectiveId, value }
-  const [editingSeats, setEditingSeats] = useState(null);
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);
@@ -77,28 +74,23 @@ export default function SuperadminSubscriptionsPage() {
     }
   };
 
-  const handleCollectiveTypeToggle = async (collective, currentType) => {
-    const nextType = currentType === 'premium' ? 'seats' : 'premium';
+  const handleCollectiveTierChange = async (collective, newTier) => {
     setUpdatingCollective(collective.id);
     try {
       const res = await fetch('/api/superadmin/subscriptions', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          collectiveId: collective.id,
-          subscription_type: nextType,
-          seat_count: collective.seat_count ?? 1,
-        }),
+        body: JSON.stringify({ collectiveId: collective.id, collective_tier: newTier }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       setUsers(prev => prev.map(u => ({
         ...u,
         owned_collectives: u.owned_collectives.map(c =>
-          c.id === collective.id ? { ...c, subscription_type: nextType } : c
+          c.id === collective.id ? { ...c, collective_tier: newTier } : c
         ),
       })));
-      setSuccessMsg(`${collective.name} — type: ${nextType === 'premium' ? 'Premium' : 'Seats'}`);
+      setSuccessMsg(`${collective.name} — tier: ${newTier.toUpperCase()}`);
       setTimeout(() => setSuccessMsg(''), 3000);
     } catch (err) {
       setAlertModal({ message: err.message });
@@ -107,35 +99,28 @@ export default function SuperadminSubscriptionsPage() {
     }
   };
 
-  const handleSeatCountSave = async (collective, newCount) => {
-    const seats = parseInt(newCount, 10);
-    if (!seats || seats < 1) { setEditingSeats(null); return; }
+  const handleCollectiveStatusChange = async (collective, newStatus) => {
     setUpdatingCollective(collective.id);
     try {
       const res = await fetch('/api/superadmin/subscriptions', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          collectiveId: collective.id,
-          subscription_type: 'seats',
-          seat_count: seats,
-        }),
+        body: JSON.stringify({ collectiveId: collective.id, status: newStatus }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       setUsers(prev => prev.map(u => ({
         ...u,
         owned_collectives: u.owned_collectives.map(c =>
-          c.id === collective.id ? { ...c, seat_count: seats } : c
+          c.id === collective.id ? { ...c, status: newStatus } : c
         ),
       })));
-      setSuccessMsg(`${collective.name} — ${seats} seats saved`);
+      setSuccessMsg(`${collective.name} — status: ${newStatus}`);
       setTimeout(() => setSuccessMsg(''), 3000);
     } catch (err) {
       setAlertModal({ message: err.message });
     } finally {
       setUpdatingCollective(null);
-      setEditingSeats(null);
     }
   };
 
@@ -241,8 +226,8 @@ export default function SuperadminSubscriptionsPage() {
                 <th className="hide-mobile">Last login</th>
                 <th className="hide-mobile">Registered</th>
                 <th style={{ textAlign: 'center' }}>Personal</th>
-                <th style={{ textAlign: 'center' }}>Collective type</th>
-                <th style={{ textAlign: 'center' }}>Seats</th>
+                <th style={{ textAlign: 'center' }}>Collective tier</th>
+                <th style={{ textAlign: 'center' }}>Collective status</th>
               </tr>
             </thead>
             <tbody>
@@ -287,74 +272,38 @@ export default function SuperadminSubscriptionsPage() {
                       </button>
                     </td>
 
-                    {/* Collective subscription type */}
+                    {/* Collective tier */}
                     <td style={{ textAlign: 'center' }}>
                       {collective ? (
                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.25rem' }}>
                           <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={collective.name}>
                             {collective.name}
                           </div>
-                          <button
-                            type="button"
-                            onClick={() => handleCollectiveTypeToggle(collective, collective.subscription_type)}
+                          <select
+                            value={collective.collective_tier || 'xs'}
+                            onChange={e => handleCollectiveTierChange(collective, e.target.value)}
                             disabled={isUpdatingC}
-                            className={collective.subscription_type === 'seats' ? 'btn btn-sm' : 'btn btn-secondary btn-sm'}
-                            style={collective.subscription_type === 'seats' ? {
-                              background: 'linear-gradient(135deg, #7c3aed, #4f46e5)',
-                              color: '#fff',
-                              border: 'none',
-                              gap: '0.35rem',
-                              fontSize: '0.775rem',
-                              minWidth: '80px',
-                            } : { gap: '0.35rem', fontSize: '0.775rem', minWidth: '80px' }}
+                            style={{ fontSize: '0.78rem', padding: '0.2rem 0.4rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-subtle)', cursor: 'pointer' }}
                           >
-                            <Building2 size={12} />
-                            {isUpdatingC ? '...' : (collective.subscription_type === 'seats' ? 'Seats' : 'Premium')}
-                          </button>
+                            {['xs', 's', 'm', 'l'].map(t => <option key={t} value={t}>{t.toUpperCase()}</option>)}
+                          </select>
                         </div>
                       ) : (
                         <span style={{ color: 'var(--text-muted)', fontSize: '0.82rem' }}>—</span>
                       )}
                     </td>
 
-                    {/* Seats */}
+                    {/* Collective status */}
                     <td style={{ textAlign: 'center' }}>
-                      {collective && collective.subscription_type === 'seats' ? (
-                        editingSeats?.collectiveId === collective.id ? (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', justifyContent: 'center' }}>
-                            <input
-                              type="number"
-                              min={1}
-                              max={99}
-                              value={editingSeats.value}
-                              onChange={e => setEditingSeats(s => ({ ...s, value: e.target.value }))}
-                              onKeyDown={e => {
-                                if (e.key === 'Enter') handleSeatCountSave(collective, editingSeats.value);
-                                if (e.key === 'Escape') setEditingSeats(null);
-                              }}
-                              autoFocus
-                              style={{ width: 52, padding: '0.2rem 0.35rem', fontSize: '0.82rem', textAlign: 'center', borderRadius: 'var(--radius-sm)', border: '1px solid var(--accent-border)' }}
-                            />
-                            <button
-                              type="button"
-                              className="btn btn-primary btn-sm"
-                              style={{ padding: '0.2rem 0.45rem', fontSize: '0.75rem' }}
-                              onClick={() => handleSeatCountSave(collective, editingSeats.value)}
-                              disabled={isUpdatingC}
-                            >
-                              <UserCheck size={12} />
-                            </button>
-                          </div>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => setEditingSeats({ collectiveId: collective.id, value: String(collective.seat_count ?? 1) })}
-                            style={{ background: 'none', border: '1px dashed var(--border-subtle)', borderRadius: 'var(--radius-sm)', padding: '0.2rem 0.6rem', cursor: 'pointer', fontSize: '0.82rem', color: 'var(--text-primary)', fontWeight: 700 }}
-                            title="Click to edit"
-                          >
-                            {collective.seat_count ?? 1}
-                          </button>
-                        )
+                      {collective ? (
+                        <select
+                          value={collective.status || 'active'}
+                          onChange={e => handleCollectiveStatusChange(collective, e.target.value)}
+                          disabled={isUpdatingC}
+                          style={{ fontSize: '0.78rem', padding: '0.2rem 0.4rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-subtle)', cursor: 'pointer' }}
+                        >
+                          {['active', 'frozen', 'not_activated'].map(s => <option key={s} value={s}>{s}</option>)}
+                        </select>
                       ) : (
                         <span style={{ color: 'var(--text-muted)', fontSize: '0.82rem' }}>—</span>
                       )}

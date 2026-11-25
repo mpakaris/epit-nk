@@ -112,6 +112,9 @@ export async function PATCH(request, { params }) {
   if (!isOwner && !isSuperAdmin && !isKollektivOwner)
     return Response.json({ error: 'Csak a tulajdonos módosíthatja a projektet.' }, { status: 403 });
 
+  if (!isSuperAdmin && ctx.project.is_read_only)
+    return Response.json({ error: 'Ez a dokumentum csak olvasható. Prémium csomagra váltva újra szerkeszthetővé válik.', read_only: true }, { status: 403 });
+
   // Unlock is a recovery action allowed even on frozen collectives
   if (fields._action !== 'unlock') {
     const statusBlocked = await checkCollectiveStatus(ctx.admin, ctx.project.collective_id);
@@ -228,6 +231,9 @@ export async function DELETE(request, { params }) {
   const isKollektivOwner = ctx.memberRole === 'owner' || ctx.memberRole === 'admin';
   if (!isOwner && !isSuperAdmin && !isKollektivOwner)
     return Response.json({ error: 'Csak a tulajdonos törölheti a projektet.' }, { status: 403 });
+
+  if (!isSuperAdmin && ctx.project.is_seed)
+    return Response.json({ error: 'A mintadokumentum nem törölhető.' }, { status: 403 });
 
   const statusBlockedDel = await checkCollectiveStatus(ctx.admin, ctx.project.collective_id);
   if (statusBlockedDel) return statusBlockedDel;

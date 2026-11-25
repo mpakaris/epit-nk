@@ -42,6 +42,7 @@ import ProjectEditModal from './components/ProjectEditModal';
 import NewExpenseModal from './components/NewExpenseModal';
 import CollectiveChatSection from '@/components/CollectiveChatSection';
 import ProjectDetailMobile from '../mobile/ProjectDetailMobile';
+import ReadOnlyBanner from '@/components/ReadOnlyBanner';
 
 
 export default function ProjectDetailClient({
@@ -263,8 +264,9 @@ export default function ProjectDetailClient({
 
 
   const isDocLocked      = !!project.locked_reason;
+  const isReadOnly       = !!project.is_read_only;
   const isKollektivOwner = collectives?.some(c => c.collective_id === project.collective_id && (c.role === 'owner' || c.role === 'admin'));
-  const canManageProject = !isDocLocked && (isKollektivOwner || project.created_by === currentUser?.id || project.owner_id === currentUser?.id);
+  const canManageProject = !isDocLocked && !isReadOnly && (isKollektivOwner || project.created_by === currentUser?.id || project.owner_id === currentUser?.id);
 
   const [statusReasonModal, setStatusReasonModal] = useState({ open: false, status: null, title: '', prompt: '', reason: '' });
   const [showActionsSheet, setShowActionsSheet] = useState(false);
@@ -577,6 +579,7 @@ export default function ProjectDetailClient({
         ) : (
           <>
             <CollectiveBanner documentCollectiveId={project.collective_id ?? null} />
+            {isReadOnly && <ReadOnlyBanner />}
             {isDocLocked && !lockedModalOpen && (
               <div style={{ padding: '0.75rem 1rem', borderRadius: 'var(--radius-md)', background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
                 <span style={{ fontSize: '0.85rem', color: 'var(--danger-text)', fontWeight: 600, flex: 1 }}>{t('readOnly')}</span>
@@ -1747,14 +1750,18 @@ export default function ProjectDetailClient({
               <span style={{ fontSize: 16, fontWeight: 600 }}>{t('historyLabel')}</span>
             </button>
 
-            {/* Delete */}
-            <div style={{ height: 1, background: '#e2e8f0', margin: '4px 20px' }} />
-            <button type="button" onClick={() => { setShowActionsSheet(false); handleDeleteProject(); }} style={{ display: 'flex', alignItems: 'center', gap: 14, width: '100%', minHeight: 56, padding: '0 20px', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left' }}>
-              <div style={{ width: 44, height: 44, borderRadius: 12, background: '#fef2f2', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                <Trash2 size={20} strokeWidth={1.75} color="#b91c1c" />
-              </div>
-              <span style={{ fontSize: 16, fontWeight: 600, color: '#b91c1c' }}>{t('deleteLabel')}</span>
-            </button>
+            {/* Delete — hidden for seed documents */}
+            {!project?.is_seed && (
+              <>
+                <div style={{ height: 1, background: '#e2e8f0', margin: '4px 20px' }} />
+                <button type="button" onClick={() => { setShowActionsSheet(false); handleDeleteProject(); }} style={{ display: 'flex', alignItems: 'center', gap: 14, width: '100%', minHeight: 56, padding: '0 20px', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left' }}>
+                  <div style={{ width: 44, height: 44, borderRadius: 12, background: '#fef2f2', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <Trash2 size={20} strokeWidth={1.75} color="#b91c1c" />
+                  </div>
+                  <span style={{ fontSize: 16, fontWeight: 600, color: '#b91c1c' }}>{t('deleteLabel')}</span>
+                </button>
+              </>
+            )}
           </div>
         </>
       )}

@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { logAudit } from '@/lib/audit';
 import { resolveEffectiveUserId } from '@/lib/godMode';
+import { applyDowngradeLock } from '@/lib/downgradeLock';
 
 export async function GET(request) {
   const supabase = await createClient();
@@ -45,6 +46,19 @@ export async function GET(request) {
   }
 
   if (!profile) return Response.json({ error: 'Profile not found' }, { status: 404 });
+
+  // Lazy trial expiry: if still showing 'trial' but trial_ends_at has passed, apply downgrade lock now
+  if (
+    profile.subscription_tier === 'trial' &&
+    profile.trial_ends_at &&
+    new Date(profile.trial_ends_at) < new Date() &&
+    effectiveUserId === user.id  // never auto-downgrade an impersonated user mid-session
+  ) {
+    await applyDowngradeLock(user.id, admin);
+    // Re-fetch the updated profile so the response reflects the new tier
+    const { data: updated } = await admin.from('profiles').select('*').eq('id', user.id).maybeSingle();
+    if (updated) profile = updated;
+  }
 
   // Return collective memberships for the context switcher
   const { data: membershipsRaw } = await admin

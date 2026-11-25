@@ -172,6 +172,7 @@ export default function ProjectsListMobile() {
     activeCollectiveId, setActiveContext,
   } = useApp();
   const activeColl = (userMemberships || []).find(c => c.collective_id === activeCollectiveId);
+  const atCreateLimit = !activeCollectiveId && !isEffectivePremium(currentUser || {}) && (projects || []).filter(pr => !pr.collective_id && !pr.deleted_at).length >= 1;
 
   const navPrefix = isDemoMode ? '/demo' : '';
   const p = useCallback((path) => `${navPrefix}${path}`, [navPrefix]);
@@ -283,7 +284,7 @@ export default function ProjectsListMobile() {
   const memberRole = selectedProject ? getMemberRole(selectedProject) : null;
   const isOwner = selectedProject ? (selectedProject.owner_id === currentUser?.id || selectedProject.created_by === currentUser?.id) : false;
   const isKollektivOwner = memberRole === 'owner' || memberRole === 'admin';
-  const canDelete = isOwner || isKollektivOwner;
+  const canDelete = (isOwner || isKollektivOwner) && !selectedProject?.is_seed;
   const canTransfer = isOwner && !selectedProject?.collective_id && hasCollectives && !isDemoMode && !selectedProject?._hasPending;
   const isTeam = !!selectedProject?.collective_id;
 
@@ -387,7 +388,7 @@ export default function ProjectsListMobile() {
 
       <Dock
         activeTab="projects"
-        onCreatePress={() => router.push(p('/projektek/uj'))}
+        onCreatePress={() => atCreateLimit ? router.push(p('/elofizetes')) : router.push(p('/projektek/uj'))}
         activePodColor={{ plusBg: '#263248', plusFg: '#FFFFFF' }}
       />
 

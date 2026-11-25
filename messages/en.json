@@ -31,7 +31,12 @@
     "notFound": "Not found",
     "collectiveBannerTitle": "You are working in the collective workspace{name}.",
     "collectiveBannerBody": "Content created here is automatically shared with all collective members.",
-    "uploading": "Uploading…"
+    "uploading": "Uploading…",
+    "readOnlyBannerTitle": "Read-only document",
+    "readOnlyBannerMsg": "This document is read-only. Upgrade to Premium to make it editable again.",
+    "readOnlyBannerBtn": "Premium",
+    "upgradeCta": "Upgrade to Premium",
+    "basicCreateLimit": "Basic plan allows 1 document per type. Upgrade to Premium for unlimited."
   },
   "dashboard": {
     "viewAll": "All",
@@ -108,7 +113,10 @@
     "sectionStats": "Statistics",
     "sectionCalendar": "Calendar",
     "sectionOverview": "Overview",
-    "sectionActivity": "Latest activity"
+    "sectionActivity": "Latest activity",
+    "graceWarningTitle": "Payment issue",
+    "graceWarningMsg": "Please resolve your billing within {days} days, or your subscription will be frozen.",
+    "graceWarningBtn": "Go to billing"
   },
   "sidebar": {
     "expand": "Expand",
@@ -701,6 +709,7 @@
       "detailMeasCeilLabel": "Ceiling",
       "detailMeasWallLabel": "Wall (net)",
       "detailPhotosBtn": "Photos ({count})",
+      "photoAtLimit": "Max {limit} photos (Basic plan)",
       "detailActionsTitle": "Actions",
       "detailEditClient": "Edit",
       "detailExportPdf": "Export as PDF",
@@ -1587,6 +1596,12 @@
     "cancelConfirmTitle": "Cancel collective",
     "cancelConfirmBody": "Are you sure you want to cancel the subscription for the {name} collective? The workspace will remain active until {date} and then become read-only.",
     "deleteNotActivatedConfirmBody": "Are you sure you want to delete the {name} collective? It contains no data yet.",
+    "deleteTransferTitle": "Transfer documents?",
+    "deleteTransferBody": "Do you want to copy the collective's documents to your personal workspace? Transferred documents will be permanently read-only — this cannot be undone.",
+    "deleteTransferYes": "Transfer to personal workspace",
+    "deleteTransferYesNote": "Documents will be kept in read-only form.",
+    "deleteTransferNo": "Delete documents",
+    "deleteTransferNoNote": "All collective documents will be permanently deleted.",
     "includedInPremium": "Included in Premium",
     "seatsUsage": "{used}/{total} seats",
     "tierXs": "XS — 1 collaborator",
@@ -3064,7 +3079,7 @@
     "noResults": "No results",
     "noResultsHint": "Try different search criteria.",
     "collectiveNudge": "Create a collective and share your surveys.",
-    "surveyLimitReached": "You've reached the free survey limit (5). Upgrade to Premium for unlimited use.",
+    "surveyLimitReached": "You have reached the Basic plan survey limit (1). Upgrade to Premium for unlimited.",
     "surveyDetailKicker": "Survey",
     "surveyMenuSub": "Survey",
     "createQuoteFromSurvey": "Create Quote",
@@ -3088,6 +3103,7 @@
     "roomAiSuggest": "AI suggest",
     "roomAddItem": "Add item",
     "roomPhotoVideo": "Photo / video",
+    "roomPhotoLimitBtn": "Max 3 photos (Basic)",
     "roomSketch": "Sketch",
     "roomEditAction": "Edit",
     "roomDeleteAction": "Delete",

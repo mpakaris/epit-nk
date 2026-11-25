@@ -19,6 +19,7 @@ import Lightbox from '@/components/Lightbox';
 import HistorySheet from '@/components/mobile/pods/HistorySheet';
 import BottomSheet from '@/components/mobile/BottomSheet';
 import { Paperclip, FileText, Send, Trash2, MoreHorizontal, MessageSquare } from 'lucide-react';
+import ReadOnlyBanner from '@/components/ReadOnlyBanner';
 
 const PROJ_BG   = '#263248';
 const PROJ_DEEP = '#0B0F17';
@@ -309,8 +310,9 @@ export default function ProjectDetailMobile({ projectId }) {
 
   const isOwner = project ? (project.owner_id === currentUser?.id || project.created_by === currentUser?.id) : false;
   const isKollektivOwner = memberRole === 'owner' || memberRole === 'admin';
-  const canOwnerAct = isOwner || isKollektivOwner;
-  const isMember = !!project?.collective_id && !canOwnerAct;
+  const isReadOnly  = !!project?.is_read_only;
+  const canOwnerAct = (isOwner || isKollektivOwner) && !isReadOnly;
+  const isMember = !!project?.collective_id && !(isOwner || isKollektivOwner);
   const isClosed = project?.status === 'closed' || project?.status === 'expired';
 
   const projInvoices = useMemo(() => (invoices || []).filter(inv => inv.project_id === projectId && !inv.deleted_at), [invoices, projectId]);
@@ -865,6 +867,9 @@ export default function ProjectDetailMobile({ projectId }) {
             ))}
           </div>
         </header>
+
+        {/* Read-only banner (subscription downgrade) */}
+        {isReadOnly && <div style={{ padding: '0 16px 0' }}><ReadOnlyBanner /></div>}
 
         {/* Closed banner */}
         {isClosed && (
@@ -1537,7 +1542,7 @@ export default function ProjectDetailMobile({ projectId }) {
               .catch(() => setProjHistory([]))
               .finally(() => setHistLoading(false));
           }} />
-          {canOwnerAct && <SheetRowInline icon="trash" label={t('deleteProject')} onClick={() => setMode('delete')} danger />}
+          {canOwnerAct && !project?.is_seed && <SheetRowInline icon="trash" label={t('deleteProject')} onClick={() => setMode('delete')} danger />}
         </div>
       )}
 

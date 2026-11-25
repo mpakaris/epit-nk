@@ -17,6 +17,7 @@ import QuickClientSheet from './QuickClientSheet';
 import HistorySheet from '@/components/mobile/pods/HistorySheet';
 import DrawingsSection from '@/components/DrawingsSection';
 import { processMediaFile } from '@/lib/mediaGate';
+import ReadOnlyBanner from '@/components/ReadOnlyBanner';
 
 const CARD_SHADOW = 'inset 0 1px 0 #fff, 0 16px 26px -14px rgba(0,0,0,0.70), 0 3px 6px -2px rgba(0,0,0,0.30)';
 
@@ -215,6 +216,7 @@ export default function OfferDetailMobile({ quoteId }) {
   const canOwnerAct = isOwner || isKollektivOwner;
   const isMember = !!quote?.collective_id && !canOwnerAct;
   const isLocked = quote?.status === 'accepted' || quote?.status === 'rejected';
+  const isReadOnly = !!quote?.is_read_only;
 
   const net = useMemo(() => (sections || []).reduce((s, sec) => s + (sec.entries || []).reduce((a, e) => {
     return a + Number(e.amount_huf || 0);
@@ -485,6 +487,9 @@ export default function OfferDetailMobile({ quoteId }) {
 
         <div style={{ padding: '16px 16px 0', display: 'flex', flexDirection: 'column', gap: 14 }}>
 
+          {/* Read-only banner (subscription downgrade) */}
+          {isReadOnly && <ReadOnlyBanner />}
+
           {/* Locked banner */}
           {isLocked && (
             <button onClick={() => setMode('locked')} style={{ minHeight: 64, boxSizing: 'border-box', padding: '12px 16px', border: 0, borderRadius: 22, background: '#FFF1E0', color: '#6B3300', display: 'flex', alignItems: 'center', gap: 12, textAlign: 'left', fontSize: 15, fontWeight: 700, cursor: 'pointer', width: '100%' }}>
@@ -710,7 +715,7 @@ export default function OfferDetailMobile({ quoteId }) {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {sections.map((sec, idx) => {
                 const isMine  = sec.created_by === currentUser?.id;
-                const canEdit = !isLocked && (canOwnerAct || isMine);
+                const canEdit = !isLocked && !isReadOnly && (canOwnerAct || isMine);
                 const secMedia = mediaItems.filter(m => m.owner_type === 'quote_section' && m.owner_id === sec.id && (m.mime_type?.startsWith('image/') || m.mime_type?.startsWith('video/')));
                 const secDrawings = quoteDrawings.filter(d => d.section_id === sec.id);
                 return (
@@ -869,7 +874,7 @@ export default function OfferDetailMobile({ quoteId }) {
               setHistory(j.history || []);
             } catch { /* non-critical */ } finally { setHistLoading(false); }
           }} />
-          {canOwnerAct && <SheetRowInline icon="trash" label={t('actionDelete')} onClick={() => setMode('delete')} danger />}
+          {canOwnerAct && !quote?.is_seed && <SheetRowInline icon="trash" label={t('actionDelete')} onClick={() => setMode('delete')} danger />}
           {isMember && <span style={{ fontSize: 13, fontWeight: 600, color: '#5A5F68', padding: '0 4px', lineHeight: 1.4 }}>{t('offerMemberCannotDelete')}</span>}
         </div>
       )}

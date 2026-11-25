@@ -297,13 +297,24 @@ function CollectivePodCard({
         </div>
       </div>
 
-      {/* Frozen warning */}
+      {/* Frozen warning — inclusive (Premium lapsed) */}
       {isInclusiveFrozen && (
         <div style={{ background: '#FDECEC', borderRadius: 14, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10 }}>
           <AlertCircle size={15} color="#B71C1C" style={{ flexShrink: 0 }} />
           <span style={{ flex: 1, fontSize: 13, fontWeight: 600, color: '#B71C1C' }}>{t('premiumNeeded')}</span>
           <Link href="/elofizetes" style={{ fontSize: 12, fontWeight: 700, color: '#fff', background: '#B71C1C', padding: '4px 10px', borderRadius: 999, textDecoration: 'none', flexShrink: 0 }}>
             {t('restorePremiumLink')}
+          </Link>
+        </div>
+      )}
+
+      {/* Frozen warning — paid collective */}
+      {isFrozen && !isInclusive && (
+        <div style={{ background: '#FDECEC', borderRadius: 14, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10 }}>
+          <AlertCircle size={15} color="#B71C1C" style={{ flexShrink: 0 }} />
+          <span style={{ flex: 1, fontSize: 13, fontWeight: 600, color: '#B71C1C' }}>{t('frozenBannerTitle')}</span>
+          <Link href="/elofizetes" style={{ fontSize: 12, fontWeight: 700, color: '#fff', background: '#B71C1C', padding: '4px 10px', borderRadius: 999, textDecoration: 'none', flexShrink: 0 }}>
+            {t('frozenBannerBtn')}
           </Link>
         </div>
       )}
@@ -529,12 +540,14 @@ export default function KollektivakDesktop() {
   const [respondingTransferId, setRespondingTransferId] = useState(null);
 
   // ── Global modals ─────────────────────────────────────────────────────────
-  const [confirmModal,       setConfirmModal]       = useState(null);
-  const [alertModal,         setAlertModal]         = useState(null);
-  const [deleteModal,        setDeleteModal]        = useState(null);
-  const [deleteInput,        setDeleteInput]        = useState('');
-  const [deleteConfirming,   setDeleteConfirming]   = useState(false);
-  const [deleteBlockedModal, setDeleteBlockedModal] = useState(null); // { name } — active sub blocks delete
+  const [confirmModal,         setConfirmModal]         = useState(null);
+  const [alertModal,           setAlertModal]           = useState(null);
+  const [deleteModal,          setDeleteModal]          = useState(null);
+  const [deleteInput,          setDeleteInput]          = useState('');
+  const [deleteConfirming,     setDeleteConfirming]     = useState(false);
+  const [deleteBlockedModal,   setDeleteBlockedModal]   = useState(null);
+  const [transferChoiceModal,  setTransferChoiceModal]  = useState(null); // { collective } — frozen delete pre-step
+  const [deleteTransferChoice, setDeleteTransferChoice] = useState(false);
 
   if (loading || !dataReady) return <PageSpinner />;
 
@@ -558,7 +571,7 @@ export default function KollektivakDesktop() {
     const result = await actions.create(createName.trim());
     setCreating(false);
     if (!result.ok) {
-      if (result.data?.error === 'PREMIUM_REQUIRED') { router.push('/elofizetes'); return; }
+      if (result.data?.code === 'PREMIUM_REQUIRED') { router.push('/elofizetes'); return; }
       setCreateError(result.data?.error || t('createError'));
       return;
     }
@@ -658,6 +671,11 @@ export default function KollektivakDesktop() {
       setDeleteBlockedModal({ name: collective.name });
       return;
     }
+    // For frozen non-inclusive collectives: show transfer choice first
+    if (collective.status === 'frozen' && !collective.is_inclusive) {
+      setTransferChoiceModal({ collective });
+      return;
+    }
     setDeleteInput('');
     setDeleteModal(collective);
   }
@@ -665,7 +683,7 @@ export default function KollektivakDesktop() {
   async function executeDelete() {
     if (!deleteModal) return;
     setDeleteConfirming(true);
-    const result = await actions.remove(deleteModal.id);
+    const result = await actions.remove(deleteModal.id, deleteTransferChoice);
     setDeleteConfirming(false);
     if (!result.ok) { setAlertModal({ message: result.data?.error }); return; }
     setDeleteModal(null);
@@ -890,6 +908,44 @@ export default function KollektivakDesktop() {
             </button>
           </div>
         </form>
+      </Modal>
+
+      {/* ── Transfer choice modal (shown before type-to-delete for frozen collectives) ── */}
+      <Modal isOpen={!!transferChoiceModal} onClose={() => setTransferChoiceModal(null)} title={t('deleteTransferTitle')}>
+        {transferChoiceModal && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <p style={{ fontSize: 14, color: 'var(--text-secondary)', margin: 0, lineHeight: 1.6 }}>
+              <strong>{transferChoiceModal.collective.name}</strong> — {t('deleteTransferBody')}
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <button
+                type="button"
+                onClick={() => { setDeleteTransferChoice(true); setTransferChoiceModal(null); setDeleteInput(''); setDeleteModal(transferChoiceModal.collective); }}
+                style={{ padding: '14px 16px', border: '2px solid #14532D', borderRadius: 16, background: '#F0FDF4', cursor: 'pointer', textAlign: 'left', display: 'flex', alignItems: 'flex-start', gap: 12 }}
+              >
+                <CheckCircle2 size={18} color="#14532D" style={{ flexShrink: 0, marginTop: 1 }} />
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: 14, color: '#14532D' }}>{t('deleteTransferYes')}</div>
+                  <div style={{ fontSize: 12, color: '#166534', marginTop: 2 }}>{t('deleteTransferYesNote')}</div>
+                </div>
+              </button>
+              <button
+                type="button"
+                onClick={() => { setDeleteTransferChoice(false); setTransferChoiceModal(null); setDeleteInput(''); setDeleteModal(transferChoiceModal.collective); }}
+                style={{ padding: '14px 16px', border: '2px solid #B71C1C', borderRadius: 16, background: '#FFF5F5', cursor: 'pointer', textAlign: 'left', display: 'flex', alignItems: 'flex-start', gap: 12 }}
+              >
+                <Trash2 size={18} color="#B71C1C" style={{ flexShrink: 0, marginTop: 1 }} />
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: 14, color: '#B71C1C' }}>{t('deleteTransferNo')}</div>
+                  <div style={{ fontSize: 12, color: '#B71C1C', marginTop: 2 }}>{t('deleteTransferNoNote')}</div>
+                </div>
+              </button>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <button type="button" className="dk-btn dk-btn-l" onClick={() => setTransferChoiceModal(null)} style={{ height: 44, fontSize: 15 }}>{t('cancel')}</button>
+            </div>
+          </div>
+        )}
       </Modal>
 
       {/* ── Delete modal ── */}

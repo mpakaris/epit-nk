@@ -11,6 +11,7 @@ import { WorkspaceNotActivatedBanner, WorkspaceFrozenBanner } from '@/components
 import TransferToCollectiveModal from '@/components/TransferToCollectiveModal';
 import WorkspacePodStack from '@/components/desktop/WorkspacePodStack';
 import { Search, Plus, Trash2, X, ArrowRightLeft, MoreHorizontal } from 'lucide-react';
+import { isEffectivePremium } from '@/lib/subscriptionLimits';
 
 const GRID = '2.2fr 1.4fr 1.1fr 110px 90px 90px 40px';
 
@@ -21,6 +22,7 @@ function fullDate(dateStr) {
 
 export default function OfferListDesktop() {
   const t = useTranslations('quotes');
+  const tCommon = useTranslations('common');
   const router = useRouter();
   const {
     quotes, clients, users,
@@ -34,6 +36,7 @@ export default function OfferListDesktop() {
 
   const activeColl = (collectives || []).find(c => c.collective_id === activeCollectiveId);
 
+  const atCreateLimit = !activeCollectiveId && !isEffectivePremium(currentUser || {}) && (quotes || []).length >= 1;
 
   const [search, setSearch]           = useState('');
   const [filter, setFilter]           = useState('all');
@@ -139,9 +142,14 @@ export default function OfferListDesktop() {
               style={{ paddingLeft: 42, width: '100%', borderRadius: 23, height: 44 }}
             />
           </label>
-          <button className="dk-btn dk-btn-w" onClick={() => router.push(p('/ajanlatok/uj'))}>
+          <button
+            className="dk-btn dk-btn-w"
+            onClick={() => atCreateLimit ? router.push(p('/elofizetes')) : router.push(p('/ajanlatok/uj'))}
+            title={atCreateLimit ? tCommon('basicCreateLimit') : undefined}
+            style={atCreateLimit ? { opacity: 0.65 } : undefined}
+          >
             <Plus size={20} aria-hidden="true" />
-            {t('new')}
+            {atCreateLimit ? tCommon('upgradeCta') : t('new')}
           </button>
         </div>
       </header>
@@ -309,7 +317,7 @@ export default function OfferListDesktop() {
                           {t('desktop.transferAction')}
                         </button>
                       )}
-                      {isOwner(selectedQuote) && (
+                      {isOwner(selectedQuote) && !selectedQuote?.is_seed && (
                         <button
                           className="dk-btn"
                           onClick={() => setDeleteOpen(true)}

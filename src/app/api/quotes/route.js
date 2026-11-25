@@ -14,7 +14,7 @@ export async function GET(request) {
   const admin = createAdminClient();
   const { data: quotes } = await admin
     .from('quotes')
-    .select('id, title, location, work_type, description, status, collective_id, client_id, created_at, start_date, end_date, deleted_at')
+    .select('id, title, location, work_type, description, status, collective_id, client_id, created_at, start_date, end_date, deleted_at, is_seed, is_read_only')
     .eq('owner_id', user.id)
     .is('collective_id', null)
     .is('deleted_at', null)

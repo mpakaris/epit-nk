@@ -4,10 +4,11 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useApp } from '@/context/AppContext';
+import { podColor, PERSONAL_COLOR } from '@/lib/podColor';
 import {
   LayoutDashboard, Ruler, FileText, FolderKanban, BookUser,
   Calendar, LayoutTemplate, Globe,
-  UsersRound, ChevronRight, CreditCard,
+  UsersRound, ChevronRight, CreditCard, Lock, Snowflake,
 } from 'lucide-react';
 
 /* Per-module nav active background colour */
@@ -55,7 +56,7 @@ function NavLink({ href, icon: Icon, label, active, activeColor }) {
 export default function DesktopSidebar() {
   const t = useTranslations('sidebar');
   const pathname = usePathname();
-  const { currentUser, isDemoMode } = useApp();
+  const { currentUser, isDemoMode, collectives, activeCollectiveId, setActiveContext, contextSwitching } = useApp();
 
   const navPrefix = isDemoMode ? '/demo' : '';
   const moduleKey = getModuleKey(pathname.replace('/demo/', '/').replace('/demo', ''));
@@ -87,11 +88,66 @@ export default function DesktopSidebar() {
     return seg === key;
   }
 
+  const workspaceList = isDemoMode ? [] : (collectives || []);
+
   return (
     <aside className="dk-sd">
       {/* Logo */}
       <div className="dk-logo">
         okosszaki<span style={{ color: '#6F93FF' }}>.</span>
+      </div>
+
+      {/* Workspace pod switcher */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+        <span className="dk-sl">{t('workspaces')}</span>
+
+        {/* Personal workspace */}
+        <button
+          type="button"
+          className="dk-pod"
+          onClick={() => setActiveContext?.(null)}
+          style={{
+            background: PERSONAL_COLOR.deep,
+            outline: !activeCollectiveId ? '2px solid rgba(255,255,255,0.28)' : 'none',
+            outlineOffset: 2,
+            opacity: contextSwitching ? 0.6 : 1,
+          }}
+        >
+          <span style={{ width: 10, height: 10, borderRadius: 5, background: '#2A2F3A', flexShrink: 0 }} />
+          <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 14 }}>
+            {t('personal')}
+          </span>
+        </button>
+
+        {/* Collective pods */}
+        {workspaceList.map(c => {
+          const colors = podColor(c.id);
+          const isActive = activeCollectiveId === c.id;
+          const isLocked = c.status === 'not_activated';
+          const isFrozen = c.status === 'frozen';
+          return (
+            <button
+              key={c.id}
+              type="button"
+              className="dk-pod"
+              onClick={() => !isLocked && setActiveContext?.(c.id)}
+              style={{
+                background: colors.deep,
+                outline: isActive ? '2px solid rgba(255,255,255,0.28)' : 'none',
+                outlineOffset: 2,
+                opacity: (isLocked || isFrozen) ? 0.5 : (contextSwitching ? 0.6 : 1),
+                cursor: isLocked ? 'default' : 'pointer',
+              }}
+            >
+              <span style={{ width: 10, height: 10, borderRadius: 5, background: colors.bg, flexShrink: 0 }} />
+              <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 14 }}>
+                {c.name}
+              </span>
+              {isLocked && <Lock size={13} style={{ flexShrink: 0, opacity: 0.75 }} aria-hidden="true" />}
+              {isFrozen && <Snowflake size={13} style={{ flexShrink: 0, opacity: 0.75 }} aria-hidden="true" />}
+            </button>
+          );
+        })}
       </div>
 
       {/* Navigation */}

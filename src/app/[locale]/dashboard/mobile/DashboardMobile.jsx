@@ -536,6 +536,26 @@ export default function DashboardMobile({ currentUser }) {
           </div>
         )}
 
+        {/* Payment grace period warning */}
+        {(() => {
+          const g = currentUser?.subscription_grace_until;
+          if (!g) return null;
+          const daysLeft = Math.max(0, Math.ceil((new Date(g) - Date.now()) / 86400000));
+          if (daysLeft <= 0) return null;
+          return (
+            <button onClick={() => router.push(p('/elofizetes'))} style={{ padding: '12px 14px', border: 0, textAlign: 'left', cursor: 'pointer', width: '100%', borderRadius: 26, background: '#FFF7E6', color: '#78350F', display: 'flex', alignItems: 'center', gap: 12, boxShadow: CARD_SHADOW }}>
+              <span style={{ flexShrink: 0, width: 44, height: 44, borderRadius: 15, background: '#D97706', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+              </span>
+              <span style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', lineHeight: 1.25 }}>
+                <b style={{ fontSize: 15, color: '#92400E' }}>{tDash('graceWarningTitle')}</b>
+                <span style={{ fontSize: 13, fontWeight: 600, color: '#78350F' }}>{tDash('graceWarningMsg', { days: daysLeft })}</span>
+              </span>
+              <span style={{ flexShrink: 0, height: 40, padding: '0 14px', borderRadius: 20, background: '#92400E', color: '#fff', fontSize: 14, fontWeight: 700, display: 'flex', alignItems: 'center' }}>{tDash('graceWarningBtn')}</span>
+            </button>
+          );
+        })()}
+
         {/* Invitation banner (orange card → opens sheet) */}
         {pendingInvitations.length > 0 && (
           <button

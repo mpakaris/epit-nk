@@ -23,7 +23,7 @@ export async function GET() {
       .order('display_name'),
     admin.auth.admin.listUsers({ perPage: 1000 }),
     admin.from('collective_members')
-      .select('user_id, role, collective_id, collectives(id, name, subscription_type, seat_count)')
+      .select('user_id, role, collective_id, collectives(id, name, collective_tier, status, subscription_status, is_inclusive)')
       .eq('role', 'owner'),
   ]);
 
@@ -137,24 +137,17 @@ export async function PATCH(request) {
     return Response.json({ ok: true });
   }
 
-  // Collective subscription update
+  // Collective update — set tier and/or status
   if (body.collectiveId !== undefined) {
-    const { collectiveId, subscription_type, seat_count } = body;
-    if (!collectiveId || !['premium', 'seats'].includes(subscription_type)) {
-      return Response.json({ error: 'collectiveId and valid subscription_type required' }, { status: 400 });
-    }
-    const update = { subscription_type };
-    if (subscription_type === 'seats') {
-      const seats = parseInt(seat_count, 10);
-      if (!seats || seats < 1) return Response.json({ error: 'seat_count must be >= 1' }, { status: 400 });
-      update.seat_count = seats;
-    }
-    const { error } = await admin
-      .from('collectives')
-      .update(update)
-      .eq('id', collectiveId);
+    const { collectiveId, collective_tier, status } = body;
+    if (!collectiveId) return Response.json({ error: 'collectiveId required' }, { status: 400 });
+    const update = {};
+    if (collective_tier && ['xs', 's', 'm', 'l'].includes(collective_tier)) update.collective_tier = collective_tier;
+    if (status && ['not_activated', 'active', 'frozen'].includes(status)) update.status = status;
+    if (!Object.keys(update).length) return Response.json({ error: 'collective_tier or status required' }, { status: 400 });
+    const { error } = await admin.from('collectives').update(update).eq('id', collectiveId);
     if (error) return Response.json({ error: error.message }, { status: 500 });
-    logAudit({ userId: auth.user.id, userName: auth.caller.display_name || '', action: 'Collective subscription updated by admin', targetType: 'subscription', targetId: collectiveId, details: { subscription_type, seat_count } });
+    logAudit({ userId: auth.user.id, userName: auth.caller.display_name || '', action: 'Collective updated by superadmin', targetType: 'collective', targetId: collectiveId, details: update });
     return Response.json({ ok: true });
   }
 

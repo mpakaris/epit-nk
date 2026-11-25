@@ -77,8 +77,11 @@ export async function DELETE(req, { params }) {
   const role = await getCallerRole(admin, id, user.id);
   if (role !== 'owner') return Response.json({ error: 'Csak a tulajdonos törölheti a kollektívát' }, { status: 403 });
 
+  const body = await req.json().catch(() => ({}));
+  const transferDocs = !!body.transfer_docs;
+
   const [{ data: collectiveData }, { data: callerProfile }, { data: members }] = await Promise.all([
-    admin.from('collectives').select('name, is_inclusive').eq('id', id).single(),
+    admin.from('collectives').select('name, is_inclusive, status').eq('id', id).single(),
     admin.from('profiles').select('display_name, email').eq('id', user.id).single(),
     admin.from('collective_members').select('user_id, profiles(email)').eq('collective_id', id).eq('status', 'active'),
   ]);
@@ -87,17 +90,53 @@ export async function DELETE(req, { params }) {
     return Response.json({ error: 'Az inkluzív kollektíva nem törölhető' }, { status: 403 });
   }
 
-  const { error } = await admin.from('collectives').delete().eq('id', id);
-  if (error) return Response.json({ error: error.message }, { status: 500 });
+  if (collectiveData?.status === 'active') {
+    return Response.json({
+      error: 'Az aktív kollektíva nem törölhető. Először mondd le az előfizetést az Előfizetés oldalon.',
+      active_sub: true,
+    }, { status: 409 });
+  }
+
+  const now = new Date().toISOString();
+
+  if (collectiveData?.status === 'frozen') {
+    if (transferDocs) {
+      // Transfer docs to owner's personal workspace as permanently read-only
+      for (const table of ['surveys', 'quotes', 'projects']) {
+        await admin.from(table)
+          .update({ collective_id: null, is_read_only: true })
+          .eq('collective_id', id).is('deleted_at', null).eq('is_seed', false);
+        // Seed docs in collective: soft-delete (they're tied to the collective)
+        await admin.from(table)
+          .update({ deleted_at: now })
+          .eq('collective_id', id).is('deleted_at', null).eq('is_seed', true);
+      }
+    } else {
+      // Soft-delete all collective documents
+      for (const table of ['surveys', 'quotes', 'projects']) {
+        await admin.from(table).update({ deleted_at: now }).eq('collective_id', id).is('deleted_at', null);
+      }
+    }
+    // Cascade-soft-delete active members
+    await admin.from('collective_members').update({ status: 'left' }).eq('collective_id', id).eq('status', 'active');
+    // Soft-delete the collective itself
+    const { error } = await admin.from('collectives').update({ status: 'deleted', deleted_at: now }).eq('id', id);
+    if (error) return Response.json({ error: error.message }, { status: 500 });
+  } else {
+    // not_activated: hard delete (no documents, no subscription)
+    const { error } = await admin.from('collectives').delete().eq('id', id);
+    if (error) return Response.json({ error: error.message }, { status: 500 });
+  }
 
   logAudit({
     entityId:   id,
     userId:     user.id,
     userName:   callerProfile?.display_name || user.email,
-    action:     'Kollektíva törölve',
+    action:     collectiveData?.status === 'frozen' ? 'Kollektíva törölve (volt felfüggesztve)' : 'Kollektíva törölve (nem aktivált)',
     targetType: 'collective',
     targetId:   id,
     targetName: collectiveData?.name,
+    details:    { status: collectiveData?.status },
   });
 
   // Notify all members of deletion (non-critical, fire-and-forget)

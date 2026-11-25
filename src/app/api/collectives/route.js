@@ -242,7 +242,7 @@ export async function POST(req) {
   const isSuperAdmin = profile?.role === 'superadmin';
 
   if (!isSuperAdmin && !isEffectivePremium(profile ?? {})) {
-    return Response.json({ error: 'Prémium előfizetés szükséges.' }, { status: 403 });
+    return Response.json({ error: 'Prémium előfizetés szükséges.', code: 'PREMIUM_REQUIRED' }, { status: 403 });
   }
 
   const { name, creem_subscription_id, collective_tier } = await req.json();

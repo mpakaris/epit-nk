@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { logAudit } from '@/lib/audit';
 import { checkCollectiveStatus } from '@/lib/collectiveGuard';
+import { checkItemLimit } from '@/lib/subscriptionLimits';
 
 export async function POST(request, { params }) {
   const { id: quoteId } = await params;
@@ -11,7 +12,7 @@ export async function POST(request, { params }) {
   if (authErr || !user) return Response.json({ error: 'Unauthenticated' }, { status: 401 });
 
   const admin = createAdminClient();
-  const { data: quote } = await admin.from('quotes').select('id, owner_id, created_by, collective_id').eq('id', quoteId).is('deleted_at', null).single();
+  const { data: quote } = await admin.from('quotes').select('id, owner_id, created_by, collective_id, is_read_only').eq('id', quoteId).is('deleted_at', null).single();
   if (!quote) return Response.json({ error: 'Not found' }, { status: 404 });
 
   const isOwner = quote.owner_id === user.id || quote.created_by === user.id;
@@ -24,10 +25,20 @@ export async function POST(request, { params }) {
     if (!mem) return Response.json({ error: 'Forbidden' }, { status: 403 });
   }
 
+  if (!isSuperAdmin && quote.is_read_only)
+    return Response.json({ error: 'Ez a dokumentum csak olvasható. Prémium csomagra váltva újra szerkeszthetővé válik.', read_only: true }, { status: 403 });
+
   const statusBlocked = await checkCollectiveStatus(admin, quote.collective_id);
   if (statusBlocked) return statusBlocked;
 
   const body = await request.json();
+
+  if (body.section_id) {
+    const itemCheck = await checkItemLimit(admin, body.section_id, 'quote_entries', 'section_id');
+    if (!itemCheck.allowed)
+      return Response.json({ error: `Szekciónként maximum ${itemCheck.limit} tétel adható hozzá.` }, { status: 403 });
+  }
+
   const { data, error } = await admin.from('quote_entries').insert([{
     quote_id:         quoteId,
     user_id:          user.id,

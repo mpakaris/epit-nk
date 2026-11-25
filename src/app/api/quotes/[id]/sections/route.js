@@ -2,15 +2,16 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { logAudit } from '@/lib/audit';
 import { checkCollectiveStatus } from '@/lib/collectiveGuard';
+import { checkSectionLimit } from '@/lib/subscriptionLimits';
 
 async function getCtx(quoteId) {
   const supabase = await createClient();
   const { data: { user }, error } = await supabase.auth.getUser();
   if (error || !user) return { err: 'Unauthenticated', status: 401 };
   const admin = createAdminClient();
-  const { data: profile } = await admin.from('profiles').select('id, role, display_name').eq('id', user.id).single();
+  const { data: profile } = await admin.from('profiles').select('id, role, display_name, is_subscription_premium, subscription_tier, trial_ends_at').eq('id', user.id).single();
   if (!profile) return { err: 'Forbidden', status: 403 };
-  const { data: quote } = await admin.from('quotes').select('id, owner_id, created_by, collective_id, survey_id').eq('id', quoteId).is('deleted_at', null).single();
+  const { data: quote } = await admin.from('quotes').select('id, owner_id, created_by, collective_id, survey_id, is_read_only').eq('id', quoteId).is('deleted_at', null).single();
   if (!quote) return { err: 'Quote not found', status: 404 };
 
   const isSuperAdmin = profile.role === 'superadmin';
@@ -51,6 +52,13 @@ export async function POST(request, { params }) {
   const { id: quoteId } = await params;
   const ctx = await getCtx(quoteId);
   if (ctx.err) return Response.json({ error: ctx.err }, { status: ctx.status });
+
+  if (!ctx.isSuperAdmin && ctx.quote.is_read_only)
+    return Response.json({ error: 'Ez a dokumentum csak olvasható. Prémium csomagra váltva újra szerkeszthetővé válik.', read_only: true }, { status: 403 });
+
+  const secCheck = await checkSectionLimit(ctx.admin, quoteId, 'quote_sections', 'quote_id', ctx.profile, !!ctx.quote.collective_id);
+  if (!secCheck.allowed)
+    return Response.json({ error: `Bázis csomagban ajánlathoz maximum ${secCheck.limit} szekció adható hozzá. Váltj Prémiumra a korlátlan használathoz.` }, { status: 403 });
 
   const statusBlocked = await checkCollectiveStatus(ctx.admin, ctx.quote.collective_id);
   if (statusBlocked) return statusBlocked;

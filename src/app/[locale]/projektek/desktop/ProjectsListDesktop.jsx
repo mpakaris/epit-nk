@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl';
 import { useApp } from '@/context/AppContext';
 import { formatMoney } from '@/lib/constants';
 import Modal, { AlertModal, ConfirmModal } from '@/components/Modal';
+import { isEffectivePremium } from '@/lib/subscriptionLimits';
 import { WorkspaceNotActivatedBanner, WorkspaceFrozenBanner } from '@/components/desktop/WorkspaceStatusBanners';
 import WorkspacePodStack from '@/components/desktop/WorkspacePodStack';
 import ClientSelect from '@/components/ClientSelect';
@@ -19,6 +20,7 @@ export default function ProjectsListDesktop() {
   const router = useRouter();
   const t = useTranslations('projects');
   const tForms = useTranslations('forms');
+  const tCommon = useTranslations('common');
 
   const {
     projects: ctxProjects,
@@ -50,6 +52,7 @@ export default function ProjectsListDesktop() {
   const collectives = (effectiveCollectives || []).map(c => ({ id: c.collective_id, name: c.name, role: c.role }));
   const activeColl  = collectives.find(c => c.id === activeCollectiveId);
 
+  const atCreateLimit = !activeCollectiveId && !isEffectivePremium(currentUser || {}) && rawProjects.length >= 1;
 
 
   const [filter, setFilter] = useState('all');
@@ -321,9 +324,15 @@ export default function ProjectsListDesktop() {
               style={{ paddingLeft: 42, borderRadius: 23, height: 44 }}
             />
           </label>
-          <button onClick={openCreate} className="dk-btn dk-btn-w" type="button">
+          <button
+            onClick={atCreateLimit ? () => router.push(`${navPrefix}/elofizetes`) : openCreate}
+            className="dk-btn dk-btn-w"
+            type="button"
+            title={atCreateLimit ? tCommon('basicCreateLimit') : undefined}
+            style={atCreateLimit ? { opacity: 0.65 } : undefined}
+          >
             <Plus size={20} strokeWidth={2.6} aria-hidden="true" />
-            {t('new')}
+            {atCreateLimit ? tCommon('upgradeCta') : t('new')}
           </button>
         </div>
       </header>

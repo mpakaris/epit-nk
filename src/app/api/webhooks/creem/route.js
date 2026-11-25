@@ -4,6 +4,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { sendEmail } from '@/lib/email';
 import { wrapEmail } from '@/lib/emailTemplates';
 import { logAudit } from '@/lib/audit';
+import { applyDowngradeLock, clearDowngradeLock } from '@/lib/downgradeLock';
 
 const CREEM_BASE = process.env.CREEM_API_KEY?.startsWith('creem_test_')
   ? 'https://test-api.creem.io'
@@ -62,6 +63,9 @@ async function grantPremium(admin, userId, subscriptionId, family = 'premium') {
   }
   console.log('[creem webhook] grantPremium OK for userId:', userId);
   logAudit({ userId, action: 'Premium granted', targetType: 'subscription', targetId: subscriptionId, details: { family } });
+
+  // Clear downgrade write-lock on personal documents
+  await clearDowngradeLock(userId, admin);
 
   // Ensure inclusive collective is active (create it if missing, reactivate if frozen)
   const { data: ownedMemberships } = await admin
@@ -151,6 +155,9 @@ async function revokePremium(admin, userId, subscriptionId) {
     .update({ is_subscription_premium: false, subscription_tier: 'basic' })
     .eq('id', userId);
   logAudit({ userId, action: error ? 'Premium revoke failed' : 'Premium revoked', targetType: 'subscription', targetId: subscriptionId, details: error ? { error: error.message } : undefined });
+
+  // Apply downgrade write-lock on personal documents
+  if (!error) await applyDowngradeLock(userId, admin);
 
   // Fetch all collectives owned by this user
   const { data: ownedMemberships } = await admin
@@ -405,8 +412,8 @@ export async function POST(request) {
     case 'subscription.paid': {
       if ((family === 'premium') && userId) {
         await grantPremium(admin, userId, subscriptionId, family);
-        // Reactivation — clear any pending account deletion
-        await admin.from('profiles').update({ scheduled_deletion_at: null }).eq('id', userId);
+        // Reactivation — clear any pending account deletion + grace period
+        await admin.from('profiles').update({ scheduled_deletion_at: null, subscription_grace_until: null }).eq('id', userId);
         // Save renewal date to subscriptions table
         const premiumPeriodIso = parsePeriodEnd(periodEnd);
         if (subscriptionId && premiumPeriodIso) {
@@ -500,8 +507,40 @@ export async function POST(request) {
     }
 
     case 'subscription.updated': {
-      console.log('[creem webhook] subscription.updated — no DB action required');
-      logAudit({ userId: userId || null, action: 'Subscription updated (no DB action)', targetType: 'payment', targetId: subscriptionId, details: { family } });
+      if (family === 'addon' && productId && subscriptionId) {
+        const tierCode = PRODUCT_TO_TIER[productId] || null;
+        if (tierCode) {
+          await admin.from('collectives')
+            .update({ collective_tier: tierCode })
+            .eq('creem_subscription_id', subscriptionId);
+          logAudit({ userId: userId || null, action: 'Collective tier updated', targetType: 'collective', targetId: subscriptionId, details: { tier: tierCode, subscription_id: subscriptionId } });
+        }
+      } else {
+        logAudit({ userId: userId || null, action: 'Subscription updated (no DB action)', targetType: 'payment', targetId: subscriptionId, details: { family } });
+      }
+      break;
+    }
+
+    case 'subscription.payment_failed': {
+      if (family === 'premium' && userId) {
+        const { data: config } = await admin.from('pricing_config')
+          .select('value').eq('key', 'payment_grace_days').single();
+        const graceDays = Number(config?.value ?? 5);
+        const graceUntil = new Date(Date.now() + graceDays * 24 * 60 * 60 * 1000).toISOString();
+        await admin.from('profiles')
+          .update({ subscription_grace_until: graceUntil })
+          .eq('id', userId);
+        logAudit({ userId, action: 'Payment failed — grace period started', targetType: 'payment', targetId: subscriptionId, details: { grace_until: graceUntil, grace_days: graceDays } });
+      } else if (family === 'addon' && subscriptionId) {
+        const { data: config } = await admin.from('pricing_config')
+          .select('value').eq('key', 'payment_grace_days').single();
+        const graceDays = Number(config?.value ?? 5);
+        const graceUntil = new Date(Date.now() + graceDays * 24 * 60 * 60 * 1000).toISOString();
+        await admin.from('collectives')
+          .update({ subscription_grace_until: graceUntil })
+          .eq('creem_subscription_id', subscriptionId);
+        logAudit({ userId: userId || null, action: 'Addon payment failed — grace period started', targetType: 'payment', targetId: subscriptionId, details: { grace_until: graceUntil } });
+      }
       break;
     }
 

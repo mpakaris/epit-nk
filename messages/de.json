@@ -31,7 +31,12 @@
     "notFound": "Nicht gefunden",
     "collectiveBannerTitle": "Du arbeitest im Kollektiv-Bereich{name}.",
     "collectiveBannerBody": "Alle hier erstellten Inhalte werden automatisch mit allen Mitgliedern des Kollektivs geteilt.",
-    "uploading": "Hochladen…"
+    "uploading": "Hochladen…",
+    "readOnlyBannerTitle": "Nur-Lese-Dokument",
+    "readOnlyBannerMsg": "Dieses Dokument ist schreibgeschützt. Mit einem Premium-Abonnement wird es wieder bearbeitbar.",
+    "readOnlyBannerBtn": "Premium",
+    "upgradeCta": "Auf Premium upgraden",
+    "basicCreateLimit": "Im Basic-Tarif ist maximal 1 Dokument pro Typ erlaubt. Upgrade auf Premium für unbegrenzte Nutzung."
   },
   "dashboard": {
     "viewAll": "Alle",
@@ -108,7 +113,10 @@
     "sectionStats": "Statistiken",
     "sectionCalendar": "Kalender",
     "sectionOverview": "Überblick",
-    "sectionActivity": "Neueste Aktivität"
+    "sectionActivity": "Neueste Aktivität",
+    "graceWarningTitle": "Zahlungsproblem",
+    "graceWarningMsg": "Bitte klären Sie die Zahlung innerhalb von {days} Tagen, sonst wird Ihr Abonnement gesperrt.",
+    "graceWarningBtn": "Zur Abrechnung"
   },
   "sidebar": {
     "expand": "Ausklappen",
@@ -701,6 +709,7 @@
       "detailMeasCeilLabel": "Decke",
       "detailMeasWallLabel": "Wand (netto)",
       "detailPhotosBtn": "Fotos ({count})",
+      "photoAtLimit": "Max {limit} Fotos (Basis-Paket)",
       "detailActionsTitle": "Aktionen",
       "detailEditClient": "Bearbeiten",
       "detailExportPdf": "Als PDF exportieren",
@@ -1587,6 +1596,12 @@
     "cancelConfirmTitle": "Kollektiv kündigen",
     "cancelConfirmBody": "Möchtest du das Abonnement für das Kollektiv {name} wirklich kündigen? Der Arbeitsbereich bleibt bis zum {date} aktiv und wird danach schreibgeschützt.",
     "deleteNotActivatedConfirmBody": "Möchtest du das Kollektiv {name} wirklich löschen? Es enthält noch keine Daten.",
+    "deleteTransferTitle": "Dokumente übertragen?",
+    "deleteTransferBody": "Sollen die Kollektiv-Dokumente in deinen persönlichen Arbeitsbereich übertragen werden? Die übertragenen Dokumente werden schreibgeschützt — das ist nicht rückgängig zu machen.",
+    "deleteTransferYes": "In persönlichen Arbeitsbereich übertragen",
+    "deleteTransferYesNote": "Die Dokumente bleiben in schreibgeschützter Form erhalten.",
+    "deleteTransferNo": "Dokumente löschen",
+    "deleteTransferNoNote": "Alle Kollektiv-Dokumente werden dauerhaft gelöscht.",
     "includedInPremium": "In Premium enthalten",
     "seatsUsage": "{used}/{total} Sitze",
     "tierXs": "XS — 1 Mitarbeiter",
@@ -3064,7 +3079,7 @@
     "noResults": "Keine Ergebnisse",
     "noResultsHint": "Versuche andere Suchkriterien.",
     "collectiveNudge": "Erstelle ein Kollektiv und teile deine Aufmaße.",
-    "surveyLimitReached": "Du hast das Limit für kostenlose Aufmaße (5) erreicht. Wechsle zu Premium für unbegrenzte Nutzung.",
+    "surveyLimitReached": "Du hast das Aufmaß-Limit des Basic-Tarifs (1) erreicht. Wechsle zu Premium für unbegrenzte Nutzung.",
     "surveyDetailKicker": "Aufmaß",
     "surveyMenuSub": "Aufmaß",
     "createQuoteFromSurvey": "Angebot erstellen",
@@ -3088,6 +3103,7 @@
     "roomAiSuggest": "KI-Vorschlag",
     "roomAddItem": "Position hinzufügen",
     "roomPhotoVideo": "Foto / Video",
+    "roomPhotoLimitBtn": "Max 3 Fotos (Basis)",
     "roomSketch": "Skizze",
     "roomEditAction": "Bearbeiten",
     "roomDeleteAction": "Löschen",

@@ -246,7 +246,7 @@ export default function ProjectsListClient({
         photoUrls={project._preview_urls || []}
         isShared={!!project.collective_id}
         role={project.collective_id ? (isOwner ? 'owner' : 'member') : undefined}
-        onDelete={isOwner && !pendingReq ? () => handleDelete(project) : undefined}
+        onDelete={isOwner && !pendingReq && !project.is_seed ? () => handleDelete(project) : undefined}
         onTransfer={canTransfer && !pendingReq ? () => setTransferModal({ documentId: project.id, documentTitle: project.name }) : undefined}
         isPendingTransfer={!!pendingReq}
         onRetractTransfer={pendingReq ? () => handleRetract(pendingReq.id) : undefined}
