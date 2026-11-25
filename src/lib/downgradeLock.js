@@ -11,9 +11,10 @@ import { logAudit } from '@/lib/audit';
  * Safe to call multiple times — idempotent.
  */
 export async function applyDowngradeLock(userId, admin) {
-  // 1. Downgrade profile tier
+  // 1. Downgrade profile tier — clear trial fields so isEffectivePremium can't
+  //    accidentally grant access via a stale trial_ends_at.
   await admin.from('profiles')
-    .update({ subscription_tier: 'basic', is_subscription_premium: false })
+    .update({ subscription_tier: 'basic', is_subscription_premium: false, trial_ends_at: null, trial_started_at: null })
     .eq('id', userId);
 
   // 2. For each doc type: keep the oldest, lock all others

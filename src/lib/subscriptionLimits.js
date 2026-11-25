@@ -4,9 +4,10 @@
  */
 export function isEffectivePremium(profile) {
   if (profile.is_subscription_premium) return true;
-  if (profile.subscription_tier === 'trial' && profile.trial_ends_at) {
-    return new Date(profile.trial_ends_at) > new Date();
-  }
+  // Trust trial_ends_at regardless of tier — handles tier/ends_at mismatch
+  // that can occur if the trigger partially ran or applyDowngradeLock was
+  // called without clearing trial_ends_at.
+  if (profile.trial_ends_at && new Date(profile.trial_ends_at) > new Date()) return true;
   return false;
 }
 
