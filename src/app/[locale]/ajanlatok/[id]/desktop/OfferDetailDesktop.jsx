@@ -144,7 +144,7 @@ function OfferDetailDesktopInner() {
   // ── UI state ──────────────────────────────────────────────────────────────
   const [confirmModal,       setConfirmModal]       = useState(null);
   const [alertModal,         setAlertModal]         = useState(null);
-  const { handleError: handleReadOnly, guardReadOnly: _guard } = useReadOnlyUpgrade();
+  const { handleError: handleReadOnly, guardReadOnly: _guard, openUpgrade } = useReadOnlyUpgrade();
   const [copied,             setCopied]             = useState(false);
   const [showClientModal,    setShowClientModal]    = useState(false);
   const [showTermsModal,     setShowTermsModal]     = useState(false);
@@ -787,21 +787,18 @@ function OfferDetailDesktopInner() {
             {sectionTotal > 0 && (
               <b style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: 18, color: '#0E1116' }}>{fmt(sectionTotal)}</b>
             )}
-            {!isGeneral && canEdit && (
-              <>
-                {!isCollapsed && (
-                  <button type="button" onClick={e => { e.stopPropagation(); openEntryModal(sectionId); }}
-                    style={{ height: 32, padding: '0 12px', borderRadius: 16, border: 0, background: '#F1F1F3', color: '#5A5F68', display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer', fontSize: 13, fontWeight: 700 }}>
-                    <Plus size={13} /> {t('desktop.addEntry')}
-                  </button>
-                )}
-                <button type="button" onClick={e => { e.stopPropagation(); setSectionActionMenu(sectionId); }}
-                  style={{ width: 32, height: 32, borderRadius: 16, border: 0, background: '#1E293B', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
-                  <MoreHorizontal size={14} />
-                </button>
-              </>
+            {!isGeneral && canEdit && !isCollapsed && (
+              <button type="button" onClick={e => { e.stopPropagation(); openEntryModal(sectionId); }}
+                style={{ height: 32, padding: '0 12px', borderRadius: 16, border: 0, background: '#F1F1F3', color: '#5A5F68', display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer', fontSize: 13, fontWeight: 700 }}>
+                <Plus size={13} /> {t('desktop.addEntry')}
+              </button>
             )}
-            {isCollapsed ? <ChevronDown size={18} color="#8A8F98" /> : <ChevronUp size={18} color="#8A8F98" />}
+            {!isGeneral && (isQuoteOwner || isKollektivOwner) && (
+              <button type="button" onClick={e => { e.stopPropagation(); setSectionActionMenu(sectionId); }}
+                style={{ width: 32, height: 32, borderRadius: 16, border: 0, background: '#1E293B', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+                <MoreHorizontal size={14} />
+              </button>
+            )}
           </div>
         </div>
 
@@ -1170,25 +1167,25 @@ function OfferDetailDesktopInner() {
                   })()}
 
                   {/* Status actions */}
-                  {canModify && (isQuoteOwner || isKollektivOwner) && (
+                  {(isQuoteOwner || isKollektivOwner) && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                       {!isLocked && (
-                        <button className="dk-btn dk-btn-dark" onClick={openSendConfirm} style={{ width: '100%', justifyContent: 'center', background: '#1D4ED8', color: '#fff' }}>
+                        <button className="dk-btn dk-btn-dark" onClick={isReadOnly ? openUpgrade : openSendConfirm} style={{ width: '100%', justifyContent: 'center', background: '#1D4ED8', color: '#fff' }}>
                           <Send size={16} aria-hidden="true" /> {t('actionSend')}
                         </button>
                       )}
                       {!isLocked && (
-                        <button className="dk-btn" onClick={() => handleStatusChange('accepted')} style={{ width: '100%', justifyContent: 'center', background: '#16A34A', color: '#fff' }}>
+                        <button className="dk-btn" onClick={isReadOnly ? openUpgrade : () => handleStatusChange('accepted')} style={{ width: '100%', justifyContent: 'center', background: '#16A34A', color: '#fff' }}>
                           <CheckCircle2 size={16} aria-hidden="true" /> {t('actionAccept')}
                         </button>
                       )}
                       {!isLocked && (
-                        <button className="dk-btn" onClick={() => handleStatusChange('rejected')} style={{ width: '100%', justifyContent: 'center', background: '#DC2626', color: '#fff' }}>
+                        <button className="dk-btn" onClick={isReadOnly ? openUpgrade : () => handleStatusChange('rejected')} style={{ width: '100%', justifyContent: 'center', background: '#DC2626', color: '#fff' }}>
                           <XCircle size={16} aria-hidden="true" /> {t('actionReject')}
                         </button>
                       )}
                       {quote.status === 'rejected' && (
-                        <button className="dk-btn" onClick={handleResetToDraft} style={{ width: '100%', justifyContent: 'center', background: '#16A34A', color: '#fff' }}>
+                        <button className="dk-btn" onClick={isReadOnly ? openUpgrade : handleResetToDraft} style={{ width: '100%', justifyContent: 'center', background: '#16A34A', color: '#fff' }}>
                           <RotateCcw size={16} aria-hidden="true" /> {t('actionReset')}
                         </button>
                       )}
@@ -1215,8 +1212,8 @@ function OfferDetailDesktopInner() {
                     )}
 
                     {/* Duplicate */}
-                    {canModify && (isQuoteOwner || isKollektivOwner) && (
-                      <button className="dk-btn dk-btn-l" onClick={() => { setDuplicateTitle(`${quote.title} – ${t('duplicateSuffix')}`); setDuplicateWithClient(true); setDuplicateWithSections(true); setShowDuplicateModal(true); }} style={{ width: '100%', justifyContent: 'flex-start' }}>
+                    {(isQuoteOwner || isKollektivOwner) && (
+                      <button className="dk-btn dk-btn-l" onClick={isReadOnly ? openUpgrade : () => { setDuplicateTitle(`${quote.title} – ${t('duplicateSuffix')}`); setDuplicateWithClient(true); setDuplicateWithSections(true); setShowDuplicateModal(true); }} style={{ width: '100%', justifyContent: 'flex-start' }}>
                         <Copy size={16} /> {t('actionCopy')}
                       </button>
                     )}
@@ -1236,11 +1233,11 @@ function OfferDetailDesktopInner() {
                 </div>
 
                 {/* Client card */}
-                {(canEdit || client) && (
+                {(isQuoteOwner || isKollektivOwner || client) && (
                   <div
                     className="dk-card"
-                    onClick={canEdit ? () => setShowClientModal(true) : undefined}
-                    style={{ padding: 18, display: 'flex', flexDirection: 'column', gap: 10, cursor: canEdit ? 'pointer' : 'default' }}
+                    onClick={isReadOnly ? openUpgrade : canEdit ? () => setShowClientModal(true) : undefined}
+                    style={{ padding: 18, display: 'flex', flexDirection: 'column', gap: 10, cursor: (isReadOnly || canEdit) ? 'pointer' : 'default' }}
                   >
                     <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.07em', textTransform: 'uppercase', color: '#5A5F68' }}>{t('client')}</span>
 
@@ -1254,11 +1251,11 @@ function OfferDetailDesktopInner() {
                           {client.email && <div style={{ fontSize: 12, color: '#5A5F68' }}>{client.email}</div>}
                         </div>
                       </div>
-                    ) : canEdit ? (
+                    ) : (
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#8A8F98', fontSize: 14, fontWeight: 600 }}>
                         <Plus size={16} /> {t('clientAddPlaceholder')}
                       </div>
-                    ) : null}
+                    )}
 
                     {metaValidUntil && (
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #EDEBE5', paddingTop: 10 }}>
@@ -1277,13 +1274,13 @@ function OfferDetailDesktopInner() {
 
 
                 {/* T&C attachment card */}
-                {canEdit && (() => {
+                {(isQuoteOwner || isKollektivOwner) && (() => {
                   const attachedCount = (
                     (quote.attach_profile_terms !== false && termsPdfName ? 1 : 0) +
                     (quote.terms_attachments || []).filter(a => a.attached).length
                   );
                   return (
-                    <div className="dk-card" onClick={async () => {
+                    <div className="dk-card" onClick={isReadOnly ? openUpgrade : async () => {
                       setTermsLocal({ attachments: quote.terms_attachments || [], attachProfile: quote.attach_profile_terms !== false });
                       setShowTermsModal(true);
                       if (!termsPdfName) {
@@ -1335,7 +1332,7 @@ function OfferDetailDesktopInner() {
         title={t('sectionNewTitle')}
         maxWidth="560px"
       >
-        <SectionAddForm surveyId={quote.survey_id} onSave={handleAddSection} onCancel={() => setShowAddSection(false)} />
+        <SectionAddForm onSave={handleAddSection} onCancel={() => setShowAddSection(false)} />
       </Modal>
 
       <Modal isOpen={showEntryModal} onClose={() => { setShowEntryModal(false); setPendingEntries([]); }} title={editingEntryId ? t('entryModalEdit') : t('entryModalAdd')}>
@@ -1903,7 +1900,7 @@ function OfferDetailDesktopInner() {
         onClose={() => setShowHeaderMenu(false)}
         title={quote?.title || ''}
         actions={[
-          { icon: Edit3,    label: t('renameModalTitle'),    onClick: () => { setRenameValue(metaTitle); setShowRenameModal(true); } },
+          { icon: Edit3,    label: t('renameModalTitle'),    onClick: () => { if (isReadOnly) { openUpgrade(); return; } setRenameValue(metaTitle); setShowRenameModal(true); } },
           { icon: Camera,   label: t('mediaImagesTitle'),    onClick: () => setDocMediaMode('media'),           dividerBefore: true },
           { icon: PenLine,  label: t('mediaDrawingsTitle'),  onClick: () => setShowDocDrawingsModal(true) },
           { icon: FileText, label: t('mediaDocumentsTitle'), onClick: () => setDocMediaMode('documents') },
@@ -1916,7 +1913,7 @@ function OfferDetailDesktopInner() {
         onClose={() => setSectionActionMenu(null)}
         title={sections.find(s => s.id === sectionActionMenu)?.name || ''}
         actions={[
-          { icon: Edit3,    label: t('desktop.sectionEdit'),  onClick: () => { const s = sections.find(x => x.id === sectionActionMenu); if (s) openEditSection(s); } },
+          { icon: Edit3,    label: t('desktop.sectionEdit'),  onClick: () => { if (isReadOnly) { openUpgrade(); return; } const s = sections.find(x => x.id === sectionActionMenu); if (s) openEditSection(s); } },
           { icon: Camera,   label: t('mediaImagesTitle'),     onClick: () => setSectionMediaCtx({ sectionId: sectionActionMenu, mode: 'media' }),     dividerBefore: true },
           { icon: PenLine,  label: t('mediaDrawingsTitle'),   onClick: () => setSectionMediaCtx({ sectionId: sectionActionMenu, mode: 'drawings' }) },
           { icon: FileText, label: t('mediaDocumentsTitle'),  onClick: () => setSectionMediaCtx({ sectionId: sectionActionMenu, mode: 'documents' }) },
@@ -1955,6 +1952,7 @@ function OfferDetailDesktopInner() {
         ownerId={id}
         mode={docMediaMode || 'media'}
         items={quoteDocMedia}
+        canAdd={!isReadOnly}
         onUploaded={items => setQuoteDocMedia(prev => [...prev, ...items])}
         onDeleted={itemId => setQuoteDocMedia(prev => prev.filter(m => m.id !== itemId))}
       />
@@ -1962,7 +1960,8 @@ function OfferDetailDesktopInner() {
       <Modal isOpen={showDocDrawingsModal} onClose={() => setShowDocDrawingsModal(false)} title={t('mediaDrawingsTitle')}>
         <DrawingsSection
           drawings={quoteDrawings.filter(d => !d.section_id)}
-          canEdit={canEdit && (isQuoteOwner || isKollektivOwner)}
+          canAdd={canEdit && (isQuoteOwner || isKollektivOwner)}
+          canDelete={!isDocLocked && (isQuoteOwner || isKollektivOwner)}
           onSave={async (svg) => {
             const res = await fetch(`/api/quotes/${id}/drawings`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ svg_data: svg }) });
             if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || 'Hiba');
@@ -1986,6 +1985,7 @@ function OfferDetailDesktopInner() {
           ownerId={sectionMediaCtx?.sectionId}
           mode={sectionMediaCtx?.mode || 'media'}
           items={sectionMediaItemsMap[sectionMediaCtx?.sectionId] || []}
+          canAdd={!isReadOnly}
           onUploaded={items => setSectionMediaItemsMap(prev => {
             const sid = sectionMediaCtx?.sectionId;
             return { ...prev, [sid]: [...(prev[sid] || []), ...items] };
@@ -2001,7 +2001,8 @@ function OfferDetailDesktopInner() {
         {sectionMediaCtx?.mode === 'drawings' && (
           <DrawingsSection
             drawings={quoteDrawings.filter(d => d.section_id === sectionMediaCtx.sectionId)}
-            canEdit={canEdit && (isQuoteOwner || isKollektivOwner)}
+            canAdd={canEdit && (isQuoteOwner || isKollektivOwner)}
+            canDelete={!isDocLocked && (isQuoteOwner || isKollektivOwner)}
             onSave={async (svg) => {
               const res = await fetch(`/api/quotes/${id}/drawings`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ svg_data: svg, section_id: sectionMediaCtx.sectionId }) });
               if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || 'Hiba');

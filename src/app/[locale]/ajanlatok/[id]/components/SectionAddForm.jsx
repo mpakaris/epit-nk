@@ -2,13 +2,12 @@
 
 import React, { useState, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
-import { AlertCircle, Camera, Loader2, X } from 'lucide-react';
-import { processMediaFile } from '@/lib/mediaGate';
+import { AlertCircle, Loader2 } from 'lucide-react';
 import { WINDOW_M2, DOOR_M2 } from './AreaSummary';
 
 const LBL = { fontSize: 11, fontWeight: 700, letterSpacing: '.07em', textTransform: 'uppercase', color: '#5A5F68', marginBottom: 6, display: 'block' };
 
-export default function SectionAddForm({ surveyId, onSave, onCancel }) {
+export default function SectionAddForm({ onSave, onCancel }) {
   const t  = useTranslations('quotes');
   const tc = useTranslations('common');
   const [name,        setName]        = useState('');
@@ -24,9 +23,6 @@ export default function SectionAddForm({ surveyId, onSave, onCancel }) {
   const [endDate,     setEndDate]     = useState('');
   const [error,       setError]       = useState('');
   const [saving,      setSaving]      = useState(false);
-  const [selectedFiles, setSelectedFiles] = useState([]);
-  const [previews,      setPreviews]      = useState([]);
-  const fileInputRef = React.useRef(null);
 
   const w = parseFloat(widthM), l = parseFloat(lengthM);
   const computedArea      = w > 0 && l > 0 ? w * l : null;
@@ -39,19 +35,6 @@ export default function SectionAddForm({ surveyId, onSave, onCancel }) {
     const net = computedPerimeter && h > 0 ? Math.max(0, computedPerimeter * h - ded) : null;
     setWallM2(net != null ? net.toFixed(2) : '');
   }, [widthM, lengthM, heightM, windowCount, doorCount, wallAuto]);
-
-  const addFiles = async (e) => {
-    const raw = Array.from(e.target.files || []);
-    e.target.value = '';
-    if (!raw.length) return;
-    const arr = await Promise.all(raw.map(processMediaFile));
-    setSelectedFiles(prev => [...prev, ...arr]);
-    setPreviews(prev => [...prev, ...arr.map(f => ({
-      key: `${f.name}-${f.size}`,
-      isVideo: f.type.startsWith('video/'),
-      url: f.type.startsWith('video/') ? null : URL.createObjectURL(f),
-    }))]);
-  };
 
   const handleSave = async () => {
     if (!name.trim()) { setError(t('sectionNameRequired')); return; }
@@ -68,8 +51,6 @@ export default function SectionAddForm({ surveyId, onSave, onCancel }) {
         door_count:   parseInt(doorCount,   10) || 0,
         start_date:   startDate || null,
         end_date:     endDate   || null,
-        _pendingFiles: selectedFiles,
-        _surveyId:    surveyId,
       });
     } catch (err) {
       setError(err.message || t('sectionSaveError'));
@@ -116,33 +97,6 @@ export default function SectionAddForm({ surveyId, onSave, onCancel }) {
       <div style={{ marginBottom: '0.75rem' }}>
         <span style={LBL}>{t('sectionDescLabel')}</span>
         <textarea rows={2} className="dk-input" style={{ height: 72, resize: 'none', paddingTop: 12, paddingBottom: 12 }} value={description} onChange={e => setDescription(e.target.value)} placeholder={t('sectionDescPh')} />
-      </div>
-
-      <div style={{ marginBottom: '1rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: previews.length ? '0.5rem' : 0 }}>
-          <span style={{ ...LBL, margin: 0 }}>{t('sectionPhotosLabel')}</span>
-          <input ref={fileInputRef} type="file" accept="image/*,video/*" multiple onChange={addFiles} style={{ display: 'none' }} />
-          <button type="button" onClick={() => fileInputRef.current?.click()} className="dk-btn dk-btn-l" style={{ height: 34, padding: '0 12px', fontSize: 13 }}>
-            <Camera size={14} /> {t('sectionPhotoBtn')}
-          </button>
-        </div>
-        {previews.length > 0 && (
-          <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
-            {previews.map((p, i) => (
-              <div key={p.key} style={{ position: 'relative', flexShrink: 0 }}>
-                <div style={{ width: 54, height: 54, borderRadius: 10, overflow: 'hidden', background: '#F4F3F0' }}>
-                  {p.isVideo
-                    ? <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#1a1a2e', color: '#fff' }}>▶</div>
-                    : <img src={p.url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
-                </div>
-                <button type="button" onClick={() => { setSelectedFiles(f => f.filter((_, fi) => fi !== i)); setPreviews(p => p.filter((_, pi) => pi !== i)); }}
-                  style={{ position: 'absolute', top: 2, right: 2, background: 'rgba(239,68,68,0.9)', border: 'none', borderRadius: '50%', width: 16, height: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#fff' }}>
-                  <X size={9} />
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
       </div>
 
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>

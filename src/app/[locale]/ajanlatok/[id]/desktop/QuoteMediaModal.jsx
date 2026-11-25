@@ -2,7 +2,7 @@
 
 import React, { useRef, useState, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
-import { ChevronLeft, ChevronRight, FileText, Loader2, X } from 'lucide-react';
+import { Camera, ChevronLeft, ChevronRight, FileText, Loader2, X } from 'lucide-react';
 import MediaThumb from '@/components/MediaThumb';
 import Modal from '@/components/Modal';
 import { processMediaFile } from '@/lib/mediaGate';
@@ -17,7 +17,7 @@ function isDoc(item) {
   return !isMedia(item);
 }
 
-export default function QuoteMediaModal({ isOpen, onClose, quoteId, ownerType, ownerId, mode, items, onUploaded, onDeleted }) {
+export default function QuoteMediaModal({ isOpen, onClose, quoteId, ownerType, ownerId, mode, items, onUploaded, onDeleted, canAdd = true }) {
   const t  = useTranslations('quotes');
   const tc = useTranslations('common');
   const fileInputRef = useRef(null);
@@ -117,15 +117,17 @@ export default function QuoteMediaModal({ isOpen, onClose, quoteId, ownerType, o
           </div>
         )}
 
-        <input ref={fileInputRef} type="file" accept={accept} multiple onChange={handleFiles} style={{ display: 'none' }} />
+        {canAdd && <input ref={fileInputRef} type="file" accept={accept} multiple onChange={handleFiles} style={{ display: 'none' }} />}
 
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 8 }}>
           <button type="button" className="dk-btn dk-btn-l" onClick={onClose}>{tc('close')}</button>
-          <button type="button" className="dk-btn dk-btn-dark" onClick={() => fileInputRef.current?.click()} disabled={uploading}>
-            {uploading
-              ? <><Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} />{tc('uploading')}</>
-              : <><Camera size={16} />{mode === 'documents' ? t('mediaUploadDoc') : t('mediaUploadImage')}</>}
-          </button>
+          {canAdd && (
+            <button type="button" className="dk-btn dk-btn-dark" onClick={() => fileInputRef.current?.click()} disabled={uploading}>
+              {uploading
+                ? <><Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} />{tc('uploading')}</>
+                : <><Camera size={16} />{mode === 'documents' ? t('mediaUploadDoc') : t('mediaUploadImage')}</>}
+            </button>
+          )}
         </div>
       </Modal>
 

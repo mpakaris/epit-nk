@@ -8,7 +8,7 @@ import useMobile from '@/hooks/useMobile';
 
 const extractInner = s => s?.match(/<svg[^>]*>([\s\S]*)<\/svg>/)?.[1] ?? '';
 
-export default function DrawingsSection({ drawings = [], onSave, onDelete, canEdit = true, compact = false, triggerCount = 0, hideHeader = false }) {
+export default function DrawingsSection({ drawings = [], onSave, onDelete, canEdit = true, canAdd = canEdit, canDelete = canEdit, compact = false, triggerCount = 0, hideHeader = false }) {
   const t  = useTranslations('drawings');
   const tc = useTranslations('common');
 
@@ -99,14 +99,14 @@ export default function DrawingsSection({ drawings = [], onSave, onDelete, canEd
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(200px, 100%), 1fr))', gap: '0.65rem', marginBottom: '0.5rem' }}>
           {drawings.map((d, idx) => (
             <div key={d.id} style={{ position: 'relative', borderRadius: 12, overflow: 'hidden', background: '#F7F5EF', aspectRatio: '4/3', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 8 }}>
-              {canEdit && (
+              {canAdd && (
                 <button onClick={() => setEditingDrawing(d)}
                   style={{ position: 'absolute', inset: 0, border: 0, background: 'transparent', cursor: 'pointer', padding: 0 }}
                   aria-label={`${t('alt')} ${idx + 1}`} />
               )}
               <div style={{ width: '100%', height: '100%', pointerEvents: 'none' }}
                 dangerouslySetInnerHTML={{ __html: svgThumb(d) }} />
-              {canEdit && (
+              {canDelete && (
                 <button
                   type="button"
                   onClick={(e) => { e.stopPropagation(); handleDelete(d.id); }}
@@ -122,7 +122,7 @@ export default function DrawingsSection({ drawings = [], onSave, onDelete, canEd
         </div>
       )}
 
-      {canEdit && (
+      {canAdd && (
         <button type="button" onClick={() => setEditingDrawing({})}
           style={{ width: '100%', height: 56, border: 0, borderRadius: 28, background: '#0E1116', color: '#fff', fontSize: 16, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, cursor: 'pointer' }}>
           <Plus size={18} strokeWidth={2.5} />

@@ -197,21 +197,25 @@ export async function GET(request) {
 
   // Lazy lock catch-up: Basic users who bypassed the normal downgrade flow (e.g. manually set to
   // 'basic' via SA, or created before downgrade-lock code existed) may still have unlocked non-seed
-  // docs. If we find any, apply the lock now. The function is idempotent; subsequent loads cost one
-  // cheap count query that returns 0 and exit immediately.
+  // docs. If we find any across surveys, quotes, or projects, apply the lock now. The function is
+  // idempotent; subsequent loads cost three cheap count queries that return 0 and exit immediately.
   if (
     !isEffectivePremium(profile) &&
     profile.subscription_tier === 'basic' &&
     effectiveUserId === user.id
   ) {
-    const { count } = await admin.from('surveys')
-      .select('id', { count: 'exact', head: true })
-      .eq('owner_id', user.id)
-      .is('collective_id', null)
-      .is('deleted_at', null)
-      .eq('is_seed', false)
-      .eq('is_read_only', false);
-    if ((count || 0) > 0) {
+    const counts = await Promise.all(
+      ['surveys', 'quotes', 'projects'].map(table =>
+        admin.from(table)
+          .select('id', { count: 'exact', head: true })
+          .eq('owner_id', user.id)
+          .is('collective_id', null)
+          .is('deleted_at', null)
+          .eq('is_seed', false)
+          .eq('is_read_only', false)
+      )
+    );
+    if (counts.some(r => (r.count || 0) > 0)) {
       await applyDowngradeLock(user.id, admin);
     }
   }
