@@ -7,6 +7,8 @@ import { useTranslations } from 'next-intl';
 import { useApp } from '@/context/AppContext';
 import { formatMoney, formatDate } from '@/lib/constants';
 import Modal from '@/components/Modal';
+import UpgradeModal from '@/components/UpgradeModal';
+import { isEffectivePremium } from '@/lib/subscriptionLimits';
 import { WorkspaceNotActivatedBanner, WorkspaceFrozenBanner } from '@/components/desktop/WorkspaceStatusBanners';
 import WorkspacePodStack from '@/components/desktop/WorkspacePodStack';
 import DashboardWeekCalendar from './DashboardWeekCalendar';
@@ -243,7 +245,21 @@ export default function DashboardDesktop({
   }, [isDemoMode]);
 
   /* new document modal */
-  const [newDocOpen, setNewDocOpen] = useState(false);
+  const [newDocOpen,    setNewDocOpen]    = useState(false);
+  const [upgradeModal,  setUpgradeModal]  = useState(null); // { docType }
+
+  const isPersonal = !activeCollectiveId;
+  const isPremium  = isEffectivePremium(user || {});
+  const atSurveyLimit  = isPersonal && !isPremium && (surveys  || []).length >= 1;
+  const atQuoteLimit   = isPersonal && !isPremium && (quotes   || []).length >= 1;
+  const atProjectLimit = isPersonal && !isPremium && (projects || []).length >= 1;
+
+  const goCreate = (docType, path) => {
+    const limited = docType === 'survey' ? atSurveyLimit : docType === 'quote' ? atQuoteLimit : atProjectLimit;
+    if (limited) { setNewDocOpen(false); setUpgradeModal({ docType }); return; }
+    setNewDocOpen(false);
+    router.push(p(path));
+  };
 
   /* preview rows */
   const recentProjects = projects.slice(0, 3);
@@ -371,21 +387,21 @@ export default function DashboardDesktop({
               title={t('quickCards.newSurvey')}
               desc={t('quickCards.newSurveyDesc')}
               bg="#0A7F72"
-              onClick={() => router.push(p('/felmeres/uj'))}
+              onClick={() => goCreate('survey', '/felmeres/uj')}
             />
             <QuickCreateCard
               icon={FileText}
               title={t('quickCards.newQuote')}
               desc={t('quickCards.newQuoteDesc')}
               bg="#6D3FD1"
-              onClick={() => router.push(p('/ajanlatok/uj'))}
+              onClick={() => goCreate('quote', '/ajanlatok/uj')}
             />
             <QuickCreateCard
               icon={FolderKanban}
               title={t('quickCards.newProject')}
               desc={t('quickCards.newProjectDesc')}
               bg="#263248"
-              onClick={() => router.push(p('/projektek/uj'))}
+              onClick={() => goCreate('project', '/projektek/uj')}
             />
           </div>
 
@@ -445,38 +461,26 @@ export default function DashboardDesktop({
         title={t('newDocument')}
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <button
-            onClick={() => { setNewDocOpen(false); router.push(p('/felmeres/uj')); }}
-            style={{ minHeight: 68, border: 0, borderRadius: 22, background: '#0A7F72', color: '#fff', display: 'flex', alignItems: 'center', gap: 14, padding: '0 18px', textAlign: 'left', fontSize: 17, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}
-          >
-            <Ruler size={26} aria-hidden="true" />
-            <span style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-              <span>{t('quickCards.newSurvey')}</span>
-              <span style={{ fontSize: 13, fontWeight: 600, opacity: 0.9 }}>{t('quickCards.newSurveyDesc')}</span>
-            </span>
-          </button>
-          <button
-            onClick={() => { setNewDocOpen(false); router.push(p('/ajanlatok/uj')); }}
-            style={{ minHeight: 68, border: 0, borderRadius: 22, background: '#6D3FD1', color: '#fff', display: 'flex', alignItems: 'center', gap: 14, padding: '0 18px', textAlign: 'left', fontSize: 17, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}
-          >
-            <FileText size={26} aria-hidden="true" />
-            <span style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-              <span>{t('quickCards.newQuote')}</span>
-              <span style={{ fontSize: 13, fontWeight: 600, opacity: 0.9 }}>{t('quickCards.newQuoteDesc')}</span>
-            </span>
-          </button>
-          <button
-            onClick={() => { setNewDocOpen(false); router.push(p('/projektek/uj')); }}
-            style={{ minHeight: 68, border: 0, borderRadius: 22, background: '#263248', color: '#fff', display: 'flex', alignItems: 'center', gap: 14, padding: '0 18px', textAlign: 'left', fontSize: 17, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}
-          >
-            <FolderKanban size={26} aria-hidden="true" />
-            <span style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-              <span>{t('quickCards.newProject')}</span>
-              <span style={{ fontSize: 13, fontWeight: 600, opacity: 0.9 }}>{t('quickCards.newProjectDesc')}</span>
-            </span>
-          </button>
+          {[
+            { docType: 'survey',  path: '/felmeres/uj',  bg: '#0A7F72', icon: Ruler,        title: t('quickCards.newSurvey'),  desc: t('quickCards.newSurveyDesc')  },
+            { docType: 'quote',   path: '/ajanlatok/uj', bg: '#6D3FD1', icon: FileText,     title: t('quickCards.newQuote'),   desc: t('quickCards.newQuoteDesc')   },
+            { docType: 'project', path: '/projektek/uj', bg: '#263248', icon: FolderKanban, title: t('quickCards.newProject'), desc: t('quickCards.newProjectDesc') },
+          ].map(({ docType, path, bg, icon: Icon, title, desc }) => (
+            <button
+              key={docType}
+              onClick={() => goCreate(docType, path)}
+              style={{ minHeight: 68, border: 0, borderRadius: 22, background: bg, color: '#fff', display: 'flex', alignItems: 'center', gap: 14, padding: '0 18px', textAlign: 'left', fontSize: 17, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', width: '100%' }}
+            >
+              <Icon size={26} aria-hidden="true" />
+              <span style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+                <span>{title}</span>
+                <span style={{ fontSize: 13, fontWeight: 600, opacity: 0.9 }}>{desc}</span>
+              </span>
+            </button>
+          ))}
         </div>
       </Modal>
+      <UpgradeModal isOpen={!!upgradeModal} onClose={() => setUpgradeModal(null)} docType={upgradeModal?.docType} />
     </div>
   );
 }

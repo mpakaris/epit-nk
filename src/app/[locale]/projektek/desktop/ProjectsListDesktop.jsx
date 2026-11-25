@@ -330,14 +330,12 @@ export default function ProjectsListDesktop() {
             />
           </label>
           <button
-            onClick={atCreateLimit ? () => router.push(`${navPrefix}/elofizetes`) : openCreate}
+            onClick={atCreateLimit ? () => setUpgradeModal({ docType: 'project' }) : openCreate}
             className="dk-btn dk-btn-w"
             type="button"
-            title={atCreateLimit ? tCommon('basicCreateLimit') : undefined}
-            style={atCreateLimit ? { opacity: 0.65 } : undefined}
           >
             <Plus size={20} strokeWidth={2.6} aria-hidden="true" />
-            {atCreateLimit ? tCommon('upgradeCta') : t('new')}
+            {t('new')}
           </button>
         </div>
       </header>

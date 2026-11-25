@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl';
 import { useApp } from '@/context/AppContext';
 import { formatDate, formatMoney } from '@/lib/constants';
 import Modal from '@/components/Modal';
+import UpgradeModal from '@/components/UpgradeModal';
 import StatusBadge from '@/components/StatusBadge';
 import { WorkspaceNotActivatedBanner, WorkspaceFrozenBanner } from '@/components/desktop/WorkspaceStatusBanners';
 import TransferToCollectiveModal from '@/components/TransferToCollectiveModal';
@@ -44,6 +45,7 @@ export default function OfferListDesktop() {
   const [deleteOpen, setDeleteOpen]       = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [transferOpen, setTransferOpen]   = useState(false);
+  const [upgradeModal, setUpgradeModal]   = useState(null);
 
   const allQuotes = useMemo(() => quotes || [], [quotes]);
 
@@ -144,12 +146,10 @@ export default function OfferListDesktop() {
           </label>
           <button
             className="dk-btn dk-btn-w"
-            onClick={() => atCreateLimit ? router.push(p('/elofizetes')) : router.push(p('/ajanlatok/uj'))}
-            title={atCreateLimit ? tCommon('basicCreateLimit') : undefined}
-            style={atCreateLimit ? { opacity: 0.65 } : undefined}
+            onClick={() => atCreateLimit ? setUpgradeModal({ docType: 'quote' }) : router.push(p('/ajanlatok/uj'))}
           >
             <Plus size={20} aria-hidden="true" />
-            {atCreateLimit ? tCommon('upgradeCta') : t('new')}
+            {t('new')}
           </button>
         </div>
       </header>
@@ -389,6 +389,7 @@ export default function OfferListDesktop() {
           if (data.moved) setSelectedId(null);
         }}
       />
+      <UpgradeModal isOpen={!!upgradeModal} onClose={() => setUpgradeModal(null)} docType={upgradeModal?.docType} />
     </div>
   );
 }

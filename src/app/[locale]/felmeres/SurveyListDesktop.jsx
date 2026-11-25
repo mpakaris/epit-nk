@@ -7,6 +7,7 @@ import { useApp } from '@/context/AppContext';
 import { formatDate } from '@/lib/constants';
 import { isEffectivePremium } from '@/lib/subscriptionLimits';
 import Modal from '@/components/Modal';
+import UpgradeModal from '@/components/UpgradeModal';
 import { WorkspaceNotActivatedBanner, WorkspaceFrozenBanner } from '@/components/desktop/WorkspaceStatusBanners';
 import TransferToCollectiveModal from '@/components/TransferToCollectiveModal';
 import SurveyMediaModal from '@/components/survey/SurveyMediaModal';
@@ -62,6 +63,7 @@ export default function SurveyListDesktop() {
   const [drawingsOpen, setDrawingsOpen]   = useState(false);
   const [sidePhotos,   setSidePhotos]     = useState([]);
   const [sideDrawings, setSideDrawings]   = useState([]);
+  const [upgradeModal, setUpgradeModal]   = useState(null);
 
   const allSurveys = useMemo(() => surveys || [], [surveys]);
 
@@ -180,12 +182,10 @@ export default function SurveyListDesktop() {
           </label>
           <button
             className="dk-btn dk-btn-w"
-            onClick={() => atCreateLimit ? router.push(p('/elofizetes')) : router.push(p('/felmeres/uj'))}
-            title={atCreateLimit ? tCommon('basicCreateLimit') : undefined}
-            style={atCreateLimit ? { opacity: 0.65 } : undefined}
+            onClick={() => atCreateLimit ? setUpgradeModal({ docType: 'survey' }) : router.push(p('/felmeres/uj'))}
           >
             <Plus size={20} aria-hidden="true" />
-            {atCreateLimit ? tCommon('upgradeCta') : t('new')}
+            {t('new')}
           </button>
         </div>
       </header>
@@ -478,6 +478,7 @@ export default function SurveyListDesktop() {
           onDeleted={(id) => setSideDrawings(prev => prev.filter(dr => dr.id !== id))}
         />
       )}
+      <UpgradeModal isOpen={!!upgradeModal} onClose={() => setUpgradeModal(null)} docType={upgradeModal?.docType} />
     </div>
   );
 }
