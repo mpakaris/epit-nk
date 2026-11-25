@@ -15,7 +15,11 @@ export function makeSurveyActions({
       body: JSON.stringify({ title, notes, date: date || null, location, client_id: clientId || null, collective_id: collectiveIdOverride ?? activeCollectiveId ?? null, shared_with: sharedWith }),
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Hiba a felmérés létrehozásakor');
+    if (!res.ok) {
+      const err = new Error(data.error || 'Hiba a felmérés létrehozásakor');
+      err.code = data.code; err.docType = data.docType;
+      throw err;
+    }
     setSurveys(prev => [data.survey, ...prev]);
     return data.survey;
   };

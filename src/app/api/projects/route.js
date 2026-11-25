@@ -30,7 +30,7 @@ export async function POST(request) {
     const check = await checkPersonalLimit(admin, user.id, 'projects', 'basic_max_projects');
     if (!check.allowed) {
       return Response.json(
-        { error: `Bázis csomagban maximum ${check.limit} projekt hozható létre. Váltj Prémiumra a korlátlan használathoz.` },
+        { error: `Bázis csomagban maximum ${check.limit} projekt hozható létre. Váltj Prémiumra a korlátlan használathoz.`, code: 'LIMIT_REACHED', docType: 'project', limit: check.limit },
         { status: 403 }
       );
     }

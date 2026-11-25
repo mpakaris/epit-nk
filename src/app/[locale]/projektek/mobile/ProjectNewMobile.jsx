@@ -15,6 +15,7 @@ import { PERSONAL_COLOR, podColor } from '@/lib/podColor';
 import { isEffectivePremium } from '@/lib/subscriptionLimits';
 import useOnline from '@/hooks/useOnline';
 import { AlertModal } from '@/components/Modal';
+import UpgradeModal from '@/components/UpgradeModal';
 import QuickClientSheet from '@/app/[locale]/ajanlatok/mobile/QuickClientSheet';
 
 const PROJ_BG = '#263248';
@@ -63,6 +64,7 @@ export default function ProjectNewMobile() {
   const [description, setDescription] = useState('');
   const [saving, setSaving] = useState(false);
   const [alertModal, setAlertModal] = useState({ open: false, message: '' });
+  const [upgradeDocType, setUpgradeDocType] = useState(null);
   const [quoteSheet, setQuoteSheet] = useState(false);
   const [quoteSearch, setQuoteSearch] = useState('');
   const [quoteStatusFilter, setQuoteStatusFilter] = useState('all');
@@ -146,8 +148,9 @@ export default function ProjectNewMobile() {
         }),
       });
       if (!res.ok) {
-        const { error } = await res.json().catch(() => ({}));
-        setAlertModal({ open: true, message: error || t('createError') });
+        const body = await res.json().catch(() => ({}));
+        if (body.code === 'LIMIT_REACHED') { setUpgradeDocType(body.docType); return; }
+        setAlertModal({ open: true, message: body.error || t('createError') });
         return;
       }
       const data = await res.json();
@@ -409,6 +412,7 @@ export default function ProjectNewMobile() {
         message={alertModal.message}
         type="error"
       />
+      <UpgradeModal isOpen={!!upgradeDocType} onClose={() => setUpgradeDocType(null)} docType={upgradeDocType} />
     </div>
   );
 }

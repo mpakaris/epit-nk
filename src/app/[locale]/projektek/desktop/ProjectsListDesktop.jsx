@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl';
 import { useApp } from '@/context/AppContext';
 import { formatMoney } from '@/lib/constants';
 import Modal, { AlertModal, ConfirmModal } from '@/components/Modal';
+import UpgradeModal from '@/components/UpgradeModal';
 import { isEffectivePremium } from '@/lib/subscriptionLimits';
 import { WorkspaceNotActivatedBanner, WorkspaceFrozenBanner } from '@/components/desktop/WorkspaceStatusBanners';
 import WorkspacePodStack from '@/components/desktop/WorkspacePodStack';
@@ -83,6 +84,7 @@ export default function ProjectsListDesktop() {
   const [ncSaving,setNcSaving]= useState(false);
 
   const [alertModal,    setAlertModal]    = useState(null);
+  const [upgradeModal,  setUpgradeModal]  = useState(null); // { docType }
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [deletedIds,    setDeletedIds]    = useState(new Set());
 
@@ -166,7 +168,10 @@ export default function ProjectsListDesktop() {
         }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || t('createError'));
+      if (!res.ok) {
+        if (data.code === 'LIMIT_REACHED') { closeCreate(); setUpgradeModal({ docType: data.docType }); return; }
+        throw new Error(data.error || t('createError'));
+      }
       await refreshSupabaseData();
       router.push(`${navPrefix}/projektek/${data.project.id}`);
     } catch (err) {
@@ -603,6 +608,11 @@ export default function ProjectsListDesktop() {
         variant={alertModal?.variant || 'error'}
         title={alertModal?.title}
         message={alertModal?.message}
+      />
+      <UpgradeModal
+        isOpen={!!upgradeModal}
+        onClose={() => setUpgradeModal(null)}
+        docType={upgradeModal?.docType}
       />
     </div>
   );

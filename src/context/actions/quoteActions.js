@@ -28,7 +28,11 @@ export function makeQuoteActions({
       }),
     });
     const payload = await res.json();
-    if (!res.ok) throw new Error(payload.error || 'Hiba az ajánlat létrehozásakor');
+    if (!res.ok) {
+      const err = new Error(payload.error || 'Hiba az ajánlat létrehozásakor');
+      err.code = payload.code; err.docType = payload.docType;
+      throw err;
+    }
     const data = payload.quote;
     setQuotes(prev => [data, ...prev]);
     if (payload.sections?.length) setQuoteSections(prev => [...prev, ...payload.sections]);

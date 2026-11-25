@@ -53,7 +53,7 @@ export async function POST(request) {
     const check = await checkPersonalLimit(admin, user.id, 'quotes', 'basic_max_quotes');
     if (!check.allowed) {
       return Response.json(
-        { error: `Bázis csomagban maximum ${check.limit} ajánlat hozható létre. Váltj Prémiumra a korlátlan használathoz.` },
+        { error: `Bázis csomagban maximum ${check.limit} ajánlat hozható létre. Váltj Prémiumra a korlátlan használathoz.`, code: 'LIMIT_REACHED', docType: 'quote', limit: check.limit },
         { status: 403 }
       );
     }

@@ -17,7 +17,11 @@ export function makeProjectActions({
       }),
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Hiba a projekt létrehozásakor');
+    if (!res.ok) {
+      const err = new Error(data.error || 'Hiba a projekt létrehozásakor');
+      err.code = data.code; err.docType = data.docType;
+      throw err;
+    }
     setProjects(prev => [data.project, ...prev]);
     return data.project;
   };

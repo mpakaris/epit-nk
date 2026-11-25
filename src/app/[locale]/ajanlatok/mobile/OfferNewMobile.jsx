@@ -15,6 +15,7 @@ import { PERSONAL_COLOR, podColor } from '@/lib/podColor';
 import { isEffectivePremium } from '@/lib/subscriptionLimits';
 import useOnline from '@/hooks/useOnline';
 import { AlertModal } from '@/components/Modal';
+import UpgradeModal from '@/components/UpgradeModal';
 import QuickClientSheet from './QuickClientSheet';
 
 const VIOLET_DEST = { bg: '#6D3FD1', fg: '#fff', glow: 'rgba(255,255,255,0.10)', glass: 'rgba(255,255,255,0.18)', soft: 'rgba(255,255,255,0.88)', tint: '#EDE7FB', deep: '#1C1038' };
@@ -44,6 +45,7 @@ export default function OfferNewMobile() {
   const [description, setDescription] = useState('');
   const [saving, setSaving] = useState(false);
   const [alertModal, setAlertModal] = useState({ open: false, message: '' });
+  const [upgradeDocType, setUpgradeDocType] = useState(null);
   const [surveySheet, setSurveySheet] = useState(false);
   const [surveySearch, setSurveySearch] = useState('');
   const [showInactive, setShowInactive] = useState(false);
@@ -112,8 +114,9 @@ export default function OfferNewMobile() {
       };
       const res = await fetch('/api/quotes', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       if (!res.ok) {
-        const { error } = await res.json().catch(() => ({}));
-        setAlertModal({ open: true, message: error || t('saveError') });
+        const body = await res.json().catch(() => ({}));
+        if (body.code === 'LIMIT_REACHED') { setUpgradeDocType(body.docType); return; }
+        setAlertModal({ open: true, message: body.error || t('saveError') });
         return;
       }
       const data = await res.json();
@@ -387,6 +390,7 @@ export default function OfferNewMobile() {
         message={alertModal.message}
         type="error"
       />
+      <UpgradeModal isOpen={!!upgradeDocType} onClose={() => setUpgradeDocType(null)} docType={upgradeDocType} />
     </div>
   );
 }

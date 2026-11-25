@@ -7,6 +7,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useApp } from '@/context/AppContext';
 import Modal from '@/components/Modal';
+import UpgradeModal from '@/components/UpgradeModal';
 import ErrorBanner from '@/components/ErrorBanner';
 import CollectiveSelector from '@/components/CollectiveSelector';
 import ClientSelect from '@/components/ClientSelect';
@@ -105,6 +106,7 @@ function NewQuotePageInner() {
   const [error, setError]                   = useState('');
   const [isSubmitting, setIsSubmitting]     = useState(false);
   const [showNewClientModal, setShowNewClientModal] = useState(false);
+  const [upgradeModal, setUpgradeModal]     = useState(null);
 
   // Inline new-client form state (desktop only — avoids stacked modals)
   const [ncName,  setNcName]  = useState('');
@@ -236,6 +238,7 @@ function NewQuotePageInner() {
       }
       router.push(`${navPrefix}/ajanlatok/${quote.id}`);
     } catch (err) {
+      if (err.code === 'LIMIT_REACHED') { setUpgradeModal({ docType: err.docType }); setIsSubmitting(false); return; }
       setError(err.message || t('saveError'));
       setIsSubmitting(false);
     }
@@ -661,6 +664,7 @@ function NewQuotePageInner() {
         onClose={() => setShowNewClientModal(false)}
         onCreate={async (fields) => { const c = await createClient({ ...fields }); setClientId(c.id); setShowNewClientModal(false); }}
       />
+      <UpgradeModal isOpen={!!upgradeModal} onClose={() => setUpgradeModal(null)} docType={upgradeModal?.docType} />
     </div>
   );
 }

@@ -3218,5 +3218,21 @@
     "errorTranscriptionFailed": "Transkription fehlgeschlagen",
     "errorMicDenied": "Mikrofonzugriff verweigert",
     "errorMicUnavailable": "Mikrofon nicht verfügbar"
+  },
+  "upgrade": {
+    "title": "Kostenloses Limit erreicht",
+    "body": "Im kostenlosen Basispaket kann maximal 1 {docType} erstellt werden. Wechsle zu Premium für unbegrenzte Nutzung.",
+    "premiumLabel": "Premium-Paket",
+    "bullet1": "Unbegrenzte Aufnahmen, Angebote und Projekte",
+    "bullet2": "Kollektiv-Funktionen und Teamarbeit",
+    "bullet3": "Eigene Website und Kundenportal",
+    "cta": "Zu Premium wechseln",
+    "dismiss": "Schließen",
+    "docTypes": {
+      "survey": "Aufnahme",
+      "quote": "Angebot",
+      "project": "Projekt",
+      "document": "Dokument"
+    }
   }
 }

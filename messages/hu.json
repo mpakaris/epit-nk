@@ -3218,5 +3218,21 @@
     "errorTranscriptionFailed": "Átírás sikertelen",
     "errorMicDenied": "Mikrofon-hozzáférés megtagadva",
     "errorMicUnavailable": "Mikrofon nem elérhető"
+  },
+  "upgrade": {
+    "title": "Elértük az ingyenes korlátot",
+    "body": "Sajnos a Bázis csomagban legfeljebb 1 {docType} hozható létre. Váltj Prémiumra a korlátlan hozzáférésért.",
+    "premiumLabel": "Prémium csomag",
+    "bullet1": "Korlátlan felmérés, ajánlat és projekt",
+    "bullet2": "Kollektíva funkciók és csapatmunka",
+    "bullet3": "Saját weboldal és portál",
+    "cta": "Prémiumra váltás",
+    "dismiss": "Bezárás",
+    "docTypes": {
+      "survey": "felmérés",
+      "quote": "ajánlat",
+      "project": "projekt",
+      "document": "dokumentum"
+    }
   }
 }

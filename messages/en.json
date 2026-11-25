@@ -3218,5 +3218,21 @@
     "errorTranscriptionFailed": "Transcription failed",
     "errorMicDenied": "Microphone access denied",
     "errorMicUnavailable": "Microphone unavailable"
+  },
+  "upgrade": {
+    "title": "Free plan limit reached",
+    "body": "The free Basic plan allows a maximum of 1 {docType}. Upgrade to Premium for unlimited access.",
+    "premiumLabel": "Premium plan",
+    "bullet1": "Unlimited surveys, quotes and projects",
+    "bullet2": "Collective features and team collaboration",
+    "bullet3": "Your own website and client portal",
+    "cta": "Upgrade to Premium",
+    "dismiss": "Close",
+    "docTypes": {
+      "survey": "survey",
+      "quote": "quote",
+      "project": "project",
+      "document": "document"
+    }
   }
 }

@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useApp } from '@/context/AppContext';
 import Modal from '@/components/Modal';
+import UpgradeModal from '@/components/UpgradeModal';
 import ErrorBanner from '@/components/ErrorBanner';
 import { ArrowLeft, Check, Loader2, Plus, User, Users, ChevronDown, MapPin } from 'lucide-react';
 import PageSpinner from '@/components/PageSpinner';
@@ -86,6 +87,7 @@ export default function NewSurveyPage() {
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showNewClientModal, setShowNewClientModal] = useState(false);
+  const [upgradeModal, setUpgradeModal] = useState(null);
 
   if (loading) return <PageSpinner />;
   if (!currentUser) return <div className="container" style={{ paddingTop: '3rem', textAlign: 'center', color: 'var(--danger-text)' }}>{t('unauthorized')}</div>;
@@ -116,6 +118,7 @@ export default function NewSurveyPage() {
       }
       router.push(`${navPrefix}/felmeres/${survey.id}`);
     } catch (err) {
+      if (err.code === 'LIMIT_REACHED') { setUpgradeModal({ docType: err.docType }); setIsSubmitting(false); return; }
       setError(err.message || t('saveError'));
       setIsSubmitting(false);
     }
@@ -363,6 +366,7 @@ export default function NewSurveyPage() {
       </form>
 
       <NewClientModal isOpen={showNewClientModal} onClose={() => setShowNewClientModal(false)} onCreate={handleClientCreated} />
+      <UpgradeModal isOpen={!!upgradeModal} onClose={() => setUpgradeModal(null)} docType={upgradeModal?.docType} />
     </div>
   );
 }

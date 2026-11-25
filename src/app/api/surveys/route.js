@@ -64,7 +64,7 @@ export async function POST(request) {
     const check = await checkPersonalLimit(admin, user.id, 'surveys', 'basic_max_surveys');
     if (!check.allowed) {
       return Response.json(
-        { error: `Bázis csomagban maximum ${check.limit} felmérés hozható létre. Váltj Prémiumra a korlátlan használathoz.` },
+        { error: `Bázis csomagban maximum ${check.limit} felmérés hozható létre. Váltj Prémiumra a korlátlan használathoz.`, code: 'LIMIT_REACHED', docType: 'survey', limit: check.limit },
         { status: 403 }
       );
     }

@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import useMobile from '@/hooks/useMobile';
 import ProjectNewMobile from '../mobile/ProjectNewMobile';
+import UpgradeModal from '@/components/UpgradeModal';
 
 export default function NewProjectPage() {
   const router = useRouter();
@@ -54,6 +55,7 @@ export default function NewProjectPage() {
 
   const [error, setError]           = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [upgradeModal, setUpgradeModal] = useState(null);
 
   if (isMobile) return <ProjectNewMobile />;
 
@@ -114,7 +116,10 @@ export default function NewProjectPage() {
         }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Hiba a projekt létrehozásakor');
+      if (!res.ok) {
+        if (data.code === 'LIMIT_REACHED') { setUpgradeModal({ docType: data.docType }); setIsSubmitting(false); return; }
+        throw new Error(data.error || 'Hiba a projekt létrehozásakor');
+      }
       if (isContributorCollective) {
         await fetch('/api/transfer-requests', {
           method: 'POST',
@@ -315,6 +320,7 @@ export default function NewProjectPage() {
           </button>
         </div>
       </form>
+      <UpgradeModal isOpen={!!upgradeModal} onClose={() => setUpgradeModal(null)} docType={upgradeModal?.docType} />
     </div>
   );
 }
