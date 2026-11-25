@@ -93,7 +93,7 @@ export default function OnboardingModal() {
     <Modal isOpen={true} onClose={() => {}} persistent hideClose maxWidth="440px"
       title={
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div className="dk-ic" style={{ background: '#0E1116', color: '#fff', flexShrink: 0 }}>
+          <div className="dk-ic" style={{ background: '#1F2A3C', color: '#fff', flexShrink: 0 }}>
             <Languages size={18} aria-hidden="true" />
           </div>
           <span>{T.title}</span>
@@ -119,7 +119,8 @@ export default function OnboardingModal() {
               style={{
                 flex: 1,
                 height: 44,
-                background: locale === lang.code ? '#0E1116' : '#F1F1F3',
+                justifyContent: 'center',
+                background: locale === lang.code ? '#1F2A3C' : '#F1F1F3',
                 color: locale === lang.code ? '#fff' : '#0E1116',
               }}
             >
@@ -145,8 +146,10 @@ export default function OnboardingModal() {
                 flex: 1,
                 height: 52,
                 flexDirection: 'column',
+                justifyContent: 'center',
+                alignItems: 'center',
                 gap: 2,
-                background: currency === cur.code ? '#0E1116' : '#F1F1F3',
+                background: currency === cur.code ? '#1F2A3C' : '#F1F1F3',
                 color: currency === cur.code ? '#fff' : '#0E1116',
               }}
             >
@@ -177,8 +180,8 @@ export default function OnboardingModal() {
         type="button"
         onClick={handleSave}
         disabled={saving}
-        className="dk-btn dk-btn-dark"
-        style={{ width: '100%', height: 52, fontSize: 16, gap: 8, opacity: saving ? 0.6 : 1 }}
+        className="dk-btn"
+        style={{ width: '100%', height: 52, fontSize: 16, gap: 8, justifyContent: 'center', background: '#1F2A3C', color: '#fff', opacity: saving ? 0.6 : 1 }}
       >
         {saving
           ? <><Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} /> {T.saving}</>
