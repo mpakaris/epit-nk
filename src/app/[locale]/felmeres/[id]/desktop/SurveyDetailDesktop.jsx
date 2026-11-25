@@ -18,6 +18,7 @@ import PageSpinner from '@/components/PageSpinner';
 import { processMediaFile } from '@/lib/mediaGate';
 import { useUploadQueue } from '@/hooks/useUploadQueue';
 import ReadOnlyBanner from '@/components/ReadOnlyBanner';
+import { WorkspaceFrozenBanner } from '@/components/desktop/WorkspaceStatusBanners';
 import UpgradeModal from '@/components/UpgradeModal';
 import { useReadOnlyUpgrade } from '@/hooks/useReadOnlyUpgrade';
 import { ReadOnlyUpgradeProvider, useReadOnlyUpgradeContext } from '@/context/ReadOnlyUpgradeContext';
@@ -1059,7 +1060,7 @@ function SurveyDetailDesktopInner() {
   const [showMetaDrawer,      setShowMetaDrawer]      = useState(false);
   const [confirmModal,        setConfirmModal]        = useState(null);
   const [alertModal,          setAlertModal]          = useState(null);
-  const { handleError: handleReadOnly, guardReadOnly: _guard, openUpgrade } = useReadOnlyUpgrade();
+  const { handleError: handleReadOnly, guardReadOnly: _guard, openUpgrade, openContactOwner } = useReadOnlyUpgrade();
   const [lockedModalOpen,     setLockedModalOpen]     = useState(false);
   const [transferAttemptCount,setTransferAttemptCount]= useState(0);
   const [pendingAnalysisLayout,setPendingAnalysisLayout]= useState(null);
@@ -1128,15 +1129,21 @@ function SurveyDetailDesktopInner() {
   const mediaAll = surveyMediaBySurvey?.[id]  || [];
 
   const isOwner          = survey.owner_id === currentUser?.id || survey.created_by === currentUser?.id;
-  const myCollectiveRole = collectives?.find(c => c.collective_id === survey.collective_id)?.role;
+  const myCollectiveMembership = collectives?.find(c => c.collective_id === survey.collective_id);
+  const myCollectiveRole = myCollectiveMembership?.role;
   const isKollektivOwner = myCollectiveRole === 'owner' || myCollectiveRole === 'admin';
   const isCollMember     = !!myCollectiveRole;
   const isDocLocked      = !!survey.locked_reason;
   const isReadOnly       = !!survey.is_read_only;
-  const guardReadOnly = (flag = isReadOnly) => _guard(flag);
-  const canAdd           = !isDocLocked && !isReadOnly && (isOwner || isCollMember);
-  const canEditMeta      = !isDocLocked && !isReadOnly && (isKollektivOwner || isOwner);
-  const canEditEntry     = (entry) => !isDocLocked && !isReadOnly && (isKollektivOwner || isOwner || entry.created_by === currentUser?.id);
+  const isCollectiveFrozen = !!survey.collective_id && myCollectiveMembership?.status === 'frozen';
+  const guardReadOnly = (flag = isReadOnly || isCollectiveFrozen) => {
+    if (!flag) return false;
+    if (isCollectiveFrozen && !isKollektivOwner && !isOwner) { openContactOwner(); } else { openUpgrade(); }
+    return true;
+  };
+  const canAdd           = !isDocLocked && !isReadOnly && !isCollectiveFrozen && (isOwner || isCollMember);
+  const canEditMeta      = !isDocLocked && !isReadOnly && !isCollectiveFrozen && (isKollektivOwner || isOwner);
+  const canEditEntry     = (entry) => !isDocLocked && !isReadOnly && !isCollectiveFrozen && (isKollektivOwner || isOwner || entry.created_by === currentUser?.id);
 
   // Totals for header counters
   const totalItems = allItems.length;
@@ -1270,6 +1277,7 @@ function SurveyDetailDesktopInner() {
         ) : (
           <>
             {isReadOnly && <ReadOnlyBanner />}
+            {isCollectiveFrozen && !isReadOnly && <WorkspaceFrozenBanner isOwner={isKollektivOwner || isOwner} />}
             {/* ── Top bar: search + add section (right-aligned) ───────────────── */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 10 }}>
               <label style={{ position: 'relative', display: 'block', width: 280 }}>
@@ -1479,7 +1487,7 @@ function SurveyDetailDesktopInner() {
           entryId={modalEntry.id}
           entryName={modalEntry.name}
           drawings={modalEntryDrawings}
-          canAdd={!isReadOnly && !isDocLocked && (isKollektivOwner || isOwner || (modalEntry?.created_by === currentUser?.id))}
+          canAdd={!isReadOnly && !isCollectiveFrozen && !isDocLocked && (isKollektivOwner || isOwner || (modalEntry?.created_by === currentUser?.id))}
         />
       )}
 

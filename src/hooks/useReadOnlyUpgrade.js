@@ -31,7 +31,7 @@ import { useReadOnlyUpgradeContext } from '@/context/ReadOnlyUpgradeContext';
  *   }
  */
 export function useReadOnlyUpgrade() {
-  const { openUpgrade } = useReadOnlyUpgradeContext();
+  const { openUpgrade, openContactOwner } = useReadOnlyUpgradeContext();
 
   function handleError(err) {
     if (err instanceof ReadOnlyError || err?.code === 'READ_ONLY') {
@@ -45,6 +45,7 @@ export function useReadOnlyUpgrade() {
     let data = {};
     try { data = await res.json(); } catch { /* ignore */ }
     if (data?.read_only) { openUpgrade(); return { absorbed: true, error: null }; }
+    if (data?.error === 'collective_frozen') { openContactOwner(); return { absorbed: true, error: null }; }
     return { absorbed: false, error: data?.error || null };
   }
 
@@ -53,5 +54,5 @@ export function useReadOnlyUpgrade() {
     return false;
   }
 
-  return { handleError, handleResponse, guardReadOnly, openUpgrade };
+  return { handleError, handleResponse, guardReadOnly, openUpgrade, openContactOwner };
 }

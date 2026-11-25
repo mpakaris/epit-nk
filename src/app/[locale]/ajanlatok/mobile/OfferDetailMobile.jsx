@@ -15,12 +15,13 @@ import useOnline from '@/hooks/useOnline';
 import { AlertModal, ConfirmModal } from '@/components/Modal';
 import UpgradeModal from '@/components/UpgradeModal';
 import { useReadOnlyUpgrade } from '@/hooks/useReadOnlyUpgrade';
-import { ReadOnlyUpgradeProvider } from '@/context/ReadOnlyUpgradeContext';
+import { ReadOnlyUpgradeProvider, ReadOnlyUpgradeMobileProvider } from '@/context/ReadOnlyUpgradeContext';
 import QuickClientSheet from './QuickClientSheet';
 import HistorySheet from '@/components/mobile/pods/HistorySheet';
 import DrawingsSection from '@/components/DrawingsSection';
 import { processMediaFile } from '@/lib/mediaGate';
 import ReadOnlyBanner from '@/components/ReadOnlyBanner';
+import { MobileWorkspaceFrozenBanner } from '@/components/mobile/WorkspaceStatusBanners';
 
 const CARD_SHADOW = 'inset 0 1px 0 #fff, 0 16px 26px -14px rgba(0,0,0,0.70), 0 3px 6px -2px rgba(0,0,0,0.30)';
 
@@ -93,7 +94,7 @@ function OfferDetailMobileInner({ quoteId }) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [alertModal, setAlertModal] = useState({ open: false, message: '' });
-  const { handleError: handleReadOnly, guardReadOnly: _guard } = useReadOnlyUpgrade();
+  const { handleError: handleReadOnly, handleResponse, guardReadOnly: _guard, openUpgrade, openContactOwner } = useReadOnlyUpgrade();
   const [sendEmail, setSendEmail] = useState('');
   const [sendLoading, setSendLoading] = useState(false);
   const [attachTerms,       setAttachTerms]       = useState(true);
@@ -221,7 +222,13 @@ function OfferDetailMobileInner({ quoteId }) {
   const isMember = !!quote?.collective_id && !canOwnerAct;
   const isLocked = quote?.status === 'accepted' || quote?.status === 'rejected';
   const isReadOnly = !!quote?.is_read_only;
-  const guardReadOnly = (flag = isReadOnly) => _guard(flag);
+  const isCollectiveFrozen = !!quote?.collective_id && (userMemberships || []).find(m => m.collective_id === quote.collective_id)?.status === 'frozen';
+  const guardReadOnly = (flag = isReadOnly || isCollectiveFrozen) => {
+    if (!flag) return false;
+    if (isCollectiveFrozen && !isKollektivOwner && !isOwner) { openContactOwner(); }
+    else { openUpgrade(); }
+    return true;
+  };
 
   const net = useMemo(() => (sections || []).reduce((s, sec) => s + (sec.entries || []).reduce((a, e) => {
     return a + Number(e.amount_huf || 0);
@@ -264,7 +271,8 @@ function OfferDetailMobileInner({ quoteId }) {
     const res = await fetch(`/api/quotes/${quoteId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
     setSaving(false);
     if (!res.ok) {
-      const { error } = await res.json().catch(() => ({}));
+      const { absorbed, error } = await handleResponse(res);
+      if (absorbed) return;
       setAlertModal({ open: true, message: error || t('saveError') });
       return;
     }
@@ -287,7 +295,8 @@ function OfferDetailMobileInner({ quoteId }) {
     if (guardReadOnly()) return;
     const res = await fetch(`/api/quotes/${quoteId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'draft' }) });
     if (!res.ok) {
-      const { error } = await res.json().catch(() => ({}));
+      const { absorbed, error } = await handleResponse(res);
+      if (absorbed) return;
       setAlertModal({ open: true, message: error || t('errorUnknown') });
       return;
     }
@@ -301,7 +310,8 @@ function OfferDetailMobileInner({ quoteId }) {
       body: JSON.stringify({ title: dupTitle, copyClient: dupClient, copySections: dupSecs }),
     });
     if (!res.ok) {
-      const { error } = await res.json().catch(() => ({}));
+      const { absorbed, error } = await handleResponse(res);
+      if (absorbed) return;
       setAlertModal({ open: true, message: error || t('errorUnknown') });
       return;
     }
@@ -331,7 +341,8 @@ function OfferDetailMobileInner({ quoteId }) {
     const res = await fetch(`/api/quotes/${quoteId}/terms-pdf`, { method: 'POST', body: fd });
     setTermsUploading(false);
     if (!res.ok) {
-      const { error } = await res.json().catch(() => ({}));
+      const { absorbed, error } = await handleResponse(res);
+      if (absorbed) return;
       setAlertModal({ open: true, message: error || t('errorUnknown') });
       return;
     }
@@ -347,7 +358,11 @@ function OfferDetailMobileInner({ quoteId }) {
     setSendSelectedTerms(p => ({ ...p, fileIds: p.fileIds.filter(x => x !== attId) }));
     try {
       const res = await fetch(`/api/quotes/${quoteId}/terms-pdf?fileId=${attId}`, { method: 'DELETE' });
-      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error);
+      if (!res.ok) {
+        const { absorbed, error } = await handleResponse(res);
+        if (absorbed) { setTermsLocal(p => ({ ...p, attachments: quote?.terms_attachments || [] })); setSendSelectedTerms(p => ({ ...p, fileIds: (quote?.terms_attachments || []).map(a => a.id) })); return; }
+        throw new Error(error);
+      }
     } catch (err) {
       setAlertModal({ open: true, message: err.message });
       // restore on failure
@@ -371,7 +386,8 @@ function OfferDetailMobileInner({ quoteId }) {
     });
     setSendLoading(false);
     if (!res.ok) {
-      const { error } = await res.json().catch(() => ({}));
+      const { absorbed, error } = await handleResponse(res);
+      if (absorbed) return;
       setAlertModal({ open: true, message: error || t('errorUnknown') });
       return;
     }
@@ -387,7 +403,8 @@ function OfferDetailMobileInner({ quoteId }) {
       body: JSON.stringify({ client_id: clientId }),
     });
     if (!res.ok) {
-      const { error } = await res.json().catch(() => ({}));
+      const { absorbed, error } = await handleResponse(res);
+      if (absorbed) return;
       setAlertModal({ open: true, message: error || t('errorUnknown') });
       return;
     }
@@ -416,7 +433,8 @@ function OfferDetailMobileInner({ quoteId }) {
       body: JSON.stringify({ client_id: null }),
     });
     if (!res.ok) {
-      const { error } = await res.json().catch(() => ({}));
+      const { absorbed, error } = await handleResponse(res);
+      if (absorbed) return;
       setAlertModal({ open: true, message: error || t('errorUnknown') });
       return;
     }
@@ -502,6 +520,7 @@ function OfferDetailMobileInner({ quoteId }) {
 
           {/* Read-only banner (subscription downgrade) */}
           {isReadOnly && <ReadOnlyBanner />}
+          {isCollectiveFrozen && !isReadOnly && <MobileWorkspaceFrozenBanner isOwner={isKollektivOwner || isOwner} />}
 
           {/* Locked banner */}
           {isLocked && (
@@ -1901,5 +1920,5 @@ function ToggleRow({ checked, onToggle, label, sub }) {
 const isTeam = false; // used in delete sheet — computed above in component
 
 export default function OfferDetailMobile({ quoteId }) {
-  return <ReadOnlyUpgradeProvider><OfferDetailMobileInner quoteId={quoteId} /></ReadOnlyUpgradeProvider>;
+  return <ReadOnlyUpgradeMobileProvider><OfferDetailMobileInner quoteId={quoteId} /></ReadOnlyUpgradeMobileProvider>;
 }

@@ -11,6 +11,7 @@ import { podColor } from '@/lib/podColor';
 import Modal, { ConfirmModal, AlertModal } from '@/components/Modal';
 import LockedDocumentModal from '@/components/LockedDocumentModal';
 import ReadOnlyBanner from '@/components/ReadOnlyBanner';
+import { WorkspaceFrozenBanner } from '@/components/desktop/WorkspaceStatusBanners';
 import UpgradeModal from '@/components/UpgradeModal';
 import { useReadOnlyUpgrade } from '@/hooks/useReadOnlyUpgrade';
 import { ReadOnlyUpgradeProvider } from '@/context/ReadOnlyUpgradeContext';
@@ -144,7 +145,7 @@ function OfferDetailDesktopInner() {
   // ── UI state ──────────────────────────────────────────────────────────────
   const [confirmModal,       setConfirmModal]       = useState(null);
   const [alertModal,         setAlertModal]         = useState(null);
-  const { handleError: handleReadOnly, guardReadOnly: _guard, openUpgrade } = useReadOnlyUpgrade();
+  const { handleError: handleReadOnly, guardReadOnly: _guard, openUpgrade, openContactOwner } = useReadOnlyUpgrade();
   const [copied,             setCopied]             = useState(false);
   const [showClientModal,    setShowClientModal]    = useState(false);
   const [showTermsModal,     setShowTermsModal]     = useState(false);
@@ -334,13 +335,19 @@ function OfferDetailDesktopInner() {
   const taxAmount     = Math.round(netTotal * taxRate / 100);
   const grossTotal    = netTotal + taxAmount;
   const isQuoteOwner     = quote.created_by === currentUser?.id || quote.owner_id === currentUser?.id;
-  const isKollektivOwner = collectives?.some(c => c.collective_id === quote.collective_id && (c.role === 'owner' || c.role === 'admin'));
-  const convertCollectiveName = collectives?.find(c => c.collective_id === quote.collective_id)?.name || null;
-  const isCollMember     = !!(quote.collective_id && collectives?.some(c => c.collective_id === quote.collective_id));
+  const quoteCollectiveMembership = collectives?.find(c => c.collective_id === quote.collective_id);
+  const isKollektivOwner = quoteCollectiveMembership?.role === 'owner' || quoteCollectiveMembership?.role === 'admin';
+  const convertCollectiveName = quoteCollectiveMembership?.name || null;
+  const isCollMember     = !!(quote.collective_id && quoteCollectiveMembership);
   const isDocLocked   = !!quote.locked_reason;
   const isReadOnly    = !!quote.is_read_only;
-  const guardReadOnly = (flag = isReadOnly) => _guard(flag);
-  const canModify     = !isDocLocked && !isReadOnly && (isQuoteOwner || isKollektivOwner || (quote.shared_with || []).includes(currentUser?.id) || isCollMember);
+  const isCollectiveFrozen = !!quote.collective_id && quoteCollectiveMembership?.status === 'frozen';
+  const guardReadOnly = (flag = isReadOnly || isCollectiveFrozen) => {
+    if (!flag) return false;
+    if (isCollectiveFrozen && !isKollektivOwner && !isQuoteOwner) { openContactOwner(); } else { openUpgrade(); }
+    return true;
+  };
+  const canModify     = !isDocLocked && !isReadOnly && !isCollectiveFrozen && (isQuoteOwner || isKollektivOwner || (quote.shared_with || []).includes(currentUser?.id) || isCollMember);
   const isLocked      = quote.status === 'accepted' || quote.status === 'rejected';
   const canEdit       = canModify && !isLocked;
   const isPendingOutgoingTransfer = outgoingTransfers.some(t => t.document_id === id && t.status === 'pending');
@@ -919,6 +926,7 @@ function OfferDetailDesktopInner() {
             <CollectiveBanner documentCollectiveId={quote.collective_id ?? null} />
 
             {isReadOnly && <ReadOnlyBanner />}
+            {isCollectiveFrozen && !isReadOnly && <WorkspaceFrozenBanner isOwner={isKollektivOwner || isQuoteOwner} />}
 
             {isDocLocked && !lockedModalOpen && (
               <div style={{ padding: '0.75rem 1rem', marginBottom: '0.75rem', borderRadius: 'var(--radius-md)', background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>

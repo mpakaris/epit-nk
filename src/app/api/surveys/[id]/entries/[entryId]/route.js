@@ -77,9 +77,6 @@ export async function DELETE(request, { params }) {
   const ctx = await getCtx(surveyId);
   if (ctx.err) return Response.json({ error: ctx.err }, { status: ctx.status });
 
-  if (!ctx.isSuperAdmin && ctx.survey.is_read_only)
-    return Response.json({ error: 'Ez a dokumentum csak olvasható. Prémium csomagra váltva újra szerkeszthetővé válik.', read_only: true }, { status: 403 });
-
   // Load entry to check ownership
   const { data: entry } = await ctx.admin.from('survey_entries').select('created_by').eq('id', entryId).eq('survey_id', surveyId).single();
   if (!entry) return Response.json({ error: 'Not found' }, { status: 404 });

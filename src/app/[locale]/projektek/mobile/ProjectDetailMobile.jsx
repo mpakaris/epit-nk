@@ -17,12 +17,13 @@ import useOnline from '@/hooks/useOnline';
 import { AlertModal } from '@/components/Modal';
 import UpgradeModal from '@/components/UpgradeModal';
 import { useReadOnlyUpgrade } from '@/hooks/useReadOnlyUpgrade';
-import { ReadOnlyUpgradeProvider } from '@/context/ReadOnlyUpgradeContext';
+import { ReadOnlyUpgradeProvider, ReadOnlyUpgradeMobileProvider } from '@/context/ReadOnlyUpgradeContext';
 import Lightbox from '@/components/Lightbox';
 import HistorySheet from '@/components/mobile/pods/HistorySheet';
 import BottomSheet from '@/components/mobile/BottomSheet';
 import { Paperclip, FileText, Send, Trash2, MoreHorizontal, MessageSquare } from 'lucide-react';
 import ReadOnlyBanner from '@/components/ReadOnlyBanner';
+import { MobileWorkspaceFrozenBanner } from '@/components/mobile/WorkspaceStatusBanners';
 
 const PROJ_BG   = '#263248';
 const PROJ_DEEP = '#0B0F17';
@@ -258,7 +259,7 @@ function ProjectDetailMobileInner({ projectId }) {
   const [savingEdit, setSavingEdit] = useState(false);
   const [costTargetInput, setCostTargetInput] = useState('');
   const [alertModal, setAlertModal] = useState({ open: false, message: '' });
-  const { handleError: handleReadOnly, guardReadOnly: _guard } = useReadOnlyUpgrade();
+  const { handleError: handleReadOnly, handleResponse, guardReadOnly: _guard, openUpgrade, openContactOwner } = useReadOnlyUpgrade();
   const [copiedLink, setCopiedLink] = useState(false);
   const [statusReason, setStatusReason] = useState('');
   const [savingStatus, setSavingStatus] = useState(false);
@@ -315,8 +316,14 @@ function ProjectDetailMobileInner({ projectId }) {
   const isOwner = project ? (project.owner_id === currentUser?.id || project.created_by === currentUser?.id) : false;
   const isKollektivOwner = memberRole === 'owner' || memberRole === 'admin';
   const isReadOnly  = !!project?.is_read_only;
-  const guardReadOnly = (flag = isReadOnly) => _guard(flag);
-  const canOwnerAct = (isOwner || isKollektivOwner) && !isReadOnly;
+  const isCollectiveFrozen = !!project?.collective_id && (userMemberships || []).find(m => m.collective_id === project.collective_id)?.status === 'frozen';
+  const guardReadOnly = (flag = isReadOnly || isCollectiveFrozen) => {
+    if (!flag) return false;
+    if (isCollectiveFrozen && !isKollektivOwner && !isOwner) { openContactOwner(); }
+    else { openUpgrade(); }
+    return true;
+  };
+  const canOwnerAct = (isOwner || isKollektivOwner) && !isReadOnly && !isCollectiveFrozen;
   const isMember = !!project?.collective_id && !(isOwner || isKollektivOwner);
   const isClosed = project?.status === 'closed' || project?.status === 'expired';
 
@@ -445,7 +452,8 @@ function ProjectDetailMobileInner({ projectId }) {
     });
     setSavingStatus(false);
     if (!res.ok) {
-      const { error } = await res.json().catch(() => ({}));
+      const { absorbed, error } = await handleResponse(res);
+      if (absorbed) return;
       setAlertModal({ open: true, message: error || t('saveError') });
       return;
     }
@@ -565,7 +573,8 @@ function ProjectDetailMobileInner({ projectId }) {
     });
     setSavingEdit(false);
     if (!res.ok) {
-      const { error } = await res.json().catch(() => ({}));
+      const { absorbed, error } = await handleResponse(res);
+      if (absorbed) return;
       setAlertModal({ open: true, message: error || t('saveError') });
       return;
     }
@@ -583,7 +592,8 @@ function ProjectDetailMobileInner({ projectId }) {
       body: JSON.stringify({ cost_target: Math.round(val) }),
     });
     if (!res.ok) {
-      const { error } = await res.json().catch(() => ({}));
+      const { absorbed, error } = await handleResponse(res);
+      if (absorbed) return;
       setAlertModal({ open: true, message: error || t('saveError') });
       return;
     }
@@ -597,7 +607,8 @@ function ProjectDetailMobileInner({ projectId }) {
       method: 'DELETE',
     });
     if (!res.ok) {
-      const { error } = await res.json().catch(() => ({}));
+      const { absorbed, error } = await handleResponse(res);
+      if (absorbed) return;
       setAlertModal({ open: true, message: error || t('deleteError') });
       return;
     }
@@ -607,7 +618,8 @@ function ProjectDetailMobileInner({ projectId }) {
   const handleDeleteInvoice = async (invoiceId) => {
     const res = await fetch(`/api/invoices/${invoiceId}`, { method: 'DELETE' });
     if (!res.ok) {
-      const { error } = await res.json().catch(() => ({}));
+      const { absorbed, error } = await handleResponse(res);
+      if (absorbed) return;
       setAlertModal({ open: true, message: error || t('deleteError') });
       return;
     }
@@ -617,7 +629,8 @@ function ProjectDetailMobileInner({ projectId }) {
   const handleDeleteLabour = async (labourId) => {
     const res = await fetch(`/api/labour-entries/${labourId}`, { method: 'DELETE' });
     if (!res.ok) {
-      const { error } = await res.json().catch(() => ({}));
+      const { absorbed, error } = await handleResponse(res);
+      if (absorbed) return;
       setAlertModal({ open: true, message: error || t('deleteError') });
       return;
     }
@@ -648,7 +661,8 @@ function ProjectDetailMobileInner({ projectId }) {
         }),
       });
       if (!createRes.ok) {
-        const { error } = await createRes.json().catch(() => ({}));
+        const { absorbed, error } = await handleResponse(createRes);
+        if (absorbed) return;
         setAlertModal({ open: true, message: error || t('saveError') });
         return;
       }
@@ -677,8 +691,8 @@ function ProjectDetailMobileInner({ projectId }) {
           const { item: sent } = await sendRes.json();
           item = { ...sent, files: item.files };
               } else {
-          const { error } = await sendRes.json().catch(() => ({}));
-          setAlertModal({ open: true, message: error || t('saveError') });
+          const { absorbed: sendAbsorbed, error: sendError } = await handleResponse(sendRes);
+          if (!sendAbsorbed) setAlertModal({ open: true, message: sendError || t('saveError') });
         }
       }
 
@@ -700,7 +714,8 @@ function ProjectDetailMobileInner({ projectId }) {
     });
     setSendingItemId(null);
     if (!res.ok) {
-      const { error } = await res.json().catch(() => ({}));
+      const { absorbed, error } = await handleResponse(res);
+      if (absorbed) return;
       setAlertModal({ open: true, message: error || t('saveError') });
       return;
     }
@@ -719,7 +734,8 @@ function ProjectDetailMobileInner({ projectId }) {
     });
     setSavingNote(false);
     if (!res.ok) {
-      const { error } = await res.json().catch(() => ({}));
+      const { absorbed, error } = await handleResponse(res);
+      if (absorbed) return;
       setAlertModal({ open: true, message: error || t('saveError') });
       return;
     }
@@ -730,7 +746,8 @@ function ProjectDetailMobileInner({ projectId }) {
   const handleDeletePaymentItem = async (itemId) => {
     const res = await fetch(`/api/payment-plan/${itemId}`, { method: 'DELETE' });
     if (!res.ok) {
-      const { error } = await res.json().catch(() => ({}));
+      const { absorbed, error } = await handleResponse(res);
+      if (absorbed) return;
       setAlertModal({ open: true, message: error || t('deleteError') });
       return;
     }
@@ -790,7 +807,8 @@ function ProjectDetailMobileInner({ projectId }) {
     });
     setSavingLabour(false);
     if (!res.ok) {
-      const { error } = await res.json().catch(() => ({}));
+      const { absorbed, error } = await handleResponse(res);
+      if (absorbed) return;
       setAlertModal({ open: true, message: error || t('saveError') });
       return;
     }
@@ -806,7 +824,8 @@ function ProjectDetailMobileInner({ projectId }) {
       body: JSON.stringify({ status: 'paid' }),
     });
     if (!res.ok) {
-      const { error } = await res.json().catch(() => ({}));
+      const { absorbed, error } = await handleResponse(res);
+      if (absorbed) return;
       setAlertModal({ open: true, message: error || t('saveError') });
       return;
     }
@@ -885,6 +904,11 @@ function ProjectDetailMobileInner({ projectId }) {
 
         {/* Read-only banner (subscription downgrade) */}
         {isReadOnly && <div style={{ padding: '0 16px 0' }}><ReadOnlyBanner /></div>}
+        {isCollectiveFrozen && !isReadOnly && (
+          <div style={{ padding: '0 16px 0' }}>
+            <MobileWorkspaceFrozenBanner isOwner={isKollektivOwner || isOwner} />
+          </div>
+        )}
 
         {/* Closed banner */}
         {isClosed && (
@@ -2216,5 +2240,5 @@ function ProjectDetailMobileInner({ projectId }) {
 }
 
 export default function ProjectDetailMobile({ projectId }) {
-  return <ReadOnlyUpgradeProvider><ProjectDetailMobileInner projectId={projectId} /></ReadOnlyUpgradeProvider>;
+  return <ReadOnlyUpgradeMobileProvider><ProjectDetailMobileInner projectId={projectId} /></ReadOnlyUpgradeMobileProvider>;
 }

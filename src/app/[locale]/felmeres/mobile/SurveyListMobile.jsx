@@ -4,6 +4,8 @@ import { useState, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useApp } from '@/context/AppContext';
+import { ReadOnlyUpgradeMobileProvider } from '@/context/ReadOnlyUpgradeContext';
+import { useReadOnlyUpgrade } from '@/hooks/useReadOnlyUpgrade';
 import { useTransferRequests } from '@/hooks/useTransferRequests';
 import { normalizeHU } from '@/lib/utils';
 import { PERSONAL_COLOR, podColor } from '@/lib/podColor';
@@ -219,7 +221,7 @@ function DeleteSheet({ survey, isTeam, onConfirm, onClose }) {
   );
 }
 
-export default function SurveyListMobile() {
+function SurveyListMobileInner() {
   const t = useTranslations('mobilePods');
   const router = useRouter();
   const {
@@ -227,6 +229,7 @@ export default function SurveyListMobile() {
     deleteSurvey, isDemoMode, currentUser, dataReady,
     activeCollectiveId,
   } = useApp();
+  const { openUpgrade } = useReadOnlyUpgrade();
   const activeColl = (collectives || []).find(c => c.collective_id === activeCollectiveId);
   const p = (path) => isDemoMode ? `/demo${path}` : path;
   const atCreateLimit = !activeCollectiveId && !isEffectivePremium(currentUser || {}) && (surveys || []).filter(s => !s.collective_id).length >= 1;
@@ -400,7 +403,7 @@ export default function SurveyListMobile() {
                 return (
                   <SurveyCard key={survey.id} survey={surveyWithMeta} client={client} isTeam={!ws.isPersonal}
                     onOpen={() => router.push(p(`/felmeres/${survey.id}`))}
-                    onMore={() => setActionSurvey({ survey: surveyWithMeta, isOwner, canTransfer: ws.isPersonal && isOwner && !pendingReq && (collectives || []).length > 0 && !isDemoMode, hasPending: !!pendingReq, mode: 'action' })}
+                    onMore={() => setActionSurvey({ survey: surveyWithMeta, isOwner, canTransfer: ws.isPersonal && isOwner && !pendingReq && !isDemoMode, hasPending: !!pendingReq, mode: 'action' })}
                   />
                 );
               })}
@@ -445,7 +448,7 @@ export default function SurveyListMobile() {
           canTransfer={actionSurvey.canTransfer}
           hasPending={actionSurvey.hasPending}
           onOpen={() => { router.push(p(`/felmeres/${actionSurvey.survey.id}`)); setActionSurvey(null); }}
-          onTransfer={() => setActionSurvey(a => ({ ...a, mode: 'transfer' }))}
+          onTransfer={() => { if (!isEffectivePremium(currentUser || {})) { openUpgrade(); return; } setActionSurvey(a => ({ ...a, mode: 'transfer' })); }}
           onRevoke={() => { /* revoke logic */ setActionSurvey(null); }}
           onDelete={() => setActionSurvey(a => ({ ...a, mode: 'delete' }))}
           onClose={() => setActionSurvey(null)}
@@ -469,4 +472,8 @@ export default function SurveyListMobile() {
       )}
     </div>
   );
+}
+
+export default function SurveyListMobile() {
+  return <ReadOnlyUpgradeMobileProvider><SurveyListMobileInner /></ReadOnlyUpgradeMobileProvider>;
 }

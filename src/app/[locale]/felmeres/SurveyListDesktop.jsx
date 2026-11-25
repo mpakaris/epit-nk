@@ -154,7 +154,6 @@ export default function SurveyListDesktop() {
     && isOwner(selectedSurvey)
     && !selectedSurvey.collective_id
     && !selectedSurvey.is_read_only
-    && (collectives || []).some(c => c.collective_id)
     && !isDemoMode;
 
   return (
@@ -376,7 +375,7 @@ export default function SurveyListDesktop() {
                       {canTransfer && (
                         <button
                           className="dk-btn dk-btn-l"
-                          onClick={() => setTransferOpen(true)}
+                          onClick={() => isEffectivePremium(currentUser || {}) ? setTransferOpen(true) : setUpgradeModal({ docType: 'survey' })}
                           style={{ flex: 1, justifyContent: 'center' }}
                         >
                           <ArrowRightLeft size={18} aria-hidden="true" />

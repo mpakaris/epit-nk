@@ -17,6 +17,7 @@ const DK_LABEL = { display: 'block', fontSize: 11, fontWeight: 700, letterSpacin
 export default function PaymentPlanModal({
   isOpen, onClose,
   editItem,
+  readOnly = false,
   onSave,           // (fields, file) => Promise — file may be null
   onSend,           // (toEmail) => Promise
   onStatusChange,   // (newStatus) => Promise
@@ -68,7 +69,7 @@ export default function PaymentPlanModal({
 
   // Auto-save in edit mode
   useEffect(() => {
-    if (!editItem || !isOpen || savedRef.current === null) return;
+    if (!editItem || !isOpen || savedRef.current === null || readOnly) return;
     const current = snap(label, amount, dueDate, note);
     if (current === savedRef.current) return;
     const amt = Math.round(Number(amount));
@@ -164,9 +165,10 @@ export default function PaymentPlanModal({
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 16 }}>
           {Object.entries(STATUS_DISPLAY).map(([key, s]) => {
             const isActive = currentStatus === key;
+            if (readOnly && !isActive) return null;
             return (
-              <button key={key} type="button" disabled={changingStatus} onClick={() => handleStatusChange(key)}
-                style={{ height: 32, padding: '0 14px', borderRadius: 16, border: `1.5px solid ${isActive ? s.color : '#EDEBE5'}`, background: isActive ? s.bg : '#fff', color: isActive ? s.color : '#5A5F68', fontSize: 12, fontWeight: 700, cursor: changingStatus ? 'default' : 'pointer', opacity: changingStatus && !isActive ? 0.5 : 1, transition: 'all 0.12s' }}>
+              <button key={key} type="button" disabled={changingStatus || readOnly} onClick={() => !readOnly && handleStatusChange(key)}
+                style={{ height: 32, padding: '0 14px', borderRadius: 16, border: `1.5px solid ${isActive ? s.color : '#EDEBE5'}`, background: isActive ? s.bg : '#fff', color: isActive ? s.color : '#5A5F68', fontSize: 12, fontWeight: 700, cursor: (changingStatus || readOnly) ? 'default' : 'pointer', opacity: changingStatus && !isActive ? 0.5 : 1, transition: 'all 0.12s' }}>
                 {t(s.labelKey)}
               </button>
             );
@@ -187,8 +189,8 @@ export default function PaymentPlanModal({
               <a href={f.file_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, fontWeight: 700, color: '#15803d', textDecoration: 'none' }}>{t('viewBtn')}</a>
             </div>
           ))}
-          {/* New file picker */}
-          {file ? (
+          {/* New file picker — hidden in read-only mode */}
+          {!readOnly && (file ? (
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 10, background: '#eff6ff', border: '1px solid #bfdbfe' }}>
               <ImageIcon size={14} color="#1d4ed8" />
               <span style={{ flex: 1, fontSize: 13, fontWeight: 600, color: '#1e40af', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{file.name}</span>
@@ -198,58 +200,56 @@ export default function PaymentPlanModal({
             <button type="button" className="dk-btn" style={{ width: '100%', justifyContent: 'center', fontSize: 13, background: '#263248', color: '#fff' }} onClick={() => fileRef.current?.click()}>
               <ImageIcon size={14} /> {t('attachFile')}
             </button>
-          )}
+          ))}
           <input ref={fileRef} type="file" accept="image/*,application/pdf" style={{ display: 'none' }} onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; if (f) setFile(f); }} />
         </div>
 
         {/* Label */}
         <div>
-          <label style={DK_LABEL}>{t('paymentLabelField')} *</label>
-          <input type="text" className="dk-input" value={label} onChange={e => setLabel(e.target.value)} style={{ width: '100%' }} />
+          <label style={DK_LABEL}>{t('paymentLabelField')}{!readOnly && ' *'}</label>
+          <input type="text" className="dk-input" value={label} onChange={e => setLabel(e.target.value)} style={{ width: '100%' }} disabled={readOnly} readOnly={readOnly} />
         </div>
 
         {/* Amount + Due date */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
           <div>
-            <label style={DK_LABEL}>{t('paymentAmountField')} *</label>
-            <input type="number" inputMode="numeric" min="0" className="dk-input" value={amount} onChange={e => setAmount(e.target.value)} style={{ width: '100%' }} />
+            <label style={DK_LABEL}>{t('paymentAmountField')}{!readOnly && ' *'}</label>
+            <input type="number" inputMode="numeric" min="0" className="dk-input" value={amount} onChange={e => setAmount(e.target.value)} style={{ width: '100%' }} disabled={readOnly} readOnly={readOnly} />
           </div>
           <div>
             <label style={DK_LABEL}>{t('paymentDueField')}</label>
-            <input type="date" className="dk-input" value={dueDate} onChange={e => setDueDate(e.target.value)} style={{ width: '100%' }} />
+            <input type="date" className="dk-input" value={dueDate} onChange={e => setDueDate(e.target.value)} style={{ width: '100%' }} disabled={readOnly} readOnly={readOnly} />
           </div>
         </div>
 
         {/* Note */}
         <div>
           <label style={DK_LABEL}>{t('paymentNoteField')}</label>
-          <textarea rows={2} className="form-control" value={note} onChange={e => setNote(e.target.value)} placeholder={t('paymentNotePlaceholder')} style={{ borderRadius: 12, fontSize: 14 }} />
+          <textarea rows={2} className="form-control" value={note} onChange={e => setNote(e.target.value)} placeholder={t('paymentNotePlaceholder')} style={{ borderRadius: 12, fontSize: 14 }} disabled={readOnly} readOnly={readOnly} />
         </div>
 
         {/* Footer */}
         <div style={{ paddingTop: '1rem', borderTop: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', gap: 8 }}>
-          {saveIndicator}
+          {!readOnly && saveIndicator}
           <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
-            {editItem && onDelete && (
+            {!readOnly && editItem && onDelete && (
               <button type="button" className="dk-btn" style={{ background: 'var(--danger)', color: '#fff' }} onClick={onDelete}>
                 <Trash2 size={13} /> {t('deletePaymentItem')}
               </button>
             )}
-            {editItem && onSend && (
+            {!readOnly && editItem && onSend && (
               <button type="button" className="dk-btn dk-btn-l" style={{ fontSize: 13 }} onClick={() => setShowSend(true)}>
                 <Send size={13} /> {t('sendInvoice')}
               </button>
             )}
-            {!editItem && (
+            {!readOnly && !editItem && (
               <button type="button" className="dk-btn" style={{ background: '#263248', color: '#fff', justifyContent: 'center' }} disabled={!canSave || saving} onClick={handleCreate}>
                 {saving ? <><Loader2 size={14} className="animate-spin" /> {t('savingText')}</> : <><Check size={14} /> {t('addPaymentItem')}</>}
               </button>
             )}
-            {editItem && (
-              <button type="button" className="dk-btn" style={{ background: '#263248', color: '#fff' }} onClick={onClose}>
-                <Check size={13} /> {t('saveEntryBtn')}
-              </button>
-            )}
+            <button type="button" className="dk-btn dk-btn-l" onClick={onClose}>
+              {readOnly ? t('closeBtn') : <><Check size={13} /> {t('saveEntryBtn')}</>}
+            </button>
           </div>
         </div>
       </div>

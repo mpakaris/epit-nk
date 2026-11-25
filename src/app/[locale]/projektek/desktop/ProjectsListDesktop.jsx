@@ -14,7 +14,7 @@ import ClientSelect from '@/components/ClientSelect';
 import WorkspacePicker from '@/components/mobile/WorkspacePicker';
 import { useTransferRequests } from '@/hooks/useTransferRequests';
 import {
-  Plus, Search, Loader2, FileText, X, FolderKanban, ArrowLeft,
+  Plus, Search, Loader2, FileText, X, FolderKanban, ArrowLeft, Lock,
 } from 'lucide-react';
 
 export default function ProjectsListDesktop() {
@@ -268,7 +268,10 @@ export default function ProjectsListDesktop() {
       >
         {/* Name + status */}
         <span style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
-          <b className="dk-n" style={{ fontSize: 18, flex: 1, minWidth: 0, lineHeight: 1.3 }}>{p.name}</b>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1, minWidth: 0 }}>
+            {p.is_read_only && <Lock size={14} color="#9AA3B2" style={{ flexShrink: 0, marginTop: 2 }} aria-hidden="true" />}
+            <b className="dk-n" style={{ fontSize: 18, minWidth: 0, lineHeight: 1.3 }}>{p.name}</b>
+          </span>
           <span className="dk-badge" style={{ background: statusBg, color: statusColor, flexShrink: 0 }}>{statusLabel}</span>
         </span>
 

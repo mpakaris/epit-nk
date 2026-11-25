@@ -4,6 +4,8 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useApp } from '@/context/AppContext';
+import { ReadOnlyUpgradeMobileProvider } from '@/context/ReadOnlyUpgradeContext';
+import { useReadOnlyUpgrade } from '@/hooks/useReadOnlyUpgrade';
 import AudioRecorder from '@/components/AudioRecorder';
 import { UNIT_I18N } from '@/lib/constants';
 import PageSpinner from '@/components/PageSpinner';
@@ -553,7 +555,7 @@ function TemplatePickerSheet({ onApply, onClose, tM, tc }) {
 
 // ── Main component ─────────────────────────────────────────────────────────────
 
-export default function ItemsMobile() {
+function ItemsMobileInner() {
   const { id: surveyId, entryId } = useParams();
   const router       = useRouter();
   const searchParams = useSearchParams();
@@ -587,6 +589,8 @@ export default function ItemsMobile() {
 
   // Derive items
   const survey  = surveys?.find(s => s.id === surveyId);
+  const isReadOnly = !!survey?.is_read_only;
+  const { openUpgrade } = useReadOnlyUpgrade();
   const entries = surveyEntriesBySurvey[surveyId] || [];
   const entry   = entries.find(e => e.id === entryId);
   const allItems = (surveyItemsBySurvey[surveyId] || []).filter(i => i.entry_id === entryId);
@@ -634,12 +638,13 @@ export default function ItemsMobile() {
     setTemplatePicker(false);
     setAnySheet(false);
   }, []);
-  const openAdd    = () => { setAddSheet({ mode: 'add' });  setAnySheet(true); };
-  const openEdit   = (item) => { setAddSheet({ mode: 'edit', item }); setAnySheet(true); };
+  const openAdd    = () => { if (isReadOnly) { openUpgrade(); return; } setAddSheet({ mode: 'add' });  setAnySheet(true); };
+  const openEdit   = (item) => { if (isReadOnly) { openUpgrade(); return; } setAddSheet({ mode: 'edit', item }); setAnySheet(true); };
   const openContextMenu = () => { setContextMenu(true); setAnySheet(true); };
-  const openTemplatePicker = () => { setContextMenu(false); setTemplatePicker(true); setAnySheet(true); };
+  const openTemplatePicker = () => { if (isReadOnly) { openUpgrade(); return; } setContextMenu(false); setTemplatePicker(true); setAnySheet(true); };
 
   const handleApplyTemplateEntries = async (entries) => {
+    if (isReadOnly) { openUpgrade(); return; }
     await Promise.allSettled(
       entries.map(e => createSurveyItem(surveyId, {
         entry_id: entryId,
@@ -655,6 +660,7 @@ export default function ItemsMobile() {
 
   // AI generate without dictation
   const handleGenerateDirect = async () => {
+    if (isReadOnly) { openUpgrade(); return; }
     setAiStatus('generating'); setGenError('');
     try {
       await generateSurveyEntryItems(surveyId, entryId);
@@ -668,6 +674,7 @@ export default function ItemsMobile() {
 
   // After AudioRecorder gives us a transcript
   const handleTranscript = async (text) => {
+    if (isReadOnly) { openUpgrade(); return; }
     setAiStatus('filling'); setGenError('');
     let description = text;
     const extraFields = {};
@@ -707,6 +714,7 @@ export default function ItemsMobile() {
 
   // Accept selected suggestions
   const handleAcceptSelected = async () => {
+    if (isReadOnly) { openUpgrade(); return; }
     if (!selectedIds.size) return;
     await Promise.allSettled(
       [...selectedIds].map(id => updateSurveyItem(surveyId, id, { is_confirmed: true }).catch(() => {}))
@@ -715,6 +723,7 @@ export default function ItemsMobile() {
   };
 
   const handleAcceptAll = async () => {
+    if (isReadOnly) { openUpgrade(); return; }
     await Promise.allSettled(
       suggestions.map(i => updateSurveyItem(surveyId, i.id, { is_confirmed: true }).catch(() => {}))
     );
@@ -1098,4 +1107,8 @@ export default function ItemsMobile() {
 
     </div>
   );
+}
+
+export default function ItemsMobile() {
+  return <ReadOnlyUpgradeMobileProvider><ItemsMobileInner /></ReadOnlyUpgradeMobileProvider>;
 }

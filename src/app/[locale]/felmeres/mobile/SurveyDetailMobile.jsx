@@ -14,9 +14,10 @@ import useOnline from '@/hooks/useOnline';
 import AnalyzeLayoutSheet from './AnalyzeLayoutSheet';
 import { RoomEditorSheet } from './RoomEditorMobile';
 import ReadOnlyBanner from '@/components/ReadOnlyBanner';
+import { MobileWorkspaceFrozenBanner } from '@/components/mobile/WorkspaceStatusBanners';
 import UpgradeModal from '@/components/UpgradeModal';
 import { useReadOnlyUpgrade } from '@/hooks/useReadOnlyUpgrade';
-import { ReadOnlyUpgradeProvider } from '@/context/ReadOnlyUpgradeContext';
+import { ReadOnlyUpgradeProvider, ReadOnlyUpgradeMobileProvider } from '@/context/ReadOnlyUpgradeContext';
 
 const SURVEY_BG   = '#0A7F72';
 const SURVEY_DEEP = '#121110';
@@ -149,7 +150,7 @@ function MetaSheet({ survey, clients, onSave, onClose }) {
   );
 }
 
-function RoomCard({ entry, survey, isNewEntry, isOpen, onToggle, onMore, onDims, onItems, enqueue, surveyId, onMediaOpen, onSketchOpen, onAddSketch, drawings = [], itemCount = 0, index = 1 }) {
+function RoomCard({ entry, survey, isNewEntry, isOpen, onToggle, onMore, onDims, onItems, enqueue, onAddMedia, surveyId, onMediaOpen, onSketchOpen, onAddSketch, drawings = [], itemCount = 0, index = 1 }) {
   const tM = useTranslations('mobilePods');
   const tS = useTranslations('surveyDetail');
   const { currentUser } = useApp();
@@ -245,11 +246,13 @@ function RoomCard({ entry, survey, isNewEntry, isOpen, onToggle, onMore, onDims,
                   </span>
                 )}
               </button>
-              {enqueue && (
-                <button type="button" onClick={() => !atPhotoLimit && photoInputRef.current?.click()} disabled={atPhotoLimit}
-                  style={{ height: 34, border: '1.5px dashed #C9C5BA', borderRadius: 10, background: 'transparent', color: atPhotoLimit ? '#A0A0A0' : '#5A5F68', fontSize: 12, fontWeight: 700, cursor: atPhotoLimit ? 'default' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, opacity: atPhotoLimit ? 0.6 : 1 }}>
-                  {!atPhotoLimit && <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>}
-                  {atPhotoLimit ? tM('roomPhotoLimitBtn') : tM('roomPhotoVideo')}
+              {(enqueue || onAddMedia) && (
+                <button type="button"
+                  onClick={() => onAddMedia ? onAddMedia() : (!atPhotoLimit && photoInputRef.current?.click())}
+                  disabled={!onAddMedia && atPhotoLimit}
+                  style={{ height: 34, border: '1.5px dashed #C9C5BA', borderRadius: 10, background: 'transparent', color: (!onAddMedia && atPhotoLimit) ? '#A0A0A0' : '#5A5F68', fontSize: 12, fontWeight: 700, cursor: (!onAddMedia && atPhotoLimit) ? 'default' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, opacity: (!onAddMedia && atPhotoLimit) ? 0.6 : 1 }}>
+                  {!((!onAddMedia) && atPhotoLimit) && <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>}
+                  {(!onAddMedia && atPhotoLimit) ? tM('roomPhotoLimitBtn') : tM('roomPhotoVideo')}
                 </button>
               )}
               <input ref={photoInputRef} type="file" accept="image/*,video/*" multiple capture="environment" style={{ display: 'none' }} onChange={e => {
@@ -643,10 +646,19 @@ function SurveyDetailMobileInner() {
   const isOwner          = survey.owner_id === currentUser?.id || survey.created_by === currentUser?.id;
   const isDocLocked      = !!survey.locked_reason;
   const isReadOnly       = !!survey.is_read_only;
-  const guardReadOnly = (flag = isReadOnly) => _guard(flag);
-  const { handleError: handleReadOnly, guardReadOnly: _guard } = useReadOnlyUpgrade();
-  const canAdd           = !isDocLocked && !isReadOnly && (isOwner || !!myCollectiveRole);
-  const canEditMeta      = !isDocLocked && !isReadOnly && (isKollektivOwner || isOwner);
+  const isCollectiveFrozen = !!survey?.collective_id && collectives?.find(c => c.collective_id === survey.collective_id)?.status === 'frozen';
+  const { handleError: handleReadOnly, handleResponse, guardReadOnly: _guard, openUpgrade, openContactOwner } = useReadOnlyUpgrade();
+  const guardReadOnly = (flag = isReadOnly || isCollectiveFrozen) => {
+    if (!flag) return false;
+    if (isCollectiveFrozen && !isKollektivOwner && !isOwner) { openContactOwner(); }
+    else { openUpgrade(); }
+    return true;
+  };
+  const canAdd           = !isDocLocked && !isReadOnly && !isCollectiveFrozen && (isOwner || !!myCollectiveRole);
+  const canEditMeta      = !isDocLocked && !isReadOnly && !isCollectiveFrozen && (isKollektivOwner || isOwner);
+  // show-but-block: visibility gates on ownership only; guardReadOnly() handles the click
+  const showOwnerActions = (isOwner || isKollektivOwner) && !isDocLocked;
+  const showMemberActions = (isOwner || !!myCollectiveRole) && !isDocLocked;
 
   const workspaceCol  = collectives?.find(c => c.collective_id === survey.collective_id);
   const workspaceName = workspaceCol ? workspaceCol.name : tM('personal');
@@ -666,7 +678,7 @@ function SurveyDetailMobileInner() {
       if (newStatus === 'reopened') body.reopened_at = new Date().toISOString();
       if (newStatus === 'done')     body.done_at     = new Date().toISOString();
       const res = await fetch(`/api/surveys/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-      if (!res.ok) { const j = await res.json().catch(() => ({})); setAlertMsg(j.error || t('statusSaveError')); }
+      if (!res.ok) { const { absorbed, error } = await handleResponse(res); if (!absorbed) setAlertMsg(error || t('statusSaveError')); }
       else await updateSurvey?.(id, body);
     } catch { setAlertMsg(t('statusSaveError')); }
     setStatusSaving(false);
@@ -677,7 +689,7 @@ function SurveyDetailMobileInner() {
     const val = survey.archived_at ? null : new Date().toISOString();
     try {
       const res = await fetch(`/api/surveys/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ archived_at: val }) });
-      if (!res.ok) { const j = await res.json().catch(() => ({})); setAlertMsg(j.error || t('statusSaveError')); }
+      if (!res.ok) { const { absorbed, error } = await handleResponse(res); if (!absorbed) setAlertMsg(error || t('statusSaveError')); }
       else await updateSurvey?.(id, { archived_at: val });
     } catch { setAlertMsg(t('statusSaveError')); }
   };
@@ -712,19 +724,19 @@ function SurveyDetailMobileInner() {
   const isArchived = !!survey.archived_at;
 
   const surveyMenuItems = [
-    canEditMeta && {
+    showOwnerActions && {
       icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M16 3l5 5L9 20H4v-5z"/></svg>,
-      label: t('ctxEditMeta'), onClick: () => { closeSheet(); setSheet('meta'); },
+      label: t('ctxEditMeta'), onClick: () => { if (guardReadOnly()) return; closeSheet(); setSheet('meta'); },
     },
-    canEditMeta && isDone
-      ? { icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 4v6h6M20 20v-6h-6M20 10a8 8 0 00-14-3M4 14a8 8 0 0014 3"/></svg>, label: t('ctxReopen'), onClick: () => { closeSheet(); setConfirmOp('reopen'); setSheet('confirm'); } }
-      : canEditMeta && { icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10M3 12a9 9 0 1018 0 9 9 0 10-18 0"/></svg>, label: t('ctxClose'), onClick: () => { closeSheet(); setConfirmOp('close'); setSheet('confirm'); } },
-    canEditMeta && {
+    showOwnerActions && isDone
+      ? { icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 4v6h6M20 20v-6h-6M20 10a8 8 0 00-14-3M4 14a8 8 0 0014 3"/></svg>, label: t('ctxReopen'), onClick: () => { if (guardReadOnly()) return; closeSheet(); setConfirmOp('reopen'); setSheet('confirm'); } }
+      : showOwnerActions && { icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10M3 12a9 9 0 1018 0 9 9 0 10-18 0"/></svg>, label: t('ctxClose'), onClick: () => { if (guardReadOnly()) return; closeSheet(); setConfirmOp('close'); setSheet('confirm'); } },
+    showOwnerActions && {
       icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12M9 12a3 3 0 106 0 3 3 0 10-6 0"/></svg>,
       label: isArchived ? t('ctxRestore') : t('ctxInactivate'),
-      onClick: () => { closeSheet(); setConfirmOp('archive'); setSheet('confirm'); },
+      onClick: () => { if (guardReadOnly()) return; closeSheet(); setConfirmOp('archive'); setSheet('confirm'); },
     },
-    canEditMeta && !survey.is_seed && {
+    showOwnerActions && !survey.is_seed && {
       icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg>,
       label: t('deleteBtn'), onClick: () => { closeSheet(); setConfirmOp('delete'); setSheet('confirm'); },
       danger: true,
@@ -732,9 +744,9 @@ function SurveyDetailMobileInner() {
   ].filter(Boolean);
 
   const roomMenuItems = [
-    { icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>, label: tM('roomAddItem'), onClick: () => { closeSheet(); if (activeRoomId) router.push(p(`/felmeres/${id}/tetelek/${activeRoomId}?mode=add`)); } },
-    { icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M16 3l5 5L9 20H4v-5z"/></svg>, label: tM('roomEditAction'), onClick: () => { closeSheet(); if (activeRoomId) setEditRoomEntry(entries.find(e => e.id === activeRoomId) || null); } },
-    { icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg>, label: tM('roomDeleteAction'), onClick: closeSheet, danger: true },
+    { icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>, label: tM('roomAddItem'), onClick: () => { if (guardReadOnly()) return; closeSheet(); if (activeRoomId) router.push(p(`/felmeres/${id}/tetelek/${activeRoomId}?mode=add`)); } },
+    { icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M16 3l5 5L9 20H4v-5z"/></svg>, label: tM('roomEditAction'), onClick: () => { if (guardReadOnly()) return; closeSheet(); if (activeRoomId) setEditRoomEntry(entries.find(e => e.id === activeRoomId) || null); } },
+    { icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg>, label: tM('roomDeleteAction'), onClick: async () => { closeSheet(); if (activeRoomId) { try { await deleteSurveyEntry(id, activeRoomId); } catch { /* ignore */ } } }, danger: true },
   ];
 
   const CONFIRMS = {
@@ -862,6 +874,7 @@ function SurveyDetailMobileInner() {
 
           {/* Read-only banner (subscription downgrade) */}
           {isReadOnly && <ReadOnlyBanner />}
+          {isCollectiveFrozen && !isReadOnly && <MobileWorkspaceFrozenBanner isOwner={isKollektivOwner || isOwner} />}
 
           {/* Locked banner */}
           {isDocLocked && (
@@ -896,7 +909,7 @@ function SurveyDetailMobileInner() {
                       <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true"><path d="M4 4h16v16H4zM4 11h8M12 4v9M12 16h8"/></svg>
                     </div>
                   )}
-                  <button type="button" onClick={() => setAnalyzeSheet(true)} style={{ minHeight: 48, border: 0, borderRadius: 24, background: '#0E1116', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>
+                  <button type="button" onClick={() => { if (guardReadOnly()) return; setAnalyzeSheet(true); }} style={{ minHeight: 48, border: 0, borderRadius: 24, background: '#0E1116', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>
                     {t('addLayout')}
                   </button>
                 </section>
@@ -917,8 +930,8 @@ function SurveyDetailMobileInner() {
                       <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M16 3l5 5L9 20H4v-5z"/></svg>
                     </div>
                   )}
-                  {canEditMeta && (
-                    <button type="button" onClick={() => { setSketchEntryId(null); setShowSketch(true); }} style={{ minHeight: 48, border: 0, borderRadius: 24, background: '#F1F1F3', color: '#0E1116', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>
+                  {showOwnerActions && (
+                    <button type="button" onClick={() => { if (guardReadOnly()) return; setSketchEntryId(null); setShowSketch(true); }} style={{ minHeight: 48, border: 0, borderRadius: 24, background: '#F1F1F3', color: '#0E1116', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>
                       {tM('propAddSketch')}
                     </button>
                   )}
@@ -936,10 +949,10 @@ function SurveyDetailMobileInner() {
               <section style={{ padding: '14px 16px', borderRadius: 26, background: '#fff', color: '#0E1116', display: 'flex', flexDirection: 'column', gap: 10, boxShadow: 'inset 0 1px 0 #fff, 0 16px 26px -14px rgba(0,0,0,0.7)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
                   <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 17, fontWeight: 700 }}>{t('propertyTitle')}</span>
-                  {canEditMeta && (
+                  {showOwnerActions && (
                     <button
                       type="button"
-                      onClick={() => setSheet('property')}
+                      onClick={() => { if (guardReadOnly()) return; setSheet('property'); }}
                       aria-label={t('propertyTitle')}
                       style={{ width: 44, height: 44, border: 0, borderRadius: 22, background: SURVEY_BG, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
                     >
@@ -985,13 +998,14 @@ function SurveyDetailMobileInner() {
                 isOpen={openRoomId === entry.id}
                 onToggle={() => setOpenRoomId(prev => prev === entry.id ? null : entry.id)}
                 onMore={() => { setActiveRoomId(entry.id); setActiveRoomName(entry.name); setSheet('room'); }}
-                onDims={() => setEditRoomEntry(entry)}
+                onDims={() => { if (guardReadOnly()) return; setEditRoomEntry(entry); }}
                 onItems={() => router.push(p(`/felmeres/${id}/tetelek/${entry.id}`))}
-                enqueue={canAdd ? enqueue : undefined}
+                enqueue={showMemberActions && canAdd ? enqueue : undefined}
+                onAddMedia={showMemberActions && !canAdd ? () => guardReadOnly() : undefined}
                 surveyId={id}
                 onMediaOpen={() => setRoomMediaSheet(entry.id)}
                 onSketchOpen={() => setRoomSketchSheet(entry.id)}
-                onAddSketch={canAdd ? () => { setSketchEntryId(entry.id); setEditingSketch(null); setShowSketch(true); } : undefined}
+                onAddSketch={showMemberActions ? (() => { if (guardReadOnly()) return; setSketchEntryId(entry.id); setEditingSketch(null); setShowSketch(true); }) : undefined}
                 drawings={(surveyDrawingsBySurvey[id] || []).filter(d => d.entry_id === entry.id)}
                 itemCount={surveyItems.filter(it => it.entry_id === entry.id).length}
               />
@@ -999,10 +1013,10 @@ function SurveyDetailMobileInner() {
           })}
 
           {/* Add room dashed button */}
-          {canAdd && entries.length < 30 && (
+          {showMemberActions && entries.length < 30 && (
             <button
               type="button"
-              onClick={() => setEditRoomEntry('new')}
+              onClick={() => { if (guardReadOnly()) return; setEditRoomEntry('new'); }}
               style={{ minHeight: 60, border: '2px dashed #B9B5AA', borderRadius: 26, background: 'transparent', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, fontSize: 16, fontWeight: 700, cursor: 'pointer' }}
             >
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
@@ -1122,7 +1136,7 @@ function SurveyDetailMobileInner() {
       {/* Property info sheet */}
       {sheet === 'property' && (
         <div role="dialog" aria-label={t('propertyTitle')} className="pod-sheet" style={{ position: 'fixed', zIndex: 50, left: 0, right: 0, bottom: 0, boxSizing: 'border-box', padding: '10px 16px calc(20px + env(safe-area-inset-bottom))', borderRadius: '32px 32px 0 0', background: 'var(--m-sheet)', display: 'flex', flexDirection: 'column', gap: 14, maxHeight: '92dvh', overflowY: 'auto' }}>
-          <PropInfoSheet survey={survey} surveyId={id} canEdit={canEditMeta} onSave={handlePropSave} onClose={closeSheet} />
+          <PropInfoSheet survey={survey} surveyId={id} canEdit={showOwnerActions} onSave={handlePropSave} onClose={closeSheet} />
         </div>
       )}
 
@@ -1142,16 +1156,16 @@ function SurveyDetailMobileInner() {
                 <button type="button" onClick={() => setPreviewImg(item.drive_view_url || item.thumbnail_url)} style={{ width: '100%', height: '100%', padding: 0, border: 0, cursor: 'pointer', display: 'block' }}>
                   <img src={item.thumbnail_url || item.drive_view_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                 </button>
-                {canEditMeta && (
-                  <button type="button" onClick={() => deleteSurveyMedia(item.id, id, null, 'layout')} style={{ position: 'absolute', top: 6, right: 6, width: 32, height: 32, borderRadius: 16, border: 0, background: 'rgba(14,17,22,0.65)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+                {showOwnerActions && (
+                  <button type="button" onClick={() => { if (guardReadOnly()) return; deleteSurveyMedia(item.id, id, null, 'layout'); }} style={{ position: 'absolute', top: 6, right: 6, width: 32, height: 32, borderRadius: 16, border: 0, background: 'rgba(14,17,22,0.65)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true"><path d="M5 7h14M9 7V4h6v3M7 7l1 13h8l1-13"/></svg>
                   </button>
                 )}
               </div>
             ))}
           </div>
-          {canEditMeta && (
-            <button type="button" onClick={() => { closeSheet(); setAnalyzeSheet(true); }} style={{ minHeight: 56, border: 0, borderRadius: 28, background: '#0E1116', color: '#fff', fontSize: 16, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+          {showOwnerActions && (
+            <button type="button" onClick={() => { if (guardReadOnly()) return; closeSheet(); setAnalyzeSheet(true); }} style={{ minHeight: 56, border: 0, borderRadius: 28, background: '#0E1116', color: '#fff', fontSize: 16, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
               {t('addLayout')}
             </button>
@@ -1172,19 +1186,19 @@ function SurveyDetailMobileInner() {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
             {drawings.filter(d => !d.entry_id).map(d => (
               <div key={d.id} style={{ position: 'relative', borderRadius: 16, overflow: 'hidden', aspectRatio: '4/3', background: '#F7F5EF', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <button type="button" onClick={() => { if (canEditMeta) { setSheet(null); setSketchEntryId(null); setEditingSketch(d); setShowSketch(true); } else { setPreviewSketch(d); } }} style={{ width: '100%', height: '100%', padding: 8, boxSizing: 'border-box', border: 0, background: 'transparent', cursor: 'pointer' }}
+                <button type="button" onClick={() => { if (isOwner || isKollektivOwner) { if (guardReadOnly()) return; setSheet(null); setSketchEntryId(null); setEditingSketch(d); setShowSketch(true); } else { setPreviewSketch(d); } }} style={{ width: '100%', height: '100%', padding: 8, boxSizing: 'border-box', border: 0, background: 'transparent', cursor: 'pointer' }}
                   dangerouslySetInnerHTML={{ __html: d.svg_data?.replace(/<svg/, '<svg style="width:100%;height:100%;display:block;pointer-events:none"') || '' }}
                 />
-                {canEditMeta && (
-                  <button type="button" onClick={() => deleteSurveyDrawing(id, d.id)} style={{ position: 'absolute', top: 6, right: 6, width: 32, height: 32, borderRadius: 16, border: 0, background: 'rgba(14,17,22,0.65)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+                {showOwnerActions && (
+                  <button type="button" onClick={() => { if (guardReadOnly()) return; deleteSurveyDrawing(id, d.id); }} style={{ position: 'absolute', top: 6, right: 6, width: 32, height: 32, borderRadius: 16, border: 0, background: 'rgba(14,17,22,0.65)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true"><path d="M5 7h14M9 7V4h6v3M7 7l1 13h8l1-13"/></svg>
                   </button>
                 )}
               </div>
             ))}
           </div>
-          {canEditMeta && (
-            <button type="button" onClick={() => { closeSheet(); setSketchEntryId(null); setShowSketch(true); }} style={{ minHeight: 56, border: 0, borderRadius: 28, background: '#0E1116', color: '#fff', fontSize: 16, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+          {showOwnerActions && (
+            <button type="button" onClick={() => { if (guardReadOnly()) return; closeSheet(); setSketchEntryId(null); setShowSketch(true); }} style={{ minHeight: 56, border: 0, borderRadius: 28, background: '#0E1116', color: '#fff', fontSize: 16, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
               {tM('propAddSketch')}
             </button>
@@ -1223,8 +1237,8 @@ function SurveyDetailMobileInner() {
                         <img src={item.thumbnail_url || item.drive_view_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                       )}
                     </button>
-                    {canAdd && (
-                      <button type="button" onClick={() => deleteSurveyMedia(item.id, id, sheetEntry.id, 'photo')} style={{ position: 'absolute', top: 6, right: 6, width: 32, height: 32, borderRadius: 16, border: 0, background: 'rgba(14,17,22,0.65)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+                    {showMemberActions && (
+                      <button type="button" onClick={() => { if (guardReadOnly()) return; deleteSurveyMedia(item.id, id, sheetEntry.id, 'photo'); }} style={{ position: 'absolute', top: 6, right: 6, width: 32, height: 32, borderRadius: 16, border: 0, background: 'rgba(14,17,22,0.65)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true"><path d="M5 7h14M9 7V4h6v3M7 7l1 13h8l1-13"/></svg>
                       </button>
                     )}
@@ -1232,9 +1246,9 @@ function SurveyDetailMobileInner() {
                 );
                 })}
               </div>
-              {canAdd && (
+              {showMemberActions && (
                 <>
-                  <button type="button" onClick={() => roomMediaInputRef.current?.click()} style={{ minHeight: 56, border: 0, borderRadius: 28, background: '#0E1116', color: '#fff', fontSize: 16, fontWeight: 700, cursor: 'pointer' }}>
+                  <button type="button" onClick={() => { if (guardReadOnly()) return; roomMediaInputRef.current?.click(); }} style={{ minHeight: 56, border: 0, borderRadius: 28, background: '#0E1116', color: '#fff', fontSize: 16, fontWeight: 700, cursor: 'pointer' }}>
                     {tM('roomPhotoVideo')}
                   </button>
                   <input ref={roomMediaInputRef} type="file" accept="image/*,video/*" multiple capture="environment" style={{ display: 'none' }} onChange={e => {
@@ -1270,20 +1284,20 @@ function SurveyDetailMobileInner() {
                   <div key={d.id} style={{ position: 'relative', borderRadius: 16, overflow: 'hidden', aspectRatio: '4/3', background: '#F0EDE6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     <button
                       type="button"
-                      onClick={() => { if (canAdd) { setRoomSketchSheet(null); setSketchEntryId(roomSketchSheet); setEditingSketch(d); setShowSketch(true); } else { setPreviewSketch(d); } }}
+                      onClick={() => { if (isOwner || !!myCollectiveRole) { if (guardReadOnly()) return; setRoomSketchSheet(null); setSketchEntryId(roomSketchSheet); setEditingSketch(d); setShowSketch(true); } else { setPreviewSketch(d); } }}
                       style={{ width: '100%', height: '100%', padding: 8, boxSizing: 'border-box', border: 0, background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                       dangerouslySetInnerHTML={{ __html: d.svg_data?.replace(/<svg/, '<svg style="width:100%;height:100%;display:block;pointer-events:none"') || '' }}
                     />
-                    {canAdd && (
-                      <button type="button" onClick={() => deleteSurveyDrawing(id, d.id)} style={{ position: 'absolute', top: 6, right: 6, width: 32, height: 32, borderRadius: 16, border: 0, background: 'rgba(14,17,22,0.65)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+                    {showMemberActions && (
+                      <button type="button" onClick={() => { if (guardReadOnly()) return; deleteSurveyDrawing(id, d.id); }} style={{ position: 'absolute', top: 6, right: 6, width: 32, height: 32, borderRadius: 16, border: 0, background: 'rgba(14,17,22,0.65)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true"><path d="M5 7h14M9 7V4h6v3M7 7l1 13h8l1-13"/></svg>
                       </button>
                     )}
                   </div>
                 ))}
               </div>
-              {canAdd && (
-                <button type="button" onClick={() => { setRoomSketchSheet(null); setSketchEntryId(roomSketchSheet); setEditingSketch(null); setShowSketch(true); }} style={{ minHeight: 56, border: 0, borderRadius: 28, background: '#0E1116', color: '#fff', fontSize: 16, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+              {showMemberActions && (
+                <button type="button" onClick={() => { if (guardReadOnly()) return; setRoomSketchSheet(null); setSketchEntryId(roomSketchSheet); setEditingSketch(null); setShowSketch(true); }} style={{ minHeight: 56, border: 0, borderRadius: 28, background: '#0E1116', color: '#fff', fontSize: 16, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
                   {tM('propAddSketch')}
                 </button>
@@ -1315,8 +1329,8 @@ function SurveyDetailMobileInner() {
       {previewSketch && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 60, background: 'rgba(14,17,22,0.95)', display: 'flex', flexDirection: 'column' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px', flexShrink: 0 }}>
-            {canEditMeta && (
-              <button type="button" onClick={() => { deleteSurveyDrawing(id, previewSketch.id); setPreviewSketch(null); }} style={{ height: 44, padding: '0 16px', border: 0, borderRadius: 22, background: 'rgba(183,28,28,0.9)', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>
+            {showOwnerActions && (
+              <button type="button" onClick={() => { if (guardReadOnly()) return; deleteSurveyDrawing(id, previewSketch.id); setPreviewSketch(null); }} style={{ height: 44, padding: '0 16px', border: 0, borderRadius: 22, background: 'rgba(183,28,28,0.9)', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>
                 {tc('delete')}
               </button>
             )}
@@ -1427,5 +1441,5 @@ function SurveyDetailMobileInner() {
 }
 
 export default function SurveyDetailMobile() {
-  return <ReadOnlyUpgradeProvider><SurveyDetailMobileInner /></ReadOnlyUpgradeProvider>;
+  return <ReadOnlyUpgradeMobileProvider><SurveyDetailMobileInner /></ReadOnlyUpgradeMobileProvider>;
 }

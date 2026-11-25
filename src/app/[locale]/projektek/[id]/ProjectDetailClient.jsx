@@ -43,6 +43,7 @@ import NewExpenseModal from './components/NewExpenseModal';
 import CollectiveChatSection from '@/components/CollectiveChatSection';
 import ProjectDetailMobile from '../mobile/ProjectDetailMobile';
 import ReadOnlyBanner from '@/components/ReadOnlyBanner';
+import { WorkspaceFrozenBanner } from '@/components/desktop/WorkspaceStatusBanners';
 import UpgradeModal from '@/components/UpgradeModal';
 import { useReadOnlyUpgrade } from '@/hooks/useReadOnlyUpgrade';
 import { ReadOnlyUpgradeProvider } from '@/context/ReadOnlyUpgradeContext';
@@ -139,7 +140,7 @@ function ProjectDetailClientInner({
   const handleExpenseTabChange = (key) => { setActiveExpenseTab(key); setTabSearch(''); };
   const [confirmModal, setConfirmModal] = useState(null);
   const [alertModal, setAlertModal] = useState(null);
-  const { handleError: handleReadOnly, guardReadOnly: _guard } = useReadOnlyUpgrade();
+  const { handleError: handleReadOnly, guardReadOnly: _guard, openUpgrade, openContactOwner } = useReadOnlyUpgrade();
   const [lockedModalOpen, setLockedModalOpen] = useState(() => !!project?.locked_reason);
 
   // History
@@ -269,9 +270,20 @@ function ProjectDetailClientInner({
 
   const isDocLocked      = !!project.locked_reason;
   const isReadOnly       = !!project.is_read_only;
-  const guardReadOnly = (flag = isReadOnly) => _guard(flag);
   const isKollektivOwner = collectives?.some(c => c.collective_id === project.collective_id && (c.role === 'owner' || c.role === 'admin'));
-  const canManageProject = !isDocLocked && !isReadOnly && (isKollektivOwner || project.created_by === currentUser?.id || project.owner_id === currentUser?.id);
+  const isCollectiveFrozen = !!project.collective_id && collectives?.find(c => c.collective_id === project.collective_id)?.status === 'frozen';
+  const canManageProject = !isDocLocked && !isReadOnly && !isCollectiveFrozen && (isKollektivOwner || project.created_by === currentUser?.id || project.owner_id === currentUser?.id);
+
+  // Routes upgrade modal to owner, "contact owner" message to contributors
+  const guardReadOnly = (flag = isReadOnly || isCollectiveFrozen) => {
+    if (!flag) return false;
+    if (isCollectiveFrozen && !isKollektivOwner && !(project.owner_id === currentUser?.id || project.created_by === currentUser?.id)) {
+      openContactOwner();
+    } else {
+      openUpgrade();
+    }
+    return true;
+  };
 
   const [statusReasonModal, setStatusReasonModal] = useState({ open: false, status: null, title: '', prompt: '', reason: '' });
   const [showActionsSheet, setShowActionsSheet] = useState(false);
@@ -593,6 +605,7 @@ function ProjectDetailClientInner({
           <>
             <CollectiveBanner documentCollectiveId={project.collective_id ?? null} />
             {isReadOnly && <ReadOnlyBanner />}
+            {isCollectiveFrozen && !isReadOnly && <WorkspaceFrozenBanner isOwner={isKollektivOwner || project.owner_id === currentUser?.id || project.created_by === currentUser?.id} />}
             {isDocLocked && !lockedModalOpen && (
               <div style={{ padding: '0.75rem 1rem', borderRadius: 'var(--radius-md)', background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
                 <span style={{ fontSize: '0.85rem', color: 'var(--danger-text)', fontWeight: 600, flex: 1 }}>{t('readOnly')}</span>
@@ -711,7 +724,7 @@ function ProjectDetailClientInner({
                     {t('importBtn', { count: unimportedSections.length })}
                   </button>
                 )}
-                <button type="button" onClick={() => { setEditingRoom(null); setRoomModalOpen(true); }} className="dk-btn dk-btn-w" style={{ height: 34, fontSize: 13, padding: '0 12px' }} aria-label={t('newSectionAria')}>
+                <button type="button" onClick={() => { if (guardReadOnly()) return; setEditingRoom(null); setRoomModalOpen(true); }} className="dk-btn dk-btn-w" style={{ height: 34, fontSize: 13, padding: '0 12px' }} aria-label={t('newSectionAria')}>
                   <Plus size={14} /> {t('newSectionAria')}
                 </button>
               </div>
@@ -744,7 +757,7 @@ function ProjectDetailClientInner({
                 const labCount  = (labourByRoom[room.id] || []).length;
                 const overBudget = quoted != null && actual > quoted;
                 return (
-                  <button key={room.id} type="button" onClick={() => { setEditingRoom(room); setRoomModalOpen(true); }}
+                  <button key={room.id} type="button" onClick={() => { if (guardReadOnly()) return; setEditingRoom(room); setRoomModalOpen(true); }}
                     className="dk-card"
                     style={{ padding: '14px 16px', textAlign: 'left', border: 0, cursor: 'pointer', display: 'flex', flexDirection: 'column', width: '100%' }}
                   >
@@ -896,8 +909,8 @@ function ProjectDetailClientInner({
           <span style={{ fontFamily: 'var(--font-heading, "Bricolage Grotesque", sans-serif)', fontSize: 16, fontWeight: 700, letterSpacing: '-0.01em', color: '#0E1116' }}>{t('headlineExpenses')}</span>
           <span className="dk-badge">{fin.projectInvoices.filter(i => i.category !== 'labour').length + fin.projectLabour.length + fin.projectInvoices.filter(i => i.category === 'labour').length}</span>
           <span style={{ flex: 1 }} />
-          {canManageProject && openSections.expenses && (
-            <button type="button" className="dk-btn" style={{ height: 36, fontSize: 13, padding: '0 12px', flexShrink: 0, background: '#263248', color: '#fff' }} onClick={e => { e.stopPropagation(); setNewExpenseOpen(true); }}>
+          {(canManageProject || (isOwner && isReadOnly)) && openSections.expenses && (
+            <button type="button" className="dk-btn" style={{ height: 36, fontSize: 13, padding: '0 12px', flexShrink: 0, background: '#263248', color: '#fff' }} onClick={e => { e.stopPropagation(); if (guardReadOnly()) return; setNewExpenseOpen(true); }}>
               <Plus size={14} /> {t('newExpenseBtn')}
             </button>
           )}
@@ -1090,7 +1103,7 @@ function ProjectDetailClientInner({
           <span className="dk-badge">{diaryEntriesByProject[project.id]?.length ?? initialDiaryCount}</span>
           <span style={{ flex: 1 }} />
           {openSections.diary && (
-            <button type="button" className="dk-btn" style={{ height: 36, fontSize: 13, padding: '0 12px', background: '#263248', color: '#fff', flexShrink: 0 }} onClick={e => { e.stopPropagation(); setShowQuickDiarySheet(true); }}>
+            <button type="button" className="dk-btn" style={{ height: 36, fontSize: 13, padding: '0 12px', background: '#263248', color: '#fff', flexShrink: 0 }} onClick={e => { e.stopPropagation(); if (guardReadOnly()) return; setShowQuickDiarySheet(true); }}>
               <Plus size={14} /> {t('addNewEntryBtn')}
             </button>
           )}
@@ -1103,7 +1116,7 @@ function ProjectDetailClientInner({
             <BookOpen size={28} style={{ margin: '0 auto 0.5rem', display: 'block', opacity: 0.4 }} />
             <div style={{ fontWeight: 700, fontSize: 15, color: '#0E1116', marginBottom: 4 }}>{t('noDiaryTitle')}</div>
             <div style={{ fontSize: 13, color: '#5A5F68', marginBottom: 16 }}>{t('noDiaryText')}</div>
-            <button type="button" onClick={() => setShowQuickDiarySheet(true)} className="dk-btn dk-btn-dark" style={{ height: 40, fontSize: 13, margin: '0 auto' }}>
+            <button type="button" onClick={() => { if (guardReadOnly()) return; setShowQuickDiarySheet(true); }} className="dk-btn dk-btn-dark" style={{ height: 40, fontSize: 13, margin: '0 auto' }}>
               <Plus size={15} /> {t('firstEntryBtn')}
             </button>
           </div>
@@ -1168,8 +1181,8 @@ function ProjectDetailClientInner({
               <span style={{ fontFamily: 'var(--font-heading, "Bricolage Grotesque", sans-serif)', fontSize: 16, fontWeight: 700, letterSpacing: '-0.01em', color: '#0E1116' }}>{t('sectionPayments')}</span>
               <span className="dk-badge">{paymentPlan.length}</span>
               <span style={{ flex: 1 }} />
-              {canManageProject && openSections.payment && (
-                <button type="button" className="dk-btn" style={{ height: 36, fontSize: 13, padding: '0 12px', flexShrink: 0, background: '#263248', color: '#fff' }} onClick={e => { e.stopPropagation(); setEditingPayment(null); setShowPaymentModal(true); }}>
+              {(canManageProject || (isOwner && isReadOnly)) && openSections.payment && (
+                <button type="button" className="dk-btn" style={{ height: 36, fontSize: 13, padding: '0 12px', flexShrink: 0, background: '#263248', color: '#fff' }} onClick={e => { e.stopPropagation(); if (guardReadOnly()) return; setEditingPayment(null); setShowPaymentModal(true); }}>
                   <Plus size={14} /> {t('addPaymentItem')}
                 </button>
               )}
@@ -1179,8 +1192,8 @@ function ProjectDetailClientInner({
               <div style={{ padding: '2.5rem 1.5rem', textAlign: 'center', borderTop: '1px solid #EDEBE5' }}>
                 <Wallet size={28} style={{ margin: '0 auto 0.5rem', display: 'block', opacity: 0.4 }} />
                 <div style={{ fontWeight: 700, fontSize: 15, color: '#0E1116', marginBottom: 4 }}>{t('paymentPlanEmpty')}</div>
-                {canManageProject && (
-                  <button type="button" className="dk-btn" style={{ height: 40, fontSize: 13, margin: '12px auto 0', background: '#263248', color: '#fff' }} onClick={() => { setEditingPayment(null); setShowPaymentModal(true); }}>
+                {(canManageProject || (isOwner && isReadOnly)) && (
+                  <button type="button" className="dk-btn" style={{ height: 40, fontSize: 13, margin: '12px auto 0', background: '#263248', color: '#fff' }} onClick={() => { if (guardReadOnly()) return; setEditingPayment(null); setShowPaymentModal(true); }}>
                     <Plus size={15} /> {t('addPaymentItem')}
                   </button>
                 )}
@@ -1200,8 +1213,8 @@ function ProjectDetailClientInner({
                   const dueDateStr = item.due_date ? new Date(item.due_date).toLocaleDateString('hu-HU', { month: 'short', day: 'numeric' }) : '—';
                   return (
                     <button key={item.id} type="button"
-                      className="dk-tr dk-sr" style={{ display: 'grid', gridTemplateColumns: '1fr 110px 24px 110px 100px', cursor: canManageProject ? 'pointer' : 'default' }}
-                      onClick={() => { if (canManageProject) { setEditingPayment(item); setShowPaymentModal(true); } }}
+                      className="dk-tr dk-sr" style={{ display: 'grid', gridTemplateColumns: '1fr 110px 24px 110px 100px', cursor: (canManageProject || isReadOnly) ? 'pointer' : 'default' }}
+                      onClick={() => { if (canManageProject || isReadOnly) { setEditingPayment(item); setShowPaymentModal(true); } }}
                     >
                       <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}><b>{item.label}</b></span>
                       <span style={{ minWidth: 0, fontSize: 13, color: '#5A5F68' }}>{dueDateStr}</span>
@@ -1228,6 +1241,7 @@ function ProjectDetailClientInner({
               isOpen={showPaymentModal}
               onClose={() => { setShowPaymentModal(false); setEditingPayment(null); }}
               editItem={editingPayment}
+              readOnly={isReadOnly}
               clientEmail={client?.email}
               onSave={async (fields, file) => {
                 if (editingPayment) {
@@ -1283,24 +1297,30 @@ function ProjectDetailClientInner({
                 <section className="dk-card" style={{ padding: 18, display: 'flex', flexDirection: 'column', gap: 12 }}>
                   <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: '#5A5F68' }}>{t('asideStatusLabel')}</span>
                   <div style={{ display: 'flex', gap: 6 }}>
-                    {['active', 'paused', 'closed'].map(s => (
-                      <button
-                        key={s}
-                        type="button"
-                        className="dk-chip"
-                        disabled={!canManageProject}
-                        onClick={() => canManageProject && handleSetStatus(s)}
-                        style={{
-                          flex: 1, justifyContent: 'center',
-                          background: projectStatus === s ? '#263248' : '#EFEDE6',
-                          color: projectStatus === s ? '#fff' : '#0E1116',
-                          cursor: canManageProject ? 'pointer' : 'default',
-                          opacity: !canManageProject ? 0.65 : 1,
-                        }}
-                      >
-                        {s === 'active' ? t('statusActive') : s === 'paused' ? t('statusPaused') : t('statusClosed')}
-                      </button>
-                    ))}
+                    {['active', 'paused', 'closed'].map(s => {
+                      const canClick = canManageProject || (isOwner && isReadOnly);
+                      return (
+                        <button
+                          key={s}
+                          type="button"
+                          className="dk-chip"
+                          disabled={!canClick}
+                          onClick={() => {
+                            if (isOwner && isReadOnly) { openUpgrade(); return; }
+                            if (canManageProject) handleSetStatus(s);
+                          }}
+                          style={{
+                            flex: 1, justifyContent: 'center',
+                            background: projectStatus === s ? '#263248' : '#EFEDE6',
+                            color: projectStatus === s ? '#fff' : '#0E1116',
+                            cursor: canClick ? 'pointer' : 'default',
+                            opacity: !canClick ? 0.65 : 1,
+                          }}
+                        >
+                          {s === 'active' ? t('statusActive') : s === 'paused' ? t('statusPaused') : t('statusClosed')}
+                        </button>
+                      );
+                    })}
                   </div>
                   <span style={{ fontSize: 13, fontWeight: 600, color: '#5A5F68' }}>
                     {project.collective_id ? t('statusNote') : t('statusNotePersonal')}
@@ -1361,15 +1381,16 @@ function ProjectDetailClientInner({
                   const hasLinkedQuote = quoteTotal > 0;
                   if (hasLinkedQuote) return null;
                   const targetCost = hasLinkedQuote ? quoteTotal : (liveProject.cost_target ?? null);
-                  const isClickable = !hasLinkedQuote && canManageProject;
+                  const canEditTarget = canManageProject || (isOwner && isReadOnly);
+                  const isClickable = !hasLinkedQuote && canEditTarget;
                   return (
                     <section
                       className="dk-card"
                       style={{ padding: 18, display: 'flex', flexDirection: 'column', gap: 10, cursor: isClickable ? 'pointer' : 'default' }}
-                      onClick={isClickable ? () => { setCostTargetInput(liveProject.cost_target != null ? String(liveProject.cost_target) : ''); setCostTargetModal(true); } : undefined}
+                      onClick={isClickable ? () => { if (guardReadOnly()) return; setCostTargetInput(liveProject.cost_target != null ? String(liveProject.cost_target) : ''); setCostTargetModal(true); } : undefined}
                       role={isClickable ? 'button' : undefined}
                       tabIndex={isClickable ? 0 : undefined}
-                      onKeyDown={isClickable ? e => { if (e.key === 'Enter' || e.key === ' ') { setCostTargetInput(liveProject.cost_target != null ? String(liveProject.cost_target) : ''); setCostTargetModal(true); } } : undefined}
+                      onKeyDown={isClickable ? e => { if (e.key === 'Enter' || e.key === ' ') { if (guardReadOnly()) return; setCostTargetInput(liveProject.cost_target != null ? String(liveProject.cost_target) : ''); setCostTargetModal(true); } } : undefined}
                     >
                       <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: '#5A5F68' }}>{t('costTargetLabel')}</span>
                       {targetCost != null ? (
@@ -1378,14 +1399,14 @@ function ProjectDetailClientInner({
                           {hasLinkedQuote && (
                             <span style={{ fontSize: 11, fontWeight: 600, color: '#5A5F68' }}>{t('linkedQuoteLabel')}</span>
                           )}
-                          {!hasLinkedQuote && canManageProject && (
+                          {!hasLinkedQuote && canEditTarget && (
                             <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--accent)' }}>{t('editLabel')}</span>
                           )}
                         </div>
                       ) : (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                           <span style={{ fontSize: 13, fontWeight: 600, color: '#5A5F68', fontStyle: 'italic' }}>—</span>
-                          {canManageProject && (
+                          {canEditTarget && (
                             <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--accent)' }}>{t('setCostTarget')}</span>
                           )}
                         </div>
@@ -1431,7 +1452,7 @@ function ProjectDetailClientInner({
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4, margin: '0 -6px' }}>
           <button
             type="button"
-            onClick={() => { setShowOptionsMenu(false); setEditProjectOpen(true); }}
+            onClick={() => { setShowOptionsMenu(false); if (guardReadOnly()) return; setEditProjectOpen(true); }}
             style={{ display: 'flex', alignItems: 'center', gap: 12, width: '100%', padding: '12px 16px', background: 'none', border: 'none', borderRadius: 12, cursor: 'pointer', fontSize: 15, fontWeight: 600, color: '#0E1116', textAlign: 'left' }}
             onMouseEnter={e => e.currentTarget.style.background = '#F4F5F8'}
             onMouseLeave={e => e.currentTarget.style.background = 'none'}
@@ -1644,7 +1665,7 @@ function ProjectDetailClientInner({
         isOpen={!!editingDiaryEntry}
         onClose={() => setEditingDiaryEntry(null)}
         rooms={projectRooms}
-        canEdit={!!(editingDiaryEntry && (canManageProject || editingDiaryEntry.created_by === currentUser?.id))}
+        canEdit={!isReadOnly && !!(editingDiaryEntry && (canManageProject || editingDiaryEntry.created_by === currentUser?.id))}
         entry={editingDiaryEntry
           ? (diaryEntriesByProject[project.id]?.find(e => e.id === editingDiaryEntry.id) ?? editingDiaryEntry)
           : null
@@ -1655,7 +1676,7 @@ function ProjectDetailClientInner({
           await ctxUpdateDiaryEntry(editingDiaryEntry.id, { add_photo_ids: uploaded.map(p => p.id) });
         }}
         onDeletePhoto={async (photoId) => { await ctxDeleteDiaryPhoto(photoId, project.id); }}
-        onDelete={editingDiaryEntry && (canManageProject || editingDiaryEntry.created_by === currentUser?.id)
+        onDelete={!isReadOnly && editingDiaryEntry && (canManageProject || editingDiaryEntry.created_by === currentUser?.id)
           ? () => setConfirmModal({ message: t('deleteDiaryConfirm'), onConfirm: async () => { try { await ctxDeleteDiaryEntry(editingDiaryEntry.id, project.id); setEditingDiaryEntry(null); } catch (err) { setAlertModal({ message: err.message || t('deleteError') }); } } })
           : undefined
         }
@@ -1665,17 +1686,17 @@ function ProjectDetailClientInner({
       {detailInvoice && (
         <InvoiceDetailDrawer
           invoice={detailInvoice}
-          isAdmin={canManageProject || detailInvoice?.uploaded_by === currentUser?.id}
+          isAdmin={!isReadOnly && (canManageProject || detailInvoice?.uploaded_by === currentUser?.id)}
           rooms={projectRooms}
           splits={invoiceSplits.filter(s => s.invoice_id === detailInvoice.id)}
           onClose={() => setDetailInvoice(null)}
-          onDelete={handleDeleteInvoice}
-          onSave={handleSaveInvoice}
-          onSaveSplits={handleSaveSplits}
-          onUploadImage={uploadInvoiceImage}
+          onDelete={!isReadOnly ? handleDeleteInvoice : undefined}
+          onSave={!isReadOnly ? handleSaveInvoice : undefined}
+          onSaveSplits={!isReadOnly ? handleSaveSplits : undefined}
+          onUploadImage={!isReadOnly ? uploadInvoiceImage : undefined}
           invoiceMedia={invoiceMediaByInvoice[detailInvoice?.id] || []}
           onMediaAdded={media => handleMediaAdded(detailInvoice.id, media)}
-          onMediaDeleted={mediaId => handleMediaDeleted(detailInvoice.id, mediaId)}
+          onMediaDeleted={!isReadOnly ? (mediaId => handleMediaDeleted(detailInvoice.id, mediaId)) : undefined}
         />
       )}
 
