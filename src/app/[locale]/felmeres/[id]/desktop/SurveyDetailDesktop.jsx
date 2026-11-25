@@ -858,7 +858,7 @@ function SectionPod({
     <div className="dk-card" style={{ padding: 0 }}>
 
       {/* ── Pod header ── */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '0 14px 0 0', background: pc.c, minHeight: 60 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '0 14px 0 0', background: pc.c, minHeight: 60, borderRadius: isOpen ? '24px 24px 0 0' : 24 }}>
 
         {/* Toggle area — takes up most of the row */}
         <button type="button" onClick={onToggle}
