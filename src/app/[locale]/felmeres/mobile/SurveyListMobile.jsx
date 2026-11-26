@@ -424,7 +424,7 @@ function SurveyListMobileInner() {
 
       {/* Dock */}
       <Dock
-        onCreatePress={() => atCreateLimit ? router.push(p('/elofizetes')) : router.push(p('/felmeres/uj'))}
+        onCreatePress={() => atCreateLimit ? openUpgrade() : router.push(p('/felmeres/uj'))}
         activePodColor={{ plusBg: '#0A7F72', plusFg: '#FFFFFF' }}
         activePodName={activeWs?.name}
         activeTab="surveys"

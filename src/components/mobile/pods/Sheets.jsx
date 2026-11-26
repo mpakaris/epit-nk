@@ -94,7 +94,7 @@ function relativeTimeNotif(isoStr, locale = 'hu') {
   return new Date(isoStr).toLocaleDateString(locale, { month: 'short', day: 'numeric' });
 }
 
-export function NotifSheet({ notifications, onMarkRead, onMarkAllRead, onClose }) {
+export function NotifSheet({ notifications = [], onMarkRead, onMarkAllRead, onClose }) {
   const t        = useTranslations('mobilePods');
   const locale   = useLocale();
   const router   = useRouter();

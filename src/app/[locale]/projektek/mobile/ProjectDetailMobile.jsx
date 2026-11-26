@@ -1255,7 +1255,7 @@ function ProjectDetailMobileInner({ projectId }) {
               </>
             )}
             {!isClosed && (
-              <button onClick={() => setLabourSheet(true)} style={{ marginTop: 4, height: 48, border: 0, borderRadius: 24, background: PROJ_BG, color: '#fff', fontSize: 14, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, cursor: 'pointer' }}>
+              <button onClick={() => { if (guardReadOnly()) return; setLabourSheet(true); }} style={{ marginTop: 4, height: 48, border: 0, borderRadius: 24, background: PROJ_BG, color: '#fff', fontSize: 14, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, cursor: 'pointer' }}>
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
                 {t('addLabour')}
               </button>
@@ -1352,7 +1352,7 @@ function ProjectDetailMobileInner({ projectId }) {
             })}
             </>)}
             {!isClosed && (
-              <button onClick={() => setDiarySheet(true)} style={{ marginTop: 4, height: 48, border: 0, borderRadius: 24, background: PROJ_BG, color: '#fff', fontSize: 14, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, cursor: 'pointer' }}>
+              <button onClick={() => { if (guardReadOnly()) return; setDiarySheet(true); }} style={{ marginTop: 4, height: 48, border: 0, borderRadius: 24, background: PROJ_BG, color: '#fff', fontSize: 14, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, cursor: 'pointer' }}>
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
                 {tDiary('addEntry')}
               </button>
@@ -1434,7 +1434,7 @@ function ProjectDetailMobileInner({ projectId }) {
       {/* Add Invoice FAB */}
       {!isClosed && (
         <button
-          onClick={() => { setInvoiceItems([]); setInvoiceSheet(true); }}
+          onClick={() => { if (guardReadOnly()) return; setInvoiceItems([]); setInvoiceSheet(true); }}
           aria-label={t('addInvoice')}
           style={{
             position: 'fixed', zIndex: 25,
@@ -1798,7 +1798,7 @@ function ProjectDetailMobileInner({ projectId }) {
           ...((contextMenuItem.files?.length > 0 && contextMenuItem.status !== 'paid') ? [{
             icon: Send,
             label: t('sendInvoice'),
-            onClick: () => { setInvoiceSendEmail(client?.email || ''); setSendConfirmItem(contextMenuItem); },
+            onClick: () => { if (guardReadOnly()) return; setInvoiceSendEmail(client?.email || ''); setSendConfirmItem(contextMenuItem); },
           }] : []),
           {
             icon: Trash2,
@@ -1908,15 +1908,18 @@ function ProjectDetailMobileInner({ projectId }) {
             </div>
             <textarea
               autoFocus
+              readOnly={isReadOnly || isCollectiveFrozen}
               value={noteText}
               onChange={e => setNoteText(e.target.value)}
               placeholder={t('notesPlaceholder')}
               rows={5}
               style={{ width: '100%', boxSizing: 'border-box', minHeight: 120, border: 0, borderRadius: 20, background: '#fff', padding: '14px 16px', fontSize: 16, fontWeight: 500, color: 'var(--m-ink)', resize: 'none', boxShadow: '0 1px 0 rgba(14,17,22,0.08)', outline: 0, lineHeight: 1.5 }}
             />
-            <button onClick={handleSaveNote} disabled={savingNote} style={{ height: 60, border: 0, borderRadius: 30, background: PROJ_BG, color: '#fff', fontSize: 17, fontWeight: 700, cursor: 'pointer', opacity: savingNote ? 0.6 : 1 }}>
-              {savingNote ? '…' : t('notesSave')}
-            </button>
+            {!isReadOnly && !isCollectiveFrozen && (
+              <button onClick={handleSaveNote} disabled={savingNote} style={{ height: 60, border: 0, borderRadius: 30, background: PROJ_BG, color: '#fff', fontSize: 17, fontWeight: 700, cursor: 'pointer', opacity: savingNote ? 0.6 : 1 }}>
+                {savingNote ? '…' : t('notesSave')}
+              </button>
+            )}
             <button onClick={() => setNoteItem(null)} style={{ height: 52, border: 0, borderRadius: 26, background: '#EFEDE6', color: 'var(--m-ink)', fontSize: 15, fontWeight: 700, cursor: 'pointer' }}>{tProj('cancel')}</button>
           </div>
         </>
@@ -2010,11 +2013,11 @@ function ProjectDetailMobileInner({ projectId }) {
               )}
               {diaryFiles.length < MAX_DIARY_PHOTOS && (
                 <div style={{ display: 'flex', gap: 8 }}>
-                  <button type="button" onClick={() => diaryCameraRef.current?.click()} style={{ flex: 1, height: 44, border: `1.5px dashed #B0ADA6`, borderRadius: 22, background: 'transparent', color: '#5A5F68', fontSize: 13, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, cursor: 'pointer' }}>
+                  <button type="button" onClick={() => { if (guardReadOnly()) return; diaryCameraRef.current?.click(); }} style={{ flex: 1, height: 44, border: `1.5px dashed #B0ADA6`, borderRadius: 22, background: 'transparent', color: '#5A5F68', fontSize: 13, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, cursor: 'pointer' }}>
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
                     {tDiary('entryCamera')}
                   </button>
-                  <button type="button" onClick={() => diaryGalleryRef.current?.click()} style={{ flex: 1, height: 44, border: `1.5px dashed #B0ADA6`, borderRadius: 22, background: 'transparent', color: '#5A5F68', fontSize: 13, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, cursor: 'pointer' }}>
+                  <button type="button" onClick={() => { if (guardReadOnly()) return; diaryGalleryRef.current?.click(); }} style={{ flex: 1, height: 44, border: `1.5px dashed #B0ADA6`, borderRadius: 22, background: 'transparent', color: '#5A5F68', fontSize: 13, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, cursor: 'pointer' }}>
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M21 19V5H3v14l5-5 4 4 3-3z"/><circle cx="8.5" cy="8.5" r="1.5"/></svg>
                     {tDiary('entryGallery')}
                   </button>
