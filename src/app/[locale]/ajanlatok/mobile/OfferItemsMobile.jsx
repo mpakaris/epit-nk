@@ -6,6 +6,8 @@ import { useTranslations } from 'next-intl';
 import { useApp } from '@/context/AppContext';
 import { formatMoney, UNIT_I18N } from '@/lib/constants';
 import AudioRecorder from '@/components/AudioRecorder';
+import { ReadOnlyUpgradeMobileProvider } from '@/context/ReadOnlyUpgradeContext';
+import { useReadOnlyUpgrade } from '@/hooks/useReadOnlyUpgrade';
 
 const OFFER_BG   = '#6D3FD1';
 const OFFER_DEEP = '#1C1038';
@@ -233,7 +235,7 @@ function OfferItemSheet({ initial, onSave, onDelete, onClose, t, tS, tc, userCur
 }
 
 // ─── Main component ─────────────────────────────────────────────────────────────
-export default function OfferItemsMobile() {
+function OfferItemsMobileInner() {
   const { id: quoteId, sectionId } = useParams();
   const router       = useRouter();
   const searchParams = useSearchParams();
@@ -243,7 +245,10 @@ export default function OfferItemsMobile() {
   const tM = useTranslations('mobilePods');
   const tc = useTranslations('common');
   const { currentUser, isDemoMode, userCurrency, quotes = [], refreshSupabaseData } = useApp();
-  const quoteTitle = quotes.find(q => q.id === quoteId)?.title || '';
+  const quote = quotes.find(q => q.id === quoteId);
+  const quoteTitle = quote?.title || '';
+  const isReadOnly = !!quote?.is_read_only;
+  const { openUpgrade } = useReadOnlyUpgrade();
 
   const p = (path) => isDemoMode ? `/demo${path}` : path;
 
@@ -281,14 +286,15 @@ export default function OfferItemsMobile() {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const closeSheet = useCallback(() => { setAddSheet(null); setAnySheet(false); }, []);
-  const openAdd    = ()      => { setAddSheet({ mode: 'add' });                           setAnySheet(true); };
-  const openEdit   = (entry) => { setAddSheet({ mode: 'edit', entry });                   setAnySheet(true); };
+  const openAdd    = ()      => { if (isReadOnly) { openUpgrade(); return; } setAddSheet({ mode: 'add' });       setAnySheet(true); };
+  const openEdit   = (entry) => { if (isReadOnly) { openUpgrade(); return; } setAddSheet({ mode: 'edit', entry }); setAnySheet(true); };
   const handleTranscript = useCallback((text) => {
     setAddSheet({ mode: 'add', prefill: { work_description: text } });
     setAnySheet(true);
   }, []);
 
   const handleSaveEntry = async (fields) => {
+    if (isReadOnly) { openUpgrade(); throw new Error('read_only'); }
     try {
       if (addSheet?.mode === 'edit') {
         const res = await fetch(`/api/quotes/${quoteId}/entries/${addSheet.entry.id}`, {
@@ -502,4 +508,8 @@ export default function OfferItemsMobile() {
       <style>{`@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}`}</style>
     </div>
   );
+}
+
+export default function OfferItemsMobile() {
+  return <ReadOnlyUpgradeMobileProvider><OfferItemsMobileInner /></ReadOnlyUpgradeMobileProvider>;
 }

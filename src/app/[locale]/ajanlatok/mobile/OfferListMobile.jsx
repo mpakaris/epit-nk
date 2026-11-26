@@ -23,6 +23,8 @@ import Dock from '@/components/mobile/pods/Dock';
 import { NotifSheet, MessagesSheet, MenuSheet } from '@/components/mobile/pods/Sheets';
 import { MobileWorkspaceNotActivatedBanner, MobileWorkspaceFrozenBanner } from '@/components/mobile/WorkspaceStatusBanners';
 import TransferToCollectiveModal from '@/components/TransferToCollectiveModal';
+import { ReadOnlyUpgradeMobileProvider } from '@/context/ReadOnlyUpgradeContext';
+import { useReadOnlyUpgrade } from '@/hooks/useReadOnlyUpgrade';
 
 // ─── Status config ────────────────────────────────────────────────────────────
 const STATUS_STYLE = {
@@ -177,7 +179,7 @@ function DeleteSheet({ quote, isTeam, onConfirm, onClose, t }) {
 }
 
 // ─── Main component ───────────────────────────────────────────────────────────
-export default function OfferListMobile() {
+function OfferListMobileInner() {
   const t     = useTranslations('quotes');
   const tPods = useTranslations('mobilePods');
   const router = useRouter();
@@ -189,6 +191,8 @@ export default function OfferListMobile() {
   } = useApp();
   const activeColl = (userMemberships || []).find(c => c.collective_id === activeCollectiveId);
   const atCreateLimit = !activeCollectiveId && !isEffectivePremium(currentUser || {}) && (quotes || []).filter(q => !q.collective_id && !q.deleted_at).length >= 1;
+
+  const { openUpgrade } = useReadOnlyUpgrade();
 
   const navPrefix = isDemoMode ? '/demo' : '';
   const p = useCallback((path) => `${navPrefix}${path}`, [navPrefix]);
@@ -260,8 +264,18 @@ export default function OfferListMobile() {
 
   const handleOpen         = useCallback(() => { if (!selectedQuote) return; setActiveSheet(null); router.push(p(`/ajanlatok/${selectedQuote.id}`)); }, [selectedQuote, router, p]);
   const handlePdf          = useCallback(() => { if (!selectedQuote) return; setActiveSheet(null); router.push(p(`/ajanlatok/${selectedQuote.id}/nyomtatas`)); }, [selectedQuote, router, p]);
-  const handleCopy         = useCallback(() => { if (!selectedQuote) return; setActiveSheet(null); router.push(p(`/ajanlatok/${selectedQuote.id}?copy=1`)); }, [selectedQuote, router, p]);
-  const handleTransfer     = useCallback(() => { if (!selectedQuote) return; setActiveSheet(null); setTransferModal({ documentId: selectedQuote.id, documentTitle: selectedQuote.title }); }, [selectedQuote]);
+  const handleCopy         = useCallback(() => {
+    if (!selectedQuote) return;
+    setActiveSheet(null);
+    if (atCreateLimit) { openUpgrade(); return; }
+    router.push(p(`/ajanlatok/${selectedQuote.id}?copy=1`));
+  }, [selectedQuote, router, p, atCreateLimit, openUpgrade]);
+  const handleTransfer     = useCallback(() => {
+    if (!selectedQuote) return;
+    setActiveSheet(null);
+    if (!isEffectivePremium(currentUser || {})) { openUpgrade(); return; }
+    setTransferModal({ documentId: selectedQuote.id, documentTitle: selectedQuote.title });
+  }, [selectedQuote, currentUser, openUpgrade]);
   const handleRevoke       = useCallback(async () => { if (!selectedQuote?._pendingReq) return; setActiveSheet(null); await retractTransfer(selectedQuote._pendingReq.id); }, [selectedQuote, retractTransfer]);
   const handleDeleteConfirm = useCallback(async () => { if (!selectedQuote) return; setActiveSheet(null); await deleteQuote(selectedQuote.id); }, [selectedQuote, deleteQuote]);
 
@@ -269,7 +283,7 @@ export default function OfferListMobile() {
   const filterLabels = { all: t('filterAll'), draft: t('statusDraft'), sent: t('statusSent'), accepted: t('statusAccepted'), rejected: t('statusRejected') };
 
   const isOwner    = selectedQuote ? (selectedQuote.owner_id === currentUser?.id || selectedQuote.created_by === currentUser?.id) : false;
-  const canTransfer = isOwner && !selectedQuote?.collective_id && hasCollectives && !isDemoMode;
+  const canTransfer = isOwner && !selectedQuote?.collective_id && !isDemoMode && !selectedQuote?._pendingTransfer;
   const isTeam     = !!selectedQuote?.collective_id;
   const isLoading  = loading || !dataReady;
 
@@ -363,7 +377,7 @@ export default function OfferListMobile() {
       {/* Dock */}
       <Dock
         activeTab="quotes"
-        onCreatePress={() => atCreateLimit ? router.push(p('/elofizetes')) : router.push(p('/ajanlatok/uj'))}
+        onCreatePress={() => atCreateLimit ? openUpgrade() : router.push(p('/ajanlatok/uj'))}
         activePodColor={{ plusBg: '#6D3FD1', plusFg: '#FFFFFF' }}
         onMessages={() => setActiveSheet('messages')}
         onNotifications={() => setActiveSheet('notif')}
@@ -409,4 +423,8 @@ export default function OfferListMobile() {
       />
     </div>
   );
+}
+
+export default function OfferListMobile() {
+  return <ReadOnlyUpgradeMobileProvider><OfferListMobileInner /></ReadOnlyUpgradeMobileProvider>;
 }

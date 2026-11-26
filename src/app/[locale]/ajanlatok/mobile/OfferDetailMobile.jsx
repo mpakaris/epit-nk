@@ -221,6 +221,7 @@ function OfferDetailMobileInner({ quoteId }) {
   const canOwnerAct = isOwner || isKollektivOwner;
   const isMember = !!quote?.collective_id && !canOwnerAct;
   const isLocked = quote?.status === 'accepted' || quote?.status === 'rejected';
+  const showOwnerActions = (isOwner || isKollektivOwner) && !isLocked;
   const isReadOnly = !!quote?.is_read_only;
   const isCollectiveFrozen = !!quote?.collective_id && (userMemberships || []).find(m => m.collective_id === quote.collective_id)?.status === 'frozen';
   const guardReadOnly = (flag = isReadOnly || isCollectiveFrozen) => {
@@ -457,8 +458,8 @@ function OfferDetailMobileInner({ quoteId }) {
   // Bar config
   const barConfig = (() => {
     const st = quote?.status;
-    if (st === 'draft')    return { label: canOwnerAct ? t('actionSend') : t('memberRestrictionSend'), bg: canOwnerAct ? 'var(--m-offer, #6D3FD1)' : '#B9B5AA', go: () => canOwnerAct && openSendSheet() };
-    if (st === 'sent')     return { label: canOwnerAct ? t('actionAccept') : t('statusSent'), bg: canOwnerAct ? '#14532D' : '#B9B5AA', go: () => canOwnerAct && setMode('accept') };
+    if (st === 'draft')    return { label: canOwnerAct ? t('actionSend') : t('memberRestrictionSend'), bg: canOwnerAct ? 'var(--m-offer, #6D3FD1)' : '#B9B5AA', go: () => { if (!canOwnerAct) return; if (guardReadOnly()) return; openSendSheet(); } };
+    if (st === 'sent')     return { label: canOwnerAct ? t('actionAccept') : t('statusSent'), bg: canOwnerAct ? '#14532D' : '#B9B5AA', go: () => { if (!canOwnerAct) return; if (guardReadOnly()) return; setMode('accept'); } };
     if (st === 'accepted') return { label: t('viewProject'), bg: '#fff', fg: 'var(--m-ink)', go: () => quote?.project_id && router.push(p(`/projektek/${quote.project_id}`)) };
     if (st === 'rejected') return { label: t('lockedOptions'), bg: '#fff', fg: 'var(--m-ink)', go: () => setMode('locked') };
     return { label: '', bg: '#fff', fg: 'var(--m-ink)', go: () => {} };
@@ -609,8 +610,8 @@ function OfferDetailMobileInner({ quoteId }) {
                 </span>
               </div>
             )}
-            {canOwnerAct && !isLocked && (
-              <button onClick={() => { setClientSearch(''); setMode(client ? 'clientMenu' : 'clientPicker'); }} style={{ width: '100%', height: 52, border: 0, borderRadius: 26, background: 'var(--m-offer, #6D3FD1)', color: '#fff', fontSize: 15, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, cursor: 'pointer' }}>
+            {showOwnerActions && (
+              <button onClick={() => { if (guardReadOnly()) return; setClientSearch(''); setMode(client ? 'clientMenu' : 'clientPicker'); }} style={{ width: '100%', height: 52, border: 0, borderRadius: 26, background: 'var(--m-offer, #6D3FD1)', color: '#fff', fontSize: 15, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, cursor: 'pointer' }}>
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true"><path d="M4 20l4-1L19 8l-3-3L5 16zM14 7l3 3"/></svg>
                 {tc('edit')}
               </button>
@@ -641,8 +642,8 @@ function OfferDetailMobileInner({ quoteId }) {
               [t('vatRate'), `${vatPct}%`],
             ].filter(r => r[1]).map(([k, v], i) => <InfoRow key={i} label={k} value={v} />)}
             <span style={{ fontSize: 12, fontWeight: 600, color: '#5A5F68' }}>{t('createdBy')} {quote?.created_at ? formatDate(quote.created_at) : ''}</span>
-            {canOwnerAct && !isLocked && (
-              <button onClick={() => setMode('meta')} style={{ width: '100%', height: 52, border: 0, borderRadius: 26, background: 'var(--m-offer, #6D3FD1)', color: '#fff', fontSize: 15, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, cursor: 'pointer' }}>
+            {showOwnerActions && (
+              <button onClick={() => { if (guardReadOnly()) return; setMode('meta'); }} style={{ width: '100%', height: 52, border: 0, borderRadius: 26, background: 'var(--m-offer, #6D3FD1)', color: '#fff', fontSize: 15, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, cursor: 'pointer' }}>
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true"><path d="M4 20l4-1L19 8l-3-3L5 16zM14 7l3 3"/></svg>
                 {tc('edit')}
               </button>
@@ -731,8 +732,8 @@ function OfferDetailMobileInner({ quoteId }) {
           {/* Sections */}
           <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <h2 style={{ margin: 0, fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 22, fontWeight: 700, color: '#fff' }}>{t('offerSectionsTitle')}</h2>
-            {canOwnerAct && !isLocked && (
-              <button onClick={() => setSectionEditTarget('new')} style={{ height: 48, padding: '0 16px', border: 0, borderRadius: 24, background: '#fff', color: 'var(--m-ink)', fontSize: 14, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
+            {showOwnerActions && (
+              <button onClick={() => { if (guardReadOnly()) return; setSectionEditTarget('new'); }} style={{ height: 48, padding: '0 16px', border: 0, borderRadius: 24, background: '#fff', color: 'var(--m-ink)', fontSize: 14, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
                 {t('sectionNewTitle')}
               </button>
@@ -747,7 +748,7 @@ function OfferDetailMobileInner({ quoteId }) {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {sections.map((sec, idx) => {
                 const isMine  = sec.created_by === currentUser?.id;
-                const canEdit = !isLocked && !isReadOnly && (canOwnerAct || isMine);
+                const canEdit = !isLocked && ((isOwner || isKollektivOwner) || isMine);
                 const secMedia = mediaItems.filter(m => m.owner_type === 'quote_section' && m.owner_id === sec.id && (m.mime_type?.startsWith('image/') || m.mime_type?.startsWith('video/')));
                 const secDrawings = quoteDrawings.filter(d => d.section_id === sec.id);
                 return (
@@ -759,7 +760,7 @@ function OfferDetailMobileInner({ quoteId }) {
                     onToggle={() => setOpenSections(prev => ({ ...prev, [sec.id]: !prev[sec.id] }))}
                     onMore={() => setSectionMenuId(sec.id)}
                     onItems={() => router.push(p(`/ajanlatok/${quoteId}/tetelek/${sec.id}`))}
-                    onDims={() => setSectionEditTarget(sec)}
+                    onDims={() => { if (guardReadOnly()) return; setSectionEditTarget(sec); }}
                     canEdit={canEdit}
                     isLocked={isLocked}
                     userCurrency={userCurrency}
@@ -768,8 +769,9 @@ function OfferDetailMobileInner({ quoteId }) {
                     sectionDrawings={secDrawings}
                     onMediaOpen={() => setSectionMediaCtx({ sectionId: sec.id, mode: 'images' })}
                     onSketchOpen={() => setSectionMediaCtx({ sectionId: sec.id, mode: 'drawings' })}
-                    onAddSketch={() => setSectionMediaCtx({ sectionId: sec.id, mode: 'drawings', triggerNew: true })}
+                    onAddSketch={() => { if (guardReadOnly()) return; setSectionMediaCtx({ sectionId: sec.id, mode: 'drawings', triggerNew: true }); }}
                     onUploadMedia={async (files) => {
+                      if (guardReadOnly()) return;
                       try {
                         const processed = await Promise.all(files.map(processMediaFile));
                         const form = new FormData();
@@ -789,14 +791,14 @@ function OfferDetailMobileInner({ quoteId }) {
           )}
 
           {/* T&C section header */}
-          {canOwnerAct && (
+          {showOwnerActions && (
             <span style={{ display: 'flex', alignItems: 'center' }}>
               <h2 style={{ margin: 0, fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 22, fontWeight: 700, color: '#fff' }}>{t('desktop.termsCard')}</h2>
             </span>
           )}
 
           {/* T&C Pod */}
-          {canOwnerAct && (() => {
+          {showOwnerActions && (() => {
             const atts = termsLocal?.attachments || [];
             const hasProfile = !!termsPdfName;
             const totalCount = (hasProfile ? 1 : 0) + atts.length;
@@ -839,7 +841,7 @@ function OfferDetailMobileInner({ quoteId }) {
                 {atts.length < 5 ? (
                   <>
                     <input ref={quoteTermsRef} type="file" accept="application/pdf,.pdf" style={{ display: 'none' }} onChange={e => { handleTermsUpload(e.target.files?.[0]); }} />
-                    <button type="button" onClick={() => quoteTermsRef.current?.click()} disabled={termsUploading}
+                    <button type="button" onClick={() => { if (guardReadOnly()) return; quoteTermsRef.current?.click(); }} disabled={termsUploading}
                       style={{ width: '100%', height: 52, border: 0, borderRadius: 26, background: 'var(--m-offer, #6D3FD1)', color: '#fff', fontSize: 15, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, cursor: 'pointer', opacity: termsUploading ? 0.6 : 1 }}>
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
                       {termsUploading ? tc('uploading') : t('desktop.termsUpload')}
@@ -866,8 +868,8 @@ function OfferDetailMobileInner({ quoteId }) {
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" aria-hidden="true"><path d="M5 12h.01M12 12h.01M19 12h.01"/></svg>
         </button>
         {/* Send */}
-        <button aria-label={quote?.status === 'sent' ? t('actionResend') : t('actionSend')} onClick={openSendSheet} disabled={!canOwnerAct || isLocked}
-          style={{ flex: 1, height: 60, border: 0, borderRadius: 30, background: canOwnerAct && !isLocked ? 'var(--m-offer, #6D3FD1)' : 'rgba(255,255,255,0.15)', color: '#fff', fontSize: 16, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, cursor: canOwnerAct && !isLocked ? 'pointer' : 'default', boxShadow: '0 10px 22px -10px rgba(14,17,22,0.4)' }}>
+        <button aria-label={quote?.status === 'sent' ? t('actionResend') : t('actionSend')} onClick={() => { if (guardReadOnly()) return; openSendSheet(); }} disabled={!(isOwner || isKollektivOwner) || isLocked}
+          style={{ flex: 1, height: 60, border: 0, borderRadius: 30, background: (isOwner || isKollektivOwner) && !isLocked ? 'var(--m-offer, #6D3FD1)' : 'rgba(255,255,255,0.15)', color: '#fff', fontSize: 16, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, cursor: (isOwner || isKollektivOwner) && !isLocked ? 'pointer' : 'default', boxShadow: '0 10px 22px -10px rgba(14,17,22,0.4)' }}>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true"><path d="M4 12l16-8-6 16-3-6z"/></svg>
           {quote?.status === 'sent' ? t('actionResend') : t('actionSend')}
         </button>
@@ -892,11 +894,11 @@ function OfferDetailMobileInner({ quoteId }) {
             <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 22, fontWeight: 700, lineHeight: 1.1, color: 'var(--m-ink)' }}>{t('actions')}</span>
             <span style={{ fontSize: 13, fontWeight: 600, color: '#5A5F68' }}>{quote?.title} · {statusLabel}</span>
           </div>
-          {canOwnerAct && !isLocked && <SheetRowInline icon="edit" label={tc('edit')} onClick={() => setMode('meta')} />}
-          {!isLocked && canOwnerAct && <SheetRowInline icon="check" label={t('actionAccept')} onClick={() => setMode('accept')} success />}
-          {!isLocked && canOwnerAct && <SheetRowInline icon="x" label={t('actionReject')} onClick={() => setMode('reject')} danger />}
-          {isLocked && canOwnerAct && <SheetRowInline icon="reset" label={t('actionReset')} onClick={() => setMode('revert')} />}
-          <SheetRowInline icon="copy" label={t('actionCopy')} onClick={() => setMode('dup')} />
+          {showOwnerActions && <SheetRowInline icon="edit" label={tc('edit')} onClick={() => { if (guardReadOnly()) return; setMode('meta'); }} />}
+          {showOwnerActions && <SheetRowInline icon="check" label={t('actionAccept')} onClick={() => { if (guardReadOnly()) return; setMode('accept'); }} success />}
+          {showOwnerActions && <SheetRowInline icon="x" label={t('actionReject')} onClick={() => { if (guardReadOnly()) return; setMode('reject'); }} danger />}
+          {isLocked && (isOwner || isKollektivOwner) && <SheetRowInline icon="reset" label={t('actionReset')} onClick={() => { if (guardReadOnly()) return; setMode('revert'); }} />}
+          <SheetRowInline icon="copy" label={t('actionCopy')} onClick={() => { if (guardReadOnly()) return; setMode('dup'); }} />
           <SheetRowInline icon="hist" label={t('historyTitle')} onClick={async () => {
             setMode('hist');
             setHistLoading(true);
@@ -906,7 +908,7 @@ function OfferDetailMobileInner({ quoteId }) {
               setHistory(j.history || []);
             } catch { /* non-critical */ } finally { setHistLoading(false); }
           }} />
-          {canOwnerAct && !quote?.is_seed && <SheetRowInline icon="trash" label={t('actionDelete')} onClick={() => setMode('delete')} danger />}
+          {(isOwner || isKollektivOwner) && !quote?.is_seed && <SheetRowInline icon="trash" label={t('actionDelete')} onClick={() => setMode('delete')} danger />}
           {isMember && <span style={{ fontSize: 13, fontWeight: 600, color: '#5A5F68', padding: '0 4px', lineHeight: 1.4 }}>{t('offerMemberCannotDelete')}</span>}
         </div>
       )}
@@ -1133,8 +1135,8 @@ function OfferDetailMobileInner({ quoteId }) {
           <span style={{ fontSize: 15, fontWeight: 600, color: '#4A4F57', lineHeight: 1.4 }}>
             {quote?.status === 'accepted' ? t('offerLockedAccepted') : t('offerLockedRejected')}
           </span>
-          <SheetRowInline icon="copy" label={t('offerDuplicateAsNew')} onClick={() => setMode('dup')} />
-          {canOwnerAct && <SheetRowInline icon="reset" label={t('actionReset')} onClick={() => setMode('revert')} />}
+          <SheetRowInline icon="copy" label={t('offerDuplicateAsNew')} onClick={() => { if (guardReadOnly()) return; setMode('dup'); }} />
+          {(isOwner || isKollektivOwner) && <SheetRowInline icon="reset" label={t('actionReset')} onClick={() => { if (guardReadOnly()) return; setMode('revert'); }} />}
           {quote?.status === 'accepted' && quote?.project_id && (
             <SheetRowInline icon="folder" label={t('viewProject')} onClick={() => { setMode(null); router.push(p(`/projektek/${quote.project_id}`)); }} />
           )}
@@ -1348,14 +1350,14 @@ function OfferDetailMobileInner({ quoteId }) {
         const menuSec = sections.find(s => s.id === sectionMenuId);
         if (!menuSec) return null;
         const isSectionMine   = menuSec.created_by === currentUser?.id;
-        const canEditSection  = !isLocked && (canOwnerAct || isSectionMine);
+        const canEditSection  = !isLocked && ((isOwner || isKollektivOwner) || isSectionMine);
         const entryCount      = (menuSec.entries || []).length;
         return (
           <div role="dialog" aria-label={menuSec.name} className="pod-sheet" style={{ position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 50, boxSizing: 'border-box', padding: `10px 16px calc(18px + env(safe-area-inset-bottom))`, borderRadius: '32px 32px 0 0', background: 'var(--m-sheet, #FBFAF7)', display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div style={{ alignSelf: 'center', width: 44, height: 5, borderRadius: 3, background: '#D5D2C8' }} />
             <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 22, fontWeight: 700, lineHeight: 1.1, color: 'var(--m-ink)' }}>{menuSec.name}</span>
-            <SheetRowInline icon="plus" label={tM('roomAddItem')} onClick={() => { setSectionMenuId(null); router.push(p(`/ajanlatok/${quoteId}/tetelek/${sectionMenuId}?mode=add`)); }} />
-            {canEditSection && <SheetRowInline icon="edit" label={tc('edit')} onClick={() => { setSectionMenuId(null); setSectionEditTarget(menuSec); }} />}
+            <SheetRowInline icon="plus" label={tM('roomAddItem')} onClick={() => { if (guardReadOnly()) return; setSectionMenuId(null); router.push(p(`/ajanlatok/${quoteId}/tetelek/${sectionMenuId}?mode=add`)); }} />
+            {canEditSection && <SheetRowInline icon="edit" label={tc('edit')} onClick={() => { if (guardReadOnly()) return; setSectionMenuId(null); setSectionEditTarget(menuSec); }} />}
             {canEditSection && <SheetRowInline icon="trash" label={tc('delete')} onClick={() => handleSectionDelete(sectionMenuId)} danger />}
             <div style={{ height: 1, background: '#EDEBE5', margin: '4px 0' }} />
             <SheetRowInline icon="filetext" label={t('mediaDocumentsTitle')} onClick={() => { setSectionMenuId(null); setSectionMediaCtx({ sectionId: sectionMenuId, mode: 'documents' }); }} />
@@ -1435,9 +1437,10 @@ function OfferDetailMobileInner({ quoteId }) {
                 {isDraw ? (
                   <DrawingsSection
                     drawings={drawings}
-                    canEdit={canOwnerAct && !isLocked}
+                    canEdit={showOwnerActions}
                     triggerCount={triggerNew}
                     onSave={async (svg) => {
+                      if (guardReadOnly()) return;
                       const res = await fetch(`/api/quotes/${quoteId}/drawings`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ svg_data: svg, section_id: sectionId }) });
                       if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || 'Hiba');
                       const { drawing } = await res.json();
@@ -1496,7 +1499,7 @@ function OfferDetailMobileInner({ quoteId }) {
               {!isDraw && (
                 <div style={{ padding: '8px 14px', paddingBottom: 'calc(16px + env(safe-area-inset-bottom))', flexShrink: 0 }}>
                   <input ref={mediaFileRef} type="file" accept={isDoc ? 'application/pdf,.pdf' : 'image/*,video/*'} multiple onChange={handleUpload} style={{ display: 'none' }} />
-                  <button onClick={() => mediaFileRef.current?.click()} disabled={mediaUploading}
+                  <button onClick={() => { if (guardReadOnly()) return; mediaFileRef.current?.click(); }} disabled={mediaUploading}
                     style={{ width: '100%', height: 56, border: 0, borderRadius: 28, background: 'var(--m-offer, #6D3FD1)', color: '#fff', fontSize: 16, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, cursor: 'pointer', opacity: mediaUploading ? 0.6 : 1 }}>
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
                     {mediaUploading ? tc('uploading') : (isDoc ? t('mediaUploadDoc') : t('mediaUploadImage'))}

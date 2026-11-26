@@ -326,6 +326,7 @@ function ProjectDetailMobileInner({ projectId }) {
   const canOwnerAct = (isOwner || isKollektivOwner) && !isReadOnly && !isCollectiveFrozen;
   const isMember = !!project?.collective_id && !(isOwner || isKollektivOwner);
   const isClosed = project?.status === 'closed' || project?.status === 'expired';
+  const showOwnerActions = (isOwner || isKollektivOwner) && !isClosed;
 
   const projInvoices = useMemo(() => (invoices || []).filter(inv => inv.project_id === projectId && !inv.deleted_at), [invoices, projectId]);
   const filteredInvoices = useMemo(() => {
@@ -987,8 +988,8 @@ function ProjectDetailMobileInner({ projectId }) {
             {project.work_type && <InfoRow label={tProj('workTypeLabel')} value={project.work_type} />}
             {linkedQuote && <InfoRow label={t('linkedOfferSubtotal')} value={`${linkedQuote.title} · ${formatMoney(linkedOfferSubtotal, userCurrency)}`} />}
             {project.description && <span style={{ fontSize: 14, fontWeight: 500, color: '#4A4F57', lineHeight: 1.5 }}>{project.description}</span>}
-            {!isClosed && canOwnerAct && (
-              <button onClick={openEditSheet} style={{ marginTop: 4, height: 48, border: 0, borderRadius: 24, background: PROJ_BG, color: '#fff', fontSize: 14, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, cursor: 'pointer' }}>
+            {showOwnerActions && (
+              <button onClick={() => { if (guardReadOnly()) return; openEditSheet(); }} style={{ marginTop: 4, height: 48, border: 0, borderRadius: 24, background: PROJ_BG, color: '#fff', fontSize: 14, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, cursor: 'pointer' }}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true"><path d="M4 20l4-1L19 8l-3-3L5 16zM14 7l3 3"/></svg>
                 {t('editProject')}
               </button>
@@ -1142,7 +1143,7 @@ function ProjectDetailMobileInner({ projectId }) {
                                 {t('noInvoiceImage')}
                               </span>
                             )}
-                            {!isClosed && (canOwnerAct || inv.uploaded_by === currentUser?.id) && (
+                            {!isClosed && ((isOwner || isKollektivOwner) || inv.uploaded_by === currentUser?.id) && (
                               <button
                                 onClick={() => { setExpandedInvId(null); handleDeleteInvoice(inv.id); }}
                                 style={{ alignSelf: 'flex-start', height: 36, padding: '0 14px', border: 0, borderRadius: 18, background: '#FDECEC', color: '#B71C1C', fontSize: 13, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}
@@ -1237,7 +1238,7 @@ function ProjectDetailMobileInner({ projectId }) {
                             </span>
                           </div>
                           {/* Delete */}
-                          {!isClosed && (canOwnerAct || le.user_id === currentUser?.id || le.created_by === currentUser?.id) && (
+                          {!isClosed && ((isOwner || isKollektivOwner) || le.user_id === currentUser?.id || le.created_by === currentUser?.id) && (
                             <button
                               onClick={() => { setExpandedLabourId(null); handleDeleteLabour(le.id); }}
                               style={{ alignSelf: 'flex-start', height: 36, padding: '0 14px', border: 0, borderRadius: 18, background: '#FDECEC', color: '#B71C1C', fontSize: 13, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}
@@ -1368,7 +1369,7 @@ function ProjectDetailMobileInner({ projectId }) {
             title={t('tabPayments')}
             headerRight={<span style={{ fontSize: 13, fontWeight: 700, color: '#5A5F68' }}>{paymentPlan.length}</span>}
           >
-            {!canOwnerAct ? (
+            {!(isOwner || isKollektivOwner) ? (
               <span style={{ fontSize: 14, fontWeight: 600, color: '#5A5F68' }}>{t('paymentPlanOwnerOnly')}</span>
             ) : loadingPayment ? (
               <div style={{ height: 60, borderRadius: 16, background: '#F4F2EC', animation: 'pulse 1.4s infinite' }} />
@@ -1388,7 +1389,7 @@ function ProjectDetailMobileInner({ projectId }) {
                   {/* Badge + context menu on same row */}
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
                     <span style={{ height: 20, padding: '0 8px', borderRadius: 10, fontSize: 10, fontWeight: 700, letterSpacing: '0.03em', background: SC.bg, color: SC.fg }}>{statusLabel}</span>
-                    {canOwnerAct && (
+                    {(isOwner || isKollektivOwner) && (
                       <button type="button" onClick={() => setContextMenuItem(item)} aria-label="Műveletek" style={{ width: 32, height: 32, border: 0, borderRadius: 16, background: PROJ_BG, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}>
                         <MoreHorizontal size={16} />
                       </button>
@@ -1418,8 +1419,8 @@ function ProjectDetailMobileInner({ projectId }) {
                 </div>
               );
             })}
-            {canOwnerAct && !isClosed && (
-              <button onClick={() => setPaymentSheet(true)} style={{ marginTop: 4, height: 48, border: 0, borderRadius: 24, background: PROJ_BG, color: '#fff', fontSize: 14, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, cursor: 'pointer' }}>
+            {showOwnerActions && (
+              <button onClick={() => { if (guardReadOnly()) return; setPaymentSheet(true); }} style={{ marginTop: 4, height: 48, border: 0, borderRadius: 24, background: PROJ_BG, color: '#fff', fontSize: 14, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, cursor: 'pointer' }}>
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
                 {t('addPaymentItem')}
               </button>
@@ -1565,12 +1566,12 @@ function ProjectDetailMobileInner({ projectId }) {
             <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 22, fontWeight: 700, lineHeight: 1.1, color: 'var(--m-ink)' }}>{t('myOptions')}</span>
             <CloseBtnDark onClick={() => setMode(null)} />
           </div>
-          {!isClosed && canOwnerAct && <SheetRowInline icon="edit" label={t('editProject')} onClick={() => { setMode(null); openEditSheet(); }} />}
-          {!isClosed && canOwnerAct && !linkedQuote && <SheetRowInline icon="target" label={t('setCostTarget')} onClick={() => { setCostTargetInput(project.cost_target != null ? String(project.cost_target) : ''); setMode('costTarget'); }} />}
-          {!isClosed && canOwnerAct && project.status !== 'paused' && <SheetRowInline icon="pause" label={t('setPaused')} onClick={() => setMode('pause')} />}
-          {canOwnerAct && project.status === 'paused' && <SheetRowInline icon="play" label={t('setActive')} onClick={() => setMode('continue')} />}
-          {!isClosed && canOwnerAct && <SheetRowInline icon="close" label={t('setClosed')} onClick={() => setMode('close')} />}
-          {isClosed && canOwnerAct && <SheetRowInline icon="play" label={t('reopen')} onClick={() => setMode('reopen')} />}
+          {showOwnerActions && <SheetRowInline icon="edit" label={t('editProject')} onClick={() => { if (guardReadOnly()) return; setMode(null); openEditSheet(); }} />}
+          {showOwnerActions && !linkedQuote && <SheetRowInline icon="target" label={t('setCostTarget')} onClick={() => { if (guardReadOnly()) return; setCostTargetInput(project.cost_target != null ? String(project.cost_target) : ''); setMode('costTarget'); }} />}
+          {showOwnerActions && project.status !== 'paused' && <SheetRowInline icon="pause" label={t('setPaused')} onClick={() => { if (guardReadOnly()) return; setMode('pause'); }} />}
+          {(isOwner || isKollektivOwner) && project.status === 'paused' && <SheetRowInline icon="play" label={t('setActive')} onClick={() => { if (guardReadOnly()) return; setMode('continue'); }} />}
+          {showOwnerActions && <SheetRowInline icon="close" label={t('setClosed')} onClick={() => { if (guardReadOnly()) return; setMode('close'); }} />}
+          {isClosed && (isOwner || isKollektivOwner) && <SheetRowInline icon="play" label={t('reopen')} onClick={() => { if (guardReadOnly()) return; setMode('reopen'); }} />}
           <SheetRowInline icon="hist" label={t('historyTitle')} onClick={() => {
             setMode('hist');
             if (projHistory !== null) return;
@@ -1581,7 +1582,7 @@ function ProjectDetailMobileInner({ projectId }) {
               .catch(() => setProjHistory([]))
               .finally(() => setHistLoading(false));
           }} />
-          {canOwnerAct && !project?.is_seed && <SheetRowInline icon="trash" label={t('deleteProject')} onClick={() => setMode('delete')} danger />}
+          {(isOwner || isKollektivOwner) && !project?.is_seed && <SheetRowInline icon="trash" label={t('deleteProject')} onClick={() => setMode('delete')} danger />}
         </div>
       )}
 

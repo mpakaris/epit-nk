@@ -22,6 +22,8 @@ import PodList from '@/components/mobile/pods/PodList';
 import Dock from '@/components/mobile/pods/Dock';
 import { NotifSheet, MessagesSheet, MenuSheet } from '@/components/mobile/pods/Sheets';
 import { MobileWorkspaceNotActivatedBanner, MobileWorkspaceFrozenBanner } from '@/components/mobile/WorkspaceStatusBanners';
+import { ReadOnlyUpgradeMobileProvider } from '@/context/ReadOnlyUpgradeContext';
+import { useReadOnlyUpgrade } from '@/hooks/useReadOnlyUpgrade';
 
 // ─── Project status config ────────────────────────────────────────────────────
 function projectStatusStyle(status, t) {
@@ -161,7 +163,7 @@ function DeleteSheet({ project, isTeam, onConfirm, onClose, t }) {
 }
 
 // ─── Main component ───────────────────────────────────────────────────────────
-export default function ProjectsListMobile() {
+function ProjectsListMobileInner() {
   const t     = useTranslations('projects');
   const tPods = useTranslations('mobilePods');
   const router = useRouter();
@@ -174,6 +176,8 @@ export default function ProjectsListMobile() {
   } = useApp();
   const activeColl = (userMemberships || []).find(c => c.collective_id === activeCollectiveId);
   const atCreateLimit = !activeCollectiveId && !isEffectivePremium(currentUser || {}) && (projects || []).filter(pr => !pr.collective_id && !pr.deleted_at).length >= 1;
+
+  const { openUpgrade } = useReadOnlyUpgrade();
 
   const navPrefix = isDemoMode ? '/demo' : '';
   const p = useCallback((path) => `${navPrefix}${path}`, [navPrefix]);
@@ -335,7 +339,7 @@ export default function ProjectsListMobile() {
                 {/* Basic limit banner inside personal pod */}
                 {ws.isPersonal && atBasicLimit && (
                   <div style={{ padding: '12px 14px', borderRadius: 20, background: '#FFF1E0', color: '#6B3300', fontSize: 14, fontWeight: 600, lineHeight: 1.4 }}>
-                    {t('basicLimitReached')} — <button onClick={() => router.push(p('/elofizetes'))} style={{ background: 'none', border: 0, padding: 0, color: '#E65C00', fontWeight: 700, cursor: 'pointer', textDecoration: 'underline' }}>{t('upgradeToCreate')}</button>
+                    {t('basicLimitReached')} — <button onClick={() => openUpgrade()} style={{ background: 'none', border: 0, padding: 0, color: '#E65C00', fontWeight: 700, cursor: 'pointer', textDecoration: 'underline' }}>{t('upgradeToCreate')}</button>
                   </div>
                 )}
 
@@ -389,7 +393,7 @@ export default function ProjectsListMobile() {
 
       <Dock
         activeTab="projects"
-        onCreatePress={() => atCreateLimit ? router.push(p('/elofizetes')) : router.push(p('/projektek/uj'))}
+        onCreatePress={() => atCreateLimit ? openUpgrade() : router.push(p('/projektek/uj'))}
         activePodColor={{ plusBg: '#263248', plusFg: '#FFFFFF' }}
       />
 
@@ -422,4 +426,8 @@ export default function ProjectsListMobile() {
       {activeSheet === 'menu'     && <MenuSheet     onClose={() => setActiveSheet(null)} />}
     </div>
   );
+}
+
+export default function ProjectsListMobile() {
+  return <ReadOnlyUpgradeMobileProvider><ProjectsListMobileInner /></ReadOnlyUpgradeMobileProvider>;
 }
