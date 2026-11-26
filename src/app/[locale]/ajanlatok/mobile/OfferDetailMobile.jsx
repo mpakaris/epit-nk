@@ -747,7 +747,7 @@ function OfferDetailMobileInner({ quoteId }) {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {sections.map((sec, idx) => {
                 const isMine  = sec.created_by === currentUser?.id;
-                const canEdit = !isLocked && ((isOwner || isKollektivOwner) || isMine);
+                const canEdit = !isCollectiveFrozen && !isLocked && ((isOwner || isKollektivOwner) || isMine);
                 const secMedia = mediaItems.filter(m => m.owner_type === 'quote_section' && m.owner_id === sec.id && (m.mime_type?.startsWith('image/') || m.mime_type?.startsWith('video/')));
                 const secDrawings = quoteDrawings.filter(d => d.section_id === sec.id);
                 return (
@@ -1436,7 +1436,7 @@ function OfferDetailMobileInner({ quoteId }) {
                 {isDraw ? (
                   <DrawingsSection
                     drawings={drawings}
-                    canEdit={showOwnerActions}
+                    canEdit={showOwnerActions && !isCollectiveFrozen}
                     triggerCount={triggerNew}
                     onSave={async (svg) => {
                       if (guardReadOnly()) return;

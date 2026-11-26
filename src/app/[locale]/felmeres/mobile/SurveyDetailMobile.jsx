@@ -1135,7 +1135,7 @@ function SurveyDetailMobileInner() {
       {/* Property info sheet */}
       {sheet === 'property' && (
         <div role="dialog" aria-label={t('propertyTitle')} className="pod-sheet" style={{ position: 'fixed', zIndex: 50, left: 0, right: 0, bottom: 0, boxSizing: 'border-box', padding: '10px 16px calc(20px + env(safe-area-inset-bottom))', borderRadius: '32px 32px 0 0', background: 'var(--m-sheet)', display: 'flex', flexDirection: 'column', gap: 14, maxHeight: '92dvh', overflowY: 'auto' }}>
-          <PropInfoSheet survey={survey} surveyId={id} canEdit={showOwnerActions} onSave={handlePropSave} onClose={closeSheet} />
+          <PropInfoSheet survey={survey} surveyId={id} canEdit={showOwnerActions && !isCollectiveFrozen} onSave={handlePropSave} onClose={closeSheet} />
         </div>
       )}
 
