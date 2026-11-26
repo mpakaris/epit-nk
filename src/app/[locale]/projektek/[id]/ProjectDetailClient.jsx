@@ -1050,7 +1050,7 @@ function ProjectDetailClientInner({
                             {fmtMoney(Number(le.value_huf || 0))}
                           </span>
                           {(canManageProject || le.uploaded_by === currentUser?.id) && (
-                            <button type="button" onClick={() => setEditingLabour(le)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#8A8F98', padding: 2, display: 'flex', flexShrink: 0 }}>
+                            <button type="button" onClick={() => { if (guardReadOnly()) return; setEditingLabour(le); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#8A8F98', padding: 2, display: 'flex', flexShrink: 0 }}>
                               <PencilLine size={15} aria-hidden="true" />
                             </button>
                           )}
@@ -1237,7 +1237,7 @@ function ProjectDetailClientInner({
               isOpen={showPaymentModal}
               onClose={() => { setShowPaymentModal(false); setEditingPayment(null); }}
               editItem={editingPayment}
-              readOnly={isReadOnly}
+              readOnly={isReadOnly || isCollectiveFrozen}
               clientEmail={client?.email}
               onSave={async (fields, file) => {
                 if (editingPayment) {
@@ -1423,7 +1423,7 @@ function ProjectDetailClientInner({
         <LabourEditModal
           entry={editingLabour}
           rooms={projectRooms}
-          canEdit={canManageProject || editingLabour.uploaded_by === currentUser?.id}
+          canEdit={!isCollectiveFrozen && (canManageProject || editingLabour.uploaded_by === currentUser?.id)}
           onClose={() => setEditingLabour(null)}
           onSave={async (fields) => { await ctxUpdateLabourEntry(editingLabour.id, fields); }}
           onDelete={canManageProject || editingLabour.uploaded_by === currentUser?.id
@@ -1662,7 +1662,7 @@ function ProjectDetailClientInner({
         isOpen={!!editingDiaryEntry}
         onClose={() => setEditingDiaryEntry(null)}
         rooms={projectRooms}
-        canEdit={!isReadOnly && !!(editingDiaryEntry && (canManageProject || editingDiaryEntry.created_by === currentUser?.id))}
+        canEdit={!isReadOnly && !isCollectiveFrozen && !!(editingDiaryEntry && (canManageProject || editingDiaryEntry.created_by === currentUser?.id))}
         entry={editingDiaryEntry
           ? (diaryEntriesByProject[project.id]?.find(e => e.id === editingDiaryEntry.id) ?? editingDiaryEntry)
           : null
@@ -1683,7 +1683,7 @@ function ProjectDetailClientInner({
       {detailInvoice && (
         <InvoiceDetailDrawer
           invoice={detailInvoice}
-          isAdmin={!isReadOnly && (canManageProject || detailInvoice?.uploaded_by === currentUser?.id)}
+          isAdmin={!isReadOnly && !isCollectiveFrozen && (canManageProject || detailInvoice?.uploaded_by === currentUser?.id)}
           rooms={projectRooms}
           splits={invoiceSplits.filter(s => s.invoice_id === detailInvoice.id)}
           onClose={() => setDetailInvoice(null)}
