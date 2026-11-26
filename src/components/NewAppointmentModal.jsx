@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from '@/context/AppContext';
 import { useTranslations } from 'next-intl';
 import Modal, { AlertModal } from '@/components/Modal';
@@ -27,6 +27,8 @@ export default function NewAppointmentModal({ isOpen, onClose, defaultDate }) {
   const { clients, createClient, currentUser } = useApp();
   const t = useTranslations('calendar');
   const isPremium = isEffectivePremium(currentUser || {});
+  const isPremiumRef = useRef(isPremium);
+  isPremiumRef.current = isPremium;
 
   const LINK_TYPES = [
     { id: null,       label: t('linkNone'),    icon: null          },
@@ -51,12 +53,12 @@ export default function NewAppointmentModal({ isOpen, onClose, defaultDate }) {
       setDate(defaultDate || todayStr());
       setTime('09:00');
       setClientId('');
-      setLinkType(isPremium ? 'felmeres' : null);
+      setLinkType(isPremiumRef.current ? 'felmeres' : null);
       setSaving(false);
       setSuccessMsg('');
       setShowNewClient(false);
     }
-  }, [isOpen, defaultDate, isPremium]);
+  }, [isOpen, defaultDate]);
 
   async function handleSave() {
     if (!title.trim()) { setAlert(t('titleRequired')); return; }
