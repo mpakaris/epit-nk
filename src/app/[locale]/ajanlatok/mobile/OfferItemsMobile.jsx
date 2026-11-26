@@ -29,7 +29,7 @@ function EntryRow({ entry, onEdit, t, userCurrency }) {
   const m   = TYPE_META[entry.entry_type] || TYPE_META.other;
   const qty = entry.entry_type === 'material' || entry.entry_type === 'labour';
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0', borderTop: '1px solid #ECEAE4' }}>
+    <button type="button" onClick={() => onEdit(entry)} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0', borderTop: '1px solid #ECEAE4', width: '100%', border: 0, borderTop: '1px solid #ECEAE4', background: 'transparent', cursor: 'pointer', textAlign: 'left' }}>
       <span style={{ width: 8, height: 8, borderRadius: 4, background: m.fg, flexShrink: 0 }} aria-hidden="true" />
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontSize: 15, fontWeight: 600, color: '#0E1116', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -45,11 +45,7 @@ function EntryRow({ entry, onEdit, t, userCurrency }) {
       <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 700, letterSpacing: '-0.01em', fontSize: 16, color: '#0E1116', flexShrink: 0 }}>
         {formatMoney(entry.amount_huf || 0, userCurrency)}
       </span>
-      <button type="button" onClick={() => onEdit(entry)} aria-label={t('entryModalEdit')}
-        style={{ flexShrink: 0, width: 36, height: 36, border: 0, borderRadius: 18, background: '#F1F1F3', color: '#0E1116', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M16 3l5 5L9 20H4v-5z"/></svg>
-      </button>
-    </div>
+    </button>
   );
 }
 
