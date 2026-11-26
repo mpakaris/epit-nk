@@ -115,7 +115,7 @@
     "sectionOverview": "Überblick",
     "sectionActivity": "Neueste Aktivität",
     "graceWarningTitle": "Zahlungsproblem",
-    "graceWarningMsg": "Bitte klären Sie die Zahlung innerhalb von {days} Tagen, sonst wird Ihr Abonnement gesperrt.",
+    "graceWarningMsg": "Bitte klären Sie die Zahlung innerhalb von {days} Tagen, sonst wird Ihr Abonnement ausgesetzt.",
     "graceWarningBtn": "Zur Abrechnung"
   },
   "sidebar": {
@@ -1516,6 +1516,7 @@
     "nameRequired": "Kollektiv-Name ist erforderlich",
     "premiumGateTitle": "Premium erforderlich",
     "premiumGateText": "Kollektive — gemeinsame Projekte, eingeladene Teammitglieder, gemeinsame Angebote — sind eine Premium-Funktion. Aktivieren Sie zunächst Premium und kehren Sie dann zurück.",
+    "premiumGatePrice": "7.990 Ft / Monat + MwSt.",
     "premiumActivateBtn": "Premium aktivieren →",
     "premiumActiveText": "Ihr Premium-Abonnement ist aktiv — die unten angezeigten Preise sind Zusatzgebühren.",
     "collectiveNameLabel": "Kollektiv-Name:",
@@ -1586,10 +1587,10 @@
     "hideMembers": "Mitglieder ausblenden",
     "kickerLabel": "Arbeit",
     "statusNotActivated": "Nicht aktiviert",
-    "statusFrozen": "Eingefroren",
+    "statusFrozen": "Ausgesetzt",
     "notActivatedBannerTitle": "Dieser Arbeitsbereich ist noch nicht aktiviert.",
     "notActivatedBannerBtn": "Aktivieren",
-    "frozenBannerTitle": "Dieses Kollektiv ist eingefroren. Daten sind lesbar, aber nicht bearbeitbar.",
+    "frozenBannerTitle": "Dieses Kollektiv ist ausgesetzt. Daten sind lesbar, aber nicht bearbeitbar.",
     "frozenBannerBtn": "Abonnement fortsetzen",
     "newCollectiveDisabledHasPending": "Aktiviere oder lösche das bestehende nicht aktivierte Kollektiv.",
     "newCollectiveDisabledNoPremium": "Premium-Abonnement erforderlich.",
@@ -3224,9 +3225,9 @@
     "errorMicUnavailable": "Mikrofon nicht verfügbar"
   },
   "collectiveModal": {
-    "title": "Kollektiv gesperrt",
-    "bodyOwner": "Dieses Kollektiv ist derzeit gesperrt. Daten können gelesen, aber nicht bearbeitet werden – erneuere das Abonnement, um wieder schreiben zu können.",
-    "bodyContributor": "Dieses Kollektiv ist derzeit gesperrt. Daten können gelesen, aber nicht bearbeitet werden. Der Eigentümer des Kollektivs muss das Abonnement erneuern.",
+    "title": "Kollektiv ausgesetzt",
+    "bodyOwner": "Dieses Kollektiv ist derzeit ausgesetzt. Daten können gelesen, aber nicht bearbeitet werden – erneuere das Abonnement, um wieder schreiben zu können.",
+    "bodyContributor": "Dieses Kollektiv ist derzeit ausgesetzt. Daten können gelesen, aber nicht bearbeitet werden. Der Eigentümer des Kollektivs muss das Abonnement erneuern.",
     "cta": "Abonnement verwalten",
     "dismiss": "Schließen"
   },

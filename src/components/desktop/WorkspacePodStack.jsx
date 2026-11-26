@@ -97,7 +97,8 @@ export default function WorkspacePodStack({ children, localOnly = false, headerE
     }),
   ];
 
-  const content = typeof children === 'function' ? children(openId) : children;
+  const openWs = workspaces.find(w => w.id === openId) ?? null;
+  const content = typeof children === 'function' ? children(openWs) : children;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>

@@ -127,15 +127,6 @@ export default function PodList({
                       {ini}
                     </span>
                   ))}
-                  <span style={{
-                    marginLeft: memberInitials.length > 0 ? 8 : 0,
-                    minWidth: 26, height: 26, padding: '0 8px', boxSizing: 'border-box',
-                    borderRadius: 13, background: '#fff', color: 'var(--m-ink)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: 13, fontWeight: 700,
-                  }}>
-                    {ws.count == null ? '—' : ws.count}
-                  </span>
                 </span>
               </button>
             </div>

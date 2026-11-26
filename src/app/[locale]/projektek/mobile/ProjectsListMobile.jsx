@@ -232,6 +232,8 @@ function ProjectsListMobileInner() {
       projects: liveProjects.filter(pr => pr.collective_id === col.collective_id),
       count: activePodId === col.collective_id ? liveProjects.filter(pr => pr.collective_id === col.collective_id).length : null,
       canCreate: col.role === 'owner' || col.role === 'admin',
+      status: col.status || 'active',
+      role: col.role,
     })),
   ], [liveProjects, userMemberships, atBasicLimit, tPods, activePodId]);
 
@@ -334,8 +336,8 @@ function ProjectsListMobileInner() {
             });
             return (
               <>
-                {activeColl?.status === 'not_activated' && <MobileWorkspaceNotActivatedBanner />}
-                {activeColl?.status === 'frozen' && <MobileWorkspaceFrozenBanner isOwner={activeColl?.role === 'owner'} />}
+                {!ws.isPersonal && ws.status === 'not_activated' && <MobileWorkspaceNotActivatedBanner />}
+                {!ws.isPersonal && ws.status === 'frozen' && <MobileWorkspaceFrozenBanner isOwner={ws.role === 'owner'} />}
                 {/* Basic limit banner inside personal pod */}
                 {ws.isPersonal && atBasicLimit && (
                   <div style={{ padding: '12px 14px', borderRadius: 20, background: '#FFF1E0', color: '#6B3300', fontSize: 14, fontWeight: 600, lineHeight: 1.4 }}>

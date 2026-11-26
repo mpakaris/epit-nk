@@ -350,10 +350,11 @@ export default function ProjectsListDesktop() {
 
       <div className="dk-body" style={{ background: 'var(--dk-deep)', padding: '16px 32px 24px' }}>
         <WorkspacePodStack>
-          {activeColl?.status === 'not_activated' && <WorkspaceNotActivatedBanner />}
-          {activeColl?.status !== 'not_activated' && (
-            <>
-              {activeColl?.status === 'frozen' && <WorkspaceFrozenBanner isOwner={activeColl?.role === 'owner'} />}
+          {ws => (<>
+            {!ws?.isPersonal && ws?.status === 'not_activated' && <WorkspaceNotActivatedBanner />}
+            {(ws?.isPersonal || ws?.status !== 'not_activated') && (
+              <>
+              {!ws?.isPersonal && ws?.status === 'frozen' && <WorkspaceFrozenBanner isOwner={ws?.role === 'owner'} />}
               {/* Filter chips */}
               <div style={{ display: 'flex', gap: 8 }}>
                 {[
@@ -385,8 +386,9 @@ export default function ProjectsListDesktop() {
                   {filtered.map(p => renderCard(p))}
                 </div>
               )}
-            </>
-          )}
+              </>
+            )}
+            </>)}
         </WorkspacePodStack>
       </div>
 

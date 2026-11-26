@@ -1436,6 +1436,7 @@
     "nameRequired": "A kollektíva neve kötelező",
     "premiumGateTitle": "Prémium szükséges",
     "premiumGateText": "A kollektívák — közös projektek, meghívott csapattagok, megosztott ajánlatok — Prémium funkció. Először aktiváld a Prémiumot, majd térj vissza a kollektíva létrehozásához.",
+    "premiumGatePrice": "7.990 Ft / hó + ÁFA",
     "premiumActivateBtn": "Prémium aktiválása →",
     "premiumActiveText": "Prémium előfizetésed aktív — az alábbi árak kiegészítő díjak.",
     "collectiveNameLabel": "Kollektíva neve:",

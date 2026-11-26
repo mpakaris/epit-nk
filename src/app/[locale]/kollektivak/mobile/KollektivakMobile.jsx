@@ -518,8 +518,8 @@ export default function KollektivakMobile() {
           </div>
         )}
 
-        {/* Premium locked */}
-        {!isPremium && (
+        {/* Premium locked — only when no inclusive collective exists yet */}
+        {!isPremium && !collectives.some(c => c.is_inclusive) && (
           <div style={{ background: '#fff', borderRadius: 22, padding: '16px', boxShadow: '0 2px 12px rgba(0,0,0,0.08)', marginBottom: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
               <div style={{ width: 44, height: 44, borderRadius: 15, flexShrink: 0, background: '#F1F1F3', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -583,19 +583,26 @@ export default function KollektivakMobile() {
 
       {/* ── Create sheet ── */}
       <Sheet open={createOpen} onClose={() => setCreateOpen(false)}>
-        <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 25, fontWeight: 700, color: '#0E1116', lineHeight: 1.1 }}>
-          {isPremium ? t('createStep1Title') : t('premiumGateTitle')}
-        </span>
+        {isPremium && (
+          <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 25, fontWeight: 700, color: '#0E1116', lineHeight: 1.1 }}>
+            {t('createStep1Title')}
+          </span>
+        )}
         {!isPremium ? (
           <>
-            <div style={{ background: '#FFF7ED', borderRadius: 16, padding: '12px 14px', display: 'flex', gap: 10 }}>
-              <AlertCircle size={18} color="#C2410C" style={{ flexShrink: 0, marginTop: 1 }} />
-              <span style={{ fontSize: 14, color: '#7C2D12', lineHeight: 1.55 }}>{t('premiumGateText')}</span>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, padding: '8px 0' }}>
+              <div style={{ width: 60, height: 60, borderRadius: 20, background: '#0E1116', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Zap size={28} color="#6F93FF" fill="#6F93FF" />
+              </div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: '#6F93FF' }}>{t('premiumGatePrice')}</div>
+            </div>
+            <div style={{ background: '#F5F5F7', borderRadius: 16, padding: '14px 16px', fontSize: 14, color: '#3A3F4A', lineHeight: 1.65 }}>
+              {t('premiumGateText')}
             </div>
             <Link href="/elofizetes" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, height: 60, border: 0, borderRadius: 30, background: '#0E1116', color: '#fff', fontSize: 17, fontWeight: 700, textDecoration: 'none' }}>
               <Zap size={18} /> {t('premiumActivateBtn')}
             </Link>
-            <button type="button" onClick={() => setCreateOpen(false)} style={{ width: '100%', height: 60, border: 0, borderRadius: 30, background: '#EFEDE6', color: '#0E1116', fontSize: 17, fontWeight: 700, cursor: 'pointer' }}>
+            <button type="button" onClick={() => setCreateOpen(false)} style={{ width: '100%', height: 44, border: 0, borderRadius: 22, background: 'none', color: '#8A8F98', fontSize: 15, fontWeight: 600, cursor: 'pointer' }}>
               {t('close')}
             </button>
           </>

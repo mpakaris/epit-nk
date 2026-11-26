@@ -48,7 +48,8 @@ export async function GET(request) {
   const to       = searchParams.get('to')       || null;
   const limit    = Math.min(Number(searchParams.get('limit') || 50), 200);
   const offset   = Number(searchParams.get('offset') || 0);
-  const channel  = searchParams.get('channel') || null;  // 'whatsapp' for WA-only filter
+  const channel  = searchParams.get('channel') || null;
+  const device   = searchParams.get('device')  || null;
 
   let q = admin
     .from('audit_logs')
@@ -61,6 +62,7 @@ export async function GET(request) {
   if (from)     q = q.gte('created_at', from);
   if (to)       q = q.lte('created_at', to);
   if (channel)  q = q.eq('details->>channel', channel);
+  if (device)   q = q.eq('details->>device',  device);
 
   const { data: logs, count, error } = await q;
   if (error) return Response.json({ error: error.message }, { status: 500 });
@@ -84,10 +86,10 @@ export async function GET(request) {
     return {
       ...log,
       workspace: !wsId
-        ? { type: 'unknown', name: null }
+        ? { type: 'personal', name: null }
         : cName
           ? { type: 'collective', name: cName }
-          : { type: 'personal', name: null },
+          : { type: 'unknown', name: wsId },
     };
   });
 

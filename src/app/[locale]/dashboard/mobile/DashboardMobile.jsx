@@ -13,7 +13,7 @@ import Dock from '@/components/mobile/pods/Dock';
 import WeekCalendar from '@/components/mobile/pods/WeekCalendar';
 import PodStack from '@/components/mobile/pods/PodStack';
 import { CreateSheet, NotifSheet, /* MessagesSheet, */ MenuSheet, DaySheet } from '@/components/mobile/pods/Sheets';
-import { MobileWorkspaceNotActivatedBanner, MobileWorkspaceFrozenBanner } from '@/components/mobile/WorkspaceStatusBanners';
+import { MobileWorkspaceNotActivatedBanner } from '@/components/mobile/WorkspaceStatusBanners';
 
 // ─── Shared card shadow for white cards on dark body ──────────────────────────
 const CARD_SHADOW = 'inset 0 1px 0 #fff, 0 16px 26px -14px rgba(0,0,0,0.70), 0 3px 6px -2px rgba(0,0,0,0.30)';
@@ -521,7 +521,6 @@ export default function DashboardMobile({ currentUser }) {
       <div style={{ padding: '108px 16px 190px', display: 'flex', flexDirection: 'column', gap: 14 }}>
 
         {activeColl?.status === 'not_activated' && <MobileWorkspaceNotActivatedBanner />}
-        {activeColl?.status === 'frozen' && <MobileWorkspaceFrozenBanner isOwner={activeColl?.role === 'owner'} />}
 
         {/* Offline banner */}
         {!online && (

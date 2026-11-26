@@ -19,7 +19,7 @@ import PageHeader from '@/components/mobile/pods/PageHeader';
 import Dock from '@/components/mobile/pods/Dock';
 import { NotifSheet, MessagesSheet, MenuSheet } from '@/components/mobile/pods/Sheets';
 import NewAppointmentModal from '@/components/NewAppointmentModal';
-import { MobileWorkspaceNotActivatedBanner, MobileWorkspaceFrozenBanner } from '@/components/mobile/WorkspaceStatusBanners';
+import { MobileWorkspaceNotActivatedBanner } from '@/components/mobile/WorkspaceStatusBanners';
 import AppointmentDetailModal from '@/components/AppointmentDetailModal';
 
 // ─── Per-month color palette (12 entries, one per calendar month) ────────────
@@ -423,7 +423,6 @@ export default function CalendarMobile() {
       <div style={{ padding: '108px 16px 190px', display: 'flex', flexDirection: 'column', gap: 10 }}>
 
         {activeColl?.status === 'not_activated' && <MobileWorkspaceNotActivatedBanner />}
-        {activeColl?.status === 'frozen' && <MobileWorkspaceFrozenBanner isOwner={activeColl?.role === 'owner'} />}
 
         {/* Page heading */}
         <button

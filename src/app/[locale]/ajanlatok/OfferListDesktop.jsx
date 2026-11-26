@@ -161,10 +161,11 @@ export default function OfferListDesktop() {
       {/* ── Body ────────────────────────────────────────────────────────────────── */}
       <div className="dk-body" style={{ background: 'var(--dk-deep)', padding: '16px 32px 24px' }}>
         <WorkspacePodStack>
-          {activeColl?.status === 'not_activated' && <WorkspaceNotActivatedBanner />}
-          {activeColl?.status !== 'not_activated' && (
-          <>
-            {activeColl?.status === 'frozen' && <WorkspaceFrozenBanner isOwner={activeColl?.role === 'owner'} />}
+          {ws => (<>
+            {!ws?.isPersonal && ws?.status === 'not_activated' && <WorkspaceNotActivatedBanner />}
+            {(ws?.isPersonal || ws?.status !== 'not_activated') && (
+            <>
+            {!ws?.isPersonal && ws?.status === 'frozen' && <WorkspaceFrozenBanner isOwner={ws?.role === 'owner'} />}
             {/* Stats strip */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
               {STATS.map(stat => (
@@ -338,7 +339,8 @@ export default function OfferListDesktop() {
               )}
             </div>
           </>
-        )}
+          )}
+          </>)}
         </WorkspacePodStack>
       </div>
 

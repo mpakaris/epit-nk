@@ -307,7 +307,9 @@ export function AppProvider({ children }) {
 
   // ---- Audit helpers ----------------------------------------------------------
   const auditLog = (action, extras = {}) => {
-    fetch('/api/audit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action, ...extras }) }).catch(() => {});
+    const device = typeof window !== 'undefined' ? (window.innerWidth < 768 ? 'mobile' : 'desktop') : 'unknown';
+    const details = { workspace_id: activeCollectiveId || null, device, ...(extras.details || {}) };
+    fetch('/api/audit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action, ...extras, details }) }).catch(() => {});
   };
   const auditPublic = (action, extras = {}) => {
     fetch('/api/audit/events', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action, ...extras }) }).catch(() => {});
@@ -494,6 +496,7 @@ export function AppProvider({ children }) {
         deleteDiaryPhoto,
         uploadDiaryPhotos,
         // Misc
+        auditLog,
         refreshSupabaseData,
         refreshCollectives: fetchProfile,
         updateDisplayName: (name) => setCurrentUser(prev => prev ? { ...prev, display_name: name } : prev),

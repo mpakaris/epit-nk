@@ -9,7 +9,7 @@ import { formatMoney, formatDate } from '@/lib/constants';
 import Modal from '@/components/Modal';
 import UpgradeModal from '@/components/UpgradeModal';
 import { isEffectivePremium } from '@/lib/subscriptionLimits';
-import { WorkspaceNotActivatedBanner, WorkspaceFrozenBanner } from '@/components/desktop/WorkspaceStatusBanners';
+import { WorkspaceNotActivatedBanner } from '@/components/desktop/WorkspaceStatusBanners';
 import WorkspacePodStack from '@/components/desktop/WorkspacePodStack';
 import DashboardWeekCalendar from './DashboardWeekCalendar';
 import {
@@ -327,8 +327,6 @@ export default function DashboardDesktop({
           {activeColl?.status === 'not_activated' && <WorkspaceNotActivatedBanner />}
 
           {activeColl?.status !== 'not_activated' && <>
-
-          {activeColl?.status === 'frozen' && <WorkspaceFrozenBanner isOwner={activeColl?.role === 'owner'} />}
 
           {/* Payment grace period warning */}
           {(() => {

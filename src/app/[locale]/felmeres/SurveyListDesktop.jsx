@@ -197,10 +197,11 @@ export default function SurveyListDesktop() {
       {/* ── Body ────────────────────────────────────────────────────────────────── */}
       <div className="dk-body" style={{ background: 'var(--dk-deep)', padding: '16px 32px 24px' }}>
         <WorkspacePodStack>
-          {activeColl?.status === 'not_activated' && <WorkspaceNotActivatedBanner />}
-          {activeColl?.status !== 'not_activated' && (
-          <>
-            {activeColl?.status === 'frozen' && <WorkspaceFrozenBanner isOwner={activeColl?.role === 'owner'} />}
+          {ws => (<>
+            {!ws?.isPersonal && ws?.status === 'not_activated' && <WorkspaceNotActivatedBanner />}
+            {(ws?.isPersonal || ws?.status !== 'not_activated') && (
+            <>
+            {!ws?.isPersonal && ws?.status === 'frozen' && <WorkspaceFrozenBanner isOwner={ws?.role === 'owner'} />}
             {/* Filter chips + count */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div style={{ display: 'flex', gap: 8 }}>
@@ -402,7 +403,8 @@ export default function SurveyListDesktop() {
               )}
             </div>
           </>
-        )}
+          )}
+          </>)}
         </WorkspacePodStack>
       </div>
 

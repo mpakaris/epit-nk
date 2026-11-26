@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useApp } from '@/context/AppContext';
@@ -227,7 +227,7 @@ function SurveyListMobileInner() {
   const {
     surveys, clients, collectives,
     deleteSurvey, isDemoMode, currentUser, dataReady,
-    activeCollectiveId,
+    activeCollectiveId, setActiveContext,
   } = useApp();
   const { openUpgrade, openContactOwner } = useReadOnlyUpgrade();
   const activeColl = (collectives || []).find(c => c.collective_id === activeCollectiveId);
@@ -236,6 +236,24 @@ function SurveyListMobileInner() {
   const isFrozen = activeColl?.status === 'frozen';
 
   const [activePodId, setActivePodId] = useState('personal');
+  const [podSwitching, setPodSwitching] = useState(false);
+
+  // Always open on personal on mount; if context was collective, reset it silently
+  useEffect(() => {
+    if (activeCollectiveId !== null && !isDemoMode) {
+      setPodSwitching(true);
+      setActiveContext(null).catch(() => {}).finally(() => setPodSwitching(false));
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleActivate = useCallback(async (id) => {
+    if (id === activePodId || podSwitching) return;
+    setActivePodId(id);
+    setPodSwitching(true);
+    try { await setActiveContext(id === 'personal' ? null : id); } catch { /* non-fatal */ }
+    finally { setPodSwitching(false); }
+  }, [activePodId, podSwitching, setActiveContext]);
+
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('all');
   const [sheet, setSheet] = useState(null); // 'menu' | 'notifications' | 'messages'
@@ -259,6 +277,8 @@ function SurveyListMobileInner() {
       surveys: surveys.filter(s => s.collective_id === col.collective_id),
       count: surveys.filter(s => s.collective_id === col.collective_id).length,
       canCreate: col.role === 'owner' || col.role === 'admin',
+      status: col.status || 'active',
+      role: col.role,
     })),
   ], [surveys, collectives, t]);
 
@@ -355,13 +375,14 @@ function SurveyListMobileInner() {
         <PodList
           workspaces={workspaces}
           activeId={activePodId}
-          onActivate={setActivePodId}
+          onActivate={handleActivate}
+          loadingId={podSwitching ? activePodId : null}
           moduleLabel={t('surveys')}
           onBack={() => router.push(p('/dashboard'))}
           renderBody={(ws) => (
             <>
-              {activeColl?.status === 'not_activated' && <MobileWorkspaceNotActivatedBanner />}
-              {activeColl?.status === 'frozen' && <MobileWorkspaceFrozenBanner isOwner={activeColl?.role === 'owner'} />}
+              {!ws.isPersonal && ws.status === 'not_activated' && <MobileWorkspaceNotActivatedBanner />}
+              {!ws.isPersonal && ws.status === 'frozen' && <MobileWorkspaceFrozenBanner isOwner={ws.role === 'owner'} />}
               {/* Search */}
               <label style={{ position: 'relative', display: 'block' }}>
                 <span style={{ position: 'absolute', left: 18, top: '50%', marginTop: -10, color: '#5A5F68', display: 'flex' }}>

@@ -734,9 +734,9 @@ export default function KollektivakDesktop() {
             type="button"
             className="dk-btn dk-btn-w"
             onClick={() => { setCreateName(''); setCreateError(''); setCreateOpen(true); }}
-            disabled={hasPendingCollective || !isPremium}
-            title={hasPendingCollective ? t('newCollectiveDisabledHasPending') : !isPremium ? t('newCollectiveDisabledNoPremium') : undefined}
-            style={{ opacity: (hasPendingCollective || !isPremium) ? 0.5 : 1, cursor: (hasPendingCollective || !isPremium) ? 'default' : 'pointer' }}
+            disabled={hasPendingCollective}
+            title={hasPendingCollective ? t('newCollectiveDisabledHasPending') : undefined}
+            style={{ opacity: hasPendingCollective ? 0.5 : 1, cursor: hasPendingCollective ? 'default' : 'pointer' }}
           >
             <Plus size={15} /> {t('new')}
           </button>
@@ -770,8 +770,8 @@ export default function KollektivakDesktop() {
               </div>
             )}
 
-            {/* Basic locked placeholder */}
-            {!isPremium && (
+            {/* Basic locked placeholder — only when no inclusive collective exists yet */}
+            {!isPremium && !collectivesWithTransfers.some(c => c.is_inclusive) && (
               <div style={{ marginBottom: 16 }}>
                 <SectionLabel label={t('inclusiveCollective')} />
                 <div className="dk-card" style={{ marginTop: 10, padding: '20px 24px', opacity: 0.85 }}>
@@ -832,16 +832,30 @@ export default function KollektivakDesktop() {
       {/* ── Create modal ── */}
       <Modal isOpen={createOpen} onClose={() => setCreateOpen(false)} title={isPremium ? t('createStep1Title') : t('premiumGateTitle')}>
         {!isPremium ? (
-          <div>
-            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, background: '#FFF7ED', border: '1px solid #FED7AA', borderRadius: 12, padding: '12px 14px', marginBottom: 16 }}>
-              <AlertCircle size={18} color="#C2410C" style={{ flexShrink: 0, marginTop: 1 }} />
-              <div style={{ fontSize: 14, color: '#7C2D12', lineHeight: 1.55 }}>{t('premiumGateText')}</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, padding: '12px 0 4px' }}>
+              <div style={{ width: 64, height: 64, borderRadius: 22, background: '#0E1116', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Zap size={30} color="#6F93FF" fill="#6F93FF" />
+              </div>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 22, fontWeight: 700, letterSpacing: '-0.02em', color: '#0E1116' }}>
+                  {t('premiumGateTitle')}
+                </div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: '#6F93FF', marginTop: 4 }}>
+                  {t('premiumGatePrice')}
+                </div>
+              </div>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-              <button type="button" className="dk-btn dk-btn-l" onClick={() => setCreateOpen(false)} style={{ height: 44, fontSize: 15 }}>{t('close')}</button>
-              <Link href="/elofizetes" className="dk-btn dk-btn-dark" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, textDecoration: 'none', height: 44, fontSize: 15 }} onClick={() => setCreateOpen(false)}>
-                <Zap size={15} /> {t('premiumActivateBtn')}
+            <div style={{ background: '#F5F5F7', borderRadius: 14, padding: '14px 16px', fontSize: 14, color: '#3A3F4A', lineHeight: 1.65 }}>
+              {t('premiumGateText')}
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <Link href="/elofizetes" className="dk-btn dk-btn-dark" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, textDecoration: 'none', height: 48, fontSize: 15 }} onClick={() => setCreateOpen(false)}>
+                <Zap size={16} /> {t('premiumActivateBtn')}
               </Link>
+              <button type="button" onClick={() => setCreateOpen(false)} style={{ background: 'none', border: 0, color: '#8A8F98', fontSize: 14, fontWeight: 600, cursor: 'pointer', padding: '4px 0' }}>
+                {t('close')}
+              </button>
             </div>
           </div>
         ) : (

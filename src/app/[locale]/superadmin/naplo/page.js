@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useApp } from '@/context/AppContext';
-import { ArrowLeft, ClipboardList, RefreshCw, ChevronLeft, ChevronRight, User, Calendar, Users } from 'lucide-react';
+import { ArrowLeft, ClipboardList, RefreshCw, ChevronLeft, ChevronRight, User, Calendar, Users, Monitor, Smartphone } from 'lucide-react';
 
 // ── Action label map ──────────────────────────────────────────────────────────
 const ACTION_LABELS = {
@@ -112,6 +112,17 @@ function fmtTs(ts) {
   });
 }
 
+function DeviceBadge({ device }) {
+  if (!device || device === 'unknown') return null;
+  const isMobile = device === 'mobile';
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.2rem', fontSize: '0.72rem', fontWeight: 700, padding: '0.15rem 0.45rem', borderRadius: 'var(--radius-pill)', background: isMobile ? '#EFF6FF' : '#F5F3FF', color: isMobile ? '#1D4ED8' : '#6D28D9', whiteSpace: 'nowrap' }}>
+      {isMobile ? <Smartphone size={10} /> : <Monitor size={10} />}
+      {isMobile ? 'Mobile' : 'Desktop'}
+    </span>
+  );
+}
+
 function WorkspaceBadge({ workspace }) {
   if (!workspace || workspace.type === 'unknown') {
     return <span style={{ color: 'var(--text-muted)', fontStyle: 'italic', fontSize: '0.8rem' }}>–</span>;
@@ -143,6 +154,7 @@ export default function AuditLogPage() {
   const [filterFrom,   setFilterFrom]   = useState('');
   const [filterTo,     setFilterTo]     = useState('');
   const [filterWA,     setFilterWA]     = useState(false);
+  const [filterDevice, setFilterDevice] = useState('');
 
   const fetchLogs = useCallback(async () => {
     setLoading(true);
@@ -153,6 +165,7 @@ export default function AuditLogPage() {
       if (filterFrom)   params.set('from', filterFrom + 'T00:00:00');
       if (filterTo)     params.set('to',   filterTo   + 'T23:59:59');
       if (filterWA)     params.set('channel', 'whatsapp');
+      if (filterDevice) params.set('device', filterDevice);
 
       const res = await fetch(`/api/audit?${params}`);
       if (res.ok) {
@@ -163,7 +176,7 @@ export default function AuditLogPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, filterUser, filterAction, filterFrom, filterTo, filterWA]);
+  }, [page, filterUser, filterAction, filterFrom, filterTo, filterWA, filterDevice]);
 
   useEffect(() => { fetchLogs(); }, [fetchLogs]);
 
@@ -241,17 +254,26 @@ export default function AuditLogPage() {
             <button type="submit" className="btn btn-primary btn-sm" style={{ flex: 1 }}>Filter</button>
             <button
               type="button"
-              onClick={() => { setFilterWA(w => !w); setPage(0); }}
-              style={{
-                padding: '0.3rem 0.6rem', borderRadius: 'var(--radius-sm)', fontWeight: 700,
-                fontSize: '0.78rem', cursor: 'pointer', border: 'none',
-                background: filterWA ? '#25D366' : 'var(--bg-subtle)',
-                color: filterWA ? '#fff' : 'var(--text-secondary)',
-              }}
+              onClick={() => { setFilterDevice(d => d === 'mobile' ? '' : 'mobile'); setPage(0); }}
+              style={{ padding: '0.3rem 0.6rem', borderRadius: 'var(--radius-sm)', fontWeight: 700, fontSize: '0.78rem', cursor: 'pointer', border: 'none', background: filterDevice === 'mobile' ? '#1D4ED8' : 'var(--bg-subtle)', color: filterDevice === 'mobile' ? '#fff' : 'var(--text-secondary)', display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}
             >
-              📱 WA only
+              <Smartphone size={12} /> Mobile
             </button>
-            <button type="button" className="btn btn-secondary btn-sm" onClick={() => { setFilterUser(''); setFilterAction(''); setFilterFrom(''); setFilterTo(''); setFilterWA(false); setPage(0); }}>
+            <button
+              type="button"
+              onClick={() => { setFilterDevice(d => d === 'desktop' ? '' : 'desktop'); setPage(0); }}
+              style={{ padding: '0.3rem 0.6rem', borderRadius: 'var(--radius-sm)', fontWeight: 700, fontSize: '0.78rem', cursor: 'pointer', border: 'none', background: filterDevice === 'desktop' ? '#6D28D9' : 'var(--bg-subtle)', color: filterDevice === 'desktop' ? '#fff' : 'var(--text-secondary)', display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}
+            >
+              <Monitor size={12} /> Desktop
+            </button>
+            <button
+              type="button"
+              onClick={() => { setFilterWA(w => !w); setPage(0); }}
+              style={{ padding: '0.3rem 0.6rem', borderRadius: 'var(--radius-sm)', fontWeight: 700, fontSize: '0.78rem', cursor: 'pointer', border: 'none', background: filterWA ? '#25D366' : 'var(--bg-subtle)', color: filterWA ? '#fff' : 'var(--text-secondary)' }}
+            >
+              📱 WA
+            </button>
+            <button type="button" className="btn btn-secondary btn-sm" onClick={() => { setFilterUser(''); setFilterAction(''); setFilterFrom(''); setFilterTo(''); setFilterWA(false); setFilterDevice(''); setPage(0); }}>
               Clear
             </button>
           </div>
@@ -267,14 +289,15 @@ export default function AuditLogPage() {
               <th>User</th>
               <th className="hide-mobile">Workspace</th>
               <th>Event</th>
+              <th className="hide-mobile">Device</th>
               <th className="hide-mobile">Target</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={5} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>Loading…</td></tr>
+              <tr><td colSpan={6} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>Loading…</td></tr>
             ) : logs.length === 0 ? (
-              <tr><td colSpan={5} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>No results.</td></tr>
+              <tr><td colSpan={6} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>No results.</td></tr>
             ) : logs.map(log => {
               const style = ACTION_LABELS[log.action] || { label: log.action, color: 'var(--text-secondary)', bg: 'var(--bg-subtle)' };
               return (
@@ -313,6 +336,9 @@ export default function AuditLogPage() {
                         </span>
                       )}
                     </div>
+                  </td>
+                  <td className="hide-mobile">
+                    <DeviceBadge device={log.details?.device} />
                   </td>
                   <td className="hide-mobile" style={{ fontSize: '0.83rem', color: 'var(--text-secondary)' }}>
                     {log.target_name || log.target_id

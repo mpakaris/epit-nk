@@ -252,6 +252,8 @@ function OfferListMobileInner() {
       quotes: liveQuotes.filter(q => q.collective_id === col.collective_id),
       count: activePodId === col.collective_id ? liveQuotes.filter(q => q.collective_id === col.collective_id).length : null,
       canCreate: col.role === 'owner' || col.role === 'admin',
+      status: col.status || 'active',
+      role: col.role,
     })),
   ], [liveQuotes, userMemberships, tPods, activePodId]);
 
@@ -322,8 +324,8 @@ function OfferListMobileInner() {
             });
             return (
               <>
-                {activeColl?.status === 'not_activated' && <MobileWorkspaceNotActivatedBanner />}
-                {activeColl?.status === 'frozen' && <MobileWorkspaceFrozenBanner isOwner={activeColl?.role === 'owner'} />}
+                {!ws.isPersonal && ws.status === 'not_activated' && <MobileWorkspaceNotActivatedBanner />}
+                {!ws.isPersonal && ws.status === 'frozen' && <MobileWorkspaceFrozenBanner isOwner={ws.role === 'owner'} />}
                 {/* Search */}
                 <label style={{ position: 'relative', display: 'block' }}>
                   <span style={{ position: 'absolute', left: 18, top: '50%', marginTop: -10, color: '#5A5F68', display: 'flex' }} aria-hidden="true">
