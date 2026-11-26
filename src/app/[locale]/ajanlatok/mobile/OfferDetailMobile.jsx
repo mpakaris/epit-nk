@@ -1602,7 +1602,6 @@ function InfoPod({ isOpen, onToggle, title, headerRight, action, children }) {
 
 // ─── SectionEditSheet ─────────────────────────────────────────────────────────
 function SectionEditSheet({ isNew, initial, quoteId, readOnly = false, onSave, onClose, t }) {
-  const { openUpgrade } = useReadOnlyUpgradeContext();
   const [name,    setName]    = useState(() => initial?.name         || '');
   const [widthM,  setWidthM]  = useState(() => initial?.width_m  != null ? String(initial.width_m)  : '');
   const [lengthM, setLengthM] = useState(() => initial?.length_m != null ? String(initial.length_m) : '');
@@ -1640,7 +1639,6 @@ function SectionEditSheet({ isNew, initial, quoteId, readOnly = false, onSave, o
       });
       if (!res.ok) {
         const d = await res.json().catch(() => ({}));
-        if (d.read_only) { openUpgrade(); setSaving(false); return; }
         setErr(d.error || t('sectionSaveError'));
         setSaving(false);
         return;
