@@ -325,7 +325,7 @@ export default function OfferListDesktop() {
                       {isOwner(selectedQuote) && !selectedQuote?.is_seed && (
                         <button
                           className="dk-btn"
-                          onClick={() => setDeleteOpen(true)}
+                          onClick={() => isFrozen ? setCollectiveModal(true) : setDeleteOpen(true)}
                           style={{ flex: 1, justifyContent: 'center', background: '#FDECEC', color: '#B71C1C' }}
                         >
                           <Trash2 size={18} aria-hidden="true" />
