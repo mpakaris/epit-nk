@@ -51,7 +51,7 @@ export default function ProjectsListDesktop() {
   const allClients  = ctxClients        || [];
   const rawProjects = (ctxProjects || []).filter(p => !p.deleted_at);
 
-  const collectives = (effectiveCollectives || []).map(c => ({ id: c.collective_id, name: c.name, role: c.role }));
+  const collectives = (effectiveCollectives || []).map(c => ({ id: c.collective_id, name: c.name, role: c.role, status: c.status }));
   const activeColl  = collectives.find(c => c.id === activeCollectiveId);
 
   const atCreateLimit = !activeCollectiveId && !isEffectivePremium(currentUser || {}) && rawProjects.length >= 1;
