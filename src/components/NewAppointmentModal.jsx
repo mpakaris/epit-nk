@@ -5,6 +5,7 @@ import { useApp } from '@/context/AppContext';
 import { useTranslations } from 'next-intl';
 import Modal, { AlertModal } from '@/components/Modal';
 import QuickClientSheet from '@/app/[locale]/ajanlatok/mobile/QuickClientSheet';
+import { isEffectivePremium } from '@/lib/subscriptionLimits';
 import { Ruler, FileText, FolderKanban, CalendarDays, Plus, Loader2 } from 'lucide-react';
 
 function todayStr() {
@@ -23,13 +24,15 @@ const INPUT = {
 };
 
 export default function NewAppointmentModal({ isOpen, onClose, defaultDate }) {
-  const { clients, createClient } = useApp();
+  const { clients, createClient, currentUser } = useApp();
   const t = useTranslations('calendar');
+  const isPremium = isEffectivePremium(currentUser || {});
+
   const LINK_TYPES = [
     { id: null,       label: t('linkNone'),    icon: null          },
-    { id: 'felmeres', label: t('linkSurvey'),  icon: Ruler,        color: '#2563eb' },
-    { id: 'ajanlat',  label: t('linkQuote'),   icon: FileText,     color: '#7c3aed' },
-    { id: 'projekt',  label: t('linkProject'), icon: FolderKanban, color: '#059669' },
+    { id: 'felmeres', label: t('linkSurvey'),  icon: Ruler,        color: '#0A7F72' },
+    { id: 'ajanlat',  label: t('linkQuote'),   icon: FileText,     color: '#6D3FD1' },
+    { id: 'projekt',  label: t('linkProject'), icon: FolderKanban, color: '#263248' },
   ];
 
   const [title,         setTitle]         = useState('');
@@ -48,12 +51,12 @@ export default function NewAppointmentModal({ isOpen, onClose, defaultDate }) {
       setDate(defaultDate || todayStr());
       setTime('09:00');
       setClientId('');
-      setLinkType('felmeres');
+      setLinkType(isPremium ? 'felmeres' : null);
       setSaving(false);
       setSuccessMsg('');
       setShowNewClient(false);
     }
-  }, [isOpen, defaultDate]);
+  }, [isOpen, defaultDate, isPremium]);
 
   async function handleSave() {
     if (!title.trim()) { setAlert(t('titleRequired')); return; }
@@ -168,23 +171,27 @@ export default function NewAppointmentModal({ isOpen, onClose, defaultDate }) {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6 }}>
               {LINK_TYPES.map(({ id, label, icon: Icon, color }) => {
                 const active = linkType === id;
+                const locked = !isPremium && id !== null;
                 return (
                   <button
                     key={String(id)}
                     type="button"
-                    onClick={() => setLinkType(id)}
+                    onClick={() => !locked && setLinkType(id)}
+                    disabled={locked}
                     style={{
                       padding: '8px 4px', borderRadius: 'var(--radius-md)',
                       border: active ? `2px solid ${color || 'var(--border-subtle)'}` : '2px solid var(--border-subtle)',
-                      background: active ? (color ? `${color}12` : 'var(--bg-subtle)') : '#fff',
-                      cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
+                      background: active ? (color ? `${color}18` : 'var(--bg-subtle)') : '#fff',
+                      cursor: locked ? 'not-allowed' : 'pointer',
+                      display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
+                      opacity: locked ? 0.38 : 1,
                     }}
                   >
                     {Icon
-                      ? <Icon size={16} color={active ? color : 'var(--text-muted)'} />
+                      ? <Icon size={16} color={active ? color : locked ? 'var(--text-muted)' : color} />
                       : <CalendarDays size={16} color={active ? 'var(--text-primary)' : 'var(--text-muted)'} />
                     }
-                    <span style={{ fontSize: 11, fontWeight: 700, color: active ? (color || 'var(--text-primary)') : 'var(--text-muted)' }}>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: active ? (color || 'var(--text-primary)') : locked ? 'var(--text-muted)' : color }}>
                       {label}
                     </span>
                   </button>
