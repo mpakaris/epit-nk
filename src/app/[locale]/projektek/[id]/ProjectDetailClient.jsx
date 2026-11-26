@@ -519,7 +519,10 @@ function ProjectDetailClientInner({
   const fmt = (d) => d ? new Date(d).toLocaleDateString('hu-HU', { year: 'numeric', month: 'short', day: 'numeric' }) : null;
 
   const [openSections, setOpenSections] = useState({ expenses: true, diary: false, payment: false });
-  const toggleSection = (key) => setOpenSections(prev => ({ ...prev, [key]: !prev[key] }));
+  const toggleSection = (key) => setOpenSections(prev => {
+    const isOpen = prev[key];
+    return { expenses: false, diary: false, payment: false, [key]: !isOpen };
+  });
 
   const handleCreatePayment = async (fields, file) => {
     if (guardReadOnly()) return;
