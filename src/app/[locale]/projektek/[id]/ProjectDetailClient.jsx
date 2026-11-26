@@ -905,7 +905,7 @@ function ProjectDetailClientInner({
           <span style={{ fontFamily: 'var(--font-heading, "Bricolage Grotesque", sans-serif)', fontSize: 16, fontWeight: 700, letterSpacing: '-0.01em', color: '#0E1116' }}>{t('headlineExpenses')}</span>
           <span className="dk-badge">{fin.projectInvoices.filter(i => i.category !== 'labour').length + fin.projectLabour.length + fin.projectInvoices.filter(i => i.category === 'labour').length}</span>
           <span style={{ flex: 1 }} />
-          {(canManageProject || (isOwner && isReadOnly)) && openSections.expenses && (
+          {(canManageProject || (isCollectiveFrozen && (isKollektivOwner || isOwner)) || (isOwner && isReadOnly)) && openSections.expenses && (
             <button type="button" className="dk-btn" style={{ height: 36, fontSize: 13, padding: '0 12px', flexShrink: 0, background: '#263248', color: '#fff' }} onClick={e => { e.stopPropagation(); if (guardReadOnly()) return; setNewExpenseOpen(true); }}>
               <Plus size={14} /> {t('newExpenseBtn')}
             </button>
@@ -968,7 +968,12 @@ function ProjectDetailClientInner({
               <div style={{ textAlign: 'center', padding: '2.5rem', color: '#5A5F68' }}>
                 <Receipt size={28} style={{ margin: '0 auto 0.5rem', display: 'block', opacity: 0.4 }} />
                 <div style={{ fontWeight: 700, fontSize: 15, color: '#0E1116', marginBottom: 4 }}>{t('noExpensesTitle')}</div>
-                <div style={{ fontSize: 13 }}>{t('noExpensesText')}</div>
+                <div style={{ fontSize: 13, marginBottom: 16 }}>{t('noExpensesText')}</div>
+                {(canManageProject || (isCollectiveFrozen && (isKollektivOwner || isOwner)) || (isOwner && isReadOnly)) && (
+                  <button type="button" onClick={e => { if (guardReadOnly()) return; setNewExpenseOpen(true); }} className="dk-btn dk-btn-dark" style={{ height: 40, fontSize: 13, margin: '0 auto' }}>
+                    <Plus size={15} /> {t('newExpenseBtn')}
+                  </button>
+                )}
               </div>
             ) : (
               <>
@@ -1177,7 +1182,7 @@ function ProjectDetailClientInner({
               <span style={{ fontFamily: 'var(--font-heading, "Bricolage Grotesque", sans-serif)', fontSize: 16, fontWeight: 700, letterSpacing: '-0.01em', color: '#0E1116' }}>{t('sectionPayments')}</span>
               <span className="dk-badge">{paymentPlan.length}</span>
               <span style={{ flex: 1 }} />
-              {(canManageProject || (isOwner && isReadOnly)) && openSections.payment && (
+              {(canManageProject || (isCollectiveFrozen && (isKollektivOwner || isOwner)) || (isOwner && isReadOnly)) && openSections.payment && (
                 <button type="button" className="dk-btn" style={{ height: 36, fontSize: 13, padding: '0 12px', flexShrink: 0, background: '#263248', color: '#fff' }} onClick={e => { e.stopPropagation(); if (guardReadOnly()) return; setEditingPayment(null); setShowPaymentModal(true); }}>
                   <Plus size={14} /> {t('addPaymentItem')}
                 </button>
@@ -1188,7 +1193,7 @@ function ProjectDetailClientInner({
               <div style={{ padding: '2.5rem 1.5rem', textAlign: 'center', borderTop: '1px solid #EDEBE5' }}>
                 <Wallet size={28} style={{ margin: '0 auto 0.5rem', display: 'block', opacity: 0.4 }} />
                 <div style={{ fontWeight: 700, fontSize: 15, color: '#0E1116', marginBottom: 4 }}>{t('paymentPlanEmpty')}</div>
-                {(canManageProject || (isOwner && isReadOnly)) && (
+                {(canManageProject || (isCollectiveFrozen && (isKollektivOwner || isOwner)) || (isOwner && isReadOnly)) && (
                   <button type="button" className="dk-btn" style={{ height: 40, fontSize: 13, margin: '12px auto 0', background: '#263248', color: '#fff' }} onClick={() => { if (guardReadOnly()) return; setEditingPayment(null); setShowPaymentModal(true); }}>
                     <Plus size={15} /> {t('addPaymentItem')}
                   </button>
