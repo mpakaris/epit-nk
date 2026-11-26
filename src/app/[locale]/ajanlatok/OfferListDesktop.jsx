@@ -7,6 +7,7 @@ import { useApp } from '@/context/AppContext';
 import { formatDate, formatMoney } from '@/lib/constants';
 import Modal from '@/components/Modal';
 import UpgradeModal from '@/components/UpgradeModal';
+import CollectiveSubscriptionModal from '@/components/CollectiveSubscriptionModal';
 import StatusBadge from '@/components/StatusBadge';
 import { WorkspaceNotActivatedBanner, WorkspaceFrozenBanner } from '@/components/desktop/WorkspaceStatusBanners';
 import TransferToCollectiveModal from '@/components/TransferToCollectiveModal';
@@ -45,7 +46,10 @@ export default function OfferListDesktop() {
   const [deleteOpen, setDeleteOpen]       = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [transferOpen, setTransferOpen]   = useState(false);
-  const [upgradeModal, setUpgradeModal]   = useState(null);
+  const [upgradeModal, setUpgradeModal]         = useState(null);
+  const [collectiveModal, setCollectiveModal]   = useState(false);
+
+  const isFrozen = activeColl?.status === 'frozen';
 
   const allQuotes = useMemo(() => quotes || [], [quotes]);
 
@@ -146,7 +150,7 @@ export default function OfferListDesktop() {
           </label>
           <button
             className="dk-btn dk-btn-w"
-            onClick={() => atCreateLimit ? setUpgradeModal({ docType: 'quote' }) : router.push(p('/ajanlatok/uj'))}
+            onClick={() => isFrozen ? setCollectiveModal(true) : atCreateLimit ? setUpgradeModal({ docType: 'quote' }) : router.push(p('/ajanlatok/uj'))}
           >
             <Plus size={20} aria-hidden="true" />
             {t('new')}
@@ -391,6 +395,7 @@ export default function OfferListDesktop() {
         }}
       />
       <UpgradeModal isOpen={!!upgradeModal} onClose={() => setUpgradeModal(null)} docType={upgradeModal?.docType} />
+      <CollectiveSubscriptionModal isOpen={collectiveModal} onClose={() => setCollectiveModal(false)} isOwner={activeColl?.role === 'owner'} />
     </div>
   );
 }

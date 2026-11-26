@@ -90,8 +90,8 @@ export default function SurveyDrawingsModal({ isOpen, onClose, surveyId, entryId
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
             {items.map((drawing, idx) => (
               <div key={drawing.id} style={{ position: 'relative', borderRadius: 12, overflow: 'hidden', background: '#F7F5EF', aspectRatio: '1 / 1', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 8 }}>
-                <button onClick={() => openEdit(drawing)}
-                  style={{ position: 'absolute', inset: 0, border: 0, background: 'transparent', cursor: 'pointer', padding: 0 }}
+                <button onClick={canAdd ? () => openEdit(drawing) : undefined}
+                  style={{ position: 'absolute', inset: 0, border: 0, background: 'transparent', cursor: canAdd ? 'pointer' : 'default', padding: 0 }}
                   aria-label={`Vázlat ${idx + 1} szerkesztése`} />
                 <div style={{ width: '100%', height: '100%', pointerEvents: 'none' }}
                   dangerouslySetInnerHTML={{ __html: svgThumb(drawing) }} />

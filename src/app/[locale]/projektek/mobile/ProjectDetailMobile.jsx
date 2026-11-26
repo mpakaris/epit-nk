@@ -319,8 +319,7 @@ function ProjectDetailMobileInner({ projectId }) {
   const isCollectiveFrozen = !!project?.collective_id && (userMemberships || []).find(m => m.collective_id === project.collective_id)?.status === 'frozen';
   const guardReadOnly = (flag = isReadOnly || isCollectiveFrozen) => {
     if (!flag) return false;
-    if (isCollectiveFrozen && !isKollektivOwner && !isOwner) { openContactOwner(); }
-    else { openUpgrade(); }
+    if (isCollectiveFrozen) { openContactOwner(); } else { openUpgrade(); }
     return true;
   };
   const canOwnerAct = (isOwner || isKollektivOwner) && !isReadOnly && !isCollectiveFrozen;

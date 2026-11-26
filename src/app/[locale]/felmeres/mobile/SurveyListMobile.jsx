@@ -229,10 +229,11 @@ function SurveyListMobileInner() {
     deleteSurvey, isDemoMode, currentUser, dataReady,
     activeCollectiveId,
   } = useApp();
-  const { openUpgrade } = useReadOnlyUpgrade();
+  const { openUpgrade, openContactOwner } = useReadOnlyUpgrade();
   const activeColl = (collectives || []).find(c => c.collective_id === activeCollectiveId);
   const p = (path) => isDemoMode ? `/demo${path}` : path;
   const atCreateLimit = !activeCollectiveId && !isEffectivePremium(currentUser || {}) && (surveys || []).filter(s => !s.collective_id).length >= 1;
+  const isFrozen = activeColl?.status === 'frozen';
 
   const [activePodId, setActivePodId] = useState('personal');
   const [search, setSearch] = useState('');
@@ -424,7 +425,7 @@ function SurveyListMobileInner() {
 
       {/* Dock */}
       <Dock
-        onCreatePress={() => atCreateLimit ? openUpgrade() : router.push(p('/felmeres/uj'))}
+        onCreatePress={() => isFrozen ? openContactOwner() : atCreateLimit ? openUpgrade() : router.push(p('/felmeres/uj'))}
         activePodColor={{ plusBg: '#0A7F72', plusFg: '#FFFFFF' }}
         activePodName={activeWs?.name}
         activeTab="surveys"

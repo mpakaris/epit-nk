@@ -691,6 +691,7 @@
       "detailDuplicateItem": "Duplizieren",
       "detailDeleteItem": "Löschen",
       "detailDeleteItemConfirm": "Diese Position wirklich löschen?",
+      "detailDeleteSection": "Abschnitt löschen",
       "detailMeasTitle": "Maße und Bemerkung",
       "detailDimsTitle": "Maße",
       "detailNotesTitle": "Anmerkung",
@@ -3221,6 +3222,13 @@
     "errorTranscriptionFailed": "Transkription fehlgeschlagen",
     "errorMicDenied": "Mikrofonzugriff verweigert",
     "errorMicUnavailable": "Mikrofon nicht verfügbar"
+  },
+  "collectiveModal": {
+    "title": "Kollektiv gesperrt",
+    "bodyOwner": "Dieses Kollektiv ist derzeit gesperrt. Daten können gelesen, aber nicht bearbeitet werden – erneuere das Abonnement, um wieder schreiben zu können.",
+    "bodyContributor": "Dieses Kollektiv ist derzeit gesperrt. Daten können gelesen, aber nicht bearbeitet werden. Der Eigentümer des Kollektivs muss das Abonnement erneuern.",
+    "cta": "Abonnement verwalten",
+    "dismiss": "Schließen"
   },
   "upgrade": {
     "title": "Kostenloses Limit erreicht",

@@ -691,6 +691,7 @@
       "detailDuplicateItem": "Duplicate",
       "detailDeleteItem": "Delete",
       "detailDeleteItemConfirm": "Delete this item?",
+      "detailDeleteSection": "Delete section",
       "detailMeasTitle": "Measurements and notes",
       "detailDimsTitle": "Measurements",
       "detailNotesTitle": "Notes",
@@ -3221,6 +3222,13 @@
     "errorTranscriptionFailed": "Transcription failed",
     "errorMicDenied": "Microphone access denied",
     "errorMicUnavailable": "Microphone unavailable"
+  },
+  "collectiveModal": {
+    "title": "Collective suspended",
+    "bodyOwner": "This collective is currently suspended. Data can be read but not edited — renew the subscription to enable writing again.",
+    "bodyContributor": "This collective is currently suspended. Data can be read but not edited. The collective owner needs to renew the subscription.",
+    "cta": "Manage subscription",
+    "dismiss": "Close"
   },
   "upgrade": {
     "title": "Free plan limit reached",

@@ -277,11 +277,7 @@ function ProjectDetailClientInner({
   // Routes upgrade modal to owner, "contact owner" message to contributors
   const guardReadOnly = (flag = isReadOnly || isCollectiveFrozen) => {
     if (!flag) return false;
-    if (isCollectiveFrozen && !isKollektivOwner && !(project.owner_id === currentUser?.id || project.created_by === currentUser?.id)) {
-      openContactOwner();
-    } else {
-      openUpgrade();
-    }
+    if (isCollectiveFrozen) { openContactOwner(); } else { openUpgrade(); }
     return true;
   };
 
@@ -1306,6 +1302,7 @@ function ProjectDetailClientInner({
                           className="dk-chip"
                           disabled={!canClick}
                           onClick={() => {
+                            if (isCollectiveFrozen) { openContactOwner(); return; }
                             if (isOwner && isReadOnly) { openUpgrade(); return; }
                             if (canManageProject) handleSetStatus(s);
                           }}

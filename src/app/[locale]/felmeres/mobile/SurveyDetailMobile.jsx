@@ -650,8 +650,7 @@ function SurveyDetailMobileInner() {
   const { handleError: handleReadOnly, handleResponse, guardReadOnly: _guard, openUpgrade, openContactOwner } = useReadOnlyUpgrade();
   const guardReadOnly = (flag = isReadOnly || isCollectiveFrozen) => {
     if (!flag) return false;
-    if (isCollectiveFrozen && !isKollektivOwner && !isOwner) { openContactOwner(); }
-    else { openUpgrade(); }
+    if (isCollectiveFrozen) { openContactOwner(); } else { openUpgrade(); }
     return true;
   };
   const canAdd           = !isDocLocked && !isReadOnly && !isCollectiveFrozen && (isOwner || !!myCollectiveRole);

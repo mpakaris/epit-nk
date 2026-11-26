@@ -344,7 +344,7 @@ function OfferDetailDesktopInner() {
   const isCollectiveFrozen = !!quote.collective_id && quoteCollectiveMembership?.status === 'frozen';
   const guardReadOnly = (flag = isReadOnly || isCollectiveFrozen) => {
     if (!flag) return false;
-    if (isCollectiveFrozen && !isKollektivOwner && !isQuoteOwner) { openContactOwner(); } else { openUpgrade(); }
+    if (isCollectiveFrozen) { openContactOwner(); } else { openUpgrade(); }
     return true;
   };
   const canModify     = !isDocLocked && !isReadOnly && !isCollectiveFrozen && (isQuoteOwner || isKollektivOwner || (quote.shared_with || []).includes(currentUser?.id) || isCollMember);
@@ -1178,22 +1178,22 @@ function OfferDetailDesktopInner() {
                   {(isQuoteOwner || isKollektivOwner) && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                       {!isLocked && (
-                        <button className="dk-btn dk-btn-dark" onClick={isReadOnly ? openUpgrade : openSendConfirm} style={{ width: '100%', justifyContent: 'center', background: '#1D4ED8', color: '#fff' }}>
+                        <button className="dk-btn dk-btn-dark" onClick={isCollectiveFrozen ? openContactOwner : isReadOnly ? openUpgrade : openSendConfirm} style={{ width: '100%', justifyContent: 'center', background: '#1D4ED8', color: '#fff' }}>
                           <Send size={16} aria-hidden="true" /> {t('actionSend')}
                         </button>
                       )}
                       {!isLocked && (
-                        <button className="dk-btn" onClick={isReadOnly ? openUpgrade : () => handleStatusChange('accepted')} style={{ width: '100%', justifyContent: 'center', background: '#16A34A', color: '#fff' }}>
+                        <button className="dk-btn" onClick={isCollectiveFrozen ? openContactOwner : isReadOnly ? openUpgrade : () => handleStatusChange('accepted')} style={{ width: '100%', justifyContent: 'center', background: '#16A34A', color: '#fff' }}>
                           <CheckCircle2 size={16} aria-hidden="true" /> {t('actionAccept')}
                         </button>
                       )}
                       {!isLocked && (
-                        <button className="dk-btn" onClick={isReadOnly ? openUpgrade : () => handleStatusChange('rejected')} style={{ width: '100%', justifyContent: 'center', background: '#DC2626', color: '#fff' }}>
+                        <button className="dk-btn" onClick={isCollectiveFrozen ? openContactOwner : isReadOnly ? openUpgrade : () => handleStatusChange('rejected')} style={{ width: '100%', justifyContent: 'center', background: '#DC2626', color: '#fff' }}>
                           <XCircle size={16} aria-hidden="true" /> {t('actionReject')}
                         </button>
                       )}
                       {quote.status === 'rejected' && (
-                        <button className="dk-btn" onClick={isReadOnly ? openUpgrade : handleResetToDraft} style={{ width: '100%', justifyContent: 'center', background: '#16A34A', color: '#fff' }}>
+                        <button className="dk-btn" onClick={isCollectiveFrozen ? openContactOwner : isReadOnly ? openUpgrade : handleResetToDraft} style={{ width: '100%', justifyContent: 'center', background: '#16A34A', color: '#fff' }}>
                           <RotateCcw size={16} aria-hidden="true" /> {t('actionReset')}
                         </button>
                       )}
@@ -1221,7 +1221,7 @@ function OfferDetailDesktopInner() {
 
                     {/* Duplicate */}
                     {(isQuoteOwner || isKollektivOwner) && (
-                      <button className="dk-btn dk-btn-l" onClick={isReadOnly ? openUpgrade : () => { setDuplicateTitle(`${quote.title} – ${t('duplicateSuffix')}`); setDuplicateWithClient(true); setDuplicateWithSections(true); setShowDuplicateModal(true); }} style={{ width: '100%', justifyContent: 'flex-start' }}>
+                      <button className="dk-btn dk-btn-l" onClick={isCollectiveFrozen ? openContactOwner : isReadOnly ? openUpgrade : () => { setDuplicateTitle(`${quote.title} – ${t('duplicateSuffix')}`); setDuplicateWithClient(true); setDuplicateWithSections(true); setShowDuplicateModal(true); }} style={{ width: '100%', justifyContent: 'flex-start' }}>
                         <Copy size={16} /> {t('actionCopy')}
                       </button>
                     )}
@@ -1244,8 +1244,8 @@ function OfferDetailDesktopInner() {
                 {(isQuoteOwner || isKollektivOwner || client) && (
                   <div
                     className="dk-card"
-                    onClick={isReadOnly ? openUpgrade : canEdit ? () => setShowClientModal(true) : undefined}
-                    style={{ padding: 18, display: 'flex', flexDirection: 'column', gap: 10, cursor: (isReadOnly || canEdit) ? 'pointer' : 'default' }}
+                    onClick={isCollectiveFrozen ? openContactOwner : isReadOnly ? openUpgrade : canEdit ? () => setShowClientModal(true) : undefined}
+                    style={{ padding: 18, display: 'flex', flexDirection: 'column', gap: 10, cursor: (isCollectiveFrozen || isReadOnly || canEdit) ? 'pointer' : 'default' }}
                   >
                     <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.07em', textTransform: 'uppercase', color: '#5A5F68' }}>{t('client')}</span>
 
@@ -1288,7 +1288,7 @@ function OfferDetailDesktopInner() {
                     (quote.terms_attachments || []).filter(a => a.attached).length
                   );
                   return (
-                    <div className="dk-card" onClick={isReadOnly ? openUpgrade : async () => {
+                    <div className="dk-card" onClick={isCollectiveFrozen ? openContactOwner : isReadOnly ? openUpgrade : async () => {
                       setTermsLocal({ attachments: quote.terms_attachments || [], attachProfile: quote.attach_profile_terms !== false });
                       setShowTermsModal(true);
                       if (!termsPdfName) {
@@ -1908,7 +1908,7 @@ function OfferDetailDesktopInner() {
         onClose={() => setShowHeaderMenu(false)}
         title={quote?.title || ''}
         actions={[
-          { icon: Edit3,    label: t('renameModalTitle'),    onClick: () => { if (isReadOnly) { openUpgrade(); return; } setRenameValue(metaTitle); setShowRenameModal(true); } },
+          { icon: Edit3,    label: t('renameModalTitle'),    onClick: () => { if (isCollectiveFrozen) { openContactOwner(); return; } if (isReadOnly) { openUpgrade(); return; } setRenameValue(metaTitle); setShowRenameModal(true); } },
           { icon: Camera,   label: t('mediaImagesTitle'),    onClick: () => setDocMediaMode('media'),           dividerBefore: true },
           { icon: PenLine,  label: t('mediaDrawingsTitle'),  onClick: () => setShowDocDrawingsModal(true) },
           { icon: FileText, label: t('mediaDocumentsTitle'), onClick: () => setDocMediaMode('documents') },
@@ -1921,7 +1921,7 @@ function OfferDetailDesktopInner() {
         onClose={() => setSectionActionMenu(null)}
         title={sections.find(s => s.id === sectionActionMenu)?.name || ''}
         actions={[
-          { icon: Edit3,    label: t('desktop.sectionEdit'),  onClick: () => { if (isReadOnly) { openUpgrade(); return; } const s = sections.find(x => x.id === sectionActionMenu); if (s) openEditSection(s); } },
+          { icon: Edit3,    label: t('desktop.sectionEdit'),  onClick: () => { if (isCollectiveFrozen) { openContactOwner(); return; } if (isReadOnly) { openUpgrade(); return; } const s = sections.find(x => x.id === sectionActionMenu); if (s) openEditSection(s); } },
           { icon: Camera,   label: t('mediaImagesTitle'),     onClick: () => setSectionMediaCtx({ sectionId: sectionActionMenu, mode: 'media' }),     dividerBefore: true },
           { icon: PenLine,  label: t('mediaDrawingsTitle'),   onClick: () => setSectionMediaCtx({ sectionId: sectionActionMenu, mode: 'drawings' }) },
           { icon: FileText, label: t('mediaDocumentsTitle'),  onClick: () => setSectionMediaCtx({ sectionId: sectionActionMenu, mode: 'documents' }) },

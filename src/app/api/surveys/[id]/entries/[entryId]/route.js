@@ -87,8 +87,7 @@ export async function DELETE(request, { params }) {
     return Response.json({ error: 'Csak a bejegyzés létrehozója vagy a kollektíva tulajdonosa törölhet.' }, { status: 403 });
   }
 
-  const statusBlockedDel = await checkCollectiveStatus(ctx.admin, ctx.collectiveId);
-  if (statusBlockedDel) return statusBlockedDel;
+  // Section deletion is allowed even in frozen collectives — skip collective status check here.
 
   const { data: media } = await ctx.admin.from('survey_media').select('id, drive_file_id').eq('entry_id', entryId);
   if (media?.length) {

@@ -177,7 +177,8 @@ function ProjectsListMobileInner() {
   const activeColl = (userMemberships || []).find(c => c.collective_id === activeCollectiveId);
   const atCreateLimit = !activeCollectiveId && !isEffectivePremium(currentUser || {}) && (projects || []).filter(pr => !pr.collective_id && !pr.deleted_at).length >= 1;
 
-  const { openUpgrade } = useReadOnlyUpgrade();
+  const { openUpgrade, openContactOwner } = useReadOnlyUpgrade();
+  const isFrozen = activeColl?.status === 'frozen';
 
   const navPrefix = isDemoMode ? '/demo' : '';
   const p = useCallback((path) => `${navPrefix}${path}`, [navPrefix]);
@@ -393,7 +394,7 @@ function ProjectsListMobileInner() {
 
       <Dock
         activeTab="projects"
-        onCreatePress={() => atCreateLimit ? openUpgrade() : router.push(p('/projektek/uj'))}
+        onCreatePress={() => isFrozen ? openContactOwner() : atCreateLimit ? openUpgrade() : router.push(p('/projektek/uj'))}
         activePodColor={{ plusBg: '#263248', plusFg: '#FFFFFF' }}
       />
 

@@ -26,7 +26,7 @@ export async function checkCollectiveStatus(admin, collectiveId) {
     return Response.json({ error: 'collective_not_activated' }, { status: 403 });
   }
   if (collective.status === 'frozen') {
-    return Response.json({ error: 'collective_frozen' }, { status: 403 });
+    return Response.json({ error: 'collective_frozen', upgrade_required: 'collective', collective_id: collectiveId }, { status: 403 });
   }
   if (collective.status === 'deleted') {
     return Response.json({ error: 'collective_deleted' }, { status: 403 });

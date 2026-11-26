@@ -236,6 +236,87 @@ Inclusive (XS) collective: ACTIVE ↔ FROZEN only. Never not_activated, never de
 
 ---
 
+## 5a. Access Gate Combinations & Error Modals
+
+Every mutation (create / edit / delete / upload) must pass a two-factor gate: the **user's personal tier** AND the **collective's subscription status**. These are independent checks that produce distinct error modals.
+
+### Combined access matrix
+
+| Context | User tier | Collective status | Write allowed? | Error modal |
+|---|---|---|---|---|
+| Personal | Trial / Premium | — | ✅ | — |
+| Personal | Basic | — | ❌ | **PremiumModal** |
+| Collective | any | `active` | ✅ | — |
+| Collective | any | `frozen` | ❌ | **CollectiveSubscriptionModal** |
+| Collective | any | `not_activated` | ❌ | Activation prompt (existing) |
+
+**Key rule:** A contributor's own personal tier never restricts collective access. Only `collective.status` matters in collective context. A Basic contributor in an active collective writes freely.
+
+**Key rule:** An owner cannot fall back to Basic while holding active collectives. The system blocks Premium cancellation if active collectives exist. Therefore `frozen` always means the owner deliberately canceled the collective subscription — never a cascade from their personal tier dropping.
+
+### Two error modals
+
+#### PremiumModal
+- **Trigger:** User is Basic (not `isEffectivePremium`) and attempts any write in personal context.
+- **Message:** *"Ez a funkció Prémium előfizetést igényel."*
+- **CTA:** "Prémium aktiválása" → `/elofizetes`
+- **Secondary:** "Mégse"
+
+#### CollectiveSubscriptionModal
+- **Trigger:** Collective `status = 'frozen'` (or `not_activated`) and user attempts any write in that collective context.
+- **Message:** *"Ez a kollektíva jelenleg felfüggesztett. Az adatok olvashatók, de szerkesztéshez az előfizetést meg kell újítani."*
+- **CTA:** "Előfizetés kezelése" → `/elofizetes` (owner only); contributors see message only.
+- **Secondary:** "Mégse"
+
+### API error response format
+
+Mutation routes return a typed error so the client can route to the correct modal:
+
+```json
+// Personal basic block
+{ "error": "...", "upgrade_required": "premium" }
+
+// Collective frozen block
+{ "error": "...", "upgrade_required": "collective", "collective_id": "<uuid>" }
+```
+
+### Client-side detection pattern
+
+```js
+if (!res.ok) {
+  const body = await res.json().catch(() => ({}));
+  if (body.upgrade_required === 'premium') {
+    setPremiumModalOpen(true);
+  } else if (body.upgrade_required === 'collective') {
+    setCollectiveModalOpen(true);
+  } else {
+    setAlert({ open: true, message: body.error || 'Hiba történt. Kérjük, próbáld újra.' });
+  }
+  return;
+}
+```
+
+### Where to add the collective status check (API routes)
+
+Every mutation route that already checks `is_read_only` must also check `collective.status` when in collective context:
+
+```js
+// After fetching the parent document:
+if (doc.collective_id) {
+  const { data: collective } = await admin.from('collectives')
+    .select('status')
+    .eq('id', doc.collective_id)
+    .single();
+  if (collective?.status !== 'active')
+    return Response.json({ error: 'Ez a kollektíva felfüggesztett.', upgrade_required: 'collective', collective_id: doc.collective_id }, { status: 403 });
+}
+// Then check is_read_only as before:
+if (profile.role !== 'superadmin' && doc.is_read_only)
+  return Response.json({ error: '...', upgrade_required: 'premium', read_only: true }, { status: 403 });
+```
+
+---
+
 ## 6. Roles & Permissions
 
 ### Collective roles

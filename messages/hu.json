@@ -611,6 +611,7 @@
       "detailDuplicateItem": "Másolás",
       "detailDeleteItem": "Törlés",
       "detailDeleteItemConfirm": "Biztosan törlöd ezt a tételt?",
+      "detailDeleteSection": "Szekció törlése",
       "detailMeasTitle": "Méretek és megjegyzés",
       "detailDimsTitle": "Méretek",
       "detailNotesTitle": "Megjegyzés",
@@ -3221,6 +3222,13 @@
     "errorTranscriptionFailed": "Átírás sikertelen",
     "errorMicDenied": "Mikrofon-hozzáférés megtagadva",
     "errorMicUnavailable": "Mikrofon nem elérhető"
+  },
+  "collectiveModal": {
+    "title": "Kollektíva felfüggesztve",
+    "bodyOwner": "Ez a kollektíva jelenleg felfüggesztett. Az adatok olvashatók, de szerkesztéshez az előfizetést meg kell újítani.",
+    "bodyContributor": "Ez a kollektíva jelenleg felfüggesztett. Az adatok olvashatók, de szerkesztéshez a kollektíva tulajdonosának meg kell újítania az előfizetést.",
+    "cta": "Előfizetés kezelése",
+    "dismiss": "Bezárás"
   },
   "upgrade": {
     "title": "Elértük az ingyenes korlátot",

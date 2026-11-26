@@ -192,7 +192,8 @@ function OfferListMobileInner() {
   const activeColl = (userMemberships || []).find(c => c.collective_id === activeCollectiveId);
   const atCreateLimit = !activeCollectiveId && !isEffectivePremium(currentUser || {}) && (quotes || []).filter(q => !q.collective_id && !q.deleted_at).length >= 1;
 
-  const { openUpgrade } = useReadOnlyUpgrade();
+  const { openUpgrade, openContactOwner } = useReadOnlyUpgrade();
+  const isFrozen = activeColl?.status === 'frozen';
 
   const navPrefix = isDemoMode ? '/demo' : '';
   const p = useCallback((path) => `${navPrefix}${path}`, [navPrefix]);
@@ -267,9 +268,10 @@ function OfferListMobileInner() {
   const handleCopy         = useCallback(() => {
     if (!selectedQuote) return;
     setActiveSheet(null);
+    if (isFrozen) { openContactOwner(); return; }
     if (atCreateLimit) { openUpgrade(); return; }
     router.push(p(`/ajanlatok/${selectedQuote.id}?copy=1`));
-  }, [selectedQuote, router, p, atCreateLimit, openUpgrade]);
+  }, [selectedQuote, router, p, isFrozen, atCreateLimit, openContactOwner, openUpgrade]);
   const handleTransfer     = useCallback(() => {
     if (!selectedQuote) return;
     setActiveSheet(null);
@@ -377,7 +379,7 @@ function OfferListMobileInner() {
       {/* Dock */}
       <Dock
         activeTab="quotes"
-        onCreatePress={() => atCreateLimit ? openUpgrade() : router.push(p('/ajanlatok/uj'))}
+        onCreatePress={() => isFrozen ? openContactOwner() : atCreateLimit ? openUpgrade() : router.push(p('/ajanlatok/uj'))}
         activePodColor={{ plusBg: '#6D3FD1', plusFg: '#FFFFFF' }}
         onMessages={() => setActiveSheet('messages')}
         onNotifications={() => setActiveSheet('notif')}

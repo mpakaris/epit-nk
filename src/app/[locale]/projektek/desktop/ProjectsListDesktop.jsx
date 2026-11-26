@@ -7,6 +7,7 @@ import { useApp } from '@/context/AppContext';
 import { formatMoney } from '@/lib/constants';
 import Modal, { AlertModal, ConfirmModal } from '@/components/Modal';
 import UpgradeModal from '@/components/UpgradeModal';
+import CollectiveSubscriptionModal from '@/components/CollectiveSubscriptionModal';
 import { isEffectivePremium } from '@/lib/subscriptionLimits';
 import { WorkspaceNotActivatedBanner, WorkspaceFrozenBanner } from '@/components/desktop/WorkspaceStatusBanners';
 import WorkspacePodStack from '@/components/desktop/WorkspacePodStack';
@@ -83,8 +84,11 @@ export default function ProjectsListDesktop() {
   const [ncError, setNcError] = useState('');
   const [ncSaving,setNcSaving]= useState(false);
 
-  const [alertModal,    setAlertModal]    = useState(null);
-  const [upgradeModal,  setUpgradeModal]  = useState(null); // { docType }
+  const [alertModal,       setAlertModal]       = useState(null);
+  const [upgradeModal,     setUpgradeModal]     = useState(null);
+  const [collectiveModal,  setCollectiveModal]  = useState(false);
+
+  const isFrozen = activeColl?.status === 'frozen';
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [deletedIds,    setDeletedIds]    = useState(new Set());
 
@@ -170,6 +174,7 @@ export default function ProjectsListDesktop() {
       const data = await res.json();
       if (!res.ok) {
         if (data.code === 'LIMIT_REACHED') { closeCreate(); setUpgradeModal({ docType: data.docType }); return; }
+        if (data.upgrade_required === 'collective') { closeCreate(); setCollectiveModal(true); return; }
         throw new Error(data.error || t('createError'));
       }
       await refreshSupabaseData();
@@ -333,7 +338,7 @@ export default function ProjectsListDesktop() {
             />
           </label>
           <button
-            onClick={atCreateLimit ? () => setUpgradeModal({ docType: 'project' }) : openCreate}
+            onClick={isFrozen ? () => setCollectiveModal(true) : atCreateLimit ? () => setUpgradeModal({ docType: 'project' }) : openCreate}
             className="dk-btn dk-btn-w"
             type="button"
           >
@@ -615,6 +620,7 @@ export default function ProjectsListDesktop() {
         onClose={() => setUpgradeModal(null)}
         docType={upgradeModal?.docType}
       />
+      <CollectiveSubscriptionModal isOpen={collectiveModal} onClose={() => setCollectiveModal(false)} isOwner={activeColl?.role === 'owner'} />
     </div>
   );
 }

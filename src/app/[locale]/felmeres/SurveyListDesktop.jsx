@@ -8,6 +8,7 @@ import { formatDate } from '@/lib/constants';
 import { isEffectivePremium } from '@/lib/subscriptionLimits';
 import Modal from '@/components/Modal';
 import UpgradeModal from '@/components/UpgradeModal';
+import CollectiveSubscriptionModal from '@/components/CollectiveSubscriptionModal';
 import { WorkspaceNotActivatedBanner, WorkspaceFrozenBanner } from '@/components/desktop/WorkspaceStatusBanners';
 import TransferToCollectiveModal from '@/components/TransferToCollectiveModal';
 import SurveyMediaModal from '@/components/survey/SurveyMediaModal';
@@ -63,7 +64,10 @@ export default function SurveyListDesktop() {
   const [drawingsOpen, setDrawingsOpen]   = useState(false);
   const [sidePhotos,   setSidePhotos]     = useState([]);
   const [sideDrawings, setSideDrawings]   = useState([]);
-  const [upgradeModal, setUpgradeModal]   = useState(null);
+  const [upgradeModal, setUpgradeModal]         = useState(null);
+  const [collectiveModal, setCollectiveModal]   = useState(false);
+
+  const isFrozen = activeColl?.status === 'frozen';
 
   const allSurveys = useMemo(() => surveys || [], [surveys]);
 
@@ -182,7 +186,7 @@ export default function SurveyListDesktop() {
           </label>
           <button
             className="dk-btn dk-btn-w"
-            onClick={() => atCreateLimit ? setUpgradeModal({ docType: 'survey' }) : router.push(p('/felmeres/uj'))}
+            onClick={() => isFrozen ? setCollectiveModal(true) : atCreateLimit ? setUpgradeModal({ docType: 'survey' }) : router.push(p('/felmeres/uj'))}
           >
             <Plus size={20} aria-hidden="true" />
             {t('new')}
@@ -460,7 +464,7 @@ export default function SurveyListDesktop() {
           onClose={() => setMediaOpen(false)}
           surveyId={selectedSurvey.id}
           entryId={null}
-          canEdit={isOwner(selectedSurvey) && !selectedSurvey?.is_read_only}
+          canEdit={isOwner(selectedSurvey) && !selectedSurvey?.is_read_only && !isFrozen}
           canDelete={isOwner(selectedSurvey)}
           mediaItems={sidePhotos}
           onUploaded={(newItems) => setSidePhotos(prev => [...prev, ...newItems])}
@@ -476,12 +480,13 @@ export default function SurveyListDesktop() {
           entryId={null}
           entryName={selectedSurvey.title}
           drawings={sideDrawings}
-          canAdd={isOwner(selectedSurvey) && !selectedSurvey?.is_read_only}
+          canAdd={isOwner(selectedSurvey) && !selectedSurvey?.is_read_only && !isFrozen}
           onCreated={(d) => setSideDrawings(prev => [...prev, d])}
           onDeleted={(id) => setSideDrawings(prev => prev.filter(dr => dr.id !== id))}
         />
       )}
       <UpgradeModal isOpen={!!upgradeModal} onClose={() => setUpgradeModal(null)} docType={upgradeModal?.docType} />
+      <CollectiveSubscriptionModal isOpen={collectiveModal} onClose={() => setCollectiveModal(false)} isOwner={activeColl?.role === 'owner'} />
     </div>
   );
 }

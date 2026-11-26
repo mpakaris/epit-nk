@@ -838,15 +838,15 @@ function ApplyTemplateModal({ isOpen, onClose, surveyId, entryId }) {
 // ── SectionPod ────────────────────────────────────────────────────────────────
 function SectionPod({
   entry, idx, allItems, drawings, canAdd, canEditFn, surveyId,
-  isReadOnly, canInteract,
+  isReadOnly, isCollectiveFrozen, canInteract,
   isOpen, onToggle,
   openMenuId, onMenuToggle,
   onAddItem, onEditItem,
-  onRename, onApplyTemplate, onMeasurements, onNotes, onMedia, onDrawings,
+  onRename, onApplyTemplate, onMeasurements, onNotes, onMedia, onDrawings, onDeleteEntry,
 }) {
   const t  = useTranslations('surveyDetail');
   const ts = useTranslations('surveys');
-  const { openUpgrade } = useReadOnlyUpgradeContext();
+  const { openUpgrade, openContactOwner } = useReadOnlyUpgradeContext();
   const [itemSearch, setItemSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('all');
 
@@ -907,16 +907,17 @@ function SectionPod({
             <div onClick={e => e.stopPropagation()}
               style={{ position: 'absolute', right: 0, top: 42, zIndex: 50, background: '#fff', borderRadius: 14, boxShadow: '0 8px 24px -8px rgba(0,0,0,.35), 0 2px 8px -2px rgba(0,0,0,.12)', padding: 6, minWidth: 210 }}>
               {[
-                { icon: Edit3,     label: ts('desktop.renameSection'),       action: isReadOnly ? openUpgrade : onRename        },
-                { icon: Clipboard, label: ts('desktop.applyTemplate'),       action: isReadOnly ? openUpgrade : onApplyTemplate },
-                { icon: Ruler,     label: ts('desktop.detailDimsTitle'),     action: onMeasurements  },
-                { icon: FileText,  label: ts('desktop.detailNotesTitle'),    action: onNotes         },
-                { icon: Camera,    label: ts('desktop.detailMediaTitle'),    action: onMedia         },
-                { icon: Pencil,    label: ts('desktop.detailDrawingsTitle'),   action: onDrawings      },
-              ].map(({ icon: Icon, label, action }) => (
+                { icon: Edit3,     label: ts('desktop.renameSection'),     action: isCollectiveFrozen ? openContactOwner : isReadOnly ? openUpgrade : onRename,       danger: false },
+                { icon: Clipboard, label: ts('desktop.applyTemplate'),     action: isCollectiveFrozen ? openContactOwner : isReadOnly ? openUpgrade : onApplyTemplate, danger: false },
+                { icon: Ruler,     label: ts('desktop.detailDimsTitle'),   action: onMeasurements,   danger: false },
+                { icon: FileText,  label: ts('desktop.detailNotesTitle'),  action: onNotes,           danger: false },
+                { icon: Camera,    label: ts('desktop.detailMediaTitle'),  action: onMedia,           danger: false },
+                { icon: Pencil,    label: ts('desktop.detailDrawingsTitle'), action: onDrawings,       danger: false },
+                ...(onDeleteEntry ? [{ icon: Trash2, label: ts('desktop.detailDeleteSection'), action: isReadOnly ? openUpgrade : onDeleteEntry, danger: true }] : []),
+              ].map(({ icon: Icon, label, action, danger }) => (
                 <button key={label} type="button"
                   onClick={() => { action(); onMenuToggle(null); }}
-                  style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', border: 0, borderRadius: 10, background: 'transparent', fontSize: 14, fontWeight: 600, color: '#0E1116', cursor: 'pointer', textAlign: 'left' }}>
+                  style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', border: 0, borderRadius: 10, background: danger ? '#FDECEC' : 'transparent', fontSize: 14, fontWeight: 600, color: danger ? '#B71C1C' : '#0E1116', cursor: 'pointer', textAlign: 'left' }}>
                   <Icon size={15} aria-hidden="true" />
                   {label}
                 </button>
@@ -1138,7 +1139,7 @@ function SurveyDetailDesktopInner() {
   const isCollectiveFrozen = !!survey.collective_id && myCollectiveMembership?.status === 'frozen';
   const guardReadOnly = (flag = isReadOnly || isCollectiveFrozen) => {
     if (!flag) return false;
-    if (isCollectiveFrozen && !isKollektivOwner && !isOwner) { openContactOwner(); } else { openUpgrade(); }
+    if (isCollectiveFrozen) { openContactOwner(); } else { openUpgrade(); }
     return true;
   };
   const canAdd           = !isDocLocked && !isReadOnly && !isCollectiveFrozen && (isOwner || isCollMember);
@@ -1214,7 +1215,7 @@ function SurveyDetailDesktopInner() {
     setConfirmModal({
       message: t('deleteEntryConfirm', { name: entry.name, detail }),
       onConfirm: async () => {
-        if (guardReadOnly()) return;
+        if (isReadOnly) { openUpgrade(); return; }
         try {
           await deleteSurveyEntry(id, entry.id);
           setOpenPodIds(prev => { const next = new Set(prev); next.delete(entry.id); return next; });
@@ -1311,6 +1312,7 @@ function SurveyDetailDesktopInner() {
                   canEditFn={canEditEntry}
                   surveyId={id}
                   isReadOnly={isReadOnly}
+                  isCollectiveFrozen={isCollectiveFrozen}
                   canInteract={!isDocLocked && (isOwner || isCollMember)}
                   isOpen={openPodIds.has(entry.id)}
                   onToggle={() => setOpenPodIds(prev => {
@@ -1328,6 +1330,7 @@ function SurveyDetailDesktopInner() {
                   onNotes={() => { setModalEntry(entry); setNotesOpen(true); }}
                   onMedia={() => { setModalEntry(entry); setMediaOpen(true); }}
                   onDrawings={() => { setModalEntry(entry); setDrawingsOpen(true); }}
+                  onDeleteEntry={(isKollektivOwner || isOwner) ? () => handleDeleteEntry(entry) : undefined}
                 />
               ))
             }
@@ -1356,8 +1359,8 @@ function SurveyDetailDesktopInner() {
       <Modal isOpen={showMenu} onClose={() => setShowMenu(false)} title={ts('desktop.detailActionsTitle')} maxWidth="560px">
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {[
-            { label: ts('desktop.detailEditClient'), icon: Edit3, onClick: () => { setShowMenu(false); if (isReadOnly) { openUpgrade(); return; } setShowMetaDrawer(true); } },
-            { label: ts('desktop.createQuote'), icon: FileText, onClick: () => { setShowMenu(false); if (isReadOnly) { openUpgrade(); return; } router.push(p(`/ajanlatok/uj?from_survey=${id}`)); } },
+            { label: ts('desktop.detailEditClient'), icon: Edit3, onClick: () => { setShowMenu(false); if (isCollectiveFrozen) { openContactOwner(); return; } if (isReadOnly) { openUpgrade(); return; } setShowMetaDrawer(true); } },
+            { label: ts('desktop.createQuote'), icon: FileText, onClick: () => { setShowMenu(false); if (isCollectiveFrozen) { openContactOwner(); return; } if (isReadOnly) { openUpgrade(); return; } router.push(p(`/ajanlatok/uj?from_survey=${id}`)); } },
             ...(!survey.is_seed ? [{ label: t('deleteBtn'), icon: Trash2, danger: true, onClick: () => { setShowMenu(false); handleDeleteSurvey(); } }] : []),
           ].map(action => (
             <button key={action.label} className="dk-sr"

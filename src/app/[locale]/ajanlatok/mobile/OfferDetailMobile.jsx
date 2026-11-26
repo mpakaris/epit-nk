@@ -226,8 +226,7 @@ function OfferDetailMobileInner({ quoteId }) {
   const isCollectiveFrozen = !!quote?.collective_id && (userMemberships || []).find(m => m.collective_id === quote.collective_id)?.status === 'frozen';
   const guardReadOnly = (flag = isReadOnly || isCollectiveFrozen) => {
     if (!flag) return false;
-    if (isCollectiveFrozen && !isKollektivOwner && !isOwner) { openContactOwner(); }
-    else { openUpgrade(); }
+    if (isCollectiveFrozen) { openContactOwner(); } else { openUpgrade(); }
     return true;
   };
 

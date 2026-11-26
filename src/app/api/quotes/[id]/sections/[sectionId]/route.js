@@ -102,8 +102,7 @@ export async function DELETE(request, { params }) {
   if (!ctx.isSuperAdmin && !ctx.isQuoteOwner && !ctx.isKollektivOwner && !ctx.isSectionOwner)
     return Response.json({ error: 'Csak a saját szekciót törölheted.' }, { status: 403 });
 
-  const statusBlockedDel = await checkCollectiveStatus(ctx.admin, ctx.quote.collective_id);
-  if (statusBlockedDel) return statusBlockedDel;
+  // Section deletion is allowed even in frozen collectives — skip collective status check here.
 
   const sectionName = ctx.section.name;
   const { count: entryCount } = await ctx.admin.from('quote_entries').select('id', { count: 'exact', head: true }).eq('section_id', sectionId);
