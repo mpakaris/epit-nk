@@ -763,7 +763,7 @@ function OfferDetailMobileInner({ quoteId }) {
                     onToggle={() => setOpenSections(prev => ({ ...prev, [sec.id]: !prev[sec.id] }))}
                     onMore={() => setSectionMenuId(sec.id)}
                     onItems={() => router.push(p(`/ajanlatok/${quoteId}/tetelek/${sec.id}`))}
-                    onDims={() => { if (guardReadOnly()) return; setSectionEditTarget(sec); }}
+                    onDims={() => setSectionEditTarget(sec)}
                     canEdit={canEdit}
                     isLocked={isLocked}
                     userCurrency={userCurrency}
@@ -773,7 +773,7 @@ function OfferDetailMobileInner({ quoteId }) {
                     onMediaOpen={() => setSectionMediaCtx({ sectionId: sec.id, mode: 'images' })}
                     onSketchOpen={() => setSectionMediaCtx({ sectionId: sec.id, mode: 'drawings' })}
                     onAddSketch={() => { if (guardReadOnly()) return; setSectionMediaCtx({ sectionId: sec.id, mode: 'drawings', triggerNew: true }); }}
-                    onBeforeUpload={isCollectiveFrozen ? () => { openContactOwner(); return true; } : undefined}
+                    onBeforeUpload={() => guardReadOnly()}
                     onUploadMedia={async (files) => {
                       if (guardReadOnly()) return;
                       try {
@@ -1342,6 +1342,7 @@ function OfferDetailMobileInner({ quoteId }) {
             isNew={sectionEditTarget === 'new'}
             initial={sectionEditTarget !== 'new' ? sectionEditTarget : null}
             quoteId={quoteId}
+            readOnly={isCollectiveFrozen || isReadOnly}
             onSave={async () => { await refreshSections(); setSectionEditTarget(null); }}
             onClose={() => setSectionEditTarget(null)}
             t={t}
@@ -1600,7 +1601,7 @@ function InfoPod({ isOpen, onToggle, title, headerRight, action, children }) {
 }
 
 // ─── SectionEditSheet ─────────────────────────────────────────────────────────
-function SectionEditSheet({ isNew, initial, quoteId, onSave, onClose, t }) {
+function SectionEditSheet({ isNew, initial, quoteId, readOnly = false, onSave, onClose, t }) {
   const { openUpgrade } = useReadOnlyUpgradeContext();
   const [name,    setName]    = useState(() => initial?.name         || '');
   const [widthM,  setWidthM]  = useState(() => initial?.width_m  != null ? String(initial.width_m)  : '');
@@ -1665,36 +1666,38 @@ function SectionEditSheet({ isNew, initial, quoteId, onSave, onClose, t }) {
       {err && <span style={{ fontSize: 13, fontWeight: 700, color: '#B71C1C', padding: '0 2px' }}>{err}</span>}
       <label style={{ display: 'flex', flexDirection: 'column' }}>
         <span style={LBL}>{t('sectionNameLabel')}</span>
-        <input autoFocus type="text" value={name} onChange={e => setName(e.target.value)} placeholder={t('sectionNamePh')} style={FLD} />
+        <input autoFocus type="text" value={name} onChange={readOnly ? undefined : e => setName(e.target.value)} readOnly={readOnly} placeholder={t('sectionNamePh')} style={{ ...FLD, opacity: readOnly ? 0.6 : 1 }} />
       </label>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
         <label style={{ display: 'flex', flexDirection: 'column' }}>
           <span style={LBL}>{t('sectionWidthLabel')}</span>
-          <input type="number" inputMode="decimal" min="0" value={widthM} onChange={e => setWidthM(e.target.value)} placeholder="0" style={FLD} />
+          <input type="number" inputMode="decimal" min="0" value={widthM} onChange={readOnly ? undefined : e => setWidthM(e.target.value)} readOnly={readOnly} placeholder="0" style={{ ...FLD, opacity: readOnly ? 0.6 : 1 }} />
         </label>
         <label style={{ display: 'flex', flexDirection: 'column' }}>
           <span style={LBL}>{t('sectionLengthLabel')}</span>
-          <input type="number" inputMode="decimal" min="0" value={lengthM} onChange={e => setLengthM(e.target.value)} placeholder="0" style={FLD} />
+          <input type="number" inputMode="decimal" min="0" value={lengthM} onChange={readOnly ? undefined : e => setLengthM(e.target.value)} readOnly={readOnly} placeholder="0" style={{ ...FLD, opacity: readOnly ? 0.6 : 1 }} />
         </label>
         <label style={{ display: 'flex', flexDirection: 'column' }}>
           <span style={LBL}>{t('sectionHeightLabel')}</span>
-          <input type="number" inputMode="decimal" min="0" value={heightM} onChange={e => setHeightM(e.target.value)} placeholder="0" style={FLD} />
+          <input type="number" inputMode="decimal" min="0" value={heightM} onChange={readOnly ? undefined : e => setHeightM(e.target.value)} readOnly={readOnly} placeholder="0" style={{ ...FLD, opacity: readOnly ? 0.6 : 1 }} />
         </label>
         <div />
         <label style={{ display: 'flex', flexDirection: 'column' }}>
           <span style={LBL}>{t('sectionWindowsLabel')}</span>
-          <input type="number" inputMode="numeric" min="0" value={windows} onChange={e => setWindows(e.target.value)} placeholder="0" style={FLD} />
+          <input type="number" inputMode="numeric" min="0" value={windows} onChange={readOnly ? undefined : e => setWindows(e.target.value)} readOnly={readOnly} placeholder="0" style={{ ...FLD, opacity: readOnly ? 0.6 : 1 }} />
         </label>
         <label style={{ display: 'flex', flexDirection: 'column' }}>
           <span style={LBL}>{t('sectionDoorsLabel')}</span>
-          <input type="number" inputMode="numeric" min="0" value={doors} onChange={e => setDoors(e.target.value)} placeholder="0" style={FLD} />
+          <input type="number" inputMode="numeric" min="0" value={doors} onChange={readOnly ? undefined : e => setDoors(e.target.value)} readOnly={readOnly} placeholder="0" style={{ ...FLD, opacity: readOnly ? 0.6 : 1 }} />
         </label>
       </div>
-      <div style={{ paddingTop: 4 }}>
-        <button onClick={handleSave} disabled={!canSave} style={{ display: 'block', width: '100%', height: 60, border: 0, borderRadius: 30, background: canSave ? 'var(--m-offer, #6D3FD1)' : '#B9B5AA', color: '#fff', fontSize: 17, fontWeight: 700, cursor: canSave ? 'pointer' : 'default' }}>
-          {saving ? '…' : t('actionSave')}
-        </button>
-      </div>
+      {!readOnly && (
+        <div style={{ paddingTop: 4 }}>
+          <button onClick={handleSave} disabled={!canSave} style={{ display: 'block', width: '100%', height: 60, border: 0, borderRadius: 30, background: canSave ? 'var(--m-offer, #6D3FD1)' : '#B9B5AA', color: '#fff', fontSize: 17, fontWeight: 700, cursor: canSave ? 'pointer' : 'default' }}>
+            {saving ? '…' : t('actionSave')}
+          </button>
+        </div>
+      )}
     </>
   );
 }
