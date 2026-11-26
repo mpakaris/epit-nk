@@ -339,10 +339,6 @@ function SurveyListMobileInner() {
       {/* Scroll body — paddingTop matches PageHeader height (100px) + 8px gap */}
       <div style={{ padding: '108px 16px 170px', display: 'flex', flexDirection: 'column', gap: 10 }}>
 
-        {/* Workspace status banners */}
-        {activeColl?.status === 'not_activated' && <MobileWorkspaceNotActivatedBanner />}
-        {activeColl?.status === 'frozen' && <MobileWorkspaceFrozenBanner isOwner={activeColl?.role === 'owner'} />}
-
         {/* Offline banner */}
         {!online && (
           <div style={{ padding: '12px 16px', borderRadius: 20, background: '#FFF1E0', display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -364,6 +360,8 @@ function SurveyListMobileInner() {
           onBack={() => router.push(p('/dashboard'))}
           renderBody={(ws) => (
             <>
+              {activeColl?.status === 'not_activated' && <MobileWorkspaceNotActivatedBanner />}
+              {activeColl?.status === 'frozen' && <MobileWorkspaceFrozenBanner isOwner={activeColl?.role === 'owner'} />}
               {/* Search */}
               <label style={{ position: 'relative', display: 'block' }}>
                 <span style={{ position: 'absolute', left: 18, top: '50%', marginTop: -10, color: '#5A5F68', display: 'flex' }}>

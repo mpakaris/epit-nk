@@ -300,9 +300,6 @@ function OfferListMobileInner() {
       {/* Scrollable content — paddingTop 108px clears the 100px PageHeader */}
       <div style={{ padding: '108px 16px 190px', display: 'flex', flexDirection: 'column', gap: 10 }}>
 
-        {activeColl?.status === 'not_activated' && <MobileWorkspaceNotActivatedBanner />}
-        {activeColl?.status === 'frozen' && <MobileWorkspaceFrozenBanner isOwner={activeColl?.role === 'owner'} />}
-
         {!isOnline && (
           <div style={{ padding: '10px 16px', borderRadius: 20, background: '#B71C1C', color: '#fff', fontSize: 14, fontWeight: 700, textAlign: 'center' }}>
             {t('offlineBanner')}
@@ -325,6 +322,8 @@ function OfferListMobileInner() {
             });
             return (
               <>
+                {activeColl?.status === 'not_activated' && <MobileWorkspaceNotActivatedBanner />}
+                {activeColl?.status === 'frozen' && <MobileWorkspaceFrozenBanner isOwner={activeColl?.role === 'owner'} />}
                 {/* Search */}
                 <label style={{ position: 'relative', display: 'block' }}>
                   <span style={{ position: 'absolute', left: 18, top: '50%', marginTop: -10, color: '#5A5F68', display: 'flex' }} aria-hidden="true">

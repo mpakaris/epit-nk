@@ -307,9 +307,6 @@ function ProjectsListMobileInner() {
       {/* paddingTop 108px clears the 100px PageHeader */}
       <div style={{ padding: '108px 16px 190px', display: 'flex', flexDirection: 'column', gap: 10 }}>
 
-        {activeColl?.status === 'not_activated' && <MobileWorkspaceNotActivatedBanner />}
-        {activeColl?.status === 'frozen' && <MobileWorkspaceFrozenBanner isOwner={activeColl?.role === 'owner'} />}
-
         {!isOnline && (
           <div style={{ padding: '10px 16px', borderRadius: 20, background: '#B71C1C', color: '#fff', fontSize: 14, fontWeight: 700, textAlign: 'center' }}>
             {t('offlineBanner')}
@@ -337,6 +334,8 @@ function ProjectsListMobileInner() {
             });
             return (
               <>
+                {activeColl?.status === 'not_activated' && <MobileWorkspaceNotActivatedBanner />}
+                {activeColl?.status === 'frozen' && <MobileWorkspaceFrozenBanner isOwner={activeColl?.role === 'owner'} />}
                 {/* Basic limit banner inside personal pod */}
                 {ws.isPersonal && atBasicLimit && (
                   <div style={{ padding: '12px 14px', borderRadius: 20, background: '#FFF1E0', color: '#6B3300', fontSize: 14, fontWeight: 600, lineHeight: 1.4 }}>
