@@ -683,10 +683,12 @@ function OfferDetailMobileInner({ quoteId }) {
                         <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v12H4z"/><circle cx="12" cy="13" r="3"/></svg>
                       </button>
                     )}
-                    <button type="button" onClick={() => setDocMediaMode('images')}
-                      style={{ minHeight: 48, border: 0, borderRadius: 24, background: '#0E1116', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>
-                      {tM('roomPhotoVideo')}
-                    </button>
+                    {showOwnerActions && (
+                      <button type="button" onClick={() => { if (guardReadOnly()) return; setDocMediaMode('images'); }}
+                        style={{ minHeight: 48, border: 0, borderRadius: 24, background: '#0E1116', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>
+                        {tM('roomPhotoVideo')}
+                      </button>
+                    )}
                   </section>
 
                   {/* Sketches card */}
@@ -708,10 +710,12 @@ function OfferDetailMobileInner({ quoteId }) {
                         <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M16 3l5 5L9 20H4v-5z"/></svg>
                       </button>
                     )}
-                    <button type="button" onClick={() => setDocMediaMode('drawings')}
-                      style={{ minHeight: 48, border: 0, borderRadius: 24, background: '#F1F1F3', color: '#0E1116', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>
-                      {tM('propAddSketch')}
-                    </button>
+                    {showOwnerActions && (
+                      <button type="button" onClick={() => { if (guardReadOnly()) return; setDocMediaMode('drawings'); }}
+                        style={{ minHeight: 48, border: 0, borderRadius: 24, background: '#F1F1F3', color: '#0E1116', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>
+                        {tM('propAddSketch')}
+                      </button>
+                    )}
                   </section>
 
                 </div>
@@ -1494,8 +1498,8 @@ function OfferDetailMobileInner({ quoteId }) {
                 )}
               </div>
 
-              {/* Upload button (not for drawings) */}
-              {!isDraw && (
+              {/* Upload button (not for drawings, not in frozen collective) */}
+              {!isDraw && !isCollectiveFrozen && showOwnerActions && (
                 <div style={{ padding: '8px 14px', paddingBottom: 'calc(16px + env(safe-area-inset-bottom))', flexShrink: 0 }}>
                   <input ref={mediaFileRef} type="file" accept={isDoc ? 'application/pdf,.pdf' : 'image/*,video/*'} multiple onChange={handleUpload} style={{ display: 'none' }} />
                   <button onClick={() => { if (guardReadOnly()) return; mediaFileRef.current?.click(); }} disabled={mediaUploading}
