@@ -1,26 +1,11 @@
 'use client';
-import { Suspense } from 'react';
-import { useApp } from '@/context/AppContext';
-import ProjectsListClient from '@/app/[locale]/projektek/ProjectsListClient';
-import PageSpinner from '@/components/PageSpinner';
 
-export default function DemoProjectenPage() {
-  const { currentUser, activeCollectiveId } = useApp();
-  return (
-    <Suspense fallback={<PageSpinner />}>
-    <ProjectsListClient
-      initialProjects={[]}
-      initialInvoices={[]}
-      initialLabourEntries={[]}
-      initialUsers={[]}
-      initialClients={[]}
-      initialQuotes={[]}
-      currentUser={currentUser}
-      isAdmin={false}
-      isSuperAdmin={false}
-      impersonating={null}
-      effectiveEntityId={activeCollectiveId}
-    />
-    </Suspense>
-  );
+import useMobile from '@/hooks/useMobile';
+import ProjectsListDesktop from '@/app/[locale]/projektek/desktop/ProjectsListDesktop';
+import ProjectsListClient from '@/app/[locale]/projektek/ProjectsListClient';
+
+export default function DemoProjectsPage() {
+  const isMobile = useMobile();
+  if (isMobile) return <ProjectsListClient />;
+  return <ProjectsListDesktop />;
 }

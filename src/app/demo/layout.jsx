@@ -1,69 +1,19 @@
-'use client';
+import { cookies } from 'next/headers';
+import { getMessages } from 'next-intl/server';
+import { detectMobile } from '@/lib/detectMobile';
+import DemoClientLayout from './DemoClientLayout';
 
-import React, { useEffect } from 'react';
-import { NextIntlClientProvider } from 'next-intl';
-import { DemoProvider } from '@/context/DemoContext';
-import DemoBanner from '@/components/demo/DemoBanner';
-import Sidebar from '@/components/Sidebar';
-import huMessages from '../../../messages/hu.json';
-
-const BANNER_H = 40; // px — matches DemoBanner's rendered height
-
-function DemoShell({ children }) {
-  // Always show the workspace tooltip fresh each demo session
-  useEffect(() => {
-    sessionStorage.removeItem('ws_tooltip_dismissed');
-  }, []);
+export default async function DemoLayout({ children }) {
+  const cookieStore = await cookies();
+  const locale = cookieStore.get('NEXT_LOCALE')?.value || 'hu';
+  const [messages, isMobile] = await Promise.all([
+    getMessages({ locale }),
+    detectMobile(),
+  ]);
 
   return (
-    // Fixed overlay covers the real (unauthenticated) app layout entirely
-    <div style={{
-      position: 'fixed', inset: 0,
-      background: 'var(--bg-base)', zIndex: 500,
-      display: 'flex', flexDirection: 'column', overflow: 'hidden',
-    }}>
-      {/*
-        Inject CSS to push the Sidebar down by the banner height.
-        The Sidebar is position:fixed z-index:40; DemoBanner is z-index:50
-        so the banner always sits on top of the sidebar strip.
-      */}
-      <style>{`
-        .demo-mode .app-sidebar {
-          top: ${BANNER_H}px !important;
-          height: calc(100vh - ${BANNER_H}px) !important;
-        }
-        .demo-mode .mobile-header {
-          top: ${BANNER_H}px !important;
-        }
-        .demo-mode .app-main {
-          min-height: unset !important;
-          height: 100%;
-          overflow-y: auto;
-        }
-      `}</style>
-
-      {/* Banner — z-index: 50 sits above the sidebar's z-index: 40 */}
-      <div style={{ flexShrink: 0, position: 'relative', zIndex: 50 }}>
-        <DemoBanner />
-      </div>
-
-      {/* App shell — same structure as real app */}
-      <div className="app-layout demo-mode" style={{ flex: 1, overflow: 'hidden', minHeight: 0 }}>
-        <Sidebar />
-        <main className="app-main">
-          {children}
-        </main>
-      </div>
-    </div>
-  );
-}
-
-export default function DemoLayout({ children }) {
-  return (
-    <NextIntlClientProvider locale="hu" messages={huMessages}>
-      <DemoProvider>
-        <DemoShell>{children}</DemoShell>
-      </DemoProvider>
-    </NextIntlClientProvider>
+    <DemoClientLayout locale={locale} messages={messages} isMobile={isMobile}>
+      {children}
+    </DemoClientLayout>
   );
 }

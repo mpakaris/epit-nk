@@ -1,24 +1,11 @@
 'use client';
 
-import { useApp } from '@/context/AppContext';
-import DashboardClient from '@/app/[locale]/dashboard/DashboardClient';
+import useMobile from '@/hooks/useMobile';
+import DashboardDesktop from '@/app/[locale]/dashboard/desktop/DashboardDesktop';
+import DashboardMobile from '@/app/[locale]/dashboard/mobile/DashboardMobile';
 
 export default function DemoDashboardPage() {
-  const { currentUser, activeCollectiveId } = useApp();
-  return (
-    <DashboardClient
-      initialProjects={[]}
-      initialInvoices={[]}
-      initialLabourEntries={[]}
-      initialUsers={[]}
-      initialClients={[]}
-      initialQuotes={[]}
-      initialSurveys={[]}
-      currentUser={currentUser}
-      isAdmin={false}
-      isSuperAdmin={false}
-      impersonating={null}
-      effectiveEntityId={activeCollectiveId}
-    />
-  );
+  const isMobile = useMobile();
+  if (isMobile) return <DashboardMobile />;
+  return <DashboardDesktop />;
 }

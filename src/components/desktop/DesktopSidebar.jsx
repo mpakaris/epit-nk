@@ -70,16 +70,19 @@ export default function DesktopSidebar() {
     { key: 'felmeres',  href: `${navPrefix}/felmeres`,  icon: Ruler,         label: t('nav.surveys')  },
     { key: 'ajanlatok', href: `${navPrefix}/ajanlatok`, icon: FileText,      label: t('nav.quotes')   },
     { key: 'projektek', href: `${navPrefix}/projektek`, icon: FolderKanban,  label: t('nav.projects') },
-    { key: 'ugyfelek',  href: `${navPrefix}/ugyfelek`,  icon: BookUser,      label: t('nav.clients')  },
+    ...(!isDemoMode ? [{ key: 'ugyfelek', href: `${navPrefix}/ugyfelek`, icon: BookUser, label: t('nav.clients') }] : []),
   ];
 
   const workNavItems = [
-    // { key: 'uzenetek',   href: `${navPrefix}/uzenetek`,   icon: MessageSquare, label: t('nav.messages')    },
-    { key: 'naptar',     href: `${navPrefix}/naptar`,     icon: Calendar,      label: t('nav.calendar')    },
-    { key: 'sablonok',   href: `${navPrefix}/sablonok`,   icon: LayoutTemplate, label: t('nav.templates')   },
-    { key: 'weboldalam', href: `${navPrefix}/weboldalam`, icon: Globe,         label: t('nav.website')     },
-    { key: 'kollektivak',  href: `${navPrefix}/kollektivak`,  icon: UsersRound,  label: t('nav.collectives')  },
-    { key: 'elofizetes',   href: `${navPrefix}/elofizetes`,   icon: CreditCard,  label: t('nav.subscription') },
+    ...(!isDemoMode ? [
+      { key: 'naptar',     href: `${navPrefix}/naptar`,     icon: Calendar,       label: t('nav.calendar')     },
+      { key: 'sablonok',   href: `${navPrefix}/sablonok`,   icon: LayoutTemplate, label: t('nav.templates')    },
+      { key: 'weboldalam', href: `${navPrefix}/weboldalam`, icon: Globe,          label: t('nav.website')      },
+    ] : []),
+    { key: 'kollektivak', href: `${navPrefix}/kollektivak`, icon: UsersRound, label: t('nav.collectives') },
+    ...(!isDemoMode ? [
+      { key: 'elofizetes', href: `${navPrefix}/elofizetes`, icon: CreditCard, label: t('nav.subscription') },
+    ] : []),
   ];
 
   function isNavActive(key) {
@@ -133,7 +136,7 @@ export default function DesktopSidebar() {
 
       {/* User card */}
       <Link
-        href={`${navPrefix}/profil`}
+        href={isDemoMode ? `${navPrefix}/dashboard` : `${navPrefix}/profil`}
         className="dk-pod"
         style={{ background: 'rgba(0,0,0,0.07)', color: '#0E1116', gap: 12, textDecoration: 'none', flexShrink: 0 }}
       >

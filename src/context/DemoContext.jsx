@@ -545,6 +545,7 @@ export function DemoProvider({ children }) {
     activeCollectiveId,
     loading:              false,
     dataReady:            true,
+    contextSwitching:     false,
     // Collectives
     collectives:          DEMO_COLLECTIVES,
     effectiveCollectives: DEMO_COLLECTIVES,

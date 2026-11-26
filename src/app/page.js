@@ -311,6 +311,7 @@ export default function HomePage() {
     const root = document.querySelector('.lp-root');
     if (!root) return;
     const onScroll = () => setScrolled(root.scrollTop > 72);
+    onScroll(); // sync initial state in case page loads at a non-zero scroll position
     root.addEventListener('scroll', onScroll, { passive: true });
     return () => root.removeEventListener('scroll', onScroll);
   }, [show]);
