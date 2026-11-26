@@ -773,6 +773,7 @@ function OfferDetailMobileInner({ quoteId }) {
                     onMediaOpen={() => setSectionMediaCtx({ sectionId: sec.id, mode: 'images' })}
                     onSketchOpen={() => setSectionMediaCtx({ sectionId: sec.id, mode: 'drawings' })}
                     onAddSketch={() => { if (guardReadOnly()) return; setSectionMediaCtx({ sectionId: sec.id, mode: 'drawings', triggerNew: true }); }}
+                    onBeforeUpload={isCollectiveFrozen ? () => { openContactOwner(); return true; } : undefined}
                     onUploadMedia={async (files) => {
                       if (guardReadOnly()) return;
                       try {
@@ -1700,7 +1701,7 @@ function SectionEditSheet({ isNew, initial, quoteId, onSave, onClose, t }) {
 
 // ─── OfferRoomCard ────────────────────────────────────────────────────────────
 function OfferRoomCard({ sec, index, isOpen, onToggle, onMore, onItems, onDims, canEdit, isLocked, userCurrency, tM,
-  sectionMedia = [], sectionDrawings = [], onMediaOpen, onSketchOpen, onAddSketch, onUploadMedia }) {
+  sectionMedia = [], sectionDrawings = [], onMediaOpen, onSketchOpen, onAddSketch, onUploadMedia, onBeforeUpload }) {
   const tSD = useTranslations('surveyDetail');
   const photoInputRef = useRef(null);
 
@@ -1785,8 +1786,8 @@ function OfferRoomCard({ sec, index, isOpen, onToggle, onMore, onItems, onDims, 
                   </span>
                 )}
               </button>
-              {canEdit && (
-                <button type="button" onClick={() => photoInputRef.current?.click()}
+              {(canEdit || onBeforeUpload) && (
+                <button type="button" onClick={() => { if (onBeforeUpload?.()) return; photoInputRef.current?.click(); }}
                   style={{ height: 34, border: '1.5px dashed #C9C5BA', borderRadius: 10, background: 'transparent', color: '#5A5F68', fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
                   {tM('roomPhotoVideo')}
