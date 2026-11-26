@@ -10,10 +10,13 @@ export async function PATCH(request) {
   const { collective_id } = await request.json();
   const admin = createAdminClient();
 
+  const { data: profile } = await admin.from('profiles').select('display_name').eq('id', user.id).single();
+  const userName = profile?.display_name || user.email;
+
   // null = switch to personal context
   if (collective_id === null || collective_id === undefined) {
     await admin.from('profiles').update({ active_collective_id: null }).eq('id', user.id);
-    logAudit({ userId: user.id, action: 'Workspace switched to personal', targetType: 'workspace' });
+    logAudit({ userId: user.id, userName, action: 'Workspace switched to personal', targetType: 'workspace', details: { workspace_id: null } });
     return Response.json({ success: true, context: 'personal' });
   }
 
@@ -27,7 +30,7 @@ export async function PATCH(request) {
     .single();
 
   if (!membership) {
-    logAudit({ userId: user.id, action: 'Workspace switch denied', targetType: 'workspace', targetId: collective_id, details: { error: 'Not a member', collective_id } });
+    logAudit({ userId: user.id, userName, action: 'Workspace switch denied', targetType: 'workspace', targetId: collective_id, details: { error: 'Not a member', collective_id, workspace_id: null } });
     return Response.json({ error: 'Not a member of this collective' }, { status: 403 });
   }
 
@@ -37,6 +40,6 @@ export async function PATCH(request) {
     .eq('id', user.id);
 
   if (error) return Response.json({ error: error.message }, { status: 500 });
-  logAudit({ userId: user.id, action: 'Workspace switched to collective', targetType: 'workspace', targetId: collective_id });
+  logAudit({ userId: user.id, userName, action: 'Workspace switched to collective', targetType: 'workspace', targetId: collective_id, details: { workspace_id: collective_id } });
   return Response.json({ success: true, context: 'collective', collective_id });
 }
