@@ -1960,7 +1960,7 @@ function OfferDetailDesktopInner() {
         ownerId={id}
         mode={docMediaMode || 'media'}
         items={quoteDocMedia}
-        canAdd={!isReadOnly}
+        canAdd={!isReadOnly && !isCollectiveFrozen}
         onUploaded={items => setQuoteDocMedia(prev => [...prev, ...items])}
         onDeleted={itemId => setQuoteDocMedia(prev => prev.filter(m => m.id !== itemId))}
       />
@@ -1993,7 +1993,7 @@ function OfferDetailDesktopInner() {
           ownerId={sectionMediaCtx?.sectionId}
           mode={sectionMediaCtx?.mode || 'media'}
           items={sectionMediaItemsMap[sectionMediaCtx?.sectionId] || []}
-          canAdd={!isReadOnly}
+          canAdd={!isReadOnly && !isCollectiveFrozen}
           onUploaded={items => setSectionMediaItemsMap(prev => {
             const sid = sectionMediaCtx?.sectionId;
             return { ...prev, [sid]: [...(prev[sid] || []), ...items] };
