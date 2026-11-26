@@ -20,6 +20,7 @@ import { useUploadQueue } from '@/hooks/useUploadQueue';
 import ReadOnlyBanner from '@/components/ReadOnlyBanner';
 import { WorkspaceFrozenBanner } from '@/components/desktop/WorkspaceStatusBanners';
 import UpgradeModal from '@/components/UpgradeModal';
+import { isEffectivePremium } from '@/lib/subscriptionLimits';
 import { useReadOnlyUpgrade } from '@/hooks/useReadOnlyUpgrade';
 import { ReadOnlyUpgradeProvider, useReadOnlyUpgradeContext } from '@/context/ReadOnlyUpgradeContext';
 import {
@@ -1325,7 +1326,7 @@ function SurveyDetailDesktopInner() {
                   onAddItem={eid => setAddItemEntryId(eid)}
                   onEditItem={item => setEditingItem(item)}
                   onRename={() => setEditingEntry({ id: entry.id, name: entry.name })}
-                  onApplyTemplate={() => { setModalEntry(entry); setShowApplyTemplate(true); }}
+                  onApplyTemplate={() => { if (!isEffectivePremium(currentUser || {})) { openUpgrade(); return; } setModalEntry(entry); setShowApplyTemplate(true); }}
                   onMeasurements={() => { setModalEntry(entry); setMeasOpen(true); }}
                   onNotes={() => { setModalEntry(entry); setNotesOpen(true); }}
                   onMedia={() => { setModalEntry(entry); setMediaOpen(true); }}

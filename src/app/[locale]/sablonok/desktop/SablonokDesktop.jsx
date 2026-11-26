@@ -7,6 +7,7 @@ import { isEffectivePremium } from '@/lib/subscriptionLimits';
 import { podColor } from '@/lib/podColor';
 import { UNIT_I18N } from '@/lib/constants';
 import Modal, { ConfirmModal } from '@/components/Modal';
+import UpgradeModal from '@/components/UpgradeModal';
 import { Plus, Search, X, Star, Copy } from 'lucide-react';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -203,7 +204,7 @@ function TemplateDetailModal({ template, onClose, onDuplicate, isPremium, t }) {
       </div>
 
       {/* Duplicate */}
-      {onDuplicate && isPremium && (
+      {onDuplicate && (
         <div style={{ marginTop: 20, paddingTop: 16, borderTop: '1px solid #F1F5F9' }}>
           <button
             type="button"
@@ -512,6 +513,7 @@ export default function SablonokDesktop() {
   const [refreshKey, setRefreshKey] = useState(0);
   const [tab, setTab]             = useState('platform');
   const [selected, setSelected]   = useState(null);
+  const [upgradeOpen, setUpgradeOpen] = useState(false);
   const [query, setQuery]         = useState('');
   const [openTrade, setOpenTrade] = useState(null);
   const [formOpen,     setFormOpen]     = useState(false);
@@ -781,7 +783,7 @@ export default function SablonokDesktop() {
         <TemplateDetailModal
           template={selected}
           onClose={() => setSelected(null)}
-          onDuplicate={isPremium ? handleDuplicate : null}
+          onDuplicate={isPremium ? handleDuplicate : () => setUpgradeOpen(true)}
           isPremium={isPremium}
           t={t}
         />
@@ -801,6 +803,7 @@ export default function SablonokDesktop() {
       )}
 
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      <UpgradeModal isOpen={upgradeOpen} onClose={() => setUpgradeOpen(false)} />
     </div>
   );
 }

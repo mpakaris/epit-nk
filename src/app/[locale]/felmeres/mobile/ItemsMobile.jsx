@@ -8,6 +8,7 @@ import { ReadOnlyUpgradeMobileProvider } from '@/context/ReadOnlyUpgradeContext'
 import { useReadOnlyUpgrade } from '@/hooks/useReadOnlyUpgrade';
 import AudioRecorder from '@/components/AudioRecorder';
 import { UNIT_I18N } from '@/lib/constants';
+import { isEffectivePremium } from '@/lib/subscriptionLimits';
 import PageSpinner from '@/components/PageSpinner';
 
 const SURVEY_BG   = '#0A7F72';
@@ -569,7 +570,7 @@ function ItemsMobileInner() {
     fetchSurveyMedia,
     createSurveyItem, updateSurveyItem, deleteSurveyItem,
     generateSurveyEntryItems, updateSurveyEntry,
-    isDemoMode,
+    isDemoMode, currentUser,
   } = useApp();
 
   const p = (path) => isDemoMode ? `/demo${path}` : path;
@@ -641,7 +642,7 @@ function ItemsMobileInner() {
   const openAdd    = () => { if (isReadOnly) { openUpgrade(); return; } setAddSheet({ mode: 'add' });  setAnySheet(true); };
   const openEdit   = (item) => { if (isReadOnly) { openUpgrade(); return; } setAddSheet({ mode: 'edit', item }); setAnySheet(true); };
   const openContextMenu = () => { setContextMenu(true); setAnySheet(true); };
-  const openTemplatePicker = () => { if (isReadOnly) { openUpgrade(); return; } setContextMenu(false); setTemplatePicker(true); setAnySheet(true); };
+  const openTemplatePicker = () => { if (isReadOnly) { openUpgrade(); return; } if (!isEffectivePremium(currentUser || {})) { openUpgrade(); return; } setContextMenu(false); setTemplatePicker(true); setAnySheet(true); };
 
   const handleApplyTemplateEntries = async (entries) => {
     if (isReadOnly) { openUpgrade(); return; }

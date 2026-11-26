@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl';
 import { useApp } from '@/context/AppContext';
 import { isEffectivePremium } from '@/lib/subscriptionLimits';
 import { UNIT_I18N } from '@/lib/constants';
+import UpgradeModal from '@/components/UpgradeModal';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -152,7 +153,7 @@ function TemplateDetailSheet({ template, onClose, onDuplicate, isPremium, t }) {
         </div>
 
         {/* Duplicate footer */}
-        {onDuplicate && isPremium && (
+        {onDuplicate && (
           <div style={{ padding: '8px 20px 12px', flexShrink: 0, borderTop: '1px solid #F1F5F9' }}>
             <button
               type="button"
@@ -572,6 +573,7 @@ export default function SablonokMobile() {
   const [loading, setLoading]     = useState(true);
   const [tab, setTab]             = useState('platform');
   const [selected, setSelected]   = useState(null);
+  const [upgradeOpen, setUpgradeOpen] = useState(false);
   const [query, setQuery]         = useState('');
   const [openTrade, setOpenTrade] = useState(null);
   const [compactBar, setCompactBar] = useState(false);
@@ -903,7 +905,7 @@ export default function SablonokMobile() {
         <TemplateDetailSheet
           template={selected}
           onClose={() => setSelected(null)}
-          onDuplicate={isPremium ? handleDuplicate : null}
+          onDuplicate={isPremium ? handleDuplicate : () => setUpgradeOpen(true)}
           isPremium={isPremium}
           t={t}
         />
@@ -926,6 +928,7 @@ export default function SablonokMobile() {
         @keyframes spin { to { transform: rotate(360deg); } }
         input[type=search]::-webkit-search-cancel-button { display: none; }
       `}</style>
+      <UpgradeModal isOpen={upgradeOpen} onClose={() => setUpgradeOpen(false)} />
     </div>
   );
 }
